@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Menu, X, Lock } from 'lucide-react'
+import { Menu, X, Lock, Heart } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useAuth } from '@/contexts/AuthContext'
 import FloatingLanguageSwitcher from '@/components/FloatingLanguageSwitcher'
@@ -77,6 +77,14 @@ export function LandingNav() {
               )
             )}
 
+            <a
+              href="#"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-pink-400 hover:text-pink-300 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 rounded"
+            >
+              <Heart className="h-3.5 w-3.5" />
+              {t('donate.title')}
+            </a>
+
             <Link
               href={ctaLink.href}
               className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gf-accent hover:bg-gf-accent-hover transition-[background-color,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_30px_-4px_var(--gf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
@@ -141,6 +149,15 @@ export function LandingNav() {
                   </Link>
                 )
               )}
+
+              <a
+                href="#"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500"
+                onClick={() => setMobileOpen(false)}
+              >
+                <Heart className="h-3.5 w-3.5" />
+                {t('donate.title')}
+              </a>
 
               <Link
                 href={ctaLink.href}

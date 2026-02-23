@@ -286,7 +286,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
                 placeholder={t('groupNamePlaceholder')}
                 value={groupName}
                 onChange={(e) => handleNameChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-gf-accent dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
@@ -301,7 +301,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
                     placeholder={t('slugPlaceholder', { defaultValue: 'e.g., subscription-plans' })}
                     value={groupSlug}
                     onChange={(e) => handleSlugChange(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-gf-accent dark:bg-gray-700 dark:text-white font-mono text-sm"
                   />
                 </div>
                 {slugManuallyEdited && groupName && (
@@ -332,13 +332,13 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
                   placeholder={t('searchProducts')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-gf-accent dark:bg-gray-700 dark:text-white"
                 />
               </div>
 
               {loadingProducts ? (
                 <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gf-accent"></div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -472,7 +472,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
                           placeholder={t('variantNamePlaceholder')}
                           value={product.variant_name}
                           onChange={(e) => updateVariantName(product.product_id, e.target.value)}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500 focus:border-gf-accent dark:bg-gray-700 dark:text-white"
                         />
                       </div>
                     </div>

@@ -119,7 +119,7 @@ export default function MyProductsPage() {
       } : null}>
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center min-h-96">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gf-accent mx-auto mb-4"></div>
             <p className="text-gray-300">{t('loadingProducts')}</p>
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function MyProductsPage() {
           </h3>
           <div className="flex items-center mt-1">
             {product.price > 0 ? (
-               <div className="flex items-center px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-full">
+               <div className="flex items-center px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-gf-accent/30 rounded-full">
                 <svg className="w-3 h-3 text-purple-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                 </svg>

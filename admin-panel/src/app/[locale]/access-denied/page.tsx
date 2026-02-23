@@ -11,40 +11,40 @@ export default function AccessDenied() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full mx-auto p-8 bg-white rounded-lg shadow-lg text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gf-deep">
+      <div className="max-w-md w-full mx-auto p-8 bg-gf-raised/80 border border-gf-border rounded-xl shadow-2xl text-center">
         <div className="flex justify-center mb-6">
-          <Shield className="h-16 w-16 text-red-500" />
+          <Shield className="h-16 w-16 text-gf-danger" />
         </div>
-        
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+
+        <h1 className="text-2xl font-bold text-gf-heading mb-4">
           Access Denied
         </h1>
-        
-        <p className="text-gray-600 mb-6">
+
+        <p className="text-gf-body mb-6">
           You don&apos;t have administrator privileges to access this panel.
         </p>
-        
+
         {user && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
-              Logged in as: <span className="font-semibold">{user.email}</span>
+          <div className="mb-6 p-4 bg-gf-float rounded-lg border border-gf-border">
+            <p className="text-sm text-gf-body">
+              Logged in as: <span className="font-semibold text-gf-heading">{user.email}</span>
             </p>
           </div>
         )}
-        
+
         <div className="space-y-3">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            className="w-full flex items-center justify-center px-4 py-2 bg-gf-danger text-white rounded-xl hover:opacity-90 transition-opacity duration-200"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
           </button>
-          
+
           <button
             onClick={() => window.location.href = '/'}
-            className="w-full flex items-center justify-center px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+            className="w-full flex items-center justify-center px-4 py-2 bg-gf-raised border border-gf-border text-gf-heading rounded-xl hover:border-gf-border-accent transition-[border-color] duration-200"
           >
             <Home className="h-4 w-4 mr-2" />
             Go to Homepage

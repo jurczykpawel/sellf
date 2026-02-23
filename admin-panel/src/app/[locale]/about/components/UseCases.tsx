@@ -1,7 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { GraduationCap, Package, Gift } from 'lucide-react';
-import { ScrollReveal } from './motion/ScrollReveal';
-import { StaggerReveal } from './motion/StaggerReveal';
+import { Reveal } from './motion/Reveal';
 
 import type { LucideIcon } from 'lucide-react';
 
@@ -21,45 +20,56 @@ export async function UseCases() {
 
   return (
     <section className="py-24 md:py-32 bg-gf-base">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ScrollReveal className="text-center mb-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Reveal className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gf-heading mb-4">
             {t('useCases.title')}
           </h2>
           <p className="text-xl text-gf-body max-w-3xl mx-auto">
             {t('useCases.subtitle')}
           </p>
-        </ScrollReveal>
+        </Reveal>
 
-        <StaggerReveal className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {useCases.map((useCase) => {
+        {/* Zigzag alternating layout */}
+        <div className="space-y-16 md:space-y-20">
+          {useCases.map((useCase, i) => {
             const Icon = useCase.icon;
+            const isReversed = i % 2 !== 0;
+
             return (
-              <div
+              <Reveal
                 key={useCase.key}
-                className="p-8 rounded-2xl bg-gf-raised/60 backdrop-blur-sm border border-gf-border shadow-[var(--gf-shadow)] hover:shadow-[var(--gf-shadow-accent)] hover:border-gf-border-accent transition-[border-color,box-shadow] duration-300"
+                animation={isReversed ? 'fade-right' : 'fade-left'}
+                delay={100}
               >
-                <div className="w-14 h-14 bg-gf-accent-soft rounded-2xl flex items-center justify-center mb-6">
-                  <Icon className="w-7 h-7 text-gf-accent" />
+                <div className={`flex flex-col md:flex-row ${isReversed ? 'md:flex-row-reverse' : ''} items-center gap-8 md:gap-12`}>
+                  <div className={`flex-shrink-0 ${isReversed ? 'md:text-right' : ''}`}>
+                    <div className={`w-16 h-16 bg-gf-accent-soft rounded-2xl flex items-center justify-center mb-4 ${isReversed ? 'md:ml-auto' : ''}`}>
+                      <Icon className="w-8 h-8 text-gf-accent" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gf-heading">
+                      {t(`useCases.${useCase.key}.title`)}
+                    </h3>
+                  </div>
+
+                  <div className="flex-1">
+                    <p className="text-gf-body mb-5 leading-relaxed text-lg">
+                      {t(`useCases.${useCase.key}.desc`)}
+                    </p>
+                    <ul className="space-y-2">
+                      {(['feature1', 'feature2', 'feature3'] as const).map((feature) => (
+                        <li key={feature} className="flex items-center gap-2 text-sm text-gf-body">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gf-accent shrink-0" />
+                          {t(`useCases.${useCase.key}.${feature}`)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-gf-heading mb-3">
-                  {t(`useCases.${useCase.key}.title`)}
-                </h3>
-                <p className="text-gf-body mb-6 leading-relaxed">
-                  {t(`useCases.${useCase.key}.desc`)}
-                </p>
-                <ul className="space-y-2">
-                  {(['feature1', 'feature2', 'feature3'] as const).map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm text-gf-body">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gf-accent shrink-0" />
-                      {t(`useCases.${useCase.key}.${feature}`)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              </Reveal>
             );
           })}
-        </StaggerReveal>
+        </div>
       </div>
     </section>
   );

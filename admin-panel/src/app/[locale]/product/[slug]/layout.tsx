@@ -17,10 +17,10 @@ export default function ProductClientRedirect() {
 
   // Return a loading indicator without wrapping in additional HTML elements
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-900">
+    <div className="flex justify-center items-center min-h-screen bg-gf-deep">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-white">Redirecting to product page...</p>
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gf-accent mb-4"></div>
+        <p className="text-gf-heading">Redirecting to product page...</p>
       </div>
     </div>
   );

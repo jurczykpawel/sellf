@@ -1,12 +1,12 @@
 import { getTranslations } from 'next-intl/server';
-import { ArrowRight, Github, Clock, Code, Scale } from 'lucide-react';
-import { ScrollReveal } from './motion/ScrollReveal';
+import { ArrowRight, Github, Clock, Code, Scale, Heart } from 'lucide-react';
+import { Reveal } from './motion/Reveal';
 
 export async function FinalCTA() {
   const t = await getTranslations('landing');
 
   return (
-    <section className="relative py-24 md:py-32 overflow-hidden">
+    <section className="relative py-28 md:py-36 overflow-hidden">
       <div
         className="absolute inset-0"
         style={{
@@ -18,7 +18,7 @@ export async function FinalCTA() {
         }}
       />
 
-      <ScrollReveal className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+      <Reveal className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center" animation="scale">
         <h2 className="text-4xl md:text-5xl font-bold text-gf-heading mb-6">
           {t('finalCta.title')}
         </h2>
@@ -39,10 +39,18 @@ export async function FinalCTA() {
             href="https://github.com/jurczykpawel/gateflow"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center px-8 py-4 rounded-xl text-lg font-bold text-gf-heading border-2 border-gf-border hover:border-gf-border-accent bg-gf-raised/60 backdrop-blur-sm transition-[border-color,background-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent gap-3"
+            className="inline-flex items-center px-8 py-4 rounded-xl text-lg font-bold text-gf-heading border-2 border-gf-border hover:border-gf-border-accent bg-gf-raised/80 transition-[border-color,background-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent gap-3"
           >
             <Github className="h-5 w-5" />
             {t('finalCta.ctaGithub')}
+          </a>
+
+          <a
+            href="#"
+            className="inline-flex items-center px-8 py-4 rounded-xl text-lg font-bold text-gf-heading border-2 border-pink-500/30 hover:border-pink-500/60 bg-pink-500/10 hover:bg-pink-500/15 transition-[border-color,background-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 gap-3"
+          >
+            <Heart className="h-5 w-5 text-pink-400" />
+            {t('donate.title')}
           </a>
         </div>
 
@@ -60,7 +68,7 @@ export async function FinalCTA() {
             <span>{t('finalCta.trustMIT')}</span>
           </div>
         </div>
-      </ScrollReveal>
+      </Reveal>
     </section>
   );
 }

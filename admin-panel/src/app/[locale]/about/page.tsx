@@ -5,12 +5,10 @@ import { SocialProofBar } from './components/SocialProofBar';
 import { FeeComparisonSection } from './components/FeeComparisonSection';
 import { FeatureGrid } from './components/FeatureGrid';
 import { HowItWorks } from './components/HowItWorks';
-import { DemoSection } from './components/DemoSection';
 import { TaxSection } from './components/TaxSection';
 import { SelfHostedComparison } from './components/SelfHostedComparison';
 import { TechStackGrid } from './components/TechStackGrid';
 import { UseCases } from './components/UseCases';
-import { DonateSection } from './components/DonateSection';
 import { FAQSection } from './components/FAQSection';
 import { FinalCTA } from './components/FinalCTA';
 import { LandingFooter } from './components/LandingFooter';
@@ -39,14 +37,15 @@ export default function AboutPage() {
         <HeroSection />
         <SocialProofBar />
         <FeeComparisonSection />
+        <div className="section-divider" />
         <FeatureGrid />
         <HowItWorks />
-        <DemoSection />
+        <div className="section-divider" />
         <TaxSection />
         <SelfHostedComparison />
         <TechStackGrid />
+        <div className="section-divider" />
         <UseCases />
-        <DonateSection />
         <FAQSection />
         <FinalCTA />
       </main>

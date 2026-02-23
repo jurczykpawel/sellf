@@ -79,15 +79,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gf-deep flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl mb-4">
-            <svg className="w-8 h-8 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gf-accent/15 border border-gf-border-accent rounded-2xl mb-4">
+            <svg className="w-8 h-8 text-gf-accent animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </div>
-          <p className="text-white text-lg">Loading...</p>
-          <p className="text-white/60 text-sm mt-2">Loading configuration...</p>
+          <p className="text-gf-heading text-lg">Loading...</p>
+          <p className="text-gf-muted text-sm mt-2">Loading configuration...</p>
         </div>
       </div>
     )
@@ -95,19 +95,19 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gf-deep flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 backdrop-blur-sm rounded-2xl mb-4">
-            <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gf-danger/15 border border-gf-danger/30 rounded-2xl mb-4">
+            <svg className="w-8 h-8 text-gf-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h2 className="text-red-400 text-xl font-semibold mb-2">Configuration Error</h2>
-          <p className="text-red-300 text-sm mb-4">Unable to load application configuration. Please check your connection and try again.</p>
-          <p className="text-red-200/60 text-xs font-mono bg-red-500/10 p-3 rounded-lg">{error}</p>
-          <button 
+          <h2 className="text-gf-danger text-xl font-semibold mb-2">Configuration Error</h2>
+          <p className="text-gf-body text-sm mb-4">Unable to load application configuration. Please check your connection and try again.</p>
+          <p className="text-gf-muted text-xs font-mono bg-gf-danger-soft p-3 rounded-lg">{error}</p>
+          <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+            className="mt-4 px-4 py-2 bg-gf-danger/20 text-gf-danger rounded-lg hover:bg-gf-danger/30 transition-colors duration-200"
           >
             Retry
           </button>

@@ -195,7 +195,7 @@ export default function MyPurchasesPage() {
       <DashboardLayout user={user ? { email: user.email || '', id: user.id || '' } : null}>
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center min-h-96">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gf-accent mx-auto mb-4"></div>
             <p className="text-gray-300">{t('loading', { defaultValue: 'Loading purchases...' })}</p>
           </div>
         </div>

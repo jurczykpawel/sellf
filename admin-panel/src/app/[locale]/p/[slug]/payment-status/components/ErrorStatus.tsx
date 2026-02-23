@@ -13,17 +13,17 @@ export default function ErrorStatus({ product, errorMessage }: ErrorStatusProps)
 
   return (
     <>
-      <p className="text-gray-300 mb-6">{errorMessage}</p>
-      
+      <p className="text-gf-body mb-6">{errorMessage}</p>
+
       <div className="space-y-4">
         <button
           onClick={() => router.push(`/p/${product.slug}`)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+          className="bg-gf-accent hover:bg-gf-accent-hover text-white font-medium py-3 px-6 rounded-xl transition-[background-color] duration-200"
         >
           {t('tryAgain')}
         </button>
-        <p className="text-gray-400 text-sm">
-          {t('havingTrouble')} <span className="text-blue-400 cursor-pointer hover:underline">{t('contactSupport')}</span>
+        <p className="text-gf-muted text-sm">
+          {t('havingTrouble')} <span className="text-gf-accent cursor-pointer hover:underline">{t('contactSupport')}</span>
         </p>
       </div>
     </>

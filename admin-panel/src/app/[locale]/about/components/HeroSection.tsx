@@ -31,12 +31,9 @@ export function HeroSection() {
         }}
       />
 
-      {/* Floating orbs — parallax depth */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-16 left-[15%] w-[28rem] h-[28rem] rounded-full bg-gf-accent/[0.06] blur-[100px] animate-blob" />
-        <div className="absolute top-32 right-[10%] w-[24rem] h-[24rem] rounded-full bg-gf-accent/[0.04] blur-[120px] animate-blob animation-delay-2000" />
-        <div className="absolute -bottom-20 left-[40%] w-[32rem] h-[32rem] rounded-full bg-gf-accent/[0.05] blur-[100px] animate-blob animation-delay-4000" />
-      </div>
+      {/* Static soft glow — no animated blurs */}
+      <div className="absolute top-16 left-[15%] w-[28rem] h-[28rem] rounded-full bg-gf-accent/[0.06] blur-3xl" />
+      <div className="absolute top-32 right-[10%] w-[24rem] h-[24rem] rounded-full bg-gf-accent/[0.04] blur-3xl" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
         {/* Badge */}
@@ -55,18 +52,18 @@ export function HeroSection() {
           </span>
         </motion.div>
 
-        {/* Headline — Instrument Serif for premium feel */}
+        {/* Headline — bold sans-serif, Apple-style */}
         <h1 className="mb-8">
           <TextReveal
             text={t('hero.headlineTop')}
-            className="block text-5xl md:text-7xl lg:text-8xl tracking-[-0.03em] text-gf-heading"
-            wordClassName="font-[var(--font-instrument-serif)] italic"
+            className="block text-5xl md:text-7xl lg:text-8xl tracking-[-0.04em] text-gf-heading"
+            wordClassName="font-bold"
             delay={0.2}
           />
           <TextReveal
             text={t('hero.headlineBottom')}
-            className="block text-5xl md:text-7xl lg:text-8xl tracking-[-0.03em]"
-            wordClassName="font-[var(--font-instrument-serif)] italic text-gf-accent"
+            className="block text-5xl md:text-7xl lg:text-8xl tracking-[-0.04em]"
+            wordClassName="font-bold text-gf-accent"
             delay={0.5}
           />
         </h1>

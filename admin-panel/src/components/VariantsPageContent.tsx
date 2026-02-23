@@ -257,7 +257,7 @@ const VariantsPageContent: React.FC = () => {
         {loading ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12">
             <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gf-accent"></div>
             </div>
           </div>
         ) : error ? (

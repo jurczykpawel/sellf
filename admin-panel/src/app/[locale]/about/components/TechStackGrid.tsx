@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
-import { ScrollReveal } from './motion/ScrollReveal';
-import { StaggerReveal } from './motion/StaggerReveal';
+import { Reveal } from './motion/Reveal';
+import { RevealGroup } from './motion/RevealGroup';
 
 const techs = ['nextjs', 'supabase', 'stripe', 'tailwind', 'typescript', 'docker', 'postgresql', 'bunny'] as const;
 
@@ -8,34 +8,34 @@ export async function TechStackGrid() {
   const t = await getTranslations('landing');
 
   return (
-    <section className="py-24 md:py-32 bg-gf-deep">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ScrollReveal className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gf-heading mb-4">
+    <section className="py-20 md:py-24 bg-gf-deep">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Reveal className="text-center mb-12">
+          <h3 className="text-3xl md:text-4xl font-bold text-gf-heading mb-3">
             {t('techStack.title')}
-          </h2>
-          <p className="text-xl text-gf-body max-w-3xl mx-auto">
+          </h3>
+          <p className="text-lg text-gf-body max-w-2xl mx-auto">
             {t('techStack.subtitle')}
           </p>
-        </ScrollReveal>
+        </Reveal>
 
-        <StaggerReveal className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <RevealGroup className="flex flex-wrap justify-center gap-3" animation="scale" stagger={40}>
           {techs.map((tech) => (
             <div
               key={tech}
-              className="p-6 rounded-2xl bg-gf-raised/60 backdrop-blur-sm border border-gf-border text-center hover:border-gf-border-accent hover:shadow-[var(--gf-shadow-accent)] transition-[border-color,box-shadow] duration-300"
+              className="group relative inline-flex flex-col items-center px-5 py-3 rounded-full bg-gf-raised/80 border border-gf-border hover:border-gf-border-accent hover:shadow-[var(--gf-shadow-accent)] transition-[border-color,box-shadow] duration-300"
             >
-              <p className="text-base font-bold text-gf-heading mb-1">
+              <span className="text-sm font-bold text-gf-heading">
                 {t(`techStack.${tech}.name`)}
-              </p>
-              <p className="text-xs text-gf-muted">
+              </span>
+              <span className="text-[11px] text-gf-muted leading-tight">
                 {t(`techStack.${tech}.desc`)}
-              </p>
+              </span>
             </div>
           ))}
-        </StaggerReveal>
+        </RevealGroup>
 
-        <div className="text-center mt-12">
+        <div className="text-center mt-8">
           <a
             href="https://github.com/jurczykpawel/gateflow"
             target="_blank"

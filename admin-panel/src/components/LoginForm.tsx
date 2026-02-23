@@ -132,7 +132,7 @@ export default function LoginForm() {
   const renderLoginForm = () => (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">
+        <label htmlFor="email" className="block text-sm font-medium text-gf-heading mb-2">
           {t('auth.email')}
         </label>
         <input
@@ -141,7 +141,7 @@ export default function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+          className="w-full px-4 py-3 bg-gf-float border border-gf-border rounded-xl text-gf-heading placeholder-gf-muted focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent transition-all"
           placeholder={demoMode ? 'demo@gateflow.io' : 'admin@example.com'}
         />
       </div>
@@ -149,7 +149,7 @@ export default function LoginForm() {
       {/* Password field - demo mode only */}
       {demoMode && (
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-2">
+          <label htmlFor="password" className="block text-sm font-medium text-gf-heading mb-2">
             {t('auth.password')}
           </label>
           <input
@@ -158,7 +158,7 @@ export default function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-gf-float border border-gf-border rounded-xl text-gf-heading placeholder-gf-muted focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent transition-all"
             placeholder="demo123"
           />
         </div>
@@ -175,7 +175,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={isLoading || (!demoMode && captchaLoading)}
-        className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl shadow-lg hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-3 px-4 bg-gf-accent hover:bg-gf-accent-hover text-white font-semibold rounded-xl shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2 focus:ring-offset-gf-deep transition-[background-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading || (!demoMode && captchaLoading) ? (
           <div className="flex items-center justify-center">
@@ -279,7 +279,7 @@ export default function LoginForm() {
           {message}
         </div>
         
-        <div className="text-gray-300 text-sm space-y-3">
+        <div className="text-gf-body text-sm space-y-3">
           <p>{t('productView.checkEmailAtForMagicLink', { email })}</p>
           <p>{t('auth.clickLinkToSignIn')}</p>
         </div>
@@ -306,7 +306,7 @@ export default function LoginForm() {
               setTermsAccepted(false)
               setCaptchaToken(null)
             }}
-            className="w-full py-2 px-4 bg-white/5 text-gray-300 font-medium rounded-xl border border-white/20 hover:bg-white/10 transition-all duration-200"
+            className="w-full py-2 px-4 bg-gf-float text-gf-body font-medium rounded-xl border border-gf-border hover:border-gf-border-accent transition-[border-color] duration-200"
           >
             {t('auth.backToLogin')}
           </button>
@@ -316,7 +316,7 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20">
+    <div className="bg-gf-raised/80 rounded-2xl p-8 shadow-xl border border-gf-border">
       {!sentEmail ? renderLoginForm() : renderSuccessMessage()}
     </div>
   )

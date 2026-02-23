@@ -89,7 +89,7 @@ export default function VariantSelectorPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gf-accent"></div>
       </div>
     );
   }
@@ -138,7 +138,7 @@ export default function VariantSelectorPage() {
                 relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl
                 transition-all duration-300 cursor-pointer border-2
                 ${variant.is_featured
-                  ? 'border-purple-500 ring-2 ring-purple-500/20'
+                  ? 'border-gf-accent ring-2 ring-purple-500/20'
                   : 'border-transparent hover:border-purple-300 dark:hover:border-purple-700'
                 }
               `}

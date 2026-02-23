@@ -65,9 +65,8 @@ export default function Storefront({
             ].join(', '),
           }}
         />
-        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.06] animate-blob" />
-        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.04] animate-blob animation-delay-2000" />
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.05] animate-blob animation-delay-4000" />
+        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.06]" />
+        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.04]" />
       </div>
 
       {/* Hero Section - Dynamic based on product mix */}

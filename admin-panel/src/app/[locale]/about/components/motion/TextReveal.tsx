@@ -26,8 +26,7 @@ export function TextReveal({
           <motion.span
             className={`inline-block ${wordClassName ?? ''}`}
             initial={{ y: '110%', rotateX: -80 }}
-            whileInView={{ y: '0%', rotateX: 0 }}
-            viewport={{ once: true }}
+            animate={{ y: '0%', rotateX: 0 }}
             transition={{
               type: 'spring',
               stiffness: 80,

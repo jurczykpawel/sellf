@@ -89,27 +89,139 @@
   --color-gf-warning-soft: var(--gf-warning-soft);
   --color-gf-danger: var(--gf-danger);
   --color-gf-danger-soft: var(--gf-danger-soft);
+
 }
 
-/* Grain noise overlay — apply to landing page container */
-.grain-overlay::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+/* Grain noise overlay — static background image, no compositing overhead */
+.grain-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
 }
 
+/* Section divider — gradient line for visual rhythm between sections */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gf-border-accent), transparent);
+}
+
+/* ===== Scroll Reveal System (CSS-only, single IntersectionObserver) ===== */
+
+/* Single-element reveals */
+.reveal {
+  --reveal-delay: 0ms;
+  will-change: transform, opacity;
+}
+
+.reveal-fade-up {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
+}
+.reveal-fade-up.in-view { opacity: 1; transform: translateY(0); }
+
+.reveal-fade-down {
+  opacity: 0;
+  transform: translateY(-28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
+}
+.reveal-fade-down.in-view { opacity: 1; transform: translateY(0); }
+
+.reveal-fade-left {
+  opacity: 0;
+  transform: translateX(-32px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
+}
+.reveal-fade-left.in-view { opacity: 1; transform: translateX(0); }
+
+.reveal-fade-right {
+  opacity: 0;
+  transform: translateX(32px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
+}
+.reveal-fade-right.in-view { opacity: 1; transform: translateX(0); }
+
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
+}
+.reveal-scale.in-view { opacity: 1; transform: scale(1); }
+
+.reveal-clip-up {
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay);
+}
+.reveal-clip-up.in-view { clip-path: inset(0 0 0 0); }
+
+/* Group reveals — parent gets .in-view, children animate with stagger */
+.reveal-group-item {
+  --stagger-index: 0;
+  --stagger-delay: 80ms;
+  will-change: transform, opacity;
+}
+
+.reveal-group-fade-up .reveal-group-item {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay)),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay));
+}
+.reveal-group-fade-up.in-view .reveal-group-item { opacity: 1; transform: translateY(0); }
+
+.reveal-group-scale .reveal-group-item {
+  opacity: 0;
+  transform: scale(0.9);
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay)),
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay));
+}
+.reveal-group-scale.in-view .reveal-group-item { opacity: 1; transform: scale(1); }
+
+.reveal-group-fade-left .reveal-group-item {
+  opacity: 0;
+  transform: translateX(-24px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay)),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay));
+}
+.reveal-group-fade-left.in-view .reveal-group-item { opacity: 1; transform: translateX(0); }
+
+.reveal-group-fade-right .reveal-group-item {
+  opacity: 0;
+  transform: translateX(24px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay)),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--stagger-index) * var(--stagger-delay));
+}
+.reveal-group-fade-right.in-view .reveal-group-item { opacity: 1; transform: translateX(0); }
+
+/* Clean up will-change after animation completes */
+.reveal.in-view,
+.reveal-group.in-view .reveal-group-item {
+  will-change: auto;
+  transition-delay: 0ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .grain-overlay::after {
-    display: none;
-  }
-  .animate-blob {
-    animation: none !important;
+  .grain-overlay { background-image: none; }
+  .reveal, .reveal-group-item {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+    transition: none !important;
+    will-change: auto !important;
   }
 }
 
