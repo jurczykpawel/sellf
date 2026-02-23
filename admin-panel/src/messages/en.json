@@ -1862,7 +1862,7 @@
         "billingAuto": "Auto",
         "billingRequired": "Required",
         "expiresHours": "Session Expiry",
-        "expiresHoursDescription": "How many hours a checkout session remains valid (1\u2013168).",
+        "expiresHoursDescription": "How many hours a checkout session remains valid (1–168).",
         "expiresHoursSuffix": "hours",
         "collectTerms": "Terms of Service Consent",
         "collectTermsDescription": "Require customers to accept Terms of Service during checkout.",
@@ -2323,5 +2323,321 @@
     "checkoutTestCardDetails": "any future date, any CVC",
     "resetCountdown": "Data resets in {time}",
     "resetImminent": "Data resetting soon"
+  },
+  "landing": {
+    "nav": {
+      "home": "Home",
+      "products": "Products",
+      "github": "GitHub",
+      "dashboard": "Dashboard",
+      "myProducts": "My Products",
+      "getStarted": "Get Started"
+    },
+    "hero": {
+      "badge": "Open Source · Self-Hosted · Enterprise-Ready",
+      "headlineTop": "Your Products.",
+      "headlineBottom": "Your Rules.",
+      "subtitle": "Sell digital products on your own terms — without giving away revenue to platforms. <selfHosted>Self-hosted</selfHosted>, <secure>secure</secure>, and <yours>fully yours</yours>.",
+      "subtitleSelfHosted": "Self-hosted",
+      "subtitleSecure": "secure",
+      "subtitleYours": "fully yours",
+      "subtitleBottom": "No monthly fees. No middlemen. Complete control from day one.",
+      "ctaDeploy": "Deploy for Free",
+      "ctaDemo": "Try Live Demo",
+      "ctaGithub": "View on GitHub",
+      "trustNoFees": "No monthly fees",
+      "trustOwnData": "Own your data",
+      "trustDeployAnywhere": "Deploy anywhere",
+      "trustSecurity": "Enterprise security"
+    },
+    "socialProof": {
+      "openSource": "Open Source",
+      "monthlyFees": "Monthly Fees",
+      "products": "Products",
+      "license": "License"
+    },
+    "feeComparison": {
+      "title": "See how much you really keep",
+      "subtitle": "Drag the slider to compare platform fees at your revenue level",
+      "monthlyRevenue": "Monthly Revenue",
+      "platformFees": "Platform Fees",
+      "youKeep": "You Keep",
+      "youSave": "You save {amount}/month vs Gumroad",
+      "gateflowLabel": "GateFlow + Stripe",
+      "gateflowFeeNote": "~3.4% (Stripe only)",
+      "gumroadLabel": "Gumroad",
+      "gumroadFeeNote": "10% + 2.9% + $0.30",
+      "paddleLabel": "Paddle",
+      "paddleFeeNote": "5% + 3.5% + $0.30",
+      "lemonLabel": "LemonSqueezy",
+      "lemonFeeNote": "5% + 3.5% + $0.30",
+      "perMonth": "/month",
+      "annualSavings": "Annual savings vs Gumroad: {amount}"
+    },
+    "features": {
+      "title": "Everything you need to sell digital products",
+      "subtitle": "Built-in features that usually cost $100s/month in SaaS subscriptions",
+      "dashboard": {
+        "title": "Live Dashboard",
+        "desc": "See exactly what's working — revenue in 20+ currencies, sales goals, and trends at a glance."
+      },
+      "payments": {
+        "title": "Stripe Payments",
+        "desc": "Customers pay without leaving your page. 20+ currencies, guest checkout, keys encrypted with AES-256."
+      },
+      "orderBumps": {
+        "title": "Order Bumps",
+        "desc": "Earn 30-50% more per order with one-click add-ons."
+      },
+      "coupons": {
+        "title": "Smart Coupons",
+        "desc": "Targeted promos that apply automatically. Set limits, stay profitable."
+      },
+      "webhooks": {
+        "title": "Webhooks & Automation",
+        "desc": "Connect to Zapier, Make, or your own endpoints — with secure delivery and auto-retries."
+      },
+      "leads": {
+        "title": "Lead Collection",
+        "desc": "Grow your email list for free. Magic-link access, no passwords. Then sell premium to your audience."
+      },
+      "delivery": {
+        "title": "Content Delivery",
+        "desc": "Deliver your way — host files directly or redirect buyers to your platform."
+      },
+      "omnibus": {
+        "title": "EU Omnibus",
+        "desc": "Stay EU-compliant. Automatic price history per Directive 2019/2161."
+      },
+      "saleLimits": {
+        "title": "Sale Limits",
+        "desc": "Create real urgency with time or quantity limits and live counters."
+      },
+      "funnels": {
+        "title": "True OTO & Funnels",
+        "desc": "Turn one buyer into a repeat customer. Post-purchase offers, time-limited coupons, and full funnels — validated server-side."
+      },
+      "refunds": {
+        "title": "Refund System",
+        "desc": "Handle refunds without headaches. Per-product policies, customer form, one-click Stripe refunds."
+      },
+      "gus": {
+        "title": "GUS API (PL)",
+        "desc": "Enter NIP — GUS API auto-fills company data."
+      }
+    },
+    "howItWorks": {
+      "title": "Up and running in 3 steps",
+      "subtitle": "From zero to selling in under 10 minutes",
+      "step1": {
+        "title": "Deploy",
+        "desc": "Clone the repo and deploy to any VPS or cloud provider. Docker or PM2 — your choice."
+      },
+      "step2": {
+        "title": "Connect Stripe",
+        "desc": "Add your Stripe API keys. Payments go directly to your account — no middlemen."
+      },
+      "step3": {
+        "title": "Start Selling",
+        "desc": "Create products, set prices, share links. Your store is live."
+      }
+    },
+    "demo": {
+      "title": "See it in action",
+      "subtitle": "Explore the full admin panel, test checkout with Stripe test cards, and browse sample products — no setup required.",
+      "cta": "Try Live Demo"
+    },
+    "tax": {
+      "title": "Your Stripe account, your money",
+      "subtitle": "Merchant of Record platforms charge 5–10% and your customer data lives on their platform. With GateFlow, payments go directly to your Stripe account.",
+      "morTitle": "Merchant of Record",
+      "morSubtitle": "Paddle, LemonSqueezy, Gumroad",
+      "morPlatformFees": "Platform fees",
+      "morFeeAmount": "5–10%",
+      "morDataOwnership": "Customer data belongs to the platform",
+      "morPlatformRisk": "Platform risk — account freezes, shutdowns",
+      "gateflowTitle": "GateFlow + Own Stripe",
+      "gateflowSubtitle": "Direct payments to your account",
+      "gateflowPlatformFees": "Platform fees",
+      "gateflowFeeAmount": "$0",
+      "gateflowStripeFees": "Only Stripe fees",
+      "gateflowStripeAmount": "~2.9%",
+      "gateflowDataOwnership": "You own all customer data",
+      "gateflowTaxThresholds": "You use your own tax thresholds",
+      "gateflowSelfHosted": "Self-hosted — no platform risk",
+      "taxGrowthTitle": "Tax compliance grows with your business",
+      "taxStep1Title": "Starting out",
+      "taxStep1Desc": "Below €10,000 EU cross-border sales — handle VAT in your own country only",
+      "taxStep2Title": "Growing",
+      "taxStep2Desc": "Above €10,000 — register for EU OSS (one form) and add Stripe Tax (+0.5%) for automatic VAT calculation",
+      "taxStep3Title": "Scaling",
+      "taxStep3Desc": "Optional: Stripe Managed Payments (Stripe as MoR) or a tax accountant for full compliance",
+      "taxDisclaimer": "This is general information, not tax or legal advice. Tax obligations vary by country and business type. Consult a qualified tax professional for your specific situation."
+    },
+    "selfHosted": {
+      "title": "Deploy anywhere, your way",
+      "subtitle": "From $3/month VPS for hobbyists to production-ready infrastructure",
+      "quickStart": {
+        "title": "Quick Start",
+        "subtitle": "mikr.us (free SSL) or any VPS + Caddy",
+        "pm2": "PM2 process manager",
+        "ssl": "Auto SSL included",
+        "supabase": "Supabase Cloud",
+        "price": "~$3/mo",
+        "ram": "~300MB RAM footprint"
+      },
+      "production": {
+        "badge": "RECOMMENDED",
+        "title": "Production",
+        "subtitle": "Best price/performance ratio",
+        "pm2": "PM2 or Docker",
+        "db": "Managed database",
+        "deploy": "Zero-downtime deploys",
+        "price": "~$4-14/mo",
+        "specs": "2-core CPU, 8GB RAM, 100GB NVMe"
+      },
+      "demoPrompt": "Want to see it in action first?",
+      "demoPromptSubtitle": "Explore the full admin panel, test checkout with Stripe test cards, and browse sample products — no setup required.",
+      "demoCta": "Try Live Demo",
+      "guideCta": "View deployment guides"
+    },
+    "techStack": {
+      "title": "Built on technology you can trust",
+      "subtitle": "Reliable, proven tools for performance, security, and growth",
+      "nextjs": {
+        "name": "Next.js 16",
+        "desc": "React framework with Turbopack"
+      },
+      "typescript": {
+        "name": "TypeScript",
+        "desc": "Type-safe development"
+      },
+      "supabase": {
+        "name": "Supabase",
+        "desc": "PostgreSQL + Auth + Realtime"
+      },
+      "tailwind": {
+        "name": "Tailwind CSS",
+        "desc": "Utility-first styling"
+      },
+      "stripe": {
+        "name": "Stripe",
+        "desc": "Payment processing"
+      },
+      "docker": {
+        "name": "Docker",
+        "desc": "Containerization"
+      },
+      "postgresql": {
+        "name": "PostgreSQL",
+        "desc": "Reliable database"
+      },
+      "bunny": {
+        "name": "Bunny.net",
+        "desc": "CDN & Video hosting"
+      },
+      "viewStack": "View full tech stack on GitHub"
+    },
+    "useCases": {
+      "title": "Built for creators, developers, and entrepreneurs",
+      "subtitle": "Whatever you sell, GateFlow handles it",
+      "courses": {
+        "title": "Online Courses",
+        "desc": "Host video courses with temporal access control. Simple and effective content delivery.",
+        "feature1": "Video progress tracking (Coming Soon)",
+        "feature2": "Temporal access (30/90 days)",
+        "feature3": "Bunny.net CDN integration"
+      },
+      "digital": {
+        "title": "Digital Products",
+        "desc": "Sell ebooks, templates, software licenses, or files. Better than Gumroad with zero commission.",
+        "feature1": "Instant delivery",
+        "feature2": "Unlimited products",
+        "feature3": "Coupon system"
+      },
+      "leads": {
+        "title": "Lead Magnets & Funnels",
+        "desc": "Free ebook → collect email → sell premium course. Zero friction signup with magic links.",
+        "feature1": "Free products for lead collection",
+        "feature2": "No forms, no passwords needed",
+        "feature3": "All in one database"
+      }
+    },
+    "donate": {
+      "title": "Support Open Source",
+      "subtitle": "GateFlow is free and always will be. If it saves you money, consider supporting development.",
+      "cta": "Buy Us a Coffee",
+      "note": "Every contribution helps us ship new features faster."
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": [
+        {
+          "q": "Is GateFlow really free?",
+          "a": "Yes. The software is free forever (MIT license). You pay only for hosting ($3-14/mo) and Stripe processing (~2.9%). No platform fees, no subscriptions, no lock-in."
+        },
+        {
+          "q": "How is it different from Gumroad or Teachable?",
+          "a": "Gumroad takes 10% per sale. Teachable charges $39-665/mo. GateFlow is free — you self-host it, own the code and data. The only cost is Stripe's processing fee."
+        },
+        {
+          "q": "Do I need to be a developer?",
+          "a": "Not really. If you can follow step-by-step instructions and type a few SSH commands, you can deploy GateFlow. We provide Docker configs and detailed guides."
+        },
+        {
+          "q": "What about payment processing?",
+          "a": "GateFlow uses Stripe (free to set up). Standard fees: ~2.9% + 30¢ per transaction. MoR platforms charge 5-10% total — significantly more."
+        },
+        {
+          "q": "Can I white-label it?",
+          "a": "Yes. MIT license — change everything: branding, colors, domain, code. It's fully your platform."
+        },
+        {
+          "q": "Is it production-ready?",
+          "a": "Yes. Next.js + PostgreSQL + Supabase with RLS policies, HMAC webhooks, AES-256 key encryption, and input validation out of the box."
+        },
+        {
+          "q": "What if I need help?",
+          "a": "Check the docs and GitHub issues. Any Next.js developer can customize or extend it for you."
+        },
+        {
+          "q": "Can it handle high traffic?",
+          "a": "Yes. Next.js 16 + PostgreSQL scale horizontally. Deploy on anything from a $3 VPS to Kubernetes. Supabase handles connection pooling."
+        },
+        {
+          "q": "Do I need a Merchant of Record to sell digital products?",
+          "a": "Most small creators don't. MoR platforms handle taxes but take 5-10% and tie your customer data to their platform. Below €10,000 EU cross-border, you handle VAT only in your country. Own Stripe = full control at ~2.9%. Add Stripe Tax (+0.5%) when you grow."
+        },
+        {
+          "q": "How do I handle VAT/taxes with my own Stripe account?",
+          "a": "Below €10,000/year EU cross-border B2C — handle VAT in your country only. Above that — register EU OSS (one form, all countries). Stripe Tax automates calculation for 0.5%. Consult a tax professional for your case."
+        }
+      ]
+    },
+    "finalCta": {
+      "title": "Ready to Start?",
+      "subtitle": "Deploy GateFlow in 10 minutes. Start selling without monthly fees.",
+      "ctaDeploy": "Deploy for Free",
+      "ctaGithub": "View on GitHub",
+      "trust10min": "10-minute deployment",
+      "trustSourceCode": "Full source code",
+      "trustMIT": "MIT License"
+    },
+    "footer": {
+      "description": "Open source platform for digital product sales. Self-hosted, secure, and fully customizable.",
+      "product": "Product",
+      "features": "Features",
+      "documentation": "Documentation",
+      "products": "Products",
+      "resources": "Resources",
+      "github": "GitHub",
+      "deployGuide": "Deploy Guide",
+      "support": "Support",
+      "legal": "Legal",
+      "licenseMIT": "License (MIT)",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "copyright": "© {year} GateFlow. Open source and self-hosted"
+    }
   }
 }

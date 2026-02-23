@@ -1877,7 +1877,7 @@
         "billingAuto": "Auto",
         "billingRequired": "Wymagany",
         "expiresHours": "Ważność sesji",
-        "expiresHoursDescription": "Ile godzin sesja checkout pozostaje aktywna (1\u2013168).",
+        "expiresHoursDescription": "Ile godzin sesja checkout pozostaje aktywna (1–168).",
         "expiresHoursSuffix": "godz.",
         "collectTerms": "Zgoda na regulamin",
         "collectTermsDescription": "Wymagaj od klientów akceptacji regulaminu podczas checkout.",
@@ -2338,5 +2338,321 @@
     "checkoutTestCardDetails": "dowolna przyszła data, dowolne CVC",
     "resetCountdown": "Reset danych za {time}",
     "resetImminent": "Reset danych za chwilę"
+  },
+  "landing": {
+    "nav": {
+      "home": "Strona główna",
+      "products": "Produkty",
+      "github": "GitHub",
+      "dashboard": "Panel",
+      "myProducts": "Moje Produkty",
+      "getStarted": "Zaloguj"
+    },
+    "hero": {
+      "badge": "Open Source · Self-Hosted · Gotowe dla Firm",
+      "headlineTop": "Twoje Produkty.",
+      "headlineBottom": "Twoje Zasady.",
+      "subtitle": "Sprzedawaj produkty cyfrowe na własnych zasadach — bez oddawania przychodów platformom. <selfHosted>Self-hosted</selfHosted>, <secure>bezpieczna</secure> i <yours>w pełni Twoja</yours>.",
+      "subtitleSelfHosted": "Self-hosted",
+      "subtitleSecure": "bezpieczna",
+      "subtitleYours": "w pełni Twoja",
+      "subtitleBottom": "Bez opłat miesięcznych. Bez pośredników. Pełna kontrola od pierwszego dnia.",
+      "ctaDeploy": "Wdróż za 0 zł",
+      "ctaDemo": "Wypróbuj Demo",
+      "ctaGithub": "Zobacz na GitHub",
+      "trustNoFees": "Bez opłat miesięcznych",
+      "trustOwnData": "Własność danych",
+      "trustDeployAnywhere": "Wdrożenie wszędzie",
+      "trustSecurity": "Bezpieczeństwo korporacyjne"
+    },
+    "socialProof": {
+      "openSource": "Open Source",
+      "monthlyFees": "Opłaty Miesięczne",
+      "products": "Produkty",
+      "license": "Licencja"
+    },
+    "feeComparison": {
+      "title": "Zobacz ile naprawdę zostajesz",
+      "subtitle": "Przesuń suwak, aby porównać opłaty platform przy Twoim poziomie przychodów",
+      "monthlyRevenue": "Miesięczny przychód",
+      "platformFees": "Opłaty platformy",
+      "youKeep": "Zostajesz z",
+      "youSave": "Oszczędzasz {amount}/mies vs Gumroad",
+      "gateflowLabel": "GateFlow + Stripe",
+      "gateflowFeeNote": "~3,4% (tylko Stripe)",
+      "gumroadLabel": "Gumroad",
+      "gumroadFeeNote": "10% + 2,9% + $0,30",
+      "paddleLabel": "Paddle",
+      "paddleFeeNote": "5% + 3,5% + $0,30",
+      "lemonLabel": "LemonSqueezy",
+      "lemonFeeNote": "5% + 3,5% + $0,30",
+      "perMonth": "/mies",
+      "annualSavings": "Roczne oszczędności vs Gumroad: {amount}"
+    },
+    "features": {
+      "title": "Wszystko, czego potrzebujesz do sprzedaży produktów cyfrowych",
+      "subtitle": "Wbudowane funkcje, które zwykle kosztują setki złotych miesięcznie w abonamentach SaaS",
+      "dashboard": {
+        "title": "Dashboard na żywo",
+        "desc": "Wiesz dokładnie, co działa — przychody w 20+ walutach, cele sprzedażowe i trendy jednym rzutem oka."
+      },
+      "payments": {
+        "title": "Płatności Stripe",
+        "desc": "Klienci płacą bez opuszczania strony. 20+ walut, zakupy bez konta, klucze zaszyfrowane AES-256."
+      },
+      "orderBumps": {
+        "title": "Order Bumps",
+        "desc": "Zarabiaj 30-50% więcej na zamówieniu dzięki dodatkom jednym kliknięciem."
+      },
+      "coupons": {
+        "title": "Smart Kupony",
+        "desc": "Celowane promocje, które naliczają się automatycznie. Ustaw limity, zachowaj rentowność."
+      },
+      "webhooks": {
+        "title": "Webhooks & Automatyzacja",
+        "desc": "Połącz z Zapier, Make lub własnymi endpointami — bezpieczne dostarczanie i auto-retry."
+      },
+      "leads": {
+        "title": "Zbieranie Leadów",
+        "desc": "Buduj listę mailingową za darmo. Dostęp przez magic link, bez haseł. Potem sprzedawaj premium swojej liście."
+      },
+      "delivery": {
+        "title": "Dostarczanie Treści",
+        "desc": "Dostarczaj po swojemu — hostuj pliki bezpośrednio lub przekieruj kupujących na swoją platformę."
+      },
+      "omnibus": {
+        "title": "Omnibus UE",
+        "desc": "Zgodność z prawem UE. Automatyczna historia cen wg Dyrektywy 2019/2161."
+      },
+      "saleLimits": {
+        "title": "Limity Sprzedaży",
+        "desc": "Buduj poczucie pilności limitami czasowymi i ilościowymi z odliczaniem na żywo."
+      },
+      "funnels": {
+        "title": "Prawdziwe OTO & Lejki",
+        "desc": "Zamień jednego kupującego w stałego klienta. Oferty po zakupie, kupony czasowe i pełne lejki — walidacja server-side."
+      },
+      "refunds": {
+        "title": "System Zwrotów",
+        "desc": "Obsługa zwrotów bez bólu głowy. Polityki per-produkt, formularz klienta, zwroty Stripe jednym klikiem."
+      },
+      "gus": {
+        "title": "GUS API (PL)",
+        "desc": "Wpisz NIP — GUS API uzupełni dane firmowe automatycznie."
+      }
+    },
+    "howItWorks": {
+      "title": "Gotowy w 3 krokach",
+      "subtitle": "Od zera do sprzedaży w mniej niż 10 minut",
+      "step1": {
+        "title": "Wdróż",
+        "desc": "Sklonuj repo i wdróż na dowolny VPS lub chmurę. Docker lub PM2 — Twój wybór."
+      },
+      "step2": {
+        "title": "Połącz Stripe",
+        "desc": "Dodaj klucze API Stripe. Płatności trafiają bezpośrednio na Twoje konto — bez pośredników."
+      },
+      "step3": {
+        "title": "Zacznij Sprzedawać",
+        "desc": "Stwórz produkty, ustaw ceny, udostępnij linki. Twój sklep jest online."
+      }
+    },
+    "demo": {
+      "title": "Zobacz w akcji",
+      "subtitle": "Przejrzyj panel admina, przetestuj checkout kartami testowymi Stripe i zobacz przykładowe produkty — bez instalacji.",
+      "cta": "Wypróbuj Demo"
+    },
+    "tax": {
+      "title": "Twoje konto Stripe, Twoje pieniądze",
+      "subtitle": "Platformy Merchant of Record pobierają 5–10%, a dane Twoich klientów są na ich platformie. Z GateFlow płatności trafiają bezpośrednio na Twoje konto Stripe.",
+      "morTitle": "Merchant of Record",
+      "morSubtitle": "Paddle, LemonSqueezy, Gumroad",
+      "morPlatformFees": "Opłaty platformy",
+      "morFeeAmount": "5–10%",
+      "morDataOwnership": "Dane klientów należą do platformy",
+      "morPlatformRisk": "Ryzyko platformy — blokady kont, zamknięcia",
+      "gateflowTitle": "GateFlow + Własny Stripe",
+      "gateflowSubtitle": "Płatności bezpośrednio na Twoje konto",
+      "gateflowPlatformFees": "Opłaty platformy",
+      "gateflowFeeAmount": "0 zł",
+      "gateflowStripeFees": "Tylko opłaty Stripe",
+      "gateflowStripeAmount": "~2,9%",
+      "gateflowDataOwnership": "Dane klientów należą do Ciebie",
+      "gateflowTaxThresholds": "Korzystasz z własnych progów podatkowych",
+      "gateflowSelfHosted": "Self-hosted — brak ryzyka platformy",
+      "taxGrowthTitle": "Obowiązki podatkowe rosną razem z Twoim biznesem",
+      "taxStep1Title": "Na start",
+      "taxStep1Desc": "Poniżej €10 000 sprzedaży transgranicznej w UE — rozliczasz VAT tylko w swoim kraju",
+      "taxStep2Title": "Wzrost",
+      "taxStep2Desc": "Powyżej €10 000 — rejestracja w EU OSS (jeden formularz) i włączenie Stripe Tax (+0,5%) do automatycznej kalkulacji VAT",
+      "taxStep3Title": "Skalowanie",
+      "taxStep3Desc": "Opcjonalnie: Stripe Managed Payments (Stripe jako MoR) lub biuro rachunkowe do pełnej obsługi",
+      "taxDisclaimer": "Powyższe informacje mają charakter ogólny i nie stanowią porady podatkowej ani prawnej. Obowiązki podatkowe zależą od kraju, formy działalności i przychodów. Skonsultuj się z doradcą podatkowym."
+    },
+    "selfHosted": {
+      "title": "Wdróż gdzie chcesz, jak chcesz",
+      "subtitle": "Od 11 zł/mies VPS dla hobbystów do gotowej infrastruktury produkcyjnej",
+      "quickStart": {
+        "title": "Szybki Start",
+        "subtitle": "mikr.us (darmowy SSL) lub inny VPS + Caddy",
+        "pm2": "Menedżer procesów PM2",
+        "ssl": "Automatyczny SSL",
+        "supabase": "Supabase Cloud",
+        "price": "~11 zł/mies",
+        "ram": "~300MB zużycia RAM"
+      },
+      "production": {
+        "badge": "POLECANE",
+        "title": "Produkcja",
+        "subtitle": "Najlepszy stosunek ceny do wydajności",
+        "pm2": "PM2 lub Docker",
+        "db": "Zarządzana baza danych",
+        "deploy": "Wdrożenia bez przestojów",
+        "price": "~17-56 zł/mies",
+        "specs": "2-rdzeniowy CPU, 8GB RAM, 100GB NVMe"
+      },
+      "demoPrompt": "Chcesz najpierw zobaczyć w akcji?",
+      "demoPromptSubtitle": "Przejrzyj panel admina, przetestuj checkout kartami testowymi Stripe i zobacz przykładowe produkty — bez instalacji.",
+      "demoCta": "Wypróbuj Demo",
+      "guideCta": "Zobacz przewodniki wdrażania"
+    },
+    "techStack": {
+      "title": "Zbudowane na technologii, której możesz zaufać",
+      "subtitle": "Niezawodne, sprawdzone narzędzia do wydajności, bezpieczeństwa i wzrostu",
+      "nextjs": {
+        "name": "Next.js 16",
+        "desc": "Framework React z Turbopack"
+      },
+      "typescript": {
+        "name": "TypeScript",
+        "desc": "Bezpieczne typy"
+      },
+      "supabase": {
+        "name": "Supabase",
+        "desc": "PostgreSQL + Auth + Realtime"
+      },
+      "tailwind": {
+        "name": "Tailwind CSS",
+        "desc": "Stylowanie utility-first"
+      },
+      "stripe": {
+        "name": "Stripe",
+        "desc": "Przetwarzanie płatności"
+      },
+      "docker": {
+        "name": "Docker",
+        "desc": "Konteneryzacja"
+      },
+      "postgresql": {
+        "name": "PostgreSQL",
+        "desc": "Niezawodna baza danych"
+      },
+      "bunny": {
+        "name": "Bunny.net",
+        "desc": "CDN i hosting wideo"
+      },
+      "viewStack": "Zobacz pełny stack na GitHub"
+    },
+    "useCases": {
+      "title": "Stworzone dla twórców, programistów i przedsiębiorców",
+      "subtitle": "Cokolwiek sprzedajesz, GateFlow to obsługuje",
+      "courses": {
+        "title": "Kursy Online",
+        "desc": "Hostuj kursy wideo z kontrolą dostępu czasowego. Prosta i skuteczna dostawa treści.",
+        "feature1": "Śledzenie postępu wideo (Wkrótce)",
+        "feature2": "Czasowy dostęp (30/90 dni)",
+        "feature3": "Integracja Bunny.net CDN"
+      },
+      "digital": {
+        "title": "Produkty Cyfrowe",
+        "desc": "Sprzedawaj e-booki, szablony, licencje oprogramowania lub pliki. Lepsze niż Gumroad z zerową prowizją.",
+        "feature1": "Natychmiastowa dostawa",
+        "feature2": "Nieograniczona liczba produktów",
+        "feature3": "System kuponów"
+      },
+      "leads": {
+        "title": "Lead Magnety i Lejki",
+        "desc": "Darmowy ebook → zbierz email → sprzedaj kurs premium. Zero friction signup z magic linkami.",
+        "feature1": "Darmowe produkty do zbierania leadów",
+        "feature2": "Bez formularzy, bez haseł",
+        "feature3": "Wszystko w jednej bazie"
+      }
+    },
+    "donate": {
+      "title": "Wesprzyj Open Source",
+      "subtitle": "GateFlow jest darmowy i zawsze będzie. Jeśli oszczędza Ci pieniądze, rozważ wsparcie rozwoju.",
+      "cta": "Postaw nam kawę",
+      "note": "Każdy wkład pomaga nam szybciej dostarczać nowe funkcje."
+    },
+    "faq": {
+      "title": "Najczęściej Zadawane Pytania",
+      "items": [
+        {
+          "q": "Czy GateFlow naprawdę jest darmowy?",
+          "a": "Tak. Oprogramowanie jest darmowe na zawsze (licencja MIT). Płacisz tylko za hosting (11-56 zł/mies) i opłaty Stripe (od 1,5% + 1 zł). Bez opłat platformy, bez abonamentów, bez lock-in."
+        },
+        {
+          "q": "Czym różni się od Gumroad czy Teachable?",
+          "a": "Gumroad pobiera 10% od sprzedaży. Teachable kosztuje $39-665/mies. GateFlow jest darmowy — hostujesz sam, jesteś właścicielem kodu i danych. Jedyne opłaty to prowizja Stripe za przetwarzanie płatności."
+        },
+        {
+          "q": "Czy muszę być programistą?",
+          "a": "Nie do końca. Jeśli potrafisz postępować wg instrukcji krok po kroku i wpisać kilka komend SSH, dasz radę wdrożyć GateFlow. Dajemy konfiguracje Docker i szczegółowe przewodniki."
+        },
+        {
+          "q": "Co z przetwarzaniem płatności?",
+          "a": "GateFlow używa Stripe (darmowe konto). Opłaty w Polsce: od 1,5% + 1 zł za karty europejskie. Platformy MoR pobierają 5-10% łącznie — znacznie więcej."
+        },
+        {
+          "q": "Czy mogę usunąć branding?",
+          "a": "Tak. Licencja MIT — zmień wszystko: branding, kolory, domenę, kod. To w pełni Twoja platforma."
+        },
+        {
+          "q": "Czy jest gotowy do produkcji?",
+          "a": "Tak. Next.js + PostgreSQL + Supabase z politykami RLS, webhookami HMAC, szyfrowaniem kluczy AES-256 i walidacją danych wejściowych od startu."
+        },
+        {
+          "q": "Co jeśli potrzebuję pomocy?",
+          "a": "Sprawdź dokumentację i problemy na GitHub. Każdy programista Next.js może go dostosować lub rozbudować dla Ciebie."
+        },
+        {
+          "q": "Czy poradzi sobie z dużym ruchem?",
+          "a": "Tak. Next.js 16 + PostgreSQL skalują się horyzontalnie. Wdróż na czymkolwiek — od VPS za 11 zł po Kubernetes. Supabase obsługuje pooling połączeń."
+        },
+        {
+          "q": "Czy potrzebuję Merchant of Record do sprzedaży produktów cyfrowych?",
+          "a": "Większość małych twórców nie. Platformy MoR obsługują podatki, ale pobierają 5-10% i przywiązują dane klientów do swojej platformy. Poniżej €10 000 sprzedaży transgranicznej w UE rozliczasz VAT w swoim kraju. Własny Stripe = pełna kontrola przy od 1,5% + 1 zł. Dodaj Stripe Tax (+0,5%) gdy urośniesz."
+        },
+        {
+          "q": "Jak rozliczać VAT z własnym kontem Stripe?",
+          "a": "Poniżej €10 000/rok sprzedaży transgranicznej B2C w UE — VAT w swoim kraju. Powyżej — rejestracja EU OSS (jeden formularz, wszystkie kraje). Stripe Tax automatyzuje kalkulację za 0,5%. Skonsultuj się z doradcą podatkowym."
+        }
+      ]
+    },
+    "finalCta": {
+      "title": "Gotowy na start?",
+      "subtitle": "Wdróż GateFlow w 10 minut. Zacznij sprzedawać bez miesięcznych opłat.",
+      "ctaDeploy": "Wdróż za 0 zł",
+      "ctaGithub": "Zobacz na GitHub",
+      "trust10min": "Wdrożenie w 10 min",
+      "trustSourceCode": "Pełny kod źródłowy",
+      "trustMIT": "Licencja MIT"
+    },
+    "footer": {
+      "description": "Platforma open source do sprzedaży produktów cyfrowych. Self-hosted, bezpieczna i w pełni konfigurowalna.",
+      "product": "Produkt",
+      "features": "Funkcje",
+      "documentation": "Dokumentacja",
+      "products": "Produkty",
+      "resources": "Zasoby",
+      "github": "GitHub",
+      "deployGuide": "Przewodnik wdrażania",
+      "support": "Wsparcie",
+      "legal": "Prawne",
+      "licenseMIT": "Licencja (MIT)",
+      "privacy": "Prywatność",
+      "terms": "Warunki",
+      "copyright": "© {year} GateFlow. Open source i self-hosted"
+    }
   }
 }
