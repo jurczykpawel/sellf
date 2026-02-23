@@ -1,0 +1,47 @@
+{
+  "name": "Sunset",
+  "version": "1.0",
+  "author": "GateFlow",
+  "colors": {
+    "accent": "#FF6B35",
+    "accent-hover": "#FF8555",
+    "accent-soft": "rgba(255,107,53,0.08)",
+    "accent-med": "rgba(255,107,53,0.20)",
+    "accent-glow": "rgba(255,107,53,0.35)",
+    "bg-deep": "#0D0A06",
+    "bg-base": "#1A1408",
+    "bg-raised": "#2D220E",
+    "bg-float": "#3A2C14",
+    "text-heading": "#FAF0E6",
+    "text-body": "#B8A894",
+    "text-muted": "#8A7B6B",
+    "border": "rgba(255,255,255,0.06)",
+    "border-accent": "rgba(255,107,53,0.15)",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "colors-light": {
+    "accent": "#CC5500",
+    "accent-hover": "#AA4400",
+    "accent-soft": "rgba(204,85,0,0.06)",
+    "bg-deep": "#FFF8F0",
+    "bg-base": "#FFFFFF",
+    "bg-raised": "#FFF0E0",
+    "bg-float": "#FFFFFF",
+    "text-heading": "#1A0F05",
+    "text-body": "#5A4530",
+    "text-muted": "#8A7B6B"
+  },
+  "typography": {
+    "font-family": "inherit",
+    "font-heading-weight": "700",
+    "font-body-weight": "400"
+  },
+  "shapes": {
+    "radius-sm": "8px",
+    "radius-md": "14px",
+    "radius-lg": "20px",
+    "radius-full": "9999px"
+  }
+}

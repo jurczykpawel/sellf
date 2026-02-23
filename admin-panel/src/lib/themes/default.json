@@ -1,0 +1,51 @@
+{
+  "name": "Midnight Forge",
+  "version": "1.0",
+  "author": "GateFlow",
+  "colors": {
+    "accent": "#00AAFF",
+    "accent-hover": "#33BBFF",
+    "accent-soft": "rgba(0,170,255,0.08)",
+    "accent-med": "rgba(0,170,255,0.20)",
+    "accent-glow": "rgba(0,170,255,0.35)",
+    "bg-deep": "#06080D",
+    "bg-base": "#0B1120",
+    "bg-raised": "#111B2E",
+    "bg-float": "#162236",
+    "text-heading": "#F0F4FA",
+    "text-body": "#94A3B8",
+    "text-muted": "#6B7E94",
+    "border": "rgba(255,255,255,0.06)",
+    "border-accent": "rgba(0,170,255,0.15)",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "colors-light": {
+    "accent": "#0088CC",
+    "accent-hover": "#006AAA",
+    "accent-soft": "rgba(0,136,204,0.06)",
+    "accent-med": "rgba(0,136,204,0.12)",
+    "accent-glow": "rgba(0,136,204,0.15)",
+    "bg-deep": "#F8FAFC",
+    "bg-base": "#FFFFFF",
+    "bg-raised": "#F1F5F9",
+    "bg-float": "#FFFFFF",
+    "text-heading": "#0B1120",
+    "text-body": "#3E5068",
+    "text-muted": "#6B7E94",
+    "border": "rgba(0,0,0,0.06)",
+    "border-accent": "rgba(0,136,204,0.12)"
+  },
+  "typography": {
+    "font-family": "inherit",
+    "font-heading-weight": "700",
+    "font-body-weight": "400"
+  },
+  "shapes": {
+    "radius-sm": "6px",
+    "radius-md": "12px",
+    "radius-lg": "16px",
+    "radius-full": "9999px"
+  }
+}

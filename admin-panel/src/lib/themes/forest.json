@@ -1,0 +1,47 @@
+{
+  "name": "Forest",
+  "version": "1.0",
+  "author": "GateFlow",
+  "colors": {
+    "accent": "#10B981",
+    "accent-hover": "#34D399",
+    "accent-soft": "rgba(16,185,129,0.08)",
+    "accent-med": "rgba(16,185,129,0.20)",
+    "accent-glow": "rgba(16,185,129,0.35)",
+    "bg-deep": "#061210",
+    "bg-base": "#0C1C18",
+    "bg-raised": "#132A24",
+    "bg-float": "#1A3830",
+    "text-heading": "#ECFDF5",
+    "text-body": "#94B8A8",
+    "text-muted": "#6B9480",
+    "border": "rgba(255,255,255,0.06)",
+    "border-accent": "rgba(16,185,129,0.15)",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "colors-light": {
+    "accent": "#059669",
+    "accent-hover": "#047857",
+    "accent-soft": "rgba(5,150,105,0.06)",
+    "bg-deep": "#F0FDF4",
+    "bg-base": "#FFFFFF",
+    "bg-raised": "#ECFDF5",
+    "bg-float": "#FFFFFF",
+    "text-heading": "#064E3B",
+    "text-body": "#334155",
+    "text-muted": "#64748B"
+  },
+  "typography": {
+    "font-family": "inherit",
+    "font-heading-weight": "700",
+    "font-body-weight": "400"
+  },
+  "shapes": {
+    "radius-sm": "4px",
+    "radius-md": "8px",
+    "radius-lg": "12px",
+    "radius-full": "9999px"
+  }
+}

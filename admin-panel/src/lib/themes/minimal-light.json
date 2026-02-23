@@ -1,0 +1,47 @@
+{
+  "name": "Minimal Light",
+  "version": "1.0",
+  "author": "GateFlow",
+  "colors": {
+    "accent": "#18181B",
+    "accent-hover": "#3F3F46",
+    "accent-soft": "rgba(24,24,27,0.06)",
+    "accent-med": "rgba(24,24,27,0.12)",
+    "accent-glow": "rgba(24,24,27,0.15)",
+    "bg-deep": "#FFFFFF",
+    "bg-base": "#FAFAFA",
+    "bg-raised": "#F4F4F5",
+    "bg-float": "#FFFFFF",
+    "text-heading": "#18181B",
+    "text-body": "#52525B",
+    "text-muted": "#A1A1AA",
+    "border": "rgba(0,0,0,0.06)",
+    "border-accent": "rgba(24,24,27,0.12)",
+    "success": "#059669",
+    "warning": "#D97706",
+    "danger": "#DC2626"
+  },
+  "colors-light": {
+    "accent": "#18181B",
+    "accent-hover": "#3F3F46",
+    "accent-soft": "rgba(24,24,27,0.06)",
+    "bg-deep": "#FFFFFF",
+    "bg-base": "#FAFAFA",
+    "bg-raised": "#F4F4F5",
+    "bg-float": "#FFFFFF",
+    "text-heading": "#18181B",
+    "text-body": "#52525B",
+    "text-muted": "#A1A1AA"
+  },
+  "typography": {
+    "font-family": "inherit",
+    "font-heading-weight": "600",
+    "font-body-weight": "400"
+  },
+  "shapes": {
+    "radius-sm": "4px",
+    "radius-md": "8px",
+    "radius-lg": "12px",
+    "radius-full": "9999px"
+  }
+}

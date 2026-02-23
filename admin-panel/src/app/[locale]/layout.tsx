@@ -4,6 +4,8 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { locales, Locale } from '@/lib/locales';
 import { notFound } from 'next/navigation';
+import WhitelabelProvider from '@/components/providers/whitelabel-provider';
+import { loadThemeData } from '@/lib/theme-loader';
 
 type Props = {
   children: React.ReactNode;
@@ -25,15 +27,20 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   // Get messages for the locale
-  const messages = await getMessages();
+  const [messages, { theme, licenseValid }] = await Promise.all([
+    getMessages(),
+    loadThemeData(),
+  ]);
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <AuthProvider>
         <ToastProvider>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            {children}
-          </div>
+          <WhitelabelProvider theme={theme} licenseValid={licenseValid}>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+              {children}
+            </div>
+          </WhitelabelProvider>
         </ToastProvider>
       </AuthProvider>
     </NextIntlClientProvider>

@@ -1,96 +1,267 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getShopConfig, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
-import { useToast } from '@/contexts/ToastContext';
-import { useTranslations } from 'next-intl';
+/**
+ * Theme Editor — manage whitelabel themes for public pages.
+ * Themes are JSON files stored on disk (data/active-theme.json).
+ * All theme customization requires a valid GateFlow Pro license.
+ * @see lib/themes/index.ts for types and presets
+ * @see lib/actions/theme.ts for server actions
+ * @see components/providers/whitelabel-provider.tsx for CSS injection
+ */
 
-const FONTS = [
-  { value: 'system', label: 'System Default', preview: 'font-sans' },
-  { value: 'inter', label: 'Inter (Modern)', preview: 'font-sans' },
-  { value: 'roboto', label: 'Roboto (Clean)', preview: 'font-sans' },
-  { value: 'montserrat', label: 'Montserrat (Bold)', preview: 'font-sans' },
-  { value: 'poppins', label: 'Poppins (Friendly)', preview: 'font-sans' },
-  { value: 'playfair', label: 'Playfair (Elegant)', preview: 'font-serif' },
-];
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
+import { useToast } from '@/contexts/ToastContext';
+import {
+  getActiveTheme,
+  saveActiveTheme,
+  removeActiveTheme,
+  getThemePresets,
+  checkThemeLicense,
+  exportActiveTheme,
+} from '@/lib/actions/theme';
+import { themeConfigSchema, THEME_PRESETS } from '@/lib/themes';
+import type { ThemeConfig, ThemePreset } from '@/lib/themes';
+
+// ===== TYPES =====
+
+type EditorTab = 'colors' | 'typography' | 'shapes';
+
+const DEFAULT_THEME: ThemeConfig = THEME_PRESETS[0].theme;
+
+// ===== COLOR PICKER =====
+
+function ColorField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const isHex = value.startsWith('#');
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={isHex ? value : '#000000'}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <label className="block text-xs text-gray-500 dark:text-gray-400 truncate">{label}</label>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ===== MAIN COMPONENT =====
 
 export default function BrandingSettings() {
   const t = useTranslations('settings.branding');
   const { addToast } = useToast();
-  const [config, setConfig] = useState<ShopConfig | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [licenseValid, setLicenseValid] = useState(false);
+  const [activeTheme, setActiveTheme] = useState<ThemeConfig | null>(null);
+  const [presets, setPresets] = useState<ThemePreset[]>([]);
+  const [editTheme, setEditTheme] = useState<ThemeConfig>(DEFAULT_THEME);
+  const [activeTab, setActiveTab] = useState<EditorTab>('colors');
+  const [hasChanges, setHasChanges] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    logo_url: '',
-    primary_color: '#00AAFF',
-    secondary_color: '#33BBFF',
-    accent_color: '#00AAFF',
-    font_family: 'system' as const,
-  });
+  // ===== LOAD DATA =====
 
   useEffect(() => {
-    async function loadConfig() {
+    async function load() {
       try {
-        const data = await getShopConfig();
-        if (data) {
-          setConfig(data);
-          setFormData({
-            logo_url: data.logo_url || '',
-            primary_color: data.primary_color || '#00AAFF',
-            secondary_color: data.secondary_color || '#33BBFF',
-            accent_color: data.accent_color || '#00AAFF',
-            font_family: (data.font_family as any) || 'system',
-          });
+        const [theme, presetsData, licensed] = await Promise.all([
+          getActiveTheme(),
+          getThemePresets(),
+          checkThemeLicense(),
+        ]);
+
+        setActiveTheme(theme);
+        setPresets(presetsData);
+        setLicenseValid(licensed);
+
+        if (theme) {
+          setEditTheme(theme);
+          // Find matching preset
+          const match = presetsData.find(
+            (p) => p.theme.name === theme.name && p.theme.colors.accent === theme.colors.accent
+          );
+          setSelectedPresetId(match?.id ?? 'custom');
+        } else {
+          setEditTheme(DEFAULT_THEME);
+          setSelectedPresetId(null);
         }
       } catch (error) {
-        console.error('Failed to load shop config:', error);
+        console.error('[BrandingSettings] Load error:', error);
       } finally {
         setLoading(false);
       }
     }
-    loadConfig();
+    load();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ===== HANDLERS =====
+
+  const updateColors = useCallback(
+    (key: string, value: string) => {
+      setEditTheme((prev) => ({
+        ...prev,
+        colors: { ...prev.colors, [key]: value },
+      }));
+      setHasChanges(true);
+      setSelectedPresetId('custom');
+    },
+    []
+  );
+
+  const updateLightColors = useCallback(
+    (key: string, value: string) => {
+      setEditTheme((prev) => ({
+        ...prev,
+        'colors-light': { ...prev['colors-light'], [key]: value },
+      }));
+      setHasChanges(true);
+      setSelectedPresetId('custom');
+    },
+    []
+  );
+
+  const updateTypography = useCallback(
+    (key: string, value: string) => {
+      setEditTheme((prev) => ({
+        ...prev,
+        typography: { ...prev.typography, [key]: value },
+      }));
+      setHasChanges(true);
+      setSelectedPresetId('custom');
+    },
+    []
+  );
+
+  const updateShapes = useCallback(
+    (key: string, value: string) => {
+      setEditTheme((prev) => ({
+        ...prev,
+        shapes: { ...prev.shapes, [key]: value },
+      }));
+      setHasChanges(true);
+      setSelectedPresetId('custom');
+    },
+    []
+  );
+
+  const selectPreset = (preset: ThemePreset) => {
+    setEditTheme(preset.theme);
+    setSelectedPresetId(preset.id);
+    setHasChanges(true);
+  };
+
+  const handleSave = async () => {
+    if (!licenseValid) {
+      addToast(t('licenseRequired'), 'error');
+      return;
+    }
+
     setSaving(true);
-
     try {
-      const updates: Partial<ShopConfig> = {
-        logo_url: formData.logo_url || null,
-        primary_color: formData.primary_color,
-        secondary_color: formData.secondary_color,
-        accent_color: formData.accent_color,
-        font_family: formData.font_family as any,
-      };
-
-      const success = await updateShopConfig(updates);
-
-      if (success) {
+      const result = await saveActiveTheme(editTheme);
+      if (result.success) {
+        setActiveTheme(editTheme);
+        setHasChanges(false);
         addToast(t('saveSuccess'), 'success');
-        const newConfig = await getShopConfig();
-        if (newConfig) setConfig(newConfig);
       } else {
-        addToast(t('saveError'), 'error');
+        addToast(result.error || t('saveError'), 'error');
       }
     } catch (error) {
-      console.error('Error saving branding:', error);
+      console.error('[BrandingSettings] Save error:', error);
       addToast(t('errorOccurred'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleReset = () => {
-    setFormData({
-      logo_url: '',
-      primary_color: '#00AAFF',
-      secondary_color: '#33BBFF',
-      accent_color: '#00AAFF',
-      font_family: 'system',
-    });
+  const handleRemoveTheme = async () => {
+    setSaving(true);
+    try {
+      const result = await removeActiveTheme();
+      if (result.success) {
+        setActiveTheme(null);
+        setEditTheme(DEFAULT_THEME);
+        setSelectedPresetId(null);
+        setHasChanges(false);
+        addToast(t('themeRemoved'), 'success');
+      } else {
+        addToast(result.error || t('saveError'), 'error');
+      }
+    } catch (error) {
+      console.error('[BrandingSettings] Remove error:', error);
+      addToast(t('errorOccurred'), 'error');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleExport = async () => {
+    try {
+      const json = JSON.stringify(editTheme, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${editTheme.name.toLowerCase().replace(/\s+/g, '-')}-theme.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('[BrandingSettings] Export error:', error);
+      addToast(t('errorOccurred'), 'error');
+    }
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const raw = JSON.parse(event.target?.result as string);
+        const result = themeConfigSchema.safeParse(raw);
+        if (!result.success) {
+          addToast(t('invalidThemeFile'), 'error');
+          return;
+        }
+        setEditTheme(result.data);
+        setSelectedPresetId('custom');
+        setHasChanges(true);
+        addToast(t('themeImported'), 'success');
+      } catch {
+        addToast(t('invalidThemeFile'), 'error');
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // ===== RENDER =====
 
   if (loading) {
     return (
@@ -104,247 +275,372 @@ export default function BrandingSettings() {
     );
   }
 
+  const colors = editTheme.colors;
+  const lightColors = editTheme['colors-light'] || {};
+  const typo = editTheme.typography || {};
+  const shapes = editTheme.shapes || {};
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Settings Form */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {t('title')}
-          </h2>
+    <div className="space-y-6">
+      {/* License Badge */}
+      {!licenseValid && (
+        <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl">
+          <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{t('licenseRequiredTitle')}</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">{t('licenseRequiredDesc')}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Active Theme Status */}
+      {activeTheme && (
+        <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/30 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                {t('activeTheme')}: {activeTheme.name}
+              </p>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={handleReset}
-            className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            onClick={handleRemoveTheme}
+            disabled={saving}
+            className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
           >
-            {t('resetToDefaults')}
+            {t('removeTheme')}
           </button>
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Logo URL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('logoUrl')}
-            </label>
-            <input
-              type="url"
-              value={formData.logo_url}
-              onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gf-accent focus:border-transparent"
-              placeholder="https://i.ibb.co/..."
-            />
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              {t('logoUrlHelpPrefix')}{' '}
-              <a href="https://imgbb.com" target="_blank" rel="noopener noreferrer" className="text-gf-accent hover:text-gf-accent-hover underline">
-                {t('imgbb')}
-              </a>{' '}
-              {t('logoUrlHelpSuffix')}
-            </p>
-          </div>
-
-          {/* Colors */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white">{t('brandColors')}</h3>
-
-            <div className="grid grid-cols-3 gap-4">
-              {/* Primary Color */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                  {t('primary')}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={formData.primary_color}
-                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                    className="w-12 h-12 rounded-lg border-2 border-gray-300 dark:border-gray-600 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={formData.primary_color}
-                    onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="#00AAFF"
-                  />
-                </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* LEFT: Preset Selector + Editor */}
+        <div className="xl:col-span-2 space-y-6">
+          {/* Preset Grid */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('themePresets')}</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {t('importTheme')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {t('exportTheme')}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  className="hidden"
+                />
               </div>
+            </div>
 
-              {/* Secondary Color */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                  {t('secondary')}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={formData.secondary_color}
-                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                    className="w-12 h-12 rounded-lg border-2 border-gray-300 dark:border-gray-600 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={formData.secondary_color}
-                    onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="#33BBFF"
-                  />
-                </div>
-              </div>
-
-              {/* Accent Color */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                  {t('accent')}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={formData.accent_color}
-                    onChange={(e) => setFormData({ ...formData, accent_color: e.target.value })}
-                    className="w-12 h-12 rounded-lg border-2 border-gray-300 dark:border-gray-600 cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={formData.accent_color}
-                    onChange={(e) => setFormData({ ...formData, accent_color: e.target.value })}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="#00AAFF"
-                  />
-                </div>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {presets.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => selectPreset(preset)}
+                  className={`relative p-3 rounded-xl border-2 transition-all text-left ${
+                    selectedPresetId === preset.id
+                      ? 'border-gf-accent bg-gf-accent-soft'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  {/* Color swatch row */}
+                  <div className="flex gap-1 mb-2">
+                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.theme.colors.accent }}></div>
+                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.theme.colors['bg-deep'] }}></div>
+                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.theme.colors['text-heading'] }}></div>
+                  </div>
+                  <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{preset.theme.name}</p>
+                  {selectedPresetId === preset.id && (
+                    <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-gf-accent rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Font Family */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('fontFamily')}
-            </label>
-            <select
-              value={formData.font_family}
-              onChange={(e) => setFormData({ ...formData, font_family: e.target.value as any })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gf-accent focus:border-transparent"
-            >
-              {FONTS.map((font) => (
-                <option key={font.value} value={font.value}>
-                  {font.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              {t('fontHelp')}
-            </p>
-          </div>
-
-          {/* Save Button */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2 bg-gf-accent hover:bg-gf-accent-hover text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-            >
-              {saving ? t('saving') : t('saveBranding')}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Live Preview */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          {t('livePreview')}
-        </h3>
-
-        <div className="space-y-6">
-          {/* Logo Preview */}
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('logo')}</p>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-              {formData.logo_url ? (
-                <img src={formData.logo_url} alt="Logo preview" className="w-10 h-10 object-contain rounded" />
-              ) : (
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold"
-                  style={{
-                    background: `linear-gradient(to right, ${formData.primary_color}, ${formData.secondary_color})`
-                  }}
+          {/* Editor Tabs */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            {/* Tab Headers */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
+              {(['colors', 'typography', 'shapes'] as EditorTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === tab
+                      ? 'text-gf-accent border-b-2 border-gf-accent'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 >
-                  {config?.shop_name?.charAt(0) || 'G'}
+                  {t(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`)}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="p-6">
+              {/* Theme Name */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('themeName')}</label>
+                <input
+                  type="text"
+                  value={editTheme.name}
+                  onChange={(e) => {
+                    setEditTheme((prev) => ({ ...prev, name: e.target.value }));
+                    setHasChanges(true);
+                    setSelectedPresetId('custom');
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  placeholder="My Custom Theme"
+                />
+              </div>
+
+              {/* COLORS TAB */}
+              {activeTab === 'colors' && (
+                <div className="space-y-6">
+                  {/* Dark mode colors */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('darkModeColors')}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <ColorField label="Accent" value={colors.accent} onChange={(v) => updateColors('accent', v)} />
+                      <ColorField label="Accent Hover" value={colors['accent-hover']} onChange={(v) => updateColors('accent-hover', v)} />
+                      <ColorField label="Accent Soft" value={colors['accent-soft']} onChange={(v) => updateColors('accent-soft', v)} />
+                      <ColorField label="Background Deep" value={colors['bg-deep']} onChange={(v) => updateColors('bg-deep', v)} />
+                      <ColorField label="Background Base" value={colors['bg-base'] || ''} onChange={(v) => updateColors('bg-base', v)} />
+                      <ColorField label="Background Raised" value={colors['bg-raised'] || ''} onChange={(v) => updateColors('bg-raised', v)} />
+                      <ColorField label="Text Heading" value={colors['text-heading']} onChange={(v) => updateColors('text-heading', v)} />
+                      <ColorField label="Text Body" value={colors['text-body'] || ''} onChange={(v) => updateColors('text-body', v)} />
+                      <ColorField label="Text Muted" value={colors['text-muted'] || ''} onChange={(v) => updateColors('text-muted', v)} />
+                      <ColorField label="Border" value={colors.border || ''} onChange={(v) => updateColors('border', v)} />
+                      <ColorField label="Success" value={colors.success || ''} onChange={(v) => updateColors('success', v)} />
+                      <ColorField label="Danger" value={colors.danger || ''} onChange={(v) => updateColors('danger', v)} />
+                    </div>
+                  </div>
+
+                  {/* Light mode overrides */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('lightModeColors')}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <ColorField label="Accent" value={lightColors.accent || ''} onChange={(v) => updateLightColors('accent', v)} />
+                      <ColorField label="Accent Hover" value={lightColors['accent-hover'] || ''} onChange={(v) => updateLightColors('accent-hover', v)} />
+                      <ColorField label="Background Deep" value={lightColors['bg-deep'] || ''} onChange={(v) => updateLightColors('bg-deep', v)} />
+                      <ColorField label="Background Base" value={lightColors['bg-base'] || ''} onChange={(v) => updateLightColors('bg-base', v)} />
+                      <ColorField label="Background Raised" value={lightColors['bg-raised'] || ''} onChange={(v) => updateLightColors('bg-raised', v)} />
+                      <ColorField label="Text Heading" value={lightColors['text-heading'] || ''} onChange={(v) => updateLightColors('text-heading', v)} />
+                      <ColorField label="Text Body" value={lightColors['text-body'] || ''} onChange={(v) => updateLightColors('text-body', v)} />
+                      <ColorField label="Text Muted" value={lightColors['text-muted'] || ''} onChange={(v) => updateLightColors('text-muted', v)} />
+                    </div>
+                  </div>
                 </div>
               )}
-              <span className="font-semibold text-gray-900 dark:text-white" style={{ fontFamily: formData.font_family === 'system' ? undefined : formData.font_family }}>
-                {config?.shop_name || 'GateFlow'}
-              </span>
+
+              {/* TYPOGRAPHY TAB */}
+              {activeTab === 'typography' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('fontFamilyLabel')}</label>
+                    <input
+                      type="text"
+                      value={typo['font-family'] || 'inherit'}
+                      onChange={(e) => updateTypography('font-family', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      placeholder="Montserrat, system-ui, sans-serif"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('fontFamilyHelp')}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('headingWeight')}</label>
+                      <select
+                        value={typo['font-heading-weight'] || '700'}
+                        onChange={(e) => updateTypography('font-heading-weight', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      >
+                        <option value="400">400 — Regular</option>
+                        <option value="500">500 — Medium</option>
+                        <option value="600">600 — Semibold</option>
+                        <option value="700">700 — Bold</option>
+                        <option value="800">800 — Extra Bold</option>
+                        <option value="900">900 — Black</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('bodyWeight')}</label>
+                      <select
+                        value={typo['font-body-weight'] || '400'}
+                        onChange={(e) => updateTypography('font-body-weight', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      >
+                        <option value="300">300 — Light</option>
+                        <option value="400">400 — Regular</option>
+                        <option value="500">500 — Medium</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('letterSpacing')}</label>
+                    <input
+                      type="text"
+                      value={typo['letter-spacing-heading'] || '-0.02em'}
+                      onChange={(e) => updateTypography('letter-spacing-heading', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      placeholder="-0.02em"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* SHAPES TAB */}
+              {activeTab === 'shapes' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { key: 'radius-sm', label: t('radiusSmall'), placeholder: '6px' },
+                      { key: 'radius-md', label: t('radiusMedium'), placeholder: '12px' },
+                      { key: 'radius-lg', label: t('radiusLarge'), placeholder: '16px' },
+                      { key: 'radius-full', label: t('radiusFull'), placeholder: '9999px' },
+                    ].map(({ key, label, placeholder }) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                        <input
+                          type="text"
+                          value={(shapes as Record<string, string | undefined>)[key] || ''}
+                          onChange={(e) => updateShapes(key, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                          placeholder={placeholder}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Save Bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {hasChanges ? t('unsavedChanges') : activeTheme ? t('themeActive') : t('noThemeActive')}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !hasChanges || !licenseValid}
+                  className="px-5 py-2 bg-gf-accent hover:bg-gf-accent-hover text-white font-medium rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {saving ? t('saving') : t('saveTheme')}
+                </button>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Color Swatches */}
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('colorPalette')}</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div
-                  className="w-full h-16 rounded-lg shadow-sm"
-                  style={{ backgroundColor: formData.primary_color }}
-                ></div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-center">{t('primary')}</p>
-              </div>
-              <div>
-                <div
-                  className="w-full h-16 rounded-lg shadow-sm"
-                  style={{ backgroundColor: formData.secondary_color }}
-                ></div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-center">{t('secondary')}</p>
-              </div>
-              <div>
-                <div
-                  className="w-full h-16 rounded-lg shadow-sm"
-                  style={{ backgroundColor: formData.accent_color }}
-                ></div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-center">{t('accent')}</p>
-              </div>
-            </div>
-          </div>
+        {/* RIGHT: Live Preview */}
+        <div className="xl:col-span-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('livePreview')}</h3>
 
-          {/* Button Preview */}
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('buttons')}</p>
-            <div className="space-y-2">
-              <button
-                type="button"
-                className="w-full px-4 py-2 text-white font-medium rounded-lg shadow-md transition-all"
-                style={{
-                  background: `linear-gradient(to right, ${formData.primary_color}, ${formData.secondary_color})`
-                }}
-              >
-                {t('primaryButton')}
-              </button>
-              <button
-                type="button"
-                className="w-full px-4 py-2 text-white font-medium rounded-lg shadow-md transition-all"
-                style={{
-                  backgroundColor: formData.accent_color
-                }}
-              >
-                {t('accentButton')}
-              </button>
-            </div>
-          </div>
-
-          {/* Typography Preview */}
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('typography')}</p>
+            {/* Mini store preview */}
             <div
-              className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700"
-              style={{ fontFamily: formData.font_family === 'system' ? undefined : formData.font_family }}
+              className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700"
+              style={{
+                backgroundColor: colors['bg-deep'],
+                fontFamily: typo['font-family'] === 'inherit' ? undefined : typo['font-family'],
+              }}
             >
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                {t('headingText')}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {t('bodyTextPreview', { font: FONTS.find(f => f.value === formData.font_family)?.label || 'System Default' })}
-              </p>
+              {/* Header bar */}
+              <div className="px-4 py-3 flex items-center gap-2" style={{ backgroundColor: colors['bg-base'] || colors['bg-deep'] }}>
+                <div className="w-6 h-6 rounded-full" style={{ backgroundColor: colors.accent }}></div>
+                <div className="text-xs font-semibold" style={{ color: colors['text-heading'], fontWeight: typo['font-heading-weight'] || '700' }}>
+                  {editTheme.name}
+                </div>
+              </div>
+
+              {/* Content area */}
+              <div className="p-4 space-y-3">
+                <div
+                  className="text-sm font-bold"
+                  style={{
+                    color: colors['text-heading'],
+                    fontWeight: typo['font-heading-weight'] || '700',
+                    letterSpacing: typo['letter-spacing-heading'],
+                  }}
+                >
+                  {t('previewHeading')}
+                </div>
+                <div className="text-xs" style={{ color: colors['text-body'] || colors['text-heading'], fontWeight: typo['font-body-weight'] || '400' }}>
+                  {t('previewBody')}
+                </div>
+
+                {/* Product card preview */}
+                <div
+                  className="p-3 rounded-lg"
+                  style={{
+                    backgroundColor: colors['bg-raised'] || colors['bg-base'] || colors['bg-deep'],
+                    borderRadius: shapes['radius-md'] || '12px',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold" style={{ color: colors['text-heading'] }}>Product</span>
+                    <span className="text-xs font-bold" style={{ color: colors.accent }}>$29</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="w-full py-1.5 text-xs font-medium text-white transition-colors"
+                    style={{
+                      backgroundColor: colors.accent,
+                      borderRadius: shapes['radius-sm'] || '6px',
+                    }}
+                  >
+                    {t('previewButton')}
+                  </button>
+                </div>
+
+                {/* Status colors */}
+                <div className="flex gap-2">
+                  <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: colors.success || '#10B981' }}></span>
+                  <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: colors.warning || '#F59E0B' }}></span>
+                  <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: colors.danger || '#EF4444' }}></span>
+                  <span className="text-xs" style={{ color: colors['text-muted'] || colors['text-body'] }}>{t('previewStatus')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Color swatches */}
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('colorPalette')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[colors.accent, colors['accent-hover'], colors['bg-deep'], colors['bg-raised'] || colors['bg-deep'], colors['text-heading']].map(
+                  (c, i) => (
+                    <div key={i} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600" style={{ backgroundColor: c }}></div>
+                  )
+                )}
+              </div>
             </div>
           </div>
         </div>

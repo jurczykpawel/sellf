@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# runtime data (theme files, etc.)
+/data/
+!/data/.gitkeep
+
 # next.js
 /.next/
 /out/

@@ -1,0 +1,47 @@
+{
+  "name": "Ocean",
+  "version": "1.0",
+  "author": "GateFlow",
+  "colors": {
+    "accent": "#0EA5E9",
+    "accent-hover": "#38BDF8",
+    "accent-soft": "rgba(14,165,233,0.08)",
+    "accent-med": "rgba(14,165,233,0.20)",
+    "accent-glow": "rgba(14,165,233,0.35)",
+    "bg-deep": "#0A1628",
+    "bg-base": "#0F1D32",
+    "bg-raised": "#152640",
+    "bg-float": "#1B2F4E",
+    "text-heading": "#E8F4FC",
+    "text-body": "#8BADC8",
+    "text-muted": "#5A8AAD",
+    "border": "rgba(255,255,255,0.06)",
+    "border-accent": "rgba(14,165,233,0.15)",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "colors-light": {
+    "accent": "#0284C7",
+    "accent-hover": "#0369A1",
+    "accent-soft": "rgba(2,132,199,0.06)",
+    "bg-deep": "#F0F9FF",
+    "bg-base": "#FFFFFF",
+    "bg-raised": "#E0F2FE",
+    "bg-float": "#FFFFFF",
+    "text-heading": "#082F49",
+    "text-body": "#334155",
+    "text-muted": "#64748B"
+  },
+  "typography": {
+    "font-family": "inherit",
+    "font-heading-weight": "700",
+    "font-body-weight": "400"
+  },
+  "shapes": {
+    "radius-sm": "6px",
+    "radius-md": "12px",
+    "radius-lg": "16px",
+    "radius-full": "9999px"
+  }
+}
