@@ -615,9 +615,10 @@ export function sanitizeProductData(data: Record<string, unknown>, setDefaults: 
 
   // Validate custom_price_min if provided
   if (sanitizedData.custom_price_min !== undefined) {
-    // Ensure minimum is at least 0.50 (Stripe requirement)
-    const minPrice = parseFloat(String(sanitizedData.custom_price_min)) || 5.00;
-    sanitizedData.custom_price_min = Math.max(0.50, minPrice);
+    // Allow 0 for PWYW-free products (nullish coalescing — 0 is valid)
+    const parsed = parseFloat(String(sanitizedData.custom_price_min));
+    const minPrice = isNaN(parsed) ? 5.00 : parsed;
+    sanitizedData.custom_price_min = Math.max(0, minPrice);
   }
 
   // Ensure custom_price_presets is a valid array if provided

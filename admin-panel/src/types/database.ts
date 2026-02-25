@@ -1485,6 +1485,10 @@ export type Database = {
       shop_config: {
         Row: {
           accent_color: string | null
+          automatic_tax_enabled: boolean | null
+          checkout_billing_address: string | null
+          checkout_collect_terms: boolean | null
+          checkout_expires_hours: number | null
           checkout_theme: string | null
           contact_email: string | null
           created_at: string
@@ -1498,12 +1502,17 @@ export type Database = {
           privacy_policy_url: string | null
           secondary_color: string | null
           shop_name: string
+          tax_id_collection_enabled: boolean | null
           tax_rate: number | null
           terms_of_service_url: string | null
           updated_at: string
         }
         Insert: {
           accent_color?: string | null
+          automatic_tax_enabled?: boolean | null
+          checkout_billing_address?: string | null
+          checkout_collect_terms?: boolean | null
+          checkout_expires_hours?: number | null
           checkout_theme?: string | null
           contact_email?: string | null
           created_at?: string
@@ -1517,12 +1526,17 @@ export type Database = {
           privacy_policy_url?: string | null
           secondary_color?: string | null
           shop_name?: string
+          tax_id_collection_enabled?: boolean | null
           tax_rate?: number | null
           terms_of_service_url?: string | null
           updated_at?: string
         }
         Update: {
           accent_color?: string | null
+          automatic_tax_enabled?: boolean | null
+          checkout_billing_address?: string | null
+          checkout_collect_terms?: boolean | null
+          checkout_expires_hours?: number | null
           checkout_theme?: string | null
           contact_email?: string | null
           created_at?: string
@@ -1536,6 +1550,7 @@ export type Database = {
           privacy_policy_url?: string | null
           secondary_color?: string | null
           shop_name?: string
+          tax_id_collection_enabled?: boolean | null
           tax_rate?: number | null
           terms_of_service_url?: string | null
           updated_at?: string
@@ -2236,6 +2251,13 @@ export type Database = {
           user_id_param: string
         }
         Returns: Json
+      }
+      grant_pwyw_free_access: {
+        Args: {
+          access_duration_days_param?: number
+          product_slug_param: string
+        }
+        Returns: boolean
       }
       increment_sale_quantity_sold: {
         Args: { p_product_id: string }
@@ -3035,3 +3057,4 @@ export const Constants = {
     },
   },
 } as const
+

@@ -57,8 +57,14 @@
       "title": "Wybierz kwotę",
       "minimum": "Minimum",
       "belowMinimum": "Kwota musi wynosić co najmniej {minimum}",
-      "aboveMaximum": "Kwota nie może przekraczać {maximum}"
+      "aboveMaximum": "Kwota nie może przekraczać {maximum}",
+      "freePreset": "Za darmo",
+      "getForFree": "Odbierz za darmo"
     },
+    "enterEmail": "Podaj adres email",
+    "sendMagicLink": "Wyślij magiczny link",
+    "sendingMagicLink": "Wysyłanie magicznego linku...",
+    "checkEmailForMagicLink": "Sprawdź swój email — wysłaliśmy link do aktywacji dostępu.",
     "orPayWith": "lub zapłać przez",
     "optional": "opcjonalne",
     "confirmEmailLabel": "Potwierdzam przypisanie produktu do mojego konta ({accountEmail}). Paragon zostanie wysłany na {purchaseEmail}.",
@@ -1224,6 +1230,7 @@
           "minimumPrice": "Cena minimalna",
           "suggestedPriceHint": "Cena powyżej staje się sugerowaną kwotą. Klient może wpisać dowolną kwotę powyżej minimum.",
           "stripeMinimum": "Stripe min. 0,50",
+          "freeOptionHint": "Klient może odebrać produkt za darmo",
           "showPresets": "Pokaż przyciski z predefiniowanymi kwotami",
           "showPresetsHelp": "Wyświetl sugerowane kwoty jako przyciski szybkiego wyboru na stronie checkout",
           "presetAmount": "Kwota"

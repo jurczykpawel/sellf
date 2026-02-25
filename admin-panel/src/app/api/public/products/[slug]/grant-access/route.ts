@@ -32,7 +32,7 @@ export async function POST(
     // Get product
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id, name, slug, price, currency, icon, is_active, available_from, available_until')
+      .select('id, name, slug, price, currency, icon, is_active, available_from, available_until, allow_custom_price, custom_price_min')
       .eq('slug', slug)
       .single();
 
@@ -51,10 +51,12 @@ export async function POST(
       return NextResponse.json({ error: 'Product not available for purchase' }, { status: 400 });
     }
 
-    // For paid products, we would validate payment here
-    // For now, we'll only allow free products
-    if (product.price > 0) {
-      return NextResponse.json({ error: 'Payment processing not implemented' }, { status: 400 });
+    // Check if this is a PWYW product with free option (custom_price_min = 0)
+    const isPwywFree = product.allow_custom_price && (product.custom_price_min === 0 || product.custom_price_min === null);
+
+    // Only allow free products or PWYW-free products
+    if (product.price > 0 && !isPwywFree) {
+      return NextResponse.json({ error: 'Payment required' }, { status: 400 });
     }
 
     // Check if user already has valid access
@@ -78,9 +80,10 @@ export async function POST(
       }
     }
 
-    // Grant access using database function that respects auto_grant_duration_days
+    // Grant access using the appropriate database function
+    const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
     const { data: grantResult, error: grantError } = await supabase
-      .rpc('grant_free_product_access', {
+      .rpc(rpcName, {
         product_slug_param: slug
       });
 

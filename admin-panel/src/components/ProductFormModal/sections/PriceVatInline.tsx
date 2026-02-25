@@ -98,7 +98,7 @@ export function PriceVatInline({
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     minManuallyEdited.current = true;
     const value = parseFloat(e.target.value) || 0;
-    setFormData(prev => ({ ...prev, custom_price_min: Math.max(0.50, value) }));
+    setFormData(prev => ({ ...prev, custom_price_min: Math.max(0, value) }));
   };
 
   const handlePresetChange = (index: number, value: string) => {
@@ -230,11 +230,15 @@ export function PriceVatInline({
                 type="number"
                 value={formData.custom_price_min}
                 onChange={handleMinPriceChange}
-                min="0.50"
+                min="0"
                 step="0.10"
                 className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
-              <span className="text-xs text-gray-400">({t('customPricing.stripeMinimum')})</span>
+              <span className="text-xs text-gray-400">
+                {formData.custom_price_min === 0
+                  ? t('customPricing.freeOptionHint')
+                  : `(${t('customPricing.stripeMinimum')})`}
+              </span>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">

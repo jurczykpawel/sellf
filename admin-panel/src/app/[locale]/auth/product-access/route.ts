@@ -81,25 +81,30 @@ export async function GET(request: Request) {
         return;
       }
 
-      if (product.price === 0) {
-        // Use the secure grant_free_product_access function that only works for free products
+      // Check if product qualifies for free access grant
+      const isPwywFree = product.allow_custom_price && (product.custom_price_min === 0 || product.custom_price_min === null);
+      const isFreeEligible = product.price === 0 || isPwywFree;
+
+      if (isFreeEligible) {
+        // Use appropriate RPC based on product type
+        const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
         const { data: accessResult, error: grantError } = await supabase
-          .rpc('grant_free_product_access', {
+          .rpc(rpcName, {
             product_slug_param: productSlug,
             access_duration_days_param: null // Will use product's auto_grant_duration_days
           });
-          
+
         if (grantError) {
           console.error(`[ProductAccess] Error granting access:`, grantError);
           handleRedirect(`/p/${productSlug}`, returnUrl);
           return;
         } else if (accessResult) {
-          // For free products, redirect to payment success page to show confetti
+          // Redirect to payment success page to show confetti
           const paymentStatusUrl = `/p/${productSlug}/payment-status${successUrl ? `?success_url=${encodeURIComponent(successUrl)}` : ''}`;
           handleRedirect(paymentStatusUrl, returnUrl);
           return;
         } else {
-          console.error(`[ProductAccess] grant_free_product_access returned false - product might not exist or not be free`);
+          console.error(`[ProductAccess] ${rpcName} returned false - product might not qualify`);
           handleRedirect(`/p/${productSlug}`, returnUrl);
           return;
         }

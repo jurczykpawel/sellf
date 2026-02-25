@@ -19,6 +19,8 @@ import { useTracking } from '@/hooks/useTracking';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
+import { createClient } from '@/lib/supabase/client';
+import { validateEmailAction } from '@/lib/actions/validate-email';
 
 interface PaidProductFormProps {
   product: Product;
@@ -56,7 +58,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       const presets = product.custom_price_presets;
       const firstValidPreset = presets?.find(p => p > 0);
       if (firstValidPreset) return firstValidPreset;
-      return product.custom_price_min || 5;
+      return product.custom_price_min ?? 5;
     }
     return product.price;
   };
@@ -276,12 +278,16 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   }, [hasAccess, countdown, handleRedirectToProduct]);
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pwywFreeLoading, setPwywFreeLoading] = useState(false);
+
+  // Determine if current amount is $0 on a PWYW-free product
+  const isPwywFree = product.allow_custom_price && customAmount === 0 && (product.custom_price_min ?? 0.50) === 0;
 
   // Validate custom amount
   const STRIPE_MAX_AMOUNT = 999999.99; // Stripe's maximum amount limit
   const validateCustomAmount = useCallback((amount: number): boolean => {
     if (!product.allow_custom_price) return true;
-    const minPrice = product.custom_price_min || 0.50;
+    const minPrice = product.custom_price_min ?? 0.50;
     if (amount < minPrice) {
       setCustomAmountError(t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency) }));
       return false;
@@ -295,6 +301,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   }, [product, t]);
 
   const fetchClientSecret = useCallback(async () => {
+    // Skip Stripe for PWYW-free ($0) — access granted via grant-access API instead
+    if (product.allow_custom_price && customAmount === 0 && (product.custom_price_min ?? 0.50) === 0) {
+      setClientSecret(null);
+      return;
+    }
+
     // Validate custom amount before fetching
     if (product.allow_custom_price && !validateCustomAmount(customAmount)) {
       return;
@@ -339,6 +351,88 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     }
   }, [fetchClientSecret, hasAccess, error]);
 
+  // PWYW Free Access — grant without Stripe when customer picks $0
+  const handlePwywFreeAccess = useCallback(async () => {
+    if (!user) return;
+    setPwywFreeLoading(true);
+    try {
+      const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (data.error === 'You already have access to this product' || data.alreadyHadAccess) {
+          setHasAccess(true);
+          return;
+        }
+        setError(data.error || 'Failed to get access');
+        return;
+      }
+      await track('generate_lead', {
+        value: 0,
+        currency: product.currency,
+        items: [{ item_id: product.id, item_name: product.name, price: 0, quantity: 1 }],
+        userEmail: user.email || undefined,
+      });
+      setHasAccess(true);
+    } catch {
+      setError('An unexpected error occurred');
+    } finally {
+      setPwywFreeLoading(false);
+    }
+  }, [user, product, track]);
+
+  // PWYW Free — magic link for unauthenticated users
+  const [pwywFreeEmail, setPwywFreeEmail] = useState('');
+  const [pwywFreeMessage, setPwywFreeMessage] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
+
+  const handlePwywFreeMagicLink = useCallback(async () => {
+    if (!pwywFreeEmail) {
+      setPwywFreeMessage({ type: 'error', text: t('enterEmail') });
+      return;
+    }
+    try {
+      const emailValidation = await validateEmailAction(pwywFreeEmail);
+      if (!emailValidation.isValid) {
+        setPwywFreeMessage({ type: 'error', text: emailValidation.error || 'Invalid email' });
+        return;
+      }
+    } catch {
+      setPwywFreeMessage({ type: 'error', text: 'Invalid email' });
+      return;
+    }
+
+    setPwywFreeLoading(true);
+    setPwywFreeMessage({ type: 'info', text: t('sendingMagicLink') });
+    try {
+      const supabase = await createClient();
+      const successUrl = searchParams.get('success_url');
+      const authRedirectPath = `/auth/product-access?product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
+
+      const { error: authError } = await supabase.auth.signInWithOtp({
+        email: pwywFreeEmail,
+        options: { shouldCreateUser: true, emailRedirectTo: redirectUrl },
+      });
+      if (authError) {
+        setPwywFreeMessage({ type: 'error', text: authError.message });
+        return;
+      }
+      await track('generate_lead', {
+        value: 0,
+        currency: product.currency,
+        items: [{ item_id: product.id, item_name: product.name, price: 0, quantity: 1 }],
+        userEmail: pwywFreeEmail,
+      });
+      setPwywFreeMessage({ type: 'success', text: t('checkEmailForMagicLink') });
+    } catch {
+      setPwywFreeMessage({ type: 'error', text: 'An unexpected error occurred' });
+    } finally {
+      setPwywFreeLoading(false);
+    }
+  }, [pwywFreeEmail, product, searchParams, t, track]);
+
   const renderCheckoutForm = () => (
     <div className="w-full lg:w-1/2 lg:pl-8">
       {/* OTO Countdown Banner */}
@@ -357,10 +451,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         <div className="mb-6 p-5 bg-gray-50 dark:bg-white/5 dark:backdrop-blur-sm rounded-2xl border border-gray-200 dark:border-white/10">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t('customPrice.title')}</h3>
 
-          {/* Preset Buttons - filter out 0/empty values */}
-          {product.show_price_presets && product.custom_price_presets && product.custom_price_presets.filter(p => p > 0).length > 0 && (
+          {/* Preset Buttons — preset=0 shows as "Free" */}
+          {product.show_price_presets && product.custom_price_presets && product.custom_price_presets.filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? 0.50) === 0)).length > 0 && (
             <div className="flex gap-2 mb-3">
-              {product.custom_price_presets.filter(preset => preset > 0).map((preset) => (
+              {product.custom_price_presets.filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? 0.50) === 0)).map((preset) => (
                 <button
                   key={preset}
                   type="button"
@@ -368,7 +462,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                     setCustomAmount(preset);
                     setCustomAmountInput(preset.toString());
                     setCustomAmountError(null);
-                    setError(null); // Reset API error to allow new fetch
+                    setError(null);
                   }}
                   className={`
                     px-4 py-2 rounded-lg border text-sm font-medium transition-all
@@ -377,7 +471,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                       : 'bg-gray-100 border-gray-300 text-gray-900 hover:bg-gray-200 dark:bg-white/5 dark:border-white/20 dark:text-white dark:hover:bg-white/10 dark:hover:border-white/30'}
                   `}
                 >
-                  {formatPrice(preset, product.currency)}
+                  {preset === 0 ? t('customPrice.freePreset') : formatPrice(preset, product.currency)}
                 </button>
               ))}
             </div>
@@ -409,7 +503,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                   }
                   validateCustomAmount(value);
                 }}
-                placeholder={`${product.custom_price_min || 0.50}`}
+                placeholder={`${product.custom_price_min ?? 0.50}`}
                 className={`
                   w-full px-4 py-3 bg-gray-50 dark:bg-white/5 border rounded-lg text-lg font-semibold text-gray-900 dark:text-white
                   focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all
@@ -429,13 +523,53 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
           {/* Minimum Price Info */}
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min || 0.50, product.currency)} {product.currency}
+            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? 0.50, product.currency)} {product.currency}
           </p>
         </div>
       )}
 
-      {/* Order Bump - special offer */}
-      {orderBump && isCurrencyMatching && !hasAccess && !error && searchParams.get('hide_bump') !== 'true' && (
+      {/* PWYW Free Access — shown when customer picks $0 */}
+      {isPwywFree && !hasAccess && !error && (
+        <div className="mb-6 p-5 bg-green-50 dark:bg-green-950/20 rounded-2xl border border-green-200 dark:border-green-800/30">
+          {user ? (
+            <button
+              type="button"
+              onClick={handlePwywFreeAccess}
+              disabled={pwywFreeLoading}
+              className="w-full py-3 px-6 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-all"
+            >
+              {pwywFreeLoading ? '...' : t('customPrice.getForFree')}
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{t('customPrice.getForFree')}</p>
+              <input
+                type="email"
+                value={pwywFreeEmail}
+                onChange={(e) => setPwywFreeEmail(e.target.value)}
+                placeholder={t('emailAddress')}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-white/20 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={handlePwywFreeMagicLink}
+                disabled={pwywFreeLoading || !pwywFreeEmail}
+                className="w-full py-3 px-6 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-all"
+              >
+                {pwywFreeLoading ? '...' : t('sendMagicLink')}
+              </button>
+              {pwywFreeMessage && (
+                <p className={`text-sm ${pwywFreeMessage.type === 'error' ? 'text-red-500' : pwywFreeMessage.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
+                  {pwywFreeMessage.text}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Order Bump - special offer (hidden when PWYW free) */}
+      {orderBump && isCurrencyMatching && !hasAccess && !error && !isPwywFree && searchParams.get('hide_bump') !== 'true' && (
         <div 
           onClick={() => setBumpSelected(!bumpSelected)}
           className={`
@@ -524,7 +658,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         </div>
       )}
 
-      {!hasAccess && !error && (
+      {!hasAccess && !error && !isPwywFree && (
         <div className="mb-4">
           {(showCouponInput || appliedCoupon) && (
             <div className="animate-in fade-in slide-in-from-top-1 duration-300">
@@ -657,7 +791,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           </div>
         )}
         
-        {!error && !hasAccess && stripePromise && clientSecret && (
+        {!error && !hasAccess && !isPwywFree && stripePromise && clientSecret && (
           <Elements
             key={`${product.id}-${clientSecret}-${resolvedTheme}`}
             stripe={stripePromise}

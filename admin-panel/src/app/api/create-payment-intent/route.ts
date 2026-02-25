@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Validate minimum price
-      const minPrice = product.custom_price_min || STRIPE_MINIMUM_AMOUNT;
+      const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
       if (customAmount < minPrice) {
         return NextResponse.json(
           { error: `Amount must be at least ${minPrice} ${product.currency}` },

@@ -152,7 +152,7 @@ export class CheckoutService {
       // Calculate base price - use customAmount if provided (Pay What You Want)
       let mainProductPrice = options.product.price;
       if (customAmount !== undefined && customAmount > 0) {
-        const minPrice = options.product.custom_price_min || 0.50;
+        const minPrice = options.product.custom_price_min ?? 0.50;
         if (customAmount < minPrice) {
           throw new CheckoutError(
             CheckoutErrorType.VALIDATION_ERROR,
@@ -389,7 +389,7 @@ export class CheckoutService {
 
     // Validate custom amount for Pay What You Want
     if (request.customAmount !== undefined && request.customAmount > 0) {
-      const minPrice = product.custom_price_min || 0.50;
+      const minPrice = product.custom_price_min ?? 0.50;
       if (request.customAmount < minPrice) {
         throw new CheckoutError(
           CheckoutErrorType.VALIDATION_ERROR,

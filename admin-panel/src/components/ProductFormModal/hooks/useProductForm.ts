@@ -159,7 +159,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         price_includes_vat: product.price_includes_vat ?? true,
         // Pay What You Want / Custom Pricing
         allow_custom_price: product.allow_custom_price || false,
-        custom_price_min: product.custom_price_min || 5.00,
+        custom_price_min: product.custom_price_min ?? 5.00,
         show_price_presets: product.show_price_presets !== false, // default true
         custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25]
       });

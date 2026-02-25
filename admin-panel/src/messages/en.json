@@ -57,8 +57,14 @@
       "title": "Choose Your Amount",
       "minimum": "Minimum",
       "belowMinimum": "Amount must be at least {minimum}",
-      "aboveMaximum": "Amount must be no more than {maximum}"
+      "aboveMaximum": "Amount must be no more than {maximum}",
+      "freePreset": "Free",
+      "getForFree": "Get for Free"
     },
+    "enterEmail": "Enter your email address",
+    "sendMagicLink": "Send magic link",
+    "sendingMagicLink": "Sending magic link...",
+    "checkEmailForMagicLink": "Check your email — we sent a link to activate your access.",
     "orPayWith": "or pay with",
     "optional": "optional",
     "confirmEmailLabel": "I confirm the product will be linked to my account ({accountEmail}). Receipt will be sent to {purchaseEmail}.",
@@ -1209,6 +1215,7 @@
           "minimumPrice": "Minimum Price",
           "suggestedPriceHint": "The price above becomes the suggested amount. Customer can enter any amount above the minimum.",
           "stripeMinimum": "Stripe min. 0.50",
+          "freeOptionHint": "Customer can get this product for free",
           "showPresets": "Show buttons with predefined amounts",
           "showPresetsHelp": "Display suggested amounts as quick-select buttons on checkout",
           "presetAmount": "Amount"

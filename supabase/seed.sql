@@ -207,7 +207,60 @@ Basic JavaScript knowledge required. Familiarity with HTML/CSS recommended.',
     NULL,
     false
   );
-  
+
+-- =====================================================
+-- PWYW (Pay What You Want) PRODUCTS
+-- =====================================================
+
+-- PWYW with free option (custom_price_min = 0) — customer can get it for $0
+INSERT INTO products (
+  name, slug, description, long_description, icon, price, currency,
+  vat_rate, price_includes_vat, features, is_active, is_featured, is_listed,
+  allow_custom_price, custom_price_min, show_price_presets, custom_price_presets
+) VALUES (
+  'Community Guide',
+  'community-guide',
+  'Pay what you want — or get it for free!',
+  E'## Community JavaScript Guide\n\nA community-driven guide to modern JavaScript patterns. **Pay what you think it''s worth** — even $0 is fine!\n\n### Why free?\n\nWe believe knowledge should be accessible. If you find value, consider supporting the project.\n\n- 📖 100+ pages of patterns\n- 🔄 Regular updates\n- 💬 Community forum access',
+  '🤝',
+  19.99,
+  'USD',
+  NULL,
+  true,
+  '[{"title": "What you get", "items": ["100+ page guide (PDF)", "Code examples repository", "Community forum access"]}, {"title": "Pay what you want", "items": ["Free option available", "Suggested price: $19.99", "Support the project if you can"]}]'::jsonb,
+  true,
+  true,
+  true,
+  true,
+  0,
+  true,
+  '[0, 10, 20]'
+);
+
+-- PWYW with minimum > 0 (standard PWYW, no free option)
+INSERT INTO products (
+  name, slug, description, long_description, icon, price, currency,
+  vat_rate, price_includes_vat, features, is_active, is_featured, is_listed,
+  allow_custom_price, custom_price_min, show_price_presets, custom_price_presets
+) VALUES (
+  'Design System Bundle',
+  'design-system-bundle',
+  'Pay what you want — minimum $5.',
+  E'## Complete Design System Bundle\n\nProfessional design system with Figma files, React components, and documentation.\n\n### Flexible pricing\n\nChoose your price starting from $5. The suggested price reflects the value we believe this bundle provides.\n\n- 🎨 Figma design tokens\n- ⚛️ React component library\n- 📐 Responsive grid system',
+  '🎨',
+  29.99,
+  'USD',
+  NULL,
+  true,
+  '[{"title": "Bundle includes", "items": ["Figma design system", "50+ React components", "Typography scale", "Color system"]}, {"title": "Pricing", "items": ["Minimum: $5.00", "Suggested: $29.99", "You choose the price"]}]'::jsonb,
+  true,
+  false,
+  true,
+  true,
+  5,
+  true,
+  '[5, 15, 30]'
+);
 
 -- Insert sample order bumps
 -- Bump 1: Add Pro Toolkit to Premium Course for $29.99 (Huge discount!)
