@@ -2,14 +2,14 @@ import { test, expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 
 /**
- * Product Creation Wizard E2E Tests
+ * Product Wizard E2E Tests
  *
- * Tests the 3-step wizard flow for creating products:
- * Step 1: Essentials (name, description, price) — required
- * Step 2: Content & Details (delivery, categories) — optional
- * Step 3: Sales & Settings (promotions, availability, etc.) — optional
+ * Tests the unified 3-step wizard for creating AND editing products:
+ * Step 1: Essentials (name, slug, description, price) — required
+ * Step 2: Content & Details (delivery, PWYW, icon, image, categories) — optional
+ * Step 3: Sales & Settings (promotions, availability, OTO, refund, etc.) — optional
  *
- * Also tests: edit mode (old modal), duplicate mode (wizard), exit confirmation.
+ * Also tests: edit mode (same wizard), duplicate mode (wizard), exit confirmation.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -58,9 +58,6 @@ test.describe('Product Creation Wizard', () => {
     // Step indicator should show 3 steps
     await expect(page.getByRole('button', { name: /Podstawy/i })).toBeVisible();
 
-    // Step 1 hint banner should be visible
-    await expect(page.getByText(/Możesz utworzyć produkt teraz/)).toBeVisible();
-
     // Create Product and Continue Setup buttons should be visible
     await expect(page.getByRole('button', { name: /Utwórz produkt/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Dalej/i })).toBeVisible();
@@ -84,7 +81,7 @@ test.describe('Product Creation Wizard', () => {
     // Fill description
     await page.fill('textarea#description', 'Created quickly from step 1');
 
-    // Fill price
+    // Fill price (now on step 1)
     await page.fill('input#price', '49,99');
 
     // Click Create Product
@@ -185,7 +182,6 @@ test.describe('Product Creation Wizard', () => {
 
     // Should still be on step 1
     await expect(page.getByRole('button', { name: /Podstawy/i })).toBeVisible();
-    await expect(page.getByText(/Możesz utworzyć produkt teraz/)).toBeVisible();
   });
 
   test('should show exit confirmation when form is dirty', async ({ page }) => {
@@ -224,7 +220,7 @@ test.describe('Product Creation Wizard', () => {
   });
 });
 
-test.describe('Edit mode uses modal (not wizard)', () => {
+test.describe('Edit mode uses wizard', () => {
 
   let editProductId: string;
   const editSlug = `edit-mode-test-${Date.now()}`;
@@ -250,7 +246,7 @@ test.describe('Edit mode uses modal (not wizard)', () => {
     createdProductSlugs.push(editSlug);
   });
 
-  test('should open old modal (not wizard) when editing a product', async ({ page }) => {
+  test('should open wizard with pre-filled data when editing a product', async ({ page }) => {
     await goToProducts(page);
 
     // Find the edit button for our product
@@ -270,14 +266,69 @@ test.describe('Edit mode uses modal (not wizard)', () => {
       await editOption.click();
     }
 
-    // Should show "Edytuj produkt" (edit), NOT "Utwórz nowy produkt" (wizard)
+    // Should show "Edytuj produkt" in wizard header (edit mode)
     await expect(page.getByText('Edytuj produkt')).toBeVisible({ timeout: 5000 });
 
-    // Wizard step indicator should NOT be present
-    await expect(page.getByRole('button', { name: /Podstawy/i })).not.toBeVisible();
+    // Wizard step indicator SHOULD be present (unified wizard for edit too)
+    await expect(page.getByRole('button', { name: /Podstawy/i })).toBeVisible();
+
+    // "Update product" button should be visible instead of "Create product"
+    await expect(page.getByRole('button', { name: /Aktualizuj produkt/i })).toBeVisible();
+
+    // Form should be pre-filled with existing data
+    const nameValue = await page.inputValue('input#name');
+    expect(nameValue).toBe('Edit Mode Test Product');
+
+    const descValue = await page.inputValue('textarea#description');
+    expect(descValue).toBe('Product for edit mode test');
 
     // Close modal
     await page.locator('button[aria-label="Close modal"]').click();
+    // Exit confirmation (form is always dirty in edit mode)
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+
+  test('should navigate steps in edit mode', async ({ page }) => {
+    await goToProducts(page);
+
+    // Open edit for the product
+    const productRow = page.locator('tr, [data-product-id]').filter({ hasText: 'Edit Mode Test Product' });
+    const editButton = productRow.locator('button[title*="Edytuj"], button[title*="Edit"]').first();
+
+    if (await editButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await editButton.click();
+    } else {
+      const menuButton = productRow.locator('button').last();
+      await menuButton.click();
+      await page.waitForTimeout(300);
+      const editOption = page.locator('button, a, [role="menuitem"]').filter({ hasText: /Edytuj|Edit/i }).first();
+      await editOption.click();
+    }
+
+    await expect(page.getByText('Edytuj produkt')).toBeVisible({ timeout: 5000 });
+
+    // Navigate to step 2
+    await page.getByRole('button', { name: /Dalej/i }).click();
+    await expect(page.getByRole('button', { name: /Treść i szczegóły|Content & Details/i })).toBeVisible();
+
+    // Navigate to step 3
+    await page.getByRole('button', { name: /Dalej/i }).click();
+    await expect(page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i })).toBeVisible();
+
+    // "Update product" button should be visible on all steps
+    await expect(page.getByRole('button', { name: /Aktualizuj produkt/i })).toBeVisible();
+
+    // Go back and close
+    await page.getByRole('button', { name: /Wstecz/i }).click();
+    await page.getByRole('button', { name: /Wstecz/i }).click();
+    await page.locator('button[aria-label="Close modal"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
   });
 });
 
@@ -327,7 +378,7 @@ test.describe('Duplicate mode uses wizard', () => {
       await dupOption.click();
     }
 
-    // Should show wizard (not edit modal) because duplicate has empty ID
+    // Should show wizard (create mode) because duplicate has empty ID
     await expect(page.getByText('Utwórz nowy produkt')).toBeVisible({ timeout: 5000 });
 
     // Name should be pre-filled with [COPY] prefix

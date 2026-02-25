@@ -12,6 +12,7 @@ import { WizardFooter } from './WizardFooter';
 import { StepEssentials } from './steps/StepEssentials';
 import { StepContentDetails } from './steps/StepContentDetails';
 import { StepSalesSettings } from './steps/StepSalesSettings';
+import { getCurrencySymbol } from '@/lib/constants';
 import type { ProductFormData } from '../types';
 
 const TOTAL_STEPS = 3;
@@ -22,7 +23,7 @@ export interface ProductCreationWizardProps {
   onSubmit: (formData: ProductFormData) => Promise<void>;
   isSubmitting: boolean;
   error: string | null;
-  product?: Product | null; // for duplicate mode
+  product?: Product | null; // for edit or duplicate mode
 }
 
 const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
@@ -36,6 +37,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   const t = useTranslations('admin.products.form');
   const router = useRouter();
   const locale = useLocale();
+
+  const isEditMode = !!(product && product.id);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -65,6 +68,9 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     handleSubmit,
     generateSlug,
     validateContentItemUrl,
+    fieldErrors,
+    setFieldErrors,
+    validateRequiredFields,
     waitlistWarning,
     proceedWithSubmit,
     dismissWaitlistWarning,
@@ -73,13 +79,12 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   // Check if form has been touched (for exit confirmation)
   const isFormDirty = useCallback(() => {
+    if (isEditMode) {
+      // In edit mode, form is always considered dirty (pre-filled)
+      return true;
+    }
     return formData.name !== '' || formData.price > 0 || formData.description !== '';
-  }, [formData.name, formData.price, formData.description]);
-
-  // Validate step 1 before proceeding
-  const validateStep1 = useCallback((): boolean => {
-    return formData.name.trim() !== '' && formData.description.trim() !== '';
-  }, [formData.name, formData.description]);
+  }, [formData.name, formData.price, formData.description, isEditMode]);
 
   const handleClose = useCallback(() => {
     if (isFormDirty()) {
@@ -90,13 +95,13 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   }, [isFormDirty, onClose]);
 
   const handleContinue = useCallback(() => {
-    if (currentStep === 1 && !validateStep1()) {
-      return; // don't advance if step 1 is incomplete
+    if (currentStep === 1 && !validateRequiredFields()) {
+      return;
     }
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, validateStep1]);
+  }, [currentStep, validateRequiredFields]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
@@ -109,6 +114,13 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
       setCurrentStep(step);
     }
   }, [currentStep]);
+
+  // Navigate to step 1 when field errors appear (required fields are on step 1)
+  React.useEffect(() => {
+    if (Object.keys(fieldErrors).length > 0 && currentStep !== 1) {
+      setCurrentStep(1);
+    }
+  }, [fieldErrors, currentStep]);
 
   // Trigger the form submit via the hook's handleSubmit
   const handleWizardSubmit = useCallback(() => {
@@ -131,11 +143,39 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     <>
       <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false}>
         <ModalHeader
-          title={t('wizard.title')}
-          subtitle={t('wizard.subtitle')}
+          title={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>{isEditMode ? t('editProduct') : t('wizard.title')}</span>
+              {formData.name && (
+                <span className="inline-flex items-center gap-1.5 font-normal text-gray-500 dark:text-gray-400">
+                  <span className="truncate max-w-[180px]">{formData.name}</span>
+                  {formData.slug && (
+                    <span className="font-mono text-gray-400 dark:text-gray-500 truncate max-w-[140px]">/p/{formData.slug}</span>
+                  )}
+                  {priceDisplayValue !== '' && (
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                      formData.price === 0
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                    }`}>
+                      {formData.price === 0 ? t('free') : `${getCurrencySymbol(formData.currency)}${formData.price}`}
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+          }
+          subtitle={!formData.name ? (isEditMode ? t('editing', { name: product!.name }) : t('wizard.subtitle')) : undefined}
           icon={
             <span className="text-2xl">{formData.icon}</span>
           }
+          badge={isEditMode ? (
+            !formData.is_active
+              ? { text: t('inactive'), variant: 'neutral' as const }
+              : !formData.is_listed
+                ? { text: t('active'), variant: 'warning' as const }
+                : { text: t('active'), variant: 'success' as const }
+          ) : undefined}
         />
 
         <WizardStepIndicator
@@ -154,15 +194,6 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             />
           )}
 
-          {/* Step 1 hint banner */}
-          {currentStep === 1 && (
-            <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {t('wizard.earlyCreateHint')}
-              </p>
-            </div>
-          )}
-
           <form id="wizard-form" onSubmit={handleSubmit}>
             {currentStep === 1 && (
               <StepEssentials
@@ -174,9 +205,10 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 setSlugModified={setSlugModified}
                 currentDomain={currentDomain}
                 generateSlug={generateSlug}
+                fieldErrors={fieldErrors}
+                setFieldErrors={setFieldErrors}
                 priceDisplayValue={priceDisplayValue}
                 setPriceDisplayValue={setPriceDisplayValue}
-                onIconSelect={handleIconSelect}
                 shopDefaultVatRate={shopDefaultVatRate}
               />
             )}
@@ -186,6 +218,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 formData={formData}
                 setFormData={setFormData}
                 t={t}
+                onIconSelect={handleIconSelect}
                 urlValidation={urlValidation}
                 setUrlValidation={setUrlValidation}
                 validateContentItemUrl={validateContentItemUrl}
@@ -217,6 +250,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           currentStep={currentStep}
           totalSteps={TOTAL_STEPS}
           isSubmitting={isSubmitting}
+          isEditMode={isEditMode}
           onBack={handleBack}
           onContinue={handleContinue}
           onSubmit={handleWizardSubmit}

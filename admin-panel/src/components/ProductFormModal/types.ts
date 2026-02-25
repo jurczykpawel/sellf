@@ -112,6 +112,7 @@ export interface BasicInfoSectionProps extends SectionProps {
   setSlugModified: (value: boolean) => void;
   currentDomain: string;
   generateSlug: (name: string) => string;
+  fieldErrors?: Record<string, string>;
 }
 
 export interface PricingSectionProps extends SectionProps {

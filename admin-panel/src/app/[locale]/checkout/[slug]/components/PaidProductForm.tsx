@@ -51,6 +51,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // customAmountInput = string value for input display (allows typing "5.", "5.00", etc.)
   const getInitialAmount = () => {
     if (product.allow_custom_price) {
+      // Product price is the suggested amount; fall back to first preset or minimum
+      if (product.price > 0) return product.price;
       const presets = product.custom_price_presets;
       const firstValidPreset = presets?.find(p => p > 0);
       if (firstValidPreset) return firstValidPreset;

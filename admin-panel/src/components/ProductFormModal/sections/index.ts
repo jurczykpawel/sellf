@@ -1,5 +1,6 @@
 export { BasicInfoSection } from './BasicInfoSection';
 export { PricingSection } from './PricingSection';
+export { PriceVatInline } from './PriceVatInline';
 export { SalePriceSection } from './SalePriceSection';
 export { AvailabilitySection } from './AvailabilitySection';
 export { AccessSection } from './AccessSection';

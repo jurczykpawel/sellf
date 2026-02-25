@@ -36,6 +36,9 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
   const [currentDomain, setCurrentDomain] = useState<string>('');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
+  // Validation errors for required fields
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   // Products list for OTO selection
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -333,6 +336,15 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
 
+    // Clear field error on change
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+
     if (name === 'name' && !slugModified) {
       setFormData(prev => ({
         ...prev,
@@ -464,8 +476,27 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     setPendingSubmitData(null);
   }, []);
 
+  // Validate required fields — returns true if valid
+  const validateRequiredFields = useCallback((): boolean => {
+    const errors: Record<string, string> = {};
+    if (!formData.name.trim()) errors.name = 'required';
+    if (!formData.slug.trim()) errors.slug = 'required';
+    if (!formData.description.trim()) errors.description = 'required';
+    if (priceDisplayValue === '') errors.price = 'required';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      if (errors.name) nameInputRef.current?.focus();
+      return false;
+    }
+    setFieldErrors({});
+    return true;
+  }, [formData.name, formData.slug, formData.description, priceDisplayValue]);
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateRequiredFields()) return;
 
     // Validate all content items with URLs before submission
     if (formData.content_delivery_type === 'content') {
@@ -552,7 +583,9 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     selectedRedirectProduct,
     canShowOtoOption,
 
-    // URL validation
+    // Validation
+    fieldErrors,
+    setFieldErrors,
     urlValidation,
     setUrlValidation,
 
@@ -567,6 +600,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     // Utilities
     generateSlug,
     validateContentItemUrl,
+    validateRequiredFields,
 
     // Waitlist warning
     waitlistWarning,

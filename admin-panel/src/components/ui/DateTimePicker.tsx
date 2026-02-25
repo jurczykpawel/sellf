@@ -74,17 +74,22 @@ export default function DateTimePicker({
         </label>
       )}
 
-      <div className="relative flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <input
           type="datetime-local"
           value={formatForInput(value)}
           onChange={handleChange}
+          onClick={(e) => {
+            if (!disabled && 'showPicker' in e.currentTarget) {
+              try { (e.currentTarget as HTMLInputElement).showPicker(); } catch {}
+            }
+          }}
           min={formatMinMax(minDate)}
           max={formatMinMax(maxDate)}
           disabled={disabled}
           placeholder={placeholder}
           className={`
-            w-full px-3 py-2.5 border rounded-lg shadow-sm transition-all duration-200
+            flex-1 min-w-0 px-3 py-2.5 border rounded-lg shadow-sm transition-all duration-200
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
             ${disabled
               ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
@@ -100,9 +105,10 @@ export default function DateTimePicker({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+            className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Clear date"
           >
-            <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

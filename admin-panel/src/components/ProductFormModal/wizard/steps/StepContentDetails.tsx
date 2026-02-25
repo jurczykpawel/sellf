@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ContentDeliverySection, CategoriesSection } from '../../sections';
+import { ContentDeliverySection, PricingSection, CategoriesSection } from '../../sections';
 import type { ProductFormData, TranslationFunction, UrlValidation } from '../../types';
 import type { Category } from '@/lib/actions/categories';
 
@@ -9,6 +9,7 @@ interface StepContentDetailsProps {
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
   t: TranslationFunction;
+  onIconSelect: (icon: string) => void;
   urlValidation: Record<number, UrlValidation>;
   setUrlValidation: React.Dispatch<React.SetStateAction<Record<number, UrlValidation>>>;
   validateContentItemUrl: (url: string, type: 'video_embed' | 'download_link') => UrlValidation;
@@ -20,6 +21,7 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
   formData,
   setFormData,
   t,
+  onIconSelect,
   urlValidation,
   setUrlValidation,
   validateContentItemUrl,
@@ -35,6 +37,13 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
         urlValidation={urlValidation}
         setUrlValidation={setUrlValidation}
         validateContentItemUrl={validateContentItemUrl}
+      />
+
+      <PricingSection
+        formData={formData}
+        setFormData={setFormData}
+        t={t}
+        onIconSelect={onIconSelect}
       />
 
       <CategoriesSection

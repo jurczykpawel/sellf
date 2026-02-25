@@ -1,8 +1,65 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ModalSection } from '@/components/ui/Modal';
 import { BasicInfoSectionProps } from '../types';
+
+const errorBorder = 'border-red-500 dark:border-red-500 focus:ring-red-500';
+const normalBorder = 'border-gray-300 dark:border-gray-600 focus:ring-blue-500';
+
+function LongDescriptionField({
+  value,
+  onChange,
+  t,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  t: (key: string) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasContent = value.length > 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label htmlFor="long_description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {t('longDescription')}
+          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({t('optional')})</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1"
+        >
+          {expanded ? t('collapse') : t('expand')}
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      <textarea
+        id="long_description"
+        name="long_description"
+        value={value}
+        onChange={onChange}
+        rows={expanded ? 10 : 2}
+        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-mono text-sm resize-none transition-all duration-200"
+        placeholder="## What's included?&#10;- Feature 1&#10;- Feature 2"
+      />
+      {expanded && (
+        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 flex items-start gap-1">
+          <span>💡</span>
+          <span>{t('markdownTip')}</span>
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function BasicInfoSection({
   formData,
@@ -13,6 +70,7 @@ export function BasicInfoSection({
   setSlugModified,
   currentDomain,
   generateSlug,
+  fieldErrors = {},
 }: BasicInfoSectionProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -51,10 +109,13 @@ export function BasicInfoSection({
             value={formData.name}
             onChange={handleInputChange}
             ref={nameInputRef}
-            className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            className={`w-full px-3 py-2.5 border ${fieldErrors.name ? errorBorder : normalBorder} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-white`}
             placeholder={t('enterProductName')}
             required
           />
+          {fieldErrors.name && (
+            <p className="mt-1 text-xs text-red-500">{t('productName')} is required</p>
+          )}
         </div>
 
         <div>
@@ -69,7 +130,7 @@ export function BasicInfoSection({
               name="slug"
               value={formData.slug}
               onChange={handleInputChange}
-              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white pr-12"
+              className={`w-full px-3 py-2.5 border ${fieldErrors.slug ? errorBorder : normalBorder} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-white pr-12`}
               placeholder="product-url-slug"
               required
             />
@@ -95,31 +156,20 @@ export function BasicInfoSection({
           value={formData.description || ''}
           onChange={handleInputChange}
           rows={3}
-          className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          className={`w-full px-3 py-2.5 border ${fieldErrors.description ? errorBorder : normalBorder} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-white`}
           placeholder="Describe your product"
           required
         />
+        {fieldErrors.description && (
+          <p className="mt-1 text-xs text-red-500">Description is required</p>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="long_description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Detailed Description (Markdown)
-          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(Optional - for checkout page)</span>
-        </label>
-        <textarea
-          id="long_description"
-          name="long_description"
-          value={formData.long_description || ''}
-          onChange={handleInputChange}
-          rows={8}
-          className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white font-mono text-sm"
-          placeholder="## What's included?&#10;&#10;- Feature 1&#10;- Feature 2&#10;&#10;### Why choose this?&#10;&#10;Because it's **awesome**!"
-        />
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-start gap-1">
-          <span>💡</span>
-          <span>Tip: If you don&apos;t know Markdown syntax, ask any AI to create formatted content for you</span>
-        </p>
-      </div>
+      <LongDescriptionField
+        value={formData.long_description || ''}
+        onChange={handleInputChange}
+        t={t}
+      />
     </ModalSection>
   );
 }

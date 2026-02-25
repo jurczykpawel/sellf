@@ -8,6 +8,7 @@ interface WizardFooterProps {
   currentStep: number;
   totalSteps: number;
   isSubmitting: boolean;
+  isEditMode: boolean;
   onBack: () => void;
   onContinue: () => void;
   onSubmit: () => void;
@@ -19,6 +20,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   currentStep,
   totalSteps,
   isSubmitting,
+  isEditMode,
   onBack,
   onContinue,
   onSubmit,
@@ -47,7 +49,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
           )}
         </div>
 
-        {/* Right side: Create + Continue */}
+        {/* Right side: Create/Update + Continue */}
         <div className="flex items-center gap-3">
           <Button
             onClick={onSubmit}
@@ -55,7 +57,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
             disabled={isSubmitting}
             loading={isSubmitting}
           >
-            {t('wizard.createProduct')}
+            {isEditMode ? t('updateProduct') : t('wizard.createProduct')}
           </Button>
           {!isLastStep && (
             <Button onClick={onContinue} variant="ghost">

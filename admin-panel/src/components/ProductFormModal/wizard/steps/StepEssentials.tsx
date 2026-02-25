@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BasicInfoSection, PricingSection } from '../../sections';
-import { ProductPreview } from '../../components';
+import { BasicInfoSection, PriceVatInline } from '../../sections';
 import type { ProductFormData, TranslationFunction } from '../../types';
 
 interface StepEssentialsProps {
@@ -14,9 +13,10 @@ interface StepEssentialsProps {
   setSlugModified: (value: boolean) => void;
   currentDomain: string;
   generateSlug: (name: string) => string;
+  fieldErrors?: Record<string, string>;
+  setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   priceDisplayValue: string;
   setPriceDisplayValue: (value: string) => void;
-  onIconSelect: (icon: string) => void;
   shopDefaultVatRate: number | null;
 }
 
@@ -29,15 +29,14 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   setSlugModified,
   currentDomain,
   generateSlug,
+  fieldErrors,
+  setFieldErrors,
   priceDisplayValue,
   setPriceDisplayValue,
-  onIconSelect,
   shopDefaultVatRate,
 }) => {
   return (
     <div className="space-y-6">
-      <ProductPreview formData={formData} t={t} />
-
       <BasicInfoSection
         formData={formData}
         setFormData={setFormData}
@@ -47,16 +46,18 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         setSlugModified={setSlugModified}
         currentDomain={currentDomain}
         generateSlug={generateSlug}
+        fieldErrors={fieldErrors}
       />
 
-      <PricingSection
+      <PriceVatInline
         formData={formData}
         setFormData={setFormData}
         t={t}
         priceDisplayValue={priceDisplayValue}
         setPriceDisplayValue={setPriceDisplayValue}
-        onIconSelect={onIconSelect}
         shopDefaultVatRate={shopDefaultVatRate}
+        fieldErrors={fieldErrors}
+        setFieldErrors={setFieldErrors}
       />
     </div>
   );

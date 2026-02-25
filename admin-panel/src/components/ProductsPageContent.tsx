@@ -5,8 +5,8 @@ import { Product } from '@/types';
 import FilterBar from './FilterBar';
 import ProductsTable from './ProductsTable';
 import { useToast } from '@/contexts/ToastContext';
-import ProductFormModal, { ProductFormData } from './ProductFormModal';
 import ProductCreationWizard from './ProductFormModal/wizard/ProductCreationWizard';
+import type { ProductFormData } from './ProductFormModal/types';
 import CodeGeneratorModal from './CodeGeneratorModal';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
@@ -323,19 +323,7 @@ const ProductsPageContent: React.FC = () => {
         onSort={handleSort}
       />
 
-      {showProductForm && editingProduct?.id ? (
-        <ProductFormModal
-          isOpen={showProductForm}
-          onClose={() => {
-            setShowProductForm(false);
-            setEditingProduct(null);
-          }}
-          onSubmit={handleProductSubmit}
-          product={editingProduct}
-          isSubmitting={submitting}
-          error={null}
-        />
-      ) : showProductForm ? (
+      {showProductForm && (
         <ProductCreationWizard
           isOpen={showProductForm}
           onClose={() => {
@@ -350,7 +338,7 @@ const ProductsPageContent: React.FC = () => {
           isSubmitting={submitting}
           error={null}
         />
-      ) : null}
+      )}
 
       {productToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">

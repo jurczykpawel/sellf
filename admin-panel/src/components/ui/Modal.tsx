@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import BaseModal from './BaseModal';
 
 interface ModalHeaderProps {
-  title: string;
-  subtitle?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
   icon?: React.ReactNode;
   badge?: {
     text: string;
@@ -57,11 +57,11 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
   };
 
   return (
-    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl">
+    <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl">
       <div className="flex items-start justify-between">
         <div className="flex items-center space-x-3">
           {icon && (
-            <div className="flex-shrink-0 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <div className="flex-shrink-0 p-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
               {icon}
             </div>
           )}
