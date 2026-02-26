@@ -11,6 +11,7 @@ export interface ValidationResult {
 export interface IntegrationsInput {
   gtm_container_id?: string | null;
   gtm_server_container_url?: string | null;
+  gtm_ss_enabled?: boolean;
   google_ads_conversion_id?: string | null;
   google_ads_conversion_label?: string | null;
   facebook_pixel_id?: string | null;

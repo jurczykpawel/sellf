@@ -20,6 +20,7 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
+import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
 
 // Supabase service client for database operations
 const getServiceClient = () => {
@@ -118,6 +119,25 @@ async function handleCheckoutSessionCompleted(
         .single();
        bumpProductDetails = bump;
     }
+
+    // Server-side Purchase tracking via Facebook CAPI
+    // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    trackServerSideConversion({
+      eventName: 'Purchase',
+      eventId: generatePurchaseEventId(sessionId),
+      eventSourceUrl: productDetails?.slug ? `${baseUrl}/p/${productDetails.slug}` : baseUrl,
+      value: (session.amount_total || 0) / 100,
+      currency: (session.currency || 'usd').toUpperCase(),
+      items: [{
+        item_id: productId,
+        item_name: productDetails?.name || 'Unknown Product',
+        price: (session.amount_total || 0) / 100,
+        quantity: 1,
+      }],
+      orderId: sessionId,
+      userEmail: customerEmail,
+    }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
     WebhookService.trigger('purchase.completed', {
       customer: {
@@ -231,6 +251,24 @@ async function handlePaymentIntentSucceeded(
         .single();
        bumpProductDetails = bump;
     }
+
+    // Server-side Purchase tracking via Facebook CAPI
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    trackServerSideConversion({
+      eventName: 'Purchase',
+      eventId: generatePurchaseEventId(paymentIntent.id),
+      eventSourceUrl: productDetails?.slug ? `${baseUrl}/p/${productDetails.slug}` : baseUrl,
+      value: (paymentIntent.amount || 0) / 100,
+      currency: (paymentIntent.currency || 'usd').toUpperCase(),
+      items: [{
+        item_id: productId,
+        item_name: productDetails?.name || 'Unknown Product',
+        price: (paymentIntent.amount || 0) / 100,
+        quantity: 1,
+      }],
+      orderId: paymentIntent.id,
+      userEmail: customerEmail,
+    }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
     WebhookService.trigger('purchase.completed', {
       customer: {

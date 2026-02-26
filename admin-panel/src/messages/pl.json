@@ -137,8 +137,10 @@
     "confirmDelete": "Potwierdź usunięcie",
     "currency": {
       "grouped": "Pogrupowane według Waluty",
-      "convertTo": "Przelicz na"
-    }
+      "convertTo": "Przelicz na",
+      "selectCurrency": "Wybierz walutę"
+    },
+    "showingPage": "Strona {current} z {total}"
   },
   "navigation": {
     "dashboard": "Pulpit",
@@ -183,7 +185,9 @@
       "title": "Google Tag Manager",
       "containerId": "ID Kontenera",
       "serverContainerUrl": "URL kontenera GTM Server-Side",
-      "serverContainerHelp": "Dla śledzenia server-side. Zostaw puste dla client-side."
+      "serverContainerHelp": "Dla śledzenia server-side. Zostaw puste dla client-side.",
+      "ssEnabled": "Włącz wysyłkę eventów server-to-server",
+      "ssEnabledHelp": "Wysyła eventy konwersji (Purchase, Lead) z backendu bezpośrednio do kontenera GTM SS. Obsługuje Facebook CAPI, TikTok Events API i inne tagi skonfigurowane w GTM."
     },
     "umami": {
       "title": "Umami Analytics (Open Source)",

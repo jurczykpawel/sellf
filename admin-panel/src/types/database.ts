@@ -640,6 +640,7 @@ export type Database = {
           google_ads_conversion_label: string | null
           gtm_container_id: string | null
           gtm_server_container_url: string | null
+          gtm_ss_enabled: boolean | null
           gus_api_enabled: boolean
           gus_api_key_encrypted: string | null
           gus_api_key_iv: string | null
@@ -668,6 +669,7 @@ export type Database = {
           google_ads_conversion_label?: string | null
           gtm_container_id?: string | null
           gtm_server_container_url?: string | null
+          gtm_ss_enabled?: boolean | null
           gus_api_enabled?: boolean
           gus_api_key_encrypted?: string | null
           gus_api_key_iv?: string | null
@@ -696,6 +698,7 @@ export type Database = {
           google_ads_conversion_label?: string | null
           gtm_container_id?: string | null
           gtm_server_container_url?: string | null
+          gtm_ss_enabled?: boolean | null
           gus_api_enabled?: boolean
           gus_api_key_encrypted?: string | null
           gus_api_key_iv?: string | null
@@ -1629,6 +1632,69 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+        }
+        Relationships: []
+      }
+      tracking_logs: {
+        Row: {
+          created_at: string
+          currency: string | null
+          customer_email: string | null
+          destination: string | null
+          duration_ms: number | null
+          error_message: string | null
+          event_id: string
+          event_name: string
+          event_source_url: string | null
+          events_received: number | null
+          http_status: number | null
+          id: string
+          order_id: string | null
+          product_id: string | null
+          skip_reason: string | null
+          source: string
+          status: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          destination?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          event_id: string
+          event_name: string
+          event_source_url?: string | null
+          events_received?: number | null
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          skip_reason?: string | null
+          source: string
+          status: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          destination?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          event_id?: string
+          event_name?: string
+          event_source_url?: string | null
+          events_received?: number | null
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          skip_reason?: string | null
+          source?: string
+          status?: string
+          value?: number | null
         }
         Relationships: []
       }

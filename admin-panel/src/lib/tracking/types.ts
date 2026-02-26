@@ -2,6 +2,8 @@
  * Tracking Types for GTM, Facebook Pixel, and Facebook CAPI
  */
 
+export const FB_GRAPH_API_VERSION = 'v25.0';
+
 // GA4 Event Names (used in dataLayer)
 export type GA4EventName =
   | 'view_item'
@@ -48,6 +50,7 @@ export interface TrackingConfig {
 export interface TrackingConfigFromDB {
   gtm_container_id?: string | null;
   gtm_server_container_url?: string | null;
+  gtm_ss_enabled?: boolean | null;
   facebook_pixel_id?: string | null;
   fb_capi_enabled?: boolean | null;
   send_conversions_without_consent?: boolean | null;
@@ -79,4 +82,17 @@ declare global {
     ) => void;
     gtag?: (...args: unknown[]) => void;
   }
+}
+
+/**
+ * Generate a deterministic event ID for Purchase events.
+ *
+ * Both client-side (PaymentStatusView) and server-side (Stripe webhook)
+ * must produce the same event_id for the same Stripe session, enabling
+ * Facebook's 48-hour deduplication window to collapse them into one event.
+ *
+ * @param stripeId - Stripe Checkout Session ID or Payment Intent ID
+ */
+export function generatePurchaseEventId(stripeId: string): string {
+  return `purchase_${stripeId}`;
 }

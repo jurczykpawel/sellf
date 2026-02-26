@@ -131,8 +131,10 @@
     "confirmDelete": "Confirm Delete",
     "currency": {
       "grouped": "Grouped by Currency",
-      "convertTo": "Convert to"
-    }
+      "convertTo": "Convert to",
+      "selectCurrency": "Select Currency"
+    },
+    "showingPage": "Showing page {current} of {total}"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -177,7 +179,9 @@
       "title": "Google Tag Manager",
       "containerId": "Container ID",
       "serverContainerUrl": "GTM Server Container URL",
-      "serverContainerHelp": "For server-side tracking. Leave empty for client-side only."
+      "serverContainerHelp": "For server-side tracking. Leave empty for client-side only.",
+      "ssEnabled": "Enable server-to-server event forwarding",
+      "ssEnabledHelp": "Send conversion events (Purchase, Lead) from backend directly to GTM SS container. Supports Facebook CAPI, TikTok Events API, and other tags configured in GTM."
     },
     "umami": {
       "title": "Umami Analytics (Open Source)",

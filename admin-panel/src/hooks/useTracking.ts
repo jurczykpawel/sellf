@@ -49,13 +49,13 @@ export function useTracking(configOverride?: TrackingConfigFromDB | null) {
 
   // Memoized track function
   const track = useCallback(
-    async (eventName: GA4EventName, data: TrackingEventData): Promise<void> => {
+    async (eventName: GA4EventName, data: TrackingEventData, eventIdOverride?: string): Promise<void> => {
       // Don't track if no tracking is configured
       if (!trackingConfig.gtmEnabled && !trackingConfig.fbPixelEnabled && !trackingConfig.fbCAPIEnabled) {
         return;
       }
 
-      return trackEvent(eventName, data, trackingConfig);
+      return trackEvent(eventName, data, trackingConfig, eventIdOverride);
     },
     [trackingConfig]
   );

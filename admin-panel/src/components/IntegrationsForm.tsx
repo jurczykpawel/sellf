@@ -293,6 +293,15 @@ export default function IntegrationsForm({ initialData, initialScripts }: Integr
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('gtm.serverContainerHelp')}</p>
                     </div>
                   </div>
+                  {formData.gtm_server_container_url && (
+                    <div className="mt-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={formData.gtm_ss_enabled || false} onChange={(e) => handleChange('gtm_ss_enabled', e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('gtm.ssEnabled')}</span>
+                      </label>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">{t('gtm.ssEnabledHelp')}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-gray-100 dark:border-gray-700 my-6"></div>

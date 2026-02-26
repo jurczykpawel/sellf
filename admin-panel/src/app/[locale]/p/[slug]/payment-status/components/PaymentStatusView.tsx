@@ -8,6 +8,7 @@ import { usePaymentStatus } from '../hooks';
 import { PaymentStatusViewProps } from '../types';
 import { getStatusInfo } from '../utils/helpers';
 import { useTracking } from '@/hooks/useTracking';
+import { generatePurchaseEventId } from '@/lib/tracking';
 import {
   ErrorStatus,
   ProcessingStatus,
@@ -70,8 +71,10 @@ export default function PaymentStatusView({
 
     purchaseTracked.current = true;
 
-    // Generate transaction ID from session or payment intent
-    const transactionId = sessionId || paymentIntentId || `txn_${Date.now()}`;
+    // Deterministic event ID for Facebook dedup with server-side (Stripe webhook)
+    const stripeId = sessionId || paymentIntentId;
+    const transactionId = stripeId || `txn_${Date.now()}`;
+    const purchaseEventId = stripeId ? generatePurchaseEventId(stripeId) : undefined;
 
     track('purchase', {
       transactionId,
@@ -84,7 +87,7 @@ export default function PaymentStatusView({
         quantity: 1,
       }],
       userEmail: customerEmail || undefined,
-    });
+    }, purchaseEventId);
   }, [paymentStatus, accessGranted, product, sessionId, paymentIntentId, customerEmail, track]);
 
   // Handle OTO skip action

@@ -182,10 +182,11 @@ async function sendToCAPI(
 export async function trackEvent(
   eventName: GA4EventName,
   data: TrackingEventData,
-  config: TrackingConfig
+  config: TrackingConfig,
+  eventIdOverride?: string
 ): Promise<void> {
-  // Generate a single event ID for deduplication
-  const eventId = generateEventId();
+  // Use provided event ID (for dedup with server-side) or generate a new one
+  const eventId = eventIdOverride || generateEventId();
 
   // Get Facebook event name equivalent
   const fbEventName = GA4_TO_FB[eventName];
