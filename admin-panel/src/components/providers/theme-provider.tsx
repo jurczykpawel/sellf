@@ -116,7 +116,7 @@ export function ThemeScript({ adminTheme }: { adminTheme?: string }) {
     (function() {
       try {
         var t = localStorage.getItem('${STORAGE_KEY}');
-        var admin = ${JSON.stringify(adminTheme || null)};
+        var admin = ${JSON.stringify(adminTheme || null).replace(/<\//g, '<\\/')};
         if (t === 'dark' || t === 'light') {
           if (t === 'dark') document.documentElement.classList.add('dark');
         } else if (admin === 'dark' || admin === 'light') {
