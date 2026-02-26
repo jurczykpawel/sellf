@@ -123,7 +123,9 @@ test.describe('Sale Price & Enhanced Omnibus', () => {
     expect(response.ok()).toBeTruthy();
     let data = await response.json();
     expect(data.showOmnibus).toBe(true);
-    expect(data.lowestPrice).toBeTruthy();
+    expect(typeof data.lowestPrice).toBe('number');
+    expect(data.lowestPrice).toBeGreaterThan(0);
+    expect(data.lowestPrice).toBeLessThanOrEqual(70);
 
     // Remove sale price
     await supabaseAdmin
@@ -210,7 +212,9 @@ test.describe('Sale Price & Enhanced Omnibus', () => {
 
     const data2 = await response2.json();
     expect(data2.showOmnibus).toBe(true);
-    expect(data2.lowestPrice).toBeTruthy();
+    expect(typeof data2.lowestPrice).toBe('number');
+    expect(data2.lowestPrice).toBeGreaterThan(0);
+    expect(data2.lowestPrice).toBeLessThanOrEqual(65);
   });
 
   test('should auto-cleanup price history older than 30 days', async () => {

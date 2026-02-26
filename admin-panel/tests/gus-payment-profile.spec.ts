@@ -29,10 +29,9 @@ test.describe('GUS Integration - Profile Update After Payment', () => {
     if (authError) throw authError;
     testUser = authData.user;
 
-    // Create profile
+    // Create profile (profiles table has no email column — email lives in auth.users)
     await supabaseAdmin.from('profiles').insert({
       id: testUser.id,
-      email: testUser.email,
     });
 
     // Create test product
@@ -56,129 +55,12 @@ test.describe('GUS Integration - Profile Update After Payment', () => {
     // Cleanup
     if (testUser) {
       await supabaseAdmin.from('profiles').delete().eq('id', testUser.id);
-      await supabaseAdmin.from('product_access').delete().eq('user_id', testUser.id);
+      await supabaseAdmin.from('user_product_access').delete().eq('user_id', testUser.id);
       await supabaseAdmin.auth.admin.deleteUser(testUser.id);
     }
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
-  });
-
-  test('should update profile with company data after payment (simulated)', async () => {
-    // Simulate successful payment by directly calling payment verification
-    // This tests the profile update logic in verify-payment.ts
-
-    const companyData = {
-      needs_invoice: 'true',
-      nip: '5261040828',
-      company_name: 'TEST SPÓŁKA Z O.O.',
-      address: 'ul. Testowa 123/4',
-      city: 'Warszawa',
-      postal_code: '00-001',
-      country: 'PL',
-    };
-
-    // Create a mock payment intent
-    const mockPaymentIntentId = `pi_test_${Date.now()}`;
-
-    // Update payment intent metadata (this would normally be done by update-payment-metadata endpoint)
-    // For testing, we simulate it by creating guest purchase with metadata
-    const { data: guestPurchase } = await supabaseAdmin
-      .from('guest_purchases')
-      .insert({
-        product_id: testProduct.id,
-        email: testUser.email,
-        stripe_session_id: mockPaymentIntentId,
-        stripe_payment_intent_id: mockPaymentIntentId,
-        amount_paid: 100,
-        currency: 'PLN',
-        metadata: companyData,
-      })
-      .select()
-      .single();
-
-    // Simulate successful payment verification which should update profile
-    // In real flow, this happens in verify-payment.ts after payment succeeds
-
-    // Manually trigger profile update (simulating what verify-payment.ts does)
-    const updateData: Record<string, any> = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (companyData.company_name) updateData.company_name = companyData.company_name;
-    if (companyData.nip) updateData.tax_id = companyData.nip;
-    if (companyData.address) updateData.address_line1 = companyData.address;
-    if (companyData.city) updateData.city = companyData.city;
-    if (companyData.postal_code) updateData.zip_code = companyData.postal_code;
-    if (companyData.country) updateData.country = companyData.country;
-
-    await supabaseAdmin
-      .from('profiles')
-      .upsert({
-        id: testUser.id,
-        ...updateData,
-      });
-
-    // Verify profile was updated correctly
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', testUser.id)
-      .single();
-
-    expect(profile.company_name).toBe('TEST SPÓŁKA Z O.O.');
-    expect(profile.tax_id).toBe('5261040828');
-    expect(profile.address_line1).toBe('ul. Testowa 123/4');
-    expect(profile.city).toBe('Warszawa');
-    expect(profile.zip_code).toBe('00-001');
-    expect(profile.country).toBe('PL');
-
-    // Cleanup guest purchase
-    if (guestPurchase) {
-      await supabaseAdmin.from('guest_purchases').delete().eq('id', guestPurchase.id);
-    }
-  });
-
-  test('should NOT update profile when needs_invoice is false', async () => {
-    // Clear profile data first
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        company_name: null,
-        tax_id: null,
-        address_line1: null,
-        city: null,
-        zip_code: null,
-        country: null,
-      })
-      .eq('id', testUser.id);
-
-    // Metadata without invoice request
-    const metadata = {
-      needs_invoice: 'false',
-      // No company data
-    };
-
-    // Profile should remain unchanged
-    const { data: profileBefore } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', testUser.id)
-      .single();
-
-    // Simulate payment without invoice (profile update logic checks needs_invoice)
-    // Since needs_invoice is false, updateProfileWithCompanyData returns early
-
-    // Verify profile was NOT updated
-    const { data: profileAfter } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', testUser.id)
-      .single();
-
-    expect(profileAfter.company_name).toBe(profileBefore.company_name);
-    expect(profileAfter.tax_id).toBe(profileBefore.tax_id);
-    expect(profileAfter.address_line1).toBe(profileBefore.address_line1);
   });
 
   test('should store company data in guest_purchases metadata for guest users', async () => {
@@ -241,74 +123,7 @@ test.describe('GUS Integration - API Metadata Update', () => {
     expect(body.error).toContain('Client secret is required');
   });
 
-  test('should accept valid metadata update request', async ({ page }) => {
-    // Mock Stripe client secret format
-    const mockClientSecret = 'pi_test_123456789_secret_abcdefghij';
-
-    // Mock the Stripe update (in real scenario, Stripe would be called)
-    // This test just verifies the API accepts the request
-
-    const response = await page.request.post('/api/update-payment-metadata', {
-      data: {
-        clientSecret: mockClientSecret,
-        needsInvoice: true,
-        nip: '5261040828',
-        companyName: 'TEST FIRMA',
-        address: 'ul. Test 1',
-        city: 'Warsaw',
-        postalCode: '00-000',
-        country: 'PL',
-      },
-      headers: {
-        'origin': 'http://localhost:3000',
-        'referer': 'http://localhost:3000/',
-      },
-    });
-
-    // Will fail because Stripe is not actually configured in tests,
-    // but we can verify the request format is accepted
-    // In real tests with Stripe test keys, this would return 200
-
-    // Either succeeds (200) or fails due to Stripe config (500/503)
-    expect([200, 500, 503]).toContain(response.status());
-  });
-
   // Rate limiting test moved to tests/rate-limiting.spec.ts
   // Run with: RATE_LIMIT_TEST_MODE=true npx playwright test --project=rate-limiting
 });
 
-test.describe('GUS Integration - Data Validation', () => {
-  test('should validate NIP format in validation utility', async () => {
-    // Import NIP validation (this would be in a separate test file normally)
-    // For now, we test it via API endpoint
-
-    const testCases = [
-      { nip: '5261040828', valid: true, description: 'Valid NIP' },
-      { nip: '1234567890', valid: false, description: 'Invalid checksum' },
-      { nip: '123', valid: false, description: 'Too short' },
-      { nip: '12345678901234', valid: false, description: 'Too long' },
-      { nip: 'abcdefghij', valid: false, description: 'Non-numeric' },
-    ];
-
-    for (const testCase of testCases) {
-      // Test by calling the validation indirectly through the API
-      // (API validates NIP before calling GUS)
-
-      // We can check this by looking at error codes
-      // INVALID_NIP means checksum validation failed
-      // MISSING_NIP means format is wrong
-    }
-  });
-
-  test('should normalize NIP (remove dashes and spaces)', async ({ page }) => {
-    // Test that NIP normalization works
-    const testCases = [
-      { input: '526-104-08-28', expected: '5261040828' },
-      { input: '526 104 08 28', expected: '5261040828' },
-      { input: '526-10-40-828', expected: '5261040828' },
-    ];
-
-    // This is tested implicitly in the GUS API endpoint
-    // The normalizeNIP function should handle these cases
-  });
-});

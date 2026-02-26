@@ -175,18 +175,20 @@ describe('Webhooks API v1', () => {
       const { status, data } = await get<ApiResponse<Webhook[]>>('/api/v1/webhooks?status=active');
 
       expect(status).toBe(200);
-      data.data!.forEach((w) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const w of data.data!) {
         expect(w.is_active).toBe(true);
-      });
+      }
     });
 
     it('should support status filter - inactive', async () => {
       const { status, data } = await get<ApiResponse<Webhook[]>>('/api/v1/webhooks?status=inactive');
 
       expect(status).toBe(200);
-      data.data!.forEach((w) => {
+      // Inactive webhooks may not exist — if any are returned, verify the filter
+      for (const w of data.data!) {
         expect(w.is_active).toBe(false);
-      });
+      }
     });
 
     it('should support limit parameter', async () => {
@@ -472,18 +474,20 @@ describe('Webhooks API v1', () => {
       );
 
       expect(status).toBe(200);
-      data.data!.forEach((l) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const l of data.data!) {
         expect(l.endpoint_id).toBe(testWebhookId);
-      });
+      }
     });
 
     it('should support status filter', async () => {
       const { status, data } = await get<ApiResponse<WebhookLog[]>>('/api/v1/webhooks/logs?status=failed');
 
       expect(status).toBe(200);
-      data.data!.forEach((l) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const l of data.data!) {
         expect(l.status).toBe('failed');
-      });
+      }
     });
 
     it('should support event_type filter', async () => {
@@ -492,9 +496,10 @@ describe('Webhooks API v1', () => {
       );
 
       expect(status).toBe(200);
-      data.data!.forEach((l) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const l of data.data!) {
         expect(l.event_type).toBe('payment.completed');
-      });
+      }
     });
 
     it('should return 400 for invalid status filter', async () => {
@@ -508,11 +513,11 @@ describe('Webhooks API v1', () => {
       const { status, data } = await get<ApiResponse<WebhookLog[]>>('/api/v1/webhooks/logs');
 
       expect(status).toBe(200);
+      expect(data.data!.length).toBeGreaterThan(0);
       const logWithEndpoint = data.data!.find((l) => l.endpoint !== null && l.endpoint !== undefined);
-      if (logWithEndpoint) {
-        expect(logWithEndpoint.endpoint).toHaveProperty('id');
-        expect(logWithEndpoint.endpoint).toHaveProperty('url');
-      }
+      expect(logWithEndpoint).toBeDefined();
+      expect(logWithEndpoint!.endpoint).toHaveProperty('id');
+      expect(logWithEndpoint!.endpoint).toHaveProperty('url');
     });
   });
 
@@ -629,32 +634,36 @@ describe('Webhooks API v1', () => {
       const response1 = await get<ApiResponse<Webhook[]>>('/api/v1/webhooks?limit=1');
       expect(response1.status).toBe(200);
 
-      if (response1.data.pagination?.has_more && response1.data.pagination?.next_cursor) {
-        const response2 = await get<ApiResponse<Webhook[]>>(
-          `/api/v1/webhooks?limit=1&cursor=${response1.data.pagination.next_cursor}`
-        );
-        expect(response2.status).toBe(200);
-
-        if (response2.data.data!.length > 0) {
-          expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
-        }
+      if (!response1.data.pagination?.has_more || !response1.data.pagination?.next_cursor) {
+        // Only one webhook exists — pagination cannot be fully tested
+        expect(response1.data.data!.length).toBe(1);
+        return;
       }
+
+      const response2 = await get<ApiResponse<Webhook[]>>(
+        `/api/v1/webhooks?limit=1&cursor=${response1.data.pagination.next_cursor}`
+      );
+      expect(response2.status).toBe(200);
+      expect(response2.data.data!.length).toBeGreaterThan(0);
+      expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
     });
 
     it('should support cursor-based pagination for logs', async () => {
       const response1 = await get<ApiResponse<WebhookLog[]>>('/api/v1/webhooks/logs?limit=1');
       expect(response1.status).toBe(200);
 
-      if (response1.data.pagination?.has_more && response1.data.pagination?.next_cursor) {
-        const response2 = await get<ApiResponse<WebhookLog[]>>(
-          `/api/v1/webhooks/logs?limit=1&cursor=${response1.data.pagination.next_cursor}`
-        );
-        expect(response2.status).toBe(200);
-
-        if (response2.data.data!.length > 0) {
-          expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
-        }
+      if (!response1.data.pagination?.has_more || !response1.data.pagination?.next_cursor) {
+        // Only one log exists — pagination cannot be fully tested
+        expect(response1.data.data!.length).toBe(1);
+        return;
       }
+
+      const response2 = await get<ApiResponse<WebhookLog[]>>(
+        `/api/v1/webhooks/logs?limit=1&cursor=${response1.data.pagination.next_cursor}`
+      );
+      expect(response2.status).toBe(200);
+      expect(response2.data.data!.length).toBeGreaterThan(0);
+      expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
     });
 
     it('should return 400 for invalid cursor format', async () => {

@@ -253,14 +253,13 @@ test.describe('Theme Editor (Branding Settings)', () => {
 
     // Read and validate the downloaded content
     const filePath = await download.path();
-    if (filePath) {
-      const fs = await import('fs');
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const parsed = JSON.parse(content);
-      expect(parsed.name).toBe('Sunset');
-      expect(parsed.colors).toBeDefined();
-      expect(parsed.colors.accent).toBe('#FF6B35');
-    }
+    expect(filePath).toBeTruthy();
+    const fs = await import('fs');
+    const content = fs.readFileSync(filePath!, 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.name).toBe('Sunset');
+    expect(parsed.colors).toBeDefined();
+    expect(parsed.colors.accent).toBe('#FF6B35');
   });
 
   test('Save button is disabled without license', async ({ page }) => {
@@ -313,7 +312,11 @@ test.describe('Theme Editor (Branding Settings)', () => {
       // Should NOT see theme presets OR should be redirected
       const url = page.url();
       const hasThemeSection = await page.locator('text=/Theme Presets|Gotowe motywy/i').count();
-      expect(url.includes('/dashboard/settings') ? hasThemeSection === 0 : true).toBeTruthy();
+      if (url.includes('/dashboard/settings')) {
+        expect(hasThemeSection).toBe(0);
+      } else {
+        expect(url).not.toContain('/dashboard/settings');
+      }
     } finally {
       // Cleanup always runs, even on test failure
       if (regularUserId) {

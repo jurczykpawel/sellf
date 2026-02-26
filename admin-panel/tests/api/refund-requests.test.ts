@@ -192,9 +192,10 @@ describe('Refund Requests API v1', () => {
       );
 
       expect(status).toBe(200);
-      data.data!.forEach((r) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const r of data.data!) {
         expect(r.status).toBe('pending');
-      });
+      }
     });
 
     it('should return 400 for invalid status filter', async () => {
@@ -212,9 +213,10 @@ describe('Refund Requests API v1', () => {
       );
 
       expect(status).toBe(200);
-      data.data!.forEach((r) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const r of data.data!) {
         expect(r.user_id).toBe(testUserId);
-      });
+      }
     });
 
     it('should support product_id filter', async () => {
@@ -223,9 +225,10 @@ describe('Refund Requests API v1', () => {
       );
 
       expect(status).toBe(200);
-      data.data!.forEach((r) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const r of data.data!) {
         expect(r.product_id).toBe(testProductId);
-      });
+      }
     });
 
     it('should support limit parameter', async () => {
@@ -241,24 +244,24 @@ describe('Refund Requests API v1', () => {
       const { status, data } = await get<ApiResponse<RefundRequest[]>>('/api/v1/refund-requests');
 
       expect(status).toBe(200);
+      expect(data.data!.length).toBeGreaterThan(0);
       const requestWithProduct = data.data!.find((r) => r.product !== null);
-      if (requestWithProduct) {
-        expect(requestWithProduct.product).toHaveProperty('id');
-        expect(requestWithProduct.product).toHaveProperty('name');
-        expect(requestWithProduct.product).toHaveProperty('slug');
-      }
+      expect(requestWithProduct).toBeDefined();
+      expect(requestWithProduct!.product).toHaveProperty('id');
+      expect(requestWithProduct!.product).toHaveProperty('name');
+      expect(requestWithProduct!.product).toHaveProperty('slug');
     });
 
     it('should include transaction details in response', async () => {
       const { status, data } = await get<ApiResponse<RefundRequest[]>>('/api/v1/refund-requests');
 
       expect(status).toBe(200);
+      expect(data.data!.length).toBeGreaterThan(0);
       const requestWithTx = data.data!.find((r) => r.transaction !== null);
-      if (requestWithTx) {
-        expect(requestWithTx.transaction).toHaveProperty('id');
-        expect(requestWithTx.transaction).toHaveProperty('customer_email');
-        expect(requestWithTx.transaction).toHaveProperty('amount');
-      }
+      expect(requestWithTx).toBeDefined();
+      expect(requestWithTx!.transaction).toHaveProperty('id');
+      expect(requestWithTx!.transaction).toHaveProperty('customer_email');
+      expect(requestWithTx!.transaction).toHaveProperty('amount');
     });
   });
 
@@ -459,18 +462,19 @@ describe('Refund Requests API v1', () => {
       const response1 = await get<ApiResponse<RefundRequest[]>>('/api/v1/refund-requests?limit=1');
       expect(response1.status).toBe(200);
 
-      if (response1.data.pagination?.has_more && response1.data.pagination?.next_cursor) {
-        // Get second page using cursor
-        const response2 = await get<ApiResponse<RefundRequest[]>>(
-          `/api/v1/refund-requests?limit=1&cursor=${response1.data.pagination.next_cursor}`
-        );
-        expect(response2.status).toBe(200);
-
-        // Second page should have different items
-        if (response2.data.data!.length > 0) {
-          expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
-        }
+      if (!response1.data.pagination?.has_more || !response1.data.pagination?.next_cursor) {
+        // Only one refund request exists — pagination cannot be tested, but at least we got data
+        expect(response1.data.data!.length).toBe(1);
+        return;
       }
+
+      // Get second page using cursor
+      const response2 = await get<ApiResponse<RefundRequest[]>>(
+        `/api/v1/refund-requests?limit=1&cursor=${response1.data.pagination.next_cursor}`
+      );
+      expect(response2.status).toBe(200);
+      expect(response2.data.data!.length).toBeGreaterThan(0);
+      expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
     });
 
     it('should return 400 for invalid cursor format', async () => {

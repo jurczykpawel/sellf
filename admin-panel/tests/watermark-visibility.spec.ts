@@ -34,7 +34,9 @@ test.describe('Watermark Visibility Based on License', () => {
 
   const clearGeneratorCache = async (page: typeof import('@playwright/test').Page.prototype) => {
     // Clear the generator cache to force re-generation with new license
-    await page.goto('/api/gatekeeper?clearCache=true');
+    const response = await page.goto('/api/gatekeeper?clearCache=true');
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBeLessThan(500);
   };
 
   test.afterAll(async () => {
@@ -48,7 +50,8 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Clear cache and get the script directly
     const response = await page.goto('/api/gatekeeper?clearCache=true');
-    const scriptContent = await response?.text();
+    expect(response).not.toBeNull();
+    const scriptContent = await response!.text();
 
     // Should contain LICENSE_VALID: true
     expect(scriptContent).toContain('LICENSE_VALID: true');
@@ -60,7 +63,8 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Clear cache and get the script directly
     const response = await page.goto('/api/gatekeeper?clearCache=true');
-    const scriptContent = await response?.text();
+    expect(response).not.toBeNull();
+    const scriptContent = await response!.text();
 
     // Should contain LICENSE_VALID: true
     expect(scriptContent).toContain('LICENSE_VALID: true');
@@ -72,7 +76,8 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Clear cache and get the script directly
     const response = await page.goto('/api/gatekeeper?clearCache=true');
-    const scriptContent = await response?.text();
+    expect(response).not.toBeNull();
+    const scriptContent = await response!.text();
 
     // Should contain LICENSE_VALID: false
     expect(scriptContent).toContain('LICENSE_VALID: false');
@@ -84,7 +89,8 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Clear cache and get the script directly
     const response = await page.goto('/api/gatekeeper?clearCache=true');
-    const scriptContent = await response?.text();
+    expect(response).not.toBeNull();
+    const scriptContent = await response!.text();
 
     // Should contain LICENSE_VALID: false (expired)
     expect(scriptContent).toContain('LICENSE_VALID: false');
@@ -96,7 +102,8 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Clear cache and get the script directly
     const response = await page.goto('/api/gatekeeper?clearCache=true');
-    const scriptContent = await response?.text();
+    expect(response).not.toBeNull();
+    const scriptContent = await response!.text();
 
     // Should contain LICENSE_VALID: false (invalid format)
     expect(scriptContent).toContain('LICENSE_VALID: false');

@@ -195,7 +195,9 @@ test.describe('Gatekeeper Integration Tests', () => {
                               script.includes('checkAccess') ||
                               script.includes('productSlug');
 
-      expect(hasGateFlowCode).toBeTruthy();
+      if (!hasGateFlowCode) {
+        expect.fail('Expected script to contain GateFlow, gatekeeper, checkAccess, or productSlug but found none');
+      }
     });
 
     test('Script with productSlug includes page protection mode', async ({ request }) => {
@@ -230,7 +232,9 @@ test.describe('Gatekeeper Integration Tests', () => {
                                 script.includes('SUPABASE') ||
                                 script.includes('createClient');
 
-      expect(hasSupabaseConfig).toBeTruthy();
+      if (!hasSupabaseConfig) {
+        expect.fail('Expected script to contain supabase, SUPABASE, or createClient but found none');
+      }
     });
 
     test('CORS allows cross-origin requests', async ({ request }) => {
@@ -403,7 +407,7 @@ test.describe('Gatekeeper Integration Tests', () => {
       // Should NOT be redirected to checkout
       expect(currentUrl).not.toContain('/checkout/');
 
-      expect(isOnProductPage).toBeTruthy();
+      expect(currentUrl).toContain(`/p/${paidProduct.slug}`);
     });
 
     test('User without access is redirected to checkout', async ({ page }) => {
@@ -419,7 +423,9 @@ test.describe('Gatekeeper Integration Tests', () => {
       const isOnCheckout = currentUrl.includes('/checkout/');
       const hasCheckoutElements = await page.locator('input[type="email"], button:has-text("Purchase"), button:has-text("Get Access")').count() > 0;
 
-      expect(isOnCheckout || hasCheckoutElements).toBeTruthy();
+      if (!isOnCheckout && !hasCheckoutElements) {
+        expect.fail(`Expected redirect to checkout or checkout elements, but got URL: ${currentUrl}`);
+      }
     });
 
     test('Anonymous user cannot access paid product directly', async ({ page }) => {
@@ -435,7 +441,9 @@ test.describe('Gatekeeper Integration Tests', () => {
       const isRedirected = currentUrl.includes('/checkout/') || currentUrl.includes('/login');
       const hasEmailInput = await page.locator('input[type="email"]').count() > 0;
 
-      expect(isRedirected || hasEmailInput).toBeTruthy();
+      if (!isRedirected && !hasEmailInput) {
+        expect.fail(`Expected redirect to checkout/login or email input, but got URL: ${currentUrl}`);
+      }
     });
 
     test('Free product page is accessible', async ({ page }) => {
@@ -451,7 +459,9 @@ test.describe('Gatekeeper Integration Tests', () => {
       const isAccessible = currentUrl.includes(`/p/${freeProduct.slug}`) ||
                           currentUrl.includes('/checkout/');
 
-      expect(isAccessible).toBeTruthy();
+      if (!isAccessible) {
+        expect.fail(`Expected product page or checkout URL, but got: ${currentUrl}`);
+      }
     });
 
     test('Session persists across product page navigation', async ({ page }) => {
@@ -514,17 +524,17 @@ test.describe('Gatekeeper Integration Tests', () => {
 
       // Check if the endpoint returns JavaScript
       if (!response.ok()) {
-        // API endpoint not available - this might be expected in some configurations
-        console.log('Note: /api/gateflow-embed returns non-OK status');
-        expect(true).toBeTruthy();
+        // API endpoint not available - verify it returns a recognized error status
+        const status = response.status();
+        expect([404, 405, 500]).toContain(status);
         return;
       }
 
       const contentType = response.headers()['content-type'] || '';
       if (!contentType.includes('javascript')) {
-        // Endpoint exists but doesn't return JS - might be returning HTML error
-        console.log('Note: /api/gateflow-embed returns non-JavaScript content-type:', contentType);
-        expect(true).toBeTruthy();
+        // Endpoint exists but doesn't return JS - verify it returns a valid content type (HTML error page, etc.)
+        expect(contentType).toBeTruthy();
+        expect(response.status()).toBeGreaterThanOrEqual(200);
         return;
       }
 
@@ -547,7 +557,9 @@ test.describe('Gatekeeper Integration Tests', () => {
                               script.includes('embed') ||
                               script.includes('widget');
 
-      expect(hasEmbedSupport).toBeTruthy();
+      if (!hasEmbedSupport) {
+        expect.fail('Expected gatekeeper script to contain GateFlow, gateflow, embed, or widget but found none');
+      }
     });
   });
 });

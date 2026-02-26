@@ -199,10 +199,10 @@ test.describe('Payments Export API v1', () => {
 
       const lines = csv.split('\n');
       const dataLines = lines.slice(1).filter(line => line.trim());
+      // We created a refunded transaction in beforeAll, so there must be data
+      expect(dataLines.length).toBeGreaterThan(0);
       // All data lines should contain 'refunded'
-      if (dataLines.length > 0) {
-        expect(dataLines.every(line => line.includes('refunded'))).toBe(true);
-      }
+      expect(dataLines.every(line => line.includes('refunded'))).toBe(true);
     });
 
     test('should filter by date range', async ({ page }) => {

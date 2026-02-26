@@ -137,6 +137,7 @@ test.describe('Coupons API v1', () => {
       const body = await response.json();
 
       // All returned coupons should be active
+      expect(body.data.length).toBeGreaterThan(0);
       for (const coupon of body.data) {
         expect(coupon.is_active).toBe(true);
       }
@@ -559,20 +560,20 @@ test.describe('Coupons API v1', () => {
 
       expect(firstPage.data.length).toBe(2);
 
-      // Get next page if available
-      if (firstPage.pagination.next_cursor) {
-        const secondResponse = await page.request.get(
-          `/api/v1/coupons?limit=2&cursor=${firstPage.pagination.next_cursor}`
-        );
-        expect(secondResponse.status()).toBe(200);
-        const secondPage = await secondResponse.json();
+      // We created 5 coupons above with limit=2, so there must be more pages
+      expect(firstPage.pagination.next_cursor).toBeTruthy();
 
-        // Ensure no duplicates
-        const firstIds = firstPage.data.map((c: any) => c.id);
-        const secondIds = secondPage.data.map((c: any) => c.id);
-        const overlap = firstIds.filter((id: string) => secondIds.includes(id));
-        expect(overlap.length).toBe(0);
-      }
+      const secondResponse = await page.request.get(
+        `/api/v1/coupons?limit=2&cursor=${firstPage.pagination.next_cursor}`
+      );
+      expect(secondResponse.status()).toBe(200);
+      const secondPage = await secondResponse.json();
+
+      // Ensure no duplicates
+      const firstIds = firstPage.data.map((c: any) => c.id);
+      const secondIds = secondPage.data.map((c: any) => c.id);
+      const overlap = firstIds.filter((id: string) => secondIds.includes(id));
+      expect(overlap.length).toBe(0);
     });
   });
 });

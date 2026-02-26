@@ -5,7 +5,7 @@
  * Also tests event type validation.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   isValidWebhookUrl,
   isValidEventType,
@@ -14,15 +14,8 @@ import {
 } from '@/lib/validations/webhook';
 
 describe('Webhook Validation', () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    vi.resetModules();
-    process.env = { ...originalEnv };
-  });
-
   afterEach(() => {
-    process.env = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   describe('isValidWebhookUrl - Protocol Validation', () => {
@@ -38,12 +31,10 @@ describe('Webhook Validation', () => {
     });
 
     it('should allow HTTP URLs when ALLOW_HTTP_WEBHOOKS is true', () => {
-      process.env.ALLOW_HTTP_WEBHOOKS = 'true';
-      // Need to re-import to pick up env change - use dynamic import pattern
-      // For now, test the logic directly
+      vi.stubEnv('ALLOW_HTTP_WEBHOOKS', 'true');
       const result = isValidWebhookUrl('http://webhook.example.com/endpoint');
-      // This might still fail since module is already loaded
-      // The actual behavior depends on when module is imported
+      expect(result.valid).toBe(true);
+      vi.unstubAllEnvs();
     });
 
     it('should reject FTP protocol', () => {

@@ -486,9 +486,7 @@ test.describe('Variants Admin Page', () => {
       const buttonCount = await starButtons.count();
 
       if (buttonCount === 0) {
-        // No buttons found - skip test
-        console.log('No featured toggle buttons found');
-        return;
+        test.skip(true, 'No featured toggle buttons found on the page');
       }
 
       // Click first star button
@@ -497,7 +495,7 @@ test.describe('Variants Admin Page', () => {
       // Wait for update
       await page.waitForTimeout(1000);
 
-      // Just verify page didn't crash
+      // Verify page didn't crash and heading is still visible
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     });
   });

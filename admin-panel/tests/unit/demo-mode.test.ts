@@ -3,11 +3,71 @@
  *
  * Tests for:
  * 1. isDemoMode() utility
- * 2. Proxy demo blocking logic (whitelist-only)
+ * 2. Proxy demo blocking logic (source verification against proxy.ts)
  * 3. Server action guards (throw + return patterns)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// =============================================================================
+// Module-level mocks — required for server action imports to resolve
+// =============================================================================
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(),
+  createPublicClient: vi.fn(),
+}));
+
+vi.mock('@/lib/services/currency-encryption', () => ({
+  encryptCurrencyKey: vi.fn(),
+  decryptCurrencyKey: vi.fn(),
+}));
+
+vi.mock('@/lib/services/stripe-encryption', () => ({
+  encryptStripeKey: vi.fn(),
+  decryptStripeKey: vi.fn(),
+}));
+
+vi.mock('@/lib/services/gus-encryption', () => ({
+  encryptGUSKey: vi.fn(),
+  decryptGUSKey: vi.fn(),
+}));
+
+vi.mock('@/lib/validations/integrations', () => ({
+  validateIntegrations: vi.fn(),
+  validateScript: vi.fn(),
+}));
+
+vi.mock('@/lib/license/verify', () => ({
+  validateLicense: vi.fn(),
+  extractDomainFromUrl: vi.fn(),
+}));
+
+vi.mock('@/lib/stripe/payment-method-configs', () => ({
+  fetchStripePaymentMethodConfigs: vi.fn(),
+  fetchStripePaymentMethodConfig: vi.fn(),
+  isValidStripePMCId: vi.fn(),
+}));
+
+vi.mock('@/lib/utils/payment-method-helpers', () => ({
+  RECOMMENDED_CONFIG: {},
+}));
+
+vi.mock('@/lib/validations/profile', () => ({
+  validateProfile: vi.fn(),
+}));
+
+vi.mock('@/lib/redis/cache', () => ({
+  cacheGet: vi.fn(),
+  cacheSet: vi.fn(),
+  cacheDel: vi.fn(),
+  CacheKeys: { SHOP_CONFIG: 'shop_config' },
+  CacheTTL: { LONG: 3600 },
+}));
+
+vi.mock('stripe', () => ({ default: vi.fn() }));
 
 // =============================================================================
 // 1. isDemoMode() utility
@@ -50,130 +110,101 @@ describe('isDemoMode()', () => {
 });
 
 // =============================================================================
-// 2. Proxy demo blocking logic
+// 2. Proxy demo blocking logic — source verification
 // =============================================================================
 
-// Extract the pure logic from proxy.ts for unit testing
-// We replicate the whitelist + isDemoBlocked logic here to test it in isolation
+describe('Proxy demo blocking (whitelist verified against source)', () => {
+  const proxySource = readFileSync(
+    resolve(__dirname, '../../src/proxy.ts'),
+    'utf-8',
+  );
 
-const DEMO_MUTATION_ALLOWED = [
-  '/api/create-payment-intent',
-  '/api/verify-payment',
-  '/api/create-embedded-checkout',
-  '/api/update-payment-metadata',
-  '/api/webhooks/',
-  '/api/auth/',
-  '/api/public/',
-  '/api/coupons/',
-  '/api/order-bumps/',
-  '/api/gus/',
-  '/api/validate-email',
-  '/api/health',
-  '/api/status',
-  '/api/config',
-  '/api/runtime-config',
-  '/api/consent',
-  '/api/tracking/',
-  '/api/waitlist/',
-  '/api/gatekeeper',
-  '/api/gateflow-embed',
-  '/api/oto/',
-  '/api/products/',
-  '/api/access',
-  '/api/profile/',
-  '/api/users/',
-  '/api/refund-requests',
-];
+  // Extract DEMO_MUTATION_ALLOWED entries from production source
+  function extractWhitelistFromSource(source: string): string[] {
+    const match = source.match(
+      /const DEMO_MUTATION_ALLOWED\s*=\s*\[([\s\S]*?)\]/,
+    );
+    if (!match) throw new Error('Could not find DEMO_MUTATION_ALLOWED in proxy.ts');
+    return [...match[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+  }
 
-function isDemoBlocked(demoMode: boolean, pathname: string, method: string): boolean {
-  if (!demoMode) return false;
-  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
-  return !DEMO_MUTATION_ALLOWED.some(p => pathname.startsWith(p));
-}
+  // Extract isDemoBlocked implementation details from production source
+  function extractBlockedLogicChecks(source: string): {
+    checksEnv: boolean;
+    allowsGetHeadOptions: boolean;
+    checksApiPrefix: boolean;
+  } {
+    const fnMatch = source.match(
+      /function isDemoBlocked\([\s\S]*?\{([\s\S]*?)\n\}/,
+    );
+    if (!fnMatch) throw new Error('Could not find isDemoBlocked in proxy.ts');
+    const fnBody = fnMatch[1];
+    return {
+      checksEnv: fnBody.includes("process.env.DEMO_MODE !== 'true'"),
+      allowsGetHeadOptions: /GET.*HEAD.*OPTIONS/.test(fnBody),
+      checksApiPrefix: fnBody.includes("pathname.startsWith('/api')"),
+    };
+  }
 
-describe('Proxy demo blocking (whitelist-only)', () => {
+  const whitelist = extractWhitelistFromSource(proxySource);
+  const logicChecks = extractBlockedLogicChecks(proxySource);
 
-  describe('when DEMO_MODE is off', () => {
-    it('allows all requests', () => {
-      expect(isDemoBlocked(false, '/api/admin/products', 'POST')).toBe(false);
-      expect(isDemoBlocked(false, '/api/v1/products', 'DELETE')).toBe(false);
-      expect(isDemoBlocked(false, '/api/v1/webhooks/123', 'PUT')).toBe(false);
-    });
+  it('isDemoBlocked checks DEMO_MODE env var', () => {
+    expect(logicChecks.checksEnv).toBe(true);
   });
 
-  describe('when DEMO_MODE is on', () => {
+  it('isDemoBlocked allows GET, HEAD, OPTIONS methods', () => {
+    expect(logicChecks.allowsGetHeadOptions).toBe(true);
+  });
 
-    // --- GET always allowed ---
-    it('allows GET on any route', () => {
-      expect(isDemoBlocked(true, '/api/admin/products', 'GET')).toBe(false);
-      expect(isDemoBlocked(true, '/api/v1/users', 'GET')).toBe(false);
-      expect(isDemoBlocked(true, '/api/v1/analytics/dashboard', 'GET')).toBe(false);
-    });
+  it('isDemoBlocked only blocks /api routes', () => {
+    expect(logicChecks.checksApiPrefix).toBe(true);
+  });
 
-    it('allows HEAD and OPTIONS on any route', () => {
-      expect(isDemoBlocked(true, '/api/admin/products', 'HEAD')).toBe(false);
-      expect(isDemoBlocked(true, '/api/v1/products', 'OPTIONS')).toBe(false);
-    });
+  it('whitelist includes checkout flow routes', () => {
+    expect(whitelist).toContain('/api/create-payment-intent');
+    expect(whitelist).toContain('/api/verify-payment');
+    expect(whitelist).toContain('/api/create-embedded-checkout');
+    expect(whitelist).toContain('/api/update-payment-metadata');
+  });
 
-    // --- Blocked mutations (not on whitelist) ---
-    it('blocks POST to /api/admin/*', () => {
-      expect(isDemoBlocked(true, '/api/admin/products', 'POST')).toBe(true);
-      expect(isDemoBlocked(true, '/api/admin/coupons', 'POST')).toBe(true);
-      expect(isDemoBlocked(true, '/api/admin/webhooks', 'POST')).toBe(true);
-    });
+  it('whitelist includes webhook routes', () => {
+    expect(whitelist).toContain('/api/webhooks/');
+  });
 
-    it('blocks DELETE to /api/admin/*', () => {
-      expect(isDemoBlocked(true, '/api/admin/products/123', 'DELETE')).toBe(true);
-      expect(isDemoBlocked(true, '/api/admin/coupons/456', 'DELETE')).toBe(true);
-    });
+  it('whitelist includes auth routes', () => {
+    expect(whitelist).toContain('/api/auth/');
+  });
 
-    it('blocks PUT/PATCH to /api/admin/*', () => {
-      expect(isDemoBlocked(true, '/api/admin/products/123', 'PUT')).toBe(true);
-      expect(isDemoBlocked(true, '/api/admin/products/123', 'PATCH')).toBe(true);
-    });
+  it('whitelist includes public and consent routes', () => {
+    expect(whitelist).toContain('/api/public/');
+    expect(whitelist).toContain('/api/consent');
+    expect(whitelist).toContain('/api/tracking/');
+    expect(whitelist).toContain('/api/waitlist/');
+  });
 
-    it('blocks mutations to /api/v1/*', () => {
-      expect(isDemoBlocked(true, '/api/v1/products', 'POST')).toBe(true);
-      expect(isDemoBlocked(true, '/api/v1/products/123', 'DELETE')).toBe(true);
-      expect(isDemoBlocked(true, '/api/v1/coupons/123', 'PATCH')).toBe(true);
-      expect(isDemoBlocked(true, '/api/v1/webhooks', 'POST')).toBe(true);
-      expect(isDemoBlocked(true, '/api/v1/api-keys', 'POST')).toBe(true);
-      expect(isDemoBlocked(true, '/api/v1/api-keys/123/rotate', 'POST')).toBe(true);
-    });
+  it('whitelist includes operational routes', () => {
+    expect(whitelist).toContain('/api/validate-email');
+    expect(whitelist).toContain('/api/health');
+    expect(whitelist).toContain('/api/status');
+    expect(whitelist).toContain('/api/runtime-config');
+    expect(whitelist).toContain('/api/gatekeeper');
+    expect(whitelist).toContain('/api/gateflow-embed');
+  });
 
-    // --- Whitelisted mutations (checkout flow) ---
-    it('allows POST to checkout routes', () => {
-      expect(isDemoBlocked(true, '/api/create-payment-intent', 'POST')).toBe(false);
-      expect(isDemoBlocked(true, '/api/verify-payment', 'POST')).toBe(false);
-      expect(isDemoBlocked(true, '/api/create-embedded-checkout', 'POST')).toBe(false);
-      expect(isDemoBlocked(true, '/api/update-payment-metadata', 'POST')).toBe(false);
-    });
+  it('whitelist does NOT include /api/admin (blocked by default)', () => {
+    const adminRoutes = whitelist.filter(r => r.startsWith('/api/admin'));
+    expect(adminRoutes).toHaveLength(0);
+  });
 
-    it('allows POST to Stripe webhook', () => {
-      expect(isDemoBlocked(true, '/api/webhooks/stripe', 'POST')).toBe(false);
-    });
+  it('whitelist does NOT include /api/v1 (blocked by default)', () => {
+    const v1Routes = whitelist.filter(r => r.startsWith('/api/v1'));
+    expect(v1Routes).toHaveLength(0);
+  });
 
-    it('allows POST to auth routes', () => {
-      expect(isDemoBlocked(true, '/api/auth/logout', 'POST')).toBe(false);
-    });
-
-    it('allows POST to public routes', () => {
-      expect(isDemoBlocked(true, '/api/public/products/slug/grant-access', 'POST')).toBe(false);
-      expect(isDemoBlocked(true, '/api/public/products/claim-free', 'POST')).toBe(false);
-    });
-
-    it('allows POST to consent/tracking/waitlist', () => {
-      expect(isDemoBlocked(true, '/api/consent', 'POST')).toBe(false);
-      expect(isDemoBlocked(true, '/api/tracking/fb-capi', 'POST')).toBe(false);
-      expect(isDemoBlocked(true, '/api/waitlist/signup', 'POST')).toBe(false);
-    });
-
-    // --- Unknown/new endpoints blocked by default ---
-    it('blocks mutations to unknown API routes (secure by default)', () => {
-      expect(isDemoBlocked(true, '/api/some-new-endpoint', 'POST')).toBe(true);
-      expect(isDemoBlocked(true, '/api/dangerous/delete-all', 'DELETE')).toBe(true);
-      expect(isDemoBlocked(true, '/api/future/feature', 'PUT')).toBe(true);
-    });
+  it('unknown endpoints are blocked by default (not in whitelist)', () => {
+    expect(whitelist).not.toContain('/api/some-new-endpoint');
+    expect(whitelist).not.toContain('/api/dangerous/delete-all');
   });
 });
 
@@ -193,15 +224,10 @@ describe('Server action demo guards', () => {
     process.env = originalEnv;
   });
 
-  // --- Throw-pattern actions ---
+  // --- Result-pattern actions ---
 
   describe('categories (result pattern)', () => {
     it('createCategory returns error in demo mode', async () => {
-      // Mock supabase so the action doesn't actually connect
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-
       const { createCategory } = await import('@/lib/actions/categories');
       const result = await createCategory({ name: 'Test', slug: 'test' });
       expect(result).toEqual({ success: false, error: 'This action is disabled in demo mode' });
@@ -228,10 +254,6 @@ describe('Server action demo guards', () => {
 
   describe('preferences (throw pattern)', () => {
     it('updateUserPreferences throws in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-
       const { updateUserPreferences } = await import('@/lib/actions/preferences');
       await expect(updateUserPreferences({ hideValues: true }))
         .rejects.toThrow('This action is disabled in demo mode');
@@ -242,14 +264,6 @@ describe('Server action demo guards', () => {
 
   describe('currency-config (return pattern)', () => {
     it('saveCurrencyConfig returns error in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-      vi.mock('@/lib/services/currency-encryption', () => ({
-        encryptCurrencyKey: vi.fn(),
-        decryptCurrencyKey: vi.fn(),
-      }));
-
       const { saveCurrencyConfig } = await import('@/lib/actions/currency-config');
       const result = await saveCurrencyConfig({ provider: 'ecb', enabled: true });
       expect(result).toEqual({
@@ -272,19 +286,6 @@ describe('Server action demo guards', () => {
 
   describe('integrations (return pattern)', () => {
     it('updateIntegrationsConfig returns error in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-        createPublicClient: vi.fn(),
-      }));
-      vi.mock('@/lib/validations/integrations', () => ({
-        validateIntegrations: vi.fn(),
-        validateScript: vi.fn(),
-      }));
-      vi.mock('@/lib/license/verify', () => ({
-        validateLicense: vi.fn(),
-        extractDomainFromUrl: vi.fn(),
-      }));
-
       const { updateIntegrationsConfig } = await import('@/lib/actions/integrations');
       const result = await updateIntegrationsConfig({} as any);
       expect(result).toEqual({ error: 'This action is disabled in demo mode' });
@@ -311,15 +312,6 @@ describe('Server action demo guards', () => {
 
   describe('stripe-config (return pattern)', () => {
     it('saveStripeConfig returns error in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-      vi.mock('@/lib/services/stripe-encryption', () => ({
-        encryptStripeKey: vi.fn(),
-        decryptStripeKey: vi.fn(),
-      }));
-      vi.mock('stripe', () => ({ default: vi.fn() }));
-
       const { saveStripeConfig } = await import('@/lib/actions/stripe-config');
       const result = await saveStripeConfig({ apiKey: 'sk_test_xxx', mode: 'test' });
       expect(result).toEqual({
@@ -342,14 +334,6 @@ describe('Server action demo guards', () => {
 
   describe('gus-config (return pattern)', () => {
     it('saveGUSAPIKey returns error in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-      vi.mock('@/lib/services/gus-encryption', () => ({
-        encryptGUSKey: vi.fn(),
-        decryptGUSKey: vi.fn(),
-      }));
-
       const { saveGUSAPIKey } = await import('@/lib/actions/gus-config');
       const result = await saveGUSAPIKey({ apiKey: 'test-key-12345', enabled: true });
       expect(result).toEqual({
@@ -372,18 +356,6 @@ describe('Server action demo guards', () => {
 
   describe('payment-config (return pattern)', () => {
     it('updatePaymentMethodConfig returns error in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-      vi.mock('@/lib/stripe/payment-method-configs', () => ({
-        fetchStripePaymentMethodConfigs: vi.fn(),
-        fetchStripePaymentMethodConfig: vi.fn(),
-        isValidStripePMCId: vi.fn(),
-      }));
-      vi.mock('@/lib/utils/payment-method-helpers', () => ({
-        RECOMMENDED_CONFIG: {},
-      }));
-
       const { updatePaymentMethodConfig } = await import('@/lib/actions/payment-config');
       const result = await updatePaymentMethodConfig({ config_mode: 'automatic' } as any);
       expect(result).toEqual({
@@ -406,13 +378,6 @@ describe('Server action demo guards', () => {
 
   describe('profile (return pattern)', () => {
     it('updateProfile returns error in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-      }));
-      vi.mock('@/lib/validations/profile', () => ({
-        validateProfile: vi.fn(),
-      }));
-
       const { updateProfile } = await import('@/lib/actions/profile');
       const result = await updateProfile({} as any);
       expect(result).toEqual({ error: 'This action is disabled in demo mode' });
@@ -421,18 +386,6 @@ describe('Server action demo guards', () => {
 
   describe('shop-config (boolean pattern)', () => {
     it('updateShopConfig returns false in demo mode', async () => {
-      vi.mock('@/lib/supabase/server', () => ({
-        createClient: vi.fn(),
-        createPublicClient: vi.fn(),
-      }));
-      vi.mock('@/lib/redis/cache', () => ({
-        cacheGet: vi.fn(),
-        cacheSet: vi.fn(),
-        cacheDel: vi.fn(),
-        CacheKeys: { SHOP_CONFIG: 'shop_config' },
-        CacheTTL: { LONG: 3600 },
-      }));
-
       const { updateShopConfig } = await import('@/lib/actions/shop-config');
       const result = await updateShopConfig({ shop_name: 'Test' });
       expect(result).toBe(false);

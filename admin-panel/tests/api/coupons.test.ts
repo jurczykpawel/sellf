@@ -163,18 +163,18 @@ describe('Coupons API v1', () => {
       expect(firstPage.status).toBe(200);
       expect(firstPage.data.data!.length).toBe(2);
 
-      if (firstPage.data.pagination?.next_cursor) {
-        const secondPage = await get<ApiResponse<Coupon[]>>(
-          `/api/v1/coupons?limit=2&cursor=${firstPage.data.pagination.next_cursor}`
-        );
-        expect(secondPage.status).toBe(200);
+      expect(firstPage.data.pagination?.next_cursor).toBeTruthy();
 
-        // Ensure no duplicates
-        const firstIds = firstPage.data.data!.map((c) => c.id);
-        const secondIds = secondPage.data.data!.map((c) => c.id);
-        const overlap = firstIds.filter((id) => secondIds.includes(id));
-        expect(overlap.length).toBe(0);
-      }
+      const secondPage = await get<ApiResponse<Coupon[]>>(
+        `/api/v1/coupons?limit=2&cursor=${firstPage.data.pagination!.next_cursor}`
+      );
+      expect(secondPage.status).toBe(200);
+
+      // Ensure no duplicates
+      const firstIds = firstPage.data.data!.map((c) => c.id);
+      const secondIds = secondPage.data.data!.map((c) => c.id);
+      const overlap = firstIds.filter((id) => secondIds.includes(id));
+      expect(overlap.length).toBe(0);
     });
   });
 

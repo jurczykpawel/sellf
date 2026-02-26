@@ -173,7 +173,8 @@ test.describe('Order Bumps API v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body.data.length).toBeGreaterThanOrEqual(1);
-      expect(body.data.some((ob: any) => ob.main_product_id === mainProduct.id)).toBe(true);
+      const matchingBumps = body.data.filter((ob: any) => ob.main_product_id === mainProduct.id);
+      expect(matchingBumps.length).toBeGreaterThanOrEqual(1);
     });
 
     test('should return 400 for invalid product_id format', async ({ page }) => {

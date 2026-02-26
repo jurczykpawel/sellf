@@ -127,6 +127,7 @@ test.describe('Products API v1', () => {
       const body = await response.json();
 
       // All returned products should be active
+      expect(body.data.length).toBeGreaterThan(0);
       for (const product of body.data) {
         expect(product.is_active).toBe(true);
       }
@@ -184,15 +185,18 @@ test.describe('Products API v1', () => {
       expect(firstPage.status()).toBe(200);
       const firstBody = await firstPage.json();
 
-      if (firstBody.pagination.has_more) {
-        // Get second page
-        const secondPage = await page.request.get(`/api/v1/products?limit=1&cursor=${firstBody.pagination.next_cursor}`);
-        expect(secondPage.status()).toBe(200);
-        const secondBody = await secondPage.json();
+      // We created 3 products above with limit=1, so there must be more pages
+      expect(firstBody.pagination.has_more).toBe(true);
+      expect(firstBody.pagination.next_cursor).toBeTruthy();
 
-        // Products should be different
-        expect(secondBody.data[0]?.id).not.toBe(firstBody.data[0]?.id);
-      }
+      // Get second page
+      const secondPage = await page.request.get(`/api/v1/products?limit=1&cursor=${firstBody.pagination.next_cursor}`);
+      expect(secondPage.status()).toBe(200);
+      const secondBody = await secondPage.json();
+
+      // Products should be different
+      expect(secondBody.data.length).toBeGreaterThan(0);
+      expect(secondBody.data[0].id).not.toBe(firstBody.data[0].id);
     });
   });
 
@@ -216,7 +220,7 @@ test.describe('Products API v1', () => {
       expect(body.data).toHaveProperty('id');
       expect(body.data.name).toBe('Test Product');
       expect(body.data.slug).toBe(slug);
-      expect(body.data.price).toBe(29.99);
+      expect(body.data.price).toBeCloseTo(29.99, 2);
       expect(body.data.currency).toBe('USD'); // default
       expect(body.data.is_active).toBe(true); // default
 
@@ -367,7 +371,7 @@ test.describe('Products API v1', () => {
       const body = await updateResponse.json();
 
       expect(body.data.name).toBe('Updated Name');
-      expect(body.data.price).toBe(25.00);
+      expect(body.data.price).toBeCloseTo(25.00, 2);
       expect(body.data.description).toBe('Original description'); // unchanged
     });
 

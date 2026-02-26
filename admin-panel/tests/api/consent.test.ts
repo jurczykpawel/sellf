@@ -219,13 +219,8 @@ describe('POST /api/consent', () => {
 
   // ===== RATE LIMITING =====
 
-  describe('Rate limiting', () => {
-    /**
-     * Rate limiting is disabled in development/test mode by default.
-     * Set RATE_LIMIT_TEST_MODE=true in the dev server's .env.local to enable it.
-     * If not enabled, this test will be skipped.
-     */
-    it('should return 429 after exceeding rate limit (requires RATE_LIMIT_TEST_MODE=true)', async () => {
+  describe.skipIf(!process.env.RATE_LIMIT_TEST_MODE)('Rate limiting (requires RATE_LIMIT_TEST_MODE=true)', () => {
+    it('should return 429 after exceeding rate limit', async () => {
       // Clean up any existing rate limit entries for consent_log
       await supabase
         .from('application_rate_limits')
@@ -245,22 +240,11 @@ describe('POST /api/consent', () => {
       const responses = await Promise.all(requests);
       const statuses = responses.map((r) => r.status);
 
-      // If rate limiting is active, at least one request should be 429
-      // If rate limiting is skipped (dev mode), all will be 200 depending on config
       const has429 = statuses.includes(429);
+      expect(has429).toBe(true);
 
-      if (!has429) {
-        // Rate limiting is disabled in dev mode — this is expected
-        // The test still passes but logs a note
-        console.log(
-          '[consent test] Rate limiting skipped (RATE_LIMIT_TEST_MODE not enabled on dev server)'
-        );
-      } else {
-        expect(has429).toBe(true);
-        // Count 429s — should be at least the 31st request
-        const count429 = statuses.filter((s) => s === 429).length;
-        expect(count429).toBeGreaterThanOrEqual(1);
-      }
+      const count429 = statuses.filter((s) => s === 429).length;
+      expect(count429).toBeGreaterThanOrEqual(1);
     });
   });
 });

@@ -853,10 +853,15 @@ test.describe('Tracking Events - Server-Side Conversions Disabled', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
-    // All CAPI requests should have has_consent=false
-    capturedCapiRequests.forEach(req => {
-      expect(req.has_consent).toBe(false);
-    });
+    // If any CAPI requests were made, they should all have has_consent=false
+    if (capturedCapiRequests.length > 0) {
+      capturedCapiRequests.forEach(req => {
+        expect(req.has_consent).toBe(false);
+      });
+    }
+
+    // Core assertion: the mock route was set up and page loaded without errors
+    expect(page.url()).toContain(`/checkout/${testProduct.slug}`);
   });
 });
 
@@ -948,9 +953,11 @@ test.describe('Tracking Events - Partial Consent', () => {
     expect(fbTrackCalls.length).toBe(0);
 
     // FB consent drives CAPI consent flag: has_consent should be false
-    capturedCapiRequests.forEach(req => {
-      expect(req.has_consent).toBe(false);
-    });
+    if (capturedCapiRequests.length > 0) {
+      capturedCapiRequests.forEach(req => {
+        expect(req.has_consent).toBe(false);
+      });
+    }
   });
 
   test('GTM=false, FB=true: should fire fbq calls but NOT dataLayer tracking events', async ({ page }) => {
@@ -1045,9 +1052,11 @@ test.describe('Tracking Events - Partial Consent', () => {
     expect(fbTrackCalls.length).toBe(0);
 
     // CAPI requests should all have has_consent=false
-    capturedCapiRequests.forEach(req => {
-      expect(req.has_consent).toBe(false);
-    });
+    if (capturedCapiRequests.length > 0) {
+      capturedCapiRequests.forEach(req => {
+        expect(req.has_consent).toBe(false);
+      });
+    }
   });
 });
 

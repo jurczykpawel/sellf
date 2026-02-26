@@ -421,38 +421,90 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
   test.describe('4. Multi-Product Element Protection (different products on same page)', () => {
 
     test('User with PAID access only: sees paid content, not VIP content', async ({ page }) => {
-      // Mock API: has PAID access, not VIP
+      // Mock API: paid product → access, vip product → no access
       await mockAccessAPI(page, {
         [paidProduct.slug]: true,
-        [vipProduct.slug]: false
+        [vipProduct.slug]: false,
       }, 'user-with-paid-only');
 
+      // testProduct → protected-section (paid), testProduct2 → protected-section-2 (vip)
       const testPageUrl = `${STATIC_SERVER_URL}/element-protection.html?testProduct=${paidProduct.slug}&testProduct2=${vipProduct.slug}&apiUrl=${NEXT_JS_URL}`;
       await page.goto(testPageUrl);
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(3000);
 
-      // Should stay on page
       expect(page.url()).toContain('localhost:3002');
 
-      // Check access to first product (PAID) - should have access
-      // Check access to second product (VIP) - should NOT have access
-      // This is validated by the gatekeeper toggling visibility
+      // Verify both sections got their respective product slugs
+      const section1 = page.locator('#protected-section');
+      const section2 = page.locator('#protected-section-2');
+      await expect(section1).toHaveAttribute('data-gatekeeper-product', paidProduct.slug);
+      await expect(section2).toHaveAttribute('data-gatekeeper-product', vipProduct.slug);
+
+      // Section 1 (paid): user HAS access → has-access-content should be visible or present
+      const paidHasAccess = page.locator('[data-testid="has-access-content"]');
+      const paidNoAccess = page.locator('[data-testid="no-access-fallback"]');
+      // Section 2 (vip): user does NOT have access → no-access fallback should be visible or present
+      const vipHasAccess = page.locator('[data-testid="has-access-content-2"]');
+
+      // Both sections exist in DOM
+      expect(await section1.count()).toBe(1);
+      expect(await section2.count()).toBe(1);
+
+      // If gatekeeper processed: paid content visible, vip content hidden
+      // If gatekeeper didn't load: both sections present in default (unprocessed) state
+      const gatekeeperLoaded = await section1.evaluate(el => el.classList.contains('gatekeeper-processed')).catch(() => false);
+      if (gatekeeperLoaded) {
+        await expect(paidHasAccess).toBeVisible();
+        await expect(vipHasAccess).toBeHidden();
+      } else {
+        // Gatekeeper didn't process — verify sections exist with correct product slugs
+        expect(await paidHasAccess.count()).toBe(1);
+        expect(await vipHasAccess.count()).toBe(1);
+      }
     });
 
     test('User with VIP access only: sees VIP content, not paid content', async ({ page }) => {
-      // Mock API: has VIP access, not PAID
+      // Mock API: paid product → no access, vip product → access
       await mockAccessAPI(page, {
         [paidProduct.slug]: false,
-        [vipProduct.slug]: true
+        [vipProduct.slug]: true,
       }, 'user-with-vip-only');
 
+      // testProduct → protected-section (paid), testProduct2 → protected-section-2 (vip)
       const testPageUrl = `${STATIC_SERVER_URL}/element-protection.html?testProduct=${paidProduct.slug}&testProduct2=${vipProduct.slug}&apiUrl=${NEXT_JS_URL}`;
       await page.goto(testPageUrl);
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(3000);
 
       expect(page.url()).toContain('localhost:3002');
+
+      // Verify both sections got their respective product slugs
+      const section1 = page.locator('#protected-section');
+      const section2 = page.locator('#protected-section-2');
+      await expect(section1).toHaveAttribute('data-gatekeeper-product', paidProduct.slug);
+      await expect(section2).toHaveAttribute('data-gatekeeper-product', vipProduct.slug);
+
+      // Section 1 (paid): user does NOT have access
+      const paidHasAccess = page.locator('[data-testid="has-access-content"]');
+      const paidNoAccess = page.locator('[data-testid="no-access-fallback"]');
+      // Section 2 (vip): user HAS access
+      const vipHasAccess = page.locator('[data-testid="has-access-content-2"]');
+
+      // Both sections exist in DOM
+      expect(await section1.count()).toBe(1);
+      expect(await section2.count()).toBe(1);
+
+      // If gatekeeper processed: vip content visible, paid content hidden
+      const gatekeeperLoaded = await section2.evaluate(el => el.classList.contains('gatekeeper-processed')).catch(() => false);
+      if (gatekeeperLoaded) {
+        await expect(paidHasAccess).toBeHidden();
+        await expect(vipHasAccess).toBeVisible();
+      } else {
+        // Gatekeeper didn't process — verify sections exist with correct product slugs
+        expect(await paidHasAccess.count()).toBe(1);
+        expect(await vipHasAccess.count()).toBe(1);
+      }
     });
 
     test('User with BOTH access: sees all protected content', async ({ page }) => {
@@ -543,19 +595,25 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
   // ============================================================================
   test.describe('6. Edge Cases', () => {
 
-    test('Non-existent product returns 404 or redirects', async ({ page }) => {
+    test('Non-existent product returns 404 or shows not-found message', async ({ page }) => {
       const response = await page.goto(`${NEXT_JS_URL}/p/non-existent-product-xyz-${timestamp}`);
       await page.waitForLoadState('domcontentloaded');
 
       const status = response?.status();
       const url = page.url();
+      const bodyText = await page.textContent('body') || '';
 
-      // Should either return 404 or redirect
+      // The page should either:
+      // 1. Return 404 status
+      // 2. Redirect to a 404 page
+      // 3. Redirect away from the product URL
+      // 4. Show a "not found" message in the page body
       const isNotFound = status === 404;
       const redirectedTo404 = url.includes('/404');
       const redirectedAway = !url.includes('non-existent');
+      const showsNotFoundMessage = /not found|nie znaleziono|404|does not exist/i.test(bodyText);
 
-      expect(isNotFound || redirectedTo404 || redirectedAway || status === 200).toBeTruthy();
+      expect(isNotFound || redirectedTo404 || redirectedAway || showsNotFoundMessage).toBeTruthy();
     });
 
     test('Product with special characters in slug is handled', async ({ page }) => {
@@ -563,8 +621,8 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       const response = await page.goto(`${NEXT_JS_URL}/p/test-product-with-special`);
       await page.waitForLoadState('domcontentloaded');
 
-      // Should not crash
-      expect(response?.status()).toBeDefined();
+      // Should not crash — expect a valid HTTP response (not 500)
+      expect(response?.status()).toBeLessThan(500);
     });
 
     test('Element protection with no data-gatekeeper-product elements does nothing', async ({ page }) => {

@@ -152,11 +152,19 @@ describe('Payments Export API v1', () => {
 
       // Should contain completed transactions
       expect(csv).toContain('completed');
-      // Should not contain refunded transactions (from our test data)
+      // Parse CSV: find the Status column index from headers, then verify no data row has 'refunded'
       const lines = csv.split('\n');
+      const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+      const statusColIndex = headers.indexOf('Status');
+      expect(statusColIndex).toBeGreaterThanOrEqual(0);
       const dataLines = lines.slice(1).filter((line) => line.trim());
-      const hasRefunded = dataLines.some((line) => line.includes(',refunded,'));
-      expect(hasRefunded).toBe(false);
+      expect(dataLines.length).toBeGreaterThan(0);
+      for (const line of dataLines) {
+        // Simple CSV field extraction (handles quoted fields with commas)
+        const fields = line.match(/(".*?"|[^,]+)/g) ?? [];
+        const statusValue = fields[statusColIndex]?.trim().replace(/^"|"$/g, '') ?? '';
+        expect(statusValue).not.toBe('refunded');
+      }
     });
 
     it('should filter by status=refunded', async () => {
@@ -176,10 +184,9 @@ describe('Payments Export API v1', () => {
 
       const lines = csv.split('\n');
       const dataLines = lines.slice(1).filter((line) => line.trim());
+      expect(dataLines.length).toBeGreaterThan(0);
       // All data lines should contain 'refunded'
-      if (dataLines.length > 0) {
-        expect(dataLines.every((line) => line.includes('refunded'))).toBe(true);
-      }
+      expect(dataLines.every((line) => line.includes('refunded'))).toBe(true);
     });
 
     it('should filter by date range', async () => {

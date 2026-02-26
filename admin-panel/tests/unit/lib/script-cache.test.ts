@@ -1,15 +1,13 @@
 /**
  * Tests for script-cache.ts
- * Testing: MemoryCache, ScriptCache, generateHash, HTTP helpers
+ * Testing: MemoryCache, ScriptCache, generateHash, embedCache
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   generateHash,
   MemoryCache,
   ScriptCache,
-  handleConditionalRequest,
-  createScriptResponse,
   embedCache,
 } from '@/lib/script-cache';
 
@@ -59,7 +57,8 @@ describe('MemoryCache', () => {
 
       expect(generator).toHaveBeenCalledTimes(1);
       expect(result.data).toBe('generated value');
-      expect(result.hash).toBeTruthy();
+      expect(typeof result.hash).toBe('string');
+      expect(result.hash.length).toBeGreaterThan(0);
       expect(result.generatedAt).toBeLessThanOrEqual(Date.now());
     });
 
@@ -117,7 +116,7 @@ describe('MemoryCache', () => {
       cache.set('key1', 'value1');
       const result = cache.get('key1');
 
-      expect(result).toBeDefined();
+      expect(result).not.toBeNull();
       expect(result?.data).toBe('value1');
     });
 
@@ -156,7 +155,8 @@ describe('MemoryCache', () => {
       const result = cache.set('key1', 'value1');
 
       expect(result.data).toBe('value1');
-      expect(result.hash).toBeTruthy();
+      expect(typeof result.hash).toBe('string');
+      expect(result.hash.length).toBeGreaterThan(0);
       expect(result.generatedAt).toBeLessThanOrEqual(Date.now());
     });
 
@@ -209,11 +209,19 @@ describe('ScriptCache', () => {
   });
 
   describe('getOrGenerate', () => {
-    it('uses generateHash for string content', () => {
+    it('returns content with a non-empty string hash', () => {
       const result = cache.getOrGenerate('key1', () => 'script content');
 
       expect(result.data).toBe('script content');
-      expect(result.hash).toBe(generateHash('script content'));
+      expect(typeof result.hash).toBe('string');
+      expect(result.hash.length).toBeGreaterThan(0);
+    });
+
+    it('returns different hashes for different content', () => {
+      const result1 = cache.getOrGenerate('key1', () => 'content A');
+      const result2 = cache.getOrGenerate('key2', () => 'content B');
+
+      expect(result1.hash).not.toBe(result2.hash);
     });
   });
 
@@ -296,50 +304,15 @@ describe('ScriptCache', () => {
   });
 });
 
-describe('handleConditionalRequest', () => {
-  it('returns null when no If-None-Match header', () => {
-    const request = new Request('http://test.com');
-
-    const result = handleConditionalRequest(request, 'abc123');
-
-    expect(result).toBeNull();
-  });
-
-  it('returns null when ETag does not match', () => {
-    const request = new Request('http://test.com', {
-      headers: { 'If-None-Match': 'different' },
-    });
-
-    const result = handleConditionalRequest(request, 'abc123');
-
-    expect(result).toBeNull();
-  });
-
-  it('returns 304 when ETag matches', () => {
-    const request = new Request('http://test.com', {
-      headers: { 'If-None-Match': 'abc123' },
-    });
-
-    const result = handleConditionalRequest(request, 'abc123');
-
-    expect(result?.status).toBe(304);
-    expect(result?.headers.get('ETag')).toBe('abc123');
-  });
-});
-
-describe('createScriptResponse', () => {
-  it('creates response with content and headers', async () => {
-    const response = createScriptResponse('console.log("test")', 'hash123');
-
-    const body = await response.text();
-    expect(body).toBe('console.log("test")');
-    expect(response.headers.get('Content-Type')).toBe('application/javascript; charset=utf-8');
-    expect(response.headers.get('ETag')).toBe('hash123');
-    expect(response.headers.get('Cache-Control')).toContain('max-age=3600');
-  });
-});
-
 describe('embedCache singleton', () => {
+  beforeEach(() => {
+    embedCache.clear();
+  });
+
+  afterEach(() => {
+    embedCache.clear();
+  });
+
   it('is instance of ScriptCache', () => {
     expect(embedCache).toBeInstanceOf(ScriptCache);
   });
@@ -347,6 +320,5 @@ describe('embedCache singleton', () => {
   it('persists across imports', () => {
     embedCache.set('test-key', 'test-value');
     expect(embedCache.get('test-key')?.data).toBe('test-value');
-    embedCache.clear(); // Cleanup
   });
 });

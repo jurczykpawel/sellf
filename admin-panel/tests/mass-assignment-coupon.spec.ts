@@ -119,10 +119,7 @@ test.describe('Mass Assignment - Coupon PATCH', () => {
     expect(coupon?.name).toBe('Updated Name');
 
     // Usage count should NOT be reset (forbidden field)
-    if (coupon?.current_usage_count === 0) {
-      console.log(`  VULNERABILITY: current_usage_count was reset!`);
-    }
-
+    expect(coupon?.current_usage_count, 'VULNERABILITY: current_usage_count was reset to 0 via mass assignment').not.toBe(0);
     expect(coupon?.current_usage_count).toBe(initialUsageCount);
   });
 

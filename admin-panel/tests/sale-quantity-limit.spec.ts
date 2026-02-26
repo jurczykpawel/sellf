@@ -261,12 +261,14 @@ test.describe('Sale Quantity Limit', () => {
     expect(data).toBe(true); // Should return true (incremented)
 
     // Verify the count increased
-    const { data: product } = await supabaseAdmin
+    const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .select('sale_quantity_sold')
       .eq('id', testProductId)
       .single();
 
+    expect(productError).toBeNull();
+    expect(product).not.toBeNull();
     expect(product!.sale_quantity_sold).toBe(4);
   });
 
@@ -292,66 +294,73 @@ test.describe('Sale Quantity Limit', () => {
     expect(data).toBe(false); // Should return false (not incremented)
 
     // Verify the count did NOT increase
-    const { data: product } = await supabaseAdmin
+    const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .select('sale_quantity_sold')
       .eq('id', testProductId)
       .single();
 
+    expect(productError).toBeNull();
+    expect(product).not.toBeNull();
     expect(product!.sale_quantity_sold).toBe(5); // Still 5
   });
 
   test('is_sale_price_active database function works correctly', async () => {
     // Test the database function directly
     // Active sale
-    const { data: activeResult } = await supabaseAdmin
+    const { data: activeResult, error: activeError } = await supabaseAdmin
       .rpc('is_sale_price_active', {
         p_sale_price: 60,
         p_sale_price_until: null,
         p_sale_quantity_limit: 10,
         p_sale_quantity_sold: 5
       });
+    expect(activeError).toBeNull();
     expect(activeResult).toBe(true);
 
     // Inactive - quantity reached
-    const { data: quantityReached } = await supabaseAdmin
+    const { data: quantityReached, error: qtyError } = await supabaseAdmin
       .rpc('is_sale_price_active', {
         p_sale_price: 60,
         p_sale_price_until: null,
         p_sale_quantity_limit: 5,
         p_sale_quantity_sold: 5
       });
+    expect(qtyError).toBeNull();
     expect(quantityReached).toBe(false);
 
     // Inactive - time expired
     const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: timeExpired } = await supabaseAdmin
+    const { data: timeExpired, error: timeError } = await supabaseAdmin
       .rpc('is_sale_price_active', {
         p_sale_price: 60,
         p_sale_price_until: pastDate,
         p_sale_quantity_limit: 10,
         p_sale_quantity_sold: 2
       });
+    expect(timeError).toBeNull();
     expect(timeExpired).toBe(false);
 
     // Inactive - no sale price
-    const { data: noSalePrice } = await supabaseAdmin
+    const { data: noSalePrice, error: nspError } = await supabaseAdmin
       .rpc('is_sale_price_active', {
         p_sale_price: null,
         p_sale_price_until: null,
         p_sale_quantity_limit: 10,
         p_sale_quantity_sold: 0
       });
+    expect(nspError).toBeNull();
     expect(noSalePrice).toBe(false);
 
     // Active - no quantity limit
-    const { data: noLimit } = await supabaseAdmin
+    const { data: noLimit, error: nlError } = await supabaseAdmin
       .rpc('is_sale_price_active', {
         p_sale_price: 60,
         p_sale_price_until: null,
         p_sale_quantity_limit: null,
         p_sale_quantity_sold: 1000
       });
+    expect(nlError).toBeNull();
     expect(noLimit).toBe(true);
   });
 

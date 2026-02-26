@@ -116,6 +116,8 @@ test.describe('Order Bump Pricing Security', () => {
       { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
     );
 
+    expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
+
     const pi = await stripeResponse.json();
 
     // Expected: $50 (main) + $10 (bump) = $60 = 6000 cents
@@ -157,6 +159,8 @@ test.describe('Order Bump Pricing Security', () => {
         `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
         { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
       );
+
+      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
 
       const pi = await stripeResponse.json();
 
@@ -217,6 +221,8 @@ test.describe('Order Bump Pricing Security', () => {
         { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
       );
 
+      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
+
       const pi = await stripeResponse.json();
       expect(pi.amount).toBe(5000);  // Only main product, no bump
       expect(pi.metadata.bump_product_id).toBe('');
@@ -249,6 +255,8 @@ test.describe('Order Bump Pricing Security', () => {
         `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
         { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
       );
+
+      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
 
       const pi = await stripeResponse.json();
 
@@ -287,6 +295,8 @@ test.describe('Order Bump Pricing Security', () => {
         `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
         { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
       );
+
+      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
 
       const pi = await stripeResponse.json();
 
@@ -438,6 +448,8 @@ test.describe('Order Bump with Coupon', () => {
       { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
     );
 
+    expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
+
     const pi = await stripeResponse.json();
 
     // $80 (main after 20% discount) + $15 (bump, no discount) = $95
@@ -467,6 +479,8 @@ test.describe('Order Bump with Coupon', () => {
       `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
       { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
     );
+
+    expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
 
     const pi = await stripeResponse.json();
 

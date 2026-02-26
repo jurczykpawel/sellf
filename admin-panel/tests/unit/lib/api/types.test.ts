@@ -133,7 +133,29 @@ describe('API Types', () => {
   });
 
   describe('ErrorCodes', () => {
-    it('should have all required error codes', () => {
+    const EXPECTED_ERROR_CODES = [
+      'UNAUTHORIZED',
+      'FORBIDDEN',
+      'INVALID_TOKEN',
+      'VALIDATION_ERROR',
+      'INVALID_INPUT',
+      'NOT_FOUND',
+      'CONFLICT',
+      'ALREADY_EXISTS',
+      'INTERNAL_ERROR',
+      'SERVICE_UNAVAILABLE',
+      'RATE_LIMITED',
+    ] as const;
+
+    it('should contain exactly the expected error codes', () => {
+      const actualCodes = Object.values(ErrorCodes);
+      expect(actualCodes).toHaveLength(EXPECTED_ERROR_CODES.length);
+      for (const code of EXPECTED_ERROR_CODES) {
+        expect(actualCodes).toContain(code);
+      }
+    });
+
+    it('should expose codes as properties matching their string values', () => {
       expect(ErrorCodes.UNAUTHORIZED).toBe('UNAUTHORIZED');
       expect(ErrorCodes.FORBIDDEN).toBe('FORBIDDEN');
       expect(ErrorCodes.INVALID_TOKEN).toBe('INVALID_TOKEN');
@@ -147,11 +169,9 @@ describe('API Types', () => {
       expect(ErrorCodes.RATE_LIMITED).toBe('RATE_LIMITED');
     });
 
-    it('should have matching code values', () => {
-      // Ensure code values match their key names
-      for (const [key, value] of Object.entries(ErrorCodes)) {
-        expect(key).toBe(value);
-      }
+    it('should not contain unexpected extra codes', () => {
+      const actualKeys = Object.keys(ErrorCodes);
+      expect(actualKeys.sort()).toEqual([...EXPECTED_ERROR_CODES].sort());
     });
   });
 

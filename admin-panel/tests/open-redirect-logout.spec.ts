@@ -20,6 +20,7 @@ test.describe('Open Redirect - Logout Endpoint', () => {
 
     // Check the Location header
     const location = response.headers()['location'];
+    expect(location, 'Expected Location header in redirect response').toBeTruthy();
     console.log(`\nExternal URL test:`);
     console.log(`  Requested returnUrl: ${externalUrl}`);
     console.log(`  Redirect Location: ${location}`);
@@ -42,6 +43,7 @@ test.describe('Open Redirect - Logout Endpoint', () => {
     expect([302, 307]).toContain(response.status());
 
     const location = response.headers()['location'];
+    expect(location, 'Expected Location header in redirect response').toBeTruthy();
     console.log(`\nProtocol-relative URL test:`);
     console.log(`  Requested returnUrl: ${protoRelativeUrl}`);
     console.log(`  Redirect Location: ${location}`);
@@ -60,6 +62,7 @@ test.describe('Open Redirect - Logout Endpoint', () => {
     expect([302, 307]).toContain(response.status());
 
     const location = response.headers()['location'];
+    expect(location, 'Expected Location header in redirect response').toBeTruthy();
     console.log(`\nJavaScript URL test:`);
     console.log(`  Requested returnUrl: ${jsUrl}`);
     console.log(`  Redirect Location: ${location}`);
@@ -78,6 +81,7 @@ test.describe('Open Redirect - Logout Endpoint', () => {
     expect([302, 307]).toContain(response.status());
 
     const location = response.headers()['location'];
+    expect(location, 'Expected Location header in redirect response').toBeTruthy();
     console.log(`\nRelative path test:`);
     console.log(`  Requested returnUrl: ${safePath}`);
     console.log(`  Redirect Location: ${location}`);
@@ -94,6 +98,7 @@ test.describe('Open Redirect - Logout Endpoint', () => {
     expect([302, 307]).toContain(response.status());
 
     const location = response.headers()['location'];
+    expect(location, 'Expected Location header in redirect response').toBeTruthy();
     console.log(`\nNo returnUrl test:`);
     console.log(`  Redirect Location: ${location}`);
 

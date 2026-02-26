@@ -135,20 +135,4 @@ describe('Open Redirect Prevention', () => {
     });
   });
 
-  describe('Real Attack Scenarios', () => {
-    it('Scenario: Phishing via return_url', () => {
-      const attackUrl = 'https://evil.com/fake-login';
-      expect(isSafeRedirectUrl(attackUrl, SITE_URL)).toBe(false);
-    });
-
-    it('Scenario: Session token theft via Referer', () => {
-      const attackUrl = 'https://attacker.com/collect-referer';
-      expect(isSafeRedirectUrl(attackUrl, SITE_URL)).toBe(false);
-    });
-
-    it('Scenario: OAuth token interception', () => {
-      const attackUrl = 'https://attacker.com/oauth-callback?code=stolen';
-      expect(isSafeRedirectUrl(attackUrl, SITE_URL)).toBe(false);
-    });
-  });
 });

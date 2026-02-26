@@ -348,16 +348,6 @@ describe('Success Redirect URL Builder', () => {
       expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
     });
 
-    it('should fallback to raw URL on parse error', () => {
-      // This won't actually fail with current URL parsing, but tests the fallback path
-      const result = buildSuccessRedirectUrl({
-        targetUrl: 'https://example.com/success',
-        passParams: false
-      });
-
-      expect(result.url).toBe('https://example.com/success');
-    });
-
     it('should handle URL with existing params and add new ones', () => {
       const result = buildSuccessRedirectUrl({
         targetUrl: 'https://shop.com/thankyou?existing=value',

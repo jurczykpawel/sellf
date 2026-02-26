@@ -141,8 +141,12 @@ describe('NIP / Tax ID Validation', () => {
       expect(validateNIPChecksum('')).toBe(false);
     });
 
-    it('should reject non-numeric', () => {
+    it('should reject non-numeric characters', () => {
       expect(validateNIPChecksum('123456789A')).toBe(false);
+    });
+
+    it('should reject PL-prefixed NIP with invalid checksum (auto-normalized)', () => {
+      // PL1234567890 normalizes to 1234567890, which has checksum=10 (invalid)
       expect(validateNIPChecksum('PL1234567890')).toBe(false);
     });
   });

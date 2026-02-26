@@ -1,14 +1,22 @@
 /**
- * SIMPLIFIED SECURITY TEST: Coupon Race Condition (TOCTOU)
+ * SECURITY TEST: Coupon Race Condition (TOCTOU)
  *
- * Uproszczony test weryfikujący podatność na race condition w kuponach
+ * Verifies that the verify_coupon() function's FOR UPDATE lock prevents
+ * concurrent requests from bypassing usage_limit_global.
+ *
+ * The test passes ONLY when the race condition fix is in place:
+ * - Exactly 1 out of N concurrent requests must succeed
+ * - The database must contain exactly 1 reservation
+ *
+ * If the FOR UPDATE lock is missing, multiple requests succeed simultaneously
+ * and the test FAILS.
  */
 
 import { test, expect } from '@playwright/test';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 test.describe('Coupon Race Condition - Simplified', () => {
-  test.describe.configure({ mode: 'serial' }); // Ensure database check runs after race test
+  test.describe.configure({ mode: 'serial' });
 
   let productId: string;
   let couponId: string;
@@ -16,13 +24,11 @@ test.describe('Coupon Race Condition - Simplified', () => {
   let supabaseAdmin: SupabaseClient;
 
   test.beforeAll(async () => {
-    // Create a fresh Supabase admin client for this test suite
-    // This avoids potential connection pooling issues when running after many other tests
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz';
     supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Create a truly unique product for this test to avoid interference with other tests
+    // Create a unique product for this test
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(7);
     const slug = `race-test-product-${timestamp}-${randomSuffix}`;
@@ -45,10 +51,8 @@ test.describe('Coupon Race Condition - Simplified', () => {
 
     if (productError) throw productError;
     productId = product.id;
-    console.log(`Created unique product for race test: ${slug} (${productId})`);
 
     // Create coupon with usage_limit_global = 1
-    // NOTE: Code must be uppercase because verify API does .toUpperCase()
     couponCode = ('RACE' + timestamp + '_' + randomSuffix).toUpperCase();
 
     const { data: coupon, error: couponError } = await supabaseAdmin
@@ -72,15 +76,19 @@ test.describe('Coupon Race Condition - Simplified', () => {
     }
     couponId = coupon.id;
 
-    console.log(`Created test coupon: ${couponCode} (limit=1, id=${couponId})`);
+    // Clean up any stale reservations for this coupon
+    await supabaseAdmin
+      .from('coupon_reservations')
+      .delete()
+      .eq('coupon_id', couponId);
 
-    // Small delay to ensure DB is ready (avoids flaky first-run failures)
+    // Small delay to ensure DB is ready
     await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   test.afterAll(async () => {
-    // Cleanup
     if (couponId) {
+      await supabaseAdmin.from('coupon_reservations').delete().eq('coupon_id', couponId);
       await supabaseAdmin.from('coupon_redemptions').delete().eq('coupon_id', couponId);
       await supabaseAdmin.from('coupons').delete().eq('id', couponId);
     }
@@ -89,19 +97,17 @@ test.describe('Coupon Race Condition - Simplified', () => {
     }
   });
 
-  test('🔴 CRITICAL: Race condition allows bypassing usage_limit_global', async ({ request }) => {
-    // This test demonstrates the TOCTOU (Time-of-check to Time-of-use) vulnerability
-
-    // Verify coupon 10 times concurrently
-    // EXPECTED: verify_coupon() should only allow 1 to succeed
-    // ACTUAL: Multiple succeed due to missing FOR UPDATE lock
+  test('concurrent verify requests respect usage_limit_global=1', async ({ request }) => {
+    // Send 10 concurrent verify requests with different emails
+    // With FOR UPDATE lock: exactly 1 succeeds, 9 fail with "usage limit reached"
+    // Without lock (vulnerability): multiple succeed simultaneously
 
     const verifyPromises = Array(10).fill(null).map((_, i) =>
       request.post('http://localhost:3000/api/coupons/verify', {
         data: {
           code: couponCode,
           productId: productId,
-          email: `user${i}@example.com`,
+          email: `raceuser${i}@example.com`,
         }
       })
     );
@@ -110,29 +116,29 @@ test.describe('Coupon Race Condition - Simplified', () => {
     const results = await Promise.all(responses.map(r => r.json()));
     const validCount = results.filter(r => r.valid === true).length;
 
-    console.log(`\n🔍 RACE CONDITION TEST RESULTS:`);
+    console.log(`\nRACE CONDITION TEST RESULTS:`);
     console.log(`   - Coupon usage limit: 1`);
     console.log(`   - Concurrent verify requests: 10`);
     console.log(`   - Requests that passed validation: ${validCount}`);
 
-    if (validCount > 1) {
-      console.log(`   ❌ RACE CONDITION DETECTED! ${validCount} requests succeeded but limit is 1!`);
-      console.log(`   → verify_coupon() lacks FOR UPDATE lock`);
-      console.log(`   → Multiple requests read current_usage_count=0 simultaneously`);
-      console.log(`   → All pass the check before any increments the counter`);
-    } else {
-      console.log(`   ✅ SAFE: Only ${validCount} request succeeded (expected)`);
-    }
-
-    // ASSERTION: Should be at most 1 valid
-    // If this fails, race condition is confirmed
-    expect(validCount).toBeLessThanOrEqual(1);
+    // ASSERTION: Exactly 1 must succeed.
+    // - If 0 succeed: test infrastructure issue (coupon verify broken entirely)
+    // - If >1 succeed: race condition vulnerability (FOR UPDATE lock missing)
+    // - If exactly 1: fix is working correctly
+    expect(
+      validCount,
+      `Expected exactly 1 valid response but got ${validCount}. ` +
+      (validCount === 0
+        ? 'No requests succeeded — verify API may be broken or rate-limited.'
+        : `${validCount} requests bypassed usage_limit_global=1 — FOR UPDATE lock may be missing.`)
+    ).toBe(1);
   });
 
-  test('📊 Check database state after race', async () => {
-    // Query coupon_redemptions to see how many times it was redeemed
-    const { data: redemptions, count } = await supabaseAdmin
-      .from('coupon_redemptions')
+  test('database has exactly 1 reservation after concurrent race', async () => {
+    // verify_coupon() creates reservations (not redemptions) on success.
+    // Check coupon_reservations to confirm only 1 reservation was created.
+    const { count: reservationCount } = await supabaseAdmin
+      .from('coupon_reservations')
       .select('*', { count: 'exact' })
       .eq('coupon_id', couponId);
 
@@ -142,21 +148,20 @@ test.describe('Coupon Race Condition - Simplified', () => {
       .eq('id', couponId)
       .single();
 
-    console.log(`\n📊 DATABASE STATE:`);
+    console.log(`\nDATABASE STATE:`);
     console.log(`   - Coupon current_usage_count: ${coupon?.current_usage_count}`);
-    console.log(`   - Actual redemptions in DB: ${count}`);
-    console.log(`   - Expected: 1`);
+    console.log(`   - Active reservations in DB: ${reservationCount}`);
+    console.log(`   - Expected reservations: 1`);
 
-    if (count && count > 1) {
-      console.log(`   ❌ ${count} redemptions found (limit was 1)`);
-      console.log(`\n   PROOF OF VULNERABILITY:`);
-      redemptions?.forEach((r, i) => {
-        console.log(`      ${i+1}. Email: ${r.customer_email}, Time: ${r.redeemed_at}`);
-      });
-    }
-
-    // This is the smoking gun - if more than 1 redemption exists, race condition occurred
-    expect(count).toBeLessThanOrEqual(1);
+    // Exactly 1 reservation must exist — proves the FOR UPDATE lock works.
+    // If 0: verify never succeeded (test infra issue)
+    // If >1: race condition allowed multiple reservations past the global limit
+    expect(
+      reservationCount,
+      `Expected exactly 1 reservation but found ${reservationCount}. ` +
+      (reservationCount === 0
+        ? 'No reservations created — first test may have failed.'
+        : `${reservationCount} reservations bypassed usage_limit_global=1.`)
+    ).toBe(1);
   });
 });
-

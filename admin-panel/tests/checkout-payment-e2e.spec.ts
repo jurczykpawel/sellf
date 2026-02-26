@@ -596,23 +596,13 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
     // Wait for payment form to initialize
     await page.waitForTimeout(1000);
 
-    // In production: Express Checkout Element would show Link, Apple Pay, Google Pay buttons
-    // In mock environment: We verify the checkout form renders correctly with all required fields
-
-    // Note: Express Checkout Element visibility is controlled by Stripe's onReady handler
-    // based on available payment methods (Link saved cards, Apple Pay, Google Pay)
-    // This cannot be fully tested with mocks as it requires real Stripe.js
-
     // Verify form rendered correctly with filled data
     await expect(fullNameInput).toHaveValue('Express User');
     await expect(termsCheckbox).toBeChecked();
 
-    // Verify payment container exists (where Stripe Elements would mount)
-    // The actual Payment Element mounting depends on Stripe.js initialization
-    const paymentContainer = page.locator('#payment-element, [data-testid="payment-form"]');
-    const containerExists = await paymentContainer.count() > 0;
-
-    // Either payment element container exists, or form is in valid state for submission
-    expect(containerExists || await termsCheckbox.isChecked()).toBeTruthy();
+    // Verify the form structure is complete for submission
+    // (Payment Element container depends on Stripe.js, but form fields must be present)
+    const submitButton = page.locator('button[type="submit"]');
+    await expect(submitButton).toBeVisible();
   });
 });

@@ -188,6 +188,8 @@ test.describe('Webhooks API v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
 
+      // We created an active webhook in beforeAll, so results must not be empty
+      expect(body.data.length).toBeGreaterThan(0);
       body.data.forEach((w: any) => {
         expect(w.is_active).toBe(true);
       });
@@ -196,14 +198,34 @@ test.describe('Webhooks API v1', () => {
     test('should support status filter - inactive', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
-      const response = await page.request.get('/api/v1/webhooks?status=inactive');
+      // Create an inactive webhook to ensure the filter has data to return
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: inactiveWebhook } = await supabaseAdmin
+        .from('webhook_endpoints')
+        .insert({
+          url: `https://example.com/inactive-test-${randomStr}`,
+          events: ['payment.completed'],
+          is_active: false,
+          secret: `whsec_inactive_${randomStr}`,
+        })
+        .select('id')
+        .single();
 
-      expect(response.status()).toBe(200);
-      const body = await response.json();
+      try {
+        const response = await page.request.get('/api/v1/webhooks?status=inactive');
 
-      body.data.forEach((w: any) => {
-        expect(w.is_active).toBe(false);
-      });
+        expect(response.status()).toBe(200);
+        const body = await response.json();
+
+        expect(body.data.length).toBeGreaterThan(0);
+        body.data.forEach((w: any) => {
+          expect(w.is_active).toBe(false);
+        });
+      } finally {
+        if (inactiveWebhook) {
+          await supabaseAdmin.from('webhook_endpoints').delete().eq('id', inactiveWebhook.id);
+        }
+      }
     });
 
     test('should support limit parameter', async ({ page }) => {
@@ -562,6 +584,8 @@ test.describe('Webhooks API v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
 
+      // We created a log for testWebhookId in beforeAll, so results must not be empty
+      expect(body.data.length).toBeGreaterThan(0);
       body.data.forEach((l: any) => {
         expect(l.endpoint_id).toBe(testWebhookId);
       });
@@ -575,6 +599,8 @@ test.describe('Webhooks API v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
 
+      // We created a failed log in beforeAll, so results must not be empty
+      expect(body.data.length).toBeGreaterThan(0);
       body.data.forEach((l: any) => {
         expect(l.status).toBe('failed');
       });
@@ -588,6 +614,8 @@ test.describe('Webhooks API v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
 
+      // We created a payment.completed log in beforeAll, so results must not be empty
+      expect(body.data.length).toBeGreaterThan(0);
       body.data.forEach((l: any) => {
         expect(l.event_type).toBe('payment.completed');
       });
@@ -611,11 +639,12 @@ test.describe('Webhooks API v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
 
+      // We created a log with an endpoint in beforeAll, so at least one must have endpoint details
+      expect(body.data.length).toBeGreaterThan(0);
       const logWithEndpoint = body.data.find((l: any) => l.endpoint !== null);
-      if (logWithEndpoint) {
-        expect(logWithEndpoint.endpoint).toHaveProperty('id');
-        expect(logWithEndpoint.endpoint).toHaveProperty('url');
-      }
+      expect(logWithEndpoint).toBeDefined();
+      expect(logWithEndpoint.endpoint).toHaveProperty('id');
+      expect(logWithEndpoint.endpoint).toHaveProperty('url');
     });
   });
 
@@ -738,12 +767,29 @@ test.describe('Webhooks API v1', () => {
     test('should support cursor-based pagination for webhooks', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
-      // Get first page with limit 1
-      const response1 = await page.request.get('/api/v1/webhooks?limit=1');
-      expect(response1.status()).toBe(200);
-      const body1 = await response1.json();
+      // Create a second webhook to guarantee pagination has multiple items
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraWebhook } = await supabaseAdmin
+        .from('webhook_endpoints')
+        .insert({
+          url: `https://example.com/pagination-test-${randomStr}`,
+          events: ['payment.completed'],
+          is_active: true,
+          secret: `whsec_pagination_${randomStr}`,
+        })
+        .select('id')
+        .single();
 
-      if (body1.pagination.has_more && body1.pagination.next_cursor) {
+      try {
+        // Get first page with limit 1
+        const response1 = await page.request.get('/api/v1/webhooks?limit=1');
+        expect(response1.status()).toBe(200);
+        const body1 = await response1.json();
+
+        expect(body1.data.length).toBe(1);
+        expect(body1.pagination.has_more).toBe(true);
+        expect(body1.pagination.next_cursor).toBeTruthy();
+
         // Get second page using cursor
         const response2 = await page.request.get(
           `/api/v1/webhooks?limit=1&cursor=${body1.pagination.next_cursor}`
@@ -752,8 +798,11 @@ test.describe('Webhooks API v1', () => {
         const body2 = await response2.json();
 
         // Second page should have different items
-        if (body2.data.length > 0) {
-          expect(body2.data[0].id).not.toBe(body1.data[0].id);
+        expect(body2.data.length).toBeGreaterThan(0);
+        expect(body2.data[0].id).not.toBe(body1.data[0].id);
+      } finally {
+        if (extraWebhook) {
+          await supabaseAdmin.from('webhook_endpoints').delete().eq('id', extraWebhook.id);
         }
       }
     });
@@ -761,12 +810,32 @@ test.describe('Webhooks API v1', () => {
     test('should support cursor-based pagination for logs', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
-      // Get first page with limit 1
-      const response1 = await page.request.get('/api/v1/webhooks/logs?limit=1');
-      expect(response1.status()).toBe(200);
-      const body1 = await response1.json();
+      // Create a second log to guarantee pagination has multiple items
+      const { data: extraLog } = await supabaseAdmin
+        .from('webhook_logs')
+        .insert({
+          endpoint_id: testWebhookId,
+          event_type: 'payment.refunded',
+          payload: { event: 'payment.refunded', data: { test: true } },
+          status: 'failed',
+          http_status: 502,
+          response_body: 'Bad Gateway',
+          error_message: 'HTTP 502',
+          duration_ms: 200,
+        })
+        .select('id')
+        .single();
 
-      if (body1.pagination.has_more && body1.pagination.next_cursor) {
+      try {
+        // Get first page with limit 1
+        const response1 = await page.request.get('/api/v1/webhooks/logs?limit=1');
+        expect(response1.status()).toBe(200);
+        const body1 = await response1.json();
+
+        expect(body1.data.length).toBe(1);
+        expect(body1.pagination.has_more).toBe(true);
+        expect(body1.pagination.next_cursor).toBeTruthy();
+
         // Get second page using cursor
         const response2 = await page.request.get(
           `/api/v1/webhooks/logs?limit=1&cursor=${body1.pagination.next_cursor}`
@@ -775,8 +844,11 @@ test.describe('Webhooks API v1', () => {
         const body2 = await response2.json();
 
         // Second page should have different items
-        if (body2.data.length > 0) {
-          expect(body2.data[0].id).not.toBe(body1.data[0].id);
+        expect(body2.data.length).toBeGreaterThan(0);
+        expect(body2.data[0].id).not.toBe(body1.data[0].id);
+      } finally {
+        if (extraLog) {
+          await supabaseAdmin.from('webhook_logs').delete().eq('id', extraLog.id);
         }
       }
     });

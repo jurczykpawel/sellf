@@ -203,7 +203,9 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const premiumHidden = await hasAccessContent.isHidden().catch(() => true);
       const premiumRemoved = await hasAccessContent.count() === 0;
 
-      expect(fallbackVisible || premiumHidden || premiumRemoved).toBeTruthy();
+      if (!fallbackVisible && !premiumHidden && !premiumRemoved) {
+        expect.fail('Expected fallback visible, premium hidden, or premium removed, but none matched');
+      }
     });
 
     test('Element protection: user WITH access sees premium content', async ({ page }) => {
@@ -244,8 +246,12 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const fallbackHidden = await noAccessFallback.isHidden().catch(() => true);
       const fallbackRemoved = await noAccessFallback.count() === 0;
 
-      expect(premiumVisible).toBeTruthy();
-      expect(fallbackHidden || fallbackRemoved).toBeTruthy();
+      if (!premiumVisible) {
+        expect.fail('Expected premium content to be visible for user with access');
+      }
+      if (!fallbackHidden && !fallbackRemoved) {
+        expect.fail('Expected fallback to be hidden or removed for user with access');
+      }
     });
 
     test('Element protection: user WITHOUT access sees fallback content', async ({ page }) => {
@@ -286,12 +292,17 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const premiumHidden = await hasAccessContent.isHidden().catch(() => true);
       const premiumRemoved = await hasAccessContent.count() === 0;
 
-      expect(fallbackVisible || premiumHidden || premiumRemoved).toBeTruthy();
+      if (!fallbackVisible && !premiumHidden && !premiumRemoved) {
+        expect.fail('Expected fallback visible, premium hidden, or premium removed, but none matched');
+      }
 
       // Upgrade button should be visible in fallback
       const upgradeButton = page.locator('[data-testid="upgrade-button"]');
       if (await noAccessFallback.isVisible()) {
         await expect(upgradeButton).toBeVisible();
+      } else {
+        // Fallback not visible means premium content was hidden/removed via different mechanism
+        expect(premiumHidden || premiumRemoved).toBe(true);
       }
     });
 
@@ -402,7 +413,9 @@ test.describe('Gatekeeper UI Protection Tests', () => {
         hasText: /Purchase|Buy|Get Access/i
       }).count() > 0;
 
-      expect(isOnCheckout || hasPurchaseElements).toBeTruthy();
+      if (!isOnCheckout && !hasPurchaseElements) {
+        expect.fail(`Expected redirect to checkout or purchase elements, but got URL: ${currentUrl}`);
+      }
     });
 
     test('Anonymous user cannot access paid product', async ({ page }) => {
@@ -416,7 +429,9 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const isRedirected = currentUrl.includes('/checkout/') || currentUrl.includes('/login');
       const hasEmailInput = await page.locator('input[type="email"]').count() > 0;
 
-      expect(isRedirected || hasEmailInput).toBeTruthy();
+      if (!isRedirected && !hasEmailInput) {
+        expect.fail(`Expected redirect to checkout/login or email input, but got URL: ${currentUrl}`);
+      }
     });
 
     test('Free product is accessible', async ({ page }) => {
@@ -430,7 +445,9 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const isAccessible = currentUrl.includes(`/p/${freeProduct.slug}`) ||
                           currentUrl.includes('/checkout/');
 
-      expect(isAccessible).toBeTruthy();
+      if (!isAccessible) {
+        expect.fail(`Expected product page or checkout URL, but got: ${currentUrl}`);
+      }
     });
   });
 
@@ -478,7 +495,9 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const isNotFound = status === 404;
       const wasRedirected = page.url().includes('/404') || !page.url().includes('non-existent');
 
-      expect(isNotFound || wasRedirected || status === 200).toBeTruthy();
+      if (!isNotFound && !wasRedirected && status !== 200) {
+        expect.fail(`Expected 404, redirect, or 200 for non-existent product, but got status ${status} at URL ${page.url()}`);
+      }
     });
   });
 });

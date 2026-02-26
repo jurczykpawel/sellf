@@ -271,7 +271,6 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await freePreset.first().click();
 
     // Stripe Elements should NOT be visible (no iframe from Stripe)
-    const stripeFrame = page.frameLocator('iframe[name*="stripe"]');
     // No Stripe iframe should exist
     expect(await page.locator('iframe[name*="stripe"]').count()).toBe(0);
   });
@@ -659,8 +658,10 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   const createdSlugs: string[] = [];
 
   test.afterAll(async () => {
-    for (const slug of createdSlugs) {
-      await supabaseAdmin.from('products').delete().eq('slug', slug);
+    if (createdSlugs.length > 0) {
+      for (const slug of createdSlugs) {
+        await supabaseAdmin.from('products').delete().eq('slug', slug);
+      }
     }
   });
 

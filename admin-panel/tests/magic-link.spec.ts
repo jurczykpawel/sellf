@@ -43,6 +43,8 @@ test.describe('Magic Link Authentication (Mailpit)', () => {
       await page.waitForTimeout(4000);
       await submitButton.click();
       await page.waitForTimeout(1500);
+      // Verify the error is resolved after retry
+      await expect(errorMessage).not.toBeVisible({ timeout: 5000 });
     }
 
     console.log(`Waiting for email to ${testEmail}...`);
@@ -73,14 +75,13 @@ test.describe('Magic Link Authentication (Mailpit)', () => {
 
     // Should see authenticated content (email or logout button)
     const bodyText = await page.locator('body').textContent();
-    const isAuthenticated =
-      bodyText?.includes(testEmail) ||
-      bodyText?.toLowerCase().includes('logout') ||
-      bodyText?.toLowerCase().includes('sign out') ||
-      bodyText?.toLowerCase().includes('my products') ||
-      bodyText?.toLowerCase().includes('dashboard');
+    const hasEmail = bodyText?.includes(testEmail);
+    const hasLogout = bodyText?.toLowerCase().includes('logout') || bodyText?.toLowerCase().includes('sign out');
+    const hasAuthPages = bodyText?.toLowerCase().includes('my products') || bodyText?.toLowerCase().includes('dashboard');
 
-    expect(isAuthenticated).toBeTruthy();
+    if (!hasEmail && !hasLogout && !hasAuthPages) {
+      expect.fail(`Expected authenticated content (email, logout, or dashboard) but page body did not contain any. URL: ${currentUrl}`);
+    }
   });
 
   test('should handle invalid credentials gracefully (mocked)', async ({ page }) => {

@@ -117,19 +117,23 @@ test.describe('Products OTO API v1', () => {
 
   test.describe('Authentication', () => {
     test('should return 401 for unauthenticated GET requests', async ({ request }) => {
-      const response = await request.get(`/api/v1/products/${sourceProduct?.id}/oto`);
+      expect(sourceProduct).toBeDefined();
+      const response = await request.get(`/api/v1/products/${sourceProduct.id}/oto`);
       expect(response.status()).toBe(401);
     });
 
     test('should return 401 for unauthenticated PUT requests', async ({ request }) => {
-      const response = await request.put(`/api/v1/products/${sourceProduct?.id}/oto`, {
-        data: { oto_product_id: otoProduct?.id }
+      expect(sourceProduct).toBeDefined();
+      expect(otoProduct).toBeDefined();
+      const response = await request.put(`/api/v1/products/${sourceProduct.id}/oto`, {
+        data: { oto_product_id: otoProduct.id }
       });
       expect(response.status()).toBe(401);
     });
 
     test('should return 401 for unauthenticated DELETE requests', async ({ request }) => {
-      const response = await request.delete(`/api/v1/products/${sourceProduct?.id}/oto`);
+      expect(sourceProduct).toBeDefined();
+      const response = await request.delete(`/api/v1/products/${sourceProduct.id}/oto`);
       expect(response.status()).toBe(401);
     });
   });

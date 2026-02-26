@@ -151,7 +151,8 @@ test.describe('API Keys v1', () => {
       expect(response.status()).toBe(201);
       const body = await response.json();
 
-      expect(body.data.expires_at).toBeTruthy();
+      expect(typeof body.data.expires_at).toBe('string');
+      expect(new Date(body.data.expires_at).getTime()).toBeGreaterThan(Date.now());
 
       createdKeyIds.push(body.data.id);
     });
@@ -362,7 +363,8 @@ test.describe('API Keys v1', () => {
       expect(body.data).toHaveProperty('new_key');
       expect(body.data).toHaveProperty('old_key');
       expect(body.data.new_key.key).toMatch(/^gf_live_/);
-      expect(body.data.old_key.grace_until).toBeTruthy();
+      expect(typeof body.data.old_key.grace_until).toBe('string');
+      expect(new Date(body.data.old_key.grace_until).getTime()).toBeGreaterThan(Date.now());
 
       createdKeyIds.push(body.data.new_key.id);
     });
@@ -797,8 +799,12 @@ test.describe('API Keys v1', () => {
       });
       const createBody = await createResponse.json();
 
-      // If key was created (API defaults to *), test it
-      if (createResponse.status() === 201 && createBody.data?.key) {
+      // API should either reject empty scopes (400) or create with defaults (201)
+      const status = createResponse.status();
+      expect([201, 400]).toContain(status);
+
+      if (status === 201) {
+        expect(createBody.data?.key).toBeDefined();
         const apiKey = createBody.data.key;
         createdKeyIds.push(createBody.data.id);
 
@@ -806,8 +812,8 @@ test.describe('API Keys v1', () => {
         const keyDetails = await page.request.get(`/api/v1/api-keys/${createBody.data.id}`);
         const detailsBody = await keyDetails.json();
 
-        // If empty scopes were stored, access should be denied
         if (detailsBody.data.scopes.length === 0) {
+          // Empty scopes stored — access should be denied
           const response = await request.get('/api/v1/products', {
             headers: { 'Authorization': `Bearer ${apiKey}` }
           });
@@ -817,8 +823,9 @@ test.describe('API Keys v1', () => {
           expect(detailsBody.data.scopes.length).toBeGreaterThan(0);
         }
       } else {
-        // API rejected empty scopes - that's also valid behavior
-        expect(createResponse.status()).toBe(400);
+        // API rejected empty scopes — verify error format
+        expect(createBody.error).toBeDefined();
+        expect(createBody.error.code).toBeDefined();
       }
     });
   });

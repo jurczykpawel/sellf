@@ -1,5 +1,11 @@
 /**
  * Unit tests for license verification
+ *
+ * Test licenses below are FIXTURES signed with the real ECDSA private key
+ * (via scripts/generate-license.js). This is the correct way to test crypto:
+ * the production code verifies signatures against the embedded public key,
+ * and these fixtures let us confirm that valid signatures pass and any
+ * modification (tampered domain, expiry, or signature bytes) causes rejection.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,13 +22,12 @@ import {
 } from '../../src/lib/license/verify';
 
 describe('License Verification', () => {
-  // Valid test licenses generated with scripts/generate-license.js
-  // These are real signatures that should verify correctly
+  // Fixtures: real ECDSA P-256 signatures generated with the private key
   const VALID_LICENSE_UNLIMITED = 'GF-test.example.com-UNLIMITED-MEUCIFu0eHmjYGTkO2LeOf-H9wbPADxtb2e2y9zwI-UbNs2IAiEA9zLeqLOTNsyeIR8APM0wkZOcKY4RYJw2T_DqPWfjCwQ';
   const VALID_LICENSE_DATED = 'GF-test.example.com-20301231-MEUCIQCs9QVA6-9uwH2wdoNy3UAlR_bzB4IivExlM1KeqUgPiQIgKNkpD5XEFVKMELTu8T3RAhi80hOuRnSWaef0T-JNSFA';
   const EXPIRED_LICENSE = 'GF-test.example.com-20201231-MEUCIGHfTwXx0_VbMaS1iK4uZ9yx72FzyDJ0iu4_1wMjz4mAAiEAwHCJIx1owoyCTg4xDqaSnVhHKxCtl4pdJkyrZ3p7pAo';
 
-  // Invalid license (tampered signature)
+  // Invalid: tampered / fabricated signatures
   const INVALID_LICENSE = 'GF-test.example.com-UNLIMITED-INVALID_SIGNATURE_HERE';
   const MALFORMED_LICENSE = 'not-a-valid-license';
 
@@ -88,6 +93,38 @@ describe('License Verification', () => {
       const tampered = VALID_LICENSE_DATED.replace('20301231', '20991231');
       const isValid = verifyLicenseSignature(tampered);
       expect(isValid).toBe(false);
+    });
+
+    it('should reject a completely fabricated base64 signature', () => {
+      // Random base64 that is NOT a valid ECDSA signature for this data
+      const fabricated = 'GF-test.example.com-UNLIMITED-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+      expect(verifyLicenseSignature(fabricated)).toBe(false);
+    });
+
+    it('should reject a truncated signature', () => {
+      // Take only the first half of the valid signature
+      const parts = VALID_LICENSE_UNLIMITED.split('-');
+      const sig = parts.slice(3).join('-');
+      const truncated = `GF-test.example.com-UNLIMITED-${sig.substring(0, sig.length / 2)}`;
+      expect(verifyLicenseSignature(truncated)).toBe(false);
+    });
+
+    it('should reject signature from a different domain applied to another', () => {
+      // Use the signature from VALID_LICENSE_UNLIMITED but pair it with a different domain
+      const parts = VALID_LICENSE_UNLIMITED.split('-');
+      const sig = parts.slice(3).join('-');
+      const swapped = `GF-evil.example.com-UNLIMITED-${sig}`;
+      expect(verifyLicenseSignature(swapped)).toBe(false);
+    });
+
+    it('should reject empty signature part', () => {
+      expect(verifyLicenseSignature('GF-test.example.com-UNLIMITED-')).toBe(false);
+    });
+
+    it('should reject license with valid format but garbage binary signature', () => {
+      // Valid base64url encoding but meaningless bytes
+      const garbage = 'GF-test.example.com-UNLIMITED-dGhpcyBpcyBub3QgYSByZWFsIHNpZ25hdHVyZQ';
+      expect(verifyLicenseSignature(garbage)).toBe(false);
     });
   });
 
@@ -204,6 +241,14 @@ describe('License Verification', () => {
       expect(info.valid).toBe(false);
       expect(info.error).toBe('Invalid license signature');
     });
+
+    it('should return expired for expired license with valid signature', () => {
+      const info = getLicenseInfo(EXPIRED_LICENSE);
+      // Signature is valid but date is in the past
+      expect(info.isExpired).toBe(true);
+      expect(info.valid).toBe(false);
+      expect(info.error).toBe('License has expired');
+    });
   });
 
   describe('validateLicense (full validation)', () => {
@@ -237,6 +282,12 @@ describe('License Verification', () => {
       const result = validateLicense('');
       expect(result.valid).toBe(false);
       expect(result.error).toBe('No license key provided');
+    });
+
+    it('should reject expired license even with matching domain', () => {
+      const result = validateLicense(EXPIRED_LICENSE, 'test.example.com');
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('License has expired');
     });
   });
 

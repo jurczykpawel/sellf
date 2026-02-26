@@ -70,16 +70,15 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout page
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
 
-      // Wait for Stripe Payment Element to load
-      await page.waitForTimeout(3000);
+    // Wait for Stripe Payment Element to load
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-002: Automatic mode - USD product', async ({ page }) => {
@@ -148,22 +147,16 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     const saveButton = page.locator('button:has-text("Zapisz Konfigurację")');
     await saveButton.click();
 
-    // Check for either success or error message
+    // Save must succeed to continue to checkout
     const successMessage = page.locator('text=Konfiguracja metod płatności zapisana pomyślnie');
-    const errorMessage = page.locator('[class*="error"], [class*="toast"]').filter({ hasText: /błąd|error/i });
+    await expect(successMessage).toBeVisible({ timeout: 10000 });
 
-    await expect(successMessage.or(errorMessage)).toBeVisible({ timeout: 10000 });
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-    // Only continue to checkout if save was successful
-    if (await successMessage.isVisible().catch(() => false)) {
-      if (testProductSlug) {
-        await page.goto(`/checkout/${testProductSlug}`);
-        await page.waitForLoadState('domcontentloaded');
-        await page.waitForTimeout(3000);
-
-        await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-      }
-    }
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-004: Custom mode - PLN methods', async ({ page }) => {
@@ -190,13 +183,12 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
 
-      // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-005: Custom mode - Currency filter', async ({ page }) => {
@@ -249,14 +241,13 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-007: Payment method order - Card first', async ({ page }) => {
@@ -284,14 +275,13 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded with Stripe Payment Element (pay button shows price from payment intent)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-008: Express Checkout - All enabled', async ({ page }) => {
@@ -336,14 +326,13 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded (Express Checkout + Payment Element)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded (Express Checkout + Payment Element)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-009: Express Checkout - Link only', async ({ page }) => {
@@ -388,14 +377,13 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded (Express Checkout with Link only)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded (Express Checkout with Link only)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-010: Express Checkout - All disabled', async ({ page }) => {
@@ -422,14 +410,13 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded (no Express Checkout, only regular Payment Element)
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded (no Express Checkout, only regular Payment Element)
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-011: Config fallback - No config', async ({ page }) => {
@@ -451,14 +438,13 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout - should work with automatic mode fallback
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Verify checkout loaded with Stripe Payment Element
-      await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
-    }
+    // Verify checkout loaded with Stripe Payment Element
+    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('E2E-CHECKOUT-012: Complete payment - Custom config', async ({ page }) => {
@@ -484,54 +470,48 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     });
 
     // Visit checkout
-    if (testProductSlug) {
-      await page.goto(`/checkout/${testProductSlug}`);
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(3000);
+    expect(testProductSlug).toBeTruthy();
+    await page.goto(`/checkout/${testProductSlug}`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
 
-      // Fill checkout form
-      const emailInput = page.locator('input[name="email"]');
-      if (await emailInput.isVisible()) {
-        await emailInput.fill('test@example.com');
-      }
-
-      // Wait for Payment Element to load
-      await page.waitForTimeout(2000);
-
-      // Fill Stripe test card (4242 4242 4242 4242)
-      const cardNumberFrame = page.frameLocator('iframe[name^="__privateStripeFrame"]').first();
-      const cardNumberInput = cardNumberFrame.locator('input[name="number"]');
-
-      if (await cardNumberInput.isVisible().catch(() => false)) {
-        await cardNumberInput.fill('4242424242424242');
-
-        const expiryInput = cardNumberFrame.locator('input[name="expiry"]');
-        await expiryInput.fill('1230');
-
-        const cvcInput = cardNumberFrame.locator('input[name="cvc"]');
-        await cvcInput.fill('123');
-
-        // Submit payment
-        const payButton = page.getByRole('button', { name: /Pay|Zapłać/i });
-        await payButton.click();
-
-        // Wait for payment processing
-        await page.waitForTimeout(5000);
-
-        // Should redirect to success page or show success message
-        const successUrl = page.url();
-        const isSuccessPage = successUrl.includes('/success') || successUrl.includes('/thank-you');
-
-        if (!isSuccessPage) {
-          // Check for success message on page
-          const hasSuccessMessage = await page.locator('text=Payment successful').isVisible().catch(() => false) ||
-                                     await page.locator('text=Thank you').isVisible().catch(() => false);
-
-          expect(isSuccessPage || hasSuccessMessage).toBeTruthy();
-        } else {
-          expect(isSuccessPage).toBeTruthy();
-        }
-      }
+    // Fill checkout form email if present
+    const emailInput = page.locator('input[name="email"]');
+    if (await emailInput.isVisible()) {
+      await emailInput.fill('test@example.com');
     }
+
+    // Wait for Payment Element to load
+    await page.waitForTimeout(2000);
+
+    // Fill Stripe test card (4242 4242 4242 4242)
+    const cardNumberFrame = page.frameLocator('iframe[name^="__privateStripeFrame"]').first();
+    const cardNumberInput = cardNumberFrame.locator('input[name="number"]');
+
+    // Card input must be visible to complete the payment flow
+    await expect(cardNumberInput).toBeVisible({ timeout: 10000 });
+
+    await cardNumberInput.fill('4242424242424242');
+
+    const expiryInput = cardNumberFrame.locator('input[name="expiry"]');
+    await expiryInput.fill('1230');
+
+    const cvcInput = cardNumberFrame.locator('input[name="cvc"]');
+    await cvcInput.fill('123');
+
+    // Submit payment
+    const payButton = page.getByRole('button', { name: /Pay|Zapłać/i });
+    await payButton.click();
+
+    // Wait for payment processing
+    await page.waitForTimeout(5000);
+
+    // Should redirect to success page or show success message
+    const successUrl = page.url();
+    const isSuccessPage = successUrl.includes('/success') || successUrl.includes('/thank-you');
+    const hasSuccessMessage = await page.locator('text=Payment successful').isVisible().catch(() => false) ||
+                               await page.locator('text=Thank you').isVisible().catch(() => false);
+
+    expect(isSuccessPage || hasSuccessMessage).toBeTruthy();
   });
 });

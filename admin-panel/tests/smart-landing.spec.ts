@@ -418,22 +418,21 @@ test.describe('Smart Landing Page', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // Find language switcher
+    // Language switcher must be present on the landing page
     const languageSwitcher = page.locator('button[aria-label*="language" i], button:has-text("EN"), button:has-text("PL")').first();
+    await expect(languageSwitcher).toBeVisible({ timeout: 10000 });
 
-    if (await languageSwitcher.isVisible()) {
-      // Switch to Polish
-      await languageSwitcher.click();
-      await page.waitForTimeout(500);
+    // Switch to Polish
+    await languageSwitcher.click();
+    await page.waitForTimeout(500);
 
-      const plOption = page.locator('button:has-text("PL"), a:has-text("PL")').first();
-      if (await plOption.isVisible()) {
-        await plOption.click();
-        await page.waitForTimeout(1000);
+    const plOption = page.locator('button:has-text("PL"), a:has-text("PL")').first();
+    await expect(plOption).toBeVisible({ timeout: 5000 });
 
-        // URL should contain /pl
-        expect(page.url()).toContain('/pl');
-      }
-    }
+    await plOption.click();
+    await page.waitForTimeout(1000);
+
+    // URL should contain /pl
+    expect(page.url()).toContain('/pl');
   });
 });

@@ -113,13 +113,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
     // Call API endpoint to get lowest price
     const response = await request.get(`/api/products/${testProductId}/lowest-price`);
 
-    if (!response.ok()) {
-      const error = await response.text();
-      console.log('API Error:', error);
-      console.log('Status:', response.status());
-    }
-
-    expect(response.ok()).toBeTruthy();
+    expect(response.ok(), `API returned ${response.status()}`).toBeTruthy();
 
     const data = await response.json();
     expect(data.lowestPrice).toBe(80); // Should be 80, not 120 or 100

@@ -90,24 +90,28 @@ test.describe('Authenticated Admin Dashboard', () => {
       .insert({ user_id: user!.id });
   });
 
-  test('should access all admin pages', async ({ page }) => {
+  test('should access all admin pages with expected content', async ({ page }) => {
     await loginAsAdmin(page);
-    
-    const pages = [
-      '/dashboard',
-      '/dashboard/products',
-      '/dashboard/categories',
-      '/dashboard/coupons',
-      '/dashboard/webhooks',
-      '/dashboard/users',
-      '/dashboard/payments',
-      '/dashboard/order-bumps'
+
+    // Each page has a path and a content marker that proves the page rendered its data layer,
+    // not just a shell. We look for headings, table headers, or action buttons specific to each page.
+    const pages: { path: string; contentMarker: RegExp }[] = [
+      { path: '/dashboard', contentMarker: /Total Revenue|Przychód/i },
+      { path: '/dashboard/products', contentMarker: /Product|Produkt/i },
+      { path: '/dashboard/categories', contentMarker: /Categor|Kategori/i },
+      { path: '/dashboard/coupons', contentMarker: /Coupon|Kupon/i },
+      { path: '/dashboard/webhooks', contentMarker: /Webhook|Endpoint/i },
+      { path: '/dashboard/users', contentMarker: /User|Użytkowni/i },
+      { path: '/dashboard/payments', contentMarker: /Payment|Płatnoś|Transaction|Transakcj/i },
+      { path: '/dashboard/order-bumps', contentMarker: /Order Bump|Bump/i }
     ];
 
-    for (const path of pages) {
+    for (const { path, contentMarker } of pages) {
       await page.goto(path);
       await expect(page).toHaveURL(new RegExp(path), { timeout: 10000 });
       await expect(page.locator('body')).not.toContainText('Application error');
+      // Verify the page actually rendered its domain-specific content
+      await expect(page.locator('body')).toContainText(contentMarker, { timeout: 10000 });
     }
   });
 
@@ -264,7 +268,7 @@ test.describe('Authenticated Admin Dashboard', () => {
   });
 
   test('should display revenue statistics and trend chart', async ({ page }) => {
-    // 1. Setup: Create at least one transaction so the dashboard has data
+    // 1. Setup: Create a transaction so the dashboard has data
     const product = await createProductViaApi(`Stats-Test-${Date.now()}`, 100);
     const sessionId = `cs_test_${Date.now()}`;
     await supabaseAdmin.from('payment_transactions').insert({
@@ -279,20 +283,32 @@ test.describe('Authenticated Admin Dashboard', () => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
 
-    // 2. Verify main Stat Cards are rendered
+    // 2. Verify all four stat cards are rendered
     await expect(page.getByTestId('stat-card-total-revenue')).toBeVisible({ timeout: 20000 });
     await expect(page.getByTestId('stat-card-today-orders')).toBeVisible();
-    
-    // 3. Verify that we have at least one order displayed (the one we just created)
-    const ordersCard = page.getByTestId('stat-card-today-orders');
-    await expect(ordersCard.locator('p.text-2xl')).not.toHaveText('0', { timeout: 10000 });
+    await expect(page.getByTestId('stat-card-total-users')).toBeVisible();
+    await expect(page.getByTestId('stat-card-active-users')).toBeVisible();
 
-    // 4. Verify Chart Container presence
+    // 3. Verify the revenue card shows a non-zero value (not just "visible")
+    const revenueCard = page.getByTestId('stat-card-total-revenue');
+    const revenueValue = revenueCard.locator('p.text-2xl');
+    await expect(revenueValue).not.toHaveText('0', { timeout: 10000 });
+    // Revenue should contain a currency symbol (e.g., "$" or "PLN" or "zł")
+    await expect(revenueValue).not.toHaveText('****'); // not hidden
+
+    // 4. Verify that today's orders shows at least 1 (from the transaction we created)
+    const ordersCard = page.getByTestId('stat-card-today-orders');
+    const ordersValue = ordersCard.locator('p.text-2xl');
+    await expect(ordersValue).not.toHaveText('0', { timeout: 10000 });
+
+    // 5. Verify total users shows at least 1 (the admin user we created)
+    const usersCard = page.getByTestId('stat-card-total-users');
+    const usersValue = usersCard.locator('p.text-2xl');
+    await expect(usersValue).not.toHaveText('0', { timeout: 10000 });
+
+    // 6. Verify chart is rendered (since we have completed transactions, chart should have data)
     const chartContainer = page.locator('.recharts-responsive-container');
-    const emptyState = page.getByText(/No Revenue Data/i);
-    
-    // Check if either the chart or the empty state is visible (handling data processing delays)
-    await expect(chartContainer.or(emptyState)).toBeVisible({ timeout: 15000 });
+    await expect(chartContainer).toBeVisible({ timeout: 15000 });
   });
 
 });

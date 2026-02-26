@@ -128,6 +128,7 @@ test.describe('Open Redirect - Product Access View', () => {
     const isVulnerable = currentUrl.includes('evil-phishing-site.com');
     console.log(`  Result: ${isVulnerable ? 'VULNERABLE' : 'SECURE'}`);
 
+    expect(isVulnerable).toBe(false);
     expect(currentUrl).not.toContain('evil-phishing-site.com');
   });
 

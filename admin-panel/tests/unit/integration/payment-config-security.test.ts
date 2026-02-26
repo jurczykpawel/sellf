@@ -26,6 +26,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 describe('Payment Config Security - OWASP Top 10', () => {
   let testAdminUserId: string;
   let testNonAdminUserId: string;
+  let nonAdminEmail: string;
 
   beforeAll(async () => {
     // Create admin user
@@ -41,9 +42,10 @@ describe('Payment Config Security - OWASP Top 10', () => {
       .from('admin_users')
       .insert({ user_id: testAdminUserId });
 
-    // Create non-admin user
+    // Create non-admin user — store email for sign-in later
+    nonAdminEmail = `user-sec-test-${Date.now()}@example.com`;
     const { data: userAuth } = await supabaseAdmin.auth.admin.createUser({
-      email: `user-sec-test-${Date.now()}@example.com`,
+      email: nonAdminEmail,
       password: 'test123456',
       email_confirm: true,
     });
@@ -171,9 +173,9 @@ describe('Payment Config Security - OWASP Top 10', () => {
 
       const nonAdminClient = createClient(SUPABASE_URL, ANON_KEY);
 
-      // Sign in as non-admin
+      // Sign in as non-admin using the email stored in beforeAll
       await nonAdminClient.auth.signInWithPassword({
-        email: `user-sec-test-${Date.now()}@example.com`,
+        email: nonAdminEmail,
         password: 'test123456',
       });
 
@@ -215,8 +217,12 @@ describe('Payment Config Security - OWASP Top 10', () => {
     });
   });
 
-  describe('SEC-003: XSS Prevention (Data Sanitization)', () => {
-    it('should store XSS payloads as plain text without execution', async () => {
+  // NOTE: These tests verify DATA INTEGRITY at the database layer, not XSS prevention.
+  // The database stores values verbatim (no sanitization/corruption of special characters).
+  // XSS prevention is the responsibility of the rendering layer (React's automatic escaping).
+  // Storing and retrieving the same payload validates that the DB doesn't mangle data.
+  describe('SEC-003: Data Integrity for Special Characters', () => {
+    it('should store HTML/script payloads verbatim without corruption', async () => {
       const xssPayload = '<script>alert("XSS")</script>';
 
       const { error } = await supabaseAdmin
@@ -234,11 +240,12 @@ describe('Payment Config Security - OWASP Top 10', () => {
         .eq('id', 1)
         .single();
 
-      // Should be stored as plain text
+      // DB must store the exact string — no escaping, no sanitization.
+      // Output escaping is handled by React at render time.
       expect(data?.stripe_pmc_name).toBe(xssPayload);
     });
 
-    it('should handle HTML entities in payment method labels', async () => {
+    it('should preserve HTML entities in JSONB fields without corruption', async () => {
       const htmlPayload = '<img src=x onerror=alert(1)>';
 
       const { error } = await supabaseAdmin
@@ -268,19 +275,39 @@ describe('Payment Config Security - OWASP Top 10', () => {
   });
 
   describe('SEC-004: IDOR (Insecure Direct Object Reference)', () => {
-    it('should enforce singleton constraint to prevent IDOR', async () => {
-      // Try to access non-existent config ID
-      const { data } = await supabaseAdmin
+    it('should block non-admin from reading config via RLS', async () => {
+      // Use an authenticated non-admin client to verify RLS blocks access
+      const nonAdminClient = createClient(SUPABASE_URL, ANON_KEY);
+      await nonAdminClient.auth.signInWithPassword({
+        email: nonAdminEmail,
+        password: 'test123456',
+      });
+
+      const { data } = await nonAdminClient
         .from('payment_method_config')
         .select('*')
-        .eq('id', 999)
+        .eq('id', 1)
         .maybeSingle();
 
+      // RLS should prevent non-admin from reading the config
       expect(data).toBeNull();
     });
 
-    it('should only allow operations on id=1 (singleton)', async () => {
-      // Verify id=1 exists
+    it('should block unauthenticated users from reading config via RLS', async () => {
+      const anonClient = createClient(SUPABASE_URL, ANON_KEY);
+
+      const { data } = await anonClient
+        .from('payment_method_config')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+
+      // RLS should prevent anonymous users from reading
+      expect(data).toBeNull();
+    });
+
+    it('should enforce singleton constraint (only id=1 allowed)', async () => {
+      // Verify id=1 exists via service_role (bypasses RLS intentionally)
       const { data: config1 } = await supabaseAdmin
         .from('payment_method_config')
         .select('*')
@@ -289,7 +316,7 @@ describe('Payment Config Security - OWASP Top 10', () => {
 
       expect(config1).toBeDefined();
 
-      // Try to create id=2 (should fail)
+      // Try to create id=2 — database constraint should prevent this
       const { error } = await supabaseAdmin
         .from('payment_method_config')
         .insert({
@@ -433,9 +460,14 @@ describe('Payment Config Security - OWASP Top 10', () => {
     });
   });
 
-  describe('SEC-008: JSONB Injection Prevention', () => {
-    it('should safely store malicious JSONB payloads', async () => {
-      const maliciousPayload = {
+  // NOTE: PostgreSQL JSONB is inherently safe from prototype pollution.
+  // JSONB stores data as a structured binary format — __proto__ and constructor
+  // keys are just regular string keys with no special semantics. Prototype pollution
+  // is a JavaScript runtime concern, not a database concern. These tests verify that
+  // keys like __proto__ round-trip correctly as plain data through JSONB storage.
+  describe('SEC-008: JSONB Storage Safety', () => {
+    it('should store __proto__ and constructor keys as plain JSONB data', async () => {
+      const payloadWithProtoKeys = {
         __proto__: { polluted: true },
         constructor: { prototype: { polluted: true } },
         type: 'card',
@@ -446,15 +478,23 @@ describe('Payment Config Security - OWASP Top 10', () => {
       const { error } = await supabaseAdmin
         .from('payment_method_config')
         .update({
-          custom_payment_methods: [maliciousPayload],
+          custom_payment_methods: [payloadWithProtoKeys],
         })
         .eq('id', 1);
 
       expect(error).toBeNull();
 
-      // Verify prototype pollution didn't occur
-      const testObj: any = {};
-      expect(testObj.polluted).toBeUndefined();
+      // Verify the data round-trips through JSONB correctly
+      const { data } = await supabaseAdmin
+        .from('payment_method_config')
+        .select('custom_payment_methods')
+        .eq('id', 1)
+        .single();
+
+      const stored = data?.custom_payment_methods[0];
+      expect(stored.type).toBe('card');
+      expect(stored.enabled).toBe(true);
+      expect(stored.display_order).toBe(0);
     });
 
     it('should handle deeply nested JSONB structures', async () => {

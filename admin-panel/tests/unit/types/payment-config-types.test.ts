@@ -248,11 +248,20 @@ describe('payment-config-types', () => {
       expect(isValidStripePMCId('pmc_12345')).toBe(true);
     });
 
-    it('should handle whitespace in ID', () => {
-      expect(isValidStripePMCId('pmc_ 123456')).toBe(true); // 11 chars, meets minimum
-      expect(isValidStripePMCId(' pmc_123456')).toBe(false); // Leading space invalidates prefix
-      expect(isValidStripePMCId('pmc_123 ')).toBe(false); // 8 chars, below minimum
-      expect(isValidStripePMCId('pmc_1234 ')).toBe(true); // 9 chars with trailing space, meets minimum
+    it('should reject IDs with leading whitespace (prefix check fails)', () => {
+      expect(isValidStripePMCId(' pmc_123456')).toBe(false);
+    });
+
+    it('should accept IDs with internal/trailing whitespace (known limitation: no whitespace check)', () => {
+      // Current implementation only checks prefix and length, not character set.
+      // These pass validation but are not valid Stripe PMC IDs in practice.
+      // Stripe PMC IDs only contain alphanumeric chars after the pmc_ prefix.
+      expect(isValidStripePMCId('pmc_ 123456')).toBe(true);  // 11 chars, meets minimum
+      expect(isValidStripePMCId('pmc_1234 ')).toBe(true);    // 9 chars, meets minimum
+    });
+
+    it('should reject IDs with trailing whitespace when below minimum length', () => {
+      expect(isValidStripePMCId('pmc_123 ')).toBe(false); // 8 chars, below minimum 9
     });
   });
 });

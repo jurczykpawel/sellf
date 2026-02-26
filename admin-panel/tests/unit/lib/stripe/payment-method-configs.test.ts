@@ -21,7 +21,7 @@ import {
 describe('payment-method-configs', () => {
   describe('extractEnabledPaymentMethods', () => {
     // UT-STRIPE-001: All enabled (EP - Valid)
-    it('should extract all enabled payment methods', () => {
+    it('should extract all enabled payment methods in order', () => {
       const config: StripePaymentMethodConfig = {
         id: 'pmc_123',
         name: 'All Methods',
@@ -35,10 +35,7 @@ describe('payment-method-configs', () => {
       };
 
       const result = extractEnabledPaymentMethods(config);
-      expect(result).toContain('card');
-      expect(result).toContain('blik');
-      expect(result).toContain('p24');
-      expect(result).toContain('sepa_debit');
+      expect(result).toEqual(['card', 'blik', 'p24', 'sepa_debit']);
     });
 
     // UT-STRIPE-002: None enabled (BVA - Empty result)
@@ -71,9 +68,7 @@ describe('payment-method-configs', () => {
       };
 
       const result = extractEnabledPaymentMethods(config);
-      expect(result).toContain('card');
-      expect(result).toContain('p24');
-      expect(result).not.toContain('blik');
+      expect(result).toEqual(['card', 'p24']);
     });
 
     it('should handle config with no payment method fields', () => {
@@ -100,7 +95,25 @@ describe('payment-method-configs', () => {
       };
 
       const result = extractEnabledPaymentMethods(config);
-      expect(result).not.toContain('card');
+      expect(result).toEqual([]);
+    });
+
+    it('should ignore non-payment-method fields on the config object', () => {
+      const config: StripePaymentMethodConfig = {
+        id: 'pmc_123',
+        name: 'Only card',
+        active: true,
+        livemode: false,
+        created: Date.now(),
+        card: { enabled: true },
+      };
+
+      const result = extractEnabledPaymentMethods(config);
+      expect(result).toEqual(['card']);
+      // Metadata fields should not appear in the result
+      expect(result).not.toContain('id');
+      expect(result).not.toContain('name');
+      expect(result).not.toContain('active');
     });
   });
 
@@ -109,10 +122,10 @@ describe('payment-method-configs', () => {
     it('should return payment method info for valid type', () => {
       const info = getPaymentMethodInfo('blik');
 
-      expect(info).toBeDefined();
+      expect(info).not.toBeNull();
       expect(info?.type).toBe('blik');
       expect(info?.name).toBe('BLIK');
-      expect(info?.icon).toBeTruthy();
+      expect(typeof info?.icon).toBe('string');
       expect(info?.currencies).toContain('PLN');
     });
 
@@ -125,7 +138,7 @@ describe('payment-method-configs', () => {
     it('should return info for card', () => {
       const info = getPaymentMethodInfo('card');
 
-      expect(info).toBeDefined();
+      expect(info).not.toBeNull();
       expect(info?.type).toBe('card');
       expect(info?.currencies).toContain('*');
     });
@@ -133,9 +146,19 @@ describe('payment-method-configs', () => {
     it('should return info for sepa_debit', () => {
       const info = getPaymentMethodInfo('sepa_debit');
 
-      expect(info).toBeDefined();
+      expect(info).not.toBeNull();
       expect(info?.type).toBe('sepa_debit');
       expect(info?.currencies).toContain('EUR');
+    });
+
+    it('should return null for empty string', () => {
+      expect(getPaymentMethodInfo('')).toBeNull();
+    });
+
+    it('should return null for similar but wrong type names', () => {
+      expect(getPaymentMethodInfo('cards')).toBeNull();
+      expect(getPaymentMethodInfo('BLIK')).toBeNull();
+      expect(getPaymentMethodInfo('sepa-debit')).toBeNull();
     });
   });
 
@@ -239,6 +262,18 @@ describe('payment-method-configs', () => {
       expect(isValidStripePMCId('pmc_')).toBe(false);
       expect(isValidStripePMCId('pmc_123')).toBe(false);
     });
+
+    it('should return false for empty string', () => {
+      expect(isValidStripePMCId('')).toBe(false);
+    });
+
+    it('should return false for pmc_ prefix with only short suffix', () => {
+      expect(isValidStripePMCId('pmc_abcd')).toBe(false);
+    });
+
+    it('should return true for pmc_ prefix with 5+ char suffix (min valid)', () => {
+      expect(isValidStripePMCId('pmc_abcde')).toBe(true);
+    });
   });
 
   describe('isValidPaymentMethodType', () => {
@@ -289,9 +324,7 @@ describe('payment-method-configs', () => {
       };
 
       const result = getPaymentMethodConfigDisplayName(config);
-      expect(result).toContain('Custom:');
-      expect(result).toContain('card');
-      expect(result).toContain('blik');
+      expect(result).toBe('Custom: card + blik');
     });
 
     it('should handle empty config', () => {

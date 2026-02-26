@@ -340,7 +340,7 @@ describe('API Middleware', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should handle unknown errors as INTERNAL_ERROR', async () => {
+    it('should handle unknown errors as INTERNAL_ERROR and log them', async () => {
       const request = createMockRequest();
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -350,17 +350,22 @@ describe('API Middleware', () => {
       const body = await response.json();
       expect(body.error.code).toBe('INTERNAL_ERROR');
       expect(body.error.message).toBe('An unexpected error occurred');
+      expect(consoleSpy).toHaveBeenCalledOnce();
+      expect(consoleSpy).toHaveBeenCalledWith('API Error:', expect.any(Error));
 
       consoleSpy.mockRestore();
     });
 
-    it('should handle non-Error objects', async () => {
+    it('should handle non-Error objects and log them', async () => {
       const request = createMockRequest();
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const response = handleApiError('string error', request);
 
       expect(response.status).toBe(500);
+      expect(consoleSpy).toHaveBeenCalledOnce();
+      expect(consoleSpy).toHaveBeenCalledWith('API Error:', 'string error');
+
       consoleSpy.mockRestore();
     });
   });

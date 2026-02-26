@@ -211,9 +211,12 @@ test.describe('Currency API Configuration', () => {
 
     expect(config?.currency_api_provider).toBe('exchangerate-api');
     expect(config?.currency_api_enabled).toBe(true);
-    expect(config?.currency_api_key_encrypted).toBeTruthy();
-    expect(config?.currency_api_key_iv).toBeTruthy();
-    expect(config?.currency_api_key_tag).toBeTruthy();
+    expect(typeof config?.currency_api_key_encrypted).toBe('string');
+    expect((config?.currency_api_key_encrypted as string).length).toBeGreaterThan(0);
+    expect(typeof config?.currency_api_key_iv).toBe('string');
+    expect((config?.currency_api_key_iv as string).length).toBeGreaterThan(0);
+    expect(typeof config?.currency_api_key_tag).toBe('string');
+    expect((config?.currency_api_key_tag as string).length).toBeGreaterThan(0);
 
     // Encrypted key should NOT equal plain text
     expect(config?.currency_api_key_encrypted).not.toBe('test_api_key_12345');

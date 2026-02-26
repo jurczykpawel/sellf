@@ -10,27 +10,39 @@ import { CURRENCIES, getCurrencySymbol, formatPrice } from '@/lib/constants';
 
 describe('Currency Constants', () => {
   describe('CURRENCIES', () => {
-    it('should have common currencies', () => {
-      const codes = CURRENCIES.map(c => c.code);
-      expect(codes).toContain('USD');
-      expect(codes).toContain('EUR');
-      expect(codes).toContain('GBP');
-      expect(codes).toContain('PLN');
-    });
-
-    it('should have code, symbol, and name for each currency', () => {
+    it('should have exactly 16 currencies with valid structure', () => {
+      expect(CURRENCIES).toHaveLength(16);
       CURRENCIES.forEach(currency => {
-        expect(currency.code).toBeDefined();
+        expect(typeof currency.code).toBe('string');
         expect(currency.code.length).toBe(3);
-        expect(currency.symbol).toBeDefined();
-        expect(currency.name).toBeDefined();
+        expect(typeof currency.symbol).toBe('string');
+        expect(currency.symbol.length).toBeGreaterThan(0);
+        expect(typeof currency.name).toBe('string');
+        expect(currency.name.length).toBeGreaterThan(0);
       });
     });
 
     it('should have unique codes', () => {
       const codes = CURRENCIES.map(c => c.code);
-      const uniqueCodes = [...new Set(codes)];
-      expect(codes.length).toBe(uniqueCodes.length);
+      const uniqueCodes = new Set(codes);
+      expect(uniqueCodes.size).toBe(16);
+    });
+
+    it('should contain specific currency entries with correct symbols', () => {
+      const usd = CURRENCIES.find(c => c.code === 'USD');
+      expect(usd).toEqual({ code: 'USD', symbol: '$', name: 'US Dollar' });
+
+      const eur = CURRENCIES.find(c => c.code === 'EUR');
+      expect(eur).toEqual({ code: 'EUR', symbol: '\u20AC', name: 'Euro' });
+
+      const pln = CURRENCIES.find(c => c.code === 'PLN');
+      expect(pln).toEqual({ code: 'PLN', symbol: 'z\u0142', name: 'Polish Z\u0142oty' });
+
+      const jpy = CURRENCIES.find(c => c.code === 'JPY');
+      expect(jpy).toEqual({ code: 'JPY', symbol: '\u00A5', name: 'Japanese Yen' });
+
+      const krw = CURRENCIES.find(c => c.code === 'KRW');
+      expect(krw).toEqual({ code: 'KRW', symbol: '\u20A9', name: 'South Korean Won' });
     });
   });
 

@@ -99,17 +99,16 @@ test.describe('SSRF - Webhook URL Validation', () => {
       console.log(`  Response: ${JSON.stringify(response.body)}`);
 
       // Should reject internal URLs with 400 Bad Request
+      expect(response.status).toBe(400);
+      expect(response.body.error.message).toContain('URL');
+
+      // Cleanup if the URL was incorrectly accepted (vulnerability detected)
       if (response.status === 201 || response.status === 200) {
         console.log(`  VULNERABILITY: Internal URL was accepted!`);
-
-        // Cleanup if it was created
         if (response.body?.id) {
           await supabaseAdmin.from('webhook_endpoints').delete().eq('id', response.body.id);
         }
       }
-
-      expect(response.status).toBe(400);
-      expect(response.body.error.message).toContain('URL');
     });
   }
 

@@ -291,13 +291,12 @@ describe('Analytics API v1', () => {
 
       expect(status).toBe(200);
 
-      if (data.data!.products.length > 0) {
-        const firstProduct = data.data!.products[0];
-        expect(firstProduct).toHaveProperty('rank');
-        expect(firstProduct).toHaveProperty('revenue_share');
-        expect(firstProduct).toHaveProperty('sales_share');
-        expect(firstProduct.rank).toBe(1);
-      }
+      expect(data.data!.products.length).toBeGreaterThan(0);
+      const firstProduct = data.data!.products[0];
+      expect(firstProduct).toHaveProperty('rank');
+      expect(firstProduct).toHaveProperty('revenue_share');
+      expect(firstProduct).toHaveProperty('sales_share');
+      expect(firstProduct.rank).toBe(1);
     });
 
     it('should support different periods', async () => {

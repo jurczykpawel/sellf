@@ -207,10 +207,7 @@ test.describe('Webhook Dispatch System', () => {
   });
 
   test('purchase.completed: should send correct payload via Stripe webhook trigger', async ({ request }) => {
-    if (!STRIPE_WEBHOOK_SECRET) {
-      console.log('Skipping purchase.completed test: STRIPE_WEBHOOK_SECRET not set');
-      test.skip();
-    }
+    test.skip(!STRIPE_WEBHOOK_SECRET, 'STRIPE_WEBHOOK_SECRET environment variable is not set');
 
     const webhook = await createWebhook(['purchase.completed']);
     const email = `stripe-test-${Date.now()}@example.com`;
@@ -310,18 +307,21 @@ test.describe('Webhook Dispatch System', () => {
 
   test('should not send webhook if disabled', async ({ request }) => {
     const webhook = await createWebhook(['waitlist.signup'], false); // inactive
-    
+
     const signupEmail = `waitlist-disabled-${Date.now()}@example.com`;
-    await request.post('/api/waitlist/signup', {
+    const response = await request.post('/api/waitlist/signup', {
       data: {
         email: signupEmail,
         productId: freeProductId
       }
     });
 
+    // Verify the signup itself succeeded (so empty logs are meaningful)
+    expect(response.status()).toBe(200);
+
     // Wait same amount of time as we usually do for logs to appear
     await new Promise(r => setTimeout(r, 2000));
-    
+
     const logs = await getRecentLogs(webhook.id);
     expect(logs.length).toBe(0);
   });
@@ -329,21 +329,24 @@ test.describe('Webhook Dispatch System', () => {
   test('should send to multiple webhooks', async ({ request }) => {
     const webhook1 = await createWebhook(['waitlist.signup']);
     const webhook2 = await createWebhook(['waitlist.signup']);
-    
+
     const signupEmail = `waitlist-multi-${Date.now()}@example.com`;
-    await request.post('/api/waitlist/signup', {
+    const response = await request.post('/api/waitlist/signup', {
       data: {
         email: signupEmail,
         productId: freeProductId
       }
     });
 
+    // Verify the signup succeeded before checking webhook logs
+    expect(response.status()).toBe(200);
+
     // Need slightly longer wait for multiple async processing
     await new Promise(r => setTimeout(r, 2000));
 
     const logs1 = await getRecentLogs(webhook1.id);
     const logs2 = await getRecentLogs(webhook2.id);
-    
+
     expect(logs1.length).toBe(1);
     expect(logs2.length).toBe(1);
   });

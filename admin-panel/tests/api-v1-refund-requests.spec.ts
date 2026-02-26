@@ -269,6 +269,8 @@ test.describe('Refund Requests API v1', () => {
         expect(requestWithProduct.product).toHaveProperty('id');
         expect(requestWithProduct.product).toHaveProperty('name');
         expect(requestWithProduct.product).toHaveProperty('slug');
+      } else {
+        expect.fail('Expected at least one refund request with product details but none found');
       }
     });
 
@@ -285,6 +287,8 @@ test.describe('Refund Requests API v1', () => {
         expect(requestWithTx.transaction).toHaveProperty('id');
         expect(requestWithTx.transaction).toHaveProperty('customer_email');
         expect(requestWithTx.transaction).toHaveProperty('amount');
+      } else {
+        expect.fail('Expected at least one refund request with transaction details but none found');
       }
     });
   });
@@ -520,9 +524,10 @@ test.describe('Refund Requests API v1', () => {
         const body2 = await response2.json();
 
         // Second page should have different items
-        if (body2.data.length > 0) {
-          expect(body2.data[0].id).not.toBe(body1.data[0].id);
-        }
+        expect(body2.data.length).toBeGreaterThan(0);
+        expect(body2.data[0].id).not.toBe(body1.data[0].id);
+      } else {
+        expect.fail('Expected pagination with has_more=true and next_cursor but got none (need more than 1 refund request)');
       }
     });
 

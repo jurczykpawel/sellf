@@ -355,11 +355,13 @@ test.describe('API Keys Management UI', () => {
     // Wait for table
     await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
 
-    // Should have Active keys (green)
-    await expect(page.locator('span.bg-green-100, span.dark\\:bg-green-900\\/30').first()).toBeVisible();
+    // Should have Active keys
+    const activeCount = await page.locator('span').filter({ hasText: /^Active$/ }).count();
+    expect(activeCount).toBeGreaterThan(0);
 
-    // Should have Revoked key (red) - from previous test
-    await expect(page.locator('span.bg-red-100, span.dark\\:bg-red-900\\/30').first()).toBeVisible();
+    // Should have Revoked key - from previous test
+    const revokedCount = await page.locator('span').filter({ hasText: /^Revoked$/ }).count();
+    expect(revokedCount).toBeGreaterThan(0);
   });
 
   test('should access API keys page directly', async ({ page }) => {

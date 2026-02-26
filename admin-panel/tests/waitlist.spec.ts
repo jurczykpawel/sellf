@@ -346,7 +346,6 @@ test.describe('Waitlist Feature', () => {
     });
 
     test('should successfully signup for waitlist', async ({ request }) => {
-      // test-oto-target has enable_waitlist = true
       const response = await request.post('/api/waitlist/signup', {
         data: {
           email: TEST_EMAIL,
@@ -354,14 +353,10 @@ test.describe('Waitlist Feature', () => {
         }
       });
 
-      // In dev/test mode without captcha, should succeed
-      if (response.status() === 200) {
-        const body = await response.json();
-        expect(body.success).toBe(true);
-      } else {
-        // May require captcha in production
-        console.log('Signup returned:', response.status());
-      }
+      // In dev/test mode without captcha, should succeed with 200
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      expect(body.success).toBe(true);
     });
   });
 
@@ -398,35 +393,26 @@ test.describe('Waitlist Feature', () => {
     });
   });
 
-  /**
-   * Debug test to check current state
-   */
-  test.describe('Debug - Check Waitlist Setup', () => {
-    test('check checkout page response', async ({ page, request }) => {
-      // Direct API check for product (use dynamically created product)
+  test.describe('Waitlist Product Setup Verification', () => {
+    test('should return waitlist product via API with correct flags', async ({ request }) => {
       const productResponse = await request.get(`/api/public/products/${testProductWithWaitlistSlug}`);
-      console.log('Product API response status:', productResponse.status());
-      if (productResponse.ok()) {
-        const product = await productResponse.json();
-        console.log('Product data:', JSON.stringify(product, null, 2));
-        console.log('is_active:', product.is_active);
-        console.log('enable_waitlist:', product.enable_waitlist);
-      }
+      expect(productResponse.status()).toBe(200);
 
-      // Check checkout page
+      const product = await productResponse.json();
+      expect(product.is_active).toBe(false);
+      expect(product.enable_waitlist).toBe(true);
+    });
+
+    test('should load checkout page for waitlist product without 404', async ({ page }) => {
       const checkoutResponse = await page.goto(`/pl/checkout/${testProductWithWaitlistSlug}`);
-      console.log('Checkout page status:', checkoutResponse?.status());
+      expect(checkoutResponse?.status()).toBe(200);
 
-      // Log page content
       const pageContent = await page.content();
-      console.log('Page title:', await page.title());
-
-      // Check for specific elements
-      const has404 = pageContent.includes('404') || pageContent.includes('Not Found');
+      const has404 = pageContent.includes('Product Not Found');
       const hasWaitlistForm = pageContent.includes('waitlist') || pageContent.includes('oczekujących');
 
-      console.log('Has 404:', has404);
-      console.log('Has waitlist form:', hasWaitlistForm);
+      expect(has404).toBe(false);
+      expect(hasWaitlistForm).toBe(true);
     });
   });
 
@@ -539,7 +525,7 @@ test.describe('Waitlist Feature', () => {
       await ensureAvailabilitySectionExpanded(page);
 
       // Should show warning about configuring webhook
-      const warningBox = page.locator('.bg-amber-50, .dark\\:bg-amber-900\\/20').filter({ hasText: /webhook/i });
+      const warningBox = page.locator('[data-testid="waitlist-webhook-warning"]');
       await expect(warningBox).toBeVisible({ timeout: 5000 });
     });
 
@@ -595,7 +581,7 @@ test.describe('Waitlist Feature', () => {
         await ensureAvailabilitySectionExpanded(page);
 
         // Should NOT show amber warning box
-        const warningBox = page.locator('.bg-amber-50, .dark\\:bg-amber-900\\/20').filter({ hasText: /webhook/i });
+        const warningBox = page.locator('[data-testid="waitlist-webhook-warning"]');
         await expect(warningBox).not.toBeVisible();
       } finally {
         // CLEANUP
@@ -633,7 +619,7 @@ test.describe('Waitlist Feature', () => {
         await page.waitForTimeout(500);
 
         // Should show waitlist warning (amber box with warning emoji)
-        const warningInModal = page.locator('[role="dialog"]').locator('.bg-amber-50');
+        const warningInModal = page.locator('[role="dialog"]').locator('[data-testid="waitlist-webhook-warning"]');
         await expect(warningInModal).toBeVisible({ timeout: 5000 });
 
         // Cancel to not actually delete
@@ -687,7 +673,7 @@ test.describe('Waitlist Feature', () => {
 
         // Should show warning modal with amber box
         await page.waitForTimeout(1000);
-        const warningBox = page.locator('.bg-amber-50').filter({ hasText: /waitlist/i });
+        const warningBox = page.locator('[data-testid="waitlist-webhook-warning"]');
         await expect(warningBox).toBeVisible({ timeout: 5000 });
 
         // Cancel the warning modal (click the last Cancel button which is in the warning modal)

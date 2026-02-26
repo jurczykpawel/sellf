@@ -359,15 +359,12 @@ test.describe('Stripe Configuration Wizard', () => {
     await page.goto('/dashboard/settings');
     await page.waitForLoadState('networkidle');
 
-    // Should see info about two configuration methods - just check one element exists
+    // Should see info about two configuration methods
     const infoBox = page.locator('h4:has-text("Two Configuration Methods")');
     const currentlyUsing = page.locator('p:has-text("Currently using")').first();
 
-    // At least one should be visible
-    const infoBoxVisible = await infoBox.isVisible().catch(() => false);
-    const currentlyUsingVisible = await currentlyUsing.isVisible().catch(() => false);
-
-    expect(infoBoxVisible || currentlyUsingVisible).toBeTruthy();
+    // Verify configuration info is present on the settings page
+    await expect(infoBox.or(currentlyUsing).first()).toBeVisible({ timeout: 10000 });
 
     // Should mention .env and database methods
     const pageContent = await page.textContent('body');

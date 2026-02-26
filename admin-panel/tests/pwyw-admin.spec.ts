@@ -181,10 +181,10 @@ test.describe('PWYW Admin Configuration', () => {
     const presetToggle = modal.locator('#show_price_presets');
     await expect(presetToggle).toBeChecked();
 
-    // Should show 3 preset inputs
-    const presetInputs = modal.locator('input[type="number"]').filter({ hasNotText: '' });
-    // At least 3 number inputs (min price + 3 presets)
-    expect(await presetInputs.count()).toBeGreaterThanOrEqual(3);
+    // Should show at least 4 number inputs (min price + 3 presets)
+    const numberInputs = modal.locator('input[type="number"]');
+    const count = await numberInputs.count();
+    expect(count).toBeGreaterThanOrEqual(4);
   });
 
   test('should hide preset inputs when preset toggle is disabled', async ({ page }) => {
@@ -585,8 +585,8 @@ test.describe('PWYW Admin - Info Display', () => {
     // Enable PWYW
     await modal.locator('#allow_custom_price').check();
 
-    // Should show Stripe minimum info
-    await expect(modal.getByText(/0[,.]50|Stripe/i)).toBeVisible();
+    // Should show Stripe minimum info (EN: "Stripe min. 0.50", PL: "Stripe min. 0,50")
+    await expect(modal.getByText(/Stripe min\.\s*0[,.]50/i)).toBeVisible();
   });
 
   test('should show PWYW help text', async ({ page }) => {
@@ -603,6 +603,7 @@ test.describe('PWYW Admin - Info Display', () => {
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Should show PWYW help text near the toggle
-    await expect(modal.getByText(/klient.*cen|customer.*price|wybr|choose/i)).toBeVisible();
+    // EN: "Allow customer to choose price", PL: "Pozwól klientowi wybrać cenę"
+    await expect(modal.getByText(/customer to choose price|klientowi wybrać cenę/i)).toBeVisible();
   });
 });

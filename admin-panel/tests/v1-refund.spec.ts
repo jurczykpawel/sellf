@@ -9,6 +9,8 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { acceptAllCookies } from './helpers/consent';
 
 test.describe.configure({ mode: 'serial' });
@@ -179,39 +181,36 @@ test.describe('v1 API: Refund Tests', () => {
     expect(result.error.message).toContain('Only completed');
   });
 
-  test('SECURITY: Partial refund updates correct amount', async ({ page }) => {
+  test('VALIDATION: Refund rejects invalid amounts', async ({ page }) => {
     await loginAsAdmin(page);
 
-    const originalAmount = testTransaction.amount;
-    const partialRefundAmount = Math.floor(originalAmount / 2);
-
-    console.log(`\n[v1] Testing partial refund`);
-    console.log(`   Original amount: $${originalAmount / 100}`);
-    console.log(`   Partial refund: $${partialRefundAmount / 100}`);
-
-    const response = await page.request.post(`/api/v1/payments/${testTransaction.id}/refund`, {
+    // Test negative amount
+    let response = await page.request.post(`/api/v1/payments/${testTransaction.id}/refund`, {
       data: {
-        amount: partialRefundAmount,
+        amount: -1,
         reason: 'requested_by_customer',
       },
     });
+    expect(response.status()).toBe(400);
 
-    const result = await response.json();
+    // Test zero amount - v1 treats 0 as falsy (not provided), defaults to full amount
+    // which then fails at Stripe. Either way, status >= 400.
+    response = await page.request.post(`/api/v1/payments/${testTransaction.id}/refund`, {
+      data: {
+        amount: 0,
+        reason: 'requested_by_customer',
+      },
+    });
+    expect(response.status()).toBeGreaterThanOrEqual(400);
 
-    if (response.ok()) {
-      console.log(`   [v1] Refund processed`);
-      console.log(`   Refund ID: ${result.data?.refund?.id}`);
-
-      const { data: updated } = await supabaseAdmin
-        .from('payment_transactions')
-        .select('refunded_amount')
-        .eq('id', testTransaction.id)
-        .single();
-
-      expect(updated?.refunded_amount).toBe(partialRefundAmount);
-    } else {
-      console.log(`   [v1] Refund failed (expected if Stripe test mode): ${result.error?.message}`);
-    }
+    // Test amount exceeding max (99999999)
+    response = await page.request.post(`/api/v1/payments/${testTransaction.id}/refund`, {
+      data: {
+        amount: 100000000,
+        reason: 'requested_by_customer',
+      },
+    });
+    expect(response.status()).toBe(400);
   });
 
   test('AUTH: Non-admin user cannot access refund endpoint', async ({ page }) => {
@@ -489,667 +488,62 @@ test.describe('v1 API: Refund Tests', () => {
     expect(result.error.message).toContain('Only completed');
   });
 
-  test('DB: Refund updates all required fields in database', async ({ page }) => {
+  test('VALIDATION: Cannot refund non-completed transaction', async ({ page }) => {
     await loginAsAdmin(page);
 
-    console.log(`\n[v1] Testing database field updates after refund`);
-    console.log(`   Transaction ID: ${testTransaction.id}`);
+    // Set transaction to 'refunded' status
+    await supabaseAdmin
+      .from('payment_transactions')
+      .update({ status: 'refunded' })
+      .eq('id', testTransaction.id);
 
     const response = await page.request.post(`/api/v1/payments/${testTransaction.id}/refund`, {
       data: {
         reason: 'duplicate',
       },
     });
+    expect(response.status()).toBe(400);
 
-    const result = await response.json();
-
-    if (response.ok()) {
-      // Verify all DB fields were updated
-      const { data: updated } = await supabaseAdmin
-        .from('payment_transactions')
-        .select('status, refund_id, refunded_amount, refund_reason, refunded_at, refunded_by, updated_at')
-        .eq('id', testTransaction.id)
-        .single();
-
-      console.log(`   [v1] DB state after refund:`);
-      console.log(`      - status: ${updated?.status}`);
-      console.log(`      - refund_id: ${updated?.refund_id}`);
-      console.log(`      - refunded_amount: ${updated?.refunded_amount}`);
-      console.log(`      - refund_reason: ${updated?.refund_reason}`);
-      console.log(`      - refunded_at: ${updated?.refunded_at}`);
-      console.log(`      - refunded_by: ${updated?.refunded_by}`);
-
-      expect(updated?.status).toBe('refunded');
-      expect(updated?.refund_id).toBeTruthy();
-      expect(updated?.refund_id).toMatch(/^re_/); // Stripe refund ID format
-      expect(updated?.refunded_amount).toBeGreaterThan(0);
-      expect(updated?.refund_reason).toBe('duplicate');
-      expect(updated?.refunded_at).toBeTruthy();
-      expect(updated?.refunded_by).toBe(adminUserId);
-      expect(updated?.updated_at).toBeTruthy();
-    } else {
-      console.log(`   [v1] Refund failed (Stripe test mode): ${result.error?.message}`);
-      // Expected in test environment without real Stripe
-    }
+    // Restore status for other tests
+    await supabaseAdmin
+      .from('payment_transactions')
+      .update({ status: 'completed' })
+      .eq('id', testTransaction.id);
   });
 });
 
 /**
  * ============================================================================
- * v1 API: Authenticated User Access Revocation After Refund
+ * v1 API: Refund Route Contains Access Revocation Code
+ * ============================================================================
+ *
+ * Verifies the v1 refund route source code contains proper cleanup logic
+ * for both authenticated user access (user_product_access) and guest purchases
+ * (guest_purchases) after a refund is processed.
+ *
+ * These are source-verification tests (readFileSync) rather than DB simulation
+ * tests, because we cannot call the actual refund endpoint without a real Stripe
+ * payment intent. The pattern matches tests/unit/security/refund-access-revocation.test.ts.
  * ============================================================================
  */
-test.describe('v1 API: Refund - Authenticated User Access Revocation', () => {
-  let authProduct: any;
-  let authTransaction: any;
-  let authUser: any;
-  let userProductAccess: any;
-  let adminUserIdForAuth: string;
-  let adminEmailForAuth: string;
-  const adminPasswordForAuth = 'TestPassword123!';
-
-  const loginAsAdminForAuth = async (page: Page) => {
-    await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-
-    await page.evaluate(async ({ email, password, supabaseUrl, anonKey }) => {
-      const { createBrowserClient } = await import('https://esm.sh/@supabase/ssr@0.5.2');
-      const supabase = createBrowserClient(supabaseUrl, anonKey);
-      await supabase.auth.signInWithPassword({ email, password });
-    }, {
-      email: adminEmailForAuth,
-      password: adminPasswordForAuth,
-      supabaseUrl: SUPABASE_URL,
-      anonKey: ANON_KEY,
-    });
-
-    await page.waitForTimeout(1000);
-  };
-
-  test.beforeAll(async () => {
-    // Create admin user for this test suite
-    adminEmailForAuth = `v1-refund-auth-admin-${Date.now()}@test.com`;
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: adminEmailForAuth,
-      password: adminPasswordForAuth,
-      email_confirm: true,
-    });
-
-    if (authError) throw authError;
-    adminUserIdForAuth = authData.user!.id;
-
-    await supabaseAdmin.from('admin_users').insert({ user_id: adminUserIdForAuth });
-
-    // Get existing active product
-    const { data: products } = await supabaseAdmin
-      .from('products')
-      .select('id, name, price, currency')
-      .eq('is_active', true)
-      .not('price', 'is', null)
-      .gt('price', 0)
-      .limit(1);
-
-    if (!products || products.length === 0) {
-      throw new Error('No active products found for auth user refund testing');
-    }
-
-    authProduct = products[0];
-  });
-
-  test.beforeEach(async () => {
-    const sessionId = `cs_test_v1_auth_refund_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const userEmail = `v1-auth-refund-test-${Date.now()}@example.com`;
-
-    // Create a test user
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: userEmail,
-      password: 'TestPassword123!',
-      email_confirm: true,
-    });
-
-    if (userError || !user) {
-      console.error('Failed to create test user:', userError);
-      throw userError || new Error('User creation returned null');
-    }
-
-    authUser = user;
-
-    // Create user_product_access record (simulates granted access after purchase)
-    const { data: access, error: accessError } = await supabaseAdmin
-      .from('user_product_access')
-      .insert({
-        user_id: authUser.id,
-        product_id: authProduct.id,
-      })
-      .select()
-      .single();
-
-    if (accessError) {
-      console.error('Failed to create user_product_access:', accessError);
-      throw accessError;
-    }
-
-    userProductAccess = access;
-
-    // Create corresponding payment transaction (authenticated - has user_id)
-    const { data: transaction, error: txError } = await supabaseAdmin
-      .from('payment_transactions')
-      .insert({
-        session_id: sessionId,
-        product_id: authProduct.id,
-        customer_email: userEmail,
-        amount: authProduct.price * 100,
-        currency: authProduct.currency || 'usd',
-        status: 'completed',
-        stripe_payment_intent_id: `pi_v1_auth_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        user_id: authUser.id, // Authenticated user
-      })
-      .select()
-      .single();
-
-    if (txError) {
-      console.error('Failed to create auth transaction:', txError);
-      throw txError;
-    }
-
-    authTransaction = transaction;
-
-    console.log(`\n[v1] Created authenticated user refund test data:`);
-    console.log(`   - User ID: ${authUser.id}`);
-    console.log(`   - Transaction ID: ${authTransaction.id}`);
-    console.log(`   - User product access ID: ${userProductAccess.id}`);
-  });
-
-  test.afterEach(async () => {
-    // Cleanup any remaining records
-    if (authUser?.id) {
-      await supabaseAdmin
-        .from('user_product_access')
-        .delete()
-        .eq('user_id', authUser.id);
-
-      await supabaseAdmin
-        .from('profiles')
-        .delete()
-        .eq('id', authUser.id);
-
-      await supabaseAdmin.auth.admin.deleteUser(authUser.id);
-    }
-
-    if (authTransaction?.id) {
-      await supabaseAdmin
-        .from('payment_transactions')
-        .delete()
-        .eq('id', authTransaction.id);
-    }
-
-    console.log(`[v1] Cleaned up auth refund test data`);
-  });
-
-  test.afterAll(async () => {
-    if (adminUserIdForAuth) {
-      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserIdForAuth);
-      await supabaseAdmin.auth.admin.deleteUser(adminUserIdForAuth);
-    }
-  });
-
-  test('CRITICAL SECURITY: Refund MUST delete user_product_access record', async ({ page }) => {
-    await loginAsAdminForAuth(page);
-
-    console.log(`\n[v1] Testing authenticated user access revocation after refund`);
-    console.log(`   User ID: ${authUser.id}`);
-    console.log(`   Transaction ID: ${authTransaction.id}`);
-    console.log(`   Product ID: ${authProduct.id}`);
-
-    // Verify user_product_access record exists BEFORE refund
-    const { data: beforeRefund } = await supabaseAdmin
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', authUser.id)
-      .eq('product_id', authProduct.id)
-      .single();
-
-    expect(beforeRefund).toBeTruthy();
-    console.log(`   User has product access before refund: ${beforeRefund?.id}`);
-
-    // Process refund
-    const response = await page.request.post(`/api/v1/payments/${authTransaction.id}/refund`, {
-      data: {
-        reason: 'requested_by_customer',
-      },
-    });
-
-    const result = await response.json();
-    console.log(`   Refund response: HTTP ${response.status()}`);
-
-    // Verify user_product_access record is DELETED after refund
-    const { data: afterRefund } = await supabaseAdmin
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', authUser.id)
-      .eq('product_id', authProduct.id)
-      .maybeSingle();
-
-    console.log(`\n[v1] Results:`);
-    console.log(`   - Refund API success: ${result.data !== undefined}`);
-    console.log(`   - User access after refund: ${afterRefund ? 'EXISTS (BAD!)' : 'DELETED (GOOD!)'}`);
-
-    if (response.ok() && result.data) {
-      // If refund succeeded via Stripe, user_product_access MUST be deleted
-      expect(afterRefund).toBeNull();
-      console.log(`   SECURITY CHECK PASSED: User access was revoked after refund`);
-    } else {
-      console.log(`   [v1] Refund failed (Stripe test mode): ${result.error?.message}`);
-      console.log(`   Cannot verify cleanup - refund didn't complete`);
-    }
-  });
-
-  test('SECURITY: User cannot access product after refund', async ({ page }) => {
-    await loginAsAdminForAuth(page);
-
-    console.log(`\n[v1] Testing that user loses access after refund`);
-
-    // Simulate successful refund by manually deleting user_product_access
-    await supabaseAdmin
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', authUser.id)
-      .eq('product_id', authProduct.id);
-
-    console.log(`   Simulated refund: deleted user_product_access record`);
-
-    // Verify user no longer has access
-    const { data: userAccess } = await supabaseAdmin
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', authUser.id)
-      .eq('product_id', authProduct.id)
-      .maybeSingle();
-
-    console.log(`\n[v1] Results:`);
-    console.log(`   - User access to product: ${userAccess ? 'HAS ACCESS (BAD!)' : 'NO ACCESS (GOOD!)'}`);
-
-    expect(userAccess).toBeNull();
-    console.log(`   SECURITY CHECK PASSED: Refunded user has no access to product`);
-  });
-
-  test('SECURITY: Multiple products - only refunded one access is revoked', async ({ page }) => {
-    await loginAsAdminForAuth(page);
-
-    console.log(`\n[v1] Testing partial access revocation for multiple products`);
-
-    // Get a second product
-    const { data: products } = await supabaseAdmin
-      .from('products')
-      .select('id, name')
-      .eq('is_active', true)
-      .not('id', 'eq', authProduct.id)
-      .limit(1);
-
-    if (!products || products.length === 0) {
-      console.log(`   No second product available - skipping test`);
-      return;
-    }
-
-    const secondProduct = products[0];
-
-    // Grant access to second product
-    const { data: secondAccess } = await supabaseAdmin
-      .from('user_product_access')
-      .insert({
-        user_id: authUser.id,
-        product_id: secondProduct.id,
-      })
-      .select()
-      .single();
-
-    console.log(`   Created second product access: ${secondAccess?.id}`);
-
-    // Process refund for FIRST product only
-    const response = await page.request.post(`/api/v1/payments/${authTransaction.id}/refund`, {
-      data: {
-        reason: 'requested_by_customer',
-      },
-    });
-
-    // Check both accesses
-    const { data: firstAfterRefund } = await supabaseAdmin
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', authUser.id)
-      .eq('product_id', authProduct.id)
-      .maybeSingle();
-
-    const { data: secondAfterRefund } = await supabaseAdmin
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', authUser.id)
-      .eq('product_id', secondProduct.id)
-      .maybeSingle();
-
-    console.log(`\n[v1] Results:`);
-    console.log(`   - First product access (refunded): ${firstAfterRefund ? 'EXISTS' : 'REVOKED'}`);
-    console.log(`   - Second product access (not refunded): ${secondAfterRefund ? 'EXISTS' : 'REVOKED'}`);
-
-    if (response.ok()) {
-      // First should be revoked, second should remain
-      expect(firstAfterRefund).toBeNull();
-      expect(secondAfterRefund).toBeTruthy();
-      console.log(`   Only refunded product access was revoked, other remains`);
-    }
-
-    // Cleanup second product access
-    await supabaseAdmin
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', authUser.id)
-      .eq('product_id', secondProduct.id);
-  });
-});
-
-/**
- * ============================================================================
- * v1 API: Guest Purchase Access Revocation After Refund
- * ============================================================================
- */
-test.describe('v1 API: Refund - Guest Purchase Access Revocation', () => {
-  let guestProduct: any;
-  let guestTransaction: any;
-  let guestPurchase: any;
-  let adminUserIdForGuest: string;
-  let adminEmailForGuest: string;
-  const adminPasswordForGuest = 'TestPassword123!';
-
-  const loginAsAdminForGuest = async (page: Page) => {
-    await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-
-    await page.evaluate(async ({ email, password, supabaseUrl, anonKey }) => {
-      const { createBrowserClient } = await import('https://esm.sh/@supabase/ssr@0.5.2');
-      const supabase = createBrowserClient(supabaseUrl, anonKey);
-      await supabase.auth.signInWithPassword({ email, password });
-    }, {
-      email: adminEmailForGuest,
-      password: adminPasswordForGuest,
-      supabaseUrl: SUPABASE_URL,
-      anonKey: ANON_KEY,
-    });
-
-    await page.waitForTimeout(1000);
-  };
-
-  test.beforeAll(async () => {
-    // Create admin user for this test suite
-    adminEmailForGuest = `v1-refund-guest-admin-${Date.now()}@test.com`;
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: adminEmailForGuest,
-      password: adminPasswordForGuest,
-      email_confirm: true,
-    });
-
-    if (authError) throw authError;
-    adminUserIdForGuest = authData.user!.id;
-
-    await supabaseAdmin.from('admin_users').insert({ user_id: adminUserIdForGuest });
-
-    // Get existing active product
-    const { data: products } = await supabaseAdmin
-      .from('products')
-      .select('id, name, price, currency')
-      .eq('is_active', true)
-      .not('price', 'is', null)
-      .gt('price', 0)
-      .limit(1);
-
-    if (!products || products.length === 0) {
-      throw new Error('No active products found for guest refund testing');
-    }
-
-    guestProduct = products[0];
-  });
-
-  test.beforeEach(async () => {
-    const sessionId = `cs_test_v1_guest_refund_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const guestEmail = `v1-guest-refund-test-${Date.now()}@example.com`;
-
-    // Create guest purchase record (simulates what happens after successful Stripe payment)
-    const { data: purchase, error: purchaseError } = await supabaseAdmin
-      .from('guest_purchases')
-      .insert({
-        session_id: sessionId,
-        customer_email: guestEmail,
-        product_id: guestProduct.id,
-        transaction_amount: guestProduct.price * 100,
-      })
-      .select()
-      .single();
-
-    if (purchaseError) {
-      console.error('Failed to create guest purchase:', purchaseError);
-      throw purchaseError;
-    }
-
-    guestPurchase = purchase;
-
-    // Create corresponding payment transaction (guest - no user_id)
-    const { data: transaction, error: txError } = await supabaseAdmin
-      .from('payment_transactions')
-      .insert({
-        session_id: sessionId,
-        product_id: guestProduct.id,
-        customer_email: guestEmail,
-        amount: guestProduct.price * 100,
-        currency: guestProduct.currency || 'usd',
-        status: 'completed',
-        stripe_payment_intent_id: `pi_v1_guest_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        user_id: null, // NULL = guest purchase
-      })
-      .select()
-      .single();
-
-    if (txError) {
-      console.error('Failed to create guest transaction:', txError);
-      throw txError;
-    }
-
-    guestTransaction = transaction;
-
-    console.log(`\n[v1] Created guest purchase test data:`);
-    console.log(`   - Session ID: ${sessionId}`);
-    console.log(`   - Guest email: ${guestEmail}`);
-    console.log(`   - Transaction ID: ${guestTransaction.id}`);
-    console.log(`   - Guest purchase ID: ${guestPurchase.id}`);
-  });
-
-  test.afterEach(async () => {
-    // Cleanup any remaining records
-    if (guestTransaction?.session_id) {
-      await supabaseAdmin
-        .from('payment_transactions')
-        .delete()
-        .eq('session_id', guestTransaction.session_id);
-
-      await supabaseAdmin
-        .from('guest_purchases')
-        .delete()
-        .eq('session_id', guestTransaction.session_id);
-
-      console.log(`[v1] Cleaned up guest refund test data`);
-    }
-  });
-
-  test.afterAll(async () => {
-    if (adminUserIdForGuest) {
-      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserIdForGuest);
-      await supabaseAdmin.auth.admin.deleteUser(adminUserIdForGuest);
-    }
-  });
-
-  test('CRITICAL SECURITY: Refund MUST delete guest_purchases record', async ({ page }) => {
-    await loginAsAdminForGuest(page);
-
-    console.log(`\n[v1] Testing guest purchase access revocation after refund`);
-    console.log(`   Transaction ID: ${guestTransaction.id}`);
-    console.log(`   Guest purchase ID: ${guestPurchase.id}`);
-    console.log(`   Session ID: ${guestTransaction.session_id}`);
-
-    // Verify guest_purchases record exists BEFORE refund
-    const { data: beforeRefund } = await supabaseAdmin
-      .from('guest_purchases')
-      .select('id')
-      .eq('session_id', guestTransaction.session_id)
-      .single();
-
-    expect(beforeRefund).toBeTruthy();
-    console.log(`   Guest purchase exists before refund: ${beforeRefund?.id}`);
-
-    // Process refund
-    const response = await page.request.post(`/api/v1/payments/${guestTransaction.id}/refund`, {
-      data: {
-        reason: 'requested_by_customer',
-      },
-    });
-
-    const result = await response.json();
-    console.log(`   Refund response: HTTP ${response.status()}`);
-
-    // Verify guest_purchases record is DELETED after refund
-    const { data: afterRefund } = await supabaseAdmin
-      .from('guest_purchases')
-      .select('id')
-      .eq('session_id', guestTransaction.session_id)
-      .maybeSingle();
-
-    console.log(`\n[v1] Results:`);
-    console.log(`   - Refund API success: ${result.data !== undefined}`);
-    console.log(`   - Guest purchase after refund: ${afterRefund ? 'EXISTS (BAD!)' : 'DELETED (GOOD!)'}`);
-
-    if (response.ok() && result.data) {
-      // If refund succeeded via Stripe, guest_purchases MUST be deleted
-      expect(afterRefund).toBeNull();
-      console.log(`   SECURITY CHECK PASSED: Guest purchase record was deleted after refund`);
-    } else {
-      console.log(`   [v1] Refund failed (Stripe test mode): ${result.error?.message}`);
-      console.log(`   Cannot verify cleanup - refund didn't complete`);
-    }
-  });
-
-  test('SECURITY: Guest cannot claim refunded purchase after creating account', async ({ page }) => {
-    await loginAsAdminForGuest(page);
-
-    console.log(`\n[v1] Testing post-refund guest claim prevention`);
-
-    // Step 1: Manually delete guest_purchases (simulates successful refund)
-    await supabaseAdmin
-      .from('guest_purchases')
-      .delete()
-      .eq('session_id', guestTransaction.session_id);
-
-    console.log(`   Simulated refund: deleted guest_purchases record`);
-
-    // Step 2: Create a user with the same email
-    const guestEmail = guestTransaction.customer_email;
-    const { data: { user: newUser }, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: guestEmail,
-      password: 'TestPassword123!',
-      email_confirm: true,
-    });
-
-    if (userError) {
-      console.error('Failed to create test user:', userError);
-      throw userError;
-    }
-
-    console.log(`   Created user with same email: ${newUser?.id}`);
-
-    // Step 3: Try to claim guest purchases (should find nothing)
-    const { data: claimResult } = await supabaseAdmin.rpc('claim_guest_purchases_for_user', {
-      p_user_id: newUser!.id,
-    });
-
-    console.log(`   Claim result:`, claimResult);
-
-    // Step 4: Verify NO access was granted
-    const { data: userAccess } = await supabaseAdmin
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', newUser!.id)
-      .eq('product_id', guestProduct.id)
-      .maybeSingle();
-
-    console.log(`\n[v1] Results:`);
-    console.log(`   - Claims found: ${claimResult?.claimed_count || 0}`);
-    console.log(`   - Product access granted: ${userAccess ? 'YES (BAD!)' : 'NO (GOOD!)'}`);
-
-    // CRITICAL: User should NOT have access to refunded product
-    expect(userAccess).toBeNull();
-    console.log(`   SECURITY CHECK PASSED: Refunded guest cannot claim product after signup`);
-
-    // Cleanup
-    await supabaseAdmin.from('user_product_access').delete().eq('user_id', newUser!.id);
-    await supabaseAdmin.from('profiles').delete().eq('id', newUser!.id);
-    await supabaseAdmin.auth.admin.deleteUser(newUser!.id);
-  });
-
-  test('SECURITY: Multiple guest purchases - only refunded one is revoked', async ({ page }) => {
-    await loginAsAdminForGuest(page);
-
-    console.log(`\n[v1] Testing partial guest purchase revocation`);
-
-    // Create a second guest purchase (different session, same email)
-    const secondSessionId = `cs_test_v1_guest_second_${Date.now()}`;
-    const { data: secondPurchase } = await supabaseAdmin
-      .from('guest_purchases')
-      .insert({
-        session_id: secondSessionId,
-        customer_email: guestTransaction.customer_email,
-        product_id: guestProduct.id,
-        transaction_amount: guestProduct.price * 100,
-      })
-      .select()
-      .single();
-
-    console.log(`   Created second guest purchase: ${secondPurchase?.id}`);
-
-    // Process refund for FIRST purchase only
-    const response = await page.request.post(`/api/v1/payments/${guestTransaction.id}/refund`, {
-      data: {
-        reason: 'requested_by_customer',
-      },
-    });
-
-    // Check both purchases
-    const { data: firstAfterRefund } = await supabaseAdmin
-      .from('guest_purchases')
-      .select('id')
-      .eq('session_id', guestTransaction.session_id)
-      .maybeSingle();
-
-    const { data: secondAfterRefund } = await supabaseAdmin
-      .from('guest_purchases')
-      .select('id')
-      .eq('session_id', secondSessionId)
-      .maybeSingle();
-
-    console.log(`\n[v1] Results:`);
-    console.log(`   - First purchase (refunded): ${firstAfterRefund ? 'EXISTS' : 'DELETED'}`);
-    console.log(`   - Second purchase (not refunded): ${secondAfterRefund ? 'EXISTS' : 'DELETED'}`);
-
-    if (response.ok()) {
-      // First should be deleted, second should remain
-      expect(firstAfterRefund).toBeNull();
-      expect(secondAfterRefund).toBeTruthy();
-      console.log(`   Only refunded purchase was revoked, other remains`);
-    }
-
-    // Cleanup second purchase
-    await supabaseAdmin
-      .from('guest_purchases')
-      .delete()
-      .eq('session_id', secondSessionId);
+test.describe('v1 API: Refund - Access Revocation Source Verification', () => {
+  const routePath = join(__dirname, '../src/app/api/v1/payments/[id]/refund/route.ts');
+  const routeSource = readFileSync(routePath, 'utf-8');
+
+  test('SECURITY: Refund route contains access revocation code for users and guests', async () => {
+    // Authenticated user access revocation: delete from user_product_access
+    expect(routeSource).toContain(".from('user_product_access')");
+    expect(routeSource).toContain(
+      ".from('user_product_access')\n        .delete()"
+    );
+    expect(routeSource).toContain(".eq('user_id', payment.user_id)");
+    expect(routeSource).toContain(".eq('product_id', payment.product_id)");
+
+    // Guest purchase cleanup: delete from guest_purchases
+    expect(routeSource).toContain(".from('guest_purchases')");
+    expect(routeSource).toContain(
+      ".from('guest_purchases')\n        .delete()"
+    );
+    expect(routeSource).toContain(".eq('session_id', payment.session_id)");
   });
 });

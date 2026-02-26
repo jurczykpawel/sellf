@@ -36,17 +36,18 @@ test.describe('Security - Rate Limiting', () => {
   // We test that the rate limiting infrastructure exists and responds correctly
 
   test('rate limiting infrastructure responds with proper headers', async ({ request }) => {
-    // Make a single request and verify rate limit headers are present
+    // Make a single request and verify rate limit headers are present.
+    // The route requires both `email` and `productId` (not productSlug).
+    // A fake UUID triggers a 404 (product not found) after rate limiting passes.
     const response = await request.post('/api/waitlist/signup', {
       data: {
         email: 'rate-test@example.com',
-        productSlug: 'nonexistent-product',
+        productId: '00000000-0000-0000-0000-000000000000',
       },
     });
 
-    // Response should be processed (even if product not found)
-    // Rate limiting happens before business logic
-    expect([200, 400, 404, 429]).toContain(response.status());
+    // 404 = product not found (rate limiting passed), 429 = rate limited
+    expect([404, 429]).toContain(response.status());
   });
 
   test('consent endpoint accepts valid requests', async ({ request }) => {
@@ -120,45 +121,29 @@ test.describe('Security - Open Redirect Prevention', () => {
     expect(cookies).not.toContain('sb-access-token');
   });
 
-  test('redirect_to parameter with protocol-relative URL should not bypass validation', async () => {
-    // This is a code-level test - the auth callback code should reject //evil.com
-    // We verify the pattern that would be dangerous is blocked
+  test('redirect_to parameter with dangerous URLs should be blocked', async ({ request }) => {
+    // The auth callback validates redirect_to AFTER successful code exchange (line 122-159).
+    // With a fake code, the exchange fails → redirect to /login (redirect_to never evaluated).
+    // So we verify the validation logic exists in the source code instead.
+    const { readFileSync } = await import('fs');
+    const { join } = await import('path');
 
-    const dangerousRedirects = [
-      '//evil.com',
-      '//evil.com/path',
-      'https://evil.com',
-      'http://evil.com/steal',
-      '///evil.com', // triple slash
-    ];
+    const callbackSource = readFileSync(
+      join(__dirname, '../src/app/[locale]/auth/callback/route.ts'),
+      'utf-8'
+    );
 
-    const safeRedirects = [
-      '/dashboard',
-      '/my-products',
-      '/auth/product-access?product=test',
-    ];
+    // Route decodes redirect_to and validates it
+    expect(callbackSource).toContain("decodeURIComponent(redirectTo)");
 
-    // These patterns should be blocked by our validation logic in auth/callback/route.ts
-    // The validation: decodedRedirectTo.startsWith('/') && !decodedRedirectTo.startsWith('//')
+    // SECURITY: blocks protocol-relative URLs (//evil.com)
+    expect(callbackSource).toContain("!decodedRedirectTo.startsWith('//')");
 
-    for (const redirect of dangerousRedirects) {
-      const startsWithSlash = redirect.startsWith('/');
-      const startsWithDoubleSlash = redirect.startsWith('//');
-      const isAbsoluteUrl = redirect.startsWith('http');
+    // SECURITY: blocks absolute URLs not on our domain
+    expect(callbackSource).toContain("redirectToUrl.origin === origin");
 
-      // Our code blocks: protocol-relative URLs (//) and absolute URLs (http)
-      const wouldBeBlocked = startsWithDoubleSlash || isAbsoluteUrl || !startsWithSlash;
-      expect(wouldBeBlocked).toBe(true);
-    }
-
-    for (const redirect of safeRedirects) {
-      const startsWithSlash = redirect.startsWith('/');
-      const startsWithDoubleSlash = redirect.startsWith('//');
-
-      // Safe redirects start with / but not //
-      const wouldBeAllowed = startsWithSlash && !startsWithDoubleSlash;
-      expect(wouldBeAllowed).toBe(true);
-    }
+    // Safe paths must start with /
+    expect(callbackSource).toContain("decodedRedirectTo.startsWith('/')");
   });
 });
 
@@ -220,37 +205,44 @@ test.describe('Security - CORS Headers', () => {
 
 test.describe('Security - Input Validation', () => {
   test('waitlist signup should reject invalid email', async ({ request }) => {
+    // Send both email and productId so the route proceeds to email validation
     const response = await request.post('/api/waitlist/signup', {
       data: {
         email: 'not-an-email',
-        productSlug: 'test-product',
+        productId: '00000000-0000-0000-0000-000000000000',
       },
     });
 
     expect(response.status()).toBe(400);
   });
 
-  test('waitlist signup should reject missing productSlug', async ({ request }) => {
+  test('waitlist signup should reject missing productId', async ({ request }) => {
+    // Send email but omit productId — the route requires both fields
     const response = await request.post('/api/waitlist/signup', {
       data: {
         email: 'valid@example.com',
-        // missing productSlug
+        // missing productId
       },
     });
 
     expect(response.status()).toBe(400);
   });
 
-  test('consent endpoint should reject invalid fingerprint', async ({ request }) => {
+  test('consent endpoint accepts request without fingerprint (no validation exists)', async ({ request }) => {
+    // NOTE: The consent endpoint currently has no input validation.
+    // This test documents current behavior — POST succeeds even without fingerprint.
+    // If input validation is added in the future, this test should be updated to expect 400.
     const response = await request.post('/api/consent', {
       data: {
-        consents: { analytics: true },
-        // missing fingerprint
+        consents: { analytics: true, marketing: false },
+        anonymous_id: 'test-anonymous-id',
+        // No fingerprint field — endpoint doesn't use or validate it
       },
     });
 
-    // Should require fingerprint
-    expect([400, 200]).toContain(response.status());
+    // Currently succeeds (200) because no validation exists
+    // This is a known gap — the endpoint accepts any body shape
+    expect([200, 429]).toContain(response.status());
   });
 });
 
@@ -285,10 +277,9 @@ test.describe('Security - HTTP Headers', () => {
     const response = await request.get('/api/status');
 
     const cacheControl = response.headers()['cache-control'];
-    // API routes should not be cached
-    if (cacheControl) {
-      expect(cacheControl).toContain('no-');
-    }
+    // API routes should not be cached — assert the header exists, then check value
+    expect(cacheControl).toBeTruthy();
+    expect(cacheControl).toContain('no-');
   });
 });
 

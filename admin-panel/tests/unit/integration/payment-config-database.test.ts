@@ -124,7 +124,13 @@ describe('Payment Config Database - RLS Policies & Constraints', () => {
         .single();
 
       // Non-admin should not be able to read (RLS policy blocks)
+      // Supabase returns PGRST116 (no rows) when RLS hides all rows
       expect(data).toBeNull();
+      if (error) {
+        expect(error.code).toBe('PGRST116');
+      } else {
+        expect.fail('Expected either null data with PGRST116 error or silent RLS block');
+      }
     });
 
     // DB-RLS-003: Unauthenticated cannot read
@@ -137,7 +143,13 @@ describe('Payment Config Database - RLS Policies & Constraints', () => {
         .eq('id', 1)
         .single();
 
+      // RLS should block unauthenticated access
       expect(data).toBeNull();
+      if (error) {
+        expect(error.code).toBe('PGRST116');
+      } else {
+        expect.fail('Expected PGRST116 error for RLS-blocked anonymous access');
+      }
     });
   });
 
@@ -415,17 +427,19 @@ describe('Payment Config Database - RLS Policies & Constraints', () => {
         expect(error).toBeNull();
       });
 
-      // Verify final state is consistent
-      const { data } = await supabaseAdmin
+      // Verify final state is consistent — last-write-wins for each field
+      const { data, error } = await supabaseAdmin
         .from('payment_method_config')
-        .select('*')
+        .select('enable_apple_pay, enable_google_pay, enable_link')
         .eq('id', 1)
         .single();
 
+      expect(error).toBeNull();
       expect(data).toBeDefined();
-      expect(typeof data?.enable_apple_pay).toBe('boolean');
-      expect(typeof data?.enable_google_pay).toBe('boolean');
-      expect(typeof data?.enable_link).toBe('boolean');
+      // The concurrent writes should each have landed their intended value
+      expect(data!.enable_apple_pay).toBe(true);
+      expect(data!.enable_google_pay).toBe(false);
+      expect(data!.enable_link).toBe(true);
     });
   });
 });

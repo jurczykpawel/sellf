@@ -1,14 +1,16 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * ============================================================================
  * SECURITY TEST: Public Product API Field Exposure
  * ============================================================================
  *
+ * Tests the REAL route source at src/app/api/public/products/[slug]/route.ts
+ * to verify that sensitive fields are NOT exposed in the public product API.
+ *
  * VULNERABILITY: Content Config Exposed on Public Endpoints (V-CRITICAL-08)
- * LOCATION:
- *   - src/app/api/public/products/[slug]/route.ts
- *   - src/app/api/products/[id]/route.ts
  *
  * ATTACK FLOW (before fix):
  * 1. Attacker calls GET /api/public/products/premium-course (no auth required)
@@ -16,234 +18,78 @@ import { describe, it, expect } from 'vitest';
  * 3. content_config contains download URLs, redirect URLs, etc.
  * 4. Attacker downloads paid content for FREE without purchasing
  *
- * ROOT CAUSE:
- * Using select('*') on public endpoints exposed ALL columns including:
- * - content_config (download URLs, content items)
- * - success_redirect_url (internal URLs)
- * - Other internal configuration
- *
- * FIX (V18):
- * Changed to explicit field list, excluding:
- * - content_config (contains download URLs - only returned after access check)
- * - success_redirect_url (internal config)
- * - pass_params_to_redirect (internal config)
- * - auto_grant_duration_days (internal config)
- * - tenant_id (internal)
+ * FIX (V18): Changed to explicit field list in .select()
  *
  * Created during security audit iteration 7 (2026-01-08)
+ * Rewritten to test real route source (2026-02-26)
  * ============================================================================
  */
 
-// Fields that SHOULD be returned by public product endpoints
-const PUBLIC_SAFE_FIELDS = [
-  'id',
-  'name',
-  'slug',
-  'description',
-  'icon',
-  'price',
-  'currency',
-  'is_active',
-  'is_featured',
-  'available_from',
-  'available_until',
-  'allow_custom_price',
-  'custom_price_min',
-  'custom_price_presets',
-  'show_price_presets',
-  'enable_waitlist',
-  'content_delivery_type',
-  'layout_template',
-];
+const routePath = join(__dirname, '../../../src/app/api/public/products/[slug]/route.ts');
+const routeSource = readFileSync(routePath, 'utf-8');
 
-// Fields that MUST NOT be returned by public endpoints
-const SENSITIVE_FIELDS = [
-  'content_config',         // Contains download URLs!
-  'success_redirect_url',   // Internal redirect config
-  'pass_params_to_redirect', // Internal config
-  'auto_grant_duration_days', // Internal config
-  'tenant_id',              // Multi-tenancy internal
-];
+// Extract the select() template literal content from the route source
+const selectMatch = routeSource.match(/\.select\(\s*`([^`]+)`\s*\)/s);
+const selectContent = selectMatch ? selectMatch[1] : '';
+
+// SOURCE_TEXT_VERIFY: These tests read the public product route source and verify the
+// explicit field list in .select(). Runtime testing is not possible without a running
+// Supabase instance, but the critical security invariant is that select('*') is never
+// used and sensitive fields (content_config, success_redirect_url) are never included
+// in the field list.
 
 describe('Public Product API Field Exposure', () => {
-  describe('Field Classification', () => {
-    it('should have separate lists for public and sensitive fields', () => {
-      // No overlap between public and sensitive fields
-      const overlap = PUBLIC_SAFE_FIELDS.filter(f => SENSITIVE_FIELDS.includes(f));
-      expect(overlap).toHaveLength(0);
-    });
-
-    it('content_config is classified as sensitive', () => {
-      expect(SENSITIVE_FIELDS).toContain('content_config');
-    });
-
-    it('price and currency are public (needed for product page)', () => {
-      expect(PUBLIC_SAFE_FIELDS).toContain('price');
-      expect(PUBLIC_SAFE_FIELDS).toContain('currency');
+  describe('Route source uses explicit select', () => {
+    it('uses explicit field list (not select(*))', () => {
+      expect(selectMatch).not.toBeNull();
+      expect(selectContent.trim()).not.toBe('*');
+      expect(routeSource).not.toMatch(/\.select\(\s*['"`]\s*\*\s*['"`]\s*\)/);
     });
   });
 
-  describe('Vulnerability Scenarios', () => {
-    it('Scenario: Free download via content_config exposure', () => {
-      /**
-       * Attack (before fix):
-       * 1. Call GET /api/public/products/expensive-course
-       * 2. Response contains:
-       *    {
-       *      "content_config": {
-       *        "content_items": [{
-       *          "type": "download_link",
-       *          "config": {
-       *            "download_url": "https://storage.supabase.co/secret-video.mp4"
-       *          }
-       *        }]
-       *      }
-       *    }
-       * 3. Attacker downloads video without paying
-       *
-       * After fix: content_config is NOT returned
-       */
-      const mockVulnerableResponse = {
-        id: 'prod_123',
-        name: 'Expensive Course',
-        price: 29900,
-        content_config: {
-          content_items: [{
-            type: 'download_link',
-            config: {
-              download_url: 'https://storage.supabase.co/secret-video.mp4'
-            }
-          }]
-        }
-      };
-
-      // Attacker extracts download URL
-      const downloadUrl = mockVulnerableResponse.content_config?.content_items?.[0]?.config?.download_url;
-
-      // Before fix: URL was exposed
-      expect(downloadUrl).toBe('https://storage.supabase.co/secret-video.mp4');
-
-      // After fix: content_config should not be in response
-      const mockFixedResponse = {
-        id: 'prod_123',
-        name: 'Expensive Course',
-        price: 29900,
-        // content_config NOT included
-      };
-
-      expect(mockFixedResponse).not.toHaveProperty('content_config');
+  describe('Sensitive fields are NOT exposed', () => {
+    it('does NOT expose content_config, success_redirect_url, or pass_params_to_redirect', () => {
+      expect(selectContent).not.toContain('content_config');
+      expect(selectContent).not.toContain('success_redirect_url');
+      expect(selectContent).not.toContain('pass_params_to_redirect');
     });
 
-    it('Scenario: Redirect URL exposure for redirect products', () => {
-      /**
-       * Attack for redirect-type products:
-       * 1. Product configured with content_delivery_type: 'redirect'
-       * 2. content_config contains redirect_url to external course platform
-       * 3. Attacker gets URL without paying
-       */
-      const mockVulnerableProduct = {
-        content_delivery_type: 'redirect',
-        content_config: {
-          redirect_url: 'https://premium-course-platform.com/course/abc123?token=secret'
-        }
-      };
-
-      // Attacker gets direct access to paid course
-      expect(mockVulnerableProduct.content_config.redirect_url).toContain('token=secret');
-
-      // After fix: redirect_url not exposed
-      const mockFixedProduct = {
-        content_delivery_type: 'redirect',
-        // content_config NOT included
-      };
-
-      expect(mockFixedProduct).not.toHaveProperty('content_config');
-    });
-
-    it('Scenario: Enumeration of all download URLs', () => {
-      /**
-       * Attack:
-       * 1. Attacker knows product slugs (from public listing or sitemap)
-       * 2. Iterates through all products
-       * 3. Collects all download URLs
-       * 4. Downloads entire catalog for free
-       */
-      const productSlugs = ['course-1', 'course-2', 'premium-bundle'];
-
-      // Before fix: Each call returned content_config
-      // After fix: No content_config returned
-
-      productSlugs.forEach(slug => {
-        // Simulate fixed API response
-        const response = {
-          slug,
-          name: `Product ${slug}`,
-          price: 9900,
-          // NO content_config
-        };
-
-        expect(response).not.toHaveProperty('content_config');
-      });
+    it('does NOT expose auto_grant_duration_days or tenant_id', () => {
+      expect(selectContent).not.toContain('auto_grant_duration_days');
+      expect(selectContent).not.toContain('tenant_id');
     });
   });
 
-  describe('Protected Endpoint Comparison', () => {
-    it('authenticated /content endpoint SHOULD return content_config', () => {
-      /**
-       * The /api/public/products/[slug]/content endpoint:
-       * 1. Requires authentication
-       * 2. Checks user_product_access
-       * 3. THEN returns content_config
-       *
-       * This is the CORRECT behavior - content is protected
-       */
-      const authenticatedContentResponse = {
-        id: 'prod_123',
-        name: 'Course',
-        content_config: {
-          content_items: [
-            { type: 'download_link', config: { download_url: '...' } }
-          ]
-        },
-        user_access: {
-          access_expires_at: null
-        }
-      };
-
-      // Content IS returned after access check
-      expect(authenticatedContentResponse).toHaveProperty('content_config');
-      expect(authenticatedContentResponse).toHaveProperty('user_access');
-    });
-  });
-
-  describe('Field Whitelist Validation', () => {
-    it('should include all necessary display fields', () => {
-      const requiredForDisplay = [
-        'id', 'name', 'slug', 'description', 'price', 'currency', 'icon'
-      ];
-
-      requiredForDisplay.forEach(field => {
-        expect(PUBLIC_SAFE_FIELDS).toContain(field);
-      });
+  describe('Required display fields are included', () => {
+    it('includes core display fields', () => {
+      // Use word-boundary regex to avoid false positives (e.g., 'id' matching 'product_id')
+      const requiredFields = ['id', 'name', 'slug', 'description', 'price', 'currency', 'icon'];
+      for (const field of requiredFields) {
+        expect(selectContent).toMatch(new RegExp(`\\b${field}\\b`));
+      }
     });
 
-    it('should include waitlist and availability fields', () => {
-      expect(PUBLIC_SAFE_FIELDS).toContain('enable_waitlist');
-      expect(PUBLIC_SAFE_FIELDS).toContain('available_from');
-      expect(PUBLIC_SAFE_FIELDS).toContain('available_until');
+    it('includes custom pricing and availability fields', () => {
+      const pricingFields = ['allow_custom_price', 'custom_price_min', 'custom_price_presets', 'show_price_presets'];
+      for (const field of pricingFields) {
+        expect(selectContent).toContain(field);
+      }
+
+      const availabilityFields = ['available_from', 'available_until', 'enable_waitlist'];
+      for (const field of availabilityFields) {
+        expect(selectContent).toContain(field);
+      }
     });
 
-    it('should include custom pricing fields for PWYW products', () => {
-      expect(PUBLIC_SAFE_FIELDS).toContain('allow_custom_price');
-      expect(PUBLIC_SAFE_FIELDS).toContain('custom_price_min');
-      expect(PUBLIC_SAFE_FIELDS).toContain('custom_price_presets');
-      expect(PUBLIC_SAFE_FIELDS).toContain('show_price_presets');
+    it('includes layout and delivery type but NOT content config', () => {
+      expect(selectContent).toContain('layout_template');
+      expect(selectContent).toContain('content_delivery_type');
+      expect(selectContent).not.toContain('content_config');
     });
 
-    it('should include layout but NOT content config', () => {
-      expect(PUBLIC_SAFE_FIELDS).toContain('layout_template');
-      expect(PUBLIC_SAFE_FIELDS).toContain('content_delivery_type');
-      expect(PUBLIC_SAFE_FIELDS).not.toContain('content_config');
+    it('includes product status fields', () => {
+      expect(selectContent).toContain('is_active');
+      expect(selectContent).toContain('is_featured');
     });
   });
 });

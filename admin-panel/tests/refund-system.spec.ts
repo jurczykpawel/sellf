@@ -492,12 +492,18 @@ test.describe('Refund System - Admin Management', () => {
     await page.goto('/en/dashboard/refund-requests');
     await page.waitForLoadState('networkidle');
 
-    // Should be redirected or show access denied
+    // Should be redirected away OR show access denied message
     const url = page.url();
     const isRedirected = !url.includes('/dashboard/refund-requests');
-    const hasAccessDenied = await page.locator('text=/Access denied|Unauthorized|403/i').count() > 0;
 
-    expect(isRedirected || hasAccessDenied).toBeTruthy();
+    if (isRedirected) {
+      // Non-admin was redirected away from the refund requests page
+      expect(url).not.toContain('/dashboard/refund-requests');
+    } else {
+      // Page loaded but should show access denied
+      const hasAccessDenied = await page.locator('text=/Access denied|Unauthorized|403/i').count() > 0;
+      expect(hasAccessDenied).toBe(true);
+    }
   });
 
   test('admin should see refund requests list', async ({ page }) => {

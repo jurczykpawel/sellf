@@ -1,12 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  isValidWebhookUrl,
+  isValidEventType,
+  validateEventTypes,
+  WEBHOOK_EVENT_TYPES,
+} from '@/lib/validations/webhook';
 
 /**
  * ============================================================================
  * SECURITY TEST: Webhook URL SSRF Validation
  * ============================================================================
  *
+ * Tests the PRODUCTION isValidWebhookUrl() from @/lib/validations/webhook.ts
+ * which is used by:
+ *   - src/app/api/admin/webhooks/route.ts (POST — create webhook)
+ *   - src/app/api/admin/webhooks/[id]/route.ts (PUT — update webhook)
+ *
  * VULNERABILITY: SSRF Bypass via Webhook PUT Endpoint (V-CRITICAL-07)
- * LOCATION: src/app/api/admin/webhooks/[id]/route.ts
  *
  * ATTACK FLOW (before fix):
  * 1. Admin creates webhook with legitimate URL (e.g., https://example.com/webhook)
@@ -17,89 +27,50 @@ import { describe, it, expect } from 'vitest';
  * 6. On next webhook trigger, server makes request to cloud metadata service
  * 7. Response (AWS credentials, instance identity) logged to webhook_logs
  *
- * ROOT CAUSE:
- * The PUT endpoint in [id]/route.ts did not call isValidWebhookUrl(),
- * while the POST endpoint in route.ts did. Classic validation bypass.
- *
- * FIX (V17):
- * Added isValidWebhookUrl validation to PUT endpoint
- *
  * Created during security audit iteration 6 (2026-01-08)
+ * Fixed to import from production code (2026-02-26)
  * ============================================================================
  */
 
-// Simulate the validation function (same logic as in the actual code)
-function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string } {
-  try {
-    const url = new URL(urlString);
-
-    // Must be HTTPS or HTTP
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      return { valid: false, error: 'URL must use HTTPS protocol' };
-    }
-
-    const hostname = url.hostname.toLowerCase();
-
-    // Block localhost
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1') {
-      return { valid: false, error: 'URL cannot point to localhost' };
-    }
-
-    // Block private/internal hostnames
-    const blockedHostnames = [
-      'metadata.google.internal',
-      'metadata.goog',
-      'kubernetes.default',
-      'kubernetes.default.svc',
-    ];
-    if (blockedHostnames.some(blocked => hostname === blocked || hostname.endsWith('.' + blocked))) {
-      return { valid: false, error: 'URL cannot point to internal services' };
-    }
-
-    // Check if hostname is an IP address
-    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-    const ipv4Match = hostname.match(ipv4Regex);
-
-    if (ipv4Match) {
-      const [, a, b, c, d] = ipv4Match.map(Number);
-
-      // Block private IPv4 ranges (RFC 1918)
-      if (a === 10) {
-        return { valid: false, error: 'URL cannot point to private IP addresses (10.x.x.x)' };
-      }
-      if (a === 172 && b >= 16 && b <= 31) {
-        return { valid: false, error: 'URL cannot point to private IP addresses (172.16-31.x.x)' };
-      }
-      if (a === 192 && b === 168) {
-        return { valid: false, error: 'URL cannot point to private IP addresses (192.168.x.x)' };
-      }
-      if (a === 127) {
-        return { valid: false, error: 'URL cannot point to loopback addresses' };
-      }
-      // 169.254.x.x - link-local, includes AWS/cloud metadata
-      if (a === 169 && b === 254) {
-        return { valid: false, error: 'URL cannot point to link-local addresses (cloud metadata)' };
-      }
-      if (a === 0 && b === 0 && c === 0 && d === 0) {
-        return { valid: false, error: 'URL cannot point to 0.0.0.0' };
-      }
-    }
-
-    // Block IPv6 loopback and link-local
-    if (hostname.startsWith('[')) {
-      const ipv6 = hostname.slice(1, -1).toLowerCase();
-      if (ipv6 === '::1' || ipv6.startsWith('fe80:') || ipv6.startsWith('fc') || ipv6.startsWith('fd')) {
-        return { valid: false, error: 'URL cannot point to IPv6 loopback or private addresses' };
-      }
-    }
-
-    return { valid: true };
-  } catch {
-    return { valid: false, error: 'Invalid URL format' };
-  }
-}
-
 describe('Webhook URL SSRF Validation', () => {
+  // The production isValidWebhookUrl requires HTTPS unless ALLOW_HTTP_WEBHOOKS=true.
+  // Many test cases use HTTP URLs, so we enable HTTP for the SSRF-focused tests
+  // and test the HTTPS enforcement separately.
+  const originalEnv = process.env.ALLOW_HTTP_WEBHOOKS;
+
+  beforeEach(() => {
+    process.env.ALLOW_HTTP_WEBHOOKS = 'true';
+  });
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.ALLOW_HTTP_WEBHOOKS;
+    } else {
+      process.env.ALLOW_HTTP_WEBHOOKS = originalEnv;
+    }
+  });
+
+  describe('HTTPS Enforcement', () => {
+    it('should BLOCK HTTP when ALLOW_HTTP_WEBHOOKS is not set', () => {
+      delete process.env.ALLOW_HTTP_WEBHOOKS;
+      const result = isValidWebhookUrl('http://example.com/webhook');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('HTTPS');
+    });
+
+    it('should ALLOW HTTP when ALLOW_HTTP_WEBHOOKS=true', () => {
+      process.env.ALLOW_HTTP_WEBHOOKS = 'true';
+      const result = isValidWebhookUrl('http://example.com/webhook');
+      expect(result.valid).toBe(true);
+    });
+
+    it('should ALLOW HTTPS regardless of env var', () => {
+      delete process.env.ALLOW_HTTP_WEBHOOKS;
+      const result = isValidWebhookUrl('https://example.com/webhook');
+      expect(result.valid).toBe(true);
+    });
+  });
+
   describe('Cloud Metadata Endpoints - BLOCKED', () => {
     it('should BLOCK AWS metadata endpoint (169.254.169.254)', () => {
       const result = isValidWebhookUrl('http://169.254.169.254/latest/meta-data/');
@@ -231,9 +202,6 @@ describe('Webhook URL SSRF Validation', () => {
     });
 
     it('should BLOCK subdomains of kubernetes.default.svc', () => {
-      // Note: Full cluster.local suffix is a subdomain OF kubernetes.default.svc
-      // but the pattern match checks endsWith('.kubernetes.default.svc')
-      // So we test the actual blocked patterns
       const result1 = isValidWebhookUrl('http://api.kubernetes.default.svc/endpoint');
       expect(result1.valid).toBe(false);
     });
@@ -284,46 +252,82 @@ describe('Webhook URL SSRF Validation', () => {
     });
   });
 
-  describe('Real Attack Scenarios', () => {
-    it('Scenario: AWS credential theft via metadata', () => {
-      /**
-       * Attack (before fix):
-       * 1. Attacker creates webhook with https://legitimate.com/webhook
-       * 2. Attacker updates webhook URL to AWS metadata endpoint
-       * 3. On webhook trigger, server fetches IAM credentials
-       * 4. Response logged, attacker extracts credentials
-       */
-      const attackUrl = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/my-role';
-      const result = isValidWebhookUrl(attackUrl);
-      expect(result.valid).toBe(false);
+});
+
+describe('Webhook Event Type Validation', () => {
+  describe('isValidEventType', () => {
+    it('should accept all defined event types from WEBHOOK_EVENT_TYPES', () => {
+      expect(WEBHOOK_EVENT_TYPES.length).toBeGreaterThan(0);
+      for (const eventType of WEBHOOK_EVENT_TYPES) {
+        expect(isValidEventType(eventType)).toBe(true);
+      }
     });
 
-    it('Scenario: Internal network scanning', () => {
-      /**
-       * Attack:
-       * 1. Attacker tries various internal IPs
-       * 2. Response times/errors reveal internal network topology
-       */
-      const internalTargets = [
-        'http://10.0.0.1:22/ssh',
-        'http://192.168.1.1/admin',
-        'http://172.16.0.100:3306/mysql',
-      ];
+    it('should reject unknown event types', () => {
+      expect(isValidEventType('unknown.event')).toBe(false);
+      expect(isValidEventType('payment.cancelled')).toBe(false);
+      expect(isValidEventType('')).toBe(false);
+      expect(isValidEventType('purchase.completed.extra')).toBe(false);
+    });
+  });
 
-      internalTargets.forEach((url) => {
-        const result = isValidWebhookUrl(url);
-        expect(result.valid).toBe(false);
-      });
+  describe('validateEventTypes', () => {
+    it('should accept a valid array of event types', () => {
+      const result = validateEventTypes(['purchase.completed', 'lead.captured']);
+      expect(result.valid).toBe(true);
     });
 
-    it('Scenario: Kubernetes secrets exfiltration', () => {
-      /**
-       * Attack:
-       * 1. If running in K8s, access secrets via internal DNS
-       */
-      const k8sUrl = 'http://kubernetes.default.svc/api/v1/namespaces/default/secrets';
-      const result = isValidWebhookUrl(k8sUrl);
+    it('should accept a single event type in an array', () => {
+      const result = validateEventTypes(['purchase.completed']);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should accept all known event types', () => {
+      const result = validateEventTypes([...WEBHOOK_EVENT_TYPES]);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject empty array', () => {
+      const result = validateEventTypes([]);
       expect(result.valid).toBe(false);
+      expect(result.error).toContain('non-empty array');
+    });
+
+    it('should reject non-array input', () => {
+      expect(validateEventTypes('purchase.completed').valid).toBe(false);
+      expect(validateEventTypes(null).valid).toBe(false);
+      expect(validateEventTypes(undefined).valid).toBe(false);
+      expect(validateEventTypes(42).valid).toBe(false);
+    });
+
+    it('should reject arrays with invalid event types', () => {
+      const result = validateEventTypes(['purchase.completed', 'invalid.event']);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('invalid.event');
+    });
+
+    it('should list valid types in error message when invalid events provided', () => {
+      const result = validateEventTypes(['bogus']);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('purchase.completed');
+    });
+  });
+
+  describe('WEBHOOK_EVENT_TYPES constant', () => {
+    it('should be a non-empty readonly array', () => {
+      expect(WEBHOOK_EVENT_TYPES.length).toBeGreaterThan(0);
+    });
+
+    it('should contain at least the 3 active events', () => {
+      expect(WEBHOOK_EVENT_TYPES).toContain('purchase.completed');
+      expect(WEBHOOK_EVENT_TYPES).toContain('lead.captured');
+      expect(WEBHOOK_EVENT_TYPES).toContain('waitlist.signup');
+    });
+
+    it('should follow dot-separated naming convention', () => {
+      for (const eventType of WEBHOOK_EVENT_TYPES) {
+        expect(eventType).toMatch(/^[a-z]+\.[a-z_]+$/);
+      }
     });
   });
 });

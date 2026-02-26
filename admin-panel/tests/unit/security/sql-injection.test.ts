@@ -53,28 +53,6 @@ describe('SQL Injection Prevention', () => {
 
     // SQL Injection attack patterns
     describe('SQL Injection attack prevention', () => {
-      it('should neutralize wildcard-based information disclosure', () => {
-        // Attack: Try to match all records with %
-        const attack = '%';
-        const escaped = escapeIlikePattern(attack);
-        expect(escaped).toBe('\\%');
-        // After escaping, this searches for literal '%', not wildcard
-      });
-
-      it('should prevent arbitrary pattern matching with _', () => {
-        // Attack: Match any 4-letter word
-        const attack = '____';
-        const escaped = escapeIlikePattern(attack);
-        expect(escaped).toBe('\\_\\_\\_\\_');
-      });
-
-      it('should handle complex attack patterns', () => {
-        // Attack: Match anything starting with 'admin' and more
-        const attack = 'admin%';
-        const escaped = escapeIlikePattern(attack);
-        expect(escaped).toBe('admin\\%');
-      });
-
       it('should handle SQL injection via ILIKE escape sequence', () => {
         // Attack: Try to break out of pattern with backslash
         const attack = "test\\' OR '1'='1";
@@ -245,10 +223,12 @@ describe('SQL Injection Prevention', () => {
 
       for (const attack of timingAttacks) {
         expect(validateProductSortColumn(attack)).toBe('created_at');
-        // escapeIlikePattern leaves these as-is because they're passed as
-        // parameterized values, not executed as SQL
-        expect(typeof escapeIlikePattern(attack)).toBe('string');
       }
+
+      // escapeIlikePattern only escapes ILIKE metacharacters (%, _, \) —
+      // SQL keywords are safe because Supabase uses parameterized queries
+      expect(escapeIlikePattern('SLEEP(10)')).toBe('SLEEP(10)');
+      expect(escapeIlikePattern('pg_sleep(10)')).toBe('pg\\_sleep(10)');
     });
   });
 });

@@ -796,7 +796,7 @@ test.describe('Payment Flow - Failed Payments', () => {
 
     // Should show error message
     const bodyText = await page.locator('body').textContent();
-    expect(bodyText?.toLowerCase()).toContain('failed' || 'error' || 'declined');
+    expect(bodyText?.toLowerCase()).toMatch(/failed|error|declined/);
   });
 
   test('should NOT grant access when payment fails', async ({ page }) => {
@@ -874,7 +874,7 @@ test.describe('Payment Flow - Failed Payments', () => {
 
     // Should show processing message
     const bodyText = await page.locator('body').textContent();
-    expect(bodyText?.toLowerCase()).toContain('processing' || 'pending');
+    expect(bodyText?.toLowerCase()).toMatch(/processing|pending/);
   });
 
   test('should handle expired payment session', async ({ page }) => {

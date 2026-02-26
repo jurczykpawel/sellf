@@ -630,10 +630,8 @@ test.describe('Protection Code (Generate Protection Code)', () => {
 
       const body = await response.json();
 
-      // Should either reject or return no access
-      if (response.ok()) {
-        expect(body.hasAccess).toBeFalsy();
-      }
+      expect(response.ok()).toBe(true);
+      expect(body.hasAccess).toBeFalsy();
     });
 
     test('Returns 400 for missing product slug', async ({ request }) => {

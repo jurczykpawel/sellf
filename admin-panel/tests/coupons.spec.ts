@@ -7,9 +7,8 @@ test.describe.configure({ mode: 'serial' });
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   throw new Error('Missing Supabase env variables for testing');
 }
 
@@ -41,7 +40,7 @@ test.describe('Smart Coupons System', () => {
       is_active: true
     }).select().single();
 
-    expect(product).toBeDefined();
+    expect(product, 'Product insert failed — check Supabase logs').not.toBeNull();
 
     // 2. Create Coupon
     const { data: coupon, error: couponError } = await supabaseAdmin.from('coupons').insert({
@@ -58,7 +57,7 @@ test.describe('Smart Coupons System', () => {
 
     // 3. Visit Checkout with Coupon URL Param
     await acceptAllCookies(page);
-    await page.goto(`/checkout/${productSlug}?coupon=${couponCode}&show_promo=true`);
+    await page.goto(`/pl/checkout/${productSlug}?coupon=${couponCode}&show_promo=true`);
 
     // 4. Verify Coupon is Applied in UI
     const couponInput = page.locator('input[placeholder="Enter code"]');
@@ -87,7 +86,7 @@ test.describe('Smart Coupons System', () => {
 
     // 2. Visit Checkout
     await acceptAllCookies(page);
-    await page.goto(`/checkout/${productSlug}?coupon=${invalidCode}`);
+    await page.goto(`/pl/checkout/${productSlug}?coupon=${invalidCode}`);
 
     // 3. Verify Error Message
     const input = page.locator('input[placeholder="Enter code"]');
@@ -128,7 +127,7 @@ test.describe('Smart Coupons System', () => {
 
     // 3. Visit Checkout
     await acceptAllCookies(page);
-    await page.goto(`/checkout/${productSlug}?coupon=${couponCode}`);
+    await page.goto(`/pl/checkout/${productSlug}?coupon=${couponCode}`);
 
     // 4. Verify Application
     await expect(page.getByText(`${discountAmount} USD discount applied`, { exact: false })).toBeVisible({ timeout: 10000 });

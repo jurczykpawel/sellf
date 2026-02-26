@@ -4,6 +4,8 @@ import {
   validateUpdateProduct,
   validateProductId,
   sanitizeProductData,
+  escapeIlikePattern,
+  validateProductSortColumn,
 } from '@/lib/validations/product';
 
 describe('Product Validation', () => {
@@ -298,6 +300,167 @@ describe('Product Validation', () => {
     it('should reject invalid field even in partial update', () => {
       const result = validateUpdateProduct({ price: -50 });
       expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('validateIcon edge cases', () => {
+    it('should reject icon with exactly 21 characters', () => {
+      const result = validateUpdateProduct({ icon: 'a'.repeat(21) });
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Icon must be less than 20 characters');
+    });
+
+    it('should accept icon with exactly 20 characters', () => {
+      const result = validateUpdateProduct({ icon: 'a'.repeat(20) });
+      expect(result.isValid).toBe(true);
+    });
+  });
+
+  describe('validateSlug edge cases', () => {
+    it('should reject slug with SQL injection attempt', () => {
+      const result = validateUpdateProduct({ slug: "'; DROP TABLE products; --" });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject slug with special characters', () => {
+      const result = validateUpdateProduct({ slug: 'test@product' });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should accept single character slug', () => {
+      const result = validateUpdateProduct({ slug: 'a' });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject slug over 100 characters', () => {
+      const result = validateUpdateProduct({ slug: 'a'.repeat(101) });
+      expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('validatePrice edge cases', () => {
+    it('should reject NaN price', () => {
+      const result = validateUpdateProduct({ price: NaN });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject Infinity price', () => {
+      const result = validateUpdateProduct({ price: Infinity });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should accept maximum valid price (999999.99)', () => {
+      const result = validateUpdateProduct({ price: 999999.99 });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject price just over the limit (1000000)', () => {
+      const result = validateUpdateProduct({ price: 1000000 });
+      expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('validateDuration edge cases', () => {
+    it('should accept null duration (unlimited)', () => {
+      const result = validateUpdateProduct({ auto_grant_duration_days: null });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject fractional duration', () => {
+      const result = validateUpdateProduct({ auto_grant_duration_days: 1.5 });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject negative duration', () => {
+      const result = validateUpdateProduct({ auto_grant_duration_days: -1 });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should accept exactly 1 day duration', () => {
+      const result = validateUpdateProduct({ auto_grant_duration_days: 1 });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should accept exactly 3650 days (10 years)', () => {
+      const result = validateUpdateProduct({ auto_grant_duration_days: 3650 });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject 3651 days (just over 10 years)', () => {
+      const result = validateUpdateProduct({ auto_grant_duration_days: 3651 });
+      expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('validateProductId edge cases', () => {
+    it('should reject UUID with uppercase (still valid per spec)', () => {
+      // UUID regex in production uses /i flag, so uppercase should pass
+      const result = validateProductId('550E8400-E29B-41D4-A716-446655440000');
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject UUID-like string with wrong version nibble', () => {
+      // Version 0 is invalid
+      const result = validateProductId('550e8400-e29b-01d4-a716-446655440000');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject UUID-like string with wrong variant nibble', () => {
+      // Variant nibble must be 8, 9, a, or b
+      const result = validateProductId('550e8400-e29b-41d4-0716-446655440000');
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject SQL injection in UUID field', () => {
+      const result = validateProductId("'; DROP TABLE products; --");
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should reject null-like strings', () => {
+      expect(validateProductId('null').isValid).toBe(false);
+      expect(validateProductId('undefined').isValid).toBe(false);
+    });
+  });
+
+  describe('escapeIlikePattern', () => {
+    it('should escape percent wildcard', () => {
+      expect(escapeIlikePattern('100%')).toBe('100\\%');
+    });
+
+    it('should escape underscore wildcard', () => {
+      expect(escapeIlikePattern('test_name')).toBe('test\\_name');
+    });
+
+    it('should escape backslash', () => {
+      expect(escapeIlikePattern('path\\to')).toBe('path\\\\to');
+    });
+
+    it('should handle empty string', () => {
+      expect(escapeIlikePattern('')).toBe('');
+    });
+
+    it('should handle string with all special characters', () => {
+      expect(escapeIlikePattern('%_\\')).toBe('\\%\\_\\\\');
+    });
+  });
+
+  describe('validateProductSortColumn', () => {
+    it('should return valid column for known sort key', () => {
+      expect(validateProductSortColumn('name')).toBe('name');
+      expect(validateProductSortColumn('price')).toBe('price');
+      expect(validateProductSortColumn('created_at')).toBe('created_at');
+    });
+
+    it('should return default for SQL injection attempt', () => {
+      expect(validateProductSortColumn("name; DROP TABLE products;--")).toBe('created_at');
+    });
+
+    it('should return default for null', () => {
+      expect(validateProductSortColumn(null)).toBe('created_at');
+    });
+
+    it('should return default for unknown column', () => {
+      expect(validateProductSortColumn('nonexistent_column')).toBe('created_at');
     });
   });
 });

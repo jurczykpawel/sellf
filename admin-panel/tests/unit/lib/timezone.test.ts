@@ -74,10 +74,11 @@ describe('Timezone Utilities', () => {
   });
 
   describe('formatUTCForDisplay', () => {
-    it('should format date for display', () => {
+    it('should format date for display with date components', () => {
       const result = formatUTCForDisplay('2024-06-15T14:30:00.000Z');
       expect(result).not.toBe('');
       expect(result).toContain('2024');
+      expect(result).toMatch(/\d{1,2}/); // Contains day or month number
     });
 
     it('should return empty string for empty input', () => {
@@ -94,11 +95,8 @@ describe('Timezone Utilities', () => {
         month: 'long',
       });
       expect(result).not.toBe('');
-    });
-
-    it('should use default options when none provided', () => {
-      const result = formatUTCForDisplay('2024-06-15T14:30:00.000Z');
-      expect(result).not.toBe('');
+      expect(result).toContain('2024');
+      expect(result).toMatch(/june|Jun|czerw/i); // Month name in English or Polish
     });
   });
 
@@ -109,9 +107,8 @@ describe('Timezone Utilities', () => {
       expect(timezone.length).toBeGreaterThan(0);
     });
 
-    it('should return common timezone format', () => {
+    it('should return IANA timezone identifier (UTC or Area/Location)', () => {
       const timezone = getUserTimezone();
-      // Either UTC or Area/Location format
       expect(timezone === 'UTC' || timezone.includes('/')).toBe(true);
     });
   });
@@ -145,9 +142,14 @@ describe('Timezone Utilities', () => {
   });
 
   describe('isCurrentlyAvailable', () => {
-    const now = new Date();
-    const pastDate = new Date(now.getTime() - 86400000); // 1 day ago
-    const futureDate = new Date(now.getTime() + 86400000); // 1 day from now
+    let pastDate: Date;
+    let futureDate: Date;
+
+    beforeEach(() => {
+      const now = new Date();
+      pastDate = new Date(now.getTime() - 86400000); // 1 day ago
+      futureDate = new Date(now.getTime() + 86400000); // 1 day from now
+    });
 
     it('should return true when no constraints', () => {
       expect(isCurrentlyAvailable(null, null)).toBe(true);

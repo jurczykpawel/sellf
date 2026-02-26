@@ -93,12 +93,14 @@ test.describe('Product Duplication', () => {
         .from('products')
         .delete()
         .eq('id', testProductId);
+    }
 
-      // Also delete any duplicates created during tests
+    // Also delete any duplicates created during tests (by slug prefix or name pattern)
+    if (testProductSlug) {
       await supabaseAdmin
         .from('products')
         .delete()
-        .like('name', '[COPY] Original Product%');
+        .like('slug', `copy-${testProductSlug}%`);
     }
 
     // Cleanup admin user
@@ -193,31 +195,57 @@ test.describe('Product Duplication', () => {
     await expect(wizardTitle).toBeVisible();
   });
 
-  test('should preserve all product fields when duplicating via API', async ({ request }) => {
-    // Get original product
-    const { data: original } = await supabaseAdmin
+  test('should create a duplicate product preserving all fields', async ({ request }) => {
+    // Get the original product
+    const { data: original, error: fetchError } = await supabaseAdmin
       .from('products')
       .select('*')
       .eq('id', testProductId)
       .single();
 
+    expect(fetchError).toBeNull();
     expect(original).toBeTruthy();
 
-    // Verify original has all expected fields
-    expect(original!.price).toBe(100);
-    expect(original!.sale_price).toBe(60);
-    expect(original!.description).toBe('Product to be duplicated');
-    expect(original!.long_description).toBe('Detailed description');
-    expect(original!.is_active).toBe(true);
-    expect(original!.is_featured).toBe(true);
-    expect(original!.omnibus_exempt).toBe(false);
-    expect(original!.icon).toBe('🚀');
+    // Simulate what the UI duplication does: create a new product
+    // with the same fields but a new name and slug (mirroring handleDuplicateProduct
+    // in ProductsPageContent.tsx which sets id='', slug='', name='[COPY] ...')
+    const duplicateSlug = `copy-${testProductSlug}`;
+    const { data: duplicate, error: duplicateError } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `[COPY] ${original!.name}`,
+        slug: duplicateSlug,
+        price: original!.price,
+        sale_price: original!.sale_price,
+        sale_price_until: original!.sale_price_until,
+        currency: original!.currency,
+        description: original!.description,
+        long_description: original!.long_description,
+        is_active: original!.is_active,
+        is_featured: original!.is_featured,
+        omnibus_exempt: original!.omnibus_exempt,
+        icon: original!.icon,
+      })
+      .select()
+      .single();
 
-    // Note: In a real duplicate scenario via UI:
-    // 1. User clicks Duplicate button
-    // 2. Form opens with all fields pre-filled
-    // 3. User modifies name to "[COPY] Original Product"
-    // 4. User saves, which creates NEW product via POST /api/admin/products
-    // 5. New product gets new id and slug, but keeps all other fields
+    expect(duplicateError).toBeNull();
+    expect(duplicate).toBeTruthy();
+
+    // Verify the duplicated product has a different id and slug
+    expect(duplicate!.id).not.toBe(original!.id);
+    expect(duplicate!.slug).toBe(duplicateSlug);
+    expect(duplicate!.name).toBe(`[COPY] ${original!.name}`);
+
+    // Verify all content fields were preserved from the original
+    expect(duplicate!.price).toBe(original!.price);
+    expect(duplicate!.sale_price).toBe(original!.sale_price);
+    expect(duplicate!.currency).toBe(original!.currency);
+    expect(duplicate!.description).toBe(original!.description);
+    expect(duplicate!.long_description).toBe(original!.long_description);
+    expect(duplicate!.is_active).toBe(original!.is_active);
+    expect(duplicate!.is_featured).toBe(original!.is_featured);
+    expect(duplicate!.omnibus_exempt).toBe(original!.omnibus_exempt);
+    expect(duplicate!.icon).toBe(original!.icon);
   });
 });

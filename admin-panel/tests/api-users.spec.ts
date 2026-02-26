@@ -14,22 +14,43 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // Separate client for user authentication (to avoid corrupting supabaseAdmin's service role)
 const supabaseAuth = createClient(SUPABASE_URL, ANON_KEY || '');
 
+// Helper to login as admin via browser context
+async function loginAsAdmin(page: any, email: string, password: string) {
+  await page.goto('/login');
+
+  await page.evaluate(async ({ email, password, url, anonKey }: { email: string; password: string; url: string; anonKey: string }) => {
+    // @ts-ignore
+    const { createBrowserClient } = await import('https://esm.sh/@supabase/ssr@0.5.2');
+    const sb = createBrowserClient(url, anonKey);
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }, {
+    email,
+    password,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  });
+
+  await page.reload();
+}
+
 test.describe('API /api/users', () => {
   let adminUserId: string;
   let adminEmail: string;
+  const adminPassword = 'password123';
 
   test.beforeAll(async () => {
     // 1. Create a fresh admin user
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `api-test-${randomStr}@example.com`;
-    
+
     const { data: { user }, error } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
-      password: 'password123',
+      password: adminPassword,
       email_confirm: true,
       user_metadata: { full_name: 'API Admin' }
     });
-    
+
     if (error) throw error;
     adminUserId = user!.id;
 
@@ -42,32 +63,12 @@ test.describe('API /api/users', () => {
   test.afterAll(async () => {
     // Cleanup
     if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
       await supabaseAdmin.auth.admin.deleteUser(adminUserId);
     }
   });
 
-  test('GET /api/users should return 200 and support sorting', async ({ request }) => {
-    // We need a session to call the API (since it checks requireAdminApi)
-    // We can simulate a login to get an access_token, then pass it in headers?
-    // OR, better: use the browser flow helper to get cookies.
-    // BUT Playwright APIRequest context doesn't easily share cookies with Browser context unless we merge them.
-    
-    // Simpler: Just log in via REST API to get a session token
-    // Use supabaseAuth (not supabaseAdmin) to avoid corrupting admin client's service role
-    const { data: sessionData, error: loginError } = await supabaseAuth.auth.signInWithPassword({
-      email: adminEmail,
-      password: 'password123'
-    });
-    
-    if (loginError) throw loginError;
-    const accessToken = sessionData.session!.access_token;
-    
-    // Now call our API with the Bearer token?
-    // Wait, our API uses cookie-based auth: `await createClient()` (server) reads cookies.
-    // It MIGHT accept Authorization header too if configured? 
-    // Standard Supabase SSR usually looks for cookies.
-    
-    // Let's try passing the cookie manually.
+  test('GET /api/users should return 401 for unauthenticated requests', async ({ request }) => {
     const response = await request.get('/api/users', {
       params: {
         page: '1',
@@ -75,71 +76,111 @@ test.describe('API /api/users', () => {
         search: '',
         sortBy: 'user_created_at',
         sortOrder: 'desc'
-      },
-      headers: {
-        // Construct standard cookie string (depends on cookie name config)
-        'Cookie': `sb-${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID || 'token'}-auth-token=${accessToken};` // This is tricky to guess locally
       }
     });
 
-    // Strategy B: Use Browser Context to login, then use page.request to fetch
-    // This handles cookies automatically.
-  });
-});
-
-test('GET /api/users via Browser Context', async ({ page, context }) => {
-  // 1. Create Admin
-  const randomStr = Math.random().toString(36).substring(7);
-  const email = `api-test-${randomStr}@example.com`;
-  const password = 'password123';
-
-  const { data: { user } } = await supabaseAdmin.auth.admin.createUser({
-    email, password, email_confirm: true, user_metadata: { full_name: 'API Tester' }
-  });
-  await supabaseAdmin.from('admin_users').insert({ user_id: user!.id });
-
-  // 2. Login via Client SDK in browser (bypassing UI forms)
-  await page.goto('/login'); // Load app to initialize Supabase client
-  
-  await page.evaluate(async ({ email, password, url, anonKey }) => {
-    // @ts-ignore
-    const { createBrowserClient } = await import('https://esm.sh/@supabase/ssr@0.5.2');
-    const sb = createBrowserClient(url, anonKey);
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  }, { 
-    email, 
-    password, 
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL!, 
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! 
+    expect(response.status()).toBe(401);
+    const body = await response.json();
+    expect(body.error).toBeDefined();
   });
 
-  // Reload to ensure Middleware picks up the session cookie
-  await page.reload();
+  test('GET /api/users should return 200 and paginated user list for admin', async ({ page }) => {
+    await loginAsAdmin(page, adminEmail, adminPassword);
 
-  
-  // Wait for dashboard redirect or similar to confirm login
-  // await expect(page).toHaveURL(/dashboard/); 
+    const response = await page.request.get('/api/users?page=1&limit=10&search=&sortBy=user_created_at&sortOrder=desc');
 
-  // 3. Call API
-  const response = await page.request.get('/api/users?page=1&limit=10&search=&sortBy=user_created_at&sortOrder=desc');
-  
-  const status = response.status();
-  const body = await response.json();
-  
-  console.log('API Response:', status, body);
-  
-  // If 401, print why
-  if (status === 401) console.log('Unauthorized error:', body);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
 
-  expect(status).toBe(200);
-  expect(body.users).toBeInstanceOf(Array);
-  
-  // Verify structure
-  if (body.users.length > 0) {
+    // Verify response structure
+    expect(body.users).toBeInstanceOf(Array);
+    expect(body.pagination).toBeDefined();
+    expect(body.pagination).toHaveProperty('total');
+    expect(body.pagination).toHaveProperty('totalPages');
+    expect(body.pagination).toHaveProperty('currentPage');
+    expect(body.pagination.currentPage).toBe(1);
+
+    // We created at least one user (the admin), so users array must not be empty
+    expect(body.users.length).toBeGreaterThan(0);
+
+    // Verify user structure
     const firstUser = body.users[0];
     expect(firstUser).toHaveProperty('email');
+    expect(firstUser).toHaveProperty('id');
     expect(firstUser).toHaveProperty('stats');
     expect(firstUser.stats).toHaveProperty('total_products');
-  }
+  });
+
+  test('GET /api/users should support sorting by email ascending', async ({ page }) => {
+    await loginAsAdmin(page, adminEmail, adminPassword);
+
+    const response = await page.request.get('/api/users?page=1&limit=10&search=&sortBy=email&sortOrder=asc');
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    expect(body.users).toBeInstanceOf(Array);
+    expect(body.users.length).toBeGreaterThan(0);
+  });
+
+  test('GET /api/users should support search by email', async ({ page }) => {
+    await loginAsAdmin(page, adminEmail, adminPassword);
+
+    // Search for the admin user we created
+    const response = await page.request.get(`/api/users?page=1&limit=10&search=api-test&sortBy=user_created_at&sortOrder=desc`);
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    expect(body.users).toBeInstanceOf(Array);
+    expect(body.users.length).toBeGreaterThan(0);
+
+    // All returned users should match the search term
+    for (const user of body.users) {
+      expect(user.email.toLowerCase()).toContain('api-test');
+    }
+  });
+
+  test('GET /api/users should return empty results for non-matching search', async ({ page }) => {
+    await loginAsAdmin(page, adminEmail, adminPassword);
+
+    const response = await page.request.get('/api/users?page=1&limit=10&search=zzz-nonexistent-email-zzz&sortBy=user_created_at&sortOrder=desc');
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+
+    expect(body.users).toBeInstanceOf(Array);
+    expect(body.users.length).toBe(0);
+    expect(body.pagination.total).toBe(0);
+  });
+
+  test('POST /api/users should return 401 for unauthenticated requests', async ({ request }) => {
+    const response = await request.post('/api/users', {
+      data: {
+        userId: '00000000-0000-0000-0000-000000000000',
+        productId: '00000000-0000-0000-0000-000000000000',
+        action: 'grant'
+      }
+    });
+
+    expect(response.status()).toBe(401);
+    const body = await response.json();
+    expect(body.error).toBeDefined();
+  });
+
+  test('POST /api/users should return 400 for invalid action', async ({ page }) => {
+    await loginAsAdmin(page, adminEmail, adminPassword);
+
+    const response = await page.request.post('/api/users', {
+      data: {
+        userId: adminUserId,
+        productId: '00000000-0000-0000-0000-000000000000',
+        action: 'invalid-action'
+      }
+    });
+
+    expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body.error).toBeDefined();
+  });
 });

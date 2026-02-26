@@ -49,7 +49,7 @@ test.describe('Profile Management E2E', () => {
     console.log('Logging in with magic link...');
     // Login via link
     await page.goto(magicLink);
-    await expect(page).toHaveURL(/\/dashboard|my-products/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/(en|pl)\/(dashboard|my-products)/, { timeout: 15000 });
 
     // 2. Navigate to Profile
     await page.goto('/en/profile'); // Force EN locale
@@ -68,7 +68,20 @@ test.describe('Profile Management E2E', () => {
     
     // 6. Reload and Verify Persistence
     await page.reload();
-    await expect(page.locator('input[value="John"]')).toBeVisible();
-    await expect(page.locator('input[value="Test Corp"]')).toBeVisible();
+    await page.waitForLoadState('domcontentloaded');
+
+    // Use toHaveValue to check actual input values after reload (not CSS attribute selectors)
+    const firstNameInput = page.locator('input[placeholder="John"]');
+    await expect(firstNameInput).toBeVisible({ timeout: 10000 });
+    await expect(firstNameInput).toHaveValue('John');
+
+    const lastNameInput = page.locator('input[placeholder="Doe"]');
+    await expect(lastNameInput).toHaveValue('Doe');
+
+    const taxIdInput = page.locator('input[placeholder="PL1234567890"]');
+    await expect(taxIdInput).toHaveValue('PL5555555555');
+
+    const companyInput = page.locator('input[placeholder="Acme Inc."]');
+    await expect(companyInput).toHaveValue('Test Corp');
   });
 });

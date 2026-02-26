@@ -77,14 +77,16 @@ test.describe('Smoke Tests', () => {
       const response = await page.goto('/checkout/non-existent-product-slug');
 
       // Page should load (might show error state in UI)
-      expect(response?.status()).toBeLessThan(500);
+      expect(response).not.toBeNull();
+      expect(response!.status()).toBeLessThan(500);
     });
 
     test('product page loads for invalid slug', async ({ page }) => {
       const response = await page.goto('/p/non-existent-product-slug');
 
       // Page should load (might show error state in UI)
-      expect(response?.status()).toBeLessThan(500);
+      expect(response).not.toBeNull();
+      expect(response!.status()).toBeLessThan(500);
     });
   });
 
@@ -114,16 +116,17 @@ test.describe('Smoke Tests', () => {
     test('system status endpoint works', async ({ request }) => {
       const response = await request.get('/api/v1/system/status');
       // Status endpoint might or might not require auth
-      expect([200, 401]).toContain(response.status());
+      const status = response.status();
+      expect(status === 200 || status === 401).toBe(true);
     });
   });
 
   test.describe('Internationalization', () => {
     test('default locale is English', async ({ page }) => {
       await page.goto('/');
-      // Check for English content
-      const html = await page.content();
-      expect(html).toMatch(/en|english/i);
+      // Check for English lang attribute on html element
+      const lang = await page.locator('html').getAttribute('lang');
+      expect(lang).toBe('en');
     });
 
     test('Polish locale loads', async ({ page }) => {

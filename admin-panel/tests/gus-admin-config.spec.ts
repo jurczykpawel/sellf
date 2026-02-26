@@ -121,8 +121,8 @@ test.describe('GUS API Admin Configuration', () => {
     await expect(gusInput).toBeVisible({ timeout: 10000 });
 
     // Check for heading text (may be in h2 or other element)
-    const hasGUSText = await page.locator('text=Integracja').or(page.locator('text=GUS')).first().isVisible().catch(() => false);
-    expect(hasGUSText).toBeTruthy();
+    const gusText = page.locator('text=Integracja').or(page.locator('text=GUS')).first();
+    await expect(gusText).toBeVisible({ timeout: 5000 });
   });
 
   test('should save GUS API key and enable integration', async ({ page }) => {
@@ -159,6 +159,7 @@ test.describe('GUS API Admin Configuration', () => {
     if (!(await enableCheckbox.isChecked())) {
       await enableCheckbox.check();
     }
+    await expect(enableCheckbox).toBeChecked();
 
     // Click save button WITHIN GUS container (not the IntegrationsForm save button!)
     const saveButton = gusContainer.locator('button').filter({ hasText: /Zapisz konfigurację|Save Configuration/i }).first();

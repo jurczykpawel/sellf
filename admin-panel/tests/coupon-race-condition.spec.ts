@@ -126,21 +126,20 @@ test.describe('Coupon Race Condition Security', () => {
     ]);
 
     const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
 
     console.log(`\n🔍 RACE CONDITION TEST (GLOBAL LIMIT):`);
     console.log(`   - Coupon usage limit: 1`);
     console.log(`   - Concurrent requests: 10`);
     console.log(`   - Successful checkouts: ${successCount}`);
+    console.log(`   - Failed checkouts: ${failureCount}`);
 
     // CRITICAL: Should be at most 1 success
     // If > 1, race condition vulnerability exists
     expect(successCount).toBeLessThanOrEqual(1);
 
-    if (successCount > 1) {
-      console.error(`❌ RACE CONDITION DETECTED: ${successCount} requests succeeded but limit is 1!`);
-    } else {
-      console.log(`✅ SAFE: Only ${successCount} request(s) succeeded`);
-    }
+    // Verify remaining requests were properly rejected
+    expect(failureCount).toBeGreaterThanOrEqual(9);
   });
 
   test('SECURITY: Per-user limit allows multiple verifications for same reservation', async ({ request }) => {

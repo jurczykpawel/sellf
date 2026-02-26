@@ -1,106 +1,84 @@
 /**
  * Supabase Client Configuration Tests
- * Verifies that Supabase clients are properly configured with runtime values
+ * Verifies that createAdminClient uses the correct env vars,
+ * throws on missing config, and returns a usable Supabase client.
+ *
+ * No mocks — tests the real createAdminClient function and verifies
+ * it produces a proper Supabase client with expected interface.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-
-// Mock the Supabase client creation to capture the URL being used
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: vi.fn((url: string, key: string) => {
-    // Return a mock that stores the URL for testing
-    return {
-      _url: url,
-      _key: key,
-      auth: {
-        getUser: vi.fn(),
-        getSession: vi.fn(),
-      },
-      from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        insert: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        delete: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn(),
-      })),
-    };
-  }),
-}));
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('Supabase Admin Client', () => {
-  it('should use SUPABASE_URL not NEXT_PUBLIC_SUPABASE_URL', async () => {
-    // Set up test env
-    const originalUrl = process.env.SUPABASE_URL;
-    const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  let originalUrl: string | undefined;
+  let originalKey: string | undefined;
 
-    process.env.SUPABASE_URL = 'https://test-runtime.supabase.co';
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+  beforeEach(() => {
+    originalUrl = process.env.SUPABASE_URL;
+    originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
 
-    // Clear module cache to get fresh import
+  afterEach(() => {
+    process.env.SUPABASE_URL = originalUrl;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
     vi.resetModules();
+  });
+
+  it('should return a client with expected Supabase methods', async () => {
+    process.env.SUPABASE_URL = 'https://test.supabase.co';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key-456';
 
     const { createAdminClient } = await import('@/lib/supabase/admin');
     const client = createAdminClient();
 
-    expect((client as any)._url).toBe('https://test-runtime.supabase.co');
-    expect((client as any)._url).not.toContain('placeholder');
+    expect(client).toBeDefined();
+    expect(typeof client.from).toBe('function');
+    expect(typeof client.auth.getUser).toBe('function');
+    expect(typeof client.auth.getSession).toBe('function');
+    expect(typeof client.rpc).toBe('function');
+  });
 
-    // Restore
-    process.env.SUPABASE_URL = originalUrl;
-    process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  it('should create distinct client instances on each call', async () => {
+    process.env.SUPABASE_URL = 'https://test.supabase.co';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key-789';
+
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const client1 = createAdminClient();
+    const client2 = createAdminClient();
+
+    expect(client1).not.toBe(client2);
   });
 
   it('should throw if SUPABASE_URL is not defined', async () => {
-    const originalUrl = process.env.SUPABASE_URL;
-    const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
     delete process.env.SUPABASE_URL;
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
-
-    vi.resetModules();
 
     const { createAdminClient } = await import('@/lib/supabase/admin');
 
     expect(() => createAdminClient()).toThrow('SUPABASE_URL is not defined');
-
-    // Restore
-    process.env.SUPABASE_URL = originalUrl;
-    process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
   });
 
   it('should throw if SUPABASE_SERVICE_ROLE_KEY is not defined', async () => {
-    const originalUrl = process.env.SUPABASE_URL;
-    const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
     process.env.SUPABASE_URL = 'https://test.supabase.co';
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    vi.resetModules();
 
     const { createAdminClient } = await import('@/lib/supabase/admin');
 
     expect(() => createAdminClient()).toThrow('SUPABASE_SERVICE_ROLE_KEY is not defined');
-
-    // Restore
-    process.env.SUPABASE_URL = originalUrl;
-    process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
   });
-});
 
-describe('No Placeholder Values in Clients', () => {
-  it('should not create client with placeholder URL', async () => {
-    const { createClient } = await import('@supabase/supabase-js');
-
-    // This should fail if anyone tries to use placeholder
-    const mockCreateClient = createClient as any;
-
-    // Verify that no calls were made with placeholder URLs
-    const calls = mockCreateClient.mock?.calls || [];
-    const placeholderCalls = calls.filter((call: any[]) =>
-      call[0]?.includes('placeholder')
+  it('should use SUPABASE_URL env var (not NEXT_PUBLIC variant)', async () => {
+    // Verify the admin module reads from SUPABASE_URL specifically
+    // by reading the source file
+    const { readFileSync } = await import('fs');
+    const { resolve } = await import('path');
+    const source = readFileSync(
+      resolve(__dirname, '../../src/lib/supabase/admin.ts'),
+      'utf-8'
     );
 
-    expect(placeholderCalls).toHaveLength(0);
+    expect(source).toContain('process.env.SUPABASE_URL');
+    expect(source).toContain('process.env.SUPABASE_SERVICE_ROLE_KEY');
+    expect(source).not.toContain('NEXT_PUBLIC_SUPABASE_URL');
   });
 });

@@ -94,12 +94,8 @@ test.describe('PWYW Checkout UI', () => {
   // ========================================
 
   test('should display preset buttons for PWYW product', async ({ page }) => {
-    // Debug: log the product being tested
-    console.log('Testing PWYW product:', pwywProduct?.slug, 'ID:', pwywProduct?.id);
-
-    if (!pwywProduct?.slug) {
-      throw new Error('PWYW product not created - check beforeAll');
-    }
+    // Guard: ensure product was created in beforeAll
+    expect(pwywProduct?.slug).toBeTruthy();
 
     await page.goto(`/pl/checkout/${pwywProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');

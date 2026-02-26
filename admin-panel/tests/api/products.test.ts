@@ -128,16 +128,17 @@ describe('Products API v1', () => {
       const firstPage = await get<ApiResponse<Product[]>>('/api/v1/products?limit=1');
       expect(firstPage.status).toBe(200);
 
-      if (firstPage.data.pagination?.has_more) {
-        // Get second page
-        const secondPage = await get<ApiResponse<Product[]>>(
-          `/api/v1/products?limit=1&cursor=${firstPage.data.pagination.next_cursor}`
-        );
-        expect(secondPage.status).toBe(200);
+      expect(firstPage.data.pagination?.has_more).toBe(true);
+      expect(firstPage.data.pagination?.next_cursor).toBeTruthy();
 
-        // Products should be different
-        expect(secondPage.data.data![0]?.id).not.toBe(firstPage.data.data![0]?.id);
-      }
+      // Get second page
+      const secondPage = await get<ApiResponse<Product[]>>(
+        `/api/v1/products?limit=1&cursor=${firstPage.data.pagination!.next_cursor}`
+      );
+      expect(secondPage.status).toBe(200);
+
+      // Products should be different
+      expect(secondPage.data.data![0]?.id).not.toBe(firstPage.data.data![0]?.id);
     });
   });
 
@@ -246,15 +247,24 @@ describe('Products API v1', () => {
     });
 
     it('should validate price is not zero', async () => {
+      const slug = uniqueSlug();
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {
         name: 'Test Product',
-        slug: uniqueSlug(),
+        slug,
         description: 'Test description',
         price: 0,
       });
 
-      // Could be 400 (validation) or 201 (if zero price allowed for free products)
-      expect([201, 400]).toContain(status);
+      if (status === 201) {
+        // Zero price allowed for free products — verify it was created correctly
+        expect(data.data!.price).toBe(0);
+        createdProductIds.push(data.data!.id);
+      } else if (status === 400) {
+        // Zero price rejected by validation
+        expect(data.error).toBeDefined();
+      } else {
+        expect.fail(`Expected status 201 or 400 but got ${status}`);
+      }
     });
   });
 

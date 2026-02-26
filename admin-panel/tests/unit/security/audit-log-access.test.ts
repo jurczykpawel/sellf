@@ -1,232 +1,147 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * ============================================================================
  * SECURITY TEST: Audit Log Access Control
  * ============================================================================
  *
+ * Tests the REAL migration SQL to verify RLS policies on the audit_log table.
+ *
  * VULNERABILITY: Unrestricted Audit Log INSERT (V-CRITICAL-09)
- * LOCATION: supabase/migrations/20250101000000_core_schema.sql:1052-1054
+ * LOCATION: supabase/migrations/20250101000000_core_schema.sql
  *
  * ATTACK FLOW (before fix):
  * 1. Any authenticated or anonymous user could INSERT into audit_log directly
  * 2. Attacker forges audit entries to cover tracks or frame others
  * 3. Compliance audit becomes unreliable (cannot trust audit trail)
  *
- * ROOT CAUSE:
- * The RLS policy had no role restriction:
- *   CREATE POLICY "Allow system to insert audit logs" ON audit_log
- *     FOR INSERT
- *     WITH CHECK (true);  -- No TO clause = applies to ALL roles!
- *
- * FIX (V19):
- * Added TO service_role to restrict direct INSERTs:
- *   CREATE POLICY "Allow system to insert audit logs" ON audit_log
- *     FOR INSERT
- *     TO service_role  -- Now only service_role can INSERT directly
- *     WITH CHECK (true);
- *
- * Note: The log_audit_entry() function uses SECURITY DEFINER which
- * bypasses RLS, so legitimate audit logging still works.
+ * FIX (V19): Added TO service_role to restrict direct INSERTs
  *
  * Created during security audit iteration 8 (2026-01-08)
+ * Rewritten to test real migration SQL (2026-02-26)
  * ============================================================================
  */
 
+const migrationPath = join(__dirname, '../../../../supabase/migrations/20250101000000_core_schema.sql');
+const migrationSQL = readFileSync(migrationPath, 'utf-8');
+
 describe('Audit Log Access Control', () => {
-  describe('Policy Configuration', () => {
-    it('should restrict audit_log INSERT to service_role only', () => {
-      /**
-       * The secure policy should be:
-       * - Operation: INSERT
-       * - Restricted to: service_role
-       * - WITH CHECK: true (service_role can insert anything)
-       */
-      const securePolicy = {
-        table: 'audit_log',
-        operation: 'INSERT',
-        role: 'service_role',
-        withCheck: true,
-      };
-
-      expect(securePolicy.role).toBe('service_role');
-      expect(securePolicy.operation).toBe('INSERT');
+  describe('Table Definition', () => {
+    it('audit_log table has RLS enabled', () => {
+      expect(migrationSQL).toMatch(/ALTER\s+TABLE\s+audit_log\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/);
     });
 
-    it('should NOT allow anonymous users to INSERT', () => {
-      /**
-       * Vulnerable policy (before fix):
-       * - No role restriction = anon, authenticated, service_role all allowed
-       *
-       * Secure policy (after fix):
-       * - Only service_role can INSERT directly
-       * - anon and authenticated CANNOT insert
-       */
-      const allowedRoles = ['service_role'];
-      const blockedRoles = ['anon', 'authenticated'];
-
-      blockedRoles.forEach(role => {
-        expect(allowedRoles).not.toContain(role);
-      });
+    it('operation column has CHECK constraint for INSERT, UPDATE, DELETE', () => {
+      expect(migrationSQL).toMatch(
+        /operation\s+TEXT\s+NOT\s+NULL\s+CHECK\s*\(\s*operation\s+IN\s*\(\s*'INSERT'\s*,\s*'UPDATE'\s*,\s*'DELETE'\s*\)\s*\)/
+      );
     });
 
-    it('should NOT allow authenticated users to INSERT directly', () => {
-      /**
-       * Even authenticated users should not be able to insert
-       * audit entries directly - they must use log_audit_entry() function
-       * which has proper validation.
-       */
-      const canAuthenticatedInsertDirectly = false;
-      expect(canAuthenticatedInsertDirectly).toBe(false);
+    it('table has performed_at column with default NOW()', () => {
+      expect(migrationSQL).toMatch(/performed_at\s+TIMESTAMPTZ\s+DEFAULT\s+NOW\(\)\s+NOT\s+NULL/);
+    });
+
+    it('table has user_id column referencing auth.users', () => {
+      expect(migrationSQL).toMatch(/user_id\s+UUID\s+REFERENCES\s+auth\.users\(id\)/);
+    });
+
+    it('table has performed_at index for efficient queries', () => {
+      expect(migrationSQL).toMatch(
+        /CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+idx_audit_log_performed_at\s+ON\s+audit_log\s*\(\s*performed_at\s+DESC\s*\)/
+      );
     });
   });
 
-  describe('Vulnerability Scenarios', () => {
-    it('Scenario: Audit trail forgery by attacker', () => {
-      /**
-       * Attack (before fix):
-       * 1. Attacker authenticates as regular user
-       * 2. Performs malicious action (e.g., data theft)
-       * 3. INSERTs fake audit entry showing "admin" did something else
-       * 4. Security team investigates wrong person
-       *
-       * After fix: Attacker cannot INSERT directly - gets RLS violation
-       */
-      const maliciousEntry = {
-        table_name: 'products',
-        operation: 'DELETE',
-        user_id: 'admin-uuid', // Framing the admin!
-        old_values: { id: 'product-123' },
-        new_values: null,
-      };
-
-      // Before fix: Would succeed
-      // After fix: RLS violation - no policy for authenticated role
-
-      const wouldSucceedBeforeFix = true;
-      const wouldSucceedAfterFix = false;
-
-      expect(wouldSucceedAfterFix).toBe(false);
-    });
-
-    it('Scenario: Covering tracks by deleting/modifying audit entries', () => {
-      /**
-       * Audit log should be immutable:
-       * - No UPDATE policy at all (entries cannot be modified)
-       * - No DELETE policy for regular users (only cleanup functions)
-       *
-       * This test verifies the principle of audit immutability.
-       */
-      const auditLogOperations = {
-        select: 'admin_users only',
-        insert: 'service_role only',
-        update: 'no policy (blocked)',
-        delete: 'no policy (blocked, except cleanup function)',
-      };
-
-      expect(auditLogOperations.update).toContain('blocked');
-      expect(auditLogOperations.delete).toContain('blocked');
-    });
-
-    it('Scenario: Spam/DoS via audit log flooding', () => {
-      /**
-       * Before fix: Attacker could flood audit_log with entries
-       * After fix: Only service_role can INSERT, rate-limited at app level
-       */
-      const canAnonymousFlood = false;
-      const canAuthenticatedFlood = false;
-
-      expect(canAnonymousFlood).toBe(false);
-      expect(canAuthenticatedFlood).toBe(false);
+  describe('RLS Policy: INSERT restricted to service_role', () => {
+    it('INSERT policy is restricted TO service_role (not anon or authenticated)', () => {
+      const insertPolicyMatch = migrationSQL.match(
+        /CREATE\s+POLICY\s+"Allow system to insert audit logs"\s+ON\s+audit_log[\s\S]*?;/
+      );
+      expect(insertPolicyMatch).not.toBeNull();
+      const insertPolicy = insertPolicyMatch![0];
+      expect(insertPolicy).toMatch(/TO\s+service_role/);
+      expect(insertPolicy).not.toMatch(/TO\s+anon/);
+      expect(insertPolicy).not.toMatch(/TO\s+authenticated/);
     });
   });
 
-  describe('Legitimate Use Cases', () => {
-    it('log_audit_entry() function should still work', () => {
-      /**
-       * The log_audit_entry() function uses SECURITY DEFINER
-       * which runs as the function owner, bypassing RLS.
-       * This ensures legitimate audit logging continues to work.
-       */
-      const functionProperties = {
-        name: 'log_audit_entry',
-        securityDefiner: true,
-        searchPath: "''", // Secure search_path
-        grantedTo: ['service_role', 'authenticated'],
-      };
-
-      expect(functionProperties.securityDefiner).toBe(true);
-      expect(functionProperties.grantedTo).toContain('authenticated');
-    });
-
-    it('triggers can still write audit entries via function', () => {
-      /**
-       * Database triggers call log_audit_entry() to record changes.
-       * Since the function is SECURITY DEFINER, triggers still work.
-       */
-      const triggerAuditFlow = {
-        trigger: 'fires on UPDATE',
-        calls: 'log_audit_entry()',
-        functionBypassesRLS: true,
-        result: 'audit entry created',
-      };
-
-      expect(triggerAuditFlow.functionBypassesRLS).toBe(true);
-    });
-
-    it('service_role can INSERT directly (for edge cases)', () => {
-      /**
-       * Service role retains ability to INSERT directly for:
-       * - Bulk import/migration scenarios
-       * - Emergency manual logging
-       * - System-level operations
-       */
-      const serviceRoleCanInsert = true;
-      expect(serviceRoleCanInsert).toBe(true);
+  describe('RLS Policy: SELECT requires authenticated + admin check', () => {
+    it('SELECT policy requires authenticated role and checks admin_users with auth.uid()', () => {
+      const selectPolicyMatch = migrationSQL.match(
+        /CREATE\s+POLICY\s+"Allow admin users to read audit logs"\s+ON\s+audit_log[\s\S]*?;/
+      );
+      expect(selectPolicyMatch).not.toBeNull();
+      const selectPolicy = selectPolicyMatch![0];
+      expect(selectPolicy).toMatch(/TO\s+authenticated/);
+      expect(selectPolicy).toContain('admin_users');
+      expect(selectPolicy).toMatch(/auth\.uid\(\)/);
     });
   });
 
-  describe('Function Validation', () => {
-    it('log_audit_entry validates table_name', () => {
-      /**
-       * The function validates inputs to prevent abuse:
-       * - table_name: 1-100 characters, not null
-       */
-      const validation = {
-        tableName: {
-          required: true,
-          minLength: 1,
-          maxLength: 100,
-        },
-      };
-
-      expect(validation.tableName.required).toBe(true);
-      expect(validation.tableName.maxLength).toBe(100);
+  describe('Audit log immutability: no UPDATE or DELETE policies', () => {
+    it('no UPDATE policy exists on audit_log', () => {
+      // Search for any policy on audit_log with FOR UPDATE
+      const updatePolicyRegex = /CREATE\s+POLICY\s+[^;]*ON\s+audit_log\s+FOR\s+UPDATE/i;
+      expect(migrationSQL).not.toMatch(updatePolicyRegex);
     });
 
-    it('log_audit_entry validates operation type', () => {
-      /**
-       * Only valid SQL operations allowed:
-       * - INSERT, UPDATE, DELETE
-       */
-      const allowedOperations = ['INSERT', 'UPDATE', 'DELETE'];
+    it('no DELETE policy for regular users on audit_log', () => {
+      // Verify no DELETE policy with TO authenticated or TO anon on audit_log
+      const deletePolicyRegex = /CREATE\s+POLICY\s+[^;]*ON\s+audit_log\s+FOR\s+DELETE\s+TO\s+(authenticated|anon)/i;
+      expect(migrationSQL).not.toMatch(deletePolicyRegex);
+    });
+  });
 
-      expect(allowedOperations).toContain('INSERT');
-      expect(allowedOperations).toContain('UPDATE');
-      expect(allowedOperations).toContain('DELETE');
-      expect(allowedOperations).not.toContain('TRUNCATE');
-      expect(allowedOperations).not.toContain('DROP');
+  describe('log_audit_entry() function properties', () => {
+    it('function uses SECURITY DEFINER to bypass RLS', () => {
+      // Extract the log_audit_entry function definition
+      const fnMatch = migrationSQL.match(
+        /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+log_audit_entry\([\s\S]*?\$\$\s+LANGUAGE\s+plpgsql\s+SECURITY\s+DEFINER/
+      );
+      expect(fnMatch).not.toBeNull();
     });
 
-    it('log_audit_entry limits JSONB size (DoS prevention)', () => {
-      /**
-       * Prevents DoS via large JSONB payloads:
-       * - old_values: max 64KB
-       * - new_values: max 64KB
-       */
-      const maxJsonbSize = 65536; // 64KB
+    it('function sets secure search_path', () => {
+      const fnBlockMatch = migrationSQL.match(
+        /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+log_audit_entry\([\s\S]*?SET\s+search_path\s*=\s*''/
+      );
+      expect(fnBlockMatch).not.toBeNull();
+    });
 
-      expect(maxJsonbSize).toBe(65536);
+    it('function is granted to service_role and authenticated', () => {
+      expect(migrationSQL).toMatch(
+        /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+log_audit_entry\s+TO\s+service_role\s*,\s*authenticated/
+      );
+    });
+
+    it('function validates table_name length (1-100 chars)', () => {
+      const fnMatch = migrationSQL.match(
+        /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+log_audit_entry\([\s\S]*?END;\s*\$\$/
+      );
+      expect(fnMatch).not.toBeNull();
+      const fnBody = fnMatch![0];
+      expect(fnBody).toContain('length(table_name_param) > 100');
+    });
+
+    it('function validates operation is INSERT, UPDATE, or DELETE', () => {
+      const fnMatch = migrationSQL.match(
+        /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+log_audit_entry\([\s\S]*?END;\s*\$\$/
+      );
+      expect(fnMatch).not.toBeNull();
+      const fnBody = fnMatch![0];
+      expect(fnBody).toMatch(/operation_param\s+NOT\s+IN\s*\(\s*'INSERT'\s*,\s*'UPDATE'\s*,\s*'DELETE'\s*\)/);
+    });
+
+    it('function limits JSONB size to 64KB for DoS prevention', () => {
+      const fnMatch = migrationSQL.match(
+        /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+log_audit_entry\([\s\S]*?END;\s*\$\$/
+      );
+      expect(fnMatch).not.toBeNull();
+      const fnBody = fnMatch![0];
+      expect(fnBody).toContain('pg_column_size(old_values_param) > 65536');
+      expect(fnBody).toContain('pg_column_size(new_values_param) > 65536');
     });
   });
 });

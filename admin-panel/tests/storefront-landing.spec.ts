@@ -640,10 +640,10 @@ test.describe('Modern Storefront Landing Page 2026', () => {
       .limit(1)
       .single();
 
-    if (shopConfig?.shop_name) {
-      // Verify shop name is displayed in the hero badge (appears in badge and footer)
-      await expect(page.getByText(shopConfig.shop_name).first()).toBeVisible({ timeout: 15000 });
-    }
+    expect(shopConfig?.shop_name).toBeTruthy();
+
+    // Verify shop name is displayed in the hero badge (appears in badge and footer)
+    await expect(page.getByText(shopConfig!.shop_name).first()).toBeVisible({ timeout: 15000 });
   });
 
   test('CTA BUTTONS: Should have proper gradient styling and link to product pages', async ({ page }) => {

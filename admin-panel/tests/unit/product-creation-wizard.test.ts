@@ -3,21 +3,20 @@ import { initialFormData } from '@/components/ProductFormModal/types';
 
 /**
  * Tests for ProductCreationWizard logic.
- * Since the wizard reuses useProductForm unchanged and only adds step navigation,
- * we test the step validation and dirty detection logic that lives in the wizard.
+ *
+ * The wizard's validation and dirty-detection logic lives inside React hooks/callbacks
+ * and cannot be imported directly. We test equivalent logic inline to ensure the
+ * behavioral contract holds, using initialFormData as the shared ground truth.
  */
 
-// Replicate the wizard's validation logic (pure functions extracted for testability)
-function validateStep1(formData: { name: string; description: string }): boolean {
-  return formData.name.trim() !== '' && formData.description.trim() !== '';
-}
-
-function isFormDirty(formData: { name: string; price: number; description: string }): boolean {
-  return formData.name !== '' || formData.price > 0 || formData.description !== '';
-}
-
 describe('ProductCreationWizard', () => {
-  describe('step 1 validation', () => {
+  describe('step 1 validation (equivalent logic)', () => {
+    // Mirrors validateRequiredFields from useProductForm.ts:
+    // name.trim() and description.trim() must be non-empty
+    function validateStep1(formData: { name: string; description: string }): boolean {
+      return formData.name.trim() !== '' && formData.description.trim() !== '';
+    }
+
     it('should fail when name is empty', () => {
       expect(validateStep1({ name: '', description: 'Test' })).toBe(false);
     });
@@ -39,7 +38,13 @@ describe('ProductCreationWizard', () => {
     });
   });
 
-  describe('dirty detection', () => {
+  describe('dirty detection (equivalent logic)', () => {
+    // Mirrors isFormDirty from ProductCreationWizard.tsx:
+    // form is dirty when name, price, or description differ from defaults
+    function isFormDirty(formData: { name: string; price: number; description: string }): boolean {
+      return formData.name !== '' || formData.price > 0 || formData.description !== '';
+    }
+
     it('should detect form as clean with initial data', () => {
       expect(isFormDirty(initialFormData)).toBe(false);
     });
@@ -62,55 +67,31 @@ describe('ProductCreationWizard', () => {
   });
 
   describe('step flow', () => {
-    it('should have 3 wizard steps defined', () => {
-      const TOTAL_STEPS = 3;
-      expect(TOTAL_STEPS).toBe(3);
+    it('step 1 fields (Essentials) exist in initialFormData with correct defaults', () => {
+      expect(initialFormData.name).toBe('');
+      expect(initialFormData.slug).toBe('');
+      expect(initialFormData.description).toBe('');
+      expect(initialFormData.price).toBe(0);
+      expect(initialFormData.currency).toBe('USD');
+      expect(initialFormData.icon).toBe('🚀');
     });
 
-    it('step 1 should contain Essentials (BasicInfo + Pricing)', () => {
-      // Step 1 fields: name, slug, description, long_description, price, currency, icon, image_url, VAT, PWYW
-      const step1Fields = ['name', 'slug', 'description', 'price', 'currency', 'icon'] as const;
-      for (const field of step1Fields) {
-        expect(initialFormData).toHaveProperty(field);
-      }
+    it('step 2 fields (Content & Details) exist in initialFormData with correct defaults', () => {
+      expect(initialFormData.content_delivery_type).toBe('content');
+      expect(initialFormData.content_config).toEqual({ content_items: [] });
+      expect(initialFormData.categories).toEqual([]);
     });
 
-    it('step 2 should contain Content & Details (ContentDelivery + Categories)', () => {
-      const step2Fields = ['content_delivery_type', 'content_config', 'categories'] as const;
-      for (const field of step2Fields) {
-        expect(initialFormData).toHaveProperty(field);
-      }
-    });
-
-    it('step 3 should contain Sales & Settings (all remaining fields)', () => {
-      const step3Fields = [
-        'sale_price', 'available_from', 'available_until',
-        'auto_grant_duration_days', 'success_redirect_url',
-        'is_refundable', 'is_active', 'is_listed', 'is_featured',
-      ] as const;
-      for (const field of step3Fields) {
-        expect(initialFormData).toHaveProperty(field);
-      }
-    });
-  });
-
-  describe('wizard routing logic', () => {
-    it('should show wizard for new product (editingProduct is null)', () => {
-      const editingProduct = null;
-      const isCreateMode = !editingProduct || !editingProduct.id;
-      expect(isCreateMode).toBe(true);
-    });
-
-    it('should show wizard for duplicate product (editingProduct with empty id)', () => {
-      const editingProduct = { id: '', name: '[COPY] Test' };
-      const isCreateMode = !editingProduct || !editingProduct.id;
-      expect(isCreateMode).toBe(true);
-    });
-
-    it('should show modal for edit (editingProduct with real id)', () => {
-      const editingProduct = { id: 'abc-123', name: 'Test' };
-      const isCreateMode = !editingProduct || !editingProduct.id;
-      expect(isCreateMode).toBe(false);
+    it('step 3 fields (Sales & Settings) exist in initialFormData with correct defaults', () => {
+      expect(initialFormData.sale_price).toBeNull();
+      expect(initialFormData.available_from).toBe('');
+      expect(initialFormData.available_until).toBe('');
+      expect(initialFormData.auto_grant_duration_days).toBeNull();
+      expect(initialFormData.success_redirect_url).toBe('');
+      expect(initialFormData.is_refundable).toBe(false);
+      expect(initialFormData.is_active).toBe(true);
+      expect(initialFormData.is_listed).toBe(true);
+      expect(initialFormData.is_featured).toBe(false);
     });
   });
 });

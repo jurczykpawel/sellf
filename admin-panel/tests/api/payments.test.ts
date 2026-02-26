@@ -160,9 +160,10 @@ describe('Payments API v1', () => {
       const { status, data } = await get<ApiResponse<Payment[]>>('/api/v1/payments?status=completed');
 
       expect(status).toBe(200);
-      data.data!.forEach((p) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const p of data.data!) {
         expect(p.status).toBe('completed');
-      });
+      }
     });
 
     it('should support product_id filter', async () => {
@@ -171,18 +172,20 @@ describe('Payments API v1', () => {
       );
 
       expect(status).toBe(200);
-      data.data!.forEach((p) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const p of data.data!) {
         expect(p.product.id).toBe(testProductId);
-      });
+      }
     });
 
     it('should support email filter', async () => {
       const { status, data } = await get<ApiResponse<Payment[]>>('/api/v1/payments?email=customer');
 
       expect(status).toBe(200);
-      data.data!.forEach((p) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const p of data.data!) {
         expect(p.customer_email.toLowerCase()).toContain('customer');
-      });
+      }
     });
 
     it('should support limit parameter', async () => {
@@ -196,10 +199,9 @@ describe('Payments API v1', () => {
       const { status, data } = await get<ApiResponse<Payment[]>>('/api/v1/payments?sort=-amount');
 
       expect(status).toBe(200);
-      if (data.data!.length > 1) {
-        for (let i = 0; i < data.data!.length - 1; i++) {
-          expect(data.data![i].amount).toBeGreaterThanOrEqual(data.data![i + 1].amount);
-        }
+      expect(data.data!.length).toBeGreaterThan(1);
+      for (let i = 0; i < data.data!.length - 1; i++) {
+        expect(data.data![i].amount).toBeGreaterThanOrEqual(data.data![i + 1].amount);
       }
     });
 
@@ -215,10 +217,11 @@ describe('Payments API v1', () => {
       const { status, data } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?date_from=${today}`);
 
       expect(status).toBe(200);
-      data.data!.forEach((p) => {
+      expect(data.data!.length).toBeGreaterThan(0);
+      for (const p of data.data!) {
         const txDate = new Date(p.created_at).toISOString().split('T')[0];
         expect(txDate >= today).toBe(true);
-      });
+      }
     });
   });
 
@@ -365,7 +368,7 @@ describe('Payments API v1', () => {
 
   describe('POST /api/v1/payments/export', () => {
     it('initiates payment export', async () => {
-      const { status } = await post<ApiResponse<{ export_id: string; status: string }>>(
+      const { status, data } = await post<ApiResponse<{ export_id: string; status: string }>>(
         '/api/v1/payments/export',
         {
           date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -374,8 +377,14 @@ describe('Payments API v1', () => {
         }
       );
 
-      // Could be 200/201 (export started) or 400 (no data to export)
-      expect([200, 201, 400]).toContain(status);
+      if (status === 200 || status === 201) {
+        // Export started successfully — response should be CSV or contain export data
+        expect(data).toBeDefined();
+      } else if (status === 400) {
+        expect(data.error).toBeDefined();
+      } else {
+        expect.fail(`Expected status 200, 201, or 400 but got ${status}`);
+      }
     });
   });
 
@@ -383,17 +392,15 @@ describe('Payments API v1', () => {
     it('should support cursor-based pagination', async () => {
       const response1 = await get<ApiResponse<Payment[]>>('/api/v1/payments?limit=1');
       expect(response1.status).toBe(200);
+      expect(response1.data.pagination?.has_more).toBe(true);
+      expect(response1.data.pagination?.next_cursor).toBeTruthy();
 
-      if (response1.data.pagination?.has_more && response1.data.pagination?.next_cursor) {
-        const response2 = await get<ApiResponse<Payment[]>>(
-          `/api/v1/payments?limit=1&cursor=${response1.data.pagination.next_cursor}`
-        );
-        expect(response2.status).toBe(200);
-
-        if (response2.data.data!.length > 0) {
-          expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
-        }
-      }
+      const response2 = await get<ApiResponse<Payment[]>>(
+        `/api/v1/payments?limit=1&cursor=${response1.data.pagination!.next_cursor}`
+      );
+      expect(response2.status).toBe(200);
+      expect(response2.data.data!.length).toBeGreaterThan(0);
+      expect(response2.data.data![0].id).not.toBe(response1.data.data![0].id);
     });
 
     it('should return 400 for invalid cursor format', async () => {

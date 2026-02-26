@@ -142,7 +142,11 @@ async function cleanupTestData() {
   }
 
   // Delete products
-  for (const productId of Object.values(PRODUCT_IDS)) {
+  const productIds = Object.values(PRODUCT_IDS);
+  if (productIds.length === 0) {
+    console.warn('No product IDs to clean up');
+  }
+  for (const productId of productIds) {
     await supabaseAdmin.from('guest_purchases').delete().eq('product_id', productId);
     await supabaseAdmin.from('payment_transactions').delete().eq('product_id', productId);
     await supabaseAdmin.from('products').delete().eq('id', productId);

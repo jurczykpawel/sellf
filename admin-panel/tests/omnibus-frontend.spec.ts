@@ -469,8 +469,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     expect(newHistory![0].effective_until).toBeNull(); // Current price
 
     // Verify the previous entry was closed
-    if (initialCount > 0) {
-      expect(newHistory![1].effective_until).not.toBeNull();
-    }
+    expect(initialCount, 'Expected at least one initial price history entry before the update').toBeGreaterThan(0);
+    expect(newHistory![1].effective_until).not.toBeNull();
   });
 });

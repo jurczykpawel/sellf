@@ -79,22 +79,31 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
 
     expect(error).toBeNull();
 
-    // Verify pending payment was created
+    // Verify the pending payment record has correct product association and expiry
     const { data: pendingPayment } = await supabaseAdmin
       .from('payment_transactions')
-      .select('status, customer_email')
+      .select('status, product_id, amount, currency, expires_at, created_at')
       .eq('stripe_payment_intent_id', paymentIntentId)
       .single();
 
-    expect(pendingPayment?.status).toBe('pending');
-    expect(pendingPayment?.customer_email).toBe(testEmail);
+    expect(pendingPayment).not.toBeNull();
+    expect(pendingPayment!.status).toBe('pending');
+    expect(pendingPayment!.product_id).toBe(testProduct.id);
+    expect(pendingPayment!.amount).toBe(10000);
+    expect(pendingPayment!.currency).toBe('PLN');
+    // Verify expires_at was persisted and is in the future (not a tautological echo-back:
+    // this confirms DB default/trigger behavior didn't override the value)
+    expect(new Date(pendingPayment!.expires_at).getTime()).toBeGreaterThan(Date.now());
+    // Verify created_at was auto-populated by the database
+    expect(pendingPayment!.created_at).toBeTruthy();
   });
 
   test('should track abandoned cart when user leaves without paying', async ({ page }) => {
     const testEmail = `e2e-abandoned-${Date.now()}@example.com`;
     const paymentIntentId = `pi_test_e2e_abandoned_${Date.now()}`;
 
-    // Create a pending payment (simulating what create-payment-intent would do)
+    // Create a pending payment with a past expiration (simulating expired checkout)
+    const expiredAt = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 1 hour ago
     await supabaseAdmin
       .from('payment_transactions')
       .insert({
@@ -105,40 +114,28 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
         amount: 10000,
         currency: 'PLN',
         status: 'pending',
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        expires_at: expiredAt
       });
-
-    // Verify pending payment exists
-    const { data: pendingPayment } = await supabaseAdmin
-      .from('payment_transactions')
-      .select('status')
-      .eq('stripe_payment_intent_id', paymentIntentId)
-      .single();
-
-    expect(pendingPayment?.status).toBe('pending');
 
     // Simulate user leaving - navigate away
     await page.goto('/');
 
-    // In real scenario, cron job would mark this as abandoned after 24h
-    // For testing, we manually mark it
-    await supabaseAdmin
-      .from('payment_transactions')
-      .update({
-        status: 'abandoned',
-        abandoned_at: new Date().toISOString()
-      })
-      .eq('stripe_payment_intent_id', paymentIntentId);
+    // Use the real RPC function that the cron job uses to mark expired payments
+    const { data: markedCount, error: markError } = await supabaseAdmin.rpc('mark_expired_pending_payments');
+    expect(markError).toBeNull();
+    expect(markedCount).toBeGreaterThanOrEqual(1);
 
-    // Verify abandoned status
-    const { data: abandonedPayment } = await supabaseAdmin
-      .from('payment_transactions')
-      .select('status, abandoned_at')
-      .eq('stripe_payment_intent_id', paymentIntentId)
-      .single();
+    // Verify the abandoned cart appears in the get_abandoned_carts RPC query
+    const { data: abandonedCarts, error: queryError } = await supabaseAdmin.rpc('get_abandoned_carts', {
+      days_ago: 1,
+      limit_count: 100
+    });
 
-    expect(abandonedPayment?.status).toBe('abandoned');
-    expect(abandonedPayment?.abandoned_at).toBeTruthy();
+    expect(queryError).toBeNull();
+    const ourCart = abandonedCarts?.find((cart: any) => cart.customer_email === testEmail);
+    expect(ourCart).toBeDefined();
+    expect(ourCart.product_id).toBe(testProduct.id);
+    expect(ourCart.amount).toBe(10000);
   });
 
   test('should convert pending to completed when payment succeeds', async ({ page }) => {
@@ -159,17 +156,7 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       });
 
-    // Verify pending
-    const { data: pendingPayment } = await supabaseAdmin
-      .from('payment_transactions')
-      .select('status')
-      .eq('stripe_payment_intent_id', paymentIntentId)
-      .single();
-
-    expect(pendingPayment?.status).toBe('pending');
-
-    // Simulate payment success (webhook would do this)
-    // Call the RPC function that webhook uses
+    // Simulate payment success via the real RPC function (same as Stripe webhook handler)
     const { data: result, error } = await supabaseAdmin.rpc(
       'process_stripe_payment_completion_with_bump',
       {
@@ -188,15 +175,31 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
     expect(error).toBeNull();
     expect(result?.success).toBe(true);
 
-    // Verify payment is now completed
+    // Verify the payment was converted (not just status, but the conversion metadata)
     const { data: completedPayment } = await supabaseAdmin
       .from('payment_transactions')
-      .select('status, metadata')
+      .select('status, metadata, amount, currency, product_id')
       .eq('stripe_payment_intent_id', paymentIntentId)
       .single();
 
     expect(completedPayment?.status).toBe('completed');
     expect(completedPayment?.metadata).toHaveProperty('converted_from_pending', true);
+    // Verify the original data was preserved during conversion
+    expect(completedPayment?.amount).toBe(10000);
+    expect(completedPayment?.currency).toBe('PLN');
+    expect(completedPayment?.product_id).toBe(testProduct.id);
+
+    // Verify guest_purchases was created for the email (business side-effect of payment completion)
+    const { data: guestPurchase } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('product_id, customer_email')
+      .eq('customer_email', testEmail)
+      .eq('product_id', testProduct.id)
+      .maybeSingle();
+
+    // Guest purchase should exist since no user_id was provided
+    expect(guestPurchase).not.toBeNull();
+    expect(guestPurchase?.customer_email).toBe(testEmail);
   });
 
   test('should show abandoned cart in admin panel query', async ({ page }) => {
@@ -238,6 +241,14 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
   });
 
   test('should calculate statistics for abandoned carts', async ({ page }) => {
+    // Capture baseline stats before inserting test data
+    const { data: baselineStats } = await supabaseAdmin.rpc('get_abandoned_cart_stats', {
+      days_ago: 7
+    });
+    const baselineAbandoned = baselineStats?.total_abandoned ?? 0;
+    const baselinePending = baselineStats?.total_pending ?? 0;
+    const baselineValue = baselineStats?.total_value ?? 0;
+
     // Create multiple abandoned and pending carts
     const timestamp = Date.now();
     const testData = [
@@ -262,19 +273,17 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
         });
     }
 
-    // Wait for DB to process
-    await page.waitForTimeout(500);
-
-    // Get statistics
+    // Get statistics after inserting test data
     const { data: stats, error } = await supabaseAdmin.rpc('get_abandoned_cart_stats', {
       days_ago: 7
     });
 
     expect(error).toBeNull();
     expect(stats).toBeDefined();
-    expect(stats.total_abandoned).toBeGreaterThanOrEqual(2);
-    expect(stats.total_pending).toBeGreaterThanOrEqual(1);
-    expect(stats.total_value).toBeGreaterThanOrEqual(45000); // 10k + 20k + 15k
+    // Verify exact delta from baseline (not just "greater than" which could pass vacuously)
+    expect(stats.total_abandoned).toBe(baselineAbandoned + 2);
+    expect(stats.total_pending).toBe(baselinePending + 1);
+    expect(stats.total_value).toBe(baselineValue + 45000); // 10k + 20k + 15k
     expect(stats.avg_cart_value).toBeGreaterThan(0);
   });
 

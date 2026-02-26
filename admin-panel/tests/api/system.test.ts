@@ -162,10 +162,9 @@ describe('System API v1', () => {
       const { status, data } = await get<ApiResponse<SystemStatus>>('/api/v1/system/status');
 
       expect(status).toBe(200);
-      // If database is connected, status should be healthy
-      if (data.data!.database.connected) {
-        expect(data.data!.status).toBe('healthy');
-      }
+      // In a running test environment, the database must be connected
+      expect(data.data!.database.connected).toBe(true);
+      expect(data.data!.status).toBe('healthy');
     });
   });
 });

@@ -114,36 +114,42 @@ describe('Download URL Validation Security', () => {
       const data = createProductWithDownloadUrl('https://storage.attacker.com/malware.exe');
       const result = validateCreateProduct(data);
       expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('trusted storage provider'))).toBe(true);
     });
 
     it('should BLOCK amazonaws.com.evil.com (domain suffix spoofing)', () => {
       const data = createProductWithDownloadUrl('https://amazonaws.com.evil.com/file.zip');
       const result = validateCreateProduct(data);
       expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('trusted storage provider'))).toBe(true);
     });
 
     it('should BLOCK s3.amazonaws.com.attacker.net', () => {
       const data = createProductWithDownloadUrl('https://s3.amazonaws.com.attacker.net/file.zip');
       const result = validateCreateProduct(data);
       expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('trusted storage provider'))).toBe(true);
     });
 
     it('should BLOCK dropbox.com-downloads.evil.com', () => {
       const data = createProductWithDownloadUrl('https://dropbox.com-downloads.evil.com/file.zip');
       const result = validateCreateProduct(data);
       expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('trusted storage provider'))).toBe(true);
     });
 
     it('should BLOCK bunny.net.evil.com', () => {
       const data = createProductWithDownloadUrl('https://bunny.net.evil.com/file.zip');
       const result = validateCreateProduct(data);
       expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('trusted storage provider'))).toBe(true);
     });
 
     it('should BLOCK cloudinary.com-cdn.attacker.com', () => {
       const data = createProductWithDownloadUrl('https://cloudinary.com-cdn.attacker.com/file.zip');
       const result = validateCreateProduct(data);
       expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('trusted storage provider'))).toBe(true);
     });
   });
 
@@ -240,45 +246,4 @@ describe('Download URL Validation Security', () => {
     });
   });
 
-  describe('Real Attack Scenarios', () => {
-    it('Scenario: Malware distribution via fake CDN', () => {
-      /**
-       * Attack:
-       * 1. Attacker registers cdn-download.evil.com
-       * 2. Creates product with download URL pointing to their domain
-       * 3. Previous validation might allow if it just checked for 'cdn'
-       * 4. Users download malware thinking it's from legitimate CDN
-       */
-      const attackUrl = 'https://cdn-download.evil.com/software.exe';
-      const data = createProductWithDownloadUrl(attackUrl);
-      const result = validateCreateProduct(data);
-      expect(result.isValid).toBe(false);
-    });
-
-    it('Scenario: Phishing via lookalike domain', () => {
-      /**
-       * Attack:
-       * 1. Attacker registers amazonaws-cdn.com (looks like AWS)
-       * 2. Hosts malicious files
-       * 3. Creates product with download URL
-       */
-      const attackUrl = 'https://amazonaws-cdn.com/document.pdf';
-      const data = createProductWithDownloadUrl(attackUrl);
-      const result = validateCreateProduct(data);
-      expect(result.isValid).toBe(false);
-    });
-
-    it('Scenario: Subdomain takeover simulation', () => {
-      /**
-       * Attack:
-       * 1. Attacker finds abandoned subdomain of company
-       * 2. Could register cdn.company.attacker.com
-       * 3. Tries to pass validation
-       */
-      const attackUrl = 'https://cdn.company.attacker.com/file.zip';
-      const data = createProductWithDownloadUrl(attackUrl);
-      const result = validateCreateProduct(data);
-      expect(result.isValid).toBe(false);
-    });
-  });
 });

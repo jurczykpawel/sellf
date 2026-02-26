@@ -485,6 +485,7 @@ test.describe('Rate Limiting', () => {
 
     test('rate limited response should have proper error message', async ({ request }) => {
       // Exhaust rate limit
+      let got429 = false;
       for (let i = 0; i < 50; i++) {
         const response = await request.post('/api/consent', {
           data: {
@@ -494,6 +495,7 @@ test.describe('Rate Limiting', () => {
         });
 
         if (response.status() === 429) {
+          got429 = true;
           const body = await response.json();
           expect(body.error).toBeTruthy();
           // Error message should indicate rate limiting (either "rate" or "too many requests")
@@ -502,6 +504,8 @@ test.describe('Rate Limiting', () => {
           break;
         }
       }
+
+      expect(got429, 'Expected 429 response but never received one after 50 requests').toBe(true);
     });
   });
 
@@ -529,6 +533,8 @@ test.describe('Rate Limiting', () => {
 
       if (products && products.length > 0) {
         testProduct = products[0];
+      } else {
+        console.warn('No active products found for admin rate limit tests - tests will be skipped');
       }
     });
 

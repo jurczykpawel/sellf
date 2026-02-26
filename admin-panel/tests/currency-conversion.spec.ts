@@ -366,7 +366,8 @@ test.describe('Currency Conversion Feature', () => {
       // Revenue goal should update (hard to verify exact value, but we can check it exists)
       await expect(revenueGoalSection).toBeVisible();
     } else {
-      console.log('Revenue goal not set, skipping this verification');
+      // Revenue goal section is not configured; verify dashboard still renders correctly
+      await expect(page.getByTestId('stat-card-total-revenue')).toBeVisible();
     }
   });
 

@@ -121,12 +121,12 @@ test.describe('API Keys Security - Hash Exposure Prevention', () => {
     // Verify key_hash is not in the response
     expect(responseText).not.toContain('key_hash');
 
-    // Verify the response structure if there are keys
-    if (json.data && json.data.length > 0) {
-      const key = json.data[0];
-      expect(key).not.toHaveProperty('key_hash');
-      expect(key).toHaveProperty('key_prefix'); // Only prefix should be visible
-    }
+    // Verify the response structure — we created a key in beforeAll, so data must exist
+    expect(json.data).toBeDefined();
+    expect(json.data.length).toBeGreaterThan(0);
+    const key = json.data[0];
+    expect(key).not.toHaveProperty('key_hash');
+    expect(key).toHaveProperty('key_prefix'); // Only prefix should be visible
   });
 
   test('GET /api/v1/api-keys/:id should NOT return key_hash', async ({ page }) => {

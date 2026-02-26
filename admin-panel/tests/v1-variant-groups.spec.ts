@@ -301,35 +301,37 @@ test.describe('v1 API: Variant Groups', () => {
       expect(json.data).toBeDefined();
       expect(Array.isArray(json.data)).toBe(true);
 
-      // Should include our created group
-      if (createdGroupId) {
-        const ourGroup = json.data.find((g: any) => g.id === createdGroupId);
-        expect(ourGroup).toBeDefined();
-        expect(ourGroup.name).toBe('V1 Test Subscription Plans');
-        expect(ourGroup.products).toHaveLength(2);
-      }
+      // createdGroupId must exist (set by prior test in serial suite)
+      expect(createdGroupId).toBeDefined();
+
+      const ourGroup = json.data.find((g: any) => g.id === createdGroupId);
+      expect(ourGroup).toBeDefined();
+      expect(ourGroup.name).toBe('V1 Test Subscription Plans');
+      expect(ourGroup.products).toHaveLength(2);
     });
 
     test('should include product details in response', async ({ page }) => {
       await loginAsAdmin(page);
 
       const response = await page.request.get('/api/v1/variant-groups');
+      expect(response.status()).toBe(200);
       const json = await response.json();
 
-      if (json.data.length > 0) {
-        const group = json.data.find((g: any) => g.products?.length > 0);
-        if (group && group.products.length > 0) {
-          const product = group.products[0];
-          expect(product).toHaveProperty('product_id');
-          expect(product).toHaveProperty('variant_name');
-          expect(product).toHaveProperty('display_order');
-          expect(product).toHaveProperty('is_featured');
-          expect(product).toHaveProperty('product');
-          expect(product.product).toHaveProperty('name');
-          expect(product.product).toHaveProperty('slug');
-          expect(product.product).toHaveProperty('price');
-        }
-      }
+      expect(json.data.length).toBeGreaterThan(0);
+
+      const group = json.data.find((g: any) => g.products?.length > 0);
+      expect(group).toBeDefined();
+      expect(group.products.length).toBeGreaterThan(0);
+
+      const product = group.products[0];
+      expect(product).toHaveProperty('product_id');
+      expect(product).toHaveProperty('variant_name');
+      expect(product).toHaveProperty('display_order');
+      expect(product).toHaveProperty('is_featured');
+      expect(product).toHaveProperty('product');
+      expect(product.product).toHaveProperty('name');
+      expect(product.product).toHaveProperty('slug');
+      expect(product.product).toHaveProperty('price');
     });
   });
 

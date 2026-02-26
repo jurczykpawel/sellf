@@ -69,9 +69,8 @@ test.describe('E2E Critical Flows', () => {
     const body = await response.json();
     expect(body).toBeDefined();
     // Assuming API returns result object
-    if (response.ok()) {
-      expect(body.valid).toBeFalsy(); 
-    }
+    expect(response.ok()).toBe(true);
+    expect(body.valid).toBeFalsy();
   });
 
 });

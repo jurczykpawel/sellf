@@ -1,69 +1,52 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  extractPaymentIntentIdSecure,
+  sanitizeMetadataField,
+  sanitizePaymentMetadata,
+  validatePaymentAmount,
+  validateCurrencyMatch,
+  validateRefund,
+} from '@/lib/stripe/security';
+import type { PaymentMetadata } from '@/lib/stripe/security';
 
 /**
- * ============================================================================
- * SECURITY REFERENCE IMPLEMENTATIONS - Stripe Integration
- * ============================================================================
+ * Security Tests: Stripe Integration
  *
- * PURPOSE: This file contains REFERENCE IMPLEMENTATIONS showing secure vs
- * insecure ways to handle Stripe payment data. NOT tests of existing code.
+ * Tests production security utilities for Stripe payment data handling.
+ * Also verifies production source code implements expected patterns.
  *
- * WHY THIS EXISTS:
- * - Documents Stripe-specific attack vectors (client secret leaks, etc.)
- * - Shows UNSAFE vs SAFE implementations side-by-side for education
- * - Provides ready-to-use secure patterns for payment handling
- * - Helps future devs avoid common Stripe security pitfalls
- *
- * HOW TO USE:
- * If you're working on payment code, review these patterns first.
- * Copy the "Secure" implementations to your actual code.
- *
- * KEY LESSONS:
- * - Never use .split('_secret_') - use regex validation
- * - Always validate currency codes against whitelist
- * - Sanitize metadata to prevent injection
- * - Server-side amount calculation only
- *
- * Created during security audit (2026-01-08)
- * ============================================================================
+ * @see src/lib/stripe/security.ts - production utilities under test
+ * @see src/app/api/update-payment-metadata/route.ts - client secret usage
+ * @see src/app/api/webhooks/stripe/route.ts - idempotency patterns
  */
+
+const UPDATE_METADATA_SOURCE = readFileSync(
+  resolve(__dirname, '../../../src/app/api/update-payment-metadata/route.ts'),
+  'utf-8'
+);
+
+const WEBHOOK_ROUTE_SOURCE = readFileSync(
+  resolve(__dirname, '../../../src/app/api/webhooks/stripe/route.ts'),
+  'utf-8'
+);
+
+const REFUND_ROUTE_SOURCE = readFileSync(
+  resolve(__dirname, '../../../src/app/api/admin/payments/refund/route.ts'),
+  'utf-8'
+);
 
 describe('Stripe Integration Security', () => {
   describe('Client Secret Parsing', () => {
-    /**
-     * VULNERABILITY: Client secret parsing via split('_secret_')
-     * Location: /api/update-payment-metadata/route.ts:90
-     *
-     * The current code does:
-     * const paymentIntentId = clientSecret.split('_secret_')[0];
-     *
-     * This is UNSAFE because:
-     * 1. Doesn't validate format before splitting
-     * 2. Could be exploited with malformed secrets
-     */
-
-    function extractPaymentIntentIdUnsafe(clientSecret: string): string {
-      // VULNERABLE - current implementation
-      return clientSecret.split('_secret_')[0];
-    }
-
-    function extractPaymentIntentIdSecure(clientSecret: string): string | null {
-      // SECURE - proper format validation
-      // Stripe format: pi_XXXXXXXXXXXXX_secret_YYYYYYYYYYYYYYYYYYY
-      // Payment intent IDs are typically 24-27 chars after "pi_"
-      const pattern = /^(pi_[a-zA-Z0-9]{14,30})_secret_[a-zA-Z0-9]+$/;
-      const match = clientSecret.match(pattern);
-
-      if (!match) {
-        return null;
-      }
-
-      return match[1];
-    }
+    it('should verify production code uses split(_secret_) pattern (known vulnerability)', () => {
+      // Documents the current state: production still uses unsafe split.
+      // This test tracks whether the pattern exists so we know when it's fixed.
+      expect(UPDATE_METADATA_SOURCE).toContain(".split('_secret_')");
+    });
 
     describe('Secure extraction', () => {
       it('should extract valid payment intent IDs', () => {
-        // Stripe payment intent IDs are typically 17-27 chars after "pi_"
         const validSecrets = [
           'pi_3MtwBwLkdIwHu7ix28a3tqPa_secret_YrKJUKribcBjcG8HVhfZluoGH',
           'pi_1234567890abcdef_secret_abcdef123456',
@@ -84,7 +67,7 @@ describe('Stripe Integration Security', () => {
           'not_a_payment_intent',
           '_secret_only_secret',
           'pi_secret_missingid',
-          'pi_short_secret_abc', // ID too short
+          'pi_short_secret_abc',
         ];
 
         for (const secret of malformedSecrets) {
@@ -94,8 +77,6 @@ describe('Stripe Integration Security', () => {
       });
 
       it('should reject secrets with embedded _secret_ attack', () => {
-        // Attack: Try to inject a different payment intent ID
-        // These are malformed and should all be rejected by secure extraction
         const attacks = [
           'malicious_secret_pi_real123456789012_secret_xyz',
           'pi_fake_secret_pi_real12345678901234_secret_xyz',
@@ -103,17 +84,8 @@ describe('Stripe Integration Security', () => {
         ];
 
         for (const attack of attacks) {
-          const unsafeResult = extractPaymentIntentIdUnsafe(attack);
           const secureResult = extractPaymentIntentIdSecure(attack);
-
-          // Unsafe version extracts some value (demonstrates the vulnerability)
-          // The split result may or may not be truthy depending on input
-          // The key point is secure version ALWAYS rejects these
           expect(secureResult).toBeNull();
-
-          // Document that unsafe extraction gives unexpected results
-          // (e.g., 'malicious' instead of proper pi_ ID)
-          expect(unsafeResult).not.toMatch(/^pi_[a-zA-Z0-9]{14,30}$/);
         }
       });
 
@@ -133,44 +105,6 @@ describe('Stripe Integration Security', () => {
   });
 
   describe('Payment Metadata Sanitization', () => {
-    /**
-     * VULNERABILITY: User input stored directly in Stripe metadata
-     * Location: /api/create-payment-intent/route.ts:225-247
-     */
-
-    interface PaymentMetadata {
-      first_name?: string;
-      last_name?: string;
-      company_name?: string;
-      nip?: string;
-      address?: string;
-    }
-
-    function sanitizeMetadataField(value: string | undefined, maxLength: number = 100): string {
-      if (!value || typeof value !== 'string') return '';
-
-      // Remove control characters
-      let sanitized = value.replace(/[\x00-\x1F\x7F]/g, '');
-
-      // Trim whitespace
-      sanitized = sanitized.trim();
-
-      // Enforce length limit
-      sanitized = sanitized.substring(0, maxLength);
-
-      return sanitized;
-    }
-
-    function sanitizePaymentMetadata(input: PaymentMetadata): PaymentMetadata {
-      return {
-        first_name: sanitizeMetadataField(input.first_name, 100),
-        last_name: sanitizeMetadataField(input.last_name, 100),
-        company_name: sanitizeMetadataField(input.company_name, 200),
-        nip: sanitizeMetadataField(input.nip, 20),
-        address: sanitizeMetadataField(input.address, 300),
-      };
-    }
-
     describe('Basic sanitization', () => {
       it('should preserve normal input', () => {
         const input: PaymentMetadata = {
@@ -195,7 +129,7 @@ describe('Stripe Integration Security', () => {
 
         const result = sanitizePaymentMetadata(input);
         expect(result.first_name).toBe('John');
-        // Note: \n\t are control chars, removed first, then trim
+        // \n\t are control chars, removed first, then trim
         expect(result.last_name?.trim()).toBe('Doe');
       });
 
@@ -246,8 +180,8 @@ describe('Stripe Integration Security', () => {
         const result = sanitizePaymentMetadata(input);
         // Should preserve the text but not allow it to break JSON structure
         // (Stripe escapes values when storing, but we still sanitize)
-        expect(result.first_name).toBeTruthy();
-        expect(result.company_name).toBeTruthy();
+        expect(result.first_name).toBe('"; "needs_invoice": "true"; "nip": "HIJACKED');
+        expect(result.company_name).toBe('{"malicious": true}');
       });
 
       it('should handle XSS attempts in metadata', () => {
@@ -257,65 +191,14 @@ describe('Stripe Integration Security', () => {
         };
 
         const result = sanitizePaymentMetadata(input);
-        // Note: This doesn't escape HTML, but Stripe should never render metadata
-        // The important thing is we don't crash and values are limited
+        // Stripe should never render metadata as HTML, but length limits still apply
         expect(result.company_name?.length).toBeLessThanOrEqual(200);
+        expect(result.address?.length).toBeLessThanOrEqual(300);
       });
     });
   });
 
   describe('Amount Validation', () => {
-    /**
-     * VULNERABILITY: Amount accepted from Stripe webhook without validation
-     * Location: /api/webhooks/stripe/route.ts:84-85
-     */
-
-    interface AmountValidation {
-      valid: boolean;
-      error?: string;
-    }
-
-    function validatePaymentAmount(
-      receivedAmount: number | undefined,
-      expectedPrice: number,
-      currency: string,
-      allowCustomPrice: boolean = false,
-      minCustomPrice: number = 0.50
-    ): AmountValidation {
-      if (receivedAmount === undefined || receivedAmount === null) {
-        return { valid: false, error: 'Amount is required' };
-      }
-
-      // Must be a valid number
-      if (!Number.isFinite(receivedAmount) || receivedAmount < 0) {
-        return { valid: false, error: 'Invalid amount' };
-      }
-
-      // Convert expected price to cents
-      const expectedAmountCents = Math.round(expectedPrice * 100);
-      const minAmountCents = Math.round(minCustomPrice * 100);
-
-      // For fixed-price products, must match exactly
-      if (!allowCustomPrice) {
-        if (receivedAmount !== expectedAmountCents) {
-          return {
-            valid: false,
-            error: `Amount mismatch: expected ${expectedAmountCents}, got ${receivedAmount}`
-          };
-        }
-      } else {
-        // For PWYW, must meet minimum
-        if (receivedAmount < minAmountCents) {
-          return {
-            valid: false,
-            error: `Amount below minimum: ${minAmountCents} cents`
-          };
-        }
-      }
-
-      return { valid: true };
-    }
-
     describe('Fixed price validation', () => {
       it('should accept exact amount match', () => {
         const result = validatePaymentAmount(9999, 99.99, 'USD');
@@ -378,40 +261,6 @@ describe('Stripe Integration Security', () => {
   });
 
   describe('Currency Validation', () => {
-    /**
-     * VULNERABILITY: Currency conversion attack
-     * Location: /api/create-payment-intent/route.ts:214
-     */
-
-    const ALLOWED_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'PLN', 'CAD', 'AUD'];
-
-    function validateCurrencyMatch(
-      receivedCurrency: string | undefined,
-      expectedCurrency: string
-    ): { valid: boolean; error?: string } {
-      if (!receivedCurrency) {
-        return { valid: false, error: 'Currency is required' };
-      }
-
-      const normalizedReceived = receivedCurrency.toUpperCase();
-      const normalizedExpected = expectedCurrency.toUpperCase();
-
-      // Must be in allowed list
-      if (!ALLOWED_CURRENCIES.includes(normalizedReceived)) {
-        return { valid: false, error: `Unsupported currency: ${normalizedReceived}` };
-      }
-
-      // Must match expected
-      if (normalizedReceived !== normalizedExpected) {
-        return {
-          valid: false,
-          error: `Currency mismatch: expected ${normalizedExpected}, got ${normalizedReceived}`
-        };
-      }
-
-      return { valid: true };
-    }
-
     describe('Valid currency matches', () => {
       it('should accept matching currencies', () => {
         expect(validateCurrencyMatch('USD', 'USD').valid).toBe(true);
@@ -442,147 +291,96 @@ describe('Stripe Integration Security', () => {
   });
 
   describe('Webhook Idempotency', () => {
-    /**
-     * VULNERABILITY: Webhook replay attacks
-     * Location: /api/webhooks/stripe/route.ts (idempotency via session_id)
-     */
+    it('should verify production webhook checks existing transactions before processing', () => {
+      // The webhook route queries payment_transactions by session_id before inserting
+      expect(WEBHOOK_ROUTE_SOURCE).toContain("'payment_transactions'");
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('.maybeSingle()');
+    });
 
-    // Simulates idempotency check using Stripe event ID
-    class WebhookIdempotencyTracker {
-      private processedEvents: Map<string, { timestamp: number; result: unknown }> = new Map();
-      private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    it('should verify production webhook skips already-processed events', () => {
+      // After finding an existing transaction, the handler returns early
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('Already processed');
+    });
 
-      isProcessed(eventId: string): boolean {
-        const entry = this.processedEvents.get(eventId);
-        if (!entry) return false;
+    it('should verify production webhook verifies signature before processing', () => {
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('verifyWebhookSignature');
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('stripe-signature');
+    });
 
-        // Check if not expired
-        if (Date.now() - entry.timestamp > this.TTL_MS) {
-          this.processedEvents.delete(eventId);
+    it('should verify production webhook has rate limiting', () => {
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('checkRateLimit');
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('RATE_LIMITS.STRIPE_WEBHOOK');
+    });
+
+    it('should verify production webhook returns 200 for valid events to prevent retries', () => {
+      // Stripe retries on non-200 responses; production always returns 200 for valid webhooks
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('received: true');
+    });
+
+    describe('Replay attack prevention (behavioral)', () => {
+      it('should demonstrate idempotency check prevents duplicate processing', () => {
+        // Behavioral test: simulates the pattern the production code uses
+        const processedSessions = new Map<string, { timestamp: number }>();
+        let processCount = 0;
+
+        function simulateWebhookProcessing(sessionId: string): { duplicate: boolean } {
+          // Mirrors production: check payment_transactions by session_id
+          if (processedSessions.has(sessionId)) {
+            return { duplicate: true };
+          }
+
+          processCount++;
+          processedSessions.set(sessionId, { timestamp: Date.now() });
+          return { duplicate: false };
+        }
+
+        // Same event delivered twice (Stripe retry scenario)
+        const result1 = simulateWebhookProcessing('cs_test_123');
+        const result2 = simulateWebhookProcessing('cs_test_123');
+
+        expect(processCount).toBe(1);
+        expect(result1.duplicate).toBe(false);
+        expect(result2.duplicate).toBe(true);
+      });
+
+      it('should handle different session IDs independently', () => {
+        const processedSessions = new Set<string>();
+
+        function isProcessed(sessionId: string): boolean {
+          if (processedSessions.has(sessionId)) return true;
+          processedSessions.add(sessionId);
           return false;
         }
 
-        return true;
-      }
-
-      markProcessed(eventId: string, result: unknown): void {
-        this.processedEvents.set(eventId, {
-          timestamp: Date.now(),
-          result,
-        });
-      }
-
-      getCachedResult(eventId: string): unknown | null {
-        const entry = this.processedEvents.get(eventId);
-        return entry?.result ?? null;
-      }
-    }
-
-    describe('Idempotency tracking', () => {
-      let tracker: WebhookIdempotencyTracker;
-
-      beforeEach(() => {
-        tracker = new WebhookIdempotencyTracker();
-      });
-
-      it('should not mark unprocessed events', () => {
-        expect(tracker.isProcessed('evt_test_123')).toBe(false);
-      });
-
-      it('should mark processed events', () => {
-        tracker.markProcessed('evt_test_123', { success: true });
-        expect(tracker.isProcessed('evt_test_123')).toBe(true);
-      });
-
-      it('should return cached result for duplicate', () => {
-        const result = { success: true, accessGranted: true };
-        tracker.markProcessed('evt_test_123', result);
-
-        const cached = tracker.getCachedResult('evt_test_123');
-        expect(cached).toEqual(result);
-      });
-
-      it('should handle different event IDs separately', () => {
-        tracker.markProcessed('evt_test_123', { id: 1 });
-        tracker.markProcessed('evt_test_456', { id: 2 });
-
-        expect(tracker.isProcessed('evt_test_123')).toBe(true);
-        expect(tracker.isProcessed('evt_test_456')).toBe(true);
-        expect(tracker.isProcessed('evt_test_789')).toBe(false);
-      });
-    });
-
-    describe('Replay attack prevention', () => {
-      it('should prevent duplicate processing', async () => {
-        const tracker = new WebhookIdempotencyTracker();
-        let processCount = 0;
-
-        async function processWebhook(eventId: string) {
-          // Check idempotency FIRST
-          if (tracker.isProcessed(eventId)) {
-            return { duplicate: true, cached: tracker.getCachedResult(eventId) };
-          }
-
-          // Process
-          processCount++;
-          const result = { processed: true };
-
-          // Mark as processed
-          tracker.markProcessed(eventId, result);
-
-          return result;
-        }
-
-        // Process same event twice
-        const result1 = await processWebhook('evt_replay_test');
-        const result2 = await processWebhook('evt_replay_test');
-
-        // Should only process once
-        expect(processCount).toBe(1);
-        expect((result1 as any).processed).toBe(true);
-        expect((result2 as any).duplicate).toBe(true);
+        expect(isProcessed('cs_test_123')).toBe(false);
+        expect(isProcessed('cs_test_456')).toBe(false);
+        expect(isProcessed('cs_test_123')).toBe(true);
+        expect(isProcessed('cs_test_456')).toBe(true);
+        expect(isProcessed('cs_test_789')).toBe(false);
       });
     });
   });
 
   describe('Refund Security', () => {
-    /**
-     * VULNERABILITY: Partial refund fraud, double refund
-     * Location: /api/admin/payments/refund/route.ts
-     */
+    describe('Production refund route patterns', () => {
+      it('should verify production refund route checks transaction status', () => {
+        expect(REFUND_ROUTE_SOURCE).toContain("transaction.status !== 'completed'");
+      });
 
-    interface RefundValidation {
-      valid: boolean;
-      error?: string;
-    }
+      it('should verify production refund route validates amount bounds', () => {
+        expect(REFUND_ROUTE_SOURCE).toContain('refundAmount > maxRefundable');
+      });
 
-    function validateRefund(
-      requestedAmount: number,
-      originalAmount: number,
-      alreadyRefunded: number,
-      transactionStatus: string
-    ): RefundValidation {
-      // Status must be 'completed' to refund
-      if (transactionStatus !== 'completed') {
-        return { valid: false, error: `Cannot refund transaction with status: ${transactionStatus}` };
-      }
+      it('should verify production refund route revokes product access', () => {
+        expect(REFUND_ROUTE_SOURCE).toContain("'user_product_access'");
+        expect(REFUND_ROUTE_SOURCE).toContain('.delete()');
+      });
 
-      // Amount must be positive
-      if (requestedAmount <= 0) {
-        return { valid: false, error: 'Refund amount must be positive' };
-      }
-
-      // Cannot exceed remaining
-      const maxRefundable = originalAmount - alreadyRefunded;
-      if (requestedAmount > maxRefundable) {
-        return {
-          valid: false,
-          error: `Amount ${requestedAmount} exceeds refundable ${maxRefundable}`
-        };
-      }
-
-      return { valid: true };
-    }
+      it('should verify production refund route requires admin auth', () => {
+        expect(REFUND_ROUTE_SOURCE).toContain("'admin_users'");
+        expect(REFUND_ROUTE_SOURCE).toContain('Forbidden');
+      });
+    });
 
     describe('Valid refunds', () => {
       it('should allow full refund', () => {
