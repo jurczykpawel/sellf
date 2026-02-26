@@ -365,3 +365,5 @@ MIT License. See [LICENSE](./LICENSE) for details.
 **[Website](https://gateflow.io)** · **[Documentation](./FEATURES.md)** · **[Report Bug](https://github.com/jurczykpawel/gateflow/issues)**
 
 </div>
+
+![](https://stats.techskills.academy/pixels/github?url=/readme/gateflow)
