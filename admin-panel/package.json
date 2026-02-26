@@ -19,8 +19,8 @@
     "test:config": "vitest run --config vitest.config.config.ts",
     "t": "vitest run && playwright test tests/smoke --workers=2",
     "tt": "vitest run",
-    "ttt": "playwright test --project=chromium && kill $(lsof -ti:3000) 2>/dev/null; RATE_LIMIT_TEST_MODE=true playwright test --project=rate-limiting --project=rate-limiting-v1",
-    "tttt": "cd .. && npx supabase db reset && cd admin-panel && playwright test --project=chromium && kill $(lsof -ti:3000) 2>/dev/null; RATE_LIMIT_TEST_MODE=true playwright test --project=rate-limiting --project=rate-limiting-v1"
+    "ttt": "NO_COLOR=1 playwright test --project=chromium 2>&1 | grep -E '^\\s+(✓|✗|×|\\d+ (passed|failed|skipped|did not run))' && kill $(lsof -ti:3000) 2>/dev/null; NO_COLOR=1 RATE_LIMIT_TEST_MODE=true playwright test --project=rate-limiting --project=rate-limiting-v1 2>&1 | grep -E '^\\s+(✓|✗|×|\\d+ (passed|failed|skipped|did not run))'",
+    "tttt": "cd .. && npx supabase db reset && cd admin-panel && NO_COLOR=1 playwright test --project=chromium 2>&1 | grep -E '^\\s+(✓|✗|×|\\d+ (passed|failed|skipped|did not run))' && kill $(lsof -ti:3000) 2>/dev/null; NO_COLOR=1 RATE_LIMIT_TEST_MODE=true playwright test --project=rate-limiting --project=rate-limiting-v1 2>&1 | grep -E '^\\s+(✓|✗|×|\\d+ (passed|failed|skipped|did not run))'"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.4.0",

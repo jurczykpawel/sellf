@@ -21,6 +21,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
  *   RATE_LIMIT_TEST_MODE=true npx playwright test --project=rate-limiting-v1
  */
 const isRateLimitTestMode = process.env.RATE_LIMIT_TEST_MODE === 'true';
+const quietMode = process.env.QUIET_MODE === '1';
 
 export default defineConfig({
   testDir: './tests',
@@ -34,8 +35,8 @@ export default defineConfig({
   retries: 1,
   /* Use single worker for test stability (avoids race conditions with shared database) */
   workers: 1,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'list',
+  /* Reporter: 'dot' in quiet mode (ttt/tttt), 'list' otherwise */
+  reporter: quietMode ? 'dot' : 'list',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -75,16 +76,16 @@ export default defineConfig({
       url: 'http://localhost:3000',
       // Don't reuse existing server for rate-limit tests (need fresh server with env var)
       reuseExistingServer: isRateLimitTestMode ? false : !process.env.CI,
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: quietMode ? 'ignore' : 'pipe',
+      stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 60000,
     },
     {
       command: 'npx http-server ../examples/test-pages -p 3002 --cors -c-1',
       url: 'http://localhost:3002',
       reuseExistingServer: !process.env.CI,
-      stdout: 'pipe',
-      stderr: 'pipe',
+      stdout: quietMode ? 'ignore' : 'pipe',
+      stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 30000,
     },
   ],
