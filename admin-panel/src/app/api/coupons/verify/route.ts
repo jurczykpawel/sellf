@@ -12,12 +12,15 @@ export async function POST(request: NextRequest) {
 
     const { code, productId, email } = await request.json();
 
-    if (!code || !productId) {
+    if (!code || typeof code !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Code and Product ID are required' }, { status: 400 });
+    }
+    if (email !== undefined && email !== null && typeof email !== 'string') {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
     const supabase = await createClient();
-    
+
     // Use the secure DB function to verify coupon
     const { data, error } = await supabase.rpc('verify_coupon', {
       code_param: code.toUpperCase(),

@@ -113,8 +113,11 @@ function detectLanguage(acceptLanguage: string | null): string {
  */
 export async function GET(request: NextRequest) {
   // Get the origin/host for API_BASE_URL
-  const protocol = request.headers.get('x-forwarded-proto') || 'https';
-  const host = request.headers.get('host') || 'localhost:3000';
+  // SECURITY: Validate host header to prevent JS injection via Host header manipulation
+  const rawProtocol = request.headers.get('x-forwarded-proto') || 'https';
+  const rawHost = request.headers.get('host') || 'localhost:3000';
+  const protocol = /^https?$/.test(rawProtocol) ? rawProtocol : 'https';
+  const host = /^[a-zA-Z0-9._:-]+$/.test(rawHost) ? rawHost : 'localhost:3000';
   const apiBaseUrl = `${protocol}://${host}`;
 
   // Detect language from Accept-Language header

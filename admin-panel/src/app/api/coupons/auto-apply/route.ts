@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     const { email, productId } = await request.json();
 
-    if (!email || !productId) {
+    if (!email || typeof email !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Email and Product ID are required' }, { status: 400 });
     }
 

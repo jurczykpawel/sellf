@@ -20,13 +20,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Get configuration from environment variables (runtime config)
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    // Prefer NEXT_PUBLIC_ variants — they hold the public-facing URLs.
+    // Non-prefixed vars may point to internal service addresses in Docker setups.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json({
         error: 'Supabase configuration missing',
-        message: 'SUPABASE_URL and SUPABASE_ANON_KEY must be set in environment variables',
         timestamp: new Date().toISOString()
       }, { status: 500 });
     }
