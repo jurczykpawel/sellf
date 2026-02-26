@@ -78,7 +78,7 @@ export default function CurrencySelector() {
     if (currencyViewMode === 'grouped') {
       return t('currency.grouped') || 'Grouped by Currency';
     } else {
-      return displayCurrency ? `Convert to ${displayCurrency}` : 'Select Currency';
+      return displayCurrency ? `${t('currency.convertTo')} ${displayCurrency}` : t('currency.selectCurrency');
     }
   };
 

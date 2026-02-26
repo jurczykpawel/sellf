@@ -288,7 +288,7 @@ export default function WebhooksPageContent() {
         <BaseModal isOpen={true} onClose={onEditWarningCancel} size="md">
           <ModalHeader title={t('waitlistWarning.editTitle')} />
           <ModalBody>
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div data-testid="waitlist-webhook-warning" className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
               <div className="flex items-start gap-3">
                 <span className="text-xl">⚠️</span>
                 <div>

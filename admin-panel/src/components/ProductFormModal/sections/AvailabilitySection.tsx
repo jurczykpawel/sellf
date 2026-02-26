@@ -61,7 +61,7 @@ export function AvailabilitySection({
             </div>
           </label>
           {isWaitlistDisabled && (
-            <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div data-testid="waitlist-webhook-warning" className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
               <p className="text-sm text-amber-700 dark:text-amber-300">
                 {t('waitlist.noWebhookWarning')}{' '}
                 <button

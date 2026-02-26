@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 
 interface PaginationProps {
   currentPage: number;
@@ -8,11 +9,13 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-const Pagination: React.FC<PaginationProps> = ({ 
-  currentPage, 
-  totalPages, 
-  onPageChange 
+const Pagination: React.FC<PaginationProps> = ({
+  currentPage,
+  totalPages,
+  onPageChange
 }) => {
+  const t = useTranslations('common');
+
   // Don't render pagination if there's only one page
   if (totalPages <= 1) return null;
 
@@ -42,8 +45,7 @@ const Pagination: React.FC<PaginationProps> = ({
     <nav className="flex items-center justify-between py-3" aria-label="Pagination">
       <div className="hidden sm:block">
         <p className="text-sm text-gray-700 dark:text-gray-300">
-          Showing page <span className="font-medium">{currentPage}</span> of{' '}
-          <span className="font-medium">{totalPages}</span>
+          {t('showingPage', { current: currentPage, total: totalPages })}
         </p>
       </div>
       
@@ -60,7 +62,7 @@ const Pagination: React.FC<PaginationProps> = ({
           <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Previous
+          {t('previous')}
         </button>
         
         <div className="hidden md:flex space-x-1">
@@ -125,7 +127,7 @@ const Pagination: React.FC<PaginationProps> = ({
               : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
             }`}
         >
-          Next
+          {t('next')}
           <svg className="h-4 w-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>

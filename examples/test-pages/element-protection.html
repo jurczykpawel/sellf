@@ -116,15 +116,18 @@
         // Get product slug from URL parameter (use 'testProduct' to avoid gatekeeper page-level check)
         const urlParams = new URLSearchParams(window.location.search);
         const productSlug = urlParams.get('testProduct');
+        // Optional second product for multi-product tests
+        const productSlug2 = urlParams.get('testProduct2');
         // API base URL - the main Next.js server
         const apiBaseUrl = urlParams.get('apiUrl') || 'http://localhost:3000';
 
         if (productSlug) {
-            document.getElementById('product-slug').textContent = productSlug;
+            document.getElementById('product-slug').textContent = productSlug + (productSlug2 ? ` + ${productSlug2}` : '');
 
             // Set data-gatekeeper-product on protected sections
             document.getElementById('protected-section').setAttribute('data-gatekeeper-product', productSlug);
-            document.getElementById('protected-section-2').setAttribute('data-gatekeeper-product', productSlug);
+            // Second section uses testProduct2 if provided, otherwise same as testProduct
+            document.getElementById('protected-section-2').setAttribute('data-gatekeeper-product', productSlug2 || productSlug);
 
             // Set upgrade link
             document.getElementById('upgrade-link').href = `${apiBaseUrl}/p/${productSlug}`;

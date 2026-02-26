@@ -42,7 +42,7 @@ export default function WebhookDeleteModal({
         </p>
 
         {showWaitlistWarning && (
-          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <div data-testid="waitlist-webhook-warning" className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <div className="flex items-start gap-3">
               <span className="text-xl">⚠️</span>
               <div>
