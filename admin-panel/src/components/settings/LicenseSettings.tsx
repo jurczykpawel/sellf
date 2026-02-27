@@ -61,7 +61,7 @@ export default function LicenseSettings() {
 
   const parseLicense = (licenseKey: string): { valid: true; domain: string; expiry: string; signature: string } | { valid: false } => {
     const parts = licenseKey.split('-');
-    if (parts.length >= 3 && parts[0] === 'GF') {
+    if (parts.length >= 3 && parts[0] === 'SF') {
       return {
         valid: true,
         domain: parts[1],

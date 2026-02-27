@@ -507,6 +507,58 @@ test.describe('Refund Requests API v1', () => {
   });
 
   test.describe('Cursor Pagination', () => {
+    const paginationTxIds: string[] = [];
+    const paginationReqIds: string[] = [];
+
+    test.beforeAll(async () => {
+      // Create 2 extra refund requests to ensure pagination works
+      for (let i = 0; i < 2; i++) {
+        const randomStr = Math.random().toString(36).substring(7);
+        const { data: tx, error: txErr } = await supabaseAdmin
+          .from('payment_transactions')
+          .insert({
+            customer_email: `pagination-${i}-${randomStr}@example.com`,
+            amount: 3000 + i * 1000,
+            currency: 'PLN',
+            status: 'completed',
+            stripe_payment_intent_id: `pi_pagination_${i}_${randomStr}`,
+            product_id: testProductId,
+            user_id: adminUserId,
+            session_id: `cs_pagination_${i}_${randomStr}`,
+          })
+          .select('id')
+          .single();
+        if (txErr) throw new Error(`Failed to create pagination tx ${i}: ${txErr.message}`);
+        paginationTxIds.push(tx!.id);
+
+        const { data: req, error: reqErr } = await supabaseAdmin
+          .from('refund_requests')
+          .insert({
+            transaction_id: tx!.id,
+            user_id: adminUserId,
+            customer_email: `pagination-${i}-${randomStr}@example.com`,
+            product_id: testProductId,
+            requested_amount: 3000 + i * 1000,
+            currency: 'PLN',
+            reason: `Pagination test refund ${i}`,
+            status: 'pending',
+          })
+          .select('id')
+          .single();
+        if (reqErr) throw new Error(`Failed to create pagination req ${i}: ${reqErr.message}`);
+        paginationReqIds.push(req!.id);
+      }
+    });
+
+    test.afterAll(async () => {
+      for (const id of paginationReqIds) {
+        await supabaseAdmin.from('refund_requests').delete().eq('id', id);
+      }
+      for (const id of paginationTxIds) {
+        await supabaseAdmin.from('payment_transactions').delete().eq('id', id);
+      }
+    });
+
     test('should support cursor-based pagination', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
@@ -515,20 +567,19 @@ test.describe('Refund Requests API v1', () => {
       expect(response1.status()).toBe(200);
       const body1 = await response1.json();
 
-      if (body1.pagination.has_more && body1.pagination.next_cursor) {
-        // Get second page using cursor
-        const response2 = await page.request.get(
-          `/api/v1/refund-requests?limit=1&cursor=${body1.pagination.next_cursor}`
-        );
-        expect(response2.status()).toBe(200);
-        const body2 = await response2.json();
+      expect(body1.pagination.has_more).toBe(true);
+      expect(body1.pagination.next_cursor).toBeTruthy();
 
-        // Second page should have different items
-        expect(body2.data.length).toBeGreaterThan(0);
-        expect(body2.data[0].id).not.toBe(body1.data[0].id);
-      } else {
-        test.skip(true, 'Not enough refund requests for pagination test (need >1)');
-      }
+      // Get second page using cursor
+      const response2 = await page.request.get(
+        `/api/v1/refund-requests?limit=1&cursor=${body1.pagination.next_cursor}`
+      );
+      expect(response2.status()).toBe(200);
+      const body2 = await response2.json();
+
+      // Second page should have different items
+      expect(body2.data.length).toBeGreaterThan(0);
+      expect(body2.data[0].id).not.toBe(body1.data[0].id);
     });
 
     test('should return 400 for invalid cursor format', async ({ page }) => {

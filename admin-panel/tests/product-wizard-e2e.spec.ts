@@ -284,7 +284,7 @@ test.describe('Edit mode uses wizard', () => {
     expect(descValue).toBe('Product for edit mode test');
 
     // Close modal
-    await page.locator('button[aria-label="Close modal"]').click();
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
     // Exit confirmation (form is always dirty in edit mode)
     const exitModal = page.getByText(/Odrzucić zmiany/i);
     if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -325,7 +325,7 @@ test.describe('Edit mode uses wizard', () => {
     // Go back and close
     await page.getByRole('button', { name: /Wstecz/i }).click();
     await page.getByRole('button', { name: /Wstecz/i }).click();
-    await page.locator('button[aria-label="Close modal"]').click();
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
     const exitModal = page.getByText(/Odrzucić zmiany/i);
     if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
       await page.getByRole('button', { name: /Odrzuć/i }).click();

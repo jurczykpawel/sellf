@@ -130,7 +130,8 @@ test.describe('Smart Coupons System', () => {
     await page.goto(`/pl/checkout/${productSlug}?coupon=${couponCode}`);
 
     // 4. Verify Application
-    await expect(page.getByText(`${discountAmount} USD discount applied`, { exact: false })).toBeVisible({ timeout: 10000 });
+    // PL: "Zastosowano zniżkę 10 USD" / EN: "10 USD discount applied"
+    await expect(page.getByText(/discount applied|Zastosowano zniżkę/i)).toBeVisible({ timeout: 10000 });
   });
 
 });

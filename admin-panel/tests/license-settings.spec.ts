@@ -78,11 +78,10 @@ test.describe('License Settings', () => {
       .from('admin_users')
       .insert({ user_id: adminUser!.id });
 
-    // Clear any existing license
+    // Ensure integrations_config row exists and clear any existing license
     await supabaseAdmin
       .from('integrations_config')
-      .update({ sellf_license: null })
-      .eq('id', 1);
+      .upsert({ id: 1, sellf_license: null, updated_at: new Date().toISOString() });
   });
 
   test.afterAll(async () => {

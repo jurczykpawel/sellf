@@ -288,10 +288,11 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Configure Express Checkout with all options enabled
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Scroll to Express Checkout section
     const expressSection = page.getByText(/Express Checkout/).first();
+    await expect(expressSection).toBeVisible({ timeout: 10000 });
     await expressSection.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
 
@@ -339,10 +340,11 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     // Configure Express Checkout with only Link enabled
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Scroll to Express Checkout section
     const expressSection = page.getByText(/Express Checkout/).first();
+    await expect(expressSection).toBeVisible({ timeout: 10000 });
     await expressSection.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
 
@@ -485,25 +487,37 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     await page.waitForTimeout(2000);
 
     // Fill Stripe test card (4242 4242 4242 4242)
-    // Stripe Elements may not load in test env without valid keys — skip if unavailable
+    // Stripe Payment Element nests card fields across multiple __privateStripeFrame iframes
     const stripeFrame = page.locator('iframe[name^="__privateStripeFrame"]').first();
-    try {
-      await stripeFrame.waitFor({ state: 'visible', timeout: 10000 });
-    } catch {
-      test.skip(true, 'Stripe iframe not available in test environment');
-      return;
+    await expect(stripeFrame).toBeVisible({ timeout: 15000 });
+
+    // Find card number input across all Stripe iframes
+    const allFrames = page.locator('iframe[name^="__privateStripeFrame"]');
+    const frameCount = await allFrames.count();
+
+    let cardFilled = false;
+    for (let i = 0; i < frameCount && !cardFilled; i++) {
+      const frame = page.frameLocator('iframe[name^="__privateStripeFrame"]').nth(i);
+      const numberInput = frame.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]');
+      if (await numberInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await numberInput.fill('4242424242424242');
+        cardFilled = true;
+      }
     }
-    const cardNumberFrame = page.frameLocator('iframe[name^="__privateStripeFrame"]').first();
-    const cardNumberInput = cardNumberFrame.locator('input[name="number"]');
-    await expect(cardNumberInput).toBeVisible({ timeout: 10000 });
+    expect(cardFilled).toBe(true);
 
-    await cardNumberInput.fill('4242424242424242');
-
-    const expiryInput = cardNumberFrame.locator('input[name="expiry"]');
-    await expiryInput.fill('1230');
-
-    const cvcInput = cardNumberFrame.locator('input[name="cvc"]');
-    await cvcInput.fill('123');
+    // Fill expiry and CVC in their respective iframes
+    for (let i = 0; i < frameCount; i++) {
+      const frame = page.frameLocator('iframe[name^="__privateStripeFrame"]').nth(i);
+      const expiryInput = frame.locator('input[name="expiry"], input[name="cardExpiry"], input[autocomplete="cc-exp"]');
+      if (await expiryInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await expiryInput.fill('1230');
+      }
+      const cvcInput = frame.locator('input[name="cvc"], input[name="cardCvc"], input[autocomplete="cc-csc"]');
+      if (await cvcInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await cvcInput.fill('123');
+      }
+    }
 
     // Submit payment
     const payButton = page.getByRole('button', { name: /Pay|Zapłać/i });
@@ -516,7 +530,8 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     const successUrl = page.url();
     const isSuccessPage = successUrl.includes('/success') || successUrl.includes('/thank-you');
     const hasSuccessMessage = await page.locator('text=Payment successful').isVisible().catch(() => false) ||
-                               await page.locator('text=Thank you').isVisible().catch(() => false);
+                               await page.locator('text=Thank you').isVisible().catch(() => false) ||
+                               await page.locator('text=/Dziękujemy|Płatność/i').isVisible().catch(() => false);
 
     expect(isSuccessPage || hasSuccessMessage).toBeTruthy();
   });

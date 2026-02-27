@@ -85,9 +85,9 @@ test.describe('Theme Editor (Branding Settings)', () => {
     await page.waitForTimeout(500);
 
     // Theme name input should reflect "Sunset"
-    const themeNameInput = page.locator('input[placeholder="My Custom Theme"]');
-    const value = await themeNameInput.inputValue();
-    expect(value).toBe('Sunset');
+    const themeNameInput = page.locator('input[placeholder="My Custom Theme"], input[placeholder="Mój motyw"]');
+    await expect(themeNameInput).toBeVisible({ timeout: 5000 });
+    await expect(themeNameInput).toHaveValue('Sunset', { timeout: 5000 });
 
     // Accent color input should reflect Sunset's accent (#FF6B35)
     const accentTextInput = page
@@ -95,6 +95,7 @@ test.describe('Theme Editor (Branding Settings)', () => {
       .first()
       .locator('..')
       .locator('input[type="text"]');
+    await expect(accentTextInput).toBeVisible({ timeout: 5000 });
     const accentValue = await accentTextInput.inputValue();
     expect(accentValue).toBe('#FF6B35');
 
@@ -185,7 +186,7 @@ test.describe('Theme Editor (Branding Settings)', () => {
     await page.waitForTimeout(1000);
 
     // Theme name should update to imported name
-    const themeNameInput = page.locator('input[placeholder="My Custom Theme"]');
+    const themeNameInput = page.locator('input[placeholder="My Custom Theme"], input[placeholder="Mój motyw"]');
     const value = await themeNameInput.inputValue();
     expect(value).toBe('Test Import Theme');
 
