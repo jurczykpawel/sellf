@@ -1,9 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
 import Script from 'next/script'
-import { useTranslations } from 'next-intl'
-import { useLocale } from 'next-intl'
 
 /** Validate GTM container ID format (GTM-XXXXXXX) */
 function isValidGtmId(id: string): boolean {
@@ -50,14 +47,34 @@ interface PublicIntegrationsConfig {
   scripts?: CustomScript[]
 }
 
+// Consent banner translations — TrackingProvider lives in RootLayout outside
+// NextIntlClientProvider, so we cannot use useTranslations here.
+// Both locales are included; Klaro picks the right one via lang detection at runtime.
+const CONSENT_TRANSLATIONS: Record<string, {
+  consentModal: { title: string; description: string }
+  purposes: { analytics: string; marketing: string }
+}> = {
+  en: {
+    consentModal: {
+      title: 'We use cookies',
+      description: 'We use cookies to improve your experience and analyze traffic.',
+    },
+    purposes: { analytics: 'Analytics', marketing: 'Marketing' },
+  },
+  pl: {
+    consentModal: {
+      title: 'Używamy ciasteczek',
+      description: 'Używamy ciasteczek, aby poprawić Twoje doświadczenia i analizować ruch.',
+    },
+    purposes: { analytics: 'Analityka', marketing: 'Marketing' },
+  },
+}
+
 interface TrackingProviderProps {
   config: PublicIntegrationsConfig | null
 }
 
 export default function TrackingProvider({ config }: TrackingProviderProps) {
-  const t = useTranslations('consent')
-  const locale = useLocale()
-
   if (!config) return null
 
   const {
@@ -113,19 +130,8 @@ export default function TrackingProvider({ config }: TrackingProviderProps) {
     acceptAll: true,
     hideDeclineAll: false,
     hideLearnMore: false,
-    lang: locale,
-    translations: {
-      [locale]: {
-        consentModal: {
-          title: t('modal.title'),
-          description: t('modal.description'),
-        },
-        purposes: {
-          analytics: t('purposes.analytics'),
-          marketing: t('purposes.marketing'),
-        },
-      },
-    },
+    lang: 'en',
+    translations: CONSENT_TRANSLATIONS,
     services: [] as any[],
     // NOTE: callback is NOT included here because JSON.stringify drops functions.
     // It is appended as raw JS after serialization — see klaroCallbackJs below.
@@ -286,7 +292,7 @@ klaroConfig.callback = function(consent, service) {
             strategy="beforeInteractive"
             dangerouslySetInnerHTML={{
               // Escape </script> sequences to prevent HTML parser from closing the tag early (XSS via DB)
-              __html: `var klaroConfig = ${JSON.stringify(klaroConfig).replace(/<\//g, '<\\/')};\n${klaroCallbackJs}`
+              __html: `var klaroConfig = ${JSON.stringify(klaroConfig).replace(/<\//g, '<\\/')};\nklaroConfig.lang = document.documentElement.lang || 'en';\n${klaroCallbackJs}`
             }}
           />
           <Script
