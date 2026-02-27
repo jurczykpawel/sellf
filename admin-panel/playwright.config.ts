@@ -30,12 +30,7 @@ const quietMode = process.env.QUIET_MODE === '1';
 
 // Visual test projects run a subset of tests at different viewports with screenshots
 const VISUAL_TESTS = [
-  '**/smoke.spec.ts',
-  '**/smoke/*.spec.ts',
-  '**/admin-dashboard.spec.ts',
-  '**/storefront.spec.ts',
-  '**/storefront-landing.spec.ts',
-  '**/profile-e2e.spec.ts',
+  '**/visual-pages.spec.ts',
 ];
 
 export default defineConfig({
