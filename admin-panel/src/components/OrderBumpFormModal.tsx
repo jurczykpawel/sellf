@@ -100,7 +100,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
           ? `${bumpPrice}`
           : `${product.price}`;
         // Note: Simple template, could be moved to i18n if needed but title is usually custom
-        setBumpTitle(`Yes, add "${product.name}" for just ${priceDisplay} ${product.currency}!`);
+        setBumpTitle(t('form.defaultTitle', { name: product.name, price: priceDisplay, currency: product.currency }));
       }
     }
   }, [bumpProductId, useCustomPrice, bumpPrice, products, editingBump, bumpTitle]);

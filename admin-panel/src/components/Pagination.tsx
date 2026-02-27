@@ -42,7 +42,7 @@ const Pagination: React.FC<PaginationProps> = ({
   const pageNumbers = getPageNumbers();
 
   return (
-    <nav className="flex items-center justify-between py-3" aria-label="Pagination">
+    <nav className="flex items-center justify-between py-3" aria-label={t('pagination')}>
       <div className="hidden sm:block">
         <p className="text-sm text-gray-700 dark:text-gray-300">
           {t('showingPage', { current: currentPage, total: totalPages })}

@@ -105,7 +105,7 @@ export function LandingNav() {
               type="button"
               onClick={() => setMobileOpen((prev) => !prev)}
               className="text-gf-body hover:text-gf-heading transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent rounded-lg p-1"
-              aria-label="Toggle menu"
+              aria-label={t('nav.toggleMenu')}
               aria-expanded={mobileOpen}
             >
               {mobileOpen ? (

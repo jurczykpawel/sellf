@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 import Script from 'next/script'
+import { useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
 
 /** Validate GTM container ID format (GTM-XXXXXXX) */
 function isValidGtmId(id: string): boolean {
@@ -53,6 +55,9 @@ interface TrackingProviderProps {
 }
 
 export default function TrackingProvider({ config }: TrackingProviderProps) {
+  const t = useTranslations('consent')
+  const locale = useLocale()
+
   if (!config) return null
 
   const {
@@ -108,15 +113,16 @@ export default function TrackingProvider({ config }: TrackingProviderProps) {
     acceptAll: true,
     hideDeclineAll: false,
     hideLearnMore: false,
+    lang: locale,
     translations: {
-      en: {
+      [locale]: {
         consentModal: {
-          title: 'We use cookies',
-          description: 'We use cookies to improve your experience and analyze traffic.',
+          title: t('modal.title'),
+          description: t('modal.description'),
         },
         purposes: {
-          analytics: 'Analytics',
-          marketing: 'Marketing',
+          analytics: t('purposes.analytics'),
+          marketing: t('purposes.marketing'),
         },
       },
     },

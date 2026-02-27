@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 
 // Define Props type for the page component
@@ -10,7 +11,8 @@ type Props = {
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  
+  const t = await getTranslations('productView');
+
   // Fetch product data
   const supabase = await createClient();
   const { data: product } = await supabase
@@ -22,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!product) {
     return {
-      title: 'Product Not Found',
+      title: t('notFound'),
     };
   }
 

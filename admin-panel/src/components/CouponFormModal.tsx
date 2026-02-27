@@ -247,7 +247,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Per User Limit</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.perUserLimit')}</label>
                 <input
                   type="number"
                   min="1"
@@ -279,7 +279,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('form.productRestriction')}</label>
               <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800/50">
                 {products.length === 0 ? (
-                  <p className="text-sm text-gray-500">No active products found.</p>
+                  <p className="text-sm text-gray-500">{t('noActiveProducts')}</p>
                 ) : (
                   products.map(product => (
                     <label key={product.id} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">

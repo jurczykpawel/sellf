@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { ModalSection } from '@/components/ui/Modal';
 import { PostPurchaseSectionProps } from '../types';
 
@@ -14,6 +15,7 @@ export function PostPurchaseSection({
   oto,
   setOto,
 }: PostPurchaseSectionProps) {
+  const tCommon = useTranslations('common');
   // Helper to detect if redirect URL points to an internal product
   const getSelectedProductFromUrl = () => {
     const url = formData.success_redirect_url || '';
@@ -114,12 +116,12 @@ export function PostPurchaseSection({
             className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             disabled={loadingProducts}
           >
-            <option value="">{loadingProducts ? 'Loading...' : t('postPurchase.selectProductPlaceholder')}</option>
+            <option value="">{loadingProducts ? tCommon('loading') : t('postPurchase.selectProductPlaceholder')}</option>
             {products
               .filter(p => p.id !== currentProductId)
               .map(p => (
                 <option key={p.id} value={p.slug}>
-                  {p.icon} {p.name} {p.price === 0 ? '(Free)' : `- ${p.price} ${p.currency}`}
+                  {p.icon} {p.name} {p.price === 0 ? `(${t('free')})` : `- ${p.price} ${p.currency}`}
                 </option>
               ))
             }
@@ -132,7 +134,7 @@ export function PostPurchaseSection({
               <div className="flex-1">
                 <p className="font-medium text-gray-900 dark:text-white">{selectedRedirectProduct.name}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedRedirectProduct.price === 0 ? 'Free' : `${selectedRedirectProduct.price} ${selectedRedirectProduct.currency}`}
+                  {selectedRedirectProduct.price === 0 ? t('free') : `${selectedRedirectProduct.price} ${selectedRedirectProduct.currency}`}
                 </p>
               </div>
               <button

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { PRODUCT_ICONS } from '@/utils/themeUtils';
 
 interface IconSelectorProps {
@@ -12,6 +13,7 @@ interface IconSelectorProps {
 const ICONS = Object.entries(PRODUCT_ICONS).map(([id, emoji]) => ({ id, emoji }));
 
 const IconSelector: React.FC<IconSelectorProps> = ({ selectedIcon, onSelectIcon }) => {
+  const t = useTranslations('common');
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleDropdown = () => setIsOpen(!isOpen);
@@ -60,7 +62,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ selectedIcon, onSelectIcon 
       >
         <div className="flex items-center space-x-2">
           <span className="text-xl">{currentIcon.emoji}</span>
-          <span>{currentIcon.id !== 'custom' ? currentIcon.id : 'Custom'}</span>
+          <span>{currentIcon.id !== 'custom' ? currentIcon.id : t('custom')}</span>
         </div>
         <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />

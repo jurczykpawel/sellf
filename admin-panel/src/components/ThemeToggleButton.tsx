@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/components/providers/theme-provider'
 
 interface ThemeToggleButtonProps {
@@ -7,6 +8,7 @@ interface ThemeToggleButtonProps {
 }
 
 export default function ThemeToggleButton({ size = 'md' }: ThemeToggleButtonProps) {
+  const t = useTranslations('navigation')
   const { theme, resolvedTheme, cycleTheme } = useTheme()
 
   const iconSize = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'
@@ -17,8 +19,8 @@ export default function ThemeToggleButton({ size = 'md' }: ThemeToggleButtonProp
     <button
       onClick={cycleTheme}
       className={`relative flex items-center justify-center ${buttonSize} hover:bg-gray-100 dark:hover:bg-white/20 rounded-full transition-all duration-200 hover:scale-105`}
-      aria-label={`Theme: ${theme}`}
-      title={`Theme: ${theme}`}
+      aria-label={t('themeLabel', { theme })}
+      title={t('themeLabel', { theme })}
     >
       {resolvedTheme === 'dark' ? (
         <svg className={`${iconSize} text-yellow-300`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

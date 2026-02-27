@@ -134,7 +134,7 @@ export function Step3CreateKey() {
               </p>
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 font-mono text-sm flex items-center justify-between">
                 <span className="text-gray-900 dark:text-white">
-                  GateFlow {isTestMode ? 'Test' : 'Live'}
+                  GateFlow {isTestMode ? t('test') : t('live')}
                 </span>
                 <button
                   onClick={() => copyToClipboard(`GateFlow ${isTestMode ? 'Test' : 'Live'}`, 3)}

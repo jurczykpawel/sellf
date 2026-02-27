@@ -21,17 +21,17 @@ interface ApiKey {
   revoked_at: string | null;
 }
 
-const SCOPE_LABELS: Record<string, string> = {
-  '*': 'Full Access',
-  'products:read': 'Products (Read)',
-  'products:write': 'Products (Write)',
-  'users:read': 'Users (Read)',
-  'users:write': 'Users (Write)',
-  'coupons:read': 'Coupons (Read)',
-  'coupons:write': 'Coupons (Write)',
-  'analytics:read': 'Analytics (Read)',
-  'webhooks:read': 'Webhooks (Read)',
-  'webhooks:write': 'Webhooks (Write)',
+const SCOPE_KEY_MAP: Record<string, string> = {
+  '*': 'scopes.fullAccess',
+  'products:read': 'scopes.productsRead',
+  'products:write': 'scopes.productsWrite',
+  'users:read': 'scopes.usersRead',
+  'users:write': 'scopes.usersWrite',
+  'coupons:read': 'scopes.couponsRead',
+  'coupons:write': 'scopes.couponsWrite',
+  'analytics:read': 'scopes.analyticsRead',
+  'webhooks:read': 'scopes.webhooksRead',
+  'webhooks:write': 'scopes.webhooksWrite',
 };
 
 export default function ApiKeysPageContent() {
@@ -251,7 +251,7 @@ export default function ApiKeysPageContent() {
                       <div className="flex flex-wrap gap-1">
                         {key.scopes.slice(0, 2).map((scope) => (
                           <span key={scope} className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                            {SCOPE_LABELS[scope] || scope}
+                            {SCOPE_KEY_MAP[scope] ? t(SCOPE_KEY_MAP[scope]) : scope}
                           </span>
                         ))}
                         {key.scopes.length > 2 && (

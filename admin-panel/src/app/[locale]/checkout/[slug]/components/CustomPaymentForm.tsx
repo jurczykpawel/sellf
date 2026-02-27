@@ -439,7 +439,7 @@ export default function CustomPaymentForm({
           id="fullName"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          placeholder="Jan Kowalski"
+          placeholder={t('fullNamePlaceholder')}
           required
           disabled={isLoadingProfile}
           className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
@@ -538,7 +538,7 @@ export default function CustomPaymentForm({
                 setGusData(null);
               }}
               onBlur={handleNIPBlur}
-              placeholder="PL1234567890 or DE123456789"
+              placeholder={t('taxIdPlaceholder')}
               maxLength={20}
               className={`w-full px-3 py-2.5 bg-white dark:bg-white/5 border ${
                 nipError ? 'border-red-500/50' : gusSuccess ? 'border-green-500/50' : 'border-gray-300 dark:border-white/10'
@@ -578,7 +578,7 @@ export default function CustomPaymentForm({
                 id="companyName"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Company Ltd."
+                placeholder={t('companyNamePlaceholder')}
                 className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

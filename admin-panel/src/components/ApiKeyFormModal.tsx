@@ -17,26 +17,6 @@ interface ApiKeyFormModalProps {
   isSubmitting: boolean;
 }
 
-const AVAILABLE_SCOPES = [
-  { value: '*', label: 'Full Access', description: 'Access to all resources' },
-  { value: 'products:read', label: 'Products (Read)', description: 'View products' },
-  { value: 'products:write', label: 'Products (Write)', description: 'Create, update, delete products' },
-  { value: 'users:read', label: 'Users (Read)', description: 'View users and their access' },
-  { value: 'users:write', label: 'Users (Write)', description: 'Grant/revoke user access' },
-  { value: 'coupons:read', label: 'Coupons (Read)', description: 'View coupons' },
-  { value: 'coupons:write', label: 'Coupons (Write)', description: 'Create, update, delete coupons' },
-  { value: 'analytics:read', label: 'Analytics (Read)', description: 'View analytics data' },
-  { value: 'webhooks:read', label: 'Webhooks (Read)', description: 'View webhook configurations' },
-  { value: 'webhooks:write', label: 'Webhooks (Write)', description: 'Manage webhooks' },
-];
-
-const SCOPE_PRESETS = [
-  { name: 'Full Access', scopes: ['*'] },
-  { name: 'Read Only', scopes: ['products:read', 'users:read', 'coupons:read', 'analytics:read', 'webhooks:read'] },
-  { name: 'Products Only', scopes: ['products:read', 'products:write'] },
-  { name: 'Users Only', scopes: ['users:read', 'users:write'] },
-];
-
 export default function ApiKeyFormModal({
   isOpen,
   onClose,
@@ -45,6 +25,26 @@ export default function ApiKeyFormModal({
 }: ApiKeyFormModalProps) {
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
+
+  const AVAILABLE_SCOPES = [
+    { value: '*', label: t('scopes.fullAccess'), description: t('scopeDescriptions.fullAccess') },
+    { value: 'products:read', label: t('scopes.productsRead'), description: t('scopeDescriptions.productsRead') },
+    { value: 'products:write', label: t('scopes.productsWrite'), description: t('scopeDescriptions.productsWrite') },
+    { value: 'users:read', label: t('scopes.usersRead'), description: t('scopeDescriptions.usersRead') },
+    { value: 'users:write', label: t('scopes.usersWrite'), description: t('scopeDescriptions.usersWrite') },
+    { value: 'coupons:read', label: t('scopes.couponsRead'), description: t('scopeDescriptions.couponsRead') },
+    { value: 'coupons:write', label: t('scopes.couponsWrite'), description: t('scopeDescriptions.couponsWrite') },
+    { value: 'analytics:read', label: t('scopes.analyticsRead'), description: t('scopeDescriptions.analyticsRead') },
+    { value: 'webhooks:read', label: t('scopes.webhooksRead'), description: t('scopeDescriptions.webhooksRead') },
+    { value: 'webhooks:write', label: t('scopes.webhooksWrite'), description: t('scopeDescriptions.webhooksWrite') },
+  ];
+
+  const SCOPE_PRESETS = [
+    { id: 'fullAccess', name: t('presets.fullAccess'), scopes: ['*'] },
+    { id: 'readOnly', name: t('presets.readOnly'), scopes: ['products:read', 'users:read', 'coupons:read', 'analytics:read', 'webhooks:read'] },
+    { id: 'productsOnly', name: t('presets.productsOnly'), scopes: ['products:read', 'products:write'] },
+    { id: 'usersOnly', name: t('presets.usersOnly'), scopes: ['users:read', 'users:write'] },
+  ];
 
   const [formData, setFormData] = useState({
     name: '',
@@ -140,7 +140,7 @@ export default function ApiKeyFormModal({
             <div className="flex flex-wrap gap-2">
               {SCOPE_PRESETS.map((preset) => (
                 <button
-                  key={preset.name}
+                  key={preset.id}
                   type="button"
                   onClick={() => applyPreset(preset.scopes)}
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${

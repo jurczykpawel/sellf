@@ -95,7 +95,11 @@
     "postalCodePlaceholder": "00-000",
     "cityLabel": "Miasto",
     "cityPlaceholder": "Warszawa",
-    "securePayment": "🔒 Bezpieczna płatność powered by Stripe"
+    "securePayment": "🔒 Bezpieczna płatność powered by Stripe",
+    "fullNamePlaceholder": "Jan Kowalski",
+    "taxIdPlaceholder": "PL1234567890 lub DE123456789",
+    "companyNamePlaceholder": "Firma Sp. z o.o.",
+    "completeYourPurchase": "Dokończ zakup"
   },
   "waitlist": {
     "joinWaitlist": "Dołącz do listy oczekujących",
@@ -162,7 +166,14 @@
     "showingPage": "Strona {current} z {total}",
     "closeModal": "Zamknij okno",
     "clearDate": "Wyczyść datę",
-    "optional": "opcjonalne"
+    "optional": "opcjonalne",
+    "pagination": "Paginacja",
+    "reset": "Resetuj",
+    "custom": "Niestandardowy",
+    "clear": "Wyczyść",
+    "selectOption": "Wybierz opcję...",
+    "selectDateTime": "Wybierz datę i godzinę",
+    "noResults": "Brak wyników dla \"{searchTerm}\""
   },
   "navigation": {
     "dashboard": "Pulpit",
@@ -444,7 +455,13 @@
         "category": "Kategoria (RODO)",
         "code": "Kod Skryptu",
         "cancel": "Anuluj",
-        "add": "Dodaj Skrypt"
+        "add": "Dodaj Skrypt",
+        "namePlaceholder": "np. Hotjar",
+        "codePlaceholder": "<script>...</script>"
+      },
+      "location": {
+        "head": "HEAD",
+        "body": "BODY"
       }
     },
     "messages": {
@@ -522,7 +539,9 @@
     "backToLogin": "Powrót do logowania",
     "title": "GateFlow Admin",
     "disposableEmailBlocked": "Rejestracja zablokowana: Tymczasowe adresy email nie są dozwolone. Użyj stałego adresu email.",
-    "emailValidationFailed": "Weryfikacja email nie powiodła się. Spróbuj ponownie."
+    "emailValidationFailed": "Weryfikacja email nie powiodła się. Spróbuj ponownie.",
+    "emailPlaceholder": "twoj@email.com",
+    "passwordPlaceholder": "demo123"
   },
   "products": {
     "title": "Produkty",
@@ -711,7 +730,8 @@
       "stats": {
         "products": "{count, plural, =0 {Brak produktów} one {1 Produkt} few {# Produkty} other {# Produktów}}",
         "customers": "{count, plural, =0 {Brak klientów} one {1 Klient} few {# Klienci} other {# Klientów}}",
-        "ready": "Gotowy do uruchomienia"
+        "ready": "Gotowy do uruchomienia",
+        "status": "Status"
       }
     },
     "comingSoon": {
@@ -751,7 +771,8 @@
     },
     "featured": {
       "title": "Polecane produkty",
-      "subtitle": "Nasza starannie wyselekcjonowana oferta dla Ciebie"
+      "subtitle": "Nasza starannie wyselekcjonowana oferta dla Ciebie",
+      "badge": "Wyróżnione"
     },
     "sections": {
       "viewAll": "Zobacz wszystkie produkty",
@@ -935,7 +956,8 @@
     "failedToLoadContent": "Nie udało się załadować zawartości",
     "loadingTimeoutTitle": "Ładowanie trwa dłużej niż oczekiwano",
     "loadingTimeoutMessage": "Nie udało się załadować informacji o produkcie. Może to być spowodowane tymczasowym problemem z połączeniem.",
-    "tryAgain": "Spróbuj ponownie"
+    "tryAgain": "Spróbuj ponownie",
+    "notFound": "Produkt nie został znaleziony"
   },
   "myProducts": {
     "title": "Moje produkty",
@@ -1381,7 +1403,9 @@
         "muted": "Wyciszony",
         "preload": "Wstępne ładowanie",
         "longDescriptionPlaceholder": "## Co zawiera?\n- Funkcja 1\n- Funkcja 2",
-        "slugPlaceholder": "adres-url-produktu"
+        "slugPlaceholder": "adres-url-produktu",
+        "imageUrlPlaceholder": "https://i.ibb.co/...",
+        "salePricePlaceholder": "0,00"
       }
     },
     "categories": {
@@ -1646,7 +1670,37 @@
       "rotateTitle": "Rotuj klucz API",
       "rotateConfirmation": "Czy na pewno chcesz zrotować klucz API \"{name}\"?",
       "rotateGracePeriod": "Stary klucz pozostanie aktywny przez 24 godziny aby umożliwić płynne przejście.",
-      "rotateKey": "Rotuj klucz"
+      "rotateKey": "Rotuj klucz",
+      "scopes": {
+        "fullAccess": "Pełny dostęp",
+        "productsRead": "Produkty (odczyt)",
+        "productsWrite": "Produkty (zapis)",
+        "usersRead": "Użytkownicy (odczyt)",
+        "usersWrite": "Użytkownicy (zapis)",
+        "couponsRead": "Kupony (odczyt)",
+        "couponsWrite": "Kupony (zapis)",
+        "analyticsRead": "Analityka (odczyt)",
+        "webhooksRead": "Webhooki (odczyt)",
+        "webhooksWrite": "Webhooki (zapis)"
+      },
+      "scopeDescriptions": {
+        "fullAccess": "Dostęp do wszystkich zasobów",
+        "productsRead": "Przeglądanie produktów",
+        "productsWrite": "Tworzenie, aktualizacja i usuwanie produktów",
+        "usersRead": "Przeglądanie użytkowników i ich dostępu",
+        "usersWrite": "Przyznawanie/odbieranie dostępu użytkownikom",
+        "couponsRead": "Przeglądanie kuponów",
+        "couponsWrite": "Tworzenie, aktualizacja i usuwanie kuponów",
+        "analyticsRead": "Przeglądanie danych analitycznych",
+        "webhooksRead": "Przeglądanie konfiguracji webhooków",
+        "webhooksWrite": "Zarządzanie webhookami"
+      },
+      "presets": {
+        "fullAccess": "Pełny dostęp",
+        "readOnly": "Tylko odczyt",
+        "productsOnly": "Tylko produkty",
+        "usersOnly": "Tylko użytkownicy"
+      }
     },
     "coupons": {
       "title": "Kupony",
@@ -1724,7 +1778,8 @@
         "add": "Dodaj",
         "activeLabel": "Aktywny",
         "creating": "Tworzenie...",
-        "saving": "Zapisywanie..."
+        "saving": "Zapisywanie...",
+        "perUserLimit": "Limit na użytkownika"
       },
       "loadError": "Nie udało się załadować kuponów",
       "createError": "Nie udało się utworzyć kuponu",
@@ -1732,7 +1787,8 @@
       "deleteError": "Nie udało się usunąć kuponu",
       "statusError": "Nie udało się zaktualizować statusu",
       "bulkDeleteError": "Nie udało się usunąć kuponów",
-      "deleteExpiredError": "Nie udało się usunąć wygasłych kuponów"
+      "deleteExpiredError": "Nie udało się usunąć wygasłych kuponów",
+      "noActiveProducts": "Nie znaleziono aktywnych produktów."
     },
     "orderBumps": {
       "title": "Order Bumps",
@@ -1785,7 +1841,8 @@
         "save": "Zapisz Order Bump",
         "creating": "Tworzenie...",
         "saving": "Zapisywanie...",
-        "accessDurationPlaceholder": "np. 30 dni"
+        "accessDurationPlaceholder": "np. 30 dni",
+        "defaultTitle": "Tak, dodaj \"{name}\" za jedyne {price} {currency}!"
       },
       "loadError": "Nie udało się załadować order bumpów",
       "createError": "Nie udało się utworzyć order bumpa",
@@ -1839,7 +1896,8 @@
           "pending": "Oczekująca",
           "failed": "Nieudana",
           "refunded": "Zwrócona"
-        }
+        },
+        "refunded": "Zwrot: {amount}"
       },
       "refund": {
         "title": "Przetwórz Zwrot",
@@ -1856,7 +1914,13 @@
         "success": "Zwrot przetworzony pomyślnie",
         "error": "Nie udało się przetworzyć zwrotu"
       },
-      "loadError": "Nie udało się załadować danych płatności"
+      "loadError": "Nie udało się załadować danych płatności",
+      "cancelSession": {
+        "label": "Anuluj",
+        "loading": "Anulowanie...",
+        "success": "Sesja anulowana",
+        "error": "Nie udało się anulować sesji"
+      }
     },
     "variantsPage": {
       "title": "Warianty produktów",
@@ -2442,7 +2506,9 @@
           "warning": "Klucz jest pokazywany tylko raz! Upewnij się, że go skopiowałeś."
         },
         "backButton": "Wstecz",
-        "nextButton": "Utworzyłem klucz"
+        "nextButton": "Utworzyłem klucz",
+        "test": "Test",
+        "live": "Live"
       },
       "step4": {
         "title": "Wpisz swój klucz API",
@@ -2624,7 +2690,8 @@
       "github": "GitHub",
       "dashboard": "Panel",
       "myProducts": "Moje Produkty",
-      "getStarted": "Zaloguj"
+      "getStarted": "Zaloguj",
+      "toggleMenu": "Przełącz menu"
     },
     "hero": {
       "badge": "Open Source · Self-Hosted · Gotowe dla Firm",
@@ -2908,7 +2975,8 @@
           "q": "Jak rozliczać VAT z własnym kontem Stripe?",
           "a": "Poniżej €10 000/rok sprzedaży transgranicznej B2C w UE — VAT w swoim kraju. Powyżej — rejestracja EU OSS (jeden formularz, wszystkie kraje). Stripe Tax automatyzuje kalkulację za 0,5%. Skonsultuj się z doradcą podatkowym."
         }
-      ]
+      ],
+      "githubIssues": "GitHub Issues →"
     },
     "finalCta": {
       "title": "Gotowy na start?",
@@ -3006,5 +3074,15 @@
     "noContentMessage": "Nie skonfigurowano jeszcze żadnej treści cyfrowej dla tego produktu.",
     "sectionTitle": "Treść cyfrowa",
     "accessYourContent": "Uzyskaj dostęp do treści {productName} poniżej"
+  },
+  "consent": {
+    "modal": {
+      "title": "Używamy ciasteczek",
+      "description": "Używamy ciasteczek, aby poprawić Twoje doświadczenia i analizować ruch."
+    },
+    "purposes": {
+      "analytics": "Analityka",
+      "marketing": "Marketing"
+    }
   }
 }

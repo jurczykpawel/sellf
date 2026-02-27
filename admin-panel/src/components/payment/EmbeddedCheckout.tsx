@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { fetchClientSecret } from '@/lib/actions/checkout';
@@ -14,6 +15,7 @@ interface EmbeddedCheckoutComponentProps {
 }
 
 export default function EmbeddedCheckoutComponent({ product, email }: EmbeddedCheckoutComponentProps) {
+  const t = useTranslations('checkout');
   const { user } = useAuth();
   const config = useConfig();
   
@@ -29,7 +31,7 @@ export default function EmbeddedCheckoutComponent({ product, email }: EmbeddedCh
 
   return (
     <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
-      <h2 className="text-xl font-semibold text-white mb-4">Complete Your Purchase</h2>
+      <h2 className="text-xl font-semibold text-white mb-4">{t('completeYourPurchase')}</h2>
       <EmbeddedCheckoutProvider
         stripe={stripePromise}
         options={embeddedCheckoutOptions(fetchClientSecretForProduct)}

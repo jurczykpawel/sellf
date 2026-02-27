@@ -142,7 +142,7 @@ export default function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           className="w-full px-4 py-3 bg-gf-float border border-gf-border rounded-xl text-gf-heading placeholder-gf-muted focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent transition-all"
-          placeholder={demoMode ? 'demo@gateflow.io' : 'admin@example.com'}
+          placeholder={demoMode ? 'demo@gateflow.io' : t('auth.emailPlaceholder')}
         />
       </div>
 
@@ -159,7 +159,7 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="w-full px-4 py-3 bg-gf-float border border-gf-border rounded-xl text-gf-heading placeholder-gf-muted focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent transition-all"
-            placeholder="demo123"
+            placeholder={t('auth.passwordPlaceholder')}
           />
         </div>
       )}

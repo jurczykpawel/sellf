@@ -19,6 +19,7 @@ interface StripeConfigWizardProps {
 
 function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
   const t = useTranslations('stripe.wizard')
+  const tCommon = useTranslations('common')
   const { state, loadDraft, clearDraft, resetWizard } = useStripeConfig()
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
@@ -94,7 +95,7 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              aria-label="Close"
+              aria-label={tCommon('close')}
             >
               <X className="w-6 h-6" />
             </button>

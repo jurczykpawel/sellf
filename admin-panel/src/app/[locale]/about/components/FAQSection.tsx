@@ -32,7 +32,7 @@ export function FAQSection() {
                 rel="noopener noreferrer"
                 className="text-sm font-medium text-gf-accent hover:text-gf-accent-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent rounded"
               >
-                GitHub Issues →
+                {t('faq.githubIssues')}
               </a>
             </div>
           </Reveal>

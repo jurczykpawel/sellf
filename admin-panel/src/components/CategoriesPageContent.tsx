@@ -61,7 +61,7 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
               <th className="p-4 font-medium text-gray-500 dark:text-gray-400">{commonT('name')}</th>
-              <th className="p-4 font-medium text-gray-500 dark:text-gray-400">Slug</th>
+              <th className="p-4 font-medium text-gray-500 dark:text-gray-400">{t('slug')}</th>
               <th className="p-4 font-medium text-gray-500 dark:text-gray-400 text-right">{commonT('actions')}</th>
             </tr>
           </thead>

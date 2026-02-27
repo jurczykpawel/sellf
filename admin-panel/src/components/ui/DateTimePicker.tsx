@@ -21,7 +21,7 @@ interface DateTimePickerProps {
 export default function DateTimePicker({
   value,
   onChange,
-  placeholder = "Select date and time",
+  placeholder,
   label,
   description,
   error,
@@ -32,6 +32,7 @@ export default function DateTimePicker({
   maxDate
 }: DateTimePickerProps) {
   const tCommon = useTranslations('common');
+  const displayPlaceholder = placeholder ?? tCommon('selectDateTime');
   // Convert UTC from database to local datetime-local format (YYYY-MM-DDTHH:mm)
   const formatForInput = (utcValue: string | undefined): string => {
     if (!utcValue) return '';
@@ -89,7 +90,7 @@ export default function DateTimePicker({
           min={formatMinMax(minDate)}
           max={formatMinMax(maxDate)}
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={displayPlaceholder}
           className={`
             flex-1 min-w-0 px-3 py-2.5 border rounded-lg shadow-sm transition-all duration-200
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent

@@ -167,7 +167,7 @@ export default function PaymentSessionsTable({
                     disabled={cancelingId === session.session_id}
                     className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
                   >
-                    {cancelingId === session.session_id ? 'Cancelling...' : 'Cancel'}
+                    {cancelingId === session.session_id ? tCancel('loading') : tCancel('label')}
                   </button>
                 )}
               </td>

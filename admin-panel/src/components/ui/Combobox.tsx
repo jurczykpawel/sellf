@@ -19,8 +19,9 @@ interface ComboboxProps {
   label?: string;
 }
 
-export const Combobox = ({ options, placeholder = 'Select an option...', selectedValue, onSelect, className, label }: ComboboxProps) => {
+export const Combobox = ({ options, placeholder, selectedValue, onSelect, className, label }: ComboboxProps) => {
   const t = useTranslations('common');
+  const displayPlaceholder = placeholder ?? t('selectOption');
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -118,7 +119,7 @@ export const Combobox = ({ options, placeholder = 'Select an option...', selecte
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={displayPlaceholder}
           className="w-full py-2 pl-3 pr-10 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm dark:bg-gray-800 dark:text-white"
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -146,7 +147,7 @@ export const Combobox = ({ options, placeholder = 'Select an option...', selecte
       )}
       {isOpen && searchTerm && filteredOptions.length === 0 && (
         <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-xl px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-          No results found for "{searchTerm}"
+          {t('noResults', { searchTerm })}
         </div>
       )}
     </div>

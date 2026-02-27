@@ -694,15 +694,15 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                 
                 <div>
                     <label className="block text-sm font-medium mb-1 dark:text-gray-300">{t('scripts.modal.name')}</label>
-                    <input type="text" className="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600" value={newScript.name} onChange={e => setNewScript({...newScript, name: e.target.value})} placeholder="e.g. Hotjar" />
+                    <input type="text" className="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600" value={newScript.name} onChange={e => setNewScript({...newScript, name: e.target.value})} placeholder={t('scripts.modal.namePlaceholder')} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium mb-1 dark:text-gray-300">{t('scripts.modal.location')}</label>
                         <select className="w-full border rounded p-2 dark:bg-gray-700" value={newScript.script_location} onChange={e => setNewScript({...newScript, script_location: e.target.value as any})}>
-                            <option value="head">HEAD</option>
-                            <option value="body">BODY</option>
+                            <option value="head">{t('scripts.location.head')}</option>
+                            <option value="body">{t('scripts.location.body')}</option>
                         </select>
                     </div>
                     <div>
@@ -717,7 +717,7 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
 
                 <div>
                     <label className="block text-sm font-medium mb-1 dark:text-gray-300">{t('scripts.modal.code')}</label>
-                    <textarea rows={5} className="w-full border rounded p-2 font-mono text-sm dark:bg-gray-700" value={newScript.script_content} onChange={e => setNewScript({...newScript, script_content: e.target.value})} placeholder="<script>...</script>"></textarea>
+                    <textarea rows={5} className="w-full border rounded p-2 font-mono text-sm dark:bg-gray-700" value={newScript.script_content} onChange={e => setNewScript({...newScript, script_content: e.target.value})} placeholder={t('scripts.modal.codePlaceholder')}></textarea>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -17,6 +18,7 @@ const Toast: React.FC<ToastProps> = ({
   duration = 3000, 
   onClose 
 }) => {
+  const t = useTranslations('common');
   const [isVisible, setIsVisible] = useState(true);
   const [progress, setProgress] = useState(100);
 
@@ -116,7 +118,7 @@ const Toast: React.FC<ToastProps> = ({
         }}
         className="ml-auto -mx-1.5 -my-1.5 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 inline-flex h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
       >
-        <span className="sr-only">Close</span>
+        <span className="sr-only">{t('close')}</span>
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
         </svg>

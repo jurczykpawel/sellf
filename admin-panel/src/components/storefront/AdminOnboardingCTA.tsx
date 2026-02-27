@@ -135,7 +135,7 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
                 </div>
                 <div className="text-left">
                   <p className="text-lg font-bold text-green-600 dark:text-green-400">{t('stats.ready')}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.status')}</p>
                 </div>
               </div>
             </div>

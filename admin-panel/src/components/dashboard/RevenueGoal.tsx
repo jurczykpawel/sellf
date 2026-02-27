@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation';
 
 export default function RevenueGoal() {
   const t = useTranslations('admin.dashboard');
+  const tCommon = useTranslations('common');
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId') || undefined;
   const { addRefreshListener, removeRefreshListener } = useRealtime();
@@ -241,14 +242,14 @@ export default function RevenueGoal() {
                 onClick={handleSave}
                 className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
               >
-                Save
+                {tCommon('save')}
               </button>
               <button
                 onClick={handleResetGoal}
                 className="text-xs text-gray-500 dark:text-gray-400 hover:underline"
                 title={t('resetProgressTitle')}
               >
-                Reset
+                {tCommon('reset')}
               </button>
             </div>
             <span className="text-[10px] text-gray-500 dark:text-gray-500">

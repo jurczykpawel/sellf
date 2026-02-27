@@ -123,7 +123,7 @@ export default function PaymentTransactionsTable({
                   </div>
                   {transaction.refunded_amount > 0 && (
                     <div className="text-sm text-red-600">
-                      Refunded: {formatCurrency(transaction.refunded_amount, transaction.currency)}
+                      {t('refunded', { amount: formatCurrency(transaction.refunded_amount, transaction.currency) })}
                     </div>
                   )}
                 </td>

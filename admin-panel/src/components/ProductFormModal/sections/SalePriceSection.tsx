@@ -67,7 +67,7 @@ export function SalePriceSection({
                 name="sale_price"
                 value={salePriceDisplayValue}
                 onChange={handleSalePriceChange}
-                placeholder={!showCurrencyPrefix ? `0,00 ${getCurrencySymbol(formData.currency)}` : "0.00"}
+                placeholder={!showCurrencyPrefix ? `0,00 ${getCurrencySymbol(formData.currency)}` : t('salePricePlaceholder')}
                 className={`${showCurrencyPrefix ? 'pl-12' : 'pl-3'} pr-12 w-full py-2.5 border ${salePriceInvalid ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white`}
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
