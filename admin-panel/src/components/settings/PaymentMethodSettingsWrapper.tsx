@@ -1,11 +1,29 @@
 'use client';
 
 import { Component, ReactNode, Suspense } from 'react';
+import { useTranslations } from 'next-intl';
 import PaymentMethodSettings from './PaymentMethodSettings';
 
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+}
+
+function ErrorFallback({ error }: { error: Error | null }) {
+  const tCommon = useTranslations('common');
+  return (
+    <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-6">
+      <h3 className="text-xl font-semibold text-red-800 dark:text-red-300 mb-2">
+        Error Loading Payment Method Settings
+      </h3>
+      <p className="text-red-700 dark:text-red-400">
+        {error?.message || tCommon('unexpectedError')}
+      </p>
+      <pre className="mt-4 p-2 bg-red-50 dark:bg-red-900/50 rounded text-xs overflow-auto">
+        {error?.stack}
+      </pre>
+    </div>
+  );
 }
 
 class PaymentMethodErrorBoundary extends Component<
@@ -28,21 +46,8 @@ class PaymentMethodErrorBoundary extends Component<
 
   render() {
     if (this.state.hasError) {
-      return (
-        <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-red-800 dark:text-red-300 mb-2">
-            Error Loading Payment Method Settings
-          </h3>
-          <p className="text-red-700 dark:text-red-400">
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </p>
-          <pre className="mt-4 p-2 bg-red-50 dark:bg-red-900/50 rounded text-xs overflow-auto">
-            {this.state.error?.stack}
-          </pre>
-        </div>
-      );
+      return <ErrorFallback error={this.state.error} />;
     }
-
     return this.props.children;
   }
 }

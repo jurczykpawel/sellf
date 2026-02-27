@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { convertLocalToUTC, convertUTCToLocal, addTimezoneInfo } from '@/lib/timezone';
 
 interface DateTimePickerProps {
@@ -30,6 +31,7 @@ export default function DateTimePicker({
   minDate,
   maxDate
 }: DateTimePickerProps) {
+  const tCommon = useTranslations('common');
   // Convert UTC from database to local datetime-local format (YYYY-MM-DDTHH:mm)
   const formatForInput = (utcValue: string | undefined): string => {
     if (!utcValue) return '';
@@ -70,7 +72,7 @@ export default function DateTimePicker({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
-          {!required && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(optional)</span>}
+          {!required && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({tCommon('optional')})</span>}
         </label>
       )}
 
@@ -106,7 +108,7 @@ export default function DateTimePicker({
             type="button"
             onClick={handleClear}
             className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            aria-label="Clear date"
+            aria-label={tCommon('clearDate')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

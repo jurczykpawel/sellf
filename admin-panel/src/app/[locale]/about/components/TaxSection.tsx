@@ -58,7 +58,7 @@ export async function TaxSection() {
             <div className="p-8 rounded-2xl border-2 border-gf-success/40 bg-gf-success-soft ring-2 ring-gf-success/20 relative h-full">
               <div className="absolute -top-3 right-6">
                 <span className="bg-gf-success text-white text-xs font-bold px-3 py-1 rounded-full">
-                  Recommended
+                  {t('tax.recommended')}
                 </span>
               </div>
               <div className="flex items-center gap-3 mb-2">

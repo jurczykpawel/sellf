@@ -222,21 +222,21 @@ export default function CustomPaymentForm({
         } else {
           // GUS API returned error
           if (result.code === 'RATE_LIMIT_EXCEEDED') {
-            setGusError('Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie.');
+            setGusError(t('gusRateLimitExceeded'));
           } else if (result.code === 'NOT_FOUND') {
-            setGusError('Nie znaleziono firmy w bazie GUS');
+            setGusError(t('gusNotFound'));
           } else if (result.code === 'NOT_CONFIGURED') {
             // Silent fail - GUS not configured, user can enter manually
             setGusError(null);
           } else if (result.code === 'INVALID_ORIGIN') {
-            setGusError('Błąd bezpieczeństwa. Odśwież stronę i spróbuj ponownie.');
+            setGusError(t('gusSecurityError'));
           } else {
-            setGusError('Nie udało się pobrać danych z GUS. Wprowadź dane ręcznie.');
+            setGusError(t('gusFetchError'));
           }
         }
       } catch (error) {
         console.error('GUS fetch error:', error);
-        setGusError('Nie udało się pobrać danych z GUS. Wprowadź dane ręcznie.');
+        setGusError(t('gusFetchError'));
       } finally {
         setIsLoadingGUS(false);
       }
@@ -280,7 +280,7 @@ export default function CustomPaymentForm({
     if (nip && nip.trim().length > 0) {
       const validation = validateTaxId(nip, true);
       if (!validation.isValid) {
-        setErrorMessage(validation.error || 'Invalid tax ID format');
+        setErrorMessage(validation.error || t('invalidTaxIdFormat'));
         return;
       }
     }
@@ -295,7 +295,7 @@ export default function CustomPaymentForm({
         // Submit the form to validate payment method
         const { error: submitError } = await elements.submit();
         if (submitError) {
-          setErrorMessage(submitError.message || 'Failed to prepare payment');
+          setErrorMessage(submitError.message || t('failedToPreparePayment'));
           setIsProcessing(false);
           return;
         }
@@ -335,7 +335,7 @@ export default function CustomPaymentForm({
       if (bumpSelected && bumpProduct) {
         items.push({
           item_id: bumpProduct.bump_product_id,
-          item_name: bumpProduct.bump_product_name || 'Additional Product',
+          item_name: bumpProduct.bump_product_name || t('additionalProduct'),
           price: bumpProduct.bump_price,
           quantity: 1,
         });
@@ -362,11 +362,11 @@ export default function CustomPaymentForm({
       });
 
       if (error) {
-        setErrorMessage(error.message || 'Payment failed');
+        setErrorMessage(error.message || t('paymentFailed'));
         setIsProcessing(false);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected error occurred');
+      setErrorMessage(err.message || t('unexpectedError'));
       setIsProcessing(false);
     }
   };
@@ -562,7 +562,7 @@ export default function CustomPaymentForm({
             <p className="mt-1 text-xs text-yellow-400">⚠️ {gusError}</p>
           )}
           {gusSuccess && !isLoadingGUS && (
-            <p className="mt-1 text-xs text-green-400">✓ Dane pobrane z bazy GUS</p>
+            <p className="mt-1 text-xs text-green-400">✓ {t('gusDataFetched')}</p>
           )}
         </div>
 
@@ -584,41 +584,41 @@ export default function CustomPaymentForm({
             </div>
             <div>
               <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Adres
+                {t('addressLabel')}
               </label>
               <input
                 type="text"
                 id="address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="ul. Przykładowa 123"
+                placeholder={t('addressPlaceholder')}
                 className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Kod pocztowy
+                  {t('postalCodeLabel')}
                 </label>
                 <input
                   type="text"
                   id="postalCode"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
-                  placeholder="00-000"
+                  placeholder={t('postalCodePlaceholder')}
                   className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
                 <label htmlFor="city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Miasto
+                  {t('cityLabel')}
                 </label>
                 <input
                   type="text"
                   id="city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Warszawa"
+                  placeholder={t('cityPlaceholder')}
                   className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -641,7 +641,7 @@ export default function CustomPaymentForm({
             {/* Bump Product */}
             {bumpSelected && bumpProduct && (
               <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
-                <span>{bumpProduct.bump_product_name || 'Additional Product'}</span>
+                <span>{bumpProduct.bump_product_name || t('additionalProduct')}</span>
                 <span>{formatPrice(bumpProduct.bump_price, product.currency)} {product.currency}</span>
               </div>
             )}
@@ -734,7 +734,7 @@ export default function CustomPaymentForm({
       </button>
 
       <p className="text-xs text-gray-500 text-center">
-        🔒 Secure payment powered by Stripe
+        🔒 {t('securePayment')}
       </p>
     </form>
   );

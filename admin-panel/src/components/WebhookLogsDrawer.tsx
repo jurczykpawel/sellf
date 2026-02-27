@@ -76,7 +76,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
       if (data.success) {
         addToast(t('retrySuccess'), 'success');
       } else {
-        addToast(data.error || 'Retry failed', 'error');
+        addToast(data.error || t('retryFailed'), 'error');
       }
 
       // Always refresh, even if retry failed, because database was updated

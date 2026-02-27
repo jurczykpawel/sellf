@@ -370,7 +370,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           setHasAccess(true);
           return;
         }
-        setError(data.error || 'Failed to get access');
+        setError(data.error || t('failedToGetAccess'));
         return;
       }
       await track('generate_lead', {
@@ -381,7 +381,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       });
       setHasAccess(true);
     } catch {
-      setError('An unexpected error occurred');
+      setError(t('unexpectedError'));
     } finally {
       setPwywFreeLoading(false);
     }
@@ -422,12 +422,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     try {
       const emailValidation = await validateEmailAction(pwywFreeEmail);
       if (!emailValidation.isValid) {
-        setPwywFreeMessage({ type: 'error', text: emailValidation.error || 'Invalid email' });
+        setPwywFreeMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
         resetPwywFreeCaptcha();
         return;
       }
     } catch {
-      setPwywFreeMessage({ type: 'error', text: 'Invalid email' });
+      setPwywFreeMessage({ type: 'error', text: t('invalidEmail') });
       resetPwywFreeCaptcha();
       return;
     }
@@ -461,7 +461,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       });
       setPwywFreeMessage({ type: 'success', text: t('checkEmailForMagicLink') });
     } catch {
-      setPwywFreeMessage({ type: 'error', text: 'An unexpected error occurred' });
+      setPwywFreeMessage({ type: 'error', text: t('unexpectedError') });
     } finally {
       setPwywFreeLoading(false);
     }

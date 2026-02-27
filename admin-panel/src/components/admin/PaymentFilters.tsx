@@ -87,12 +87,12 @@ export default function PaymentFilters({
               className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="all">{t('allStatuses')}</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="refunded">Refunded</option>
-              <option value="disputed">Disputed</option>
+              <option value="pending">{t('pending')}</option>
+              <option value="completed">{t('completed')}</option>
+              <option value="failed">{t('failed')}</option>
+              <option value="cancelled">{t('cancelled')}</option>
+              <option value="refunded">{t('refunded')}</option>
+              <option value="disputed">{t('disputed')}</option>
             </select>
           </div>
 
@@ -117,7 +117,7 @@ export default function PaymentFilters({
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Search
+              {t('search')}
             </label>
             <input
               type="text"
@@ -141,7 +141,7 @@ export default function PaymentFilters({
             onClick={onRefresh}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
           >
-            🔄 Refresh
+            🔄 {t('refresh')}
           </button>
           <button
             onClick={exportPayments}
@@ -155,10 +155,10 @@ export default function PaymentFilters({
       {/* Active Filters Display */}
       {(filters.status !== 'all' || filters.searchTerm || filters.dateRange !== '30') && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{t('activeFilters')}</span>
           {filters.status !== 'all' && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
-              Status: {filters.status}
+              {t('statusFilter', { status: filters.status })}
               <button
                 onClick={() => handleFilterChange('status', 'all')}
                 className="ml-1 text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-100"
@@ -169,7 +169,7 @@ export default function PaymentFilters({
           )}
           {filters.searchTerm && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gf-accent-soft text-gf-accent">
-              Search: {filters.searchTerm}
+              {t('searchFilter', { term: filters.searchTerm })}
               <button
                 onClick={() => handleFilterChange('searchTerm', '')}
                 className="ml-1 text-gf-accent hover:text-gf-accent"
@@ -180,7 +180,7 @@ export default function PaymentFilters({
           )}
           {filters.dateRange !== '30' && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
-              Range: {filters.dateRange === 'all' ? 'All time' : `${filters.dateRange} days`}
+              {filters.dateRange === 'all' ? t('rangeFilter', { range: t('allTime') }) : t('rangeFilter', { range: `${filters.dateRange} ${t('days')}` })}
               <button
                 onClick={() => handleFilterChange('dateRange', '30')}
                 className="ml-1 text-green-600 hover:text-green-800 dark:text-green-300 dark:hover:text-green-100"

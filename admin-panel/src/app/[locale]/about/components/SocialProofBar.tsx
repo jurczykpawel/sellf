@@ -53,7 +53,7 @@ export async function SocialProofBar() {
             <ExternalLink className="h-4 w-4" />
           </a>
           <p className="text-xs text-gf-muted mt-2">
-            Stripe test mode — no real charges
+            {t('demo.stripeTestMode')}
           </p>
         </Reveal>
       </div>

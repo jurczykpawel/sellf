@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lock, ArrowLeft, Home, LayoutDashboard, Package, Users, LogIn, Info } from 'lucide-react';
 
 export default function NotFound() {
   const [mounted, setMounted] = useState(false);
   const { user, isAdmin, loading } = useAuth();
+  const t = useTranslations('notFound');
 
   useEffect(() => {
     setMounted(true);
@@ -22,38 +24,38 @@ export default function NotFound() {
   const getContent = () => {
     if (isAdmin) {
       return {
-        title: 'Admin Gate Locked',
-        description: 'Even admins can\'t access pages that don\'t exist.',
-        actionText: 'Return to Dashboard',
+        title: t('adminTitle'),
+        description: t('adminDescription'),
+        actionText: t('adminAction'),
         actionHref: '/dashboard',
         quickLinks: [
-          { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { href: '/dashboard/products', label: 'Products', icon: Package },
-          { href: '/dashboard/users', label: 'Users', icon: Users },
+          { href: '/dashboard', label: t('linkDashboard'), icon: LayoutDashboard },
+          { href: '/dashboard/products', label: t('linkProducts'), icon: Package },
+          { href: '/dashboard/users', label: t('linkUsers'), icon: Users },
         ],
       };
     } else if (isLoggedIn) {
       return {
-        title: 'Page Not Found',
-        description: 'This page might be restricted or doesn\'t exist.',
-        actionText: 'Back to Dashboard',
+        title: t('userTitle'),
+        description: t('userDescription'),
+        actionText: t('userAction'),
         actionHref: '/dashboard',
         quickLinks: [
-          { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { href: '/dashboard/products', label: 'Products', icon: Package },
-          { href: '/login', label: 'Account', icon: LogIn },
+          { href: '/dashboard', label: t('linkDashboard'), icon: LayoutDashboard },
+          { href: '/dashboard/products', label: t('linkProducts'), icon: Package },
+          { href: '/login', label: t('linkAccount'), icon: LogIn },
         ],
       };
     }
     return {
-      title: 'Page Not Found',
-      description: 'This page doesn\'t exist or requires authentication.',
-      actionText: 'Get Access',
+      title: t('guestTitle'),
+      description: t('guestDescription'),
+      actionText: t('guestAction'),
       actionHref: '/login',
       quickLinks: [
-        { href: '/login', label: 'Login', icon: LogIn },
-        { href: '/', label: 'Home', icon: Home },
-        { href: '/about', label: 'Learn More', icon: Info },
+        { href: '/login', label: t('linkLogin'), icon: LogIn },
+        { href: '/', label: t('linkHome'), icon: Home },
+        { href: '/about', label: t('linkLearnMore'), icon: Info },
       ],
     };
   };
@@ -92,7 +94,7 @@ export default function NotFound() {
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-gf-heading border border-gf-border hover:border-gf-border-accent bg-gf-raised/80 transition-[border-color] duration-200 active:scale-[0.98]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Go Back
+            {t('goBack')}
           </button>
         </div>
 

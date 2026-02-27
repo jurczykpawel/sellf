@@ -80,12 +80,12 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
 
         if (!response.ok) {
           const errorData = await response.json();
-          addToast(errorData.error || 'Failed to request access', 'error');
+          addToast(errorData.error || t('failedToRequestAccess'), 'error');
           return;
         }
 
         const data = await response.json();
-        addToast(data.message || 'Access granted successfully!', 'success');
+        addToast(data.message || t('accessGrantedSuccessfully'), 'success');
 
         // Track generate_lead event for free product
         await track('generate_lead', {
@@ -104,7 +104,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         const redirectPath = `/p/${product.slug}/payment-status${successUrl ? `?success_url=${encodeURIComponent(successUrl)}` : ''}`;
         router.push(redirectPath);
       } catch {
-        addToast('An unexpected error occurred', 'error');
+        addToast(t('unexpectedError'), 'error');
       } finally {
         setLoading(false);
       }
@@ -116,7 +116,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
 
   const handleMagicLinkSubmit = async () => {
     if (!email) {
-      setMessage({ type: 'error', text: 'Please enter your email address' });
+      setMessage({ type: 'error', text: t('enterEmailAddress') });
       resetCaptcha(); // Reset after validation error
       return;
     }
@@ -138,12 +138,12 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
     try {
       const emailValidation = await validateEmailAction(email);
       if (!emailValidation.isValid) {
-        setMessage({ type: 'error', text: emailValidation.error || 'Invalid or disposable email address not allowed' });
+        setMessage({ type: 'error', text: emailValidation.error || t('invalidEmailDisposable') });
         resetCaptcha(); // Reset after validation error
         return;
       }
     } catch {
-      setMessage({ type: 'error', text: 'Please enter a valid email address' });
+      setMessage({ type: 'error', text: t('validEmailRequired') });
       resetCaptcha(); // Reset after validation error
       return;
     }
@@ -193,7 +193,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
       });
       
     } catch {
-      setMessage({ type: 'error', text: 'An unexpected error occurred' });
+      setMessage({ type: 'error', text: t('unexpectedError') });
     } finally {
       setLoading(false);
     }

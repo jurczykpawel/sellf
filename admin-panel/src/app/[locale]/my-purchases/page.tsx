@@ -7,10 +7,10 @@ import { useTranslations } from 'next-intl';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { UserPurchase } from '@/types';
 
-const formatPrice = (price: number | null, currency: string | null = 'USD') => {
-  if (price === null) return 'N/A';
+const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
+  if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-  if (isNaN(numericPrice)) return 'Invalid Price';
+  if (isNaN(numericPrice)) return invalidLabel;
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -267,11 +267,11 @@ export default function MyPurchasesPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-wl-accent">
-                        {formatPrice(purchase.amount / 100, purchase.currency)}
+                        {formatPrice(purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                       </div>
                       {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
                         <div className="text-sm text-gray-400">
-                          {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPrice(purchase.refunded_amount / 100, purchase.currency)}
+                          {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPrice(purchase.refunded_amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                         </div>
                       )}
                     </div>
@@ -303,7 +303,7 @@ export default function MyPurchasesPage() {
                   <div>
                     <div className="font-medium text-white">{selectedPurchase.product_name}</div>
                     <div className="text-sm text-gray-400">
-                      {formatPrice(selectedPurchase.amount / 100, selectedPurchase.currency)}
+                      {formatPrice(selectedPurchase.amount / 100, selectedPurchase.currency, t('naLabel'), t('invalidPrice'))}
                     </div>
                   </div>
                 </div>

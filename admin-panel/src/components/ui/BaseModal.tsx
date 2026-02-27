@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
 
 interface BaseModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
   closeOnEscape = true,
   size = 'md'
 }) => {
+  const tCommon = useTranslations('common');
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle ESC key
@@ -142,7 +144,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
           <button
             onClick={onClose}
             className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
-            aria-label="Close modal"
+            aria-label={tCommon('closeModal')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

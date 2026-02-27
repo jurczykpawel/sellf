@@ -71,16 +71,16 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
     const validation = validateTaxId(taxId, true)
 
     if (!validation.isValid) {
-      setTaxIdError(validation.error || 'Invalid tax ID format')
+      setTaxIdError(validation.error || t('invalidTaxIdFormat'))
       setTaxIdSuccess(null)
       return
     }
 
     // Show success for valid tax ID
     if (validation.isPolish) {
-      setTaxIdSuccess(`✓ Valid Polish NIP${validation.countryCode ? ` (${validation.countryCode})` : ''}`)
+      setTaxIdSuccess(validation.countryCode ? t('validPolishNIPWithCode', { code: validation.countryCode }) : t('validPolishNIP'))
     } else {
-      setTaxIdSuccess(`✓ Valid tax ID${validation.countryCode ? ` (${validation.countryCode})` : ''}`)
+      setTaxIdSuccess(validation.countryCode ? t('validTaxIdWithCode', { code: validation.countryCode }) : t('validTaxId'))
     }
     setTaxIdError(null)
 

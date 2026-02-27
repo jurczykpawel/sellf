@@ -3,6 +3,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 
 interface PaymentSuccessPageProps {
@@ -18,6 +19,8 @@ interface PaymentSuccessPageProps {
 
 async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) {
   const params = await searchParams;
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: 'payment.success' });
 
   // Handle new PaymentIntent flow
   const paymentIntent = params.payment_intent;
@@ -82,9 +85,9 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-gf-heading mb-2">Payment Successful!</h1>
+        <h1 className="text-2xl font-bold text-gf-heading mb-2">{t('title')}</h1>
         <p className="text-gf-muted mb-6">
-          Your payment has been processed successfully. You now have access to your purchased product.
+          {t('description')}
         </p>
       </div>
     </div>

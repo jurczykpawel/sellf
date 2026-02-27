@@ -279,7 +279,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
           {user && isAdmin && (
             <div className="mb-8">
               <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Admin
+                {t('adminSection')}
               </h3>
               <nav className="space-y-0.5">
                 {adminLinks.map(link => (
@@ -291,7 +291,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
 
           <div>
             <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              User
+              {t('userSection')}
             </h3>
             <nav className="space-y-0.5">
               {userLinks.map(link => (
@@ -311,7 +311,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
                 {user.email}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {isAdmin ? 'Administrator' : 'User'}
+                {isAdmin ? t('roleAdmin') : t('roleUser')}
               </p>
             </div>
             <button 
@@ -365,12 +365,12 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
             <div className="flex-1 overflow-y-auto py-6 px-4">
               {user && isAdmin && (
                 <div className="mb-8">
-                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Admin</h3>
+                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('adminSection')}</h3>
                   {adminLinks.map(link => <NavItem key={link.href} {...link} />)}
                 </div>
               )}
               <div>
-                <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">User</h3>
+                <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('userSection')}</h3>
                 {userLinks.map(link => <NavItem key={link.href} {...link} />)}
               </div>
             </div>
@@ -403,7 +403,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
             onClick={() => setIsSidebarOpen(true)}
             className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
           >
-            <span className="sr-only">Open sidebar</span>
+            <span className="sr-only">{t('openSidebar')}</span>
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>

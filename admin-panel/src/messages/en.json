@@ -70,7 +70,26 @@
     "confirmEmailLabel": "I confirm the product will be linked to my account ({accountEmail}). Receipt will be sent to {purchaseEmail}.",
     "confirmEmailRequired": "Please confirm the product assignment to your account",
     "emailMismatchWarning": "You are purchasing with {purchaseEmail}, but you are logged in as {accountEmail}. The product will be linked to your account.",
-    "checkoutBranding": "This checkout is open-source →"
+    "checkoutBranding": "This checkout is open-source →",
+    "failedToGetAccess": "Failed to get access",
+    "unexpectedError": "An unexpected error occurred",
+    "invalidEmail": "Invalid email",
+    "invalidTaxIdFormat": "Invalid tax ID format",
+    "failedToPreparePayment": "Failed to prepare payment",
+    "paymentFailed": "Payment failed",
+    "additionalProduct": "Additional Product",
+    "gusRateLimitExceeded": "Too many requests. Please wait a moment and try again.",
+    "gusNotFound": "Company not found in GUS database",
+    "gusSecurityError": "Security error. Refresh the page and try again.",
+    "gusFetchError": "Failed to fetch data from GUS. Please enter details manually.",
+    "gusDataFetched": "Data fetched from GUS database",
+    "addressLabel": "Address",
+    "addressPlaceholder": "123 Example Street",
+    "postalCodeLabel": "Postal Code",
+    "postalCodePlaceholder": "00-000",
+    "cityLabel": "City",
+    "cityPlaceholder": "Warsaw",
+    "securePayment": "🔒 Secure payment powered by Stripe"
   },
   "waitlist": {
     "joinWaitlist": "Join the Waitlist",
@@ -134,7 +153,10 @@
       "convertTo": "Convert to",
       "selectCurrency": "Select Currency"
     },
-    "showingPage": "Showing page {current} of {total}"
+    "showingPage": "Showing page {current} of {total}",
+    "closeModal": "Close modal",
+    "clearDate": "Clear date",
+    "optional": "optional"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -157,7 +179,12 @@
     "refundRequests": "Refund Requests",
     "store": "Store",
     "about": "About GateFlow",
-    "getGateflow": "Get GateFlow for Free"
+    "getGateflow": "Get GateFlow for Free",
+    "adminSection": "Admin",
+    "userSection": "User",
+    "roleAdmin": "Administrator",
+    "roleUser": "User",
+    "openSidebar": "Open sidebar"
   },
   "about": {
     "title": "About GateFlow",
@@ -436,7 +463,12 @@
     "messages": {
       "saveSuccess": "Profile updated successfully",
       "saveError": "Error updating profile: {error}"
-    }
+    },
+    "invalidTaxIdFormat": "Invalid tax ID format",
+    "validPolishNIP": "✓ Valid Polish NIP",
+    "validPolishNIPWithCode": "✓ Valid Polish NIP ({code})",
+    "validTaxId": "✓ Valid tax ID",
+    "validTaxIdWithCode": "✓ Valid tax ID ({code})"
   },
   "auth": {
     "login": "Login",
@@ -455,7 +487,9 @@
     "checkEmailAt": "Please check your email at {email} for the magic link.",
     "clickLinkToSignIn": "Click the link to sign in automatically.",
     "openEmailProvider": "Open {provider}",
-    "backToLogin": "Back to Login"
+    "backToLogin": "Back to Login",
+    "title": "GateFlow Admin",
+    "disposableEmailBlocked": "Registration blocked: Disposable email addresses are not allowed. Please use a permanent email address."
   },
   "products": {
     "title": "Products",
@@ -579,6 +613,22 @@
     "implementationDescription": "Add data-gatekeeper-product=\"{slug}\" to content that should be visible to users with access, and data-no-access=\"true\" to fallback content for users without access. The script will automatically manage visibility.",
     "commonUseCase": "Common Use Case",
     "elementModeUseCase": "Replace \"Buy Now\" buttons with \"Access Product\" buttons for existing customers, or show premium content sections only to subscribers.",
+    "embedMode": "Embed Widget",
+    "embedDescription": "Embeddable form for landing pages",
+    "embedInstructions": {
+      "step1": "1. Paste the code anywhere in your landing page HTML",
+      "step2": "2. The widget will auto-initialize and display a beautiful signup form",
+      "step3": "3. Users enter their email → receive magic link → get instant access",
+      "step4": "4. Perfect for AI-generated landing pages or custom websites"
+    },
+    "embedInfoFreeOnlyTitle": "🎁 Free Products Only",
+    "embedInfoFreeOnly": "This embed widget only works for free products (price = $0)",
+    "embedInfoSecurityTitle": "🔒 Security",
+    "embedInfoSecurity": "Rate limiting (3 req/5min), Turnstile CAPTCHA, disposable email filter",
+    "embedInfoCustomizableTitle": "🎨 Customizable",
+    "embedInfoCustomizable": "Beautiful gradient design, auto-responsive, works on any website",
+    "embedInfoMagicLinkTitle": "✉️ Magic Link",
+    "embedInfoMagicLink": "Users receive instant access link via email - no password needed",
     "close": "Close"
   },
   "messages": {
@@ -764,7 +814,7 @@
     "getStarted": "Get Started",
     "enterEmailForFreeAccess": "Enter your email for free access to {productName}",
     "emailAddress": "Email Address",
-    "enterEmailAddress": "Enter your email address",
+    "enterEmailAddress": "Please enter your email address",
     "getFreeAccess": "Get Free Access",
     "purchaseAccess": "Purchase Access",
     "enterEmailForPurchase": "Enter your email to purchase {productName}",
@@ -827,7 +877,11 @@
     "emailInvalidError": "Invalid email address. Please check your email and try logging in directly.",
     "captchaFailedError": "Captcha verification failed. Please try logging in directly.",
     "rateLimitError": "Too many requests. Please wait a moment and try logging in directly.",
-    "goToLoginPage": "Go to Login Page"
+    "goToLoginPage": "Go to Login Page",
+    "failedToRequestAccess": "Failed to request access",
+    "accessGrantedSuccessfully": "Access granted successfully!",
+    "invalidEmailDisposable": "Invalid or disposable email address not allowed",
+    "validEmailRequired": "Please enter a valid email address"
   },
   "myProducts": {
     "title": "My Products",
@@ -852,7 +906,9 @@
     "freeResources": "Free Resources",
     "premiumSolutions": "Premium Solutions",
     "noProductsAvailable": "No Products Available",
-    "noProductsMessage": "It looks like there are no products here at the moment. Check back later!"
+    "noProductsMessage": "It looks like there are no products here at the moment. Check back later!",
+    "naLabel": "N/A",
+    "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
     "paymentSuccessful": "Payment Successful!",
@@ -956,7 +1012,11 @@
         "title": "Recent Activity",
         "accessGranted": "Access granted to {product}",
         "productCreated": "New product created: {product}",
-        "noActivity": "No recent activity"
+        "noActivity": "No recent activity",
+        "timeJustNow": "Just now",
+        "timeMinutesAgo": "{minutes}m ago",
+        "timeHoursAgo": "{hours}h ago",
+        "timeDaysAgo": "{days}d ago"
       },
       "totalProducts": "Total Products",
       "totalUsers": "Total Users",
@@ -1091,7 +1151,7 @@
         "vatRate": "VAT Rate",
         "vatRateHelp": "Leave empty to use the default rate from Shop Settings ({defaultRate}). Set per product to override.",
         "longDescription": "Detailed Description (Markdown)",
-        "optional": "Optional - for checkout page",
+        "optional": "optional",
         "expand": "Expand",
         "collapse": "Collapse",
         "markdownTip": "Tip: If you don't know Markdown syntax, ask any AI to create formatted content for you",
@@ -1123,7 +1183,6 @@
         },
         "autoGrantAccessSettings": "Auto-Grant Access Settings",
         "defaultAccessDuration": "Default Access Duration (days)",
-        "optional": "optional",
         "durationPlaceholder": "e.g., 30 for 30 days",
         "accessExpireAfter": "When users gain access to this product, their access will automatically expire after this many days. Leave empty for permanent access.",
         "autoGrantDurationTitle": "Auto-Grant Duration",
@@ -1407,8 +1466,23 @@
         "retryAnyway": "Send Anyway",
         "failuresTitle": "Recent Delivery Failures",
         "errorDetails": "Error Details",
-        "endpoint": "Endpoint"
-      }
+        "endpoint": "Endpoint",
+        "retryFailed": "Retry failed"
+      },
+      "testModal": {
+        "selectInstruction": "Select an event type to send a mock payload to:",
+        "eventTypeLabel": "Event Type",
+        "genericTestEvent": "Generic Test Event",
+        "examplePayload": "Example Payload",
+        "sendTest": "Send Test"
+      },
+      "secretCopied": "Secret copied to clipboard",
+      "hide": "Hide",
+      "show": "Show",
+      "copy": "Copy",
+      "secretAutoGenerated": "Secret will be generated automatically upon creation",
+      "descriptionPlaceholder": "e.g. CRM Integration",
+      "eventTypeLabel": "Event type: {value}"
     },
     "apiKeys": {
       "title": "API Keys",
@@ -1597,6 +1671,37 @@
       }
     },
     "payments": {
+      "title": "Payment Management",
+      "subtitle": "Manage all payment transactions, process refunds, and monitor payment activity.",
+      "loading": "Loading payment data...",
+      "filters": {
+        "status": "Status",
+        "dateRange": "Date Range",
+        "search": "Search",
+        "allStatuses": "All Statuses",
+        "pending": "Pending",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "refunded": "Refunded",
+        "disputed": "Disputed",
+        "searchPlaceholder": "Search by email, transaction ID...",
+        "last7Days": "Last 7 days",
+        "last30Days": "Last 30 days",
+        "last90Days": "Last 90 days",
+        "lastYear": "Last year",
+        "allTime": "All time",
+        "clear": "Clear Filters",
+        "refresh": "Refresh",
+        "exportCsv": "Export CSV",
+        "exportSuccess": "Payments exported successfully",
+        "exportError": "Failed to export payments",
+        "activeFilters": "Active filters:",
+        "statusFilter": "Status: {status}",
+        "searchFilter": "Search: {term}",
+        "rangeFilter": "Range: {range}",
+        "days": "days"
+      },
       "transactions": {
         "title": "Payment Transactions",
         "transactionId": "Transaction ID",
@@ -1821,6 +1926,13 @@
       "info2": "Price history is automatically tracked with every product price change",
       "info3": "Prices are displayed only when current price is lower than historical lowest"
     },
+    "configSource": {
+      "db": "DB",
+      "env": "ENV",
+      "default": "Default",
+      "overridesEnv": "overrides ENV",
+      "notConfigured": "Not configured"
+    },
     "stripe": {
       "title": "Stripe Configuration",
       "subtitle": "Manage your Stripe API keys and payment integration settings",
@@ -1834,6 +1946,10 @@
           "title": "Currently using: Database configuration",
           "description": "Your Stripe keys are securely encrypted with AES-256-GCM and stored in the database.",
           "alternative": "💡 Alternative: Developers can also configure Stripe via STRIPE_SECRET_KEY in .env file."
+        },
+        "notConfigured": {
+          "title": "Stripe not configured",
+          "description": "No Stripe API key found. Configure via .env file or use the wizard below."
         }
       },
       "activeConfigs": "Active Configurations",
@@ -1844,7 +1960,7 @@
       "verified": "Verified",
       "account": "Account",
       "created": "Created",
-      "rotationReminder": "Rotation reminder",
+      "rotationReminder": "Rotate by",
       "configureButton": "Configure Stripe",
       "configureAnother": "Configure Another Mode",
       "openDashboard": "Open Stripe Dashboard",
@@ -1884,10 +2000,7 @@
         "expiresHoursDescription": "How many hours a checkout session remains valid (1–168).",
         "expiresHoursSuffix": "hours",
         "collectTerms": "Terms of Service Consent",
-        "collectTermsDescription": "Require customers to accept Terms of Service during checkout.",
-        "sourceDb": "DB",
-        "sourceEnv": "ENV",
-        "sourceDefault": "Default"
+        "collectTermsDescription": "Require customers to accept Terms of Service during checkout."
       },
       "saveSuccess": "Tax settings saved",
       "saveError": "Failed to save tax settings",
@@ -1895,7 +2008,8 @@
         "taxSettings": "Tax Settings",
         "taxRegistrations": "Registrations",
         "taxReports": "Tax Reports"
-      }
+      },
+      "unknownError": "Unknown error"
     },
     "branding": {
       "title": "Branding & Whitelabel",
@@ -2123,8 +2237,8 @@
             "description": "We automatically test your key and verify it has all required permissions."
           },
           "rotation": {
-            "title": "Key Rotation Reminders",
-            "description": "Get reminded every 90 days to rotate your keys for security best practices."
+            "title": "Key Rotation Tracking",
+            "description": "Tracks when your key was created so you know when to rotate it (recommended every 90 days)."
           }
         },
         "alternative": {
@@ -2199,8 +2313,8 @@
         "subtitle": "Enter your Stripe API Key (Restricted or Secret Key)",
         "keyTypeInfo": {
           "title": "Choose Your Key Type",
-          "restricted": "More secure, limited permissions. Recommended for production. Requires STRIPE_SECRET_KEY in .env for full functionality.",
-          "secret": "Full access, single key setup. Easier to configure but less secure if leaked. Use for development or if you prefer single-key setup."
+          "restricted": "More secure — only grants permissions GateFlow needs. Recommended for production.",
+          "secret": "Full API access. Easier to set up, but less secure if leaked. Fine for development."
         },
         "input": {
           "label": "Stripe API Key",
@@ -2223,7 +2337,7 @@
           "title": "API Key Validated Successfully!",
           "description": "Your key has been verified and all required permissions are granted.",
           "descriptionSecret": "Your Secret Key has been verified with full API access. All payment functionality is now available.",
-          "descriptionRestricted": "Your Restricted Key has been verified. Remember to set STRIPE_SECRET_KEY in .env for full payment functionality."
+          "descriptionRestricted": "Your Restricted Key has been verified with all required permissions."
         },
         "validateButton": {
           "validate": "Validate API Key",
@@ -2249,8 +2363,8 @@
           "description": "Your API key has been encrypted with AES-256-GCM and securely stored in the database."
         },
         "rotation": {
-          "title": "Rotation Reminder Set",
-          "description": "You'll receive a reminder in 90 days to rotate your API key as a security best practice."
+          "title": "Key Rotation",
+          "description": "We recommend rotating your API key every 90 days as a security best practice. You can do this anytime from Settings."
         },
         "nextSteps": {
           "title": "💡 Next Steps",
@@ -2308,7 +2422,9 @@
     "cancel": "Cancel",
     "submitting": "Submitting...",
     "submitRequest": "Submit Request",
-    "refundedAmount": "Refunded"
+    "refundedAmount": "Refunded",
+    "naLabel": "N/A",
+    "invalidPrice": "Invalid Price"
   },
   "refundRequests": {
     "title": "Refund Requests",
@@ -2341,7 +2457,9 @@
     "cancel": "Cancel",
     "processing": "Processing...",
     "confirmApprove": "Approve & Refund",
-    "confirmReject": "Reject Request"
+    "confirmReject": "Reject Request",
+    "naLabel": "N/A",
+    "invalidPrice": "Invalid Price"
   },
   "demo": {
     "banner": "This is a demo instance. Data resets every hour.",
@@ -2481,7 +2599,8 @@
     "demo": {
       "title": "See it in action",
       "subtitle": "Explore the full admin panel, test checkout with Stripe test cards, and browse sample products — no setup required.",
-      "cta": "Try Live Demo"
+      "cta": "Try Live Demo",
+      "stripeTestMode": "Stripe test mode — no real charges"
     },
     "tax": {
       "title": "Your Stripe account, your money",
@@ -2508,7 +2627,8 @@
       "taxStep2Desc": "Above €10,000 — register for EU OSS (one form) and add Stripe Tax (+0.5%) for automatic VAT calculation",
       "taxStep3Title": "Scaling",
       "taxStep3Desc": "Optional: Stripe Managed Payments (Stripe as MoR) or a tax accountant for full compliance",
-      "taxDisclaimer": "This is general information, not tax or legal advice. Tax obligations vary by country and business type. Consult a qualified tax professional for your specific situation."
+      "taxDisclaimer": "This is general information, not tax or legal advice. Tax obligations vary by country and business type. Consult a qualified tax professional for your specific situation.",
+      "recommended": "Recommended"
     },
     "selfHosted": {
       "title": "Deploy anywhere, your way",
@@ -2674,6 +2794,62 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "copyright": "© {year} GateFlow. Open source and self-hosted"
+    }
+  },
+  "notFound": {
+    "adminTitle": "Admin Gate Locked",
+    "adminDescription": "Even admins can't access pages that don't exist.",
+    "adminAction": "Return to Dashboard",
+    "userTitle": "Page Not Found",
+    "userDescription": "This page might be restricted or doesn't exist.",
+    "userAction": "Back to Dashboard",
+    "guestTitle": "Page Not Found",
+    "guestDescription": "This page doesn't exist or requires authentication.",
+    "guestAction": "Get Access",
+    "goBack": "Go Back",
+    "linkDashboard": "Dashboard",
+    "linkProducts": "Products",
+    "linkUsers": "Users",
+    "linkAccount": "Account",
+    "linkLogin": "Login",
+    "linkHome": "Home",
+    "linkLearnMore": "Learn More"
+  },
+  "legalPages": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "configRequired": "Configuration Required",
+      "configDescription": "To display Privacy Policy, configure the URL in one of these ways:",
+      "option1Title": "Option 1: Admin Panel (Recommended)",
+      "option1Description": "Go to Settings → Legal Documents and enter your Privacy Policy URL.",
+      "option2Title": "Option 2: Environment Variable",
+      "option2EnvVar": "PRIVACY_POLICY_URL=https://example.com/privacy.pdf",
+      "urlHelp": "The URL should point to your complete Privacy Policy document (PDF, webpage, etc.)."
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "configRequired": "Configuration Required",
+      "configDescription": "To display Terms of Service, configure the URL in one of these ways:",
+      "option1Title": "Option 1: Admin Panel (Recommended)",
+      "option1Description": "Go to Settings → Legal Documents and enter your Terms of Service URL.",
+      "option2Title": "Option 2: Environment Variable",
+      "option2EnvVar": "TERMS_OF_SERVICE_URL=https://example.com/terms.pdf",
+      "urlHelp": "The URL should point to your complete Terms of Service document (PDF, webpage, etc.)."
+    }
+  },
+  "payment": {
+    "error": {
+      "title": "Payment Failed",
+      "paymentFailed": "Your payment could not be processed. Please check your payment details and try again.",
+      "sessionNotFound": "Payment session not found. Please try starting the purchase process again.",
+      "cancelled": "Payment was cancelled. You can try again anytime.",
+      "genericError": "An error occurred during payment processing. Please try again.",
+      "tryAgain": "Try Again",
+      "goHome": "Go Home"
+    },
+    "success": {
+      "title": "Payment Successful!",
+      "description": "Your payment has been processed successfully. You now have access to your purchased product."
     }
   }
 }

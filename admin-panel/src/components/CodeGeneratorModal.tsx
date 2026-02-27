@@ -133,9 +133,9 @@ export default function CodeGeneratorModal({ isOpen, onClose, product }: CodeGen
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
-                    <div className="font-medium">🎁 Embed Widget</div>
+                    <div className="font-medium">🎁 {t('embedMode')}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Embeddable form for landing pages
+                      {t('embedDescription')}
                     </div>
                   </button>
                 )}
@@ -179,10 +179,10 @@ export default function CodeGeneratorModal({ isOpen, onClose, product }: CodeGen
                 </>
               ) : options.mode === 'embed' ? (
                 <>
-                  <p>1. Paste the code anywhere in your landing page HTML</p>
-                  <p>2. The widget will auto-initialize and display a beautiful signup form</p>
-                  <p>3. Users enter their email → receive magic link → get instant access</p>
-                  <p>4. Perfect for AI-generated landing pages or custom websites</p>
+                  <p>{t('embedInstructions.step1')}</p>
+                  <p>{t('embedInstructions.step2')}</p>
+                  <p>{t('embedInstructions.step3')}</p>
+                  <p>{t('embedInstructions.step4')}</p>
                 </>
               ) : (
                 <>
@@ -213,16 +213,16 @@ export default function CodeGeneratorModal({ isOpen, onClose, product }: CodeGen
               ) : options.mode === 'embed' ? (
                 <>
                   <p>
-                    <strong>🎁 Free Products Only:</strong> This embed widget only works for free products (price = $0)
+                    <strong>🎁 {t('embedInfoFreeOnlyTitle')}:</strong> {t('embedInfoFreeOnly')}
                   </p>
                   <p>
-                    <strong>🔒 Security:</strong> Rate limiting (3 req/5min), Turnstile CAPTCHA, disposable email filter
+                    <strong>🔒 {t('embedInfoSecurityTitle')}:</strong> {t('embedInfoSecurity')}
                   </p>
                   <p>
-                    <strong>🎨 Customizable:</strong> Beautiful gradient design, auto-responsive, works on any website
+                    <strong>🎨 {t('embedInfoCustomizableTitle')}:</strong> {t('embedInfoCustomizable')}
                   </p>
                   <p>
-                    <strong>✉️ Magic Link:</strong> Users receive instant access link via email - no password needed
+                    <strong>✉️ {t('embedInfoMagicLinkTitle')}:</strong> {t('embedInfoMagicLink')}
                   </p>
                 </>
               ) : (

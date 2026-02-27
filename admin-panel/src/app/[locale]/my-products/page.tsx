@@ -32,10 +32,10 @@ interface UserAccessData {
     product: Product;
 }
 
-const formatPrice = (price: number | null, currency: string | null = 'USD') => {
-  if (price === null) return 'N/A';
+const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
+  if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-  if (isNaN(numericPrice)) return 'Invalid Price';
+  if (isNaN(numericPrice)) return invalidLabel;
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -226,7 +226,7 @@ export default function MyProductsPage() {
       
       <div className="flex items-center justify-between mb-4">
         <div className="text-2xl font-bold text-wl-accent">
-          {formatPrice(product.price, product.currency)}
+          {formatPrice(product.price, product.currency, t('naLabel'), t('invalidPrice'))}
         </div>
       </div>
 

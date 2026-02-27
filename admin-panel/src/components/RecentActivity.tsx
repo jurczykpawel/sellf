@@ -85,10 +85,10 @@ export default function RecentActivity() {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
+    if (diffMins < 1) return t('recentActivity.timeJustNow')
+    if (diffMins < 60) return t('recentActivity.timeMinutesAgo', { minutes: diffMins })
+    if (diffHours < 24) return t('recentActivity.timeHoursAgo', { hours: diffHours })
+    if (diffDays < 7) return t('recentActivity.timeDaysAgo', { days: diffDays })
     return past.toLocaleDateString()
   }
 

@@ -76,7 +76,26 @@
       "required": "NIP jest wymagany",
       "invalidFormat": "Nieprawidłowy format numeru NIP"
     },
-    "checkoutBranding": "Ten koszyk jest open-source →"
+    "checkoutBranding": "Ten koszyk jest open-source →",
+    "failedToGetAccess": "Nie udało się uzyskać dostępu",
+    "unexpectedError": "Wystąpił nieoczekiwany błąd",
+    "invalidEmail": "Nieprawidłowy adres e-mail",
+    "invalidTaxIdFormat": "Nieprawidłowy format NIP/ID podatkowego",
+    "failedToPreparePayment": "Nie udało się przygotować płatności",
+    "paymentFailed": "Płatność nieudana",
+    "additionalProduct": "Dodatkowy produkt",
+    "gusRateLimitExceeded": "Zbyt wiele zapytań. Poczekaj chwilę i spróbuj ponownie.",
+    "gusNotFound": "Nie znaleziono firmy w bazie GUS",
+    "gusSecurityError": "Błąd bezpieczeństwa. Odśwież stronę i spróbuj ponownie.",
+    "gusFetchError": "Nie udało się pobrać danych z GUS. Wprowadź dane ręcznie.",
+    "gusDataFetched": "Dane pobrane z bazy GUS",
+    "addressLabel": "Adres",
+    "addressPlaceholder": "ul. Przykładowa 123",
+    "postalCodeLabel": "Kod pocztowy",
+    "postalCodePlaceholder": "00-000",
+    "cityLabel": "Miasto",
+    "cityPlaceholder": "Warszawa",
+    "securePayment": "🔒 Bezpieczna płatność powered by Stripe"
   },
   "waitlist": {
     "joinWaitlist": "Dołącz do listy oczekujących",
@@ -140,7 +159,10 @@
       "convertTo": "Przelicz na",
       "selectCurrency": "Wybierz walutę"
     },
-    "showingPage": "Strona {current} z {total}"
+    "showingPage": "Strona {current} z {total}",
+    "closeModal": "Zamknij okno",
+    "clearDate": "Wyczyść datę",
+    "optional": "opcjonalne"
   },
   "navigation": {
     "dashboard": "Pulpit",
@@ -163,7 +185,12 @@
     "refundRequests": "Prośby o Zwrot",
     "store": "Sklep",
     "about": "O GateFlow",
-    "getGateflow": "Pobierz GateFlow za darmo"
+    "getGateflow": "Pobierz GateFlow za darmo",
+    "adminSection": "Admin",
+    "userSection": "Użytkownik",
+    "roleAdmin": "Administrator",
+    "roleUser": "Użytkownik",
+    "openSidebar": "Otwórz menu boczne"
   },
   "about": {
     "title": "O GateFlow",
@@ -451,7 +478,12 @@
     "messages": {
       "saveSuccess": "Profil został pomyślnie zaktualizowany",
       "saveError": "Błąd podczas aktualizacji profilu: {error}"
-    }
+    },
+    "invalidTaxIdFormat": "Nieprawidłowy format NIP/ID podatkowego",
+    "validPolishNIP": "✓ Prawidłowy NIP",
+    "validPolishNIPWithCode": "✓ Prawidłowy NIP ({code})",
+    "validTaxId": "✓ Prawidłowy NIP/ID podatkowy",
+    "validTaxIdWithCode": "✓ Prawidłowy NIP/ID podatkowy ({code})"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -470,7 +502,9 @@
     "checkEmailAt": "Sprawdź swój email na {email} w poszukiwaniu magicznego linku.",
     "clickLinkToSignIn": "Kliknij link, aby zalogować się automatycznie.",
     "openEmailProvider": "Otwórz {provider}",
-    "backToLogin": "Powrót do logowania"
+    "backToLogin": "Powrót do logowania",
+    "title": "GateFlow Admin",
+    "disposableEmailBlocked": "Rejestracja zablokowana: Tymczasowe adresy email nie są dozwolone. Użyj stałego adresu email."
   },
   "products": {
     "title": "Produkty",
@@ -594,6 +628,22 @@
     "implementationDescription": "Dodaj data-gatekeeper-product=\"{slug}\" do treści, która powinna być widoczna dla użytkowników z dostępem, i data-no-access=\"true\" do treści zastępczej dla użytkowników bez dostępu. Skrypt automatycznie zarządza widocznością.",
     "commonUseCase": "Powszechny przypadek użycia",
     "elementModeUseCase": "Zamień przyciski \"Kup teraz\" na przyciski \"Uzyskaj dostęp do produktu\" dla istniejących klientów, lub pokaż sekcje premium tylko subskrybentom.",
+    "embedMode": "Widget do Osadzenia",
+    "embedDescription": "Formularz do osadzenia na stronach landing page",
+    "embedInstructions": {
+      "step1": "1. Wklej kod w dowolnym miejscu HTML swojej strony landing page",
+      "step2": "2. Widget uruchomi się automatycznie i wyświetli formularz rejestracji",
+      "step3": "3. Użytkownicy wpisują email → otrzymują magiczny link → uzyskują natychmiastowy dostęp",
+      "step4": "4. Idealne do stron generowanych przez AI lub własnych stron internetowych"
+    },
+    "embedInfoFreeOnlyTitle": "🎁 Tylko darmowe produkty",
+    "embedInfoFreeOnly": "Ten widget działa tylko dla darmowych produktów (cena = 0 zł)",
+    "embedInfoSecurityTitle": "🔒 Bezpieczeństwo",
+    "embedInfoSecurity": "Ograniczenie zapytań (3 req/5min), CAPTCHA Turnstile, filtr tymczasowych emaili",
+    "embedInfoCustomizableTitle": "🎨 Konfigurowalny",
+    "embedInfoCustomizable": "Piękny design z gradientem, auto-responsywny, działa na każdej stronie",
+    "embedInfoMagicLinkTitle": "✉️ Magiczny link",
+    "embedInfoMagicLink": "Użytkownicy otrzymują natychmiastowy link dostępu na email - bez hasła",
     "close": "Zamknij"
   },
   "messages": {
@@ -779,7 +829,7 @@
     "getStarted": "Rozpocznij",
     "enterEmailForFreeAccess": "Wprowadź swój email aby uzyskać darmowy dostęp do {productName}",
     "emailAddress": "Adres email",
-    "enterEmailAddress": "Wprowadź swój adres email",
+    "enterEmailAddress": "Podaj swój adres e-mail",
     "getFreeAccess": "Uzyskaj darmowy dostęp",
     "purchaseAccess": "Kup dostęp",
     "enterEmailForPurchase": "Wprowadź swój email aby kupić {productName}",
@@ -842,7 +892,11 @@
     "emailInvalidError": "Nieprawidłowy adres email. Sprawdź swój email i spróbuj zalogować się bezpośrednio.",
     "captchaFailedError": "Weryfikacja captcha nie powiodła się. Spróbuj zalogować się bezpośrednio.",
     "rateLimitError": "Zbyt wiele żądań. Poczekaj chwilę i spróbuj zalogować się bezpośrednio.",
-    "goToLoginPage": "Przejdź do strony logowania"
+    "goToLoginPage": "Przejdź do strony logowania",
+    "failedToRequestAccess": "Nie udało się uzyskać dostępu",
+    "accessGrantedSuccessfully": "Dostęp przyznany pomyślnie!",
+    "invalidEmailDisposable": "Niedozwolony lub jednorazowy adres e-mail",
+    "validEmailRequired": "Podaj prawidłowy adres e-mail"
   },
   "myProducts": {
     "title": "Moje produkty",
@@ -867,7 +921,9 @@
     "freeResources": "Darmowe zasoby",
     "premiumSolutions": "Rozwiązania premium",
     "noProductsAvailable": "Brak dostępnych produktów",
-    "noProductsMessage": "Wygląda na to, że w tej chwili nie ma tutaj żadnych produktów. Sprawdź później!"
+    "noProductsMessage": "Wygląda na to, że w tej chwili nie ma tutaj żadnych produktów. Sprawdź później!",
+    "naLabel": "N/D",
+    "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
     "paymentSuccessful": "Płatność zakończona sukcesem!",
@@ -996,7 +1052,11 @@
         "title": "Ostatnia aktywność",
         "accessGranted": "Przyznano dostęp do {product}",
         "productCreated": "Nowy produkt utworzony: {product}",
-        "noActivity": "Brak ostatniej aktywności"
+        "noActivity": "Brak ostatniej aktywności",
+        "timeJustNow": "Przed chwilą",
+        "timeMinutesAgo": "{minutes} min. temu",
+        "timeHoursAgo": "{hours} godz. temu",
+        "timeDaysAgo": "{days} dni temu"
       }
     },
     "products": {
@@ -1106,7 +1166,7 @@
         "vatRate": "Stawka VAT",
         "vatRateHelp": "Pozostaw puste, aby użyć domyślnej stawki z Ustawień sklepu ({defaultRate}). Ustaw per produkt, aby nadpisać.",
         "longDescription": "Szczegółowy opis (Markdown)",
-        "optional": "Opcjonalnie - do strony zakupu",
+        "optional": "opcjonalne",
         "expand": "Rozwiń",
         "collapse": "Zwiń",
         "markdownTip": "Wskazówka: Jeśli nie znasz składni Markdown, poproś dowolne AI o stworzenie sformatowanej treści",
@@ -1138,7 +1198,6 @@
         },
         "autoGrantAccessSettings": "Ustawienia automatycznego przyznawania dostępu",
         "defaultAccessDuration": "Domyślny czas dostępu (dni)",
-        "optional": "opcjonalne",
         "durationPlaceholder": "np. 30 dla 30 dni",
         "accessExpireAfter": "Gdy użytkownicy uzyskają dostęp do tego produktu, ich dostęp automatycznie wygaśnie po tylu dniach. Pozostaw puste dla stałego dostępu.",
         "autoGrantDurationTitle": "Czas automatycznego przyznawania",
@@ -1422,8 +1481,23 @@
         "retryAnyway": "Wyślij mimo to",
         "failuresTitle": "Ostatnie błędy dostarczenia",
         "errorDetails": "Szczegóły błędu",
-        "endpoint": "Endpoint"
-      }
+        "endpoint": "Endpoint",
+        "retryFailed": "Ponowna próba nieudana"
+      },
+      "testModal": {
+        "selectInstruction": "Wybierz typ zdarzenia do wysłania testowego payloadu:",
+        "eventTypeLabel": "Typ zdarzenia",
+        "genericTestEvent": "Generyczne zdarzenie testowe",
+        "examplePayload": "Przykładowy payload",
+        "sendTest": "Wyślij test"
+      },
+      "secretCopied": "Sekret skopiowany do schowka",
+      "hide": "Ukryj",
+      "show": "Pokaż",
+      "copy": "Kopiuj",
+      "secretAutoGenerated": "Sekret zostanie wygenerowany automatycznie po utworzeniu",
+      "descriptionPlaceholder": "np. Integracja CRM",
+      "eventTypeLabel": "Typ zdarzenia: {value}"
     },
     "apiKeys": {
       "title": "Klucze API",
@@ -1612,6 +1686,37 @@
       }
     },
     "payments": {
+      "title": "Zarządzanie Płatnościami",
+      "subtitle": "Zarządzaj wszystkimi transakcjami, przetwarzaj zwroty i monitoruj aktywność płatności.",
+      "loading": "Ładowanie danych płatności...",
+      "filters": {
+        "status": "Status",
+        "dateRange": "Zakres dat",
+        "search": "Szukaj",
+        "allStatuses": "Wszystkie statusy",
+        "pending": "Oczekująca",
+        "completed": "Zakończona",
+        "failed": "Nieudana",
+        "cancelled": "Anulowana",
+        "refunded": "Zwrócona",
+        "disputed": "Sporna",
+        "searchPlaceholder": "Szukaj po emailu, ID transakcji...",
+        "last7Days": "Ostatnie 7 dni",
+        "last30Days": "Ostatnie 30 dni",
+        "last90Days": "Ostatnie 90 dni",
+        "lastYear": "Ostatni rok",
+        "allTime": "Cały czas",
+        "clear": "Wyczyść filtry",
+        "refresh": "Odśwież",
+        "exportCsv": "Eksportuj CSV",
+        "exportSuccess": "Płatności wyeksportowane pomyślnie",
+        "exportError": "Nie udało się wyeksportować płatności",
+        "activeFilters": "Aktywne filtry:",
+        "statusFilter": "Status: {status}",
+        "searchFilter": "Szukaj: {term}",
+        "rangeFilter": "Zakres: {range}",
+        "days": "dni"
+      },
       "transactions": {
         "title": "Transakcje Płatnicze",
         "transactionId": "ID Transakcji",
@@ -1836,6 +1941,13 @@
       "info2": "Historia cen jest automatycznie śledzona przy każdej zmianie ceny produktu",
       "info3": "Ceny są wyświetlane tylko gdy obecna cena jest niższa od historycznej najniższej"
     },
+    "configSource": {
+      "db": "DB",
+      "env": "ENV",
+      "default": "Domyślnie",
+      "overridesEnv": "nadpisuje ENV",
+      "notConfigured": "Nie skonfigurowano"
+    },
     "stripe": {
       "title": "Konfiguracja Stripe",
       "subtitle": "Zarządzaj kluczami API Stripe i ustawieniami integracji płatności",
@@ -1849,6 +1961,10 @@
           "title": "Obecnie używana: konfiguracja bazy danych",
           "description": "Twoje klucze Stripe są bezpiecznie zaszyfrowane przy użyciu AES-256-GCM i przechowywane w bazie danych.",
           "alternative": "💡 Alternatywa: Deweloperzy mogą również skonfigurować Stripe poprzez STRIPE_SECRET_KEY w pliku .env."
+        },
+        "notConfigured": {
+          "title": "Stripe nie skonfigurowany",
+          "description": "Nie znaleziono klucza API Stripe. Skonfiguruj przez plik .env lub użyj kreatora poniżej."
         }
       },
       "activeConfigs": "Aktywne konfiguracje",
@@ -1859,7 +1975,7 @@
       "verified": "Zweryfikowany",
       "account": "Konto",
       "created": "Utworzono",
-      "rotationReminder": "Przypomnienie o rotacji",
+      "rotationReminder": "Rotacja do",
       "configureButton": "Skonfiguruj Stripe",
       "configureAnother": "Skonfiguruj inny tryb",
       "openDashboard": "Otwórz panel Stripe",
@@ -1899,10 +2015,7 @@
         "expiresHoursDescription": "Ile godzin sesja checkout pozostaje aktywna (1–168).",
         "expiresHoursSuffix": "godz.",
         "collectTerms": "Zgoda na regulamin",
-        "collectTermsDescription": "Wymagaj od klientów akceptacji regulaminu podczas checkout.",
-        "sourceDb": "DB",
-        "sourceEnv": "ENV",
-        "sourceDefault": "Domyślnie"
+        "collectTermsDescription": "Wymagaj od klientów akceptacji regulaminu podczas checkout."
       },
       "saveSuccess": "Ustawienia podatkowe zapisane",
       "saveError": "Nie udało się zapisać ustawień podatkowych",
@@ -1910,7 +2023,8 @@
         "taxSettings": "Ustawienia podatkowe",
         "taxRegistrations": "Rejestracje",
         "taxReports": "Raporty podatkowe"
-      }
+      },
+      "unknownError": "Nieznany błąd"
     },
     "branding": {
       "title": "Branding i Whitelabel",
@@ -2138,8 +2252,8 @@
             "description": "Automatycznie testujemy Twój klucz i weryfikujemy czy ma wszystkie wymagane uprawnienia."
           },
           "rotation": {
-            "title": "Przypomnienia o rotacji kluczy",
-            "description": "Otrzymasz przypomnienie co 90 dni o rotacji kluczy zgodnie z najlepszymi praktykami bezpieczeństwa."
+            "title": "Śledzenie rotacji kluczy",
+            "description": "Śledzi datę utworzenia klucza, abyś wiedział kiedy go wymienić (zalecane co 90 dni)."
           }
         },
         "alternative": {
@@ -2214,8 +2328,8 @@
         "subtitle": "Wpisz klucz API Stripe (Restricted lub Secret Key)",
         "keyTypeInfo": {
           "title": "Wybierz typ klucza",
-          "restricted": "Bardziej bezpieczny, ograniczone uprawnienia. Zalecane dla produkcji. Wymaga STRIPE_SECRET_KEY w .env dla pełnej funkcjonalności.",
-          "secret": "Pełny dostęp, konfiguracja jednym kluczem. Łatwiejsze do skonfigurowania ale mniej bezpieczne w razie wycieku. Użyj dla developmentu lub jeśli preferujesz konfigurację jednym kluczem."
+          "restricted": "Bezpieczniejszy — przyznaje tylko uprawnienia potrzebne GateFlow. Zalecany dla produkcji.",
+          "secret": "Pełny dostęp do API. Łatwiejszy w konfiguracji, ale mniej bezpieczny w razie wycieku. OK dla developmentu."
         },
         "input": {
           "label": "Klucz API Stripe",
@@ -2238,7 +2352,7 @@
           "title": "Klucz API zwalidowany pomyślnie!",
           "description": "Twój klucz został zweryfikowany i wszystkie wymagane uprawnienia są przyznane.",
           "descriptionSecret": "Twój Secret Key został zweryfikowany z pełnym dostępem do API. Wszystkie funkcje płatności są teraz dostępne.",
-          "descriptionRestricted": "Twój Restricted Key został zweryfikowany. Pamiętaj o ustawieniu STRIPE_SECRET_KEY w .env dla pełnej funkcjonalności płatności."
+          "descriptionRestricted": "Twój Restricted Key został zweryfikowany ze wszystkimi wymaganymi uprawnieniami."
         },
         "validateButton": {
           "validate": "Waliduj klucz API",
@@ -2264,8 +2378,8 @@
           "description": "Twój klucz API został zaszyfrowany algorytmem AES-256-GCM i bezpiecznie przechowany w bazie danych."
         },
         "rotation": {
-          "title": "Przypomnienie o rotacji ustawione",
-          "description": "Otrzymasz przypomnienie za 90 dni o rotacji klucza API zgodnie z najlepszymi praktykami bezpieczeństwa."
+          "title": "Rotacja klucza",
+          "description": "Zalecamy rotację klucza API co 90 dni. Możesz to zrobić w dowolnym momencie z poziomu Ustawień."
         },
         "nextSteps": {
           "title": "💡 Następne kroki",
@@ -2323,7 +2437,9 @@
     "cancel": "Anuluj",
     "submitting": "Wysyłanie...",
     "submitRequest": "Wyślij prośbę",
-    "refundedAmount": "Zwrócono"
+    "refundedAmount": "Zwrócono",
+    "naLabel": "N/D",
+    "invalidPrice": "Nieprawidłowa cena"
   },
   "refundRequests": {
     "title": "Prośby o Zwrot",
@@ -2356,7 +2472,9 @@
     "cancel": "Anuluj",
     "processing": "Przetwarzanie...",
     "confirmApprove": "Zatwierdź i zwróć",
-    "confirmReject": "Odrzuć prośbę"
+    "confirmReject": "Odrzuć prośbę",
+    "naLabel": "N/D",
+    "invalidPrice": "Nieprawidłowa cena"
   },
   "demo": {
     "banner": "To jest instancja demo. Dane resetują się co godzinę.",
@@ -2496,7 +2614,8 @@
     "demo": {
       "title": "Zobacz w akcji",
       "subtitle": "Przejrzyj panel admina, przetestuj checkout kartami testowymi Stripe i zobacz przykładowe produkty — bez instalacji.",
-      "cta": "Wypróbuj Demo"
+      "cta": "Wypróbuj Demo",
+      "stripeTestMode": "Tryb testowy Stripe — bez prawdziwych opłat"
     },
     "tax": {
       "title": "Twoje konto Stripe, Twoje pieniądze",
@@ -2523,7 +2642,8 @@
       "taxStep2Desc": "Powyżej €10 000 — rejestracja w EU OSS (jeden formularz) i włączenie Stripe Tax (+0,5%) do automatycznej kalkulacji VAT",
       "taxStep3Title": "Skalowanie",
       "taxStep3Desc": "Opcjonalnie: Stripe Managed Payments (Stripe jako MoR) lub biuro rachunkowe do pełnej obsługi",
-      "taxDisclaimer": "Powyższe informacje mają charakter ogólny i nie stanowią porady podatkowej ani prawnej. Obowiązki podatkowe zależą od kraju, formy działalności i przychodów. Skonsultuj się z doradcą podatkowym."
+      "taxDisclaimer": "Powyższe informacje mają charakter ogólny i nie stanowią porady podatkowej ani prawnej. Obowiązki podatkowe zależą od kraju, formy działalności i przychodów. Skonsultuj się z doradcą podatkowym.",
+      "recommended": "Polecane"
     },
     "selfHosted": {
       "title": "Wdróż gdzie chcesz, jak chcesz",
@@ -2689,6 +2809,62 @@
       "privacy": "Prywatność",
       "terms": "Warunki",
       "copyright": "© {year} GateFlow. Open source i self-hosted"
+    }
+  },
+  "notFound": {
+    "adminTitle": "Brama Admina Zamknięta",
+    "adminDescription": "Nawet administratorzy nie mogą uzyskać dostępu do stron, które nie istnieją.",
+    "adminAction": "Wróć do Panelu",
+    "userTitle": "Strona Nie Znaleziona",
+    "userDescription": "Ta strona może być zastrzeżona lub nie istnieje.",
+    "userAction": "Wróć do Panelu",
+    "guestTitle": "Strona Nie Znaleziona",
+    "guestDescription": "Ta strona nie istnieje lub wymaga uwierzytelnienia.",
+    "guestAction": "Uzyskaj Dostęp",
+    "goBack": "Wróć",
+    "linkDashboard": "Panel",
+    "linkProducts": "Produkty",
+    "linkUsers": "Użytkownicy",
+    "linkAccount": "Konto",
+    "linkLogin": "Logowanie",
+    "linkHome": "Strona Główna",
+    "linkLearnMore": "Dowiedz się więcej"
+  },
+  "legalPages": {
+    "privacy": {
+      "title": "Polityka Prywatności",
+      "configRequired": "Wymagana Konfiguracja",
+      "configDescription": "Aby wyświetlić Politykę Prywatności, skonfiguruj URL w jeden z tych sposobów:",
+      "option1Title": "Opcja 1: Panel Admina (Zalecane)",
+      "option1Description": "Przejdź do Ustawień → Dokumenty Prawne i wprowadź URL Polityki Prywatności.",
+      "option2Title": "Opcja 2: Zmienna Środowiskowa",
+      "option2EnvVar": "PRIVACY_POLICY_URL=https://example.com/privacy.pdf",
+      "urlHelp": "URL powinien wskazywać na pełny dokument Polityki Prywatności (PDF, strona internetowa itp.)."
+    },
+    "terms": {
+      "title": "Regulamin",
+      "configRequired": "Wymagana Konfiguracja",
+      "configDescription": "Aby wyświetlić Regulamin, skonfiguruj URL w jeden z tych sposobów:",
+      "option1Title": "Opcja 1: Panel Admina (Zalecane)",
+      "option1Description": "Przejdź do Ustawień → Dokumenty Prawne i wprowadź URL Regulaminu.",
+      "option2Title": "Opcja 2: Zmienna Środowiskowa",
+      "option2EnvVar": "TERMS_OF_SERVICE_URL=https://example.com/terms.pdf",
+      "urlHelp": "URL powinien wskazywać na pełny dokument Regulaminu (PDF, strona internetowa itp.)."
+    }
+  },
+  "payment": {
+    "error": {
+      "title": "Płatność nieudana",
+      "paymentFailed": "Nie udało się przetworzyć płatności. Sprawdź dane karty i spróbuj ponownie.",
+      "sessionNotFound": "Nie znaleziono sesji płatności. Rozpocznij proces zakupu od nowa.",
+      "cancelled": "Płatność została anulowana. Możesz spróbować ponownie w dowolnym momencie.",
+      "genericError": "Wystąpił błąd podczas przetwarzania płatności. Spróbuj ponownie.",
+      "tryAgain": "Spróbuj ponownie",
+      "goHome": "Strona główna"
+    },
+    "success": {
+      "title": "Płatność zakończona sukcesem!",
+      "description": "Twoja płatność została pomyślnie przetworzona. Masz teraz dostęp do zakupionego produktu."
     }
   }
 }

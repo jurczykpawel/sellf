@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import type { RefundRequest } from '@/types';
 
-const formatPrice = (price: number | null, currency: string | null = 'USD') => {
-  if (price === null) return 'N/A';
+const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
+  if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-  if (isNaN(numericPrice)) return 'Invalid Price';
+  if (isNaN(numericPrice)) return invalidLabel;
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -15,8 +15,8 @@ const formatPrice = (price: number | null, currency: string | null = 'USD') => {
   }).format(numericPrice / 100); // Convert cents to dollars
 };
 
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return 'N/A';
+const formatDate = (dateString: string | null, naLabel = 'N/A') => {
+  if (!dateString) return naLabel;
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -111,7 +111,7 @@ export default function RefundRequestsPage() {
 
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] || statusStyles.pending}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {t(status, { defaultValue: status.charAt(0).toUpperCase() + status.slice(1) })}
       </span>
     );
   };
@@ -199,7 +199,7 @@ export default function RefundRequestsPage() {
                       {request.product_name}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('purchasedOn', { defaultValue: 'Purchased' })}: {formatDate(request.purchase_date || null)}
+                      {t('purchasedOn', { defaultValue: 'Purchased' })}: {formatDate(request.purchase_date || null, t('naLabel'))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -214,19 +214,19 @@ export default function RefundRequestsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatPrice(request.requested_amount, request.currency)}
+                      {formatPrice(request.requested_amount, request.currency, t('naLabel'), t('invalidPrice'))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(request.status)}
                     {request.processed_at && (
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {formatDate(request.processed_at)}
+                        {formatDate(request.processed_at, t('naLabel'))}
                       </div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {formatDate(request.created_at)}
+                    {formatDate(request.created_at, t('naLabel'))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {request.status === 'pending' ? (
@@ -279,7 +279,7 @@ export default function RefundRequestsPage() {
                 {selectedRequest.customer_email}
               </div>
               <div className="text-lg font-bold text-gray-900 dark:text-white mt-2">
-                {formatPrice(selectedRequest.requested_amount, selectedRequest.currency)}
+                {formatPrice(selectedRequest.requested_amount, selectedRequest.currency, t('naLabel'), t('invalidPrice'))}
               </div>
               {selectedRequest.reason && (
                 <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
