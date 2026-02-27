@@ -9,8 +9,6 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeProductData } from '@/lib/validations/product';
 import { initialFormData } from '@/components/ProductFormModal/types';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 
 describe('Product is_listed flag', () => {
   describe('initialFormData', () => {
@@ -92,17 +90,19 @@ describe('Product is_listed flag', () => {
       expect(result).not.toHaveProperty('is_listed');
     });
 
-    it('[GAP] confirms is_listed is missing from setDefaults block in source', () => {
-      // Read the production source and verify is_listed is absent from the setDefaults block
-      const source = readFileSync(
-        resolve(__dirname, '../../src/lib/validations/product.ts'),
-        'utf-8',
-      );
-      const setDefaultsBlock = source.match(
-        /if \(setDefaults\)\s*\{([\s\S]*?)\n  \}/,
-      );
-      expect(setDefaultsBlock).not.toBeNull();
-      expect(setDefaultsBlock![1]).not.toContain('is_listed');
+    it('[GAP] setDefaults=true sets is_active but not is_listed (asymmetry)', () => {
+      // Both are boolean flags, but only is_active gets a default.
+      // This verifies the asymmetry behaviorally — no source-code scanning.
+      const withDefaults = sanitizeProductData({ name: 'Test' }, true);
+      const withoutDefaults = sanitizeProductData({ name: 'Test' }, false);
+
+      // is_active IS set by setDefaults
+      expect(withDefaults).toHaveProperty('is_active', true);
+      expect(withoutDefaults).not.toHaveProperty('is_active');
+
+      // is_listed is NOT set by setDefaults (same behavior as without defaults)
+      expect(withDefaults).not.toHaveProperty('is_listed');
+      expect(withoutDefaults).not.toHaveProperty('is_listed');
     });
   });
 });
