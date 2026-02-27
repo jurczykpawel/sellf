@@ -1,7 +1,7 @@
 /**
  * Payments Toolset
  *
- * MCP tools for managing GateFlow payments and transactions.
+ * MCP tools for managing Sellf payments and transactions.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -179,7 +179,7 @@ export function registerPaymentsTools(server: McpServer): void {
           product_id: params.product_id || 'none',
         },
         sample_records: paymentsResult.data.slice(0, 5),
-        export_note: 'Use the GateFlow admin panel to download the actual CSV file',
+        export_note: 'Use the Sellf admin panel to download the actual CSV file',
       };
 
       return {

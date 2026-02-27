@@ -1,7 +1,7 @@
 /**
  * Analytics Toolset
  *
- * MCP tools for GateFlow analytics and reporting.
+ * MCP tools for Sellf analytics and reporting.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

@@ -112,7 +112,7 @@ describe('Integration: Full MCP to API Flow', () => {
 
     // Create fresh MCP server and client for each test
     mcpServer = new McpServer({
-      name: 'gateflow-integration-test',
+      name: 'sellf-integration-test',
       version: '1.0.0',
     });
 
@@ -414,7 +414,7 @@ describe('Integration: Full MCP to API Flow', () => {
         data: {
           status: 'healthy',
           timestamp: new Date().toISOString(),
-          version: { api: 'v1', service: 'gateflow', build: 'abc123' },
+          version: { api: 'v1', service: 'sellf', build: 'abc123' },
           environment: 'test',
           database: { connected: true, error: null },
           counts: {
@@ -551,12 +551,12 @@ describe('Integration: Full MCP to API Flow', () => {
       });
 
       const result = await mcpClient.readResource({
-        uri: 'gateflow://dashboard',
+        uri: 'sellf://dashboard',
       });
 
       expect(result.contents).toBeDefined();
       expect(result.contents.length).toBeGreaterThan(0);
-      expect(result.contents[0].uri).toBe('gateflow://dashboard');
+      expect(result.contents[0].uri).toBe('sellf://dashboard');
       expect(result.contents[0].mimeType).toBe('application/json');
     });
 
@@ -569,11 +569,11 @@ describe('Integration: Full MCP to API Flow', () => {
       });
 
       const result = await mcpClient.readResource({
-        uri: 'gateflow://products/active',
+        uri: 'sellf://products/active',
       });
 
       expect(result.contents).toBeDefined();
-      expect(result.contents[0].uri).toBe('gateflow://products/active');
+      expect(result.contents[0].uri).toBe('sellf://products/active');
     });
   });
 

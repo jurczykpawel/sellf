@@ -93,7 +93,7 @@ describe('Integration: Error Scenarios', () => {
 
     // Create fresh MCP server and client
     mcpServer = new McpServer({
-      name: 'gateflow-error-test',
+      name: 'sellf-error-test',
       version: '1.0.0',
     });
 

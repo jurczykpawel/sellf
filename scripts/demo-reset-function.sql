@@ -1,5 +1,5 @@
 -- =============================================================================
--- GateFlow Demo Reset — RPC Function
+-- Sellf Demo Reset — RPC Function
 -- =============================================================================
 --
 -- Creates a PostgreSQL function that resets the demo database to seed data.
@@ -52,7 +52,7 @@ BEGIN
   -- =========================================================
   -- STEP 2: SEED — DEMO ADMIN USER
   -- =========================================================
-  -- Credentials: demo@gateflow.io / demo123
+  -- Credentials: demo@sellf.app / demo123
 
   INSERT INTO auth.users (
     instance_id, id, aud, role, email, encrypted_password,
@@ -63,7 +63,7 @@ BEGIN
     '00000000-0000-0000-0000-000000000000',
     demo_user_id,
     'authenticated', 'authenticated',
-    'demo@gateflow.io',
+    'demo@sellf.app',
     extensions.crypt('demo123', extensions.gen_salt('bf')),
     NOW(), '', '', '', '', '', '',
     '{"provider":"email","providers":["email"]}'::jsonb,
@@ -75,7 +75,7 @@ BEGIN
     provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
   ) VALUES (
     demo_user_id::text, demo_user_id,
-    jsonb_build_object('sub', demo_user_id::text, 'email', 'demo@gateflow.io'),
+    jsonb_build_object('sub', demo_user_id::text, 'email', 'demo@sellf.app'),
     'email', NOW(), NOW(), NOW()
   );
 
@@ -90,7 +90,7 @@ BEGIN
     primary_color, secondary_color, accent_color,
     font_family, custom_settings
   ) VALUES (
-    'USD', 'GateFlow Demo Shop', NULL,
+    'USD', 'Sellf Demo Shop', NULL,
     '#9333ea', '#ec4899', '#8b5cf6',
     'system', '{}'::jsonb
   );
@@ -204,7 +204,7 @@ BEGIN
   INSERT INTO webhook_endpoints (id, url, events, description, is_active, secret)
   VALUES (
     '88888888-8888-4888-a888-888888888888',
-    'https://webhook.site/gateflow-test-endpoint',
+    'https://webhook.site/sellf-test-endpoint',
     ARRAY['purchase.completed', 'lead.captured'],
     'Zapier CRM Integration',
     true,

@@ -1,7 +1,7 @@
 /**
  * Prompts Module
  *
- * MCP prompts guide Claude through common GateFlow workflows.
+ * MCP prompts guide Claude through common Sellf workflows.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -18,7 +18,7 @@ export function registerPrompts(server: McpServer): void {
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please generate a comprehensive weekly sales report for GateFlow.
+            text: `Please generate a comprehensive weekly sales report for Sellf.
 
 Use the following tools to gather data:
 1. get_dashboard - Get overall metrics
@@ -85,7 +85,7 @@ Provide actionable insights for optimizing this product's performance.`,
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please create a revenue forecast for GateFlow.
+            text: `Please create a revenue forecast for Sellf.
 
 Use these tools to gather historical data:
 1. get_dashboard - Get current metrics
@@ -118,7 +118,7 @@ Use conservative, moderate, and optimistic scenarios where appropriate.`,
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please analyze user cohorts and purchasing behavior in GateFlow.
+            text: `Please analyze user cohorts and purchasing behavior in Sellf.
 
 Use these tools:
 1. list_users with different sort options - Understand user distribution
@@ -151,7 +151,7 @@ Identify patterns that could inform marketing and product decisions.`,
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please analyze coupon effectiveness and ROI for GateFlow.
+            text: `Please analyze coupon effectiveness and ROI for Sellf.
 
 Use these tools:
 1. list_coupons - Get all coupons
@@ -183,7 +183,7 @@ Provide specific recommendations for coupon optimization.`,
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please analyze refund patterns in GateFlow.
+            text: `Please analyze refund patterns in Sellf.
 
 Use these tools:
 1. get_refund_stats - Get refund statistics

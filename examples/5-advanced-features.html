@@ -156,7 +156,7 @@
         
         <div class="enterprise-demo">
             <h2>🎉 YOU SEE THIS PAGE BECAUSE YOU HAVE ACCESS TO ENTERPRISE-PACKAGE</h2>
-            <p>Congratulations! You have access to the <strong>enterprise-package</strong> product. This example demonstrates GateFlow's most advanced capabilities designed for enterprise customers. It includes API integration, webhook support, advanced analytics, and custom business logic.</p>
+            <p>Congratulations! You have access to the <strong>enterprise-package</strong> product. This example demonstrates Sellf's most advanced capabilities designed for enterprise customers. It includes API integration, webhook support, advanced analytics, and custom business logic.</p>
             
             <div class="metrics-grid">
                 <div class="metric-card">
@@ -195,7 +195,7 @@
                 
                 <div class="code-block">
 <span class="comment">// Enterprise API client example</span>
-<span class="highlight">class GateFlowAPI {</span>
+<span class="highlight">class SellfAPI {</span>
     constructor(apiKey, baseURL) {
         this.apiKey = apiKey;
         this.baseURL = baseURL;
@@ -279,7 +279,7 @@
                 
                 <div class="code-block">
 <span class="comment">// Webhook handler example</span>
-<span class="highlight">app.post('/webhooks/gateflow', (req, res) => {</span>
+<span class="highlight">app.post('/webhooks/sellf', (req, res) => {</span>
     const event = req.body;
     
     switch(event.type) {
@@ -388,7 +388,7 @@
 <span class="comment">// Real-time integration example</span>
 <span class="highlight">const enterpriseIntegration = {</span>
     apiKey: 'ent_live_key_123...',
-    webhookUrl: 'https://your-company.com/webhooks/gateflow',
+    webhookUrl: 'https://your-company.com/webhooks/sellf',
     
     <span class="comment">// Custom business logic</span>
     async validateAccess(userId, productSlug) {
@@ -416,7 +416,7 @@
             event: eventType,
             timestamp: new Date().toISOString(),
             metadata: metadata,
-            source: 'gateflow_enterprise'
+            source: 'sellf_enterprise'
         });
     }
 <span class="highlight">};</span>
@@ -424,7 +424,7 @@
         </div>
     </div>
 
-    <!-- GateFlow Script with Page Protection for Enterprise content -->
+    <!-- Sellf Script with Page Protection for Enterprise content -->
     <script src="http://localhost:3000/api/gatekeeper?productSlug=enterprise-package"></script>
 </body>
 </html>

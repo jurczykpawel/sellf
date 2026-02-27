@@ -4,17 +4,17 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  GateFlowApiClient,
+  SellfApiClient,
   ApiClientError,
   initApiClient,
   getApiClient,
 } from '../../src/api-client.js';
 
-describe('GateFlowApiClient', () => {
-  let client: GateFlowApiClient;
+describe('SellfApiClient', () => {
+  let client: SellfApiClient;
 
   beforeEach(() => {
-    client = new GateFlowApiClient({
+    client = new SellfApiClient({
       baseUrl: 'https://api.example.com',
       apiKey: 'gf_test_123456',
     });
@@ -26,7 +26,7 @@ describe('GateFlowApiClient', () => {
 
   describe('constructor', () => {
     it('should remove trailing slash from baseUrl', () => {
-      const clientWithSlash = new GateFlowApiClient({
+      const clientWithSlash = new SellfApiClient({
         baseUrl: 'https://api.example.com/',
         apiKey: 'gf_test_123456',
       });
@@ -238,7 +238,7 @@ describe('initApiClient / getApiClient', () => {
       apiKey: 'gf_test_abc',
     });
 
-    expect(client).toBeInstanceOf(GateFlowApiClient);
+    expect(client).toBeInstanceOf(SellfApiClient);
     expect(getApiClient()).toBe(client);
   });
 });

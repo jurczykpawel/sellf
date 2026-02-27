@@ -1,5 +1,5 @@
 /**
- * GateFlow API Client
+ * Sellf API Client
  *
  * HTTP wrapper for the v1 REST API with API Key authentication.
  */
@@ -30,7 +30,7 @@ export interface PaginatedResponse<T> {
   };
 }
 
-export class GateFlowApiClient {
+export class SellfApiClient {
   private baseUrl: string;
   private apiKey: string;
 
@@ -126,14 +126,14 @@ export class ApiClientError extends Error {
 }
 
 // Singleton instance - initialized in server.ts
-let apiClient: GateFlowApiClient | null = null;
+let apiClient: SellfApiClient | null = null;
 
-export function initApiClient(options: ApiClientOptions): GateFlowApiClient {
-  apiClient = new GateFlowApiClient(options);
+export function initApiClient(options: ApiClientOptions): SellfApiClient {
+  apiClient = new SellfApiClient(options);
   return apiClient;
 }
 
-export function getApiClient(): GateFlowApiClient {
+export function getApiClient(): SellfApiClient {
   if (!apiClient) {
     throw new Error('API client not initialized. Call initApiClient() first.');
   }

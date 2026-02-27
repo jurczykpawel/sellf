@@ -1,5 +1,5 @@
 /**
- * GateFlow MCP Server
+ * Sellf MCP Server
  *
  * Main server setup - initializes McpServer with all tools, resources, and prompts.
  */
@@ -24,10 +24,10 @@ export interface ServerConfig {
 export function createServer(config: ServerConfig): McpServer {
   // Validate configuration
   if (!config.apiKey) {
-    throw new Error('GATEFLOW_API_KEY environment variable is required');
+    throw new Error('SELLF_API_KEY environment variable is required');
   }
   if (!config.apiUrl) {
-    throw new Error('GATEFLOW_API_URL environment variable is required');
+    throw new Error('SELLF_API_URL environment variable is required');
   }
 
   // Initialize API client
@@ -38,7 +38,7 @@ export function createServer(config: ServerConfig): McpServer {
 
   // Create MCP server instance
   const server = new McpServer({
-    name: 'gateflow',
+    name: 'sellf',
     version: '1.0.0',
   });
 

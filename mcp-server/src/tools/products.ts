@@ -1,7 +1,7 @@
 /**
  * Products Toolset
  *
- * MCP tools for managing GateFlow products.
+ * MCP tools for managing Sellf products.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

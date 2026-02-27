@@ -1,7 +1,7 @@
 /**
  * Coupons Toolset
  *
- * MCP tools for managing GateFlow discount coupons.
+ * MCP tools for managing Sellf discount coupons.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

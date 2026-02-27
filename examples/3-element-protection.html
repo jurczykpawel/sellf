@@ -240,7 +240,7 @@
         
         <div class="public-content">
             <h2>🌍 Public Content</h2>
-            <p>This section is visible to everyone. It demonstrates how you can mix public and protected content on the same page using GateFlow's <span class="highlight">element-level protection</span>.</p>
+            <p>This section is visible to everyone. It demonstrates how you can mix public and protected content on the same page using Sellf's <span class="highlight">element-level protection</span>.</p>
             
             <div class="tool-card">
                 <h3>🆓 Free Tools</h3>
@@ -256,7 +256,7 @@
         <div class="content-grid">
             <div class="content-section">
                 <h2>How Element Protection Works</h2>
-                <p>With GateFlow element protection, you can:</p>
+                <p>With Sellf element protection, you can:</p>
                 <ul>
                     <li>🎯 Protect specific elements</li>
                     <li>🔓 Keep other content public</li>
@@ -390,7 +390,7 @@ export default ${name};
                     <h3>📚 Free Tutorial Content</h3>
                     <p>Welcome to your free tutorial! Here's what you'll learn:</p>
                     <ul style="text-align: left; margin-top: 15px;">
-                        <li>Getting started with GateFlow</li>
+                        <li>Getting started with Sellf</li>
                         <li>Basic content protection</li>
                         <li>Element-level access control</li>
                     </ul>
@@ -402,9 +402,9 @@ export default ${name};
                 <h2>🎁 Free Tutorial - Claim Your Access</h2>
                 <p>This is a <strong>free product</strong>. Claim it to unlock the tutorial content!</p>
 
-                <!-- GateFlow Embed Widget for free product -->
+                <!-- Sellf Embed Widget for free product -->
                 <div style="margin: 1.5rem 0;">
-                    <div data-gateflow-product="free-tutorial"></div>
+                    <div data-sellf-product="free-tutorial"></div>
                 </div>
 
                 <p style="color: #718096; font-size: 0.875rem; text-align: center;">
@@ -443,15 +443,15 @@ export default ${name};
     </div>
 
 
-    <!-- GateFlow Script - no productSlug needed for element protection -->
+    <!-- Sellf Script - no productSlug needed for element protection -->
     <script src="http://localhost:3000/api/gatekeeper?id=3"></script>
 
-    <!-- GateFlow Embed Widget (auto-configured via endpoint) -->
-    <script src="http://localhost:3000/api/gateflow-embed"></script>
+    <!-- Sellf Embed Widget (auto-configured via endpoint) -->
+    <script src="http://localhost:3000/api/sellf-embed"></script>
 
     <!-- Optional: Listen for success events -->
     <script>
-      document.addEventListener('gateflow:success', function(e) {
+      document.addEventListener('sellf:success', function(e) {
         console.log('Product claimed:', e.detail.productSlug, 'by:', e.detail.email);
         // Optionally refresh the page or update UI
         // location.reload();

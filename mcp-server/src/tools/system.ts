@@ -1,7 +1,7 @@
 /**
  * System Toolset
  *
- * MCP tools for GateFlow system status and health checks.
+ * MCP tools for Sellf system status and health checks.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

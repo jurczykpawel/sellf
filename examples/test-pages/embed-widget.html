@@ -71,7 +71,7 @@
         <p class="subtitle">Product: <span id="product-slug"></span></p>
 
         <div class="info-box" data-testid="embed-info">
-            This is a test page for the GateFlow Embed Widget.
+            This is a test page for the Sellf Embed Widget.
             The widget below allows users to sign up for free products.
         </div>
 
@@ -93,9 +93,9 @@
             </div>
         </div>
 
-        <!-- GateFlow Embed Widget Container -->
+        <!-- Sellf Embed Widget Container -->
         <div class="widget-container" data-testid="widget-container">
-            <div id="gateflow-widget" data-testid="gateflow-widget"></div>
+            <div id="sellf-widget" data-testid="sellf-widget"></div>
         </div>
     </div>
 
@@ -109,13 +109,13 @@
         if (productSlug) {
             document.getElementById('product-slug').textContent = productSlug;
 
-            // Set up the GateFlow widget container
-            const widgetContainer = document.getElementById('gateflow-widget');
-            widgetContainer.setAttribute('data-gateflow-product', productSlug);
+            // Set up the Sellf widget container
+            const widgetContainer = document.getElementById('sellf-widget');
+            widgetContainer.setAttribute('data-sellf-product', productSlug);
 
             // Load the embed script
             const script = document.createElement('script');
-            script.src = `${apiBaseUrl}/gateflow-embed.js`;
+            script.src = `${apiBaseUrl}/sellf-embed.js`;
             script.setAttribute('data-api-url', apiBaseUrl);
             document.body.appendChild(script);
         } else {

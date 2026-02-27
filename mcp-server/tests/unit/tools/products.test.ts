@@ -11,7 +11,7 @@ import * as apiClientModule from '../../../src/api-client.js';
 vi.mock('../../../src/api-client.js', () => ({
   getApiClient: vi.fn(),
   initApiClient: vi.fn(),
-  GateFlowApiClient: vi.fn(),
+  SellfApiClient: vi.fn(),
   ApiClientError: class extends Error {
     code: string;
     statusCode: number;

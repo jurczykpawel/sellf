@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * GateFlow Supabase Setup Tool
+ * Sellf Supabase Setup Tool
  *
  * Automatically fetches Supabase API keys and generates .env.local
  *
@@ -155,7 +155,7 @@ PORT=3000
 async function main() {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
-║         GateFlow Supabase Setup Tool                      ║
+║         Sellf Supabase Setup Tool                      ║
 ║                                                           ║
 ║  This tool will automatically fetch your Supabase         ║
 ║  API keys and generate .env.local                         ║
@@ -176,7 +176,7 @@ async function main() {
     openBrowser(tokenUrl);
 
     console.log('   1. Click "Generate new token"');
-    console.log('   2. Name it "GateFlow Setup"');
+    console.log('   2. Name it "Sellf Setup"');
     console.log('   3. Copy the token\n');
 
     token = await prompt('Paste your Personal Access Token: ');

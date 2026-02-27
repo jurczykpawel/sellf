@@ -11,7 +11,7 @@ export function registerResources(server: McpServer): void {
   // Dashboard resource
   server.resource(
     'dashboard',
-    'gateflow://dashboard',
+    'sellf://dashboard',
     { description: 'Dashboard overview with key business metrics', mimeType: 'application/json' },
     async () => {
       const api = getApiClient();
@@ -20,7 +20,7 @@ export function registerResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: 'gateflow://dashboard',
+            uri: 'sellf://dashboard',
             mimeType: 'application/json',
             text: JSON.stringify(result, null, 2),
           },
@@ -32,7 +32,7 @@ export function registerResources(server: McpServer): void {
   // Active products resource
   server.resource(
     'products-active',
-    'gateflow://products/active',
+    'sellf://products/active',
     { description: 'List of all active products available for purchase', mimeType: 'application/json' },
     async () => {
       const api = getApiClient();
@@ -44,7 +44,7 @@ export function registerResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: 'gateflow://products/active',
+            uri: 'sellf://products/active',
             mimeType: 'application/json',
             text: JSON.stringify(result, null, 2),
           },
@@ -56,7 +56,7 @@ export function registerResources(server: McpServer): void {
   // Alerts resource (pending refunds, failed webhooks)
   server.resource(
     'alerts',
-    'gateflow://alerts',
+    'sellf://alerts',
     { description: 'System alerts including pending refunds and failed webhooks', mimeType: 'application/json' },
     async () => {
       const api = getApiClient();
@@ -97,7 +97,7 @@ export function registerResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: 'gateflow://alerts',
+            uri: 'sellf://alerts',
             mimeType: 'application/json',
             text: JSON.stringify(alerts, null, 2),
           },
@@ -109,7 +109,7 @@ export function registerResources(server: McpServer): void {
   // Recent sales resource
   server.resource(
     'recent-sales',
-    'gateflow://recent-sales',
+    'sellf://recent-sales',
     { description: 'Most recent successful payment transactions', mimeType: 'application/json' },
     async () => {
       const api = getApiClient();
@@ -122,7 +122,7 @@ export function registerResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: 'gateflow://recent-sales',
+            uri: 'sellf://recent-sales',
             mimeType: 'application/json',
             text: JSON.stringify(result, null, 2),
           },

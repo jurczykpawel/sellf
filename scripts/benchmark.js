@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * GateFlow Performance Benchmark Script
+ * Sellf Performance Benchmark Script
  *
  * Usage:
  *   node scripts/benchmark.js [URL] [CONNECTIONS]
@@ -34,7 +34,7 @@ const scenarios = [
   },
 ];
 
-console.log('\n🚀 GateFlow Performance Benchmark');
+console.log('\n🚀 Sellf Performance Benchmark');
 console.log('================================\n');
 console.log(`Target:      ${TARGET_URL}`);
 console.log(`Connections: ${CONNECTIONS}\n`);

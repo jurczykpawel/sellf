@@ -1,7 +1,7 @@
 /**
  * Webhooks Toolset
  *
- * MCP tools for managing GateFlow webhook endpoints.
+ * MCP tools for managing Sellf webhook endpoints.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

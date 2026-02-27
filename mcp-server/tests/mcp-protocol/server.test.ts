@@ -21,7 +21,7 @@ import { registerPrompts } from '../../src/prompts/index.js';
 vi.mock('../../src/api-client.js', () => ({
   getApiClient: vi.fn(),
   initApiClient: vi.fn(),
-  GateFlowApiClient: vi.fn(),
+  SellfApiClient: vi.fn(),
   ApiClientError: class extends Error {
     code: string;
     statusCode: number;
@@ -56,7 +56,7 @@ describe('MCP Server Protocol', () => {
 
     // Create server
     server = new McpServer({
-      name: 'gateflow-test',
+      name: 'sellf-test',
       version: '1.0.0',
     });
 
@@ -199,7 +199,7 @@ describe('MCP Server Protocol', () => {
         data: {
           status: 'healthy',
           timestamp: new Date().toISOString(),
-          version: { api: 'v1', service: 'gateflow', build: 'abc123' },
+          version: { api: 'v1', service: 'sellf', build: 'abc123' },
           environment: 'test',
           database: { connected: true, error: null },
           counts: {
@@ -257,10 +257,10 @@ describe('MCP Server Protocol', () => {
       expect(result.resources.length).toBeGreaterThan(0);
 
       const resourceUris = result.resources.map((r) => r.uri);
-      expect(resourceUris).toContain('gateflow://dashboard');
-      expect(resourceUris).toContain('gateflow://products/active');
-      expect(resourceUris).toContain('gateflow://alerts');
-      expect(resourceUris).toContain('gateflow://recent-sales');
+      expect(resourceUris).toContain('sellf://dashboard');
+      expect(resourceUris).toContain('sellf://products/active');
+      expect(resourceUris).toContain('sellf://alerts');
+      expect(resourceUris).toContain('sellf://recent-sales');
     });
 
     it('should have descriptions for all resources', async () => {
@@ -282,12 +282,12 @@ describe('MCP Server Protocol', () => {
       });
 
       const result = await client.readResource({
-        uri: 'gateflow://dashboard',
+        uri: 'sellf://dashboard',
       });
 
       expect(result.contents).toBeDefined();
       expect(result.contents.length).toBeGreaterThan(0);
-      expect(result.contents[0].uri).toBe('gateflow://dashboard');
+      expect(result.contents[0].uri).toBe('sellf://dashboard');
       expect(result.contents[0].mimeType).toBe('application/json');
     });
 
@@ -300,11 +300,11 @@ describe('MCP Server Protocol', () => {
       });
 
       const result = await client.readResource({
-        uri: 'gateflow://products/active',
+        uri: 'sellf://products/active',
       });
 
       expect(result.contents).toBeDefined();
-      expect(result.contents[0].uri).toBe('gateflow://products/active');
+      expect(result.contents[0].uri).toBe('sellf://products/active');
     });
   });
 

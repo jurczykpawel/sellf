@@ -1,7 +1,7 @@
 /**
  * Users Toolset
  *
- * MCP tools for managing GateFlow users and their product access.
+ * MCP tools for managing Sellf users and their product access.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

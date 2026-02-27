@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * GateFlow License Generator
+ * Sellf License Generator
  *
- * Generates ECDSA-signed license keys for GateFlow installations.
+ * Generates ECDSA-signed license keys for Sellf installations.
  *
  * Usage:
  *   node generate-license.js <domain> [expiry]
@@ -13,9 +13,9 @@
  *   node generate-license.js "*.example.com" UNLIMITED # Wildcard domain
  *
  * Environment:
- *   GATEFLOW_PRIVATE_KEY - ECDSA private key (PEM format)
+ *   SELLF_PRIVATE_KEY - ECDSA private key (PEM format)
  *   or
- *   GATEFLOW_PRIVATE_KEY_FILE - Path to private key file
+ *   SELLF_PRIVATE_KEY_FILE - Path to private key file
  *
  * First-time setup (generate key pair):
  *   node generate-license.js --generate-keys
@@ -41,17 +41,17 @@ function generateKeyPair() {
 
 function getPrivateKey() {
     // Try environment variable first
-    if (process.env.GATEFLOW_PRIVATE_KEY) {
-        return process.env.GATEFLOW_PRIVATE_KEY;
+    if (process.env.SELLF_PRIVATE_KEY) {
+        return process.env.SELLF_PRIVATE_KEY;
     }
 
     // Try file path from env
-    if (process.env.GATEFLOW_PRIVATE_KEY_FILE) {
-        return fs.readFileSync(process.env.GATEFLOW_PRIVATE_KEY_FILE, 'utf8');
+    if (process.env.SELLF_PRIVATE_KEY_FILE) {
+        return fs.readFileSync(process.env.SELLF_PRIVATE_KEY_FILE, 'utf8');
     }
 
     // Try default location
-    const defaultPath = path.join(__dirname, '.gateflow-private-key.pem');
+    const defaultPath = path.join(__dirname, '.sellf-private-key.pem');
     if (fs.existsSync(defaultPath)) {
         return fs.readFileSync(defaultPath, 'utf8');
     }
@@ -139,7 +139,7 @@ function parseExpiryDate(expiry) {
 
 function printUsage() {
     console.log(`
-GateFlow License Generator
+Sellf License Generator
 
 Usage:
   node generate-license.js <domain> [expiry]
@@ -155,8 +155,8 @@ Options:
   --verify <key>     Verify an existing license key
 
 Environment Variables:
-  GATEFLOW_PRIVATE_KEY       Private key (PEM format)
-  GATEFLOW_PRIVATE_KEY_FILE  Path to private key file
+  SELLF_PRIVATE_KEY       Private key (PEM format)
+  SELLF_PRIVATE_KEY_FILE  Path to private key file
 
 Examples:
   node generate-license.js example.com 20271231
@@ -173,8 +173,8 @@ function main() {
         console.log('Generating ECDSA P-256 key pair...\n');
         const { publicKey, privateKey } = generateKeyPair();
 
-        const privateKeyPath = path.join(__dirname, '.gateflow-private-key.pem');
-        const publicKeyPath = path.join(__dirname, 'gateflow-public-key.pem');
+        const privateKeyPath = path.join(__dirname, '.sellf-private-key.pem');
+        const publicKeyPath = path.join(__dirname, 'sellf-public-key.pem');
 
         fs.writeFileSync(privateKeyPath, privateKey);
         fs.writeFileSync(publicKeyPath, publicKey);
@@ -186,7 +186,7 @@ function main() {
         console.log(publicKey);
         console.log(`Saved to: ${publicKeyPath}`);
         console.log('');
-        console.log('IMPORTANT: Add .gateflow-private-key.pem to .gitignore!');
+        console.log('IMPORTANT: Add .sellf-private-key.pem to .gitignore!');
         return;
     }
 
@@ -199,7 +199,7 @@ function main() {
         }
 
         // Try to find public key
-        const publicKeyPath = path.join(__dirname, 'gateflow-public-key.pem');
+        const publicKeyPath = path.join(__dirname, 'sellf-public-key.pem');
         if (!fs.existsSync(publicKeyPath)) {
             console.error('Error: Public key not found. Run --generate-keys first.');
             process.exit(1);
@@ -236,8 +236,8 @@ function main() {
         console.error('');
         console.error('Either:');
         console.error('  1. Run: node generate-license.js --generate-keys');
-        console.error('  2. Set GATEFLOW_PRIVATE_KEY environment variable');
-        console.error('  3. Set GATEFLOW_PRIVATE_KEY_FILE environment variable');
+        console.error('  2. Set SELLF_PRIVATE_KEY environment variable');
+        console.error('  3. Set SELLF_PRIVATE_KEY_FILE environment variable');
         process.exit(1);
     }
 
@@ -253,7 +253,7 @@ function main() {
         console.log('Add to your gatekeeper configuration:');
         console.log(`
 window.gatekeeperConfig = {
-    gateflowLicense: '${license}',
+    sellfLicense: '${license}',
     // ... other config
 };
 `);
