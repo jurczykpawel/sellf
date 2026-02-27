@@ -19,9 +19,24 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
  *   npx playwright test --project=chromium
  *   RATE_LIMIT_TEST_MODE=true npx playwright test --project=rate-limiting
  *   RATE_LIMIT_TEST_MODE=true npx playwright test --project=rate-limiting-v1
+ *
+ * Visual testing (screenshots at multiple viewports):
+ *   npx playwright test --project=visual-mobile --project=visual-tablet --project=visual-wide
+ *   bun run test:visual          # all visual projects
+ *   bun run test:visual:review   # capture + AI review
  */
 const isRateLimitTestMode = process.env.RATE_LIMIT_TEST_MODE === 'true';
 const quietMode = process.env.QUIET_MODE === '1';
+
+// Visual test projects run a subset of tests at different viewports with screenshots
+const VISUAL_TESTS = [
+  '**/smoke.spec.ts',
+  '**/smoke/*.spec.ts',
+  '**/admin-dashboard.spec.ts',
+  '**/storefront.spec.ts',
+  '**/storefront-landing.spec.ts',
+  '**/profile-e2e.spec.ts',
+];
 
 export default defineConfig({
   testDir: './tests',
@@ -51,8 +66,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      // Rate-limiting tests are excluded here — they run in separate projects
-      // with RATE_LIMIT_TEST_MODE=true (see ttt/tttt scripts in package.json)
+      // Rate-limiting and visual tests are excluded here
       testIgnore: ['**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts'],
     },
     {
@@ -64,6 +78,36 @@ export default defineConfig({
       name: 'rate-limiting-v1',
       use: { ...devices['Desktop Chrome'] },
       testMatch: '**/rate-limiting-v1.spec.ts',
+    },
+
+    // Visual testing projects — run subset of tests at different viewports with screenshots
+    // Usage: npx playwright test --project=visual-mobile --project=visual-tablet --project=visual-wide
+    {
+      name: 'visual-mobile',
+      use: {
+        viewport: { width: 375, height: 812 },
+        screenshot: 'on',
+      },
+      testMatch: VISUAL_TESTS,
+      outputDir: './screenshots/mobile',
+    },
+    {
+      name: 'visual-tablet',
+      use: {
+        viewport: { width: 768, height: 1024 },
+        screenshot: 'on',
+      },
+      testMatch: VISUAL_TESTS,
+      outputDir: './screenshots/tablet',
+    },
+    {
+      name: 'visual-wide',
+      use: {
+        viewport: { width: 1920, height: 1080 },
+        screenshot: 'on',
+      },
+      testMatch: VISUAL_TESTS,
+      outputDir: './screenshots/wide',
     },
   ],
 

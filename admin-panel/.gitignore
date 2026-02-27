@@ -57,4 +57,7 @@ next-env.d.ts
 # playwright
 /playwright-report/
 /test-results/
+
+# visual testing screenshots
+/screenshots/
 *.bak
