@@ -1,4 +1,4 @@
-# GateFlow API - Bruno Collection
+# Sellf API - Bruno Collection
 
 Kolekcja requestów API dla [Bruno](https://www.usebruno.com/).
 

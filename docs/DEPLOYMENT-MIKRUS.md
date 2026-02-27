@@ -1,8 +1,8 @@
-# GateFlow Deployment - Mikrus VPS (Optimized)
+# Sellf Deployment - Mikrus VPS (Optimized)
 
 **Last Updated**: 2026-01-15 (Performance Optimization Release)
 
-This guide covers deployment of GateFlow on Mikrus.us VPS with optimized configuration for **high performance** on resource-constrained environments.
+This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for **high performance** on resource-constrained environments.
 
 ---
 
@@ -45,11 +45,11 @@ ssh root@your-mikrus-vps.mikr.us
 
 ```bash
 # Create deploy user
-adduser gateflow
-usermod -aG sudo gateflow
+adduser sellf
+usermod -aG sudo sellf
 
 # Switch to deploy user
-su - gateflow
+su - sellf
 ```
 
 ### Step 3: Install Node.js 20.x LTS
@@ -82,14 +82,14 @@ sudo apt-get install -y git
 
 ---
 
-## 🚀 Part 2: Deploy GateFlow
+## 🚀 Part 2: Deploy Sellf
 
 ### Step 1: Clone Repository
 
 ```bash
 cd ~
-git clone https://github.com/yourusername/gateflow.git
-cd gateflow
+git clone https://github.com/yourusername/sellf.git
+cd sellf
 ```
 
 ### Step 2: Install Dependencies
@@ -175,7 +175,7 @@ The repository includes a pre-configured `ecosystem.config.js` optimized for dif
 module.exports = {
   apps: [
     {
-      name: 'gateflow-admin',
+      name: 'sellf-admin',
       cwd: './admin-panel',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
@@ -221,7 +221,7 @@ module.exports = {
 module.exports = {
   apps: [
     {
-      name: 'gateflow-admin',
+      name: 'sellf-admin',
       cwd: './admin-panel',
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
@@ -279,7 +279,7 @@ pm2 start ecosystem.config.js
 ┌────┬────────────────┬─────────┬─────────┬──────┬──────────┐
 │ id │ name           │ mode    │ status  │ cpu  │ memory   │
 ├────┼────────────────┼─────────┼─────────┼──────┼──────────┤
-│ 0  │ gateflow-admin │ fork    │ online  │ 0%   │ 180.0mb  │
+│ 0  │ sellf-admin │ fork    │ online  │ 0%   │ 180.0mb  │
 └────┴────────────────┴─────────┴─────────┴──────┴──────────┘
 ```
 
@@ -288,8 +288,8 @@ pm2 start ecosystem.config.js
 ┌────┬────────────────┬─────────┬─────────┬──────┬──────────┐
 │ id │ name           │ mode    │ status  │ cpu  │ memory   │
 ├────┼────────────────┼─────────┼─────────┼──────┼──────────┤
-│ 0  │ gateflow-admin │ cluster │ online  │ 0%   │ 208.0mb  │
-│ 1  │ gateflow-admin │ cluster │ online  │ 0%   │ 207.8mb  │
+│ 0  │ sellf-admin │ cluster │ online  │ 0%   │ 208.0mb  │
+│ 1  │ sellf-admin │ cluster │ online  │ 0%   │ 207.8mb  │
 └────┴────────────────┴─────────┴─────────┴──────┴──────────┘
 ```
 
@@ -300,7 +300,7 @@ pm2 start ecosystem.config.js
 pm2 status
 
 # View logs
-pm2 logs gateflow-admin --lines 20
+pm2 logs sellf-admin --lines 20
 
 # Monitor in real-time
 pm2 monit
@@ -326,7 +326,7 @@ pm2 save
 pm2 startup
 
 # Follow the instructions (will output a command like):
-# sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u gateflow --hp /home/gateflow
+# sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u sellf --hp /home/sellf
 
 # Run the generated command, then:
 pm2 save
@@ -345,7 +345,7 @@ sudo apt-get install -y nginx
 ### Step 2: Configure Nginx
 
 ```bash
-sudo nano /etc/nginx/sites-available/gateflow
+sudo nano /etc/nginx/sites-available/sellf
 ```
 
 **Add configuration:**
@@ -389,7 +389,7 @@ server {
 ### Step 3: Enable Site
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/gateflow /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/sellf /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -413,7 +413,7 @@ Use the included `scripts/deploy.sh`:
 #!/bin/bash
 set -e
 
-echo "🚀 Deploying GateFlow..."
+echo "🚀 Deploying Sellf..."
 
 # Pull latest changes
 git pull origin main
@@ -462,10 +462,10 @@ pm2 list
 pm2 monit
 
 # View logs
-pm2 logs gateflow-admin
+pm2 logs sellf-admin
 
 # CPU & Memory usage
-pm2 describe gateflow-admin
+pm2 describe sellf-admin
 ```
 
 ### Run Benchmark (Optional)
@@ -572,7 +572,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 **Check logs**:
 
 ```bash
-pm2 logs gateflow-admin --lines 100
+pm2 logs sellf-admin --lines 100
 ```
 
 **Common causes**:
@@ -583,7 +583,7 @@ pm2 logs gateflow-admin --lines 100
 **Quick fix** (reduce instances):
 
 ```bash
-pm2 scale gateflow-admin 1
+pm2 scale sellf-admin 1
 ```
 
 ---
@@ -598,7 +598,7 @@ sudo lsof -i :3000
 sudo kill -9 <PID>
 
 # Or restart PM2
-pm2 restart gateflow-admin
+pm2 restart sellf-admin
 ```
 
 ---
@@ -608,7 +608,7 @@ pm2 restart gateflow-admin
 **Check logs**:
 
 ```bash
-pm2 logs gateflow-admin --err --lines 50
+pm2 logs sellf-admin --err --lines 50
 ```
 
 **Common errors**:

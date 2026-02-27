@@ -11,13 +11,13 @@ We release patches for security vulnerabilities in the following versions:
 
 ## Reporting a Vulnerability
 
-We take the security of GateFlow seriously. If you believe you have found a security vulnerability, please report it to us as described below.
+We take the security of Sellf seriously. If you believe you have found a security vulnerability, please report it to us as described below.
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
 ### How to Report
 
-Please report security vulnerabilities using [GitHub Security Advisories](https://github.com/jurczykpawel/gateflow/security/advisories/new).
+Please report security vulnerabilities using [GitHub Security Advisories](https://github.com/jurczykpawel/sellf/security/advisories/new).
 
 Include the following information:
 - Type of vulnerability (e.g., XSS, SQL injection, authentication bypass)
@@ -37,7 +37,7 @@ Include the following information:
 
 ## Security Features
 
-GateFlow implements comprehensive security measures:
+Sellf implements comprehensive security measures:
 
 - **Authentication**: Supabase Auth with magic link and OAuth support
 - **Authorization**: Row Level Security (RLS) policies on all database tables
@@ -58,7 +58,7 @@ Security updates are released as patch versions (e.g., 1.0.1, 1.0.2). Subscribe 
 
 ## Security Best Practices
 
-When deploying GateFlow:
+When deploying Sellf:
 
 1. **Environment Variables**: Never commit secrets to version control
 2. **Database**: Use strong passwords and restrict network access
@@ -75,7 +75,7 @@ All identified security vulnerabilities have been addressed. For the security po
 ## Scope
 
 This security policy applies to:
-- GateFlow Admin Panel (`admin-panel/`)
+- Sellf Admin Panel (`admin-panel/`)
 - MCP Server (`mcp-server/`)
 - Database migrations (`supabase/migrations/`)
 - Gatekeeper SDK (`gatekeeper.js`)

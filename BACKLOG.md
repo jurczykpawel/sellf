@@ -1,4 +1,4 @@
-# GateFlow - Product Roadmap
+# Sellf - Product Roadmap
 
 A high-level overview of planned features, current progress, and completed work.
 
@@ -74,7 +74,7 @@ REST API with API key management, scoped access (read-only, write), Swagger/Open
 
 ### GTM Phase 2 (Automated OAuth)
 **Status**: 📋 Planned
-Google OAuth App integration for one-click GTM setup — GateFlow auto-creates Container and Tags via GTM API.
+Google OAuth App integration for one-click GTM setup — Sellf auto-creates Container and Tags via GTM API.
 
 ---
 
@@ -122,7 +122,7 @@ Courses with chapters, lessons, progress tracking, sequential unlocking, certifi
 
 ### In-App File Hosting
 **Status**: 💭 Idea
-Upload and host files directly within GateFlow with support for Supabase Storage, AWS S3, Cloudinary, and Bunny.net CDN.
+Upload and host files directly within Sellf with support for Supabase Storage, AWS S3, Cloudinary, and Bunny.net CDN.
 
 ### Mux Video Integration
 **Status**: 💭 Idea
@@ -153,7 +153,7 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ DB column: `shop_config.checkout_theme`
 - ✅ Responsive checkout backgrounds and Stripe Elements theme
 
-#### GateFlow Branding Watermark
+#### Sellf Branding Watermark
 - ✅ Checkout footer with link, license-gated (ECDSA P-256)
 
 ### 🚀 Performance & Scalability (2026-01-15)
@@ -286,7 +286,7 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 ### 📊 Other
 
 #### Public Demo Instance (2026-02)
-- ✅ Live at https://gateflow.cytr.us
+- ✅ Live at https://demo.sellf.app
 - ✅ Stripe Test Mode, hourly DB reset, demo guard, demo banner
 
 #### Product Categories (Dec 2024, partial)

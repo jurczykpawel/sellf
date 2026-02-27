@@ -1,10 +1,10 @@
-# GateFlow MCP Server
+# Sellf MCP Server
 
-Model Context Protocol (MCP) server for GateFlow - enables AI assistants like Claude to manage products, users, payments, coupons, and analytics through natural language.
+Model Context Protocol (MCP) server for Sellf - enables AI assistants like Claude to manage products, users, payments, coupons, and analytics through natural language.
 
 ## Overview
 
-This MCP server acts as a thin wrapper over GateFlow's REST API v1, allowing Claude Desktop and other MCP-compatible AI assistants to:
+This MCP server acts as a thin wrapper over Sellf's REST API v1, allowing Claude Desktop and other MCP-compatible AI assistants to:
 
 - Manage products (list, create, update, delete, duplicate)
 - Handle users and product access (grant, revoke, extend)
@@ -25,7 +25,7 @@ bun install
 
 ### 2. Create API Key
 
-1. Log into your GateFlow admin panel
+1. Log into your Sellf admin panel
 2. Go to Settings > API Keys
 3. Create a new API key with `*` (full access) scope
 4. Copy the key - it will only be shown once
@@ -37,17 +37,17 @@ Edit your Claude Desktop configuration file:
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-Add the GateFlow server:
+Add the Sellf server:
 
 ```json
 {
   "mcpServers": {
-    "gateflow": {
+    "sellf": {
       "command": "bun",
       "args": ["/path/to/mcp-server/src/index.ts"],
       "env": {
-        "GATEFLOW_API_KEY": "gf_live_xxx...",
-        "GATEFLOW_API_URL": "https://your-gateflow-instance.com"
+        "SELLF_API_KEY": "gf_live_xxx...",
+        "SELLF_API_URL": "https://your-sellf-instance.com"
       }
     }
   }
@@ -56,7 +56,7 @@ Add the GateFlow server:
 
 ### 4. Restart Claude Desktop
 
-The GateFlow tools should now be available in Claude.
+The Sellf tools should now be available in Claude.
 
 ## Available Tools (45 total)
 
@@ -125,10 +125,10 @@ The server exposes 4 auto-refreshing resources:
 
 | URI | Description |
 |-----|-------------|
-| `gateflow://dashboard` | Dashboard metrics |
-| `gateflow://products/active` | Active products list |
-| `gateflow://alerts` | Pending refunds, failed payments |
-| `gateflow://recent-sales` | Latest 10 transactions |
+| `sellf://dashboard` | Dashboard metrics |
+| `sellf://products/active` | Active products list |
+| `sellf://alerts` | Pending refunds, failed payments |
+| `sellf://recent-sales` | Latest 10 transactions |
 
 ## Prompts
 
@@ -174,8 +174,8 @@ bunx @anthropic/mcp-inspector bun src/index.ts
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GATEFLOW_API_KEY` | Yes | API key (gf_live_xxx or gf_test_xxx) |
-| `GATEFLOW_API_URL` | Yes | Base URL of your GateFlow instance |
+| `SELLF_API_KEY` | Yes | API key (gf_live_xxx or gf_test_xxx) |
+| `SELLF_API_URL` | Yes | Base URL of your Sellf instance |
 
 ## API Key Scopes
 

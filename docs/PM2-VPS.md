@@ -42,7 +42,7 @@ Use this guide if you need:
 module.exports = {
   apps: [
     {
-      name: "gateflow-admin",
+      name: "sellf-admin",
       cwd: "./admin-panel",
       script: "npm",
       args: "start",
@@ -94,8 +94,8 @@ module.exports = {
       user: "deploy",
       host: ["your-vps.mikr.us"],
       ref: "origin/main",
-      repo: "git@github.com:YOUR_USERNAME/gateflow.git",
-      path: "/home/deploy/gateflow",
+      repo: "git@github.com:YOUR_USERNAME/sellf.git",
+      path: "/home/deploy/sellf",
 
       // PRE-DEPLOY HOOKS
       "pre-deploy-local": "echo 'Starting deployment...'",
@@ -132,15 +132,15 @@ module.exports = {
 pm2 start ecosystem.config.js
 
 # Scale up/down
-pm2 scale gateflow-admin 4     # Scale to 4 instances
-pm2 scale gateflow-admin +2    # Add 2 more instances
-pm2 scale gateflow-admin -1    # Remove 1 instance
+pm2 scale sellf-admin 4     # Scale to 4 instances
+pm2 scale sellf-admin +2    # Add 2 more instances
+pm2 scale sellf-admin -1    # Remove 1 instance
 
 # Zero-downtime reload (cluster mode only)
-pm2 reload gateflow-admin
+pm2 reload sellf-admin
 
 # Graceful restart (one by one)
-pm2 gracefulReload gateflow-admin
+pm2 gracefulReload sellf-admin
 ```
 
 ### Monitoring & Logs
@@ -151,13 +151,13 @@ pm2 monit
 
 # CPU/Memory usage
 pm2 status
-pm2 describe gateflow-admin
+pm2 describe sellf-admin
 
 # Logs
-pm2 logs gateflow-admin --lines 200
-pm2 logs gateflow-admin --err      # Only errors
-pm2 logs gateflow-admin --raw      # Raw logs (no formatting)
-pm2 flush gateflow-admin           # Clear logs
+pm2 logs sellf-admin --lines 200
+pm2 logs sellf-admin --err      # Only errors
+pm2 logs sellf-admin --raw      # Raw logs (no formatting)
+pm2 flush sellf-admin           # Clear logs
 
 # Log rotation (install module)
 pm2 install pm2-logrotate
@@ -170,18 +170,18 @@ pm2 set pm2-logrotate:compress true
 
 ```bash
 # Stop/Start/Restart
-pm2 stop gateflow-admin
-pm2 start gateflow-admin
-pm2 restart gateflow-admin
+pm2 stop sellf-admin
+pm2 start sellf-admin
+pm2 restart sellf-admin
 
 # Delete process (remove from PM2)
-pm2 delete gateflow-admin
+pm2 delete sellf-admin
 
 # Reset restart count
-pm2 reset gateflow-admin
+pm2 reset sellf-admin
 
 # Send signal to process
-pm2 sendSignal SIGUSR2 gateflow-admin
+pm2 sendSignal SIGUSR2 sellf-admin
 ```
 
 ### Startup Script (Auto-start on reboot)
@@ -200,7 +200,7 @@ pm2 save
 sudo reboot
 
 # After reboot, verify
-pm2 status  # Should show gateflow-admin running
+pm2 status  # Should show sellf-admin running
 ```
 
 ---
@@ -233,7 +233,7 @@ pm2 install pm2-auto-pull
 
 # Configure auto-pull
 pm2 set pm2-auto-pull:interval 300000  # Check every 5 minutes
-pm2 set pm2-auto-pull:apps gateflow-admin
+pm2 set pm2-auto-pull:apps sellf-admin
 ```
 
 ### Option 3: Prometheus + Grafana
@@ -260,7 +260,7 @@ pm2-prometheus-exporter
 ### Method 1: PM2 Reload
 
 ```bash
-cd /path/to/gateflow
+cd /path/to/sellf
 git pull origin main
 
 cd admin-panel
@@ -268,7 +268,7 @@ npm ci
 npm run build
 
 # Zero-downtime reload (cluster mode)
-pm2 reload gateflow-admin
+pm2 reload sellf-admin
 ```
 
 **How it works:**
@@ -324,7 +324,7 @@ pm2 reload ecosystem.config.js
 
 # 6. Verify
 pm2 status
-pm2 logs gateflow-admin --lines 20 --nostream
+pm2 logs sellf-admin --lines 20 --nostream
 
 echo "✅ Deployment complete!"
 ```
@@ -363,7 +363,7 @@ pm2 startup  # Follow instructions
 # Store secrets in PM2 ecosystem
 module.exports = {
   apps: [{
-    name: "gateflow-admin",
+    name: "sellf-admin",
     env_production: {
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -374,7 +374,7 @@ module.exports = {
 # Or use dotenv in ecosystem:
 module.exports = {
   apps: [{
-    name: "gateflow-admin",
+    name: "sellf-admin",
     env_file: "./admin-panel/.env.production",
   }]
 };
@@ -394,7 +394,7 @@ sudo ufw status
 ### 4. Rate Limiting (Nginx)
 
 ```nginx
-# /etc/nginx/sites-available/gateflow
+# /etc/nginx/sites-available/sellf
 limit_req_zone $binary_remote_addr zone=app:10m rate=10r/s;
 
 server {
@@ -490,7 +490,7 @@ pm2 start ecosystem.config.js --node-args="--prof"
 # ...
 
 # Stop app
-pm2 stop gateflow-admin
+pm2 stop sellf-admin
 
 # Process v8 log
 node --prof-process isolate-*.log > processed.txt
@@ -535,11 +535,11 @@ pm2 resurrect
 pm2 status
 
 # Reduce instances
-pm2 scale gateflow-admin 2
+pm2 scale sellf-admin 2
 
 # Set memory limit
 # In ecosystem.config.js: max_memory_restart: "512M"
-pm2 reload gateflow-admin
+pm2 reload sellf-admin
 ```
 
 ### High CPU Usage
@@ -551,24 +551,24 @@ pm2 monit
 # Profile the app (see CPU Profiling above)
 
 # Reduce instances temporarily
-pm2 scale gateflow-admin 1
+pm2 scale sellf-admin 1
 ```
 
 ### Process Crashes
 
 ```bash
 # Check logs
-pm2 logs gateflow-admin --err
+pm2 logs sellf-admin --err
 
 # Check restart count
 pm2 status
 
 # Disable auto-restart temporarily (for debugging)
-pm2 stop gateflow-admin
-pm2 start gateflow-admin --no-autorestart
+pm2 stop sellf-admin
+pm2 start sellf-admin --no-autorestart
 
 # Re-enable auto-restart
-pm2 restart gateflow-admin
+pm2 restart sellf-admin
 ```
 
 ### Port Already in Use
@@ -618,7 +618,7 @@ Before going live:
 
 ### Using ecosystem.config.js in Root Directory
 
-As of January 2026, GateFlow includes a production-ready `ecosystem.config.js` in the root directory with optimized settings for ISR and cluster mode.
+As of January 2026, Sellf includes a production-ready `ecosystem.config.js` in the root directory with optimized settings for ISR and cluster mode.
 
 **Quick Start:**
 

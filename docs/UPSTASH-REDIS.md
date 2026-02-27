@@ -1,6 +1,6 @@
 # Upstash Redis Setup (Optional Performance Optimization)
 
-Upstash Redis is an **optional** feature that improves GateFlow performance. The application works perfectly fine without it, but with Upstash you'll get:
+Upstash Redis is an **optional** feature that improves Sellf performance. The application works perfectly fine without it, but with Upstash you'll get:
 
 - ✅ **<10ms latency** for cached data (vs ~50-100ms database queries)
 - ✅ **50-70% reduced database load**
@@ -12,7 +12,7 @@ Upstash Redis is an **optional** feature that improves GateFlow performance. The
 
 ## ⚠️ Important: Upstash is OPTIONAL
 
-GateFlow is designed to work without Redis:
+Sellf is designed to work without Redis:
 
 | Scenario | Performance | Behavior |
 |----------|-------------|----------|
@@ -34,7 +34,7 @@ GateFlow is designed to work without Redis:
 
 1. Click "Create Database"
 2. Choose settings:
-   - **Name**: `gateflow-prod` (or any name)
+   - **Name**: `sellf-prod` (or any name)
    - **Type**: **Regional** (cheaper, faster for single region)
    - **Region**: Choose closest to your VPS location
    - **TLS**: Enabled (recommended)
@@ -265,7 +265,7 @@ await cacheDelPattern('product:*')
 ## 🆘 Still Need Help?
 
 1. Check [Upstash Docs](https://docs.upstash.com/redis)
-2. Check [GateFlow Issues](https://github.com/yourusername/gateflow/issues)
+2. Check [Sellf Issues](https://github.com/yourusername/sellf/issues)
 3. Ask in discussions
 
 Remember: **Redis is optional**. If you're having issues, you can simply not configure it and the app will work fine! 🎉

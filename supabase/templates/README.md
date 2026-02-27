@@ -1,6 +1,6 @@
-# Szablony Email GateFlow
+# Szablony Email Sellf
 
-Szablony emaili dla Supabase Auth używane przez GateFlow.
+Szablony emaili dla Supabase Auth używane przez Sellf.
 
 ## Pliki
 
@@ -60,11 +60,11 @@ Ustaw w dashboardzie Supabase lub przez API:
 
 | Pole | Wartość |
 |------|---------|
-| `mailer_subjects_magic_link` | `Zaloguj się do GateFlow` |
-| `mailer_subjects_confirmation` | `Potwierdź swój email - GateFlow` |
-| `mailer_subjects_recovery` | `Zresetuj hasło - GateFlow` |
-| `mailer_subjects_email_change` | `Potwierdź zmianę email - GateFlow` |
-| `mailer_subjects_invite` | `Zaproszenie do GateFlow` |
+| `mailer_subjects_magic_link` | `Zaloguj się do Sellf` |
+| `mailer_subjects_confirmation` | `Potwierdź swój email - Sellf` |
+| `mailer_subjects_recovery` | `Zresetuj hasło - Sellf` |
+| `mailer_subjects_email_change` | `Potwierdź zmianę email - Sellf` |
+| `mailer_subjects_invite` | `Zaproszenie do Sellf` |
 
 ## Testowanie
 
@@ -78,7 +78,7 @@ Po skonfigurowaniu szablonów przetestuj każdy typ emaila:
 
 ## Branding
 
-Szablony używają kolorystyki GateFlow:
+Szablony używają kolorystyki Sellf:
 - Gradient: `#1e293b` → `#581c87` → `#1e293b`
 - Akcent: `#7c3aed` (fioletowy)
 - Sukces: `#10b981` (zielony)

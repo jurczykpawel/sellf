@@ -1,6 +1,6 @@
 # Stripe Configuration Wizard - Manual Testing Guide
 
-This guide explains how to manually test the Stripe configuration wizard in the GateFlow admin panel.
+This guide explains how to manually test the Stripe configuration wizard in the Sellf admin panel.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This guide explains how to manually test the Stripe configuration wizard in the 
 
 ## Overview
 
-GateFlow supports **two equal configuration methods** for Stripe:
+Sellf supports **two equal configuration methods** for Stripe:
 
 1. **Method 1: .env configuration** - Set `STRIPE_SECRET_KEY` in your `.env` file
    - Best for: Developers, Docker deployments, CI/CD pipelines
@@ -63,7 +63,7 @@ The wizard will open with 5 steps:
 1. Go to [Stripe Dashboard - API Keys (Test Mode)](https://dashboard.stripe.com/test/apikeys/create?type=restricted)
 2. Ensure you're in **Test Mode** (toggle in top right)
 3. Click **"Create restricted key"**
-4. Set the key name (e.g., "GateFlow Test Key")
+4. Set the key name (e.g., "Sellf Test Key")
 5. Configure permissions:
    - ✅ **Charges**: Write
    - ✅ **Customers**: Write
@@ -157,7 +157,7 @@ The wizard will store Test and Live configurations separately. You can have both
 2. Delete the database configuration:
    ```bash
    # Connect to database
-   docker exec supabase_db_gateflow psql -U postgres -d postgres
+   docker exec supabase_db_sellf psql -U postgres -d postgres
 
    # Delete configs
    DELETE FROM stripe_configurations WHERE is_active = true;
@@ -192,7 +192,7 @@ The wizard will store Test and Live configurations separately. You can have both
 
 ```bash
 # Connect to database
-docker exec supabase_db_gateflow psql -U postgres -d postgres
+docker exec supabase_db_sellf psql -U postgres -d postgres
 
 # View encrypted configs (no plaintext keys visible)
 SELECT
@@ -247,7 +247,7 @@ If this is missing, the wizard will fail with an error.
 2. **Wait or Manually Trigger Reminder** (simulate 90 days passing):
    ```bash
    # Update expires_at to yesterday
-   docker exec supabase_db_gateflow psql -U postgres -d postgres -c \
+   docker exec supabase_db_sellf psql -U postgres -d postgres -c \
      "UPDATE stripe_configurations SET expires_at = NOW() - INTERVAL '1 day' WHERE mode = 'test';"
    ```
 
@@ -267,7 +267,7 @@ If this is missing, the wizard will fail with an error.
 
 5. **Verify Old Key is Deactivated**:
    ```bash
-   docker exec supabase_db_gateflow psql -U postgres -d postgres -c \
+   docker exec supabase_db_sellf psql -U postgres -d postgres -c \
      "SELECT mode, key_last_4, is_active, created_at FROM stripe_configurations ORDER BY created_at;"
    ```
 
@@ -419,7 +419,7 @@ docker compose restart admin-panel
 1. Check browser console for errors (F12 → Console tab)
 2. Verify you're logged in as admin:
    ```bash
-   docker exec supabase_db_gateflow psql -U postgres -d postgres -c \
+   docker exec supabase_db_sellf psql -U postgres -d postgres -c \
      "SELECT user_id FROM admin_users WHERE user_id = 'YOUR_USER_ID';"
    ```
 3. Hard refresh page: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
@@ -431,7 +431,7 @@ docker compose restart admin-panel
 **Fix**:
 ```bash
 # Check actual database state
-docker exec supabase_db_gateflow psql -U postgres -d postgres -c \
+docker exec supabase_db_sellf psql -U postgres -d postgres -c \
   "SELECT mode, key_prefix, key_last_4, is_active FROM stripe_configurations;"
 
 # Check .env
@@ -473,5 +473,5 @@ docker compose restart admin-panel
 
 **Need Help?**
 - Check Stripe documentation: https://stripe.com/docs/keys#limit-access
-- GateFlow issues: [link to repository]
+- Sellf issues: [link to repository]
 - Deployment guide: `./docs/DEPLOYMENT-MIKRUS.md`

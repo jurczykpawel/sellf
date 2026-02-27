@@ -1,7 +1,7 @@
 # Rebranding Plan: GateFlow → Sellf
 
 **Branch:** `feature/rebranding-sellf` (odbity z `feature/product-listed-flag`)
-**Status:** W trakcie
+**Status:** Kod ukończony ✅ — pozostaje GitHub repo rename + deploy
 
 ---
 

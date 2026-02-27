@@ -1,4 +1,4 @@
-# GateFlow - Simple Deploy (Using Existing Setup)
+# Sellf - Simple Deploy (Using Existing Setup)
 
 **THIS IS THE RECOMMENDED OPTION** if you are already testing `admin-panel/docker-compose.yml` on your server!
 
@@ -32,8 +32,8 @@ sh get-docker.sh
 
 # Clone the project
 cd /opt
-git clone https://github.com/your-org/gateflow.git
-cd gateflow/admin-panel
+git clone https://github.com/your-org/sellf.git
+cd sellf/admin-panel
 ```
 
 ### 2. Create a Project in Supabase Cloud
@@ -63,7 +63,7 @@ In Supabase Dashboard:
 ### 5. Create the `.env` File
 
 ```bash
-cd /opt/gateflow/admin-panel
+cd /opt/sellf/admin-panel
 nano .env
 ```
 
@@ -71,7 +71,7 @@ Contents:
 
 ```env
 # ===========================================
-# GateFlow - Production (admin-panel/docker-compose.yml)
+# Sellf - Production (admin-panel/docker-compose.yml)
 # ===========================================
 
 # App
@@ -201,7 +201,7 @@ curl https://your-domain.com/api/runtime-config
 ## Updating
 
 ```bash
-cd /opt/gateflow/admin-panel
+cd /opt/sellf/admin-panel
 
 # Stop
 docker compose down
@@ -263,7 +263,7 @@ grep STRIPE_WEBHOOK_SECRET .env
 ## File Structure
 
 ```
-/opt/gateflow/
+/opt/sellf/
 ├── admin-panel/
 │   ├── docker-compose.yml  ← THIS IS THE FILE YOU USE
 │   ├── .env                ← Your production configuration

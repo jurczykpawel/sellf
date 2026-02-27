@@ -1,10 +1,10 @@
-# AGENTS.md — GateFlow AI Coding Agent Guide
+# AGENTS.md — Sellf AI Coding Agent Guide
 
-This file provides comprehensive guidance for AI coding agents (Claude Code, Gemini, etc.) working with the GateFlow repository.
+This file provides comprehensive guidance for AI coding agents (Claude Code, Gemini, etc.) working with the Sellf repository.
 
 ## Project Overview
 
-GateFlow is a professional content access control and monetization platform built on Next.js, Supabase, and Stripe. It consists of three main components:
+Sellf is a professional content access control and monetization platform built on Next.js, Supabase, and Stripe. It consists of three main components:
 
 1. **Client-side SDK** (`gatekeeper.js`): JavaScript library for content protection
 2. **Admin Panel** (`admin-panel/`): Next.js 16 dashboard for product/user management
@@ -125,7 +125,7 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 **1. Client SDK (gatekeeper.js)**
 - ~1700 lines of vanilla JavaScript
 - Dynamically loaded via `/api/gatekeeper?domain=...`
-- Key classes: `CacheManager`, `LicenseManager`, `SessionManager`, `AccessControl`, `GateFlow`
+- Key classes: `CacheManager`, `LicenseManager`, `SessionManager`, `AccessControl`, `Sellf`
 - Implements three protection modes: page, element, hybrid
 - Features: caching (5min TTL), batch access checking, cross-domain sessions, license verification
 
@@ -171,12 +171,12 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 
 ### Cross-Domain Architecture
 
-GateFlow supports protecting content across multiple domains:
+Sellf supports protecting content across multiple domains:
 
 - **Main Domain** (`MAIN_DOMAIN` env var): Hosts admin panel and API
 - **Protected Domains**: Load `gatekeeper.js` and make credentialed requests to main domain
 - **Session Sharing**: Auth shared via CORS + `credentials: 'include'` on API endpoints
-- **Security**: X-Requested-With and X-GateFlow-Origin headers for verification
+- **Security**: X-Requested-With and X-Sellf-Origin headers for verification
 
 ## Critical Security Patterns
 
@@ -395,9 +395,9 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 1. **Find the container name**: `docker ps` (look for `supabase_db_<project_name>`)
 2. **Execute SQL**:
    ```bash
-   docker exec -i supabase_db_gateflow psql -U postgres -c "SELECT * FROM users;"
+   docker exec -i supabase_db_sellf psql -U postgres -c "SELECT * FROM users;"
    ```
-   *Replace `supabase_db_gateflow` with your actual container name if different.*
+   *Replace `supabase_db_sellf` with your actual container name if different.*
 
 **CRITICAL MANDATES for DB Changes:**
 - **Representative Data**: Always add realistic sample data to `supabase/seed.sql` whenever the schema changes.
@@ -450,7 +450,7 @@ This allows:
 
 ### Freemium Licensing Model
 
-- **Free Tier**: Full features + "Powered by GateFlow" watermark
+- **Free Tier**: Full features + "Powered by Sellf" watermark
 - **Pro Tier**: Watermark removal via domain licensing
 - **Domain Fingerprinting**: Combines protocol, hostname, port, userAgent, platform
 - **Anti-Tampering**: MutationObserver + periodic checks prevent watermark removal
@@ -508,7 +508,7 @@ To maintain Realtime functionality, the following "Golden Stack" of dependencies
 ## File Structure Context
 
 ```
-gateflow/
+sellf/
 ├── gatekeeper.js                  # Core SDK (dynamically served by /api/gatekeeper)
 ├── index.html                     # Main landing page
 ├── templates/                     # 12+ pre-built HTML product pages
@@ -613,7 +613,7 @@ CLOUDFLARE_TURNSTILE_SECRET_KEY=...
 
 ### Creating a release
 
-Releases are manual. CI builds the `gateflow-build.tar.gz` artifact automatically.
+Releases are manual. CI builds the `sellf-build.tar.gz` artifact automatically.
 
 **Before creating a release, bump the version in all these files:**
 
@@ -637,7 +637,7 @@ git add -A && git commit -m "chore: bump version to 1.0.2"
 git push
 
 # Create release → CI builds tar.gz and attaches to release
-gh release create v1.0.2 --title "GateFlow v1.0.2" --notes "Changelog"
+gh release create v1.0.2 --title "Sellf v1.0.2" --notes "Changelog"
 
 # Or trigger build without release tag
 gh workflow run build-release.yml -f version=v1.0.2
@@ -659,24 +659,24 @@ Deploy scripts live in a separate repo: `jurczykpawel/mikrus-toolbox`.
 
 ```bash
 # Fresh install
-./local/deploy.sh gateflow --ssh=mikrus --domain=example.com
+./local/deploy.sh sellf --ssh=mikrus --domain=example.com
 
 # Update (downloads latest release from GitHub automatically)
-./local/deploy.sh gateflow --ssh=mikrus --update
+./local/deploy.sh sellf --ssh=mikrus --update
 
 # Update with local build file (when no release exists yet)
-./local/deploy.sh gateflow --ssh=mikrus --update --build-file=~/gateflow-build.tar.gz
+./local/deploy.sh sellf --ssh=mikrus --update --build-file=~/sellf-build.tar.gz
 
 # Restart only (after .env.local changes, no file update)
-./local/deploy.sh gateflow --ssh=mikrus --update --restart
+./local/deploy.sh sellf --ssh=mikrus --update --restart
 ```
 
 ### Server instances
 
 | Instance | Directory | PM2 name | Port |
 |----------|-----------|----------|------|
-| Production | `/scripts/docker-compose/gateflow/` | `gateflow-tsa` | 3333 |
-| Demo | `/opt/stacks/gateflow-gateflow/` | `gateflow-gateflow` | 3334 |
+| Production | `/scripts/docker-compose/sellf/` | `sellf-tsa` | 3333 |
+| Demo | `/opt/stacks/sellf-sellf/` | `sellf-sellf` | 3334 |
 
 ## Deployment Policy
 

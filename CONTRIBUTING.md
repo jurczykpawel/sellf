@@ -1,6 +1,6 @@
-# Contributing to GateFlow
+# Contributing to Sellf
 
-Thank you for your interest in contributing to GateFlow! This guide will help you get started.
+Thank you for your interest in contributing to Sellf! This guide will help you get started.
 
 ## Development Setup
 
@@ -15,8 +15,8 @@ Thank you for your interest in contributing to GateFlow! This guide will help yo
 
 ```bash
 # Clone the repository
-git clone https://github.com/jurczykpawel/gateflow.git
-cd gateflow
+git clone https://github.com/jurczykpawel/sellf.git
+cd sellf
 
 # Start local Supabase
 npx supabase start
@@ -39,7 +39,7 @@ bun test
 ### Project Structure
 
 ```
-gateflow/
+sellf/
   admin-panel/     # Next.js application (main codebase)
   mcp-server/      # MCP server for AI integrations
   supabase/        # Database migrations and seed data
@@ -110,13 +110,13 @@ How to verify this works.
 
 ## Releases & Versioning
 
-Releases are created manually. The **Build & Release** CI workflow builds the `gateflow-build.tar.gz` artifact automatically.
+Releases are created manually. The **Build & Release** CI workflow builds the `sellf-build.tar.gz` artifact automatically.
 
 ### How to release
 
 ```bash
 # Create a new release (triggers CI build)
-gh release create v1.0.2 --title "GateFlow v1.0.2" --notes "Changelog here"
+gh release create v1.0.2 --title "Sellf v1.0.2" --notes "Changelog here"
 
 # Or trigger build manually (without creating a release tag first)
 gh workflow run build-release.yml -f version=v1.0.2
@@ -126,13 +126,13 @@ gh workflow run build-release.yml -f version=v1.0.2
 
 ```bash
 # Update existing installation (downloads latest release from GitHub)
-./local/deploy.sh gateflow --ssh=mikrus --update
+./local/deploy.sh sellf --ssh=mikrus --update
 
 # Or with a local build file
-./local/deploy.sh gateflow --ssh=mikrus --update --build-file=~/gateflow-build.tar.gz
+./local/deploy.sh sellf --ssh=mikrus --update --build-file=~/sellf-build.tar.gz
 
 # Restart only (after .env.local changes)
-./local/deploy.sh gateflow --ssh=mikrus --update --restart
+./local/deploy.sh sellf --ssh=mikrus --update --restart
 ```
 
 ### Commit message conventions
@@ -148,7 +148,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) prefixes for
 
 ## Reporting Issues
 
-Use [GitHub Issues](https://github.com/jurczykpawel/gateflow/issues) to report bugs or request features. Include:
+Use [GitHub Issues](https://github.com/jurczykpawel/sellf/issues) to report bugs or request features. Include:
 
 - Steps to reproduce (for bugs)
 - Expected vs actual behavior
@@ -156,7 +156,7 @@ Use [GitHub Issues](https://github.com/jurczykpawel/gateflow/issues) to report b
 
 ## Security
 
-For security vulnerabilities, please use [GitHub Security Advisories](https://github.com/jurczykpawel/gateflow/security/advisories/new) instead of public issues. See [SECURITY.md](./SECURITY.md) for details.
+For security vulnerabilities, please use [GitHub Security Advisories](https://github.com/jurczykpawel/sellf/security/advisories/new) instead of public issues. See [SECURITY.md](./SECURITY.md) for details.
 
 ## License
 

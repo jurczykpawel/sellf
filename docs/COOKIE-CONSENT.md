@@ -1,6 +1,6 @@
 # Cookie Consent & Tracking Setup
 
-GateFlow includes a built-in cookie consent management system powered by [Klaro](https://klaro.org/) v0.7. It supports Google Tag Manager, Meta Pixel (with Conversions API), Umami Analytics, and custom scripts — all configurable from the admin panel with zero environment variables required.
+Sellf includes a built-in cookie consent management system powered by [Klaro](https://klaro.org/) v0.7. It supports Google Tag Manager, Meta Pixel (with Conversions API), Umami Analytics, and custom scripts — all configurable from the admin panel with zero environment variables required.
 
 ## Table of Contents
 
@@ -172,11 +172,11 @@ Stored in `consent_logs` table with IP, User-Agent, and timestamp. Rate limited 
 ```
 User visits site
   → TrackingProvider renders in root layout
-  → Klaro loads + shows banner (if no gateflow_consent cookie)
+  → Klaro loads + shows banner (if no sellf_consent cookie)
   → Scripts injected as type="text/plain" (blocked)
 
 User clicks "Accept All"
-  → Klaro sets cookie: gateflow_consent = {"google-tag-manager":true,...}
+  → Klaro sets cookie: sellf_consent = {"google-tag-manager":true,...}
   → Klaro converts scripts from text/plain → text/javascript (executes them)
   → Klaro callback updates Google Consent Mode: analytics_storage → "granted"
   → POST /api/consent logs the choice (if consent_logging_enabled)
@@ -253,8 +253,8 @@ trackEvent(eventName, data, config)
 ```
 
 Before sending, it checks Klaro consent:
-- `hasFacebookConsent()` → reads `gateflow_consent` cookie for `facebook-pixel`
-- `hasGTMConsent()` → reads `gateflow_consent` cookie for `google-tag-manager`
+- `hasFacebookConsent()` → reads `sellf_consent` cookie for `facebook-pixel`
+- `hasGTMConsent()` → reads `sellf_consent` cookie for `google-tag-manager`
 
 Events are pushed to:
 1. GTM `dataLayer` (if GTM enabled + consent)
@@ -282,7 +282,7 @@ Deduplication: each event gets a UUID `event_id` shared between Pixel and CAPI.
 | `umami_script_url` | TEXT | Umami script URL |
 | `cookie_consent_enabled` | BOOLEAN | Show Klaro banner |
 | `consent_logging_enabled` | BOOLEAN | Log consent to DB |
-| `gateflow_license` | TEXT | License key (unrelated) |
+| `sellf_license` | TEXT | License key (unrelated) |
 
 ### custom_scripts
 
@@ -332,7 +332,7 @@ Visit your site in an incognito window — the Klaro banner should appear at the
 
 ### Check consent cookie
 
-Browser DevTools → Application → Cookies → look for `gateflow_consent`:
+Browser DevTools → Application → Cookies → look for `sellf_consent`:
 
 ```json
 {"google-tag-manager":true,"facebook-pixel":true,"umami-analytics":true}

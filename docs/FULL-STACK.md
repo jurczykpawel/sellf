@@ -1,6 +1,6 @@
-# GateFlow - Production Deployment Guide
+# Sellf - Production Deployment Guide
 
-Complete guide for deploying GateFlow on a production server using Docker Compose.
+Complete guide for deploying Sellf on a production server using Docker Compose.
 
 ## Table of Contents
 
@@ -122,8 +122,8 @@ sudo ufw status
 cd ~
 
 # Clone the repository
-git clone https://github.com/your-organization/gateflow.git
-cd gateflow
+git clone https://github.com/your-organization/sellf.git
+cd sellf
 ```
 
 ### 2. Create Configuration File
@@ -187,7 +187,7 @@ SMTP_HOST=smtp.sendgrid.net
 SMTP_PORT=587
 SMTP_USER=apikey
 SMTP_PASS=SG.xxxxxxxxxxxxxxxxxxxxxxxxx
-SMTP_SENDER_NAME=GateFlow
+SMTP_SENDER_NAME=Sellf
 ```
 
 Example for Gmail:
@@ -227,7 +227,7 @@ CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 ### 5. Stripe Configuration
 
-GateFlow supports **two equivalent methods** for Stripe configuration. Choose the one that best fits your use case.
+Sellf supports **two equivalent methods** for Stripe configuration. Choose the one that best fits your use case.
 
 #### Method 1: .env Configuration (Recommended for developers)
 
@@ -328,7 +328,7 @@ GateFlow supports **two equivalent methods** for Stripe configuration. Choose th
 1. Add `STRIPE_SECRET_KEY` to .env
 2. Remove configuration from the database:
    ```bash
-   docker exec supabase_db_gateflow psql -U postgres -d postgres -c \
+   docker exec supabase_db_sellf psql -U postgres -d postgres -c \
      "DELETE FROM stripe_configurations WHERE is_active = true;"
    ```
 3. Restart the application
@@ -392,7 +392,7 @@ nano supabase/seed.sql
 
 ```bash
 # Make sure you are in the main project directory
-cd ~/gateflow
+cd ~/sellf
 
 # Build images (may take a few minutes on the first run)
 docker compose build
@@ -407,12 +407,12 @@ docker compose ps
 Expected output:
 ```
 NAME                  STATUS              PORTS
-gateflow-admin        running             0.0.0.0:3000->3000/tcp
-gateflow-db           running (healthy)   0.0.0.0:5432->5432/tcp
-gateflow-auth         running
-gateflow-rest         running
-gateflow-storage      running
-gateflow-nginx        running             0.0.0.0:8080->80/tcp
+sellf-admin        running             0.0.0.0:3000->3000/tcp
+sellf-db           running (healthy)   0.0.0.0:5432->5432/tcp
+sellf-auth         running
+sellf-rest         running
+sellf-storage      running
+sellf-nginx        running             0.0.0.0:8080->80/tcp
 ...
 ```
 
@@ -629,7 +629,7 @@ LIMIT 10;
 
 ```bash
 # Go to the project directory
-cd ~/gateflow
+cd ~/sellf
 
 # Stop the application
 docker compose down
@@ -667,7 +667,7 @@ docker compose exec db pg_dump -U postgres postgres > backup_$(date +%Y%m%d_%H%M
 
 # Volume backup
 docker run --rm \
-  -v gateflow_postgres_data:/data \
+  -v sellf_postgres_data:/data \
   -v $(pwd):/backup \
   alpine tar czf /backup/postgres_backup_$(date +%Y%m%d_%H%M%S).tar.gz /data
 ```
@@ -679,19 +679,19 @@ docker run --rm \
 Create a backup script:
 
 ```bash
-nano ~/backup-gateflow.sh
+nano ~/backup-sellf.sh
 ```
 
 Contents:
 ```bash
 #!/bin/bash
-BACKUP_DIR="/home/$(whoami)/backups/gateflow"
+BACKUP_DIR="/home/$(whoami)/backups/sellf"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 mkdir -p $BACKUP_DIR
 
 # Database backup
-docker compose -f /home/$(whoami)/gateflow/docker-compose.yml \
+docker compose -f /home/$(whoami)/sellf/docker-compose.yml \
   exec -T db pg_dump -U postgres postgres | gzip > $BACKUP_DIR/db_$DATE.sql.gz
 
 # Remove old backups (older than 7 days)
@@ -702,24 +702,24 @@ echo "Backup completed: $BACKUP_DIR/db_$DATE.sql.gz"
 
 Set permissions and cron:
 ```bash
-chmod +x ~/backup-gateflow.sh
+chmod +x ~/backup-sellf.sh
 
 # Add to cron (backup daily at 2:00 AM)
 crontab -e
 
 # Add the line:
-0 2 * * * /home/yourusername/backup-gateflow.sh >> /home/yourusername/backup-gateflow.log 2>&1
+0 2 * * * /home/yourusername/backup-sellf.sh >> /home/yourusername/backup-sellf.log 2>&1
 ```
 
 ### Restoring from Backup
 
 ```bash
 # Stop the application
-cd ~/gateflow
+cd ~/sellf
 docker compose down
 
 # Restore the database
-gunzip -c ~/backups/gateflow/db_20250126_020000.sql.gz | \
+gunzip -c ~/backups/sellf/db_20250126_020000.sql.gz | \
   docker compose run --rm -T db psql -U postgres
 
 # Start again
@@ -731,8 +731,8 @@ docker compose up -d
 ```bash
 # Volume backup (storage, uploads, etc.)
 docker run --rm \
-  -v gateflow_storage_data:/data \
-  -v ~/backups/gateflow:/backup \
+  -v sellf_storage_data:/data \
+  -v ~/backups/sellf:/backup \
   alpine tar czf /backup/storage_$(date +%Y%m%d).tar.gz /data
 ```
 
@@ -842,7 +842,7 @@ docker compose exec db psql -U postgres -c "VACUUM ANALYZE;"
 
 ## Support and Documentation
 
-- **GateFlow Documentation**: `/CLAUDE.md` in the repository
+- **Sellf Documentation**: `/CLAUDE.md` in the repository
 - **Docker Documentation**: https://docs.docker.com/
 - **Supabase Documentation**: https://supabase.com/docs
 - **Stripe Documentation**: https://stripe.com/docs
@@ -865,4 +865,4 @@ After deployment, check:
 
 ---
 
-**Congratulations! GateFlow is now running in production!** 🎉
+**Congratulations! Sellf is now running in production!** 🎉
