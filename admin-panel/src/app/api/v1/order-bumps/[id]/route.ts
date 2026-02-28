@@ -15,9 +15,11 @@ import {
   handleApiError,
   successResponse,
   noContentResponse,
+  parseJsonBody,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { validateUUID } from '@/lib/validations/product';
+import { ORDER_BUMP_SELECT } from '../constants';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -34,34 +36,18 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
 
     const { id } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    const idValidation = validateUUID(id);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid order bump ID format');
     }
 
-    const { data, error } = await adminClient
+    const { data, error } = await supabase
       .from('order_bumps')
-      .select(`
-        id,
-        main_product_id,
-        bump_product_id,
-        bump_price,
-        bump_title,
-        bump_description,
-        is_active,
-        display_order,
-        access_duration_days,
-        created_at,
-        updated_at,
-        main_product:products!order_bumps_main_product_id_fkey(id, name, slug),
-        bump_product:products!order_bumps_bump_product_id_fkey(id, name, slug, price, currency)
-      `)
+      .select(ORDER_BUMP_SELECT)
       .eq('id', id)
       .single();
 
@@ -91,19 +77,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
     const { id } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    const idValidation = validateUUID(id);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid order bump ID format');
     }
 
     // Check if order bump exists
-    const { data: existing, error: fetchError } = await adminClient
+    const { data: existing, error: fetchError } = await supabase
       .from('order_bumps')
       .select('id')
       .eq('id', id)
@@ -113,7 +97,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return apiError(request, 'NOT_FOUND', 'Order bump not found');
     }
 
-    const body = await request.json();
+    const body = await parseJsonBody<Record<string, unknown>>(request);
     const {
       bump_product_id,
       bump_price,
@@ -125,27 +109,48 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     } = body;
 
     // Validate bump_price if provided
-    if (bump_price !== undefined && bump_price !== null && bump_price < 0) {
-      return apiError(request, 'VALIDATION_ERROR', 'Invalid bump price', {
-        bump_price: ['Bump price must be non-negative']
-      });
+    if (bump_price !== undefined && bump_price !== null) {
+      if (typeof bump_price !== 'number' || !Number.isFinite(bump_price) || bump_price < 0 || bump_price > 999999.99) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid bump price', {
+          bump_price: ['Bump price must be a number between 0 and 999999.99']
+        });
+      }
     }
 
     // Validate bump_product_id if changed
     if (bump_product_id) {
-      if (!uuidRegex.test(bump_product_id)) {
+      const bumpIdValidation = validateUUID(String(bump_product_id));
+      if (!bumpIdValidation.isValid) {
         return apiError(request, 'INVALID_INPUT', 'Invalid bump product ID format');
       }
 
-      const { data: bumpProduct } = await adminClient
+      const { data: bumpProduct } = await supabase
         .from('products')
         .select('id, is_active')
-        .eq('id', bump_product_id)
+        .eq('id', String(bump_product_id))
         .single();
 
       if (!bumpProduct || !bumpProduct.is_active) {
         return apiError(request, 'VALIDATION_ERROR', 'Bump product not found or inactive', {
           bump_product_id: ['Bump product not found or inactive']
+        });
+      }
+    }
+
+    // Validate display_order if provided
+    if (display_order !== undefined) {
+      if (typeof display_order !== 'number' || !Number.isInteger(display_order) || display_order < 0 || display_order > 1000) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid display order', {
+          display_order: ['Display order must be an integer between 0 and 1000']
+        });
+      }
+    }
+
+    // Validate access_duration_days if provided
+    if (access_duration_days !== undefined && access_duration_days !== null) {
+      if (typeof access_duration_days !== 'number' || !Number.isInteger(access_duration_days) || access_duration_days < 1 || access_duration_days > 3650) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid access duration', {
+          access_duration_days: ['Access duration must be an integer between 1 and 3650 days']
         });
       }
     }
@@ -161,25 +166,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (access_duration_days !== undefined) updates.access_duration_days = access_duration_days;
 
     // Update order bump
-    const { data, error } = await adminClient
+    const { data, error } = await supabase
       .from('order_bumps')
       .update(updates)
       .eq('id', id)
-      .select(`
-        id,
-        main_product_id,
-        bump_product_id,
-        bump_price,
-        bump_title,
-        bump_description,
-        is_active,
-        display_order,
-        access_duration_days,
-        created_at,
-        updated_at,
-        main_product:products!order_bumps_main_product_id_fkey(id, name, slug),
-        bump_product:products!order_bumps_bump_product_id_fkey(id, name, slug, price, currency)
-      `)
+      .select(ORDER_BUMP_SELECT)
       .single();
 
     if (error) {
@@ -206,19 +197,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
     const { id } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    const idValidation = validateUUID(id);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid order bump ID format');
     }
 
     // Check if order bump exists
-    const { data: existing, error: fetchError } = await adminClient
+    const { data: existing, error: fetchError } = await supabase
       .from('order_bumps')
       .select('id')
       .eq('id', id)
@@ -229,7 +218,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     }
 
     // Delete order bump
-    const { error } = await adminClient
+    const { error } = await supabase
       .from('order_bumps')
       .delete()
       .eq('id', id);

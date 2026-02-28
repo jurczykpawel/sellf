@@ -15,6 +15,7 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { validateUUID } from '@/lib/validations/product';
 
 interface RouteContext {
   params: Promise<{ logId: string }>;
@@ -34,13 +35,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
 
     const { logId } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(logId)) {
+    const idValidation = validateUUID(logId);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid log ID format');
     }
+
+    const adminClient = createAdminClient();
 
     // Check if log exists
     const { data: existingLog, error: fetchError } = await adminClient
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to archive webhook log');
     }
 
-    return jsonResponse(successResponse({ success: true }), request);
+    return jsonResponse(successResponse({ archived: true }), request);
   } catch (error) {
     return handleApiError(error, request);
   }

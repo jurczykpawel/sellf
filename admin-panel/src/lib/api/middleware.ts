@@ -89,11 +89,19 @@ export function getApiCorsHeaders(origin: string | null): Record<string, string>
   );
 
   const headers: Record<string, string> = {
+    // CORS
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
+    // Security hardening — prevent caching of sensitive API responses
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma': 'no-cache',
+    // Defense-in-depth headers
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
   };
 
   // Only set Access-Control-Allow-Origin when we have a valid origin to reflect.
@@ -403,8 +411,10 @@ export function handleApiError(error: unknown, request: NextRequest): NextRespon
     }
   }
 
-  // Log unexpected errors
-  console.error('API Error:', error);
+  // Log unexpected errors — extract safe properties only to prevent log injection
+  const safeMessage = error instanceof Error ? error.message : 'Unknown error';
+  const safeName = error instanceof Error ? error.name : typeof error;
+  console.error('[handleApiError]', safeName, safeMessage);
 
   return apiError(request, 'INTERNAL_ERROR', 'An unexpected error occurred');
 }

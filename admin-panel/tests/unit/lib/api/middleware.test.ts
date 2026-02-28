@@ -351,7 +351,7 @@ describe('API Middleware', () => {
       expect(body.error.code).toBe('INTERNAL_ERROR');
       expect(body.error.message).toBe('An unexpected error occurred');
       expect(consoleSpy).toHaveBeenCalledOnce();
-      expect(consoleSpy).toHaveBeenCalledWith('API Error:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('[handleApiError]', 'Error', 'Unknown');
 
       consoleSpy.mockRestore();
     });
@@ -364,7 +364,7 @@ describe('API Middleware', () => {
 
       expect(response.status).toBe(500);
       expect(consoleSpy).toHaveBeenCalledOnce();
-      expect(consoleSpy).toHaveBeenCalledWith('API Error:', 'string error');
+      expect(consoleSpy).toHaveBeenCalledWith('[handleApiError]', 'string', 'Unknown error');
 
       consoleSpy.mockRestore();
     });

@@ -15,9 +15,10 @@ import {
   handleApiError,
   successResponse,
   noContentResponse,
+  parseJsonBody,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { validateProductId, validateUUID } from '@/lib/validations/product';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -34,19 +35,17 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
 
     const { id: productId } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(productId)) {
+    const idValidation = validateProductId(productId);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
     // Check if source product exists
-    const { data: product, error: productError } = await adminClient
+    const { data: product, error: productError } = await supabase
       .from('products')
       .select('id')
       .eq('id', productId)
@@ -57,7 +56,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Fetch OTO configuration
-    const { data: otoOffer, error } = await adminClient
+    const { data: otoOffer, error } = await supabase
       .from('oto_offers')
       .select(`
         id,
@@ -105,23 +104,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
  * Body:
  * - oto_product_id: string (required) - The product to offer as OTO
  * - discount_type: 'percentage' | 'fixed' (default: 'percentage')
- * - discount_value: number (default: 20)
- * - duration_minutes: number (default: 15)
+ * - discount_value: number (default: 20, max: 100 for percentage, 999999.99 for fixed)
+ * - duration_minutes: number (default: 15, max: 10080 = 7 days)
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
     const { id: productId } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(productId)) {
+    const idValidation = validateProductId(productId);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
-    const body = await request.json();
+    const body = await parseJsonBody<Record<string, unknown>>(request);
     const {
       oto_product_id,
       discount_type = 'percentage',
@@ -137,12 +134,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     // Validate OTO product ID format
-    if (!uuidRegex.test(oto_product_id)) {
+    const otoIdValidation = validateUUID(String(oto_product_id));
+    if (!otoIdValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid OTO product ID format');
     }
 
     // Validate discount type
-    if (!['percentage', 'fixed'].includes(discount_type)) {
+    if (!['percentage', 'fixed'].includes(discount_type as string)) {
       return apiError(request, 'VALIDATION_ERROR', 'Invalid discount type', {
         discount_type: ['Must be "percentage" or "fixed"']
       });
@@ -151,19 +149,36 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     // Validate discount value
     if (typeof discount_value !== 'number' || discount_value < 0) {
       return apiError(request, 'VALIDATION_ERROR', 'Invalid discount value', {
-        discount_value: ['Must be a positive number']
+        discount_value: ['Must be a non-negative number']
+      });
+    }
+    if (discount_type === 'percentage' && discount_value > 100) {
+      return apiError(request, 'VALIDATION_ERROR', 'Invalid discount value', {
+        discount_value: ['Percentage discount cannot exceed 100']
+      });
+    }
+    if (discount_type === 'fixed' && discount_value > 999999.99) {
+      return apiError(request, 'VALIDATION_ERROR', 'Invalid discount value', {
+        discount_value: ['Fixed discount cannot exceed 999999.99']
       });
     }
 
     // Validate duration
-    if (typeof duration_minutes !== 'number' || duration_minutes < 1) {
+    if (typeof duration_minutes !== 'number' || !Number.isInteger(duration_minutes) || duration_minutes < 1 || duration_minutes > 10080) {
       return apiError(request, 'VALIDATION_ERROR', 'Invalid duration', {
-        duration_minutes: ['Must be at least 1 minute']
+        duration_minutes: ['Must be between 1 and 10080 minutes (7 days)']
+      });
+    }
+
+    // Prevent self-reference
+    if (String(oto_product_id) === productId) {
+      return apiError(request, 'VALIDATION_ERROR', 'OTO product cannot be the same as source product', {
+        oto_product_id: ['OTO product cannot be the same as source product']
       });
     }
 
     // Check if source product exists
-    const { data: sourceProduct, error: sourceError } = await adminClient
+    const { data: sourceProduct, error: sourceError } = await supabase
       .from('products')
       .select('id')
       .eq('id', productId)
@@ -174,10 +189,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     // Check if OTO product exists
-    const { data: otoProduct, error: otoError } = await adminClient
+    const { data: otoProduct, error: otoError } = await supabase
       .from('products')
       .select('id')
-      .eq('id', oto_product_id)
+      .eq('id', String(oto_product_id))
       .single();
 
     if (otoError || !otoProduct) {
@@ -188,17 +203,17 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     // Upsert OTO configuration
     // First, deactivate any existing OTO for this source product
-    await adminClient
+    await supabase
       .from('oto_offers')
       .update({ is_active: false })
       .eq('source_product_id', productId);
 
     // Then insert new OTO offer
-    const { data, error } = await adminClient
+    const { data, error } = await supabase
       .from('oto_offers')
       .insert({
         source_product_id: productId,
-        oto_product_id,
+        oto_product_id: String(oto_product_id),
         discount_type,
         discount_value,
         duration_minutes,
@@ -227,23 +242,21 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 /**
  * DELETE /api/v1/products/[id]/oto
  *
- * Delete OTO configuration for a product.
+ * Delete OTO configuration for a product (soft delete — sets is_active to false).
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
     const { id: productId } = await context.params;
-    const adminClient = createAdminClient();
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(productId)) {
+    const idValidation = validateProductId(productId);
+    if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
     // Deactivate OTO offers for this source product
-    const { error } = await adminClient
+    const { error } = await supabase
       .from('oto_offers')
       .update({ is_active: false })
       .eq('source_product_id', productId);

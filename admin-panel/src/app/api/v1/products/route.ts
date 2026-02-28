@@ -26,6 +26,8 @@ import {
   sanitizeProductData,
   escapeIlikePattern,
   validateProductSortColumn,
+  validateUUID,
+  PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
 
 export async function OPTIONS(request: NextRequest) {
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
     // Build query - fetch limit + 1 to check for more
     let query = supabase
       .from('products')
-      .select('*');
+      .select(PRODUCT_API_FIELDS);
 
     // Apply search filter
     if (search) {
@@ -178,7 +180,7 @@ export async function POST(request: NextRequest) {
     const { data: product, error: createError } = await supabase
       .from('products')
       .insert([sanitizedData])
-      .select()
+      .select(PRODUCT_API_FIELDS)
       .single();
 
     if (createError) {
@@ -188,6 +190,13 @@ export async function POST(request: NextRequest) {
 
     // Add categories if provided
     if (product && Array.isArray(categories) && categories.length > 0) {
+      for (const catId of categories) {
+        const catValidation = validateUUID(String(catId));
+        if (!catValidation.isValid) {
+          return apiError(request, 'VALIDATION_ERROR', `Invalid category ID format: ${catId}`);
+        }
+      }
+
       const categoryInserts = categories.map((catId: unknown) => ({
         product_id: product.id,
         category_id: String(catId),

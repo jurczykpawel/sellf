@@ -11,11 +11,12 @@ import {
   apiError,
   authenticate,
   handleApiError,
+  successResponse,
   API_SCOPES,
 } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
-import { escapeIlikePattern } from '@/lib/validations/product';
+import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -77,17 +78,26 @@ export async function GET(request: NextRequest) {
         refunded_amount,
         refunded_at,
         refund_reason,
+        refunded_by,
         created_at,
         updated_at
       `);
 
     // Filter by status
     if (status !== 'all') {
+      const validStatuses = ['completed', 'refunded', 'failed', 'pending'];
+      if (!validStatuses.includes(status)) {
+        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${validStatuses.join(', ')}`);
+      }
       query = query.eq('status', status);
     }
 
     // Filter by product
     if (productId) {
+      const productIdValidation = validateUUID(productId);
+      if (!productIdValidation.isValid) {
+        return apiError(request, 'INVALID_INPUT', 'Invalid product_id format');
+      }
       query = query.eq('product_id', productId);
     }
 
@@ -158,6 +168,7 @@ export async function GET(request: NextRequest) {
         amount: p.refunded_amount,
         refunded_at: p.refunded_at,
         reason: p.refund_reason,
+        refunded_by: p.refunded_by,
       } : null,
       created_at: p.created_at,
       updated_at: p.updated_at,
@@ -171,13 +182,7 @@ export async function GET(request: NextRequest) {
       cursor
     );
 
-    return jsonResponse(
-      {
-        data: items,
-        pagination,
-      },
-      request
-    );
+    return jsonResponse(successResponse(items, pagination), request);
   } catch (error) {
     return handleApiError(error, request);
   }

@@ -399,16 +399,16 @@ describe('Product Validation', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('should reject UUID-like string with wrong version nibble', () => {
-      // Version 0 is invalid
+    it('should accept UUID with any version nibble', () => {
+      // Relaxed regex accepts any hex-format UUID (not just v1-v5)
       const result = validateProductId('550e8400-e29b-01d4-a716-446655440000');
-      expect(result.isValid).toBe(false);
+      expect(result.isValid).toBe(true);
     });
 
-    it('should reject UUID-like string with wrong variant nibble', () => {
-      // Variant nibble must be 8, 9, a, or b
+    it('should accept UUID with any variant nibble', () => {
+      // Relaxed regex accepts any variant
       const result = validateProductId('550e8400-e29b-41d4-0716-446655440000');
-      expect(result.isValid).toBe(false);
+      expect(result.isValid).toBe(true);
     });
 
     it('should reject SQL injection in UUID field', () => {

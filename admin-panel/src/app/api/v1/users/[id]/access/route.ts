@@ -15,10 +15,14 @@ import {
   parseJsonBody,
   ApiValidationError,
   successResponse,
+  parseLimit,
+  createPaginationResponse,
+  applyCursorToQuery,
+  validateCursor,
   API_SCOPES,
 } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { validateProductId } from '@/lib/validations/product';
+import { validateProductId, validateUUID } from '@/lib/validations/product';
 import { validateGrantAccess, sanitizeGrantAccessData } from '@/lib/validations/access';
 
 interface RouteParams {
@@ -32,7 +36,11 @@ export async function OPTIONS(request: NextRequest) {
 /**
  * GET /api/v1/users/:id/access
  *
- * List all product access for a user.
+ * List product access for a user with cursor-based pagination.
+ *
+ * Query parameters:
+ * - cursor: Pagination cursor (optional)
+ * - limit: Items per page, max 100 (default: 20)
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -40,26 +48,49 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id: userId } = await params;
 
     // Validate user ID format
-    const idValidation = validateProductId(userId);
+    const idValidation = validateUUID(userId);
     if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid user ID format');
     }
 
+    const searchParams = request.nextUrl.searchParams;
+    const cursor = searchParams.get('cursor');
+    const limit = parseLimit(searchParams.get('limit'));
+
+    const cursorError = validateCursor(cursor);
+    if (cursorError) {
+      return apiError(request, 'INVALID_INPUT', cursorError);
+    }
+
     const adminClient = createAdminClient();
 
-    // Get user's product access
-    const { data: accessData, error: accessError } = await adminClient
+    // Build paginated query
+    let query = adminClient
       .from('user_product_access_detailed')
       .select('*')
-      .eq('user_id', userId)
-      .order('access_created_at', { ascending: false });
+      .eq('user_id', userId);
+
+    query = applyCursorToQuery(query, cursor, 'access_created_at', 'desc');
+    query = query.order('access_created_at', { ascending: false });
+    query = query.order('id', { ascending: false });
+    query = query.limit(limit + 1);
+
+    const { data: accessData, error: accessError } = await query;
 
     if (accessError) {
       console.error('Error fetching user access:', accessError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch user access');
     }
 
-    const access = (accessData || []).map(a => ({
+    const { items: paginatedItems, pagination } = createPaginationResponse(
+      (accessData || []) as Record<string, unknown>[],
+      limit,
+      'access_created_at',
+      'desc',
+      cursor
+    );
+
+    const access = paginatedItems.map(a => ({
       id: a.id,
       product_id: a.product_id,
       product_slug: a.product_slug,
@@ -73,7 +104,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       duration_days: a.access_duration_days,
     }));
 
-    return jsonResponse(successResponse(access), request);
+    return jsonResponse(successResponse(access, pagination), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -95,7 +126,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id: userId } = await params;
 
     // Validate user ID format
-    const idValidation = validateProductId(userId);
+    const idValidation = validateUUID(userId);
     if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid user ID format');
     }

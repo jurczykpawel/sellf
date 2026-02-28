@@ -12,9 +12,15 @@ import {
   apiError,
   authenticate,
   handleApiError,
+  parseJsonBody,
+  successResponse,
+  parseLimit,
+  createPaginationResponse,
+  applyCursorToQuery,
+  validateCursor,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { validateUUID } from '@/lib/validations/product';
 
 interface ProductInGroup {
   id: string;
@@ -51,72 +57,103 @@ export async function OPTIONS(request: NextRequest) {
 /**
  * GET /api/v1/variant-groups
  *
- * List all variant groups with their products.
+ * List variant groups with their products (cursor-based pagination).
+ *
+ * Query parameters:
+ * - cursor: Pagination cursor (optional)
+ * - limit: Items per page, max 100 (default: 20)
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
 
-    const adminClient = createAdminClient();
+    const searchParams = request.nextUrl.searchParams;
+    const cursor = searchParams.get('cursor');
+    const limit = parseLimit(searchParams.get('limit'));
 
-    // Get all variant groups
-    const { data: groups, error: groupsError } = await adminClient
+    const cursorError = validateCursor(cursor);
+    if (cursorError) {
+      return apiError(request, 'INVALID_INPUT', cursorError);
+    }
+
+    // Build paginated query for groups
+    let query = supabase
       .from('variant_groups')
-      .select('id, name, slug, created_at, updated_at')
-      .order('created_at', { ascending: false });
+      .select('id, name, slug, created_at, updated_at');
+
+    query = applyCursorToQuery(query, cursor, 'created_at', 'desc');
+    query = query.order('created_at', { ascending: false });
+    query = query.order('id', { ascending: false });
+    query = query.limit(limit + 1);
+
+    const { data: groups, error: groupsError } = await query;
 
     if (groupsError) {
       console.error('Error fetching variant groups:', groupsError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch variant groups');
     }
 
-    // Get all product-group relationships with product details
-    const { data: productGroups, error: pgError } = await adminClient
-      .from('product_variant_groups')
-      .select(`
-        id,
-        product_id,
-        group_id,
-        variant_name,
-        display_order,
-        is_featured,
-        created_at,
-        products:product_id (
-          id,
-          name,
-          slug,
-          price,
-          currency,
-          icon,
-          is_active
-        )
-      `)
-      .order('display_order', { ascending: true });
+    const { items: paginatedGroups, pagination } = createPaginationResponse(
+      (groups || []) as Record<string, unknown>[],
+      limit,
+      'created_at',
+      'desc',
+      cursor
+    );
 
-    if (pgError) {
-      console.error('Error fetching product variant groups:', pgError);
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product variant groups');
+    // Get product relationships for the paginated groups
+    const groupIds = paginatedGroups.map(g => g.id as string);
+
+    let groupsWithProducts: VariantGroupWithProducts[] = [];
+
+    if (groupIds.length > 0) {
+      const { data: productGroups, error: pgError } = await supabase
+        .from('product_variant_groups')
+        .select(`
+          id,
+          product_id,
+          group_id,
+          variant_name,
+          display_order,
+          is_featured,
+          created_at,
+          products:product_id (
+            id,
+            name,
+            slug,
+            price,
+            currency,
+            icon,
+            is_active
+          )
+        `)
+        .in('group_id', groupIds)
+        .order('display_order', { ascending: true });
+
+      if (pgError) {
+        console.error('Error fetching product variant groups:', pgError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product variant groups');
+      }
+
+      groupsWithProducts = paginatedGroups.map(group => ({
+        ...(group as unknown as VariantGroupWithProducts),
+        products: (productGroups || [])
+          .filter(pg => pg.group_id === group.id)
+          .map(pg => ({
+            id: pg.id,
+            product_id: pg.product_id,
+            group_id: pg.group_id,
+            variant_name: pg.variant_name,
+            display_order: pg.display_order,
+            is_featured: pg.is_featured,
+            created_at: pg.created_at,
+            product: pg.products as unknown as ProductInGroup['product']
+          }))
+          .sort((a, b) => a.display_order - b.display_order)
+      }));
     }
 
-    // Build response with products nested under groups
-    const groupsWithProducts: VariantGroupWithProducts[] = (groups || []).map(group => ({
-      ...group,
-      products: (productGroups || [])
-        .filter(pg => pg.group_id === group.id)
-        .map(pg => ({
-          id: pg.id,
-          product_id: pg.product_id,
-          group_id: pg.group_id,
-          variant_name: pg.variant_name,
-          display_order: pg.display_order,
-          is_featured: pg.is_featured,
-          created_at: pg.created_at,
-          product: pg.products as unknown as ProductInGroup['product']
-        }))
-        .sort((a, b) => a.display_order - b.display_order)
-    }));
-
-    return jsonResponse({ data: groupsWithProducts }, request);
+    return jsonResponse(successResponse(groupsWithProducts, pagination), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -134,10 +171,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
-    const adminClient = createAdminClient();
-    const body = await request.json();
+    const body = await parseJsonBody<Record<string, unknown>>(request);
     const { name, slug, products } = body as {
       name?: string;
       slug?: string;
@@ -163,9 +199,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate product UUIDs
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const p of products) {
-      if (!uuidRegex.test(p.product_id)) {
+      const uuidValidation = validateUUID(p.product_id);
+      if (!uuidValidation.isValid) {
         return apiError(request, 'VALIDATION_ERROR', 'Invalid product ID format', {
           products: [`Invalid UUID format for product_id: ${p.product_id}`]
         });
@@ -173,7 +209,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the variant group
-    const { data: newGroup, error: groupError } = await adminClient
+    const { data: newGroup, error: groupError } = await supabase
       .from('variant_groups')
       .insert({ name: name || null, slug: slug || null })
       .select('id, name, slug, created_at, updated_at')
@@ -197,28 +233,26 @@ export async function POST(request: NextRequest) {
       is_featured: p.is_featured || false
     }));
 
-    const { error: pgError } = await adminClient
+    const { error: pgError } = await supabase
       .from('product_variant_groups')
       .insert(productGroupEntries);
 
     if (pgError) {
       // Rollback: delete the group
-      await adminClient.from('variant_groups').delete().eq('id', newGroup.id);
+      await supabase.from('variant_groups').delete().eq('id', newGroup.id);
       console.error('Error adding products to group:', pgError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to add products to variant group');
     }
 
     return jsonResponse(
-      {
-        data: {
-          id: newGroup.id,
-          name: newGroup.name,
-          slug: newGroup.slug,
-          created_at: newGroup.created_at,
-          updated_at: newGroup.updated_at,
-          products_count: products.length
-        }
-      },
+      successResponse({
+        id: newGroup.id,
+        name: newGroup.name,
+        slug: newGroup.slug,
+        created_at: newGroup.created_at,
+        updated_at: newGroup.updated_at,
+        products_count: products.length
+      }),
       request,
       201
     );

@@ -22,7 +22,9 @@ import {
 import {
   validateProductId,
   validateUpdateProduct,
+  validateUUID,
   sanitizeProductData,
+  PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
 
 interface RouteParams {
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: product, error } = await supabase
       .from('products')
       .select(`
-        *,
+        ${PRODUCT_API_FIELDS},
         product_categories (
           category_id,
           categories (
@@ -77,7 +79,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Transform product_categories to simpler structure
     const categories = product.product_categories?.map(
-      (pc: { category_id: string; categories: { id: string; name: string; slug: string } }) =>
+      (pc: { category_id: unknown; categories: unknown }) =>
         pc.categories
     ) || [];
 
@@ -180,7 +182,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .from('products')
         .update(sanitizedData)
         .eq('id', id)
-        .select()
+        .select(PRODUCT_API_FIELDS)
         .single();
 
       if (updateError) {
@@ -192,7 +194,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       // If no fields to update, fetch the current product
       const { data: currentProduct, error: fetchError } = await supabase
         .from('products')
-        .select()
+        .select(PRODUCT_API_FIELDS)
         .eq('id', id)
         .single();
 
@@ -218,6 +220,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       // Insert new categories
       if (categories.length > 0) {
+        for (const catId of categories) {
+          const catValidation = validateUUID(String(catId));
+          if (!catValidation.isValid) {
+            return apiError(request, 'VALIDATION_ERROR', `Invalid category ID format: ${catId}`);
+          }
+        }
+
         const categoryInserts = categories.map((catId: unknown) => ({
           product_id: id,
           category_id: String(catId),
@@ -232,6 +241,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           // Don't fail the request
         }
       }
+    }
+
+    // Re-fetch with categories to match GET response shape
+    const { data: productWithCats } = await supabase
+      .from('products')
+      .select(`
+        ${PRODUCT_API_FIELDS},
+        product_categories (
+          category_id,
+          categories (
+            id,
+            name,
+            slug
+          )
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (productWithCats) {
+      const cats = productWithCats.product_categories?.map(
+        (pc: { category_id: unknown; categories: unknown }) => pc.categories
+      ) || [];
+      const result = { ...productWithCats, categories: cats, product_categories: undefined };
+      delete result.product_categories;
+      return jsonResponse(successResponse(result), request);
     }
 
     return jsonResponse(successResponse(product), request);

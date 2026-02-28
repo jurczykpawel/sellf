@@ -146,6 +146,7 @@ export async function GET(request: NextRequest) {
           product_is_active: access.product_is_active,
           granted_at: access.access_created_at,
           expires_at: access.access_expires_at,
+          duration_days: access.access_duration_days,
         }));
 
       return {
@@ -155,7 +156,11 @@ export async function GET(request: NextRequest) {
         created_at: userStat.user_created_at,
         email_confirmed_at: userStat.email_confirmed_at,
         last_sign_in_at: userStat.last_sign_in_at,
-        raw_user_meta_data: userStat.raw_user_meta_data,
+        user_metadata: userStat.raw_user_meta_data ? {
+          full_name: (userStat.raw_user_meta_data as Record<string, unknown>).full_name,
+          avatar_url: (userStat.raw_user_meta_data as Record<string, unknown>).avatar_url,
+          name: (userStat.raw_user_meta_data as Record<string, unknown>).name,
+        } : null,
         [sortBy]: (userStat as Record<string, unknown>)[sortBy], // Include sort field for pagination
         product_access: productAccess,
         stats: {

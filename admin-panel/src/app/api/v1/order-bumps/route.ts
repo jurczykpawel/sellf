@@ -12,9 +12,16 @@ import {
   apiError,
   authenticate,
   handleApiError,
+  parseJsonBody,
+  successResponse,
+  parseLimit,
+  createPaginationResponse,
+  applyCursorToQuery,
+  validateCursor,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { validateProductId, validateUUID } from '@/lib/validations/product';
+import { ORDER_BUMP_SELECT } from './constants';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -23,83 +30,63 @@ export async function OPTIONS(request: NextRequest) {
 /**
  * GET /api/v1/order-bumps
  *
- * List all order bumps or bumps for specific product.
+ * List order bumps with cursor-based pagination.
  *
  * Query params:
  * - product_id: UUID (optional) - Filter by main product
+ * - cursor: Pagination cursor (optional)
+ * - limit: Items per page, max 100 (default: 20)
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_READ]);
 
-    const adminClient = createAdminClient();
-    const { searchParams } = request.nextUrl;
+    const searchParams = request.nextUrl.searchParams;
     const productId = searchParams.get('product_id');
+    const cursor = searchParams.get('cursor');
+    const limit = parseLimit(searchParams.get('limit'));
+
+    const cursorError = validateCursor(cursor);
+    if (cursorError) {
+      return apiError(request, 'INVALID_INPUT', cursorError);
+    }
 
     if (productId) {
-      // Validate UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(productId)) {
+      const idValidation = validateProductId(productId);
+      if (!idValidation.isValid) {
         return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
       }
-
-      // Get bumps for specific product using direct query
-      const { data, error } = await adminClient
-        .from('order_bumps')
-        .select(`
-          id,
-          main_product_id,
-          bump_product_id,
-          bump_price,
-          bump_title,
-          bump_description,
-          is_active,
-          display_order,
-          access_duration_days,
-          created_at,
-          updated_at,
-          main_product:products!order_bumps_main_product_id_fkey(id, name, slug),
-          bump_product:products!order_bumps_bump_product_id_fkey(id, name, slug, price, currency)
-        `)
-        .eq('main_product_id', productId)
-        .order('display_order', { ascending: true })
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching product order bumps:', error);
-        return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch order bumps');
-      }
-
-      return jsonResponse({ data: data || [] }, request);
-    } else {
-      // Get all bumps
-      const { data, error } = await adminClient
-        .from('order_bumps')
-        .select(`
-          id,
-          main_product_id,
-          bump_product_id,
-          bump_price,
-          bump_title,
-          bump_description,
-          is_active,
-          display_order,
-          access_duration_days,
-          created_at,
-          updated_at,
-          main_product:products!order_bumps_main_product_id_fkey(id, name, slug),
-          bump_product:products!order_bumps_bump_product_id_fkey(id, name, slug, price, currency)
-        `)
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching all order bumps:', error);
-        return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch order bumps');
-      }
-
-      return jsonResponse({ data: data || [] }, request);
     }
+
+    let query = supabase
+      .from('order_bumps')
+      .select(ORDER_BUMP_SELECT);
+
+    if (productId) {
+      query = query.eq('main_product_id', productId);
+    }
+
+    query = applyCursorToQuery(query, cursor, 'created_at', 'desc');
+    query = query.order('created_at', { ascending: false });
+    query = query.order('id', { ascending: false });
+    query = query.limit(limit + 1);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching order bumps:', error);
+      return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch order bumps');
+    }
+
+    const { items, pagination } = createPaginationResponse(
+      (data || []) as Record<string, unknown>[],
+      limit,
+      'created_at',
+      'desc',
+      cursor
+    );
+
+    return jsonResponse(successResponse(items, pagination), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -122,10 +109,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
-    const adminClient = createAdminClient();
-    const body = await request.json();
+    const body = await parseJsonBody<Record<string, unknown>>(request);
     const {
       main_product_id,
       bump_product_id,
@@ -154,19 +140,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate UUID formats
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(main_product_id)) {
+    const mainIdValidation = validateUUID(String(main_product_id));
+    if (!mainIdValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid main product ID format');
     }
-    if (!uuidRegex.test(bump_product_id)) {
+    const bumpIdValidation = validateUUID(String(bump_product_id));
+    if (!bumpIdValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid bump product ID format');
     }
 
     // Validate that products exist and are active
-    const { data: mainProduct } = await adminClient
+    const { data: mainProduct } = await supabase
       .from('products')
       .select('id, is_active')
-      .eq('id', main_product_id)
+      .eq('id', String(main_product_id))
       .single();
 
     if (!mainProduct || !mainProduct.is_active) {
@@ -175,10 +162,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { data: bumpProduct } = await adminClient
+    const { data: bumpProduct } = await supabase
       .from('products')
       .select('id, is_active, price')
-      .eq('id', bump_product_id)
+      .eq('id', String(bump_product_id))
       .single();
 
     if (!bumpProduct || !bumpProduct.is_active) {
@@ -188,26 +175,46 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate bump_price if provided
-    if (bump_price !== null && bump_price !== undefined && bump_price < 0) {
-      return apiError(request, 'VALIDATION_ERROR', 'Invalid bump price', {
-        bump_price: ['Bump price must be non-negative']
-      });
+    if (bump_price !== null && bump_price !== undefined) {
+      if (typeof bump_price !== 'number' || !Number.isFinite(bump_price) || bump_price < 0 || bump_price > 999999.99) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid bump price', {
+          bump_price: ['Bump price must be a number between 0 and 999999.99']
+        });
+      }
+    }
+
+    // Validate display_order
+    if (display_order !== undefined) {
+      if (typeof display_order !== 'number' || !Number.isInteger(display_order) || display_order < 0 || display_order > 1000) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid display order', {
+          display_order: ['Display order must be an integer between 0 and 1000']
+        });
+      }
+    }
+
+    // Validate access_duration_days
+    if (access_duration_days !== null && access_duration_days !== undefined) {
+      if (typeof access_duration_days !== 'number' || !Number.isInteger(access_duration_days) || access_duration_days < 1 || access_duration_days > 3650) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid access duration', {
+          access_duration_days: ['Access duration must be an integer between 1 and 3650 days']
+        });
+      }
     }
 
     // Create order bump
-    const { data, error } = await adminClient
+    const { data, error } = await supabase
       .from('order_bumps')
       .insert({
-        main_product_id,
-        bump_product_id,
+        main_product_id: String(main_product_id),
+        bump_product_id: String(bump_product_id),
         bump_price: bump_price ?? null,
-        bump_title,
-        bump_description: bump_description || null,
+        bump_title: String(bump_title),
+        bump_description: bump_description ? String(bump_description) : null,
         is_active,
         display_order,
         access_duration_days: access_duration_days ?? null,
       })
-      .select()
+      .select(ORDER_BUMP_SELECT)
       .single();
 
     if (error) {
@@ -221,7 +228,7 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create order bump');
     }
 
-    return jsonResponse({ data }, request, 201);
+    return jsonResponse(successResponse(data), request, 201);
   } catch (error) {
     return handleApiError(error, request);
   }

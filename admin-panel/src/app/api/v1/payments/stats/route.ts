@@ -60,13 +60,24 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'completed');
 
-    // Get total revenue
+    // Get total revenue (with currency for breakdown)
     const { data: revenueData } = await adminClient
       .from('payment_transactions')
-      .select('amount')
+      .select('amount, currency')
       .eq('status', 'completed');
 
     const totalRevenue = revenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+
+    // Build by_currency breakdown
+    const byCurrency: Record<string, { total_revenue: number; transaction_count: number }> = {};
+    for (const t of revenueData || []) {
+      const cur = t.currency || 'USD';
+      if (!byCurrency[cur]) {
+        byCurrency[cur] = { total_revenue: 0, transaction_count: 0 };
+      }
+      byCurrency[cur].total_revenue += t.amount;
+      byCurrency[cur].transaction_count += 1;
+    }
 
     // Get refunded amount
     const { data: refundData } = await adminClient
@@ -107,6 +118,7 @@ export async function GET(request: NextRequest) {
       refunded_amount: refundedAmount,
       today_revenue: todayRevenue,
       this_month_revenue: thisMonthRevenue,
+      by_currency: byCurrency,
     };
 
     return jsonResponse(successResponse(stats), request);

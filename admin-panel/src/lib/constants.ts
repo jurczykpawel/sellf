@@ -1,3 +1,16 @@
+/**
+ * Supported currency codes matching the database CHECK constraint.
+ * @see supabase/migrations/20250101000000_core_schema.sql (products.currency CHECK)
+ */
+export const SUPPORTED_CURRENCY_CODES = [
+  'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'CNY',
+  'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN',
+  'HRK', 'RUB', 'TRY', 'BRL', 'MXN', 'INR', 'KRW', 'SGD',
+  'HKD', 'NZD', 'ZAR', 'ILS', 'THB', 'MYR', 'PHP', 'IDR', 'VND',
+] as const;
+
+export type SupportedCurrencyCode = typeof SUPPORTED_CURRENCY_CODES[number];
+
 export const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
   { code: 'EUR', symbol: '€', name: 'Euro' },

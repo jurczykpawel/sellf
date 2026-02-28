@@ -11,10 +11,12 @@ import {
   apiError,
   authenticate,
   handleApiError,
+  successResponse,
   API_SCOPES,
 } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
+import { validateProductId, validateUUID } from '@/lib/validations/product';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -95,11 +97,19 @@ export async function GET(request: NextRequest) {
 
     // Filter by user
     if (userId) {
+      const userIdValidation = validateUUID(userId);
+      if (!userIdValidation.isValid) {
+        return apiError(request, 'INVALID_INPUT', 'Invalid user_id format');
+      }
       query = query.eq('user_id', userId);
     }
 
     // Filter by product
     if (productId) {
+      const productIdValidation = validateProductId(productId);
+      if (!productIdValidation.isValid) {
+        return apiError(request, 'INVALID_INPUT', 'Invalid product_id format');
+      }
       query = query.eq('product_id', productId);
     }
 
@@ -156,13 +166,7 @@ export async function GET(request: NextRequest) {
       cursor
     );
 
-    return jsonResponse(
-      {
-        data: items,
-        pagination,
-      },
-      request
-    );
+    return jsonResponse(successResponse(items, pagination), request);
   } catch (error) {
     return handleApiError(error, request);
   }
