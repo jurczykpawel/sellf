@@ -85,12 +85,15 @@ Sellf gives you **complete control** over your digital product business. No mont
 <details>
 <summary><strong>REST API v1 & Integrations</strong></summary>
 
-- Full REST API with OpenAPI 3.1 spec
-- Interactive Swagger UI at `/api/v1/docs`
-- API Keys with scopes (`products:read`, `users:write`, `*`)
-- Rate limiting per key (configurable)
+- 60+ endpoints covering products, users, payments, coupons, webhooks, analytics, and more
+- Fine-grained API keys with 13 permission scopes (`products:read`, `users:write`, `*`, ...)
+- Zero-downtime key rotation with configurable grace period
+- Per-key rate limiting (1–1000 req/min)
+- Cursor-based pagination, OpenAPI 3.1 spec, Swagger UI at `/api/v1/docs`
 - MCP Server for Claude Desktop (45 tools, 4 resources, 6 prompts)
 - Bruno API collection for testing
+
+📖 **[Full API Documentation →](docs/API.md)**
 
 </details>
 
