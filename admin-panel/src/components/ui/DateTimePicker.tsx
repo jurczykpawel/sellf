@@ -70,10 +70,10 @@ export default function DateTimePicker({
   return (
     <div className="space-y-2">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="block text-sm font-medium text-gf-body">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-          {!required && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({tCommon('optional')})</span>}
+          {required && <span className="text-gf-danger ml-1">*</span>}
+          {!required && <span className="text-xs text-gf-muted ml-1">({tCommon('optional')})</span>}
         </label>
       )}
 
@@ -93,14 +93,14 @@ export default function DateTimePicker({
           placeholder={displayPlaceholder}
           className={`
             flex-1 min-w-0 px-3 py-2.5 border rounded-lg shadow-sm transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+            focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent
             ${disabled
-              ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
-              : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:border-gray-400 dark:hover:border-gray-500'
+              ? 'bg-gf-raised text-gf-muted cursor-not-allowed'
+              : 'bg-gf-input text-gf-heading hover:border-gf-border'
             }
             ${error
-              ? 'border-red-300 dark:border-red-600'
-              : 'border-gray-300 dark:border-gray-600'
+              ? 'border-gf-danger'
+              : 'border-gf-border'
             }
           `}
         />
@@ -108,7 +108,7 @@ export default function DateTimePicker({
           <button
             type="button"
             onClick={handleClear}
-            className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="flex-shrink-0 p-1.5 text-gf-muted hover:text-gf-body hover:bg-gf-hover rounded-lg transition-colors"
             aria-label={tCommon('clearDate')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,13 +119,13 @@ export default function DateTimePicker({
       </div>
 
       {description && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-gf-muted">
           {addTimezoneInfo(description)}
         </p>
       )}
 
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">
+        <p className="text-xs text-gf-danger">
           {error}
         </p>
       )}

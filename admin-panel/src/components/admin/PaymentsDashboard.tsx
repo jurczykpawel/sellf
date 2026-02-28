@@ -114,7 +114,7 @@ export default function PaymentsDashboard() {
   if (loading && !stats) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 dark:text-gray-400">{t('loading')}</div>
+        <div className="text-gf-muted">{t('loading')}</div>
       </div>
     );
   }
@@ -123,10 +123,10 @@ export default function PaymentsDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-gf-heading">
           {t('title')}
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gf-body">
           {t('subtitle')}
         </p>
       </div>
@@ -142,15 +142,15 @@ export default function PaymentsDashboard() {
       />
 
       {/* Tabs */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-gf-base rounded-lg shadow">
+        <div className="border-b border-gf-border">
           <nav className="flex space-x-8 px-6 py-4">
             <button
               onClick={() => setActiveTab('transactions')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'transactions'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'border-gf-accent text-gf-accent'
+                  : 'border-transparent text-gf-muted hover:text-gf-heading'
               }`}
             >
               {t('transactions.title')} ({filteredTransactions.length})
@@ -159,8 +159,8 @@ export default function PaymentsDashboard() {
               onClick={() => setActiveTab('sessions')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'sessions'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'border-gf-accent text-gf-accent'
+                  : 'border-transparent text-gf-muted hover:text-gf-heading'
               }`}
             >
               {t('sessions.title')} ({filteredSessions.length})

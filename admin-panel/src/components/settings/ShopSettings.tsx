@@ -83,33 +83,33 @@ export default function ShopSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/4"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
+      <h2 className="text-xl font-semibold text-gf-heading mb-6">
         {t('title')}
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Shop Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('shopName')}
           </label>
           <input
             type="text"
             value={formData.shop_name}
             onChange={(e) => setFormData({ ...formData, shop_name: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
             placeholder={t('shopNamePlaceholder')}
             required
           />
@@ -117,16 +117,16 @@ export default function ShopSettings() {
 
         {/* Default Currency */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('defaultCurrency')}
-            <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal mt-1">
+            <span className="block text-xs text-gf-muted font-normal mt-1">
               {t('defaultCurrencyHelp')}
             </span>
           </label>
           <select
             value={formData.default_currency}
             onChange={(e) => setFormData({ ...formData, default_currency: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
           >
             {CURRENCIES.map((currency) => (
               <option key={currency.code} value={currency.code}>
@@ -138,23 +138,23 @@ export default function ShopSettings() {
 
         {/* Contact Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('contactEmail')}
           </label>
           <input
             type="email"
             value={formData.contact_email}
             onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
             placeholder={t('contactEmailPlaceholder')}
           />
         </div>
 
         {/* Tax Rate */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('taxRate')}
-            <span className="block text-xs text-gray-500 dark:text-gray-400 font-normal mt-1">
+            <span className="block text-xs text-gf-muted font-normal mt-1">
               {t('taxRateHelp')}
             </span>
           </label>
@@ -166,10 +166,10 @@ export default function ShopSettings() {
               max="100"
               value={formData.tax_rate}
               onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
-              className="w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-32 px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
               placeholder={t('taxRatePlaceholder')}
             />
-            <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
+            <span className="text-sm text-gf-muted">%</span>
           </div>
         </div>
 
@@ -178,7 +178,7 @@ export default function ShopSettings() {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? t('saving') : t('saveButton')}
           </button>

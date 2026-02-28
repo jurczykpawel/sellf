@@ -76,8 +76,8 @@ export default function OtoCountdownBanner({
   // Don't render if expired
   if (isExpired) {
     return (
-      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl p-4 mb-6">
-        <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400">
+      <div className="bg-gf-raised border border-gf-border rounded-xl p-4 mb-6">
+        <div className="flex items-center justify-center gap-2 text-gf-muted">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -97,9 +97,9 @@ export default function OtoCountdownBanner({
       className={`
         relative overflow-hidden rounded-xl p-4 mb-6 border-2 transition-all duration-300
         ${isUrgent
-          ? 'bg-red-50 dark:bg-red-900/20 border-red-500 animate-pulse'
+          ? 'bg-gf-danger-soft border-red-500 animate-pulse'
           : isWarning
-            ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-500'
+            ? 'bg-gf-warning-soft border-orange-500'
             : 'bg-wl-accent-soft border-wl-border-accent'
         }
       `}
@@ -120,7 +120,7 @@ export default function OtoCountdownBanner({
             </svg>
           </div>
           <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{t('exclusiveOffer')}</p>
+            <p className="text-sm text-gf-muted">{t('exclusiveOffer')}</p>
             <p className={`text-lg font-bold ${isUrgent ? 'text-red-600' : isWarning ? 'text-orange-600' : 'text-wl-accent'}`}>
               {t('saveAmount', { amount: formatDiscount(discountType, discountValue, currency) })}
             </p>
@@ -129,7 +129,7 @@ export default function OtoCountdownBanner({
 
         {/* Timer */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">{t('expiresIn')}</span>
+          <span className="text-sm text-gf-muted">{t('expiresIn')}</span>
           <div className={`
             px-4 py-2 rounded-lg font-mono text-2xl font-bold
             ${isUrgent

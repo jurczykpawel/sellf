@@ -28,9 +28,9 @@ export function AdvancedSection({
             name="is_active"
             checked={formData.is_active}
             onChange={handleCheckboxChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
           />
-          <label htmlFor="is_active" className="ml-3 block text-sm font-medium text-gray-900 dark:text-gray-100">
+          <label htmlFor="is_active" className="ml-3 block text-sm font-medium text-gf-heading">
             {t('productActive')}
           </label>
         </div>
@@ -42,12 +42,12 @@ export function AdvancedSection({
             name="is_listed"
             checked={formData.is_listed}
             onChange={handleCheckboxChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
           />
-          <label htmlFor="is_listed" className="ml-3 block text-sm font-medium text-gray-900 dark:text-gray-100">
+          <label htmlFor="is_listed" className="ml-3 block text-sm font-medium text-gf-heading">
             {t('productListed')}
           </label>
-          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+          <span className="ml-2 text-xs text-gf-muted">
             {t('productListedHelp')}
           </span>
         </div>
@@ -59,9 +59,9 @@ export function AdvancedSection({
             name="is_featured"
             checked={formData.is_featured}
             onChange={handleCheckboxChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
           />
-          <label htmlFor="is_featured" className="ml-3 block text-sm font-medium text-gray-900 dark:text-gray-100">
+          <label htmlFor="is_featured" className="ml-3 block text-sm font-medium text-gf-heading">
             {t('featuredProduct')}
           </label>
         </div>
@@ -74,12 +74,12 @@ export function AdvancedSection({
               name="omnibus_exempt"
               checked={formData.omnibus_exempt}
               onChange={handleCheckboxChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
             />
-            <label htmlFor="omnibus_exempt" className="ml-3 block text-sm font-medium text-gray-900 dark:text-gray-100">
+            <label htmlFor="omnibus_exempt" className="ml-3 block text-sm font-medium text-gf-heading">
               {t('omnibusExempt')}
             </label>
-            <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+            <span className="ml-2 text-xs text-gf-muted">
               {t('omnibusExemptHelp')}
             </span>
           </div>

@@ -90,10 +90,10 @@ export default function GUSSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/4"></div>
+          <div className="h-20 bg-gf-raised rounded"></div>
         </div>
       </div>
     );
@@ -105,7 +105,7 @@ export default function GUSSettings() {
       <BaseModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} size="md">
         <ModalHeader title={t('deleteModal.title')} />
         <ModalBody>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gf-body">
             {t('deleteModal.description')}
           </p>
         </ModalBody>
@@ -119,29 +119,29 @@ export default function GUSSettings() {
         </ModalFooter>
       </BaseModal>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-xl font-semibold text-gf-heading mb-2">
               {t('title')}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gf-body">
               {t('subtitle')}
             </p>
           </div>
-          <Building2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          <Building2 className="w-8 h-8 text-gf-accent" />
         </div>
 
       {/* Status Banner */}
       {hasKey && enabled && (
-        <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+        <div className="mb-6 bg-gf-success-soft border border-gf-success/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-gf-success mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+              <p className="text-sm font-medium text-gf-heading mb-1">
                 {t('status.active')}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gf-body">
                 {t('status.activeDescription')}
               </p>
             </div>
@@ -150,14 +150,14 @@ export default function GUSSettings() {
       )}
 
       {hasKey && !enabled && (
-        <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+        <div className="mb-6 bg-gf-warning-soft border border-gf-warning/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-gf-warning mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+              <p className="text-sm font-medium text-gf-heading mb-1">
                 {t('status.disabled')}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gf-body">
                 {t('status.disabledDescription')}
               </p>
             </div>
@@ -168,7 +168,7 @@ export default function GUSSettings() {
       {/* Configuration Form */}
       <div className="space-y-4">
         <div>
-          <label htmlFor="gus-api-key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label htmlFor="gus-api-key" className="block text-sm font-medium text-gf-body mb-2">
             {t('apiKeyLabel')}
           </label>
           <input
@@ -177,15 +177,15 @@ export default function GUSSettings() {
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder={hasKey ? '••••••••••••••••' : t('apiKeyPlaceholder')}
-            className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            className="w-full px-4 py-2.5 bg-gf-input border border-gf-border rounded-lg text-gf-heading placeholder-gf-muted focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent"
           />
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-xs text-gf-muted">
             {t('apiKeyHelp')}{' '}
             <a
               href="https://api.stat.gov.pl/Home/RegonApi"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+              className="text-gf-accent hover:underline inline-flex items-center gap-1"
             >
               {t('getApiKey')}
               <ExternalLink className="w-3 h-3" />
@@ -199,13 +199,13 @@ export default function GUSSettings() {
               type="checkbox"
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              className="w-4 h-4 text-gf-accent bg-gf-raised border-gf-border rounded focus:ring-2 focus:ring-gf-accent"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">
+            <span className="text-sm text-gf-body">
               {t('enableLabel')}
             </span>
           </label>
-          <p className="mt-1 ml-7 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 ml-7 text-xs text-gf-muted">
             {t('enableHelp')}
           </p>
         </div>
@@ -215,7 +215,7 @@ export default function GUSSettings() {
           <button
             onClick={handleSave}
             disabled={saving || deleting}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2.5 bg-gf-accent hover:bg-gf-accent-hover disabled:bg-gray-400 text-gf-inverse font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-2"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {t('saveButton')}
@@ -225,7 +225,7 @@ export default function GUSSettings() {
             <button
               onClick={() => setShowDeleteModal(true)}
               disabled={saving || deleting}
-              className="px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 bg-gf-danger hover:opacity-90 disabled:bg-gray-400 text-gf-inverse font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center gap-2"
             >
               {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('deleteButton')}

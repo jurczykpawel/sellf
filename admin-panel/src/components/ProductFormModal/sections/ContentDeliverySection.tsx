@@ -136,13 +136,13 @@ export function ContentDeliverySection({
     <ModalSection title={t('contentDelivery')} collapsible defaultExpanded={true}>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('contentDeliveryType')}
           </label>
           <select
             value={formData.content_delivery_type}
             onChange={handleContentTypeChange}
-            className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            className="w-full px-3 py-2.5 border border-gf-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent bg-gf-input text-gf-heading"
           >
             <option value="content">{t('contentItems')}</option>
             <option value="redirect">{t('redirect')}</option>
@@ -151,7 +151,7 @@ export function ContentDeliverySection({
 
         {formData.content_delivery_type === 'redirect' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gf-body mb-2">
               {t('redirectUrl')}
             </label>
             <input
@@ -159,9 +159,9 @@ export function ContentDeliverySection({
               placeholder={t('redirectPlaceholder')}
               value={(formData.content_config as { redirect_url?: string })?.redirect_url || ''}
               onChange={handleRedirectUrlChange}
-              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2.5 border border-gf-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent bg-gf-input text-gf-heading"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-gf-muted">
               {t('redirectDescription')}
             </p>
           </div>
@@ -169,25 +169,25 @@ export function ContentDeliverySection({
 
         {formData.content_delivery_type === 'content' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gf-body mb-2">
               {t('contentItems')}
             </label>
 
             {/* Video platforms info */}
             {hasVideoEmbeds && (
-              <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="mb-3 p-3 bg-gf-accent-soft border border-gf-accent/20 rounded-lg">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="h-5 w-5 text-gf-accent" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">{t('supportedVideoPlatforms')}</h4>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    <h4 className="text-sm font-medium text-gf-accent">{t('supportedVideoPlatforms')}</h4>
+                    <p className="text-xs text-gf-accent mt-1">
                       {t('supportedVideoPlatformsDesc')}
                     </p>
-                    <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                    <div className="mt-2 text-xs text-gf-accent">
                       {t('supportedVideoPlatformsList')}
                     </div>
                   </div>
@@ -197,19 +197,19 @@ export function ContentDeliverySection({
 
             {/* Download providers info */}
             {hasDownloadLinks && (
-              <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="mb-3 p-3 bg-gf-success-soft border border-gf-success/20 rounded-lg">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="h-5 w-5 text-gf-success" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h4 className="text-sm font-medium text-green-800 dark:text-green-200">{t('trustedStorageProviders')}</h4>
-                    <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                    <h4 className="text-sm font-medium text-gf-success">{t('trustedStorageProviders')}</h4>
+                    <p className="text-xs text-gf-success mt-1">
                       {t('trustedStorageProvidersDesc')}
                     </p>
-                    <div className="mt-2 text-xs text-green-600 dark:text-green-400 leading-relaxed">
+                    <div className="mt-2 text-xs text-gf-success leading-relaxed">
                       <div>{t('storageCloudProviders')}</div>
                       <div>{t('storagePersonalProviders')}</div>
                       <div>{t('storageCdnProviders')}</div>
@@ -222,12 +222,12 @@ export function ContentDeliverySection({
 
             <div className="space-y-3">
               {contentItems.map((item, index) => (
-                <div key={index} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div key={index} className="p-3 bg-gf-raised rounded-lg border border-gf-border">
                   <div className="flex items-center space-x-2 mb-2">
                     <select
                       value={item.type}
                       onChange={(e) => handleItemTypeChange(index, e.target.value as 'video_embed' | 'download_link')}
-                      className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
+                      className="px-2 py-1 border border-gf-border rounded text-sm bg-gf-input text-gf-heading"
                     >
                       <option value="video_embed">{t('videoEmbed')}</option>
                       <option value="download_link">{t('downloadLink')}</option>
@@ -237,7 +237,7 @@ export function ContentDeliverySection({
                       placeholder={t('title')}
                       value={item.title}
                       onChange={(e) => handleItemTitleChange(index, e.target.value)}
-                      className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm dark:bg-gray-700 dark:text-white"
+                      className="flex-1 px-2 py-1 border border-gf-border rounded text-sm bg-gf-input text-gf-heading"
                     />
                     <div className="flex-1 relative">
                       <input
@@ -246,12 +246,12 @@ export function ContentDeliverySection({
                         value={item.config?.embed_url || item.config?.download_url || ''}
                         onChange={(e) => handleItemUrlChange(index, e.target.value)}
                         onBlur={(e) => handleItemUrlBlur(index, e.target.value, item.type as 'video_embed' | 'download_link')}
-                        className={`w-full px-2 py-1 pr-8 border rounded text-sm dark:bg-gray-700 dark:text-white ${
+                        className={`w-full px-2 py-1 pr-8 border rounded text-sm bg-gf-input text-gf-heading ${
                           urlValidation[index]
                             ? urlValidation[index].isValid
-                              ? 'border-green-500 dark:border-green-600'
-                              : 'border-red-500 dark:border-red-600'
-                            : 'border-gray-300 dark:border-gray-600'
+                              ? 'border-green-500'
+                              : 'border-red-500'
+                            : 'border-gf-border'
                         }`}
                       />
                       {urlValidation[index] && (
@@ -271,7 +271,7 @@ export function ContentDeliverySection({
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      className="px-2 py-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                      className="px-2 py-1 text-gf-danger hover:text-gf-danger"
                     >
                       {t('remove')}
                     </button>
@@ -280,7 +280,7 @@ export function ContentDeliverySection({
                   {/* URL Validation Message */}
                   {urlValidation[index] && (
                     <div className={`mt-2 text-xs flex items-start space-x-1 ${
-                      urlValidation[index].isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      urlValidation[index].isValid ? 'text-gf-success' : 'text-gf-danger'
                     }`}>
                       {urlValidation[index].isValid ? (
                         <svg className="w-3 h-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,8 +297,8 @@ export function ContentDeliverySection({
 
                   {/* Video Embed Options */}
                   {item.type === 'video_embed' && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">{t('videoOptions')}</div>
+                    <div className="mt-3 pt-3 border-t border-gf-border">
+                      <div className="text-xs font-medium text-gf-body mb-2">{t('videoOptions')}</div>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                         {['autoplay', 'loop', 'muted', 'preload'].map(option => (
                           <label key={option} className="flex items-center space-x-1 text-xs cursor-pointer">
@@ -306,9 +306,9 @@ export function ContentDeliverySection({
                               type="checkbox"
                               checked={Boolean(item.config?.[option as 'autoplay' | 'loop' | 'muted' | 'preload'])}
                               onChange={(e) => handleVideoOptionChange(index, option, e.target.checked)}
-                              className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              className="h-3 w-3 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
                             />
-                            <span className="text-gray-700 dark:text-gray-300">{t(option)}</span>
+                            <span className="text-gf-body">{t(option)}</span>
                           </label>
                         ))}
                         <label className="flex items-center space-x-1 text-xs cursor-pointer">
@@ -316,12 +316,12 @@ export function ContentDeliverySection({
                             type="checkbox"
                             checked={item.config?.controls !== false}
                             onChange={(e) => handleVideoOptionChange(index, 'controls', e.target.checked)}
-                            className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-3 w-3 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
                           />
-                          <span className="text-gray-700 dark:text-gray-300">{t('controls')}</span>
+                          <span className="text-gf-body">{t('controls')}</span>
                         </label>
                       </div>
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-2 text-xs text-gf-muted">
                         💡 Options support varies by platform (YouTube, Vimeo, Bunny.net, etc.)
                       </div>
                     </div>
@@ -331,7 +331,7 @@ export function ContentDeliverySection({
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                className="px-3 py-1 text-sm bg-gf-accent text-gf-inverse rounded hover:bg-gf-accent-hover"
               >
                 {t('addContentItem')}
               </button>

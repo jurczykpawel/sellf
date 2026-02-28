@@ -50,16 +50,16 @@ function ColorField({
         value={isHex ? value : '#000000'}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-8 h-8 rounded border border-gray-300 dark:border-gray-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+        className="w-8 h-8 rounded border border-gf-border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
       />
       <div className="flex-1 min-w-0">
-        <label className="block text-xs text-gray-500 dark:text-gray-400 truncate">{label}</label>
+        <label className="block text-xs text-gf-muted truncate">{label}</label>
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+          className="w-full px-2 py-1 text-xs border border-gf-border rounded bg-gf-input text-gf-heading disabled:opacity-50"
         />
       </div>
     </div>
@@ -271,11 +271,11 @@ export default function BrandingSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/4"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
         </div>
       </div>
     );
@@ -290,24 +290,24 @@ export default function BrandingSettings() {
     <div className="space-y-6">
       {/* License Badge */}
       {!licenseValid && (
-        <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl">
+        <div className="flex items-center gap-3 p-4 bg-gf-warning-soft border border-gf-warning/20 rounded-xl">
           <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
           <div>
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{t('licenseRequiredTitle')}</p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">{t('licenseRequiredDesc')}</p>
+            <p className="text-sm font-medium text-gf-warning">{t('licenseRequiredTitle')}</p>
+            <p className="text-xs text-gf-warning">{t('licenseRequiredDesc')}</p>
           </div>
         </div>
       )}
 
       {/* Active Theme Status */}
       {activeTheme && (
-        <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/30 rounded-xl">
+        <div className="flex items-center justify-between p-4 bg-gf-success-soft border border-gf-success/20 rounded-xl">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
             <div>
-              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+              <p className="text-sm font-medium text-gf-success">
                 {t('activeTheme')}: {activeTheme.name}
               </p>
             </div>
@@ -316,7 +316,7 @@ export default function BrandingSettings() {
             type="button"
             onClick={handleRemoveTheme}
             disabled={saving}
-            className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+            className="text-xs text-gf-danger hover:opacity-80 disabled:opacity-50"
           >
             {t('removeTheme')}
           </button>
@@ -327,21 +327,21 @@ export default function BrandingSettings() {
         {/* LEFT: Preset Selector + Editor */}
         <div className="xl:col-span-2 space-y-6">
           {/* Preset Grid */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('themePresets')}</h2>
+              <h2 className="text-lg font-semibold text-gf-heading">{t('themePresets')}</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="text-xs px-3 py-1.5 border border-gf-border rounded-lg text-gf-body hover:bg-gf-hover transition-colors"
                 >
                   {t('importTheme')}
                 </button>
                 <button
                   type="button"
                   onClick={handleExport}
-                  className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="text-xs px-3 py-1.5 border border-gf-border rounded-lg text-gf-body hover:bg-gf-hover transition-colors"
                 >
                   {t('exportTheme')}
                 </button>
@@ -364,7 +364,7 @@ export default function BrandingSettings() {
                   className={`relative p-3 rounded-xl border-2 transition-all text-left ${
                     selectedPresetId === preset.id
                       ? 'border-gf-accent bg-gf-accent-soft'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      : 'border-gf-border hover:border-gf-accent/50'
                   }`}
                 >
                   {/* Color swatch row */}
@@ -373,7 +373,7 @@ export default function BrandingSettings() {
                     <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.theme.colors['bg-deep'] }}></div>
                     <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.theme.colors['text-heading'] }}></div>
                   </div>
-                  <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{preset.theme.name}</p>
+                  <p className="text-xs font-medium text-gf-heading truncate">{preset.theme.name}</p>
                   {selectedPresetId === preset.id && (
                     <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-gf-accent rounded-full flex items-center justify-center">
                       <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,9 +387,9 @@ export default function BrandingSettings() {
           </div>
 
           {/* Editor Tabs */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border">
             {/* Tab Headers */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <div className="flex border-b border-gf-border">
               {(['colors', 'typography', 'shapes'] as EditorTab[]).map((tab) => (
                 <button
                   key={tab}
@@ -398,7 +398,7 @@ export default function BrandingSettings() {
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                     activeTab === tab
                       ? 'text-gf-accent border-b-2 border-gf-accent'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      : 'text-gf-muted hover:text-gf-body'
                   }`}
                 >
                   {t(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`)}
@@ -410,7 +410,7 @@ export default function BrandingSettings() {
             <div className="p-6">
               {/* Theme Name */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('themeName')}</label>
+                <label className="block text-sm font-medium text-gf-body mb-1">{t('themeName')}</label>
                 <input
                   type="text"
                   value={editTheme.name}
@@ -419,7 +419,7 @@ export default function BrandingSettings() {
                     setHasChanges(true);
                     setSelectedPresetId('custom');
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  className="w-full px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm"
                   placeholder={t('themeNamePlaceholder')}
                 />
               </div>
@@ -429,7 +429,7 @@ export default function BrandingSettings() {
                 <div className="space-y-6">
                   {/* Dark mode colors */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('darkModeColors')}</h4>
+                    <h4 className="text-sm font-medium text-gf-heading mb-3">{t('darkModeColors')}</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <ColorField label="Accent" value={colors.accent} onChange={(v) => updateColors('accent', v)} />
                       <ColorField label="Accent Hover" value={colors['accent-hover']} onChange={(v) => updateColors('accent-hover', v)} />
@@ -448,7 +448,7 @@ export default function BrandingSettings() {
 
                   {/* Light mode overrides */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t('lightModeColors')}</h4>
+                    <h4 className="text-sm font-medium text-gf-heading mb-3">{t('lightModeColors')}</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <ColorField label="Accent" value={lightColors.accent || ''} onChange={(v) => updateLightColors('accent', v)} />
                       <ColorField label="Accent Hover" value={lightColors['accent-hover'] || ''} onChange={(v) => updateLightColors('accent-hover', v)} />
@@ -467,24 +467,24 @@ export default function BrandingSettings() {
               {activeTab === 'typography' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('fontFamilyLabel')}</label>
+                    <label className="block text-sm font-medium text-gf-body mb-1">{t('fontFamilyLabel')}</label>
                     <input
                       type="text"
                       value={typo['font-family'] || 'inherit'}
                       onChange={(e) => updateTypography('font-family', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      className="w-full px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm"
                       placeholder={t('fontFamilyPlaceholder')}
                     />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('fontFamilyHelp')}</p>
+                    <p className="mt-1 text-xs text-gf-muted">{t('fontFamilyHelp')}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('headingWeight')}</label>
+                      <label className="block text-sm font-medium text-gf-body mb-1">{t('headingWeight')}</label>
                       <select
                         value={typo['font-heading-weight'] || '700'}
                         onChange={(e) => updateTypography('font-heading-weight', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        className="w-full px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm"
                       >
                         <option value="400">400 — Regular</option>
                         <option value="500">500 — Medium</option>
@@ -495,11 +495,11 @@ export default function BrandingSettings() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('bodyWeight')}</label>
+                      <label className="block text-sm font-medium text-gf-body mb-1">{t('bodyWeight')}</label>
                       <select
                         value={typo['font-body-weight'] || '400'}
                         onChange={(e) => updateTypography('font-body-weight', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        className="w-full px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm"
                       >
                         <option value="300">300 — Light</option>
                         <option value="400">400 — Regular</option>
@@ -509,12 +509,12 @@ export default function BrandingSettings() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('letterSpacing')}</label>
+                    <label className="block text-sm font-medium text-gf-body mb-1">{t('letterSpacing')}</label>
                     <input
                       type="text"
                       value={typo['letter-spacing-heading'] || '-0.02em'}
                       onChange={(e) => updateTypography('letter-spacing-heading', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      className="w-full px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm"
                       placeholder={t('letterSpacingPlaceholder')}
                     />
                   </div>
@@ -532,12 +532,12 @@ export default function BrandingSettings() {
                       { key: 'radius-full', label: t('radiusFull'), placeholder: '9999px' },
                     ].map(({ key, label, placeholder }) => (
                       <div key={key}>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                        <label className="block text-sm font-medium text-gf-body mb-1">{label}</label>
                         <input
                           type="text"
                           value={(shapes as Record<string, string | undefined>)[key] || ''}
                           onChange={(e) => updateShapes(key, e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                          className="w-full px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm"
                           placeholder={placeholder}
                         />
                       </div>
@@ -548,8 +548,8 @@ export default function BrandingSettings() {
             </div>
 
             {/* Save Bar */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gf-border">
+              <div className="text-xs text-gf-muted">
                 {hasChanges ? t('unsavedChanges') : activeTheme ? t('themeActive') : t('noThemeActive')}
               </div>
               <div className="flex items-center gap-3">
@@ -568,12 +568,12 @@ export default function BrandingSettings() {
 
         {/* RIGHT: Live Preview */}
         <div className="xl:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('livePreview')}</h3>
+          <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6 sticky top-6">
+            <h3 className="text-lg font-semibold text-gf-heading mb-4">{t('livePreview')}</h3>
 
             {/* Mini store preview */}
             <div
-              className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700"
+              className="rounded-xl overflow-hidden border border-gf-border"
               style={{
                 backgroundColor: colors['bg-deep'],
                 fontFamily: typo['font-family'] === 'inherit' ? undefined : typo['font-family'],
@@ -639,11 +639,11 @@ export default function BrandingSettings() {
 
             {/* Color swatches */}
             <div className="mt-4">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('colorPalette')}</p>
+              <p className="text-xs text-gf-muted mb-2">{t('colorPalette')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {[colors.accent, colors['accent-hover'], colors['bg-deep'], colors['bg-raised'] || colors['bg-deep'], colors['text-heading']].map(
                   (c, i) => (
-                    <div key={i} className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600" style={{ backgroundColor: c }}></div>
+                    <div key={i} className="w-8 h-8 rounded-lg border border-gf-border" style={{ backgroundColor: c }}></div>
                   )
                 )}
               </div>

@@ -39,10 +39,10 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
   const vatAmount = grossPrice - netPrice;
 
   return (
-    <div className="w-full lg:w-1/2 lg:pr-8 lg:border-r border-gray-200 dark:border-white/10 mb-8 lg:mb-0">
+    <div className="w-full lg:w-1/2 lg:pr-8 lg:border-r border-gf-border mb-8 lg:mb-0">
       {/* Product Image */}
       {product.image_url ? (
-        <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5">
+        <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-gf-raised">
           <Image
             src={product.image_url}
             alt={product.name}
@@ -53,7 +53,7 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
         </div>
       ) : (
         /* Placeholder when no image */
-        <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-wl-accent-soft flex items-center justify-center border border-gray-200 dark:border-white/10">
+        <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-wl-accent-soft flex items-center justify-center border border-gf-border">
           <span className="text-9xl opacity-50">{product.icon}</span>
         </div>
       )}
@@ -63,12 +63,12 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-4xl">{product.icon}</span>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gf-heading leading-tight">
               {product.name}
             </h1>
           </div>
           {product.description && (
-            <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+            <p className="text-gf-body text-sm leading-relaxed">
               {product.description}
             </p>
           )}
@@ -85,12 +85,12 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
             </div>
           )}
 
-          <div className="text-5xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">
+          <div className="text-5xl font-bold text-gf-heading mb-2 tracking-tight">
             {formatPrice(grossPrice, product.currency)} {product.currency}
           </div>
 
           {product.vat_rate && product.vat_rate > 0 && (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-gf-muted">
               {t('includingVat', { defaultValue: 'including VAT' })} {vatRate}%
             </div>
           )}
@@ -147,58 +147,58 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
             components={{
               // Custom styling for Markdown elements
               h1: ({ children }) => (
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{children}</h1>
+                <h1 className="text-2xl font-bold text-gf-heading mb-4">{children}</h1>
               ),
               h2: ({ children }) => (
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3 mt-6">{children}</h2>
+                <h2 className="text-xl font-bold text-gf-heading mb-3 mt-6">{children}</h2>
               ),
               h3: ({ children }) => (
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4">{children}</h3>
+                <h3 className="text-lg font-semibold text-gf-heading mb-2 mt-4">{children}</h3>
               ),
               p: ({ children }) => (
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">{children}</p>
+                <p className="text-gf-body leading-relaxed mb-4">{children}</p>
               ),
               ul: ({ children }) => (
-                <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 space-y-2 mb-4">
+                <ul className="list-disc list-inside text-gf-body space-y-2 mb-4">
                   {children}
                 </ul>
               ),
               ol: ({ children }) => (
-                <ol className="list-decimal list-inside text-gray-600 dark:text-gray-300 space-y-2 mb-4">
+                <ol className="list-decimal list-inside text-gf-body space-y-2 mb-4">
                   {children}
                 </ol>
               ),
               li: ({ children }) => (
-                <li className="text-gray-600 dark:text-gray-300">{children}</li>
+                <li className="text-gf-body">{children}</li>
               ),
               a: ({ href, children }) => (
                 <a
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 underline transition-colors"
+                  className="text-gf-accent hover:opacity-80 underline transition-colors"
                 >
                   {children}
                 </a>
               ),
               strong: ({ children }) => (
-                <strong className="font-bold text-gray-900 dark:text-white">{children}</strong>
+                <strong className="font-bold text-gf-heading">{children}</strong>
               ),
               em: ({ children }) => (
-                <em className="italic text-gray-700 dark:text-gray-200">{children}</em>
+                <em className="italic text-gf-body">{children}</em>
               ),
               code: ({ children }) => (
-                <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-white/10 rounded text-sm text-blue-600 dark:text-blue-300 font-mono">
+                <code className="px-1.5 py-0.5 bg-gf-raised rounded text-sm text-gf-accent font-mono">
                   {children}
                 </code>
               ),
               pre: ({ children }) => (
-                <pre className="p-4 bg-gray-100 dark:bg-black/40 rounded-lg overflow-x-auto mb-4 border border-gray-200 dark:border-white/10">
+                <pre className="p-4 bg-gf-raised rounded-lg overflow-x-auto mb-4 border border-gf-border">
                   {children}
                 </pre>
               ),
               blockquote: ({ children }) => (
-                <blockquote className="border-l-4 border-wl-border-accent pl-4 italic text-gray-600 dark:text-gray-300 my-4">
+                <blockquote className="border-l-4 border-wl-border-accent pl-4 italic text-gf-body my-4">
                   {children}
                 </blockquote>
               ),
@@ -214,14 +214,14 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
         <div className="space-y-6">
           {product.features.map((featureSection, sectionIndex) => (
             <div key={sectionIndex} className="space-y-3">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              <h3 className="text-xl font-bold text-gf-heading">
                 {featureSection.title}
               </h3>
               <ul className="space-y-2">
                 {featureSection.items.map((item, itemIndex) => (
                   <li
                     key={itemIndex}
-                    className="flex items-start gap-3 text-gray-600 dark:text-gray-300"
+                    className="flex items-start gap-3 text-gf-body"
                   >
                     <svg
                       className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5"

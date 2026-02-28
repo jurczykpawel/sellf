@@ -100,13 +100,13 @@ export default function CurrencySelector() {
     <div className="relative flex items-center gap-1" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="flex items-center space-x-2 px-3 py-2 bg-gf-base border border-gf-border rounded-lg shadow-sm text-sm font-medium text-gf-body hover:bg-gf-hover"
       >
-        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-gf-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span>{getCurrentLabel()}</span>
-        <svg className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-4 h-4 text-gf-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -116,28 +116,28 @@ export default function CurrencySelector() {
         <button
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
-          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          className="p-1 text-gf-muted hover:text-gf-body transition-colors"
           type="button"
         >
           <Info className="w-4 h-4" />
         </button>
         {showTooltip && (
-          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg z-50 pointer-events-none">
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 px-3 py-2 bg-gf-heading text-gf-inverse text-xs rounded-lg shadow-lg z-50 pointer-events-none">
             {tCurrency('dashboardInfo')}
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mb-1"></div>
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-2 h-2 bg-gf-heading rotate-45 -mb-1"></div>
           </div>
         )}
       </div>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 z-[9999] w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 z-[9999] w-56 bg-gf-base border border-gf-border rounded-lg shadow-xl overflow-hidden">
           {/* Grouped option */}
           <button
             onClick={() => handleSelect('grouped', null)}
-            className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+            className={`w-full text-left px-4 py-3 text-sm hover:bg-gf-hover ${
               currencyViewMode === 'grouped'
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium'
-                : 'text-gray-700 dark:text-gray-300'
+                ? 'bg-gf-sidebar-accent text-gf-accent font-medium'
+                : 'text-gf-body'
             }`}
           >
             <div className="flex items-center justify-between">
@@ -151,21 +151,21 @@ export default function CurrencySelector() {
           </button>
 
           {/* Divider */}
-          <div className="border-t border-gray-200 dark:border-gray-700"></div>
+          <div className="border-t border-gf-border"></div>
 
           {/* Currency conversion options */}
           <div className="py-1">
-            <div className="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <div className="px-4 py-2 text-xs font-medium text-gf-muted uppercase tracking-wider">
               {t('currency.convertTo') || 'Convert to'}
             </div>
             {currencies.sort().map((currency) => (
               <button
                 key={currency}
                 onClick={() => handleSelect('converted', currency)}
-                className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                className={`w-full text-left px-4 py-3 text-sm hover:bg-gf-hover ${
                   currencyViewMode === 'converted' && displayCurrency === currency
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300'
+                    ? 'bg-gf-sidebar-accent text-gf-accent font-medium'
+                    : 'text-gf-body'
                 }`}
               >
                 <div className="flex items-center justify-between">

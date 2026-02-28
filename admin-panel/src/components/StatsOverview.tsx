@@ -202,7 +202,7 @@ export default function StatsOverview() {
         </svg>
       ),
       color: 'from-green-500 to-green-600',
-      bgColor: 'from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
+      bgColor: 'bg-gf-success-soft',
       change: revenueStats?.todayRevenue ? `+${formatMultiCurrency(revenueStats.todayRevenue, convertedRevenue?.today)} today` : null,
       changeType: 'positive'
     },
@@ -216,7 +216,7 @@ export default function StatsOverview() {
         </svg>
       ),
       color: 'from-blue-500 to-blue-600',
-      bgColor: 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
+      bgColor: 'bg-gf-accent-soft',
       change: revenueStats?.lastOrderAt ? `Last: ${timeAgo(revenueStats.lastOrderAt)}` : null,
     },
     {
@@ -241,7 +241,7 @@ export default function StatsOverview() {
         </svg>
       ),
       color: 'from-yellow-500 to-yellow-600',
-      bgColor: 'from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20',
+      bgColor: 'bg-gf-warning-soft',
     },
   ];
 
@@ -249,10 +249,10 @@ export default function StatsOverview() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div key={i} className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
             <div className="animate-pulse">
-              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-4"></div>
-              <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
+              <div className="h-4 bg-gf-raised rounded w-3/4 mb-4"></div>
+              <div className="h-8 bg-gf-raised rounded w-1/2"></div>
             </div>
           </div>
         ))}
@@ -276,23 +276,23 @@ export default function StatsOverview() {
           <div
             key={item.id}
             data-testid={`stat-card-${item.id}`}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow relative overflow-hidden"
+            className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6 hover:shadow-md transition-shadow relative overflow-hidden"
           >
             <div className="flex items-center justify-between">
               <div className="relative z-10">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                <p className="text-sm font-medium text-gf-body">
                   {item.name}
                 </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-2xl font-bold text-gf-heading mt-1">
                   {item.value}
                 </p>
                 {item.change && (
-                   <p className={`text-xs font-medium mt-1 ${item.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                   <p className={`text-xs font-medium mt-1 ${item.changeType === 'positive' ? 'text-gf-success' : 'text-gf-muted'}`}>
                      {item.change}
                    </p>
                 )}
               </div>
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${item.bgColor} flex items-center justify-center relative z-10`}>
+              <div className={`w-12 h-12 rounded-xl ${item.bgColor} flex items-center justify-center relative z-10`}>
                 <div className={`text-white bg-gradient-to-r ${item.color} rounded-lg p-2`}>
                   {item.icon}
                 </div>

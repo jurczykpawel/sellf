@@ -43,13 +43,13 @@ function StepIndicator({ stepKey, currentStep, t }: {
   let textClass: string;
   if (thisIdx < currentIdx || currentStep === 'done') {
     icon = '\u2705';
-    textClass = 'text-green-600 dark:text-green-400';
+    textClass = 'text-gf-success';
   } else if (thisIdx === currentIdx) {
     icon = '\u23F3';
     textClass = 'text-gf-accent font-medium';
   } else {
     icon = '\u25CB';
-    textClass = 'text-gray-400 dark:text-gray-600';
+    textClass = 'text-gf-muted';
   }
 
   return (
@@ -73,7 +73,7 @@ export default function UpdateNotificationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-gf-base rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gf-border">
         {/* Header */}
         {!upgradeInProgress ? (
           <>
@@ -84,10 +84,10 @@ export default function UpdateNotificationModal({
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-lg font-semibold text-gf-heading">
                   {t('modal.title', { version: updateInfo.latest_version })}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gf-muted">
                   {t('modal.currentVersion', { version: updateInfo.current_version })}
                   {updateInfo.published_at && (
                     <> &middot; {t('modal.published', {
@@ -100,25 +100,25 @@ export default function UpdateNotificationModal({
 
             {/* Release notes */}
             {updateInfo.release_notes && (
-              <div className="mb-5 max-h-48 overflow-y-auto rounded-lg bg-gray-50 dark:bg-gray-800 p-4 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
-                <p className="font-medium text-gray-900 dark:text-white mb-2">{t('modal.whatsNew')}</p>
+              <div className="mb-5 max-h-48 overflow-y-auto rounded-lg bg-gf-deep p-4 text-sm text-gf-body border border-gf-border">
+                <p className="font-medium text-gf-heading mb-2">{t('modal.whatsNew')}</p>
                 <div className="whitespace-pre-wrap">{updateInfo.release_notes}</div>
               </div>
             )}
 
             {/* Warning */}
-            <div className="flex items-start gap-2 mb-5 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <div className="flex items-start gap-2 mb-5 p-3 rounded-lg bg-gf-warning-soft border border-gf-warning/20">
               <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
-              <p className="text-sm text-amber-800 dark:text-amber-200">{t('modal.backupWarning')}</p>
+              <p className="text-sm text-gf-warning">{t('modal.backupWarning')}</p>
             </div>
 
             {/* Actions */}
             <div className="flex gap-3 justify-end">
               <button
                 onClick={onDismiss}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gf-body hover:bg-gf-hover rounded-lg transition-colors"
               >
                 {t('modal.remindLater')}
               </button>
@@ -133,7 +133,7 @@ export default function UpdateNotificationModal({
         ) : (
           /* Upgrade in progress */
           <>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h3 className="text-lg font-semibold text-gf-heading mb-4">
               {isDone
                 ? t('progress.done')
                 : isFailed
@@ -144,11 +144,11 @@ export default function UpdateNotificationModal({
             {/* Progress bar */}
             {!isFailed && (
               <div className="mb-4">
-                <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <div className="flex justify-between text-sm text-gf-muted mb-1">
                   <span>{upgradeProgress?.message || t('progress.starting')}</span>
                   <span>{Math.max(0, upgradeProgress?.progress || 0)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                <div className="w-full bg-gf-raised rounded-full h-2.5">
                   <div
                     className={`h-2.5 rounded-full transition-all duration-500 ${isDone ? 'bg-green-500' : 'bg-gf-accent'}`}
                     style={{ width: `${Math.max(0, upgradeProgress?.progress || 0)}%` }}
@@ -173,24 +173,24 @@ export default function UpdateNotificationModal({
 
             {/* Error message */}
             {isFailed && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <p className="text-sm text-red-800 dark:text-red-200">{upgradeProgress?.message}</p>
+              <div className="mb-4 p-3 rounded-lg bg-gf-danger-soft border border-gf-danger/20">
+                <p className="text-sm text-gf-danger">{upgradeProgress?.message}</p>
                 {upgradeProgress?.rollback && (
-                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">{t('progress.rolledBack')}</p>
+                  <p className="text-sm text-gf-danger mt-1">{t('progress.rolledBack')}</p>
                 )}
               </div>
             )}
 
             {/* Success message */}
             {isDone && (
-              <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                <p className="text-sm text-green-800 dark:text-green-200">{upgradeProgress?.message}</p>
+              <div className="mb-4 p-3 rounded-lg bg-gf-success-soft border border-gf-success/20">
+                <p className="text-sm text-gf-success">{upgradeProgress?.message}</p>
               </div>
             )}
 
             {/* Footer */}
             {!isDone && !isFailed && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+              <p className="text-xs text-gf-muted text-center">
                 {t('progress.doNotClose')}
               </p>
             )}

@@ -88,13 +88,13 @@ export default function OtoOfferSection({
   // If expired, show expired message and skip button
   if (isExpired) {
     return (
-      <div className="mt-6 p-6 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+      <div className="mt-6 p-6 bg-gf-raised rounded-xl border border-gf-border">
         <div className="text-center">
           <div className="text-4xl mb-3">⏰</div>
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          <h3 className="text-lg font-semibold text-gf-body mb-2">
             {t('offerExpired')}
           </h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
+          <p className="text-gf-muted mb-4">
             {t('offerExpiredDesc')}
           </p>
           <button
@@ -115,9 +115,9 @@ export default function OtoOfferSection({
         className={`
           relative overflow-hidden rounded-xl p-6 border-2 transition-all duration-300
           ${isUrgent
-            ? 'bg-red-50 dark:bg-red-900/20 border-red-500 animate-pulse'
+            ? 'bg-gf-danger-soft border-red-500 animate-pulse'
             : isWarning
-              ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-500'
+              ? 'bg-gf-warning-soft border-orange-500'
               : 'bg-wl-accent-soft border-wl-border-accent'
           }
         `}
@@ -139,7 +139,7 @@ export default function OtoOfferSection({
                 </svg>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('exclusiveOffer')}</p>
+                <p className="text-sm text-gf-body">{t('exclusiveOffer')}</p>
                 <p className={`text-lg font-bold ${isUrgent ? 'text-red-600' : isWarning ? 'text-orange-600' : 'text-wl-accent'}`}>
                   {t('saveAmount', { amount: formatDiscount(otoOffer.discountType, otoOffer.discountValue, otoOffer.currency) })}
                 </p>
@@ -148,7 +148,7 @@ export default function OtoOfferSection({
 
             {/* Timer */}
             <div className="text-center">
-              <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">{t('expiresIn')}</span>
+              <span className="text-xs text-gf-muted block mb-1">{t('expiresIn')}</span>
               <div className={`
                 px-4 py-2 rounded-lg font-mono text-2xl font-bold
                 ${isUrgent
@@ -165,8 +165,8 @@ export default function OtoOfferSection({
 
           {/* Product info */}
           {otoOffer.otoProductName && (
-            <div className="mb-4 p-3 bg-white/50 dark:bg-black/20 rounded-lg">
-              <p className="text-gray-700 dark:text-gray-300">
+            <div className="mb-4 p-3 bg-gf-raised/50 rounded-lg">
+              <p className="text-gf-body">
                 <span className="font-medium">{t('product')}:</span> {otoOffer.otoProductName}
               </p>
             </div>
@@ -191,7 +191,7 @@ export default function OtoOfferSection({
             </button>
             <button
               onClick={onSkip}
-              className="flex-1 sm:flex-none px-6 py-3 rounded-lg font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 sm:flex-none px-6 py-3 rounded-lg font-medium text-gf-body bg-gf-raised hover:bg-gf-hover transition-colors"
             >
               {skipLabel || t('noThanks')}
             </button>

@@ -44,7 +44,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
     <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 md:space-x-2">
       {/* Search */}
       <div className="relative flex-grow max-w-md">
-        <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-gf-muted absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
@@ -52,21 +52,21 @@ const FilterBar: React.FC<FilterBarProps> = ({
           placeholder={t('searchPlaceholder')}
           value={searchTerm}
           onChange={handleSearchChange}
-          className="pl-10 pr-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+          className="pl-10 pr-4 py-2 bg-gf-input border border-gf-border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent text-gf-heading placeholder-gf-muted"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Status Filter */}
         <div className="inline-flex items-center">
-          <label htmlFor="status-filter" className="mr-2 text-sm text-gray-700 dark:text-gray-300 hidden sm:inline">
+          <label htmlFor="status-filter" className="mr-2 text-sm text-gf-body hidden sm:inline">
             {t('status')}:
           </label>
           <select
             id="status-filter"
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
+            className="text-sm bg-gf-input border border-gf-border text-gf-heading rounded-lg focus:ring-gf-accent focus:border-gf-accent py-2 px-3"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -81,7 +81,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         {/* Refresh Button */}
         <button
           onClick={onRefresh}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
+          className="inline-flex items-center px-4 py-2 border border-gf-border rounded-lg text-sm font-medium text-gf-body bg-gf-base hover:bg-gf-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent transition-all duration-200 shadow-sm hover:shadow-md"
           title={t('refresh')}
         >
           <svg className="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -93,7 +93,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         {/* Export Button */}
         <button
           onClick={onExport}
-          className="inline-flex items-center px-4 py-2 border border-emerald-300 dark:border-emerald-600 rounded-lg text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all duration-200 shadow-sm hover:shadow-md"
+          className="inline-flex items-center px-4 py-2 border border-gf-success/30 rounded-lg text-sm font-medium text-gf-success bg-gf-success-soft hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-success transition-all duration-200 shadow-sm hover:shadow-md"
           title={t('export')}
         >
           <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +106,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         <button
           ref={addButtonRef}
           onClick={onAddProduct}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-gf-accent hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-gf-inverse bg-gf-accent hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
           title={t('add')}
         >
           <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

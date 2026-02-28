@@ -54,21 +54,21 @@ export default function CheckoutThemeSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/4"></div>
+          <div className="h-10 bg-gf-raised rounded w-1/2"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
+      <h2 className="text-xl font-semibold text-gf-heading mb-2">
         {t('title')}
       </h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+      <p className="text-sm text-gf-muted mb-6">
         {t('description')}
       </p>
 
@@ -81,14 +81,14 @@ export default function CheckoutThemeSettings() {
             className={`flex-1 flex flex-col items-center gap-2 px-4 py-4 rounded-lg border-2 transition-all ${
               theme === option.value
                 ? 'border-gf-border-accent bg-gf-accent-soft'
-                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                : 'border-gf-border hover:border-gf-accent/50'
             } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             <span className="text-2xl">{option.icon}</span>
             <span className={`text-sm font-medium ${
               theme === option.value
                 ? 'text-gf-accent'
-                : 'text-gray-700 dark:text-gray-300'
+                : 'text-gf-body'
             }`}>
               {t(option.value)}
             </span>

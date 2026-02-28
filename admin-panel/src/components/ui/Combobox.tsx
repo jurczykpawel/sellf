@@ -109,7 +109,7 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
 
   return (
     <div className={clsx('relative', className)} ref={dropdownRef}>
-      {label && <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>}
+      {label && <label className="block text-sm font-medium text-gf-body mb-1">{label}</label>}
       <div className="relative">
         <input
           ref={inputRef}
@@ -120,22 +120,22 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={displayPlaceholder}
-          className="w-full py-2 pl-3 pr-10 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm dark:bg-gray-800 dark:text-white"
+          className="w-full py-2 pl-3 pr-10 border border-gf-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent text-sm bg-gf-input text-gf-heading"
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          <LucideSearch className="h-4 w-4 text-gray-400" />
+          <LucideSearch className="h-4 w-4 text-gf-muted" />
         </div>
       </div>
       {isOpen && filteredOptions.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        <ul className="absolute z-50 mt-1 w-full bg-gf-base border border-gf-border rounded-lg shadow-xl max-h-60 overflow-y-auto">
           {filteredOptions.map((option, index) => (
             <li
               key={option.value}
               className={clsx(
                 'px-3 py-2 cursor-pointer text-sm',
                 index === highlightedIndex
-                  ? 'bg-blue-500 text-white'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'
+                  ? 'bg-gf-accent text-gf-inverse'
+                  : 'hover:bg-gf-hover text-gf-heading'
               )}
               onMouseEnter={() => setHighlightedIndex(index)}
               onClick={() => handleOptionClick(option.value, option.label)}
@@ -146,7 +146,7 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
         </ul>
       )}
       {isOpen && searchTerm && filteredOptions.length === 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-xl px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+        <div className="absolute z-50 mt-1 w-full bg-gf-base border border-gf-border rounded-lg shadow-xl px-3 py-2 text-sm text-gf-muted">
           {t('noResults', { searchTerm })}
         </div>
       )}

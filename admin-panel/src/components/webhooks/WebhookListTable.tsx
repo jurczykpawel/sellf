@@ -44,12 +44,12 @@ const WebhookRow = ({
   };
 
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+    <tr className="hover:bg-gf-hover transition-colors">
       <td className="px-6 py-4">
-        <div className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" title={endpoint.description || endpoint.url}>
+        <div className="text-sm font-medium text-gf-heading truncate max-w-xs" title={endpoint.description || endpoint.url}>
           {endpoint.description || endpoint.url}
         </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs font-mono">
+        <div className="text-xs text-gf-muted mt-0.5 truncate max-w-xs font-mono">
           {endpoint.url}
         </div>
       </td>
@@ -58,7 +58,7 @@ const WebhookRow = ({
           {endpoint.events.map((ev) => (
             <span
               key={ev}
-              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gf-accent-soft text-gf-accent border border-gf-border"
             >
               {getEventLabel(ev)}
             </span>
@@ -67,12 +67,12 @@ const WebhookRow = ({
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center space-x-2">
-          <code className="text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 font-mono text-gray-600 dark:text-gray-400">
+          <code className="text-xs bg-gf-raised px-2 py-1 rounded border border-gf-border font-mono text-gf-body">
             {showSecret ? endpoint.secret : 'gf_••••••••••••••••'}
           </code>
           <button
             onClick={() => setShowSecret(!showSecret)}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-gf-muted hover:text-gf-body"
             title={showSecret ? t('hideSecret') : t('revealSecret')}
           >
             {showSecret ? (
@@ -88,7 +88,7 @@ const WebhookRow = ({
           </button>
           <button
             onClick={handleCopySecret}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-gf-muted hover:text-gf-body"
             title={t('copySecret')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +101,7 @@ const WebhookRow = ({
         <button
           onClick={() => onToggleStatus(endpoint.id, endpoint.is_active)}
           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer transition-colors hover:opacity-80 ${
-            endpoint.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+            endpoint.is_active ? 'bg-gf-success-soft text-gf-success' : 'bg-gf-raised text-gf-muted'
           }`}
         >
           {endpoint.is_active ? t('active') : tCommon('inactive')}
@@ -110,25 +110,25 @@ const WebhookRow = ({
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
         <button
           onClick={() => onLogs(endpoint)}
-          className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          className="text-gf-body hover:text-gf-heading transition-colors"
         >
           {t('logsButtonLabel')}
         </button>
         <button
           onClick={() => onTest(endpoint)}
-          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+          className="text-gf-accent hover:text-gf-heading transition-colors"
         >
           {t('test')}
         </button>
         <button
           onClick={() => onEdit(endpoint)}
-          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+          className="text-gf-accent hover:text-gf-heading transition-colors"
         >
           {t('edit')}
         </button>
         <button
           onClick={() => onDelete(endpoint)}
-          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+          className="text-gf-danger hover:text-gf-heading transition-colors"
         >
           {t('delete')}
         </button>
@@ -158,28 +158,28 @@ export default function WebhookListTable({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden rounded-xl">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-50 dark:bg-gray-900/50">
+    <div className="bg-gf-base shadow-sm border border-gf-border overflow-hidden rounded-xl">
+      <table className="min-w-full divide-y divide-gf-border">
+        <thead className="bg-gf-raised">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">
               {t('description')} / {t('url')}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">
               {t('events')}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">
               {t('secret')}
             </th>
-            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-center text-xs font-medium text-gf-muted uppercase tracking-wider">
               {t('active')}
             </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-right text-xs font-medium text-gf-muted uppercase tracking-wider">
               {tCommon('actions')}
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+        <tbody className="bg-gf-base divide-y divide-gf-border">
           {endpoints.map((endpoint) => (
             <WebhookRow
               key={endpoint.id}

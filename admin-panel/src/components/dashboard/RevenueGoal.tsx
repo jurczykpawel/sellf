@@ -209,17 +209,17 @@ export default function RevenueGoal() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 h-[140px] animate-pulse">
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6 h-[140px] animate-pulse">
+        <div className="h-4 bg-gf-raised rounded w-1/3 mb-4"></div>
+        <div className="h-8 bg-gf-raised rounded w-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
+        <h3 className="font-semibold text-gf-heading text-lg">
           {t('revenueGoal', { defaultValue: 'Revenue Goal' })}
         </h3>
         {isEditing ? (
@@ -231,28 +231,28 @@ export default function RevenueGoal() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={hideValues ? '****' : (goal / 100).toString()}
-                  className="w-24 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  className="w-24 px-2 py-1 text-sm border rounded bg-gf-base border-gf-border text-gf-heading"
                   autoFocus
                 />
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                <span className="text-xs font-bold text-gf-body">
                   {goalCurrency}
                 </span>
               </div>
               <button
                 onClick={handleSave}
-                className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                className="text-xs bg-gf-accent text-gf-inverse px-2 py-1 rounded hover:bg-gf-accent"
               >
                 {tCommon('save')}
               </button>
               <button
                 onClick={handleResetGoal}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:underline"
+                className="text-xs text-gf-muted hover:underline"
                 title={t('resetProgressTitle')}
               >
                 {tCommon('reset')}
               </button>
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-gray-500">
+            <span className="text-[10px] text-gf-muted">
               {t('goalCurrencyNote')}
             </span>
           </div>
@@ -263,12 +263,12 @@ export default function RevenueGoal() {
                 setInputValue((goal / 100).toString());
                 setIsEditing(true);
               }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs text-gf-accent hover:underline"
             >
               {t('setGoal', { defaultValue: 'Set Goal' })}
             </button>
              {goalStartDate && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+              <span className="text-xs text-gf-muted ml-2">
                 ({t('stats.since', { date: new Date(goalStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })})
               </span>
             )}
@@ -280,24 +280,24 @@ export default function RevenueGoal() {
         <div className="flex mb-2 items-center justify-between">
           <div>
             <span className={`text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${
-              rawPercentage >= 100 
-                ? 'text-green-600 bg-green-200 dark:bg-green-900 dark:text-green-200' 
-                : 'text-blue-600 bg-blue-200 dark:bg-blue-900 dark:text-blue-200'
+              rawPercentage >= 100
+                ? 'text-gf-success bg-gf-success-soft'
+                : 'text-gf-accent bg-gf-accent-soft'
             }`}>
               {hideValues ? '***%' : `${rawPercentage}%`}
             </span>
           </div>
           <div className="text-right">
-            <span className="text-xs font-semibold inline-block text-blue-600 dark:text-blue-400">
+            <span className="text-xs font-semibold inline-block text-gf-accent">
               {formatCurrency(currentRevenue)} / {formatCurrency(displayGoal)}
             </span>
           </div>
         </div>
-        <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200 dark:bg-gray-700">
+        <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gf-raised">
           <div 
             style={{ width: `${visualPercentage}%` }} 
-            className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
-              rawPercentage >= 100 ? 'bg-green-500' : 'bg-blue-500'
+            className={`shadow-none flex flex-col text-center whitespace-nowrap text-gf-inverse justify-center transition-all duration-500 ${
+              rawPercentage >= 100 ? 'bg-gf-success' : 'bg-gf-accent'
             }`}
           ></div>
         </div>

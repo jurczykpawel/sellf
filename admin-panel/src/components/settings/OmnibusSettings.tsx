@@ -73,42 +73,42 @@ export default function OmnibusSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/3"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-semibold text-gf-heading mb-2">
             {t('title')}
           </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-sm text-gf-body mb-4">
             {t('description')}
           </p>
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+          <div className="bg-gf-accent-soft border border-gf-accent/20 rounded-lg p-4 mb-4">
+            <h3 className="text-sm font-medium text-gf-accent mb-2">
               ℹ️ {t('whatIsOmnibus')}
             </h3>
-            <p className="text-xs text-blue-800 dark:text-blue-400 leading-relaxed">
+            <p className="text-xs text-gf-accent leading-relaxed">
               {t('omnibusExplanation')}
             </p>
           </div>
 
           {/* Toggle Switch */}
-          <div className="flex items-center justify-between py-4 px-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+          <div className="flex items-center justify-between py-4 px-4 bg-gf-raised rounded-lg">
             <div>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
+              <span className="text-sm font-medium text-gf-heading">
                 {t('enableOmnibus')}
               </span>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs text-gf-muted mt-1">
                 {omnibusEnabled ? t('currentlyEnabled') : t('currentlyDisabled')}
               </p>
             </div>
@@ -118,8 +118,8 @@ export default function OmnibusSettings() {
               disabled={saving}
               className={`
                 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
-                transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                ${omnibusEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
+                transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2
+                ${omnibusEnabled ? 'bg-gf-accent' : 'bg-gf-raised'}
                 ${saving ? 'opacity-50 cursor-not-allowed' : ''}
               `}
               role="switch"
@@ -137,11 +137,11 @@ export default function OmnibusSettings() {
           </div>
 
           {/* Help Text */}
-          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <div className="mt-4 p-4 bg-gf-raised rounded-lg">
+            <h4 className="text-xs font-medium text-gf-body mb-2">
               {t('additionalInfo')}
             </h4>
-            <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
+            <ul className="text-xs text-gf-body space-y-1 list-disc list-inside">
               <li>{t('info1')}</li>
               <li>{t('info2')}</li>
               <li>{t('info3')}</li>

@@ -48,26 +48,26 @@ export default function DemoBanner() {
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-200">
+    <div className="mb-4 rounded-lg border border-gf-warning/30 bg-gf-warning-soft px-4 py-3 text-sm text-gf-warning">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p>
             <span className="font-medium">{timeLeft ? t('bannerWithCountdown', { time: timeLeft }) : t('banner')}</span>
             {' '}
-            <span className="text-amber-700 dark:text-amber-300">{t('readonlyNotice')}</span>
+            <span className="text-gf-warning">{t('readonlyNotice')}</span>
           </p>
           <p className="mt-1.5 flex flex-wrap gap-2">
-            <code className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs dark:bg-amber-900/50">
+            <code className="rounded bg-gf-warning-soft px-1.5 py-0.5 font-mono text-xs">
               {t('credentials')}
             </code>
-            <code className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs dark:bg-amber-900/50">
+            <code className="rounded bg-gf-warning-soft px-1.5 py-0.5 font-mono text-xs">
               {t('testCard')}
             </code>
           </p>
         </div>
         <button
           onClick={handleDismiss}
-          className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200"
+          className="shrink-0 text-gf-warning hover:opacity-80"
           aria-label={t('dismiss')}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

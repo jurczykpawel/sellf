@@ -66,79 +66,79 @@ export default function LegalDocumentsSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/4"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
+          <div className="h-10 bg-gf-raised rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
+      <h2 className="text-xl font-semibold text-gf-heading mb-2">
         {t('title')}
       </h2>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+      <p className="text-sm text-gf-body mb-6">
         {t('description')}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Terms of Service URL */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('termsOfServiceUrl')}
           </label>
           <input
             type="url"
             value={formData.terms_of_service_url}
             onChange={(e) => setFormData({ ...formData, terms_of_service_url: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
             placeholder={t('termsPlaceholder')}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-gf-muted">
             {t('termsHelp')}
           </p>
         </div>
 
         {/* Privacy Policy URL */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('privacyPolicyUrl')}
           </label>
           <input
             type="url"
             value={formData.privacy_policy_url}
             onChange={(e) => setFormData({ ...formData, privacy_policy_url: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
             placeholder={t('privacyPlaceholder')}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-gf-muted">
             {t('privacyHelp')}
           </p>
         </div>
 
         {/* Info Box */}
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="p-4 bg-gf-accent-soft rounded-lg border border-gf-accent/20">
           <div className="flex gap-3">
-            <span className="text-blue-600 dark:text-blue-400 text-lg">ℹ️</span>
-            <div className="text-sm text-blue-800 dark:text-blue-200">
+            <span className="text-gf-accent text-lg">ℹ️</span>
+            <div className="text-sm text-gf-accent">
               <p className="font-medium mb-1">{t('infoTitle')}</p>
-              <p className="text-blue-700 dark:text-blue-300">{t('infoDescription')}</p>
+              <p className="text-gf-accent">{t('infoDescription')}</p>
               <div className="mt-2 flex gap-4">
                 <a
                   href="/terms"
                   target="_blank"
-                  className="text-blue-600 dark:text-blue-400 underline hover:no-underline"
+                  className="text-gf-accent underline hover:no-underline"
                 >
                   /terms
                 </a>
                 <a
                   href="/privacy"
                   target="_blank"
-                  className="text-blue-600 dark:text-blue-400 underline hover:no-underline"
+                  className="text-gf-accent underline hover:no-underline"
                 >
                   /privacy
                 </a>
@@ -152,7 +152,7 @@ export default function LegalDocumentsSettings() {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? t('saving') : t('saveButton')}
           </button>

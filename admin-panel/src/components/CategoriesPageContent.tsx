@@ -44,7 +44,7 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-3xl font-bold text-gf-heading">
           {t('title', { defaultValue: 'Categories' })}
         </h1>
         <button
@@ -56,39 +56,39 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-              <th className="p-4 font-medium text-gray-500 dark:text-gray-400">{commonT('name')}</th>
-              <th className="p-4 font-medium text-gray-500 dark:text-gray-400">{t('slug')}</th>
-              <th className="p-4 font-medium text-gray-500 dark:text-gray-400 text-right">{commonT('actions')}</th>
+            <tr className="border-b border-gf-border bg-gf-raised">
+              <th className="p-4 font-medium text-gf-muted">{commonT('name')}</th>
+              <th className="p-4 font-medium text-gf-muted">{t('slug')}</th>
+              <th className="p-4 font-medium text-gf-muted text-right">{commonT('actions')}</th>
             </tr>
           </thead>
           <tbody>
             {initialCategories.length === 0 ? (
               <tr>
-                <td colSpan={3} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={3} className="p-8 text-center text-gf-muted">
                   {t('noCategories', { defaultValue: 'No categories found' })}
                 </td>
               </tr>
             ) : (
               initialCategories.map((category) => (
-                <tr key={category.id} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="p-4 text-gray-900 dark:text-white font-medium">{category.name}</td>
-                  <td className="p-4 text-gray-500 dark:text-gray-400 font-mono text-sm">{category.slug}</td>
+                <tr key={category.id} className="border-b border-gf-border hover:bg-gf-hover">
+                  <td className="p-4 text-gf-heading font-medium">{category.name}</td>
+                  <td className="p-4 text-gf-muted font-mono text-sm">{category.slug}</td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button 
                         onClick={() => openEditModal(category)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        className="p-2 text-gf-muted hover:text-gf-accent hover:bg-gf-accent-soft rounded-lg transition-colors"
                         title={commonT('edit')}
                       >
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => setCategoryToDelete(category)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        className="p-2 text-gf-muted hover:text-gf-danger hover:bg-gf-danger-soft rounded-lg transition-colors"
                         title={commonT('delete')}
                       >
                         <Trash2 size={18} />
@@ -111,11 +111,11 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
       {/* Delete Confirmation Modal */}
       {categoryToDelete && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">
+          <div className="bg-gf-base rounded-xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4 text-gf-heading">
               {commonT('confirmDelete', { defaultValue: 'Confirm Delete' })}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-gf-body mb-6">
               {t('deleteMessage', {
                 defaultValue: 'Are you sure you want to delete the category "{name}"? This action cannot be undone.',
                 name: categoryToDelete.name
@@ -124,7 +124,7 @@ export default function CategoriesPageContent({ initialCategories }: { initialCa
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setCategoryToDelete(null)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="px-4 py-2 text-gf-body hover:bg-gf-hover rounded-lg transition-colors"
               >
                 {commonT('cancel', { defaultValue: 'Cancel' })}
               </button>

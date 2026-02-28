@@ -76,19 +76,19 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+      <div className="bg-gf-base rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center p-6 border-b border-gf-border">
+          <h2 className="text-xl font-bold text-gf-heading">
             {category ? t('editCategory', { defaultValue: 'Edit Category' }) : t('createCategory', { defaultValue: 'Create Category' })}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <button onClick={onClose} className="text-gf-muted hover:text-gf-heading">
             <X size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gf-body mb-1">
               {commonT('name')}
             </label>
             <input
@@ -96,12 +96,12 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
               value={name}
               onChange={handleNameChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 bg-gf-input text-gf-heading border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gf-body mb-1">
               {t('slug')}
             </label>
             <input
@@ -109,19 +109,19 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+              className="w-full px-3 py-2 bg-gf-input text-gf-heading border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent font-mono text-sm"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gf-body mb-1">
               {commonT('description')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 bg-gf-input text-gf-heading border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent"
             />
           </div>
 
@@ -129,14 +129,14 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-gf-body hover:bg-gf-hover rounded-lg transition-colors"
             >
               {commonT('cancel')}
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-gf-accent text-gf-inverse rounded-lg hover:bg-gf-accent-hover transition-colors disabled:opacity-50"
             >
               {isLoading ? commonT('loading') : commonT('save')}
             </button>

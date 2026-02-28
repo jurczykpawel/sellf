@@ -44,30 +44,30 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
     
     switch (variant) {
       case 'success':
-        return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300`;
+        return `${baseClasses} bg-gf-success-soft text-gf-success`;
       case 'warning':
-        return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300`;
+        return `${baseClasses} bg-gf-warning-soft text-gf-warning`;
       case 'error':
-        return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300`;
+        return `${baseClasses} bg-gf-danger-soft text-gf-danger`;
       case 'info':
-        return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300`;
+        return `${baseClasses} bg-gf-accent-soft text-gf-accent`;
       default:
-        return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300`;
+        return `${baseClasses} bg-gf-raised text-gf-muted`;
     }
   };
 
   return (
-    <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-t-2xl">
+    <div className="px-6 py-3 border-b border-gf-border bg-gf-raised rounded-t-2xl">
       <div className="flex items-start justify-between">
         <div className="flex items-center space-x-3">
           {icon && (
-            <div className="flex-shrink-0 p-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <div className="flex-shrink-0 p-1.5 bg-gf-base rounded-lg shadow-sm">
               {icon}
             </div>
           )}
           <div>
             <div className="flex items-center space-x-3">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-gf-heading">
                 {title}
               </h3>
               {badge && (
@@ -77,7 +77,7 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
               )}
             </div>
             {subtitle && (
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-sm text-gf-muted">
                 {subtitle}
               </p>
             )}
@@ -120,14 +120,14 @@ export const ModalSection: React.FC<ModalSectionProps> = ({
         <button
           type="button"
           onClick={() => collapsible && setIsExpanded(!isExpanded)}
-          className={`w-full flex items-center justify-between text-sm font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 ${
-            collapsible ? 'cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors' : 'cursor-default'
+          className={`w-full flex items-center justify-between text-sm font-medium text-gf-heading border-b border-gf-border pb-2 mb-4 ${
+            collapsible ? 'cursor-pointer hover:text-gf-accent transition-colors' : 'cursor-default'
           }`}
         >
           <span>{title}</span>
           {collapsible && (
             <svg
-              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-gf-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -155,8 +155,8 @@ export const ModalFooter: React.FC<ModalFooterProps> = ({
 }) => {
   return (
     <div className={`
-      px-6 py-4 border-t border-gray-200 dark:border-gray-700 
-      bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl
+      px-6 py-4 border-t border-gf-border
+      bg-gf-raised rounded-b-2xl
       flex items-center justify-end space-x-3
       ${className}
     `}>
@@ -192,15 +192,15 @@ export const Button: React.FC<ButtonProps> = ({
   const getVariantClasses = () => {
     switch (variant) {
       case 'primary':
-        return 'bg-blue-600 hover:bg-blue-700 text-white border-transparent focus:ring-blue-500';
+        return 'bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse border-transparent focus:ring-gf-accent';
       case 'secondary':
-        return 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-600 focus:ring-gray-500';
+        return 'bg-gf-raised hover:bg-gf-hover text-gf-heading border-gf-border focus:ring-gf-accent';
       case 'danger':
-        return 'bg-red-600 hover:bg-red-700 text-white border-transparent focus:ring-red-500';
+        return 'bg-gf-danger hover:opacity-90 text-white border-transparent focus:ring-gf-danger';
       case 'ghost':
-        return 'bg-transparent hover:bg-gray-100 text-gray-700 border-gray-300 dark:hover:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:ring-gray-500';
+        return 'bg-transparent hover:bg-gf-hover text-gf-body border-gf-border focus:ring-gf-accent';
       default:
-        return 'bg-blue-600 hover:bg-blue-700 text-white border-transparent focus:ring-blue-500';
+        return 'bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse border-transparent focus:ring-gf-accent';
     }
   };
 
@@ -262,15 +262,15 @@ export const Message: React.FC<MessageProps> = ({
   const getTypeClasses = () => {
     switch (type) {
       case 'error':
-        return 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300';
+        return 'bg-gf-danger-soft border-gf-danger/20 text-gf-danger';
       case 'success':
-        return 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300';
+        return 'bg-gf-success-soft border-gf-success/20 text-gf-success';
       case 'warning':
-        return 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300';
+        return 'bg-gf-warning-soft border-gf-warning/20 text-gf-warning';
       case 'info':
-        return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300';
+        return 'bg-gf-accent-soft border-gf-accent/20 text-gf-accent';
       default:
-        return 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-900/20 dark:border-gray-800 dark:text-gray-300';
+        return 'bg-gf-raised border-gf-border text-gf-body';
     }
   };
 

@@ -64,7 +64,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   const SortableHeader = ({ column, title, className = "" }: { column: string; title: string; className?: string }) => (
     <th
       scope="col"
-      className={`px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer whitespace-nowrap ${className}`}
+      className={`px-3 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider cursor-pointer whitespace-nowrap ${className}`}
       onClick={() => onSort(column)}
     >
       <div className="flex items-center">
@@ -81,15 +81,15 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   if (loading) {
     return (
       <div className="text-center py-10">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">{t('loadingProducts')}</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gf-accent mx-auto"></div>
+        <p className="mt-4 text-gf-body">{t('loadingProducts')}</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">
+      <div className="bg-gf-danger-soft border border-gf-danger text-gf-danger px-4 py-3 rounded-lg" role="alert">
         <strong className="font-bold">{t('error')}:</strong>
         <span className="block sm:inline"> {error}</span>
       </div>
@@ -98,9 +98,9 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{t('noProducts')}</h3>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+      <div className="text-center py-10 bg-gf-base rounded-lg shadow">
+        <h3 className="text-lg font-semibold text-gf-heading">{t('noProducts')}</h3>
+        <p className="mt-2 text-sm text-gf-muted">
           {t('noProductsMessage')}
         </p>
       </div>
@@ -111,9 +111,9 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
     <div className="flex flex-col">
       <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
         <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-          <div className="shadow-lg overflow-hidden border-b border-gray-200 dark:border-gray-700 sm:rounded-lg bg-white dark:bg-gray-800">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+          <div className="shadow-lg overflow-hidden border-b border-gf-border sm:rounded-lg bg-gf-base">
+            <table className="min-w-full divide-y divide-gf-border">
+              <thead className="bg-gf-raised">
                 <tr>
                   <SortableHeader column="name" title={t('name')} />
                   <SortableHeader column="price" title={t('price')} />
@@ -127,22 +127,22 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+              <tbody className="divide-y divide-gf-border">
                 {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
+                  <tr key={product.id} className="hover:bg-gf-hover transition-colors duration-150">
                     <td className="px-3 py-4">
                       <div className="flex items-center max-w-[300px]">
                         <div className="flex-shrink-0 h-8 w-8">
-                          <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-lg">
+                          <div className="h-8 w-8 rounded-full bg-gf-raised flex items-center justify-center text-lg">
                             {product.icon?.length === 2 || product.icon?.match(/\p{Emoji}/u) ? product.icon : getIconEmoji(product.icon)}
                           </div>
                         </div>
                         <div className="ml-3 min-w-0 flex-1 overflow-hidden">
                           <div className="flex items-center gap-1">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{product.name}</div>
+                            <div className="text-sm font-medium text-gf-heading truncate">{product.name}</div>
                             {product.is_featured && (
                               <span
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 flex-shrink-0"
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gf-warning-soft text-gf-warning flex-shrink-0"
                                 title={t('featuredProduct')}
                               >
                                 ⭐
@@ -150,7 +150,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             )}
                             {product.is_listed === false && (
                               <span
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 flex-shrink-0"
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gf-info-soft text-gf-info flex-shrink-0"
                                 title={t('unlistedTooltip')}
                               >
                                 {t('unlisted')}
@@ -158,14 +158,14 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             )}
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{product.slug}</span>
+                            <span className="text-xs text-gf-muted truncate">{product.slug}</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigator.clipboard.writeText(product.id);
                                 addToast(t('idCopied'), 'success', 2000);
                               }}
-                              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] font-mono text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] font-mono text-gf-muted hover:text-gf-body hover:bg-gf-raised transition-colors"
                               title={`${t('copyId')}: ${product.id}`}
                             >
                               <span className="hidden sm:inline">{product.id.slice(0, 8)}...</span>
@@ -179,11 +179,11 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center">
                       {product.price === 0 ? (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gf-accent-soft text-gf-accent">
                           {t('free')}
                         </span>
                       ) : (
-                        <div className="text-sm text-gray-900 dark:text-white">{formatPrice(product.price, product.currency)}</div>
+                        <div className="text-sm text-gf-heading">{formatPrice(product.price, product.currency)}</div>
                       )}
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center">
@@ -192,8 +192,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           onClick={() => onToggleStatus(product.id, product.is_active)}
                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer transition-colors hover:opacity-80 ${
                             product.is_active
-                              ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100'
-                              : 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100'
+                              ? 'bg-gf-success-soft text-gf-success'
+                              : 'bg-gf-danger-soft text-gf-danger'
                           }`}
                         >
                           {product.is_active ? t('active') : t('inactive')}
@@ -208,7 +208,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             </span>
                           ) : (
                             <span
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gf-raised text-gf-muted"
                               title={t('waitlistDisabled')}
                             >
                               🚫
@@ -217,30 +217,30 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 hidden 2xl:table-cell whitespace-nowrap">
+                    <td className="px-3 py-4 text-sm text-gf-muted hidden 2xl:table-cell whitespace-nowrap">
                       {product.available_from ? formatUTCForDisplay(product.available_from, {
                         year: '2-digit',
                         month: 'short',
                         day: 'numeric'
                       }) : '-'}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 hidden 2xl:table-cell whitespace-nowrap">
+                    <td className="px-3 py-4 text-sm text-gf-muted hidden 2xl:table-cell whitespace-nowrap">
                       {product.available_until ? formatUTCForDisplay(product.available_until, {
                         year: '2-digit',
                         month: 'short',
                         day: 'numeric'
                       }) : '-'}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 hidden 2xl:table-cell text-center whitespace-nowrap">
+                    <td className="px-3 py-4 text-sm text-gf-muted hidden 2xl:table-cell text-center whitespace-nowrap">
                       {product.auto_grant_duration_days ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gf-accent-soft text-gf-accent">
                           {product.auto_grant_duration_days}d
                         </span>
                       ) : (
-                        <span className="text-gray-400">∞</span>
+                        <span className="text-gf-muted">∞</span>
                       )}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 hidden xl:table-cell whitespace-nowrap">
+                    <td className="px-3 py-4 text-sm text-gf-muted hidden xl:table-cell whitespace-nowrap">
                       {formatUTCForDisplay(product.created_at, {
                         year: '2-digit',
                         month: 'short',
@@ -253,8 +253,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           onClick={() => onToggleListed(product.id, product.is_listed !== false)}
                           className={`p-1 transition-colors rounded ${
                             product.is_listed !== false
-                              ? 'text-gray-400 hover:text-orange-500'
-                              : 'text-orange-500 hover:text-orange-600'
+                              ? 'text-gf-muted hover:text-gf-warning'
+                              : 'text-gf-warning hover:text-gf-warning'
                           }`}
                           title={product.is_listed !== false ? t('unlistedTooltip') : t('listedEnabled')}
                         >
@@ -273,8 +273,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           onClick={() => onToggleFeatured(product.id, product.is_featured)}
                           className={`p-1 transition-colors rounded ${
                             product.is_featured
-                              ? 'text-yellow-500 hover:text-yellow-600'
-                              : 'text-gray-400 hover:text-yellow-500'
+                              ? 'text-gf-warning hover:text-gf-warning'
+                              : 'text-gf-muted hover:text-gf-warning'
                           }`}
                           title={product.is_featured ? t('removeFeatured') : t('setFeatured')}
                         >
@@ -284,7 +284,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
                         <button
                           onClick={() => onGenerateCode(product)}
-                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors p-1"
+                          className="text-gf-accent hover:text-gf-accent transition-colors p-1"
                           aria-label={t('generateCodeLabel', { name: product.name })}
                           title={t('generateCode')}
                         >
@@ -294,7 +294,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
                         <button
                           onClick={() => onPreviewProduct(product)}
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 transition-colors p-1"
+                          className="text-gf-success hover:text-gf-success transition-colors p-1"
                           aria-label={t('previewLabel', { name: product.name })}
                           title={t('preview')}
                         >
@@ -315,7 +315,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
                         <button
                           onClick={() => onEditProduct(product)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors p-1"
+                          className="text-gf-accent hover:text-gf-accent transition-colors p-1"
                           aria-label={t('editLabel', { name: product.name })}
                           title={t('edit')}
                         >
@@ -325,7 +325,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
                         <button
                           onClick={() => onDuplicateProduct(product)}
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 transition-colors p-1"
+                          className="text-gf-success hover:text-gf-success transition-colors p-1"
                           aria-label={t('duplicateLabel', { name: product.name })}
                           title={t('duplicate')}
                         >
@@ -335,7 +335,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
                         <button
                           onClick={() => onDeleteProduct(product)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1"
+                          className="text-gf-danger hover:text-gf-danger transition-colors p-1"
                           aria-label={t('deleteLabel', { name: product.name })}
                           title={t('delete')}
                         >
@@ -349,9 +349,9 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                 ))}
               </tbody>
             </table>
-            <div className="px-4 py-3 sm:px-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="px-4 py-3 sm:px-6 border-t border-gf-border">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700 dark:text-gray-300">
+                <div className="text-sm text-gf-body">
                   {t('showing')} <span className="font-medium">{startIndex}</span> {t('to')} <span className="font-medium">{endIndex}</span> {t('of')} <span className="font-medium">{totalItems}</span> {t('results')}
                 </div>
                 <Pagination

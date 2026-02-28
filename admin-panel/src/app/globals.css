@@ -11,6 +11,9 @@
   --gf-bg-base: #0B1120;
   --gf-bg-raised: #111B2E;
   --gf-bg-float: #162236;
+  --gf-bg-hover: #1a2740;
+  --gf-bg-row-alt: #0e1626;
+  --gf-bg-input: #0B1120;
 
   --gf-accent: #00AAFF;
   --gf-accent-soft: rgba(0,170,255,0.08);
@@ -21,6 +24,7 @@
   --gf-text-heading: #F0F4FA;
   --gf-text-body: #94A3B8;
   --gf-text-muted: #7A8DA3;
+  --gf-text-inverse: #0b1120;
 
   --gf-border: rgba(255,255,255,0.06);
   --gf-border-accent: rgba(0,170,255,0.15);
@@ -31,6 +35,13 @@
   --gf-warning-soft: rgba(245,158,11,0.10);
   --gf-danger: #EF4444;
   --gf-danger-soft: rgba(239,68,68,0.10);
+  --gf-info: #F97316;
+  --gf-info-soft: rgba(249,115,22,0.10);
+
+  --gf-sidebar-bg: #070c18;
+  --gf-sidebar-text: #7A8DA3;
+  --gf-sidebar-text-active: #F0F4FA;
+  --gf-sidebar-accent: rgba(0,170,255,0.10);
 
   --gf-shadow: 0 4px 24px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
   --gf-shadow-accent: 0 4px 30px -4px rgba(0,170,255,0.25);
@@ -42,19 +53,23 @@
   --gf-bg-base: #FFFFFF;
   --gf-bg-raised: #F1F5F9;
   --gf-bg-float: #FAFCFF;
+  --gf-bg-hover: #f0f4f8;
+  --gf-bg-row-alt: #f8fafc;
+  --gf-bg-input: #ffffff;
 
-  --gf-accent: #0070AA;
-  --gf-accent-soft: rgba(0,112,170,0.08);
-  --gf-accent-med: rgba(0,112,170,0.15);
+  --gf-accent: #0070b8;
+  --gf-accent-soft: rgba(0,112,184,0.08);
+  --gf-accent-med: rgba(0,112,184,0.15);
   --gf-accent-hover: #005C8F;
-  --gf-accent-glow: rgba(0,112,170,0.20);
+  --gf-accent-glow: rgba(0,112,184,0.20);
 
   --gf-text-heading: #0B1120;
   --gf-text-body: #3E5068;
-  --gf-text-muted: #5B7089;
+  --gf-text-muted: #5b6578;
+  --gf-text-inverse: #ffffff;
 
   --gf-border: rgba(0,0,0,0.10);
-  --gf-border-accent: rgba(0,112,170,0.18);
+  --gf-border-accent: rgba(0,112,184,0.18);
 
   --gf-success: #059669;
   --gf-success-soft: rgba(5,150,105,0.10);
@@ -62,9 +77,16 @@
   --gf-warning-soft: rgba(217,119,6,0.10);
   --gf-danger: #DC2626;
   --gf-danger-soft: rgba(220,38,38,0.10);
+  --gf-info: #EA580C;
+  --gf-info-soft: rgba(234,88,12,0.10);
+
+  --gf-sidebar-bg: #f8fafc;
+  --gf-sidebar-text: #5b6578;
+  --gf-sidebar-text-active: #0b1120;
+  --gf-sidebar-accent: rgba(0,112,184,0.08);
 
   --gf-shadow: 0 4px 24px -4px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
-  --gf-shadow-accent: 0 4px 30px -4px rgba(0,112,170,0.20);
+  --gf-shadow-accent: 0 4px 30px -4px rgba(0,112,184,0.20);
 }
 
 /* ===== Whitelabel Tokens — default to Sellf brand, overridden by theme ===== */
@@ -86,6 +108,7 @@
   --wl-success: var(--gf-success);
   --wl-warning: var(--gf-warning);
   --wl-danger: var(--gf-danger);
+  --wl-info: var(--gf-info);
   --wl-shadow: var(--gf-shadow);
   --wl-shadow-accent: var(--gf-shadow-accent);
   --wl-font-family: inherit;
@@ -120,6 +143,16 @@
   --color-gf-warning-soft: var(--gf-warning-soft);
   --color-gf-danger: var(--gf-danger);
   --color-gf-danger-soft: var(--gf-danger-soft);
+  --color-gf-info: var(--gf-info);
+  --color-gf-info-soft: var(--gf-info-soft);
+  --color-gf-hover: var(--gf-bg-hover);
+  --color-gf-row-alt: var(--gf-bg-row-alt);
+  --color-gf-input: var(--gf-bg-input);
+  --color-gf-inverse: var(--gf-text-inverse);
+  --color-gf-sidebar-bg: var(--gf-sidebar-bg);
+  --color-gf-sidebar-text: var(--gf-sidebar-text);
+  --color-gf-sidebar-text-active: var(--gf-sidebar-text-active);
+  --color-gf-sidebar-accent: var(--gf-sidebar-accent);
 
   /* Whitelabel tokens (public pages — customizable via theme) */
   --color-wl-accent: var(--wl-accent);

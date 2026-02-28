@@ -77,16 +77,16 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden pointer-events-auto flex flex-col"
+          className="bg-gf-base rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden pointer-events-auto flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between p-6 border-b border-gf-border">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-bold text-gf-heading">
                 {t('title', { defaultValue: 'Stripe Configuration' })}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-sm text-gf-muted mt-1">
                 {t('subtitle', {
                   defaultValue: 'Configure your Stripe Restricted API Key',
                 })}
@@ -94,7 +94,7 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
             </div>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="text-gf-muted hover:text-gf-body transition-colors"
               aria-label={tCommon('close')}
             >
               <X className="w-6 h-6" />
@@ -102,17 +102,17 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
           </div>
 
           {/* Progress Indicator */}
-          <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-4 bg-gf-raised border-b border-gf-border">
             <div className="flex items-center justify-between">
               {[1, 2, 3, 4, 5].map((step) => (
                 <div key={step} className="flex items-center flex-1">
                   <div
                     className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
                       step === state.currentStep
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-gf-accent text-gf-inverse'
                         : step < state.currentStep
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                          ? 'bg-gf-success text-gf-inverse'
+                          : 'bg-gf-raised text-gf-muted'
                     }`}
                   >
                     {step}
@@ -121,15 +121,15 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
                     <div
                       className={`flex-1 h-1 mx-2 rounded transition-colors ${
                         step < state.currentStep
-                          ? 'bg-green-600'
-                          : 'bg-gray-200 dark:bg-gray-700'
+                          ? 'bg-gf-accent'
+                          : 'bg-gf-raised'
                       }`}
                     />
                   )}
                 </div>
               ))}
             </div>
-            <div className="text-center mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-center mt-2 text-sm text-gf-body">
               {t('step', { defaultValue: 'Step' })} {state.currentStep} {t('of', { defaultValue: 'of' })} 5
             </div>
           </div>
@@ -145,13 +145,13 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" onClick={() => setShowExitConfirm(false)} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
             <div
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 pointer-events-auto"
+              className="bg-gf-base rounded-lg shadow-xl max-w-md w-full p-6 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-semibold text-gf-heading mb-2">
                 {t('confirmExit.title', { defaultValue: 'Exit configuration?' })}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-gf-body mb-6">
                 {t('confirmExit.message', {
                   defaultValue: 'Your progress has been saved. You can continue later from where you left off.',
                 })}
@@ -159,13 +159,13 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setShowExitConfirm(false)}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gf-body hover:bg-gf-hover rounded-lg transition-colors"
                 >
                   {t('confirmExit.cancel', { defaultValue: 'Continue Setup' })}
                 </button>
                 <button
                   onClick={confirmExit}
-                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors"
+                  className="px-4 py-2 bg-gf-danger hover:opacity-90 text-gf-inverse rounded-lg transition-colors"
                 >
                   {t('confirmExit.confirm', { defaultValue: 'Exit Anyway' })}
                 </button>

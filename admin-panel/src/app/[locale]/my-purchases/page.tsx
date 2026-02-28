@@ -112,7 +112,7 @@ export default function MyPurchasesPage() {
   const getStatusBadge = (purchase: UserPurchase) => {
     if (purchase.status === 'refunded') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gf-raised text-gf-heading">
           {t('statusRefunded', { defaultValue: 'Refunded' })}
         </span>
       );
@@ -120,7 +120,7 @@ export default function MyPurchasesPage() {
 
     if (purchase.refund_request_status === 'pending') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gf-warning-soft text-gf-warning">
           {t('statusPendingRefund', { defaultValue: 'Refund Pending' })}
         </span>
       );
@@ -128,7 +128,7 @@ export default function MyPurchasesPage() {
 
     if (purchase.refund_request_status === 'rejected') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gf-danger-soft text-gf-danger">
           {t('statusRefundRejected', { defaultValue: 'Refund Rejected' })}
         </span>
       );
@@ -136,14 +136,14 @@ export default function MyPurchasesPage() {
 
     if (purchase.status === 'disputed') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gf-info-soft text-gf-info">
           {t('statusDisputed', { defaultValue: 'Disputed' })}
         </span>
       );
     }
 
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gf-success-soft text-gf-success">
         {t('statusCompleted', { defaultValue: 'Completed' })}
       </span>
     );
@@ -155,7 +155,7 @@ export default function MyPurchasesPage() {
 
     if (!purchase.is_refundable) {
       return (
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-xs text-gf-muted">
           {t('notRefundable', { defaultValue: 'Not refundable' })}
         </span>
       );
@@ -163,7 +163,7 @@ export default function MyPurchasesPage() {
 
     if (!purchase.refund_eligible) {
       return (
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-xs text-gf-muted">
           {t('refundPeriodExpired', { defaultValue: 'Refund period expired' })}
         </span>
       );
@@ -177,12 +177,12 @@ export default function MyPurchasesPage() {
       <div className="flex flex-col items-end gap-1">
         <button
           onClick={() => openRefundModal(purchase)}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-md transition-colors"
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gf-danger hover:opacity-90 bg-gf-danger-soft rounded-md transition-colors"
         >
           {t('requestRefund', { defaultValue: 'Request Refund' })}
         </button>
         {daysRemaining !== null && daysRemaining > 0 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-gf-muted">
             {t('daysRemaining', { days: daysRemaining, defaultValue: `${daysRemaining} days left` })}
           </span>
         )}

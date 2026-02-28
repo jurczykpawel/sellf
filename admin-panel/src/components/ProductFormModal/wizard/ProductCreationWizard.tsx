@@ -147,16 +147,16 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>{isEditMode ? t('editProduct') : t('wizard.title')}</span>
               {formData.name && (
-                <span className="inline-flex items-center gap-1.5 font-normal text-gray-500 dark:text-gray-400">
+                <span className="inline-flex items-center gap-1.5 font-normal text-gf-muted">
                   <span className="truncate max-w-[180px]">{formData.name}</span>
                   {formData.slug && (
-                    <span className="font-mono text-gray-400 dark:text-gray-500 truncate max-w-[140px]">/p/{formData.slug}</span>
+                    <span className="font-mono text-gf-muted truncate max-w-[140px]">/p/{formData.slug}</span>
                   )}
                   {priceDisplayValue !== '' && (
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
                       formData.price === 0
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                        ? 'bg-gf-success-soft text-gf-success'
+                        : 'bg-gf-accent-soft text-gf-accent'
                     }`}>
                       {formData.price === 0 ? t('free') : `${getCurrencySymbol(formData.currency)}${formData.price}`}
                     </span>
@@ -266,14 +266,14 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
               icon={<span className="text-2xl">&#9888;&#65039;</span>}
             />
             <ModalBody>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-gf-body mb-4">
                 {t('waitlistWarning.description')}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gf-muted">
                 {t('waitlistWarning.consequence')}
               </p>
             </ModalBody>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl flex items-center justify-end space-x-3">
+            <div className="px-6 py-4 border-t border-gf-border bg-gf-raised rounded-b-2xl flex items-center justify-end space-x-3">
               <Button onClick={dismissWaitlistWarning} variant="secondary">
                 {t('cancel')}
               </Button>
@@ -301,11 +301,11 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             title={t('wizard.exitTitle')}
           />
           <ModalBody>
-            <p className="text-gray-600 dark:text-gray-300">
+            <p className="text-gf-body">
               {t('wizard.exitMessage')}
             </p>
           </ModalBody>
-          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl flex items-center justify-end space-x-3">
+          <div className="px-6 py-4 border-t border-gf-border bg-gf-raised rounded-b-2xl flex items-center justify-end space-x-3">
             <Button onClick={() => setShowExitConfirm(false)} variant="secondary">
               {t('wizard.exitKeepEditing')}
             </Button>

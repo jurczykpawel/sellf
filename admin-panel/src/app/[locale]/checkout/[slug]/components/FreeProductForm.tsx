@@ -200,12 +200,12 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   };
 
   const renderProductInfo = () => (
-    <div className="w-1/2 pr-8 border-r border-gray-200 dark:border-white/10">
+    <div className="w-1/2 pr-8 border-r border-gf-border">
       <div className="flex items-center mb-6">
         <div className="text-5xl mr-6">{product.icon}</div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{product.name}</h1>
-          <p className="text-gray-600 dark:text-gray-300">{product.description}</p>
+          <h1 className="text-2xl font-bold text-gf-heading">{product.name}</h1>
+          <p className="text-gf-body">{product.description}</p>
         </div>
       </div>
       <div className="text-3xl font-bold text-green-400">
@@ -216,16 +216,16 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
 
   const renderForm = () => (
     <div className="w-1/2 pl-8">
-      <div className="bg-gray-50 dark:bg-white/10 dark:backdrop-blur-md rounded-lg p-6 border border-gray-200 dark:border-white/20">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-gf-raised backdrop-blur-md rounded-lg p-6 border border-gf-border">
+        <h2 className="text-xl font-semibold text-gf-heading mb-4">
           {user ? t('getYourFreeProduct') : t('getInstantAccess')}
         </h2>
         
         {message.type && (
           <div className={`mb-4 p-3 rounded-lg text-sm ${
-            message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800 dark:bg-green-800/30 dark:border-green-500/30 dark:text-green-200' :
-            message.type === 'error' ? 'bg-red-50 border border-red-200 text-red-800 dark:bg-red-800/30 dark:border-red-500/30 dark:text-red-200' :
-            'bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-800/30 dark:border-blue-500/30 dark:text-blue-200'
+            message.type === 'success' ? 'bg-gf-success-soft border border-gf-success/20 text-gf-success' :
+            message.type === 'error' ? 'bg-gf-danger-soft border border-gf-danger/20 text-gf-danger' :
+            'bg-gf-accent-soft border border-gf-accent/20 text-gf-accent'
           }`}>
             {message.text}
           </div>
@@ -234,7 +234,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         <form onSubmit={(e) => { e.preventDefault(); handleFreeAccess(); }} className="space-y-4">
           {!user && (
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gf-body mb-2">
                 {t('emailAddress')}
               </label>
               <input
@@ -242,7 +242,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border border-gray-300 dark:border-white/20 rounded-lg bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gf-border rounded-lg bg-gf-input text-gf-heading placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gf-accent focus:border-transparent"
                 placeholder={t('enterEmailAddress')}
                 required
                 disabled={loading}
@@ -302,7 +302,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
                 />
               </div>
               
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+              <p className="text-xs text-gf-muted mt-2 text-center">
                 {t('magicLinkExplanation')}
               </p>
             </>
@@ -313,8 +313,8 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   );
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-800">
-      <div className="max-w-4xl mx-auto p-8 bg-white border border-gray-200 shadow-xl dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 dark:shadow-2xl rounded-xl">
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gf-deep to-gf-raised">
+      <div className="max-w-4xl mx-auto p-8 bg-gf-base border border-gf-border shadow-xl backdrop-blur-md rounded-xl">
         <DemoCheckoutNotice />
         <div className="flex">
           {renderProductInfo()}

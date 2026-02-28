@@ -19,7 +19,7 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
   onStepClick,
 }) => {
   return (
-    <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700">
+    <div className="px-6 py-3 border-b border-gf-border">
       {/* Desktop view */}
       <div className="hidden sm:flex items-center justify-center">
         {steps.map((step, index) => {
@@ -33,8 +33,8 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                 <div
                   className={`h-0.5 w-16 mx-2 transition-colors duration-200 ${
                     isCompleted
-                      ? 'bg-blue-500'
-                      : 'bg-gray-200 dark:bg-gray-700'
+                      ? 'bg-gf-accent'
+                      : 'bg-gf-raised'
                   }`}
                 />
               )}
@@ -51,12 +51,12 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                     flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold
                     transition-all duration-200 flex-shrink-0
                     ${isCompleted
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-gf-accent text-gf-inverse'
                       : isCurrent
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 dark:ring-blue-500/50'
-                        : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                        ? 'bg-gf-accent text-gf-inverse ring-2 ring-gf-accent-med'
+                        : 'bg-gf-raised text-gf-muted'
                     }
-                    ${isClickable ? 'group-hover:ring-2 group-hover:ring-blue-300 dark:group-hover:ring-blue-500/50' : ''}
+                    ${isClickable ? 'group-hover:ring-2 group-hover:ring-gf-accent-med' : ''}
                   `}
                 >
                   {isCompleted ? (
@@ -70,10 +70,10 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                 <span
                   className={`text-sm font-medium whitespace-nowrap ${
                     isCurrent
-                      ? 'text-blue-600 dark:text-blue-400'
+                      ? 'text-gf-accent'
                       : isCompleted
-                        ? 'text-gray-700 dark:text-gray-300'
-                        : 'text-gray-400 dark:text-gray-500'
+                        ? 'text-gf-body'
+                        : 'text-gf-muted'
                   }`}
                 >
                   {step.label}
@@ -98,8 +98,8 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                   <div
                     className={`h-0.5 w-6 transition-colors duration-200 ${
                       isCompleted
-                        ? 'bg-blue-500'
-                        : 'bg-gray-200 dark:bg-gray-700'
+                        ? 'bg-gf-accent'
+                        : 'bg-gf-raised'
                     }`}
                   />
                 )}
@@ -111,10 +111,10 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                     flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold
                     transition-all duration-200
                     ${isCompleted
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-gf-accent text-gf-inverse'
                       : isCurrent
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 dark:ring-blue-500/50'
-                        : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                        ? 'bg-gf-accent text-gf-inverse ring-2 ring-gf-accent-med'
+                        : 'bg-gf-raised text-gf-muted'
                     }
                   `}
                 >
@@ -130,7 +130,7 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
             );
           })}
         </div>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-xs text-gf-muted">
           {steps[currentStep - 1]?.label}
         </span>
       </div>

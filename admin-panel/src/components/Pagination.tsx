@@ -44,7 +44,7 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <nav className="flex items-center justify-between py-3" aria-label={t('pagination')}>
       <div className="hidden sm:block">
-        <p className="text-sm text-gray-700 dark:text-gray-300">
+        <p className="text-sm text-gf-body">
           {t('showingPage', { current: currentPage, total: totalPages })}
         </p>
       </div>
@@ -55,8 +55,8 @@ const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === 1}
           className={`relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium
             ${currentPage === 1 
-              ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed' 
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+              ? 'bg-gf-raised text-gf-muted cursor-not-allowed'
+              : 'bg-gf-base text-gf-body hover:bg-gf-hover'
             }`}
         >
           <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,12 +72,12 @@ const Pagination: React.FC<PaginationProps> = ({
               <button 
                 onClick={() => onPageChange(1)}
                 className={`relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium
-                  bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600`}
+                  bg-gf-base text-gf-body hover:bg-gf-hover`}
               >
                 1
               </button>
               {pageNumbers[0] > 2 && (
-                <span className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gf-muted">
                   ...
                 </span>
               )}
@@ -91,8 +91,8 @@ const Pagination: React.FC<PaginationProps> = ({
               onClick={() => onPageChange(page)}
               className={`relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium
                 ${currentPage === page
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-gf-accent text-gf-inverse'
+                  : 'bg-gf-base text-gf-body hover:bg-gf-hover'
                 }`}
             >
               {page}
@@ -103,14 +103,14 @@ const Pagination: React.FC<PaginationProps> = ({
           {pageNumbers[pageNumbers.length - 1] < totalPages && (
             <>
               {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
-                <span className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gf-muted">
                   ...
                 </span>
               )}
               <button 
                 onClick={() => onPageChange(totalPages)}
                 className={`relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium
-                  bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600`}
+                  bg-gf-base text-gf-body hover:bg-gf-hover`}
               >
                 {totalPages}
               </button>
@@ -123,8 +123,8 @@ const Pagination: React.FC<PaginationProps> = ({
           disabled={currentPage === totalPages}
           className={`relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium
             ${currentPage === totalPages 
-              ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed' 
-              : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+              ? 'bg-gf-raised text-gf-muted cursor-not-allowed'
+              : 'bg-gf-base text-gf-body hover:bg-gf-hover'
             }`}
         >
           {t('next')}

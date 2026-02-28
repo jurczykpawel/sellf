@@ -97,12 +97,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
         icon={
           userProfile ? (
             <div className="w-8 h-8 rounded-full bg-gf-accent flex items-center justify-center">
-              <span className="text-sm font-medium text-white">
+              <span className="text-sm font-medium text-gf-inverse">
                 {userProfile.user.email.charAt(0).toUpperCase()}
               </span>
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-gf-raised animate-pulse" />
           )
         }
         badge={userProfile ? 
@@ -114,7 +114,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
       <ModalBody>
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gf-accent"></div>
           </div>
         ) : error ? (
           <Message
@@ -127,52 +127,52 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
           <div className="space-y-6">
             {/* User Basic Info */}
             <ModalSection title={t('modal.accountInfo')}>
-              <div className="flex items-center space-x-4 p-4 bg-gf-accent-soft rounded-xl border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center space-x-4 p-4 bg-gf-accent-soft rounded-xl border border-gf-border">
                 <div className="flex-shrink-0 h-12 w-12">
                   <div className="h-12 w-12 rounded-full bg-gf-accent flex items-center justify-center">
-                    <span className="text-lg font-medium text-white">
+                    <span className="text-lg font-medium text-gf-inverse">
                       {userProfile.user.email.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                  <h4 className="text-lg font-semibold text-gf-heading truncate">
                     {userProfile.user.email}
                   </h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                  <p className="text-sm text-gf-muted font-mono">
                     {userProfile.user.id}
                   </p>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.joined')}</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border">
+                  <p className="text-sm text-gf-muted">{t('modal.joined')}</p>
+                  <p className="text-sm font-medium text-gf-heading">
                     {formatDate(userProfile.user.created_at)}
                   </p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.lastSignIn')}</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border">
+                  <p className="text-sm text-gf-muted">{t('modal.lastSignIn')}</p>
+                  <p className="text-sm font-medium text-gf-heading">
                     {formatDate(userProfile.user.last_sign_in_at)}
                   </p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.emailStatus')}</p>
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border">
+                  <p className="text-sm text-gf-muted">{t('modal.emailStatus')}</p>
                   <div className="flex items-center space-x-2">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                       userProfile.user.email_confirmed_at
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                        ? 'bg-gf-success-soft text-gf-success'
+                        : 'bg-gf-warning-soft text-gf-warning'
                     }`}>
                       {userProfile.user.email_confirmed_at ? t('modal.verified') : t('modal.pending')}
                     </span>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.totalValue')}</p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border">
+                  <p className="text-sm text-gf-muted">{t('modal.totalValue')}</p>
+                  <p className="text-sm font-medium text-gf-heading">
                     {formatPrice(userProfile.stats.total_value, 'USD')}
                   </p>
                 </div>
@@ -182,23 +182,23 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             {/* Activity Stats */}
             <ModalSection title={t('modal.activitySummary')}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border text-center">
+                  <div className="text-2xl font-bold text-gf-accent">
                     {userProfile.stats.total_products}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.productsAccessed')}</p>
+                  <p className="text-sm text-gf-muted">{t('modal.productsAccessed')}</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border text-center">
+                  <div className="text-2xl font-bold text-gf-success">
                     {formatPrice(userProfile.stats.total_value, 'USD')}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.totalValue')}</p>
+                  <p className="text-sm text-gf-muted">{t('modal.totalValue')}</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="bg-gf-base p-4 rounded-lg border border-gf-border text-center">
+                  <div className="text-sm font-medium text-gf-heading">
                     {formatDate(userProfile.stats.first_access_granted_at)}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('modal.firstAccess')}</p>
+                  <p className="text-sm text-gf-muted">{t('modal.firstAccess')}</p>
                 </div>
               </div>
             </ModalSection>
@@ -206,27 +206,27 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             {/* Product Access */}
             <ModalSection title={t('modal.productAccess')}>
               {userProfile.access.length > 0 ? (
-                <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                <div className="overflow-hidden border border-gf-border rounded-lg">
+                  <table className="min-w-full divide-y divide-gf-border">
+                    <thead className="bg-gf-raised">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('modal.product')}</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('modal.price')}</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('modal.status')}</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('modal.granted')}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">{t('modal.product')}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">{t('modal.price')}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">{t('modal.status')}</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gf-muted uppercase tracking-wider">{t('modal.granted')}</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-gf-deep divide-y divide-gf-border">
                       {userProfile.access.map((access) => (
-                        <tr key={access.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <tr key={access.id} className="hover:bg-gf-hover">
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex items-center">
                               <span className="text-xl mr-3">{access.product_icon}</span>
                               <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                <div className="text-sm font-medium text-gf-heading">
                                   {access.product_name}
                                 </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                                <div className="text-sm text-gf-muted font-mono">
                                   /{access.product_slug}
                                 </div>
                               </div>
@@ -234,9 +234,9 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              access.product_price === 0 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                              access.product_price === 0
+                                ? 'bg-gf-success-soft text-gf-success'
+                                : 'bg-gf-accent-soft text-gf-accent'
                             }`}>
                               {access.product_price === 0 ? t('modal.free') : formatPrice(access.product_price, access.product_currency)}
                             </span>
@@ -244,13 +244,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               access.product_is_active
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                ? 'bg-gf-success-soft text-gf-success'
+                                : 'bg-gf-danger-soft text-gf-danger'
                             }`}>
                               {access.product_is_active ? t('modal.active') : t('modal.inactive')}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gf-heading">
                             {formatDate(access.granted_at)}
                           </td>
                         </tr>
@@ -259,13 +259,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   </table>
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-                  <div className="text-gray-400 dark:text-gray-500 mb-4">
+                <div className="bg-gf-base p-8 rounded-lg border border-gf-border text-center">
+                  <div className="text-gf-muted mb-4">
                     <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-4.5" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">{t('modal.noProducts')}</p>
+                  <p className="text-gf-muted mb-4">{t('modal.noProducts')}</p>
                   <Button onClick={onManageAccess} variant="primary" size="sm">
                     {t('modal.grantAccess')}
                   </Button>

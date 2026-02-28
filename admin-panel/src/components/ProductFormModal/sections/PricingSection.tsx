@@ -29,7 +29,7 @@ export function PricingSection({
     <ModalSection title={t('visual')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gf-body mb-2">
             {t('productIcon')}
           </label>
           <IconSelector
@@ -40,7 +40,7 @@ export function PricingSection({
       </div>
 
       <div className="mt-6">
-        <label htmlFor="image_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label htmlFor="image_url" className="block text-sm font-medium text-gf-body mb-2">
           {t('imageUrl')}
         </label>
         <input
@@ -49,10 +49,10 @@ export function PricingSection({
           name="image_url"
           value={formData.image_url || ''}
           onChange={handleImageUrlChange}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
           placeholder={t('imageUrlPlaceholder')}
         />
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-xs text-gf-muted">
           {t('imageUrlHelp')}
         </p>
       </div>

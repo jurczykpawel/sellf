@@ -120,31 +120,31 @@ export default function RecentActivity() {
   const getColorClasses = (color: string) => {
     switch (color) {
       case 'green':
-        return 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+        return 'bg-gf-success-soft text-gf-success'
       case 'blue':
-        return 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+        return 'bg-gf-accent-soft text-gf-accent'
       case 'yellow':
-        return 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
+        return 'bg-gf-warning-soft text-gf-warning'
       default:
-        return 'bg-gray-100 text-gray-600 dark:bg-gray-900/20 dark:text-gray-400'
+        return 'bg-gf-raised text-gf-body'
     }
   }
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
+        <h2 className="text-xl font-semibold text-gf-heading mb-4">
           {t('recentActivity.title')}
         </h2>
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center space-x-3 animate-pulse">
-              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+              <div className="w-8 h-8 bg-gf-raised rounded-full"></div>
               <div className="flex-1">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-1"></div>
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                <div className="h-4 bg-gf-raised rounded w-3/4 mb-1"></div>
+                <div className="h-3 bg-gf-raised rounded w-1/2"></div>
               </div>
-              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+              <div className="h-3 bg-gf-raised rounded w-16"></div>
             </div>
           ))}
         </div>
@@ -153,37 +153,37 @@ export default function RecentActivity() {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
+      <h2 className="text-xl font-semibold text-gf-heading mb-4">
         {t('recentActivity.title')}
       </h2>
       <div className="space-y-3">
         {activities.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-gray-400 dark:text-gray-500 mb-2">
+            <div className="text-gf-muted mb-2">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{t('recentActivity.noActivity')}</p>
+            <p className="text-sm text-gf-muted">{t('recentActivity.noActivity')}</p>
           </div>
         ) : (
           activities.map((activity) => (
-            <div key={activity.id} className="flex items-center space-x-3 group hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-2 -m-2 transition-colors">
+            <div key={activity.id} className="flex items-center space-x-3 group hover:bg-gf-hover rounded-lg p-2 -m-2 transition-colors">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getColorClasses(activity.color)}`}>
                 {getIcon(activity.icon)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                <p className="text-sm font-medium text-gf-heading truncate">
                   {activity.message}
                 </p>
                 {activity.user_email && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p className="text-xs text-gf-muted truncate">
                     {activity.user_email}
                   </p>
                 )}
               </div>
-              <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+              <span className="text-xs text-gf-muted flex-shrink-0">
                 {formatTimeAgo(activity.timestamp)}
               </span>
             </div>

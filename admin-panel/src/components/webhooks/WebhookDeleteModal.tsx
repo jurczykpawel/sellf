@@ -34,22 +34,22 @@ export default function WebhookDeleteModal({
     <BaseModal isOpen={isOpen} onClose={onClose} size="md">
       <ModalHeader title={t('deleteTitle')} />
       <ModalBody>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gf-body">
           {t('deleteConfirm')} <br />
-          <span className="font-mono text-xs mt-2 block p-2 bg-gray-100 dark:bg-gray-900 rounded">
+          <span className="font-mono text-xs mt-2 block p-2 bg-gf-raised rounded">
             {endpoint.url}
           </span>
         </p>
 
         {showWaitlistWarning && (
-          <div data-testid="waitlist-webhook-warning" className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <div data-testid="waitlist-webhook-warning" className="mt-4 p-4 bg-gf-warning-soft border border-gf-warning/20 rounded-lg">
             <div className="flex items-start gap-3">
               <span className="text-xl">⚠️</span>
               <div>
-                <p className="font-medium text-amber-800 dark:text-amber-200">
+                <p className="font-medium text-gf-warning">
                   {t('waitlistWarning.title')}
                 </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                <p className="text-sm text-gf-warning mt-1">
                   {t('waitlistWarning.description', { count: waitlistWarning.productsCount })}
                 </p>
               </div>

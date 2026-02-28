@@ -66,14 +66,14 @@ export default function FloatingToolbar({
   return (
     <div className={`fixed ${positionClasses[position]} z-50`}>
       {/* Unified Toolbar */}
-      <div className="flex items-center gap-1 p-1 bg-white/80 dark:bg-white/10 backdrop-blur-md border border-gray-200 dark:border-white/20 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+      <div className="flex items-center gap-1 p-1 bg-gf-base/80 backdrop-blur-md border border-gf-border rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
         
         {/* Language Switcher */}
         <div className="relative">
           <button
             onClick={() => setIsLanguageOpen(!isLanguageOpen)}
             disabled={isLoading}
-            className={`flex items-center justify-center w-8 h-8 hover:bg-gray-100 dark:hover:bg-white/20 rounded-full transition-all duration-200 ${
+            className={`flex items-center justify-center w-8 h-8 hover:bg-gf-hover rounded-full transition-all duration-200 ${
               isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
             }`}
             aria-label={t('switchLanguage')}
@@ -84,7 +84,7 @@ export default function FloatingToolbar({
 
           {isLanguageOpen && (
             <>
-              <div className="absolute top-full right-0 mt-2 w-32 bg-white dark:bg-white/10 backdrop-blur-md border border-gray-200 dark:border-white/20 rounded-lg shadow-xl z-50">
+              <div className="absolute top-full right-0 mt-2 w-32 bg-gf-base backdrop-blur-md border border-gf-border rounded-lg shadow-xl z-50">
                 <div className="p-1">
                   {Object.entries(languages).map(([code, lang]) => (
                     <button
@@ -92,14 +92,14 @@ export default function FloatingToolbar({
                       onClick={() => handleLanguageChange(code)}
                       className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md transition-colors ${
                         locale === code
-                          ? 'bg-gray-100 dark:bg-white/20 text-gray-900 dark:text-white'
-                          : 'text-gray-700 dark:text-white/80 hover:bg-gray-50 dark:hover:bg-white/15 hover:text-gray-900 dark:hover:text-white'
+                          ? 'bg-gf-raised text-gf-heading'
+                          : 'text-gf-body hover:bg-gf-hover hover:text-gf-heading'
                       }`}
                     >
                       <span>{lang.flag}</span>
                       <span className="font-medium">{lang.short}</span>
                       {locale === code && (
-                        <svg className="w-3 h-3 ml-auto text-blue-500 dark:text-blue-300" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-3 h-3 ml-auto text-gf-accent" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
@@ -116,12 +116,12 @@ export default function FloatingToolbar({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-4 bg-gray-300 dark:bg-white/20" />
+        <div className="w-px h-4 bg-gf-border" />
 
         {/* Theme Toggle */}
         <button
           onClick={cycleTheme}
-          className="relative flex items-center justify-center w-8 h-8 hover:bg-gray-100 dark:hover:bg-white/20 rounded-full transition-all duration-200 hover:scale-105"
+          className="relative flex items-center justify-center w-8 h-8 hover:bg-gf-hover rounded-full transition-all duration-200 hover:scale-105"
           aria-label={t('themeLabel', { theme })}
           title={t('themeLabel', { theme })}
         >
@@ -130,7 +130,7 @@ export default function FloatingToolbar({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
             </svg>
           ) : (
-            <svg className="w-4 h-4 text-gray-500 dark:text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg className="w-4 h-4 text-gf-muted" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
             </svg>
           )}
@@ -140,7 +140,7 @@ export default function FloatingToolbar({
         </button>
 
         {/* Divider */}
-        <div className="w-px h-4 bg-gray-300 dark:bg-white/20" />
+        <div className="w-px h-4 bg-gf-border" />
 
         {/* Auth Button/Menu */}
         <div className="relative">
@@ -149,7 +149,7 @@ export default function FloatingToolbar({
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 disabled={isLoading}
-                className={`flex items-center justify-center w-8 h-8 hover:bg-gray-100 dark:hover:bg-white/20 rounded-full transition-all duration-200 ${
+                className={`flex items-center justify-center w-8 h-8 hover:bg-gf-hover rounded-full transition-all duration-200 ${
                   isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
                 }`}
                 aria-label={t('userMenu')}
@@ -164,9 +164,9 @@ export default function FloatingToolbar({
 
               {isUserMenuOpen && (
                 <>
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-white/10 backdrop-blur-md border border-gray-200 dark:border-white/20 rounded-lg shadow-xl z-50">
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-gf-base backdrop-blur-md border border-gf-border rounded-lg shadow-xl z-50">
                     <div className="py-1">
-                      <div className="px-4 py-2 text-sm text-gray-500 dark:text-white/80 border-b border-gray-200 dark:border-white/20">
+                      <div className="px-4 py-2 text-sm text-gf-muted border-b border-gf-border">
                         {user.email}
                       </div>
                       <button
@@ -174,7 +174,7 @@ export default function FloatingToolbar({
                           setIsUserMenuOpen(false)
                           router.push('/my-products')
                         }}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-white/80 hover:bg-gray-50 dark:hover:bg-white/15 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        className="block w-full text-left px-4 py-2 text-sm text-gf-body hover:bg-gf-hover hover:text-gf-heading transition-colors"
                       >
                         {t('myProducts')}
                       </button>
@@ -190,7 +190,7 @@ export default function FloatingToolbar({
                             setIsAuthLoading(false)
                           }
                         }}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-white/80 hover:bg-gray-50 dark:hover:bg-white/15 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        className="block w-full text-left px-4 py-2 text-sm text-gf-body hover:bg-gf-hover hover:text-gf-heading transition-colors"
                       >
                         {t('logout')}
                       </button>
@@ -207,19 +207,19 @@ export default function FloatingToolbar({
             <button
               onClick={handleLogin}
               disabled={isLoading}
-              className={`flex items-center justify-center w-8 h-8 hover:bg-gray-100 dark:hover:bg-white/20 rounded-full transition-all duration-200 ${
+              className={`flex items-center justify-center w-8 h-8 hover:bg-gf-hover rounded-full transition-all duration-200 ${
                 isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
               }`}
               aria-label={t('login')}
               title={t('login')}
             >
               {isLoading ? (
-                <svg className="w-3 h-3 animate-spin text-gray-400 dark:text-white/70" fill="none" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 animate-spin text-gf-muted" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               ) : (
-                <svg className="w-4 h-4 text-gray-500 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-gf-muted" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}

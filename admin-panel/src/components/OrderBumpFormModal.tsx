@@ -143,12 +143,12 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full my-8">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+      <div className="bg-gf-base rounded-xl shadow-xl max-w-2xl w-full my-8">
+        <div className="p-6 border-b border-gf-border">
+          <h2 className="text-2xl font-bold text-gf-heading">
             {editingBump ? t('edit') : t('create')}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-gf-body mt-1">
             {t('description')}
           </p>
         </div>
@@ -156,21 +156,21 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Section: Products */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 className="text-sm font-semibold text-gf-heading uppercase tracking-wider border-b border-gf-border pb-2">
               {t('form.productsConfiguration')}
             </h3>
             
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('form.mainProduct')} <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gf-body mb-2">
+                  {t('form.mainProduct')} <span className="text-gf-danger">*</span>
                 </label>
                 <select
                   value={mainProductId}
                   onChange={(e) => setMainProductId(e.target.value)}
                   disabled={!!editingBump || loadingProducts}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                  className="w-full px-4 py-2 border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading disabled:opacity-50"
                 >
                   <option value="">{t('form.selectProduct')}</option>
                   {products.map((product) => (
@@ -182,15 +182,15 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('form.bumpProduct')} <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gf-body mb-2">
+                  {t('form.bumpProduct')} <span className="text-gf-danger">*</span>
                 </label>
                 <select
                   value={bumpProductId}
                   onChange={(e) => setBumpProductId(e.target.value)}
                   disabled={loadingProducts}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                  className="w-full px-4 py-2 border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading disabled:opacity-50"
                 >
                   <option value="">{t('form.selectProduct')}</option>
                   {products
@@ -207,14 +207,14 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
 
           {/* Section: Details */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 className="text-sm font-semibold text-gf-heading uppercase tracking-wider border-b border-gf-border pb-2">
               {t('form.offerDetails')}
             </h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('form.bumpTitle')} <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gf-body mb-2">
+                  {t('form.bumpTitle')} <span className="text-gf-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -223,12 +223,12 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                   placeholder={t('form.bumpTitlePlaceholder')}
                   required
                   maxLength={255}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-2 border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gf-body mb-2">
                   {t('form.bumpDescription')}
                 </label>
                 <textarea
@@ -237,7 +237,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                   placeholder={t('form.bumpDescriptionPlaceholder')}
                   maxLength={1000}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-2 border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading"
                 />
               </div>
             </div>
@@ -245,12 +245,12 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
 
           {/* Section: Pricing & Access */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+            <h3 className="text-sm font-semibold text-gf-heading uppercase tracking-wider border-b border-gf-border pb-2">
               {t('form.pricing')}
             </h3>
 
             {selectedBumpProduct && (
-              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <div className="bg-gf-warning-soft border border-gf-warning/20 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <input
                     type="checkbox"
@@ -263,10 +263,10 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                     className="mt-1 w-5 h-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
                   />
                   <div className="flex-1">
-                    <label htmlFor="useCustomPrice" className="block text-sm font-medium text-gray-900 dark:text-white cursor-pointer">
+                    <label htmlFor="useCustomPrice" className="block text-sm font-medium text-gf-heading cursor-pointer">
                       {t('form.useSpecialPrice')}
                     </label>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gf-body mt-1">
                       {t('form.regularPrice')}: {selectedBumpProduct.price} {selectedBumpProduct.currency}
                     </p>
 
@@ -281,7 +281,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                           onChange={(e) => setBumpPrice(e.target.value)}
                           placeholder={selectedBumpProduct.price.toString()}
                           required={useCustomPrice}
-                          className="w-full px-4 py-2 border border-amber-300 dark:border-amber-700 rounded-lg focus:ring-2 focus:ring-amber-500 dark:bg-gray-700 dark:text-white"
+                          className="w-full px-4 py-2 border border-gf-warning/30 rounded-lg focus:ring-2 focus:ring-gf-warning bg-gf-input text-gf-heading"
                         />
                       </div>
                     )}
@@ -291,41 +291,41 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              <label className="block text-sm font-medium text-gf-body mb-3">
                 {t('form.accessDuration')}
               </label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div 
+                <div
                   onClick={() => { setAccessDurationType('default'); setAccessDuration(''); }}
                   className={`cursor-pointer border rounded-lg p-3 text-center transition-all ${
-                    accessDurationType === 'default' 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 border-blue-500' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 bg-white dark:bg-gray-800'
+                    accessDurationType === 'default'
+                      ? 'border-gf-accent bg-gf-accent-soft ring-1 ring-gf-accent'
+                      : 'border-gf-border hover:border-gf-accent/50 bg-gf-base'
                   }`}
                 >
-                  <div className={`text-sm font-medium ${accessDurationType === 'default' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white'}`}>{t('form.useProductDefault')}</div>
+                  <div className={`text-sm font-medium ${accessDurationType === 'default' ? 'text-gf-accent' : 'text-gf-heading'}`}>{t('form.useProductDefault')}</div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => setAccessDurationType('custom')}
                   className={`cursor-pointer border rounded-lg p-3 text-center transition-all ${
-                    accessDurationType === 'custom' 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 border-blue-500' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 bg-white dark:bg-gray-800'
+                    accessDurationType === 'custom'
+                      ? 'border-gf-accent bg-gf-accent-soft ring-1 ring-gf-accent'
+                      : 'border-gf-border hover:border-gf-accent/50 bg-gf-base'
                   }`}
                 >
-                  <div className={`text-sm font-medium ${accessDurationType === 'custom' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white'}`}>{t('form.customDuration')}</div>
+                  <div className={`text-sm font-medium ${accessDurationType === 'custom' ? 'text-gf-accent' : 'text-gf-heading'}`}>{t('form.customDuration')}</div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => { setAccessDurationType('unlimited'); setAccessDuration('0'); }}
                   className={`cursor-pointer border rounded-lg p-3 text-center transition-all ${
-                    accessDurationType === 'unlimited' 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 border-blue-500' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 bg-white dark:bg-gray-800'
+                    accessDurationType === 'unlimited'
+                      ? 'border-gf-accent bg-gf-accent-soft ring-1 ring-gf-accent'
+                      : 'border-gf-border hover:border-gf-accent/50 bg-gf-base'
                   }`}
                 >
-                  <div className={`text-sm font-medium ${accessDurationType === 'unlimited' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white'}`}>{t('form.unlimited')}</div>
+                  <div className={`text-sm font-medium ${accessDurationType === 'unlimited' ? 'text-gf-accent' : 'text-gf-heading'}`}>{t('form.unlimited')}</div>
                 </div>
               </div>
 
@@ -334,9 +334,9 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                   <input
                     type="number"
                     min="1"
-                    value={accessDuration === '0' ? '' : accessDuration} 
+                    value={accessDuration === '0' ? '' : accessDuration}
                     onChange={(e) => setAccessDuration(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-2 border border-gf-border rounded-lg focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading"
                     placeholder={t('form.accessDurationPlaceholder')}
                     required
                   />
@@ -352,27 +352,27 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
               id="isActive"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="w-5 h-5 rounded border-gf-border text-gf-accent focus:ring-gf-accent"
             />
-            <label htmlFor="isActive" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+            <label htmlFor="isActive" className="text-sm font-medium text-gf-body cursor-pointer">
               {t('form.activeLabel')}
             </label>
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gf-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-gf-body hover:bg-gf-hover rounded-lg transition-colors"
             >
               {t('form.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2 shadow-sm"
+              className="px-6 py-2 bg-gf-accent text-gf-inverse rounded-lg hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center space-x-2 shadow-sm"
             >
               {isSubmitting ? (
                 <span>{t('form.saving')}</span>

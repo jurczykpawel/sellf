@@ -33,12 +33,12 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gf-heading mb-6">
             {t('welcome', { shopName })}
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl md:text-2xl text-gf-body mb-8 max-w-2xl mx-auto leading-relaxed">
             {t('subtitle')}
           </p>
 
@@ -55,7 +55,7 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
         </div>
 
         {/* Setup Progress Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-gf-base rounded-2xl shadow-xl border border-gf-border overflow-hidden">
           {/* Card Header */}
           <div className="bg-wl-accent px-8 py-6">
             <h2 className="text-2xl font-bold text-white">
@@ -79,8 +79,8 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
                         </svg>
                       </div>
                     ) : (
-                      <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-6 h-6 bg-gf-raised rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-gf-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
@@ -89,8 +89,8 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
                   <div className="ml-4">
                     <p className={`text-lg font-medium ${
                       item.completed
-                        ? 'text-gray-900 dark:text-white'
-                        : 'text-gray-500 dark:text-gray-400'
+                        ? 'text-gf-heading'
+                        : 'text-gf-muted'
                     }`}>
                       {t(`checklist.${item.key}`)}
                     </p>
@@ -101,7 +101,7 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
           </div>
 
           {/* Quick Stats */}
-          <div className="bg-gray-50 dark:bg-gray-900/50 px-8 py-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-gf-deep px-8 py-6 border-t border-gf-border">
             <div className="flex flex-wrap justify-center gap-6 text-center">
               <div className="flex items-center">
                 <div className="w-10 h-10 bg-wl-accent-soft rounded-lg flex items-center justify-center mr-3">
@@ -110,32 +110,32 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.products', { count: 0 })}</p>
+                  <p className="text-2xl font-bold text-gf-heading">0</p>
+                  <p className="text-sm text-gf-muted">{t('stats.products', { count: 0 })}</p>
                 </div>
               </div>
 
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-10 h-10 bg-gf-accent-soft rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-5 h-5 text-gf-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.customers', { count: 0 })}</p>
+                  <p className="text-2xl font-bold text-gf-heading">0</p>
+                  <p className="text-sm text-gf-muted">{t('stats.customers', { count: 0 })}</p>
                 </div>
               </div>
 
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-10 h-10 bg-gf-success-soft rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-5 h-5 text-gf-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-lg font-bold text-green-600 dark:text-green-400">{t('stats.ready')}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('stats.status')}</p>
+                  <p className="text-lg font-bold text-gf-success">{t('stats.ready')}</p>
+                  <p className="text-sm text-gf-muted">{t('stats.status')}</p>
                 </div>
               </div>
             </div>
@@ -146,51 +146,51 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
             href="/dashboard/products"
-            className="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-wl-border-accent"
+            className="group p-6 bg-gf-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gf-border hover:border-wl-border-accent"
           >
             <div className="w-12 h-12 bg-wl-accent rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-gf-heading mb-2">
               Products
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="text-sm text-gf-body">
               Manage your product catalog
             </p>
           </Link>
 
           <Link
             href="/dashboard/settings"
-            className="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
+            className="group p-6 bg-gf-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gf-border hover:border-gf-border"
           >
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-gf-heading mb-2">
               Payments
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="text-sm text-gf-body">
               Configure Stripe integration
             </p>
           </Link>
 
           <Link
             href="/dashboard"
-            className="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600"
+            className="group p-6 bg-gf-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gf-border hover:border-gf-border"
           >
             <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-semibold text-gf-heading mb-2">
               Dashboard
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="text-sm text-gf-body">
               View analytics and insights
             </p>
           </Link>

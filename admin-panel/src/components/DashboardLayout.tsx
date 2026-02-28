@@ -177,11 +177,11 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
         onClick={() => setIsSidebarOpen(false)}
         className={`flex items-center px-3 py-2.5 rounded-lg mb-1 transition-colors duration-200 group ${
           active
-            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium'
-            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
+            ? 'bg-gf-sidebar-accent text-gf-accent font-medium'
+            : 'text-gf-sidebar-text hover:bg-gf-hover hover:text-gf-sidebar-text-active'
         }`}
       >
-        <span className={`mr-3 ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300'}`}>
+        <span className={`mr-3 ${active ? 'text-gf-accent' : 'text-gf-sidebar-text group-hover:text-gf-sidebar-text-active'}`}>
           {icon}
         </span>
         {label}
@@ -194,9 +194,9 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
   // ---------------------------------------------------------------------------
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      <div className="min-h-screen bg-gf-deep flex flex-col">
         {/* Simple Top Header for Guests */}
-        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center shadow-sm sticky top-0 z-40">
+        <header className="h-16 bg-gf-base border-b border-gf-border flex items-center shadow-sm sticky top-0 z-40">
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <div className="flex items-center">
               <Link href="/" className="flex items-center group">
@@ -214,7 +214,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
                     </svg>
                   </div>
                 )}
-                <span className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 leading-none">
+                <span className="text-xl font-extrabold text-gf-heading leading-none">
                   {shopName}
                 </span>
               </Link>
@@ -233,10 +233,10 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
                 <ThemeToggleButton size="sm" />
                 <FloatingLanguageSwitcher mode="static" variant="compact" />
               </div>
-              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden sm:block"></div>
+              <div className="h-8 w-px bg-gf-border mx-2 hidden sm:block"></div>
               <Link 
                 href="/login" 
-                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md active:scale-95"
+                className="inline-flex items-center px-4 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md active:scale-95"
               >
                 {t('login')}
               </Link>
@@ -255,10 +255,10 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
   // AUTHENTICATED LAYOUT (With Sidebar)
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="min-h-screen bg-gf-deep flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700">
+      <aside className="hidden md:flex flex-col w-64 bg-gf-sidebar-bg border-r border-gf-border h-screen sticky top-0">
+        <div className="h-16 flex items-center px-6 border-b border-gf-border">
           <Link href="/" className="flex items-center">
             {logoUrl ? (
               <img src={logoUrl} alt={shopName} className="w-8 h-8 object-contain mr-3" />
@@ -274,7 +274,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
                 </svg>
               </div>
             )}
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">
+            <span className="text-xl font-bold text-gf-heading">
               {shopName}
             </span>
           </Link>
@@ -283,7 +283,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
         <div className="flex-1 overflow-y-auto py-6 px-4">
           {user && isAdmin && (
             <div className="mb-8">
-              <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              <h3 className="px-3 text-xs font-semibold text-gf-sidebar-text uppercase tracking-wider mb-2">
                 {t('adminSection')}
               </h3>
               <nav className="space-y-0.5">
@@ -306,22 +306,22 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="p-4 border-t border-gf-border bg-gf-raised">
           <div className="flex items-center w-full">
-            <div className="w-8 h-8 rounded-full bg-gf-accent flex items-center justify-center text-white text-xs font-bold mr-3 shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-gf-accent flex items-center justify-center text-gf-inverse text-xs font-bold mr-3 shadow-sm">
               {user.email?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <p className="text-sm font-medium text-gf-heading truncate">
                 {user.email}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <p className="text-xs text-gf-muted truncate">
                 {isAdmin ? t('roleAdmin') : t('roleUser')}
               </p>
             </div>
             <button 
               onClick={handleSignOut}
-              className="ml-2 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="ml-2 p-1.5 text-gf-muted hover:text-gf-heading rounded-md hover:bg-gf-hover transition-colors"
               title={t('logout')}
             >
               {Icons.logout}
@@ -333,13 +333,13 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div 
-            className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" 
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
             onClick={() => setIsSidebarOpen(false)}
           />
-          
-          <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-2xl flex flex-col h-full transform transition-transform duration-300 ease-in-out">
-            <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700">
+
+          <div className="fixed inset-y-0 left-0 w-64 bg-gf-sidebar-bg shadow-2xl flex flex-col h-full transform transition-transform duration-300 ease-in-out">
+            <div className="h-16 flex items-center justify-between px-6 border-b border-gf-border">
               <div className="flex items-center">
                 {logoUrl ? (
                   <img src={logoUrl} alt={shopName} className="w-8 h-8 object-contain mr-3" />
@@ -355,11 +355,11 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
                     </svg>
                   </div>
                 )}
-                <span className="text-xl font-bold text-gray-900 dark:text-white">{shopName}</span>
+                <span className="text-xl font-bold text-gf-heading">{shopName}</span>
               </div>
               <button 
                 onClick={() => setIsSidebarOpen(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                className="text-gf-muted hover:text-gf-heading"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -370,27 +370,27 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
             <div className="flex-1 overflow-y-auto py-6 px-4">
               {user && isAdmin && (
                 <div className="mb-8">
-                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('adminSection')}</h3>
+                  <h3 className="px-3 text-xs font-semibold text-gf-sidebar-text uppercase tracking-wider mb-2">{t('adminSection')}</h3>
                   {adminLinks.map(link => <NavItem key={link.href} {...link} />)}
                 </div>
               )}
               <div>
-                <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('userSection')}</h3>
+                <h3 className="px-3 text-xs font-semibold text-gf-sidebar-text uppercase tracking-wider mb-2">{t('userSection')}</h3>
                 {userLinks.map(link => <NavItem key={link.href} {...link} />)}
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-t border-gf-border">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-gf-accent flex items-center justify-center text-white text-xs font-bold mr-3">
+                  <div className="w-8 h-8 rounded-full bg-gf-accent flex items-center justify-center text-gf-inverse text-xs font-bold mr-3">
                     {user?.email?.charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[120px]">
+                  <div className="text-sm font-medium text-gf-heading truncate max-w-[120px]">
                     {user?.email}
                   </div>
                 </div>
-                <button onClick={handleSignOut} className="text-gray-500">{Icons.logout}</button>
+                <button onClick={handleSignOut} className="text-gf-muted">{Icons.logout}</button>
               </div>
               <div className="flex justify-center gap-2">
                 <ThemeToggleButton size="sm" />
@@ -403,10 +403,10 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <header className="h-16 bg-gf-base border-b border-gf-border flex items-center justify-between px-4 sm:px-6 lg:px-8">
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+            className="md:hidden p-2 rounded-md text-gf-muted hover:text-gf-body hover:bg-gf-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gf-accent"
           >
             <span className="sr-only">{t('openSidebar')}</span>
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -431,7 +431,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-gf-deep p-4 sm:p-6 lg:p-8">
           <DemoBanner />
           <div className="max-w-7xl mx-auto">
             {children}

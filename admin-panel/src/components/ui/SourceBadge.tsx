@@ -11,8 +11,8 @@ interface SourceBadgeProps {
 
 const STYLES: Record<ConfigSource, string> = {
   db: 'bg-gf-accent-soft text-gf-accent',
-  env: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-  default: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
+  env: 'bg-gf-accent-soft text-gf-accent',
+  default: 'bg-gf-raised text-gf-muted',
 }
 
 export default function SourceBadge({ source, envAlsoSet }: SourceBadgeProps) {
@@ -24,7 +24,7 @@ export default function SourceBadge({ source, envAlsoSet }: SourceBadgeProps) {
         {t(source)}
       </span>
       {source === 'db' && envAlsoSet && (
-        <span className="text-[9px] text-gray-400 dark:text-gray-500">
+        <span className="text-[9px] text-gf-muted">
           ({t('overridesEnv')})
         </span>
       )}

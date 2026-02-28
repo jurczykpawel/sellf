@@ -114,7 +114,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading text-sm focus:outline-none focus:ring-2 focus:ring-gf-accent"
               >
                 <option value="all">{t('filterAll')}</option>
                 <option value="success">{t('filterSuccess')}</option>
@@ -126,10 +126,10 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
 
             {loading ? (
               <div className="flex justify-center py-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gf-accent"></div>
               </div>
             ) : logs.length === 0 ? (
-              <div className="text-center py-10 text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+              <div className="text-center py-10 text-gf-muted border border-dashed border-gf-border rounded-lg">
                 {t('noLogs')}
               </div>
             ) : (
@@ -151,7 +151,7 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
       {/* Inactive Endpoint Warning Modal - Outside BaseModal */}
       {showInactiveWarning && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+          <div className="bg-gf-base rounded-2xl shadow-2xl p-6 w-full max-w-md">
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0">
                 <svg className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -159,10 +159,10 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                <h3 className="text-lg font-bold text-gf-heading">
                   {t('inactiveEndpointWarningTitle')}
                 </h3>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                <p className="mt-2 text-sm text-gf-body">
                   {t('inactiveEndpointWarningMessage')}
                 </p>
               </div>
@@ -170,13 +170,13 @@ export default function WebhookLogsDrawer({ endpoint, onClose, isOpen, onRefresh
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={cancelInactiveRetry}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500 dark:hover:bg-gray-600"
+                className="px-4 py-2 text-sm font-medium text-gf-body bg-gf-base border border-gf-border rounded-md shadow-sm hover:bg-gf-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent"
               >
                 {tCommon('cancel')}
               </button>
               <button
                 onClick={confirmInactiveRetry}
-                className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 border border-transparent rounded-md shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                className="px-4 py-2 text-sm font-medium text-gf-inverse bg-gf-warning border border-transparent rounded-md shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-warning"
               >
                 {t('retryAnyway')}
               </button>

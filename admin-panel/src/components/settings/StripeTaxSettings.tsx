@@ -62,9 +62,9 @@ function Toggle({
       aria-checked={enabled}
       onClick={() => onChange(!enabled)}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2 focus:ring-offset-gf-base ${
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-      } ${enabled ? 'bg-gf-accent' : 'bg-gray-200 dark:bg-gray-600'}`}
+      } ${enabled ? 'bg-gf-accent' : 'bg-gf-raised'}`}
     >
       <span
         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -217,35 +217,35 @@ export default function StripeTaxSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-4 bg-gf-raised rounded w-1/4"></div>
+          <div className="h-20 bg-gf-raised rounded"></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-gf-base rounded-xl shadow-sm border border-gf-border p-6">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-semibold text-gf-heading mb-2">
             {t('title')}
           </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gf-body">
             {t('subtitle')}
           </p>
         </div>
-        <Receipt className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <Receipt className="w-8 h-8 text-gf-accent" />
       </div>
 
       {/* Status Banner */}
       {error && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div className="mb-6 bg-gf-danger-soft border border-gf-danger/20 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            <AlertCircle className="w-5 h-5 text-gf-danger mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-gf-danger">{error}</p>
           </div>
         </div>
       )}
@@ -253,14 +253,14 @@ export default function StripeTaxSettings() {
       {taxStatus && (
         <>
           {taxStatus.status === 'active' && (
-            <div className="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="mb-6 bg-gf-success-soft border border-gf-success/20 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-gf-success mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  <p className="text-sm font-medium text-gf-heading mb-1">
                     {t('status.active')}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gf-body">
                     {t('status.activeDescription')}
                   </p>
                 </div>
@@ -269,14 +269,14 @@ export default function StripeTaxSettings() {
           )}
 
           {taxStatus.status === 'pending' && (
-            <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <div className="mb-6 bg-gf-warning-soft border border-gf-warning/20 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 text-gf-warning mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  <p className="text-sm font-medium text-gf-heading mb-1">
                     {t('status.pending')}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gf-body">
                     {t('status.pendingDescription')}
                   </p>
                 </div>
@@ -285,14 +285,14 @@ export default function StripeTaxSettings() {
           )}
 
           {taxStatus.status === 'no_permission' && (
-            <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="mb-6 bg-gf-accent-soft border border-gf-accent/20 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <Info className="w-5 h-5 text-gf-accent mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  <p className="text-sm font-medium text-gf-heading mb-1">
                     {t('status.noPermission')}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gf-body">
                     {t('status.noPermissionDescription')}
                   </p>
                 </div>
@@ -301,14 +301,14 @@ export default function StripeTaxSettings() {
           )}
 
           {taxStatus.status === 'stripe_not_configured' && (
-            <div className="mb-6 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="mb-6 bg-gf-raised border border-gf-border rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 text-gf-muted mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  <p className="text-sm font-medium text-gf-heading mb-1">
                     {t('status.stripeNotConfigured')}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-gf-body">
                     {t('status.stripeNotConfiguredDescription')}
                   </p>
                 </div>
@@ -319,7 +319,7 @@ export default function StripeTaxSettings() {
           {/* Head Office */}
           {taxStatus.headOffice && taxStatus.headOffice.country && (
             <div className="mb-4">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gf-muted">
                 {t('headOffice')}:{' '}
                 {getCountryFlag(taxStatus.headOffice.country)}{' '}
                 {getCountryName(taxStatus.headOffice.country)}
@@ -332,7 +332,7 @@ export default function StripeTaxSettings() {
           {taxStatus.status !== 'stripe_not_configured' &&
             taxStatus.status !== 'no_permission' && (
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                <h3 className="text-sm font-medium text-gf-body mb-3">
                   {t('registrations')}
                 </h3>
                 {taxStatus.registrations.length > 0 ? (
@@ -340,7 +340,7 @@ export default function StripeTaxSettings() {
                     {taxStatus.registrations.map((reg) => (
                       <span
                         key={`${reg.country}-${reg.state || ''}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gf-raised text-gf-body"
                       >
                         {getCountryFlag(reg.country)}{' '}
                         {getCountryName(reg.country)}
@@ -349,7 +349,7 @@ export default function StripeTaxSettings() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-gf-muted">
                     {t('noRegistrations')}
                   </p>
                 )}
@@ -361,15 +361,15 @@ export default function StripeTaxSettings() {
       {/* Checkout Settings Toggles */}
       <div className="mb-6 space-y-0">
         {/* Automatic Tax */}
-        <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between py-3 border-t border-gf-border">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gf-heading">
                 {t('toggles.automaticTax')}
               </p>
               <SourceBadge source={sources.automatic_tax} envAlsoSet={envExists.automatic_tax} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gf-muted">
               {t('toggles.automaticTaxDescription')}
             </p>
           </div>
@@ -381,15 +381,15 @@ export default function StripeTaxSettings() {
         </div>
 
         {/* Tax ID Collection */}
-        <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between py-3 border-t border-gf-border">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gf-heading">
                 {t('toggles.taxIdCollection')}
               </p>
               <SourceBadge source={sources.tax_id_collection} envAlsoSet={envExists.tax_id_collection} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gf-muted">
               {t('toggles.taxIdCollectionDescription')}
             </p>
           </div>
@@ -401,15 +401,15 @@ export default function StripeTaxSettings() {
         </div>
 
         {/* Billing Address */}
-        <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between py-3 border-t border-gf-border">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gf-heading">
                 {t('toggles.billingAddress')}
               </p>
               <SourceBadge source={sources.billing_address_collection} envAlsoSet={envExists.billing_address_collection} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gf-muted">
               {t('toggles.billingAddressDescription')}
             </p>
           </div>
@@ -422,7 +422,7 @@ export default function StripeTaxSettings() {
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   billingAddress === value
                     ? 'bg-gf-accent text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    : 'bg-gf-raised text-gf-body hover:bg-gf-hover'
                 } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {t(`toggles.billing${value.charAt(0).toUpperCase() + value.slice(1)}`)}
@@ -432,15 +432,15 @@ export default function StripeTaxSettings() {
         </div>
 
         {/* Session Expires Hours */}
-        <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between py-3 border-t border-gf-border">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gf-heading">
                 {t('toggles.expiresHours')}
               </p>
               <SourceBadge source={sources.expires_hours} envAlsoSet={envExists.expires_hours} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gf-muted">
               {t('toggles.expiresHoursDescription')}
             </p>
           </div>
@@ -453,26 +453,26 @@ export default function StripeTaxSettings() {
               onChange={(e) => setExpiresHours(Number(e.target.value))}
               onBlur={() => handleExpiresHours(expiresHours)}
               disabled={saving}
-              className={`w-20 px-2 py-1.5 text-sm text-right rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-gf-accent focus:border-transparent ${
+              className={`w-20 px-2 py-1.5 text-sm text-right rounded-md border border-gf-border bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent ${
                 saving ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             />
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-gf-muted">
               {t('toggles.expiresHoursSuffix')}
             </span>
           </div>
         </div>
 
         {/* Terms of Service Collection */}
-        <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between py-3 border-t border-gf-border">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gf-heading">
                 {t('toggles.collectTerms')}
               </p>
               <SourceBadge source={sources.collect_terms} envAlsoSet={envExists.collect_terms} />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gf-muted">
               {t('toggles.collectTermsDescription')}
             </p>
           </div>
@@ -492,7 +492,7 @@ export default function StripeTaxSettings() {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-gf-border text-gf-body font-medium rounded-lg hover:bg-gf-hover transition-colors text-sm"
           >
             {t(`links.${link.key}`)}
             <ExternalLink className="w-4 h-4" />

@@ -22,22 +22,22 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
 
         {/* Shop Name Badge */}
         <div className="mb-6 inline-block">
-          <div className="px-6 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full border border-gray-200 dark:border-gray-700 shadow-lg">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+          <div className="px-6 py-2 bg-gf-base/80 backdrop-blur-sm rounded-full border border-gf-border shadow-lg">
+            <span className="text-sm font-medium text-gf-muted">
               {shopName}
             </span>
           </div>
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gf-heading mb-6">
           <span className="text-wl-accent">
             {t('title')}
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+        <p className="text-xl md:text-2xl text-gf-body mb-8 leading-relaxed">
           {t('subtitle')}
         </p>
 
@@ -55,8 +55,8 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
 
         {/* Contact Information */}
         {contactEmail && (
-          <div className="mt-12 p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-12 p-6 bg-gf-base/50 backdrop-blur-sm rounded-2xl border border-gf-border">
+            <p className="text-sm text-gf-muted">
               {t('contactUs', { email: contactEmail })}
             </p>
           </div>

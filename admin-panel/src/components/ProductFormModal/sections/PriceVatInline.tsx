@@ -116,7 +116,7 @@ export function PriceVatInline({
   return (
     <div>
       {/* Price input row with inline VAT controls */}
-      <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      <label htmlFor="price" className="block text-sm font-medium text-gf-body mb-2">
         {t('price')}
       </label>
       <div className="flex flex-wrap items-center gap-3">
@@ -124,7 +124,7 @@ export function PriceVatInline({
         <div className="relative rounded-lg shadow-sm w-52">
           {showCurrencyPrefix && (
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 dark:text-gray-400 text-sm">
+              <span className="text-gf-muted text-sm">
                 {getCurrencySymbol(formData.currency)}
               </span>
             </div>
@@ -137,7 +137,7 @@ export function PriceVatInline({
             value={priceDisplayValue}
             onChange={handlePriceChange}
             placeholder={!showCurrencyPrefix ? `${getCurrencySymbol(formData.currency)}` : ''}
-            className={`${showCurrencyPrefix ? 'pl-9' : 'pl-3'} pr-[4.5rem] w-full py-2 border ${fieldErrors.price ? 'border-red-500 dark:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent dark:bg-gray-700 dark:text-white`}
+            className={`${showCurrencyPrefix ? 'pl-9' : 'pl-3'} pr-[4.5rem] w-full py-2 border ${fieldErrors.price ? 'border-red-500 focus:ring-red-500' : 'border-gf-border focus:ring-gf-accent'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent bg-gf-input text-gf-heading`}
           />
           <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
             <select
@@ -145,7 +145,7 @@ export function PriceVatInline({
               name="currency"
               value={formData.currency}
               onChange={handleCurrencyChange}
-              className="h-full py-0 pl-1 pr-6 border-transparent bg-transparent text-gray-500 dark:text-gray-400 text-sm rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="h-full py-0 pl-1 pr-6 border-transparent bg-transparent text-gf-muted text-sm rounded-md focus:outline-none focus:ring-gf-accent focus:border-gf-accent"
             >
               {CURRENCIES.map(currency => (
                 <option key={currency.code} value={currency.code}>
@@ -164,9 +164,9 @@ export function PriceVatInline({
               id="price_includes_vat"
               checked={formData.price_includes_vat}
               onChange={(e) => setFormData(prev => ({ ...prev, price_includes_vat: e.target.checked }))}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
             />
-            <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+            <span className="text-sm text-gf-body whitespace-nowrap">
               {formData.price_includes_vat ? t('vatIncluded') : t('vatExcluded')}
             </span>
           </label>
@@ -185,9 +185,9 @@ export function PriceVatInline({
                 max="100"
                 step="1"
                 placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : '23'}
-                className="w-14 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-center"
+                className="w-14 px-2 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent text-sm text-center"
               />
-              <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
+              <span className="text-sm text-gf-muted">%</span>
             </div>
           )}
         </div>
@@ -196,7 +196,7 @@ export function PriceVatInline({
       {fieldErrors.price ? (
         <p className="mt-1.5 text-xs text-red-500">{t('price')} is required</p>
       ) : (
-        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1.5 text-xs text-gf-muted">
           {t('setToZeroForFree')}
         </p>
       )}
@@ -209,24 +209,24 @@ export function PriceVatInline({
             id="allow_custom_price"
             checked={formData.allow_custom_price}
             onChange={(e) => handleCustomPriceToggle(e.target.checked)}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
           />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <span className="text-sm font-medium text-gf-body">
             {t('customPricing.allowCustomPrice')}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400 w-full pl-6 sm:w-auto sm:pl-0">
+          <span className="text-xs text-gf-muted w-full pl-6 sm:w-auto sm:pl-0">
             {t('customPricing.allowCustomPriceHelp')}
           </span>
         </label>
 
         {formData.allow_custom_price && (
           <div className="mt-2 ml-6 space-y-2">
-            <p className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 rounded px-2 py-1">
+            <p className="text-xs text-gf-accent bg-gf-accent-soft rounded px-2 py-1">
               {t('customPricing.suggestedPriceHint')}
             </p>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-600 dark:text-gray-400">{t('customPricing.minimumPrice')}</span>
+              <span className="text-xs text-gf-body">{t('customPricing.minimumPrice')}</span>
               <input
                 type="number"
                 id="custom_price_min"
@@ -234,7 +234,7 @@ export function PriceVatInline({
                 onChange={handleMinPriceChange}
                 min="0"
                 step="0.10"
-                className="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                className="w-16 px-2 py-1 border border-gf-border rounded text-sm focus:ring-2 focus:ring-gf-accent focus:border-transparent bg-gf-input text-gf-heading"
               />
               <span className="text-xs text-gray-400">
                 {formData.custom_price_min === 0
@@ -250,9 +250,9 @@ export function PriceVatInline({
                   id="show_price_presets"
                   checked={formData.show_price_presets}
                   onChange={(e) => setFormData(prev => ({ ...prev, show_price_presets: e.target.checked }))}
-                  className="h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-3.5 w-3.5 text-gf-accent focus:ring-gf-accent border-gf-border rounded"
                 />
-                <span className="text-xs text-gray-700 dark:text-gray-300">{t('customPricing.showPresets')}</span>
+                <span className="text-xs text-gf-body">{t('customPricing.showPresets')}</span>
               </label>
               {formData.show_price_presets && [0, 1, 2].map((index) => (
                 <input
@@ -263,7 +263,7 @@ export function PriceVatInline({
                   min="0"
                   step="1"
                   placeholder="0"
-                  className="w-14 px-1.5 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-center focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-14 px-1.5 py-1 border border-gf-border rounded text-sm text-center focus:ring-2 focus:ring-gf-accent focus:border-transparent bg-gf-input text-gf-heading"
                 />
               ))}
               {formData.show_price_presets && (
