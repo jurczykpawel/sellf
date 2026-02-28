@@ -8,6 +8,7 @@ import PaymentMethodSettingsWrapper from '@/components/settings/PaymentMethodSet
 import OmnibusSettings from '@/components/settings/OmnibusSettings';
 import LegalDocumentsSettings from '@/components/settings/LegalDocumentsSettings';
 import LicenseSettings from '@/components/settings/LicenseSettings';
+import SystemUpdateSettings from '@/components/settings/SystemUpdateSettings';
 import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 
@@ -43,6 +44,8 @@ export default async function SettingsPage() {
       <PaymentMethodSettingsWrapper />
 
       <LicenseSettings />
+
+      <SystemUpdateSettings />
     </div>
   );
 }

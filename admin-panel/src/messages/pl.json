@@ -3091,5 +3091,43 @@
       "analytics": "Analityka",
       "marketing": "Marketing"
     }
+  },
+  "systemUpdate": {
+    "modal": {
+      "title": "Dostępna nowa wersja: v{version}",
+      "currentVersion": "Obecna wersja: v{version}",
+      "published": "Opublikowana {date}",
+      "whatsNew": "Co nowego:",
+      "backupWarning": "Zalecamy wykonanie backupu bazy danych przed aktualizacją.",
+      "upgradeNow": "Aktualizuj teraz",
+      "remindLater": "Przypomnij później"
+    },
+    "progress": {
+      "title": "Aktualizacja do v{version}",
+      "starting": "Rozpoczynanie aktualizacji...",
+      "done": "Aktualizacja zakończona!",
+      "failed": "Aktualizacja nie powiodła się",
+      "rolledBack": "Poprzednia wersja została automatycznie przywrócona.",
+      "doNotClose": "Nie zamykaj tej strony podczas aktualizacji.",
+      "reload": "Odśwież stronę",
+      "close": "Zamknij"
+    },
+    "steps": {
+      "checking": "Sprawdzanie najnowszej wersji",
+      "downloading": "Pobieranie nowej wersji",
+      "backingUp": "Tworzenie backupu",
+      "extracting": "Rozpakowywanie plików",
+      "migrating": "Migracje bazy danych",
+      "restarting": "Restart serwera"
+    },
+    "settings": {
+      "title": "Aktualizacja systemu",
+      "currentVersion": "Obecna wersja",
+      "checkForUpdates": "Sprawdź aktualizacje",
+      "checking": "Sprawdzanie...",
+      "upToDate": "Posiadasz najnowszą wersję.",
+      "updateAvailable": "Dostępna wersja {version}.",
+      "upgradeNow": "Aktualizuj teraz"
+    }
   }
 }

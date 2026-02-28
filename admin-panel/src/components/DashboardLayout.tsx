@@ -9,6 +9,8 @@ import FloatingLanguageSwitcher from './FloatingLanguageSwitcher'
 import ThemeToggleButton from './ThemeToggleButton'
 import type { ShopConfig } from '@/lib/actions/shop-config'
 import DemoBanner from './DemoBanner'
+import { useUpdateCheck } from '@/hooks/useUpdateCheck'
+import UpdateNotificationModal from './UpdateNotificationModal'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -129,6 +131,9 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
 
   // Use prop if provided (from server), otherwise fallback to context (client)
   const isAdmin = isAdminProp !== undefined ? isAdminProp : isAdminContext
+
+  // Auto-check for updates (admin only, with smart caching)
+  const updateCheck = useUpdateCheck(!!isAdmin)
 
   // Extract branding from shop config
   const shopName = shopConfig?.shop_name || 'Sellf'
@@ -433,6 +438,17 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
           </div>
         </main>
       </div>
+
+      {/* Update notification modal (auto-shown when update available) */}
+      {(updateCheck.showModal || updateCheck.upgradeInProgress) && updateCheck.updateInfo && (
+        <UpdateNotificationModal
+          updateInfo={updateCheck.updateInfo}
+          upgradeInProgress={updateCheck.upgradeInProgress}
+          upgradeProgress={updateCheck.upgradeProgress}
+          onUpgrade={updateCheck.startUpgrade}
+          onDismiss={updateCheck.dismissUpdate}
+        />
+      )}
     </div>
   )
 }

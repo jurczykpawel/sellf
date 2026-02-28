@@ -3076,5 +3076,43 @@
       "analytics": "Analytics",
       "marketing": "Marketing"
     }
+  },
+  "systemUpdate": {
+    "modal": {
+      "title": "New version available: v{version}",
+      "currentVersion": "Current version: v{version}",
+      "published": "Published {date}",
+      "whatsNew": "What's new:",
+      "backupWarning": "We recommend backing up your database before upgrading.",
+      "upgradeNow": "Upgrade now",
+      "remindLater": "Remind me later"
+    },
+    "progress": {
+      "title": "Upgrading to v{version}",
+      "starting": "Initiating upgrade...",
+      "done": "Upgrade complete!",
+      "failed": "Upgrade failed",
+      "rolledBack": "The previous version has been automatically restored.",
+      "doNotClose": "Do not close this page during the upgrade.",
+      "reload": "Reload page",
+      "close": "Close"
+    },
+    "steps": {
+      "checking": "Checking latest release",
+      "downloading": "Downloading new version",
+      "backingUp": "Creating backup",
+      "extracting": "Extracting files",
+      "migrating": "Running database migrations",
+      "restarting": "Restarting server"
+    },
+    "settings": {
+      "title": "System Update",
+      "currentVersion": "Current version",
+      "checkForUpdates": "Check for updates",
+      "checking": "Checking...",
+      "upToDate": "You are running the latest version.",
+      "updateAvailable": "Version {version} is available.",
+      "upgradeNow": "Upgrade now"
+    }
   }
 }
