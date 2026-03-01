@@ -10,10 +10,10 @@ import { resolve } from 'path';
  * Allowed exception: Yahoo email provider brand color in LoginForm.
  *
  * Instead of maintaining a shadow copy of forbidden colors, this test reads the
- * production globals.css to verify the gf/wl token system is in place, then
+ * production globals.css to verify the sf-* token system is in place, then
  * scans rendered pages for legacy purple/pink Tailwind classes.
  *
- * @see src/app/globals.css for the gf/wl CSS custom properties
+ * @see src/app/globals.css for the sf-* CSS custom properties
  * @see src/lib/themes/index.ts for the theme token system
  */
 
@@ -98,7 +98,7 @@ test.describe('Color Migration — No Hardcoded Purple/Pink', () => {
     await cleanup();
   });
 
-  test('globals.css uses sf-*/wl-* token system (no purple/pink hex)', () => {
+  test('globals.css uses sf-* token system (no purple/pink hex)', () => {
     // Read the actual production CSS to verify the token system is in place
     const globalsPath = resolve(__dirname, '../src/app/globals.css');
     const css = readFileSync(globalsPath, 'utf-8');
@@ -106,11 +106,9 @@ test.describe('Color Migration — No Hardcoded Purple/Pink', () => {
     // Verify the design token system exists in production CSS
     expect(css).toContain('--sf-accent');
     expect(css).toContain('--sf-bg-deep');
-    expect(css).toContain('--wl-accent');
-    expect(css).toContain('--wl-bg-deep');
 
     // Verify no old purple/pink hex colors are defined as CSS custom properties
-    // These are the legacy colors that were replaced by the sf-*/wl-* tokens
+    // These are the legacy colors that were replaced by the sf-* tokens
     const purplePinkHexPattern = /#(?:9333ea|ec4899|8b5cf6|a855f7|d946ef)\b/gi;
     const hexMatches = css.match(purplePinkHexPattern);
     expect(

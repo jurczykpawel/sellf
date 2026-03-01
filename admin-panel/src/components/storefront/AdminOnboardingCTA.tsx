@@ -19,14 +19,14 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
   ];
 
   return (
-    <div data-testid="admin-onboarding" className="min-h-screen bg-wl-deep flex items-center justify-center px-4 py-12">
+    <div data-testid="admin-onboarding" className="min-h-screen bg-sf-deep flex items-center justify-center px-4 py-12">
       <div className="max-w-4xl w-full">
         {/* Hero Section */}
         <div className="text-center mb-12">
           {/* Welcome Badge */}
           <div className="mb-6 inline-block">
-            <div className="px-6 py-2 bg-wl-accent-soft backdrop-blur-sm rounded-full border border-wl-border-accent">
-              <span className="text-sm font-medium text-wl-accent">
+            <div className="px-6 py-2 bg-sf-accent-soft backdrop-blur-sm rounded-full border border-sf-border-accent">
+              <span className="text-sm font-medium text-sf-accent">
                 Admin Panel
               </span>
             </div>
@@ -45,7 +45,7 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
           {/* Main CTA Button */}
           <Link
             href="/dashboard/products?open=new"
-            className="inline-flex items-center px-8 py-4 border border-transparent rounded-full text-lg font-medium text-white bg-wl-accent hover:bg-wl-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wl-accent transition-all duration-200 shadow-[var(--sf-shadow-accent)] active:scale-[0.98]"
+            className="inline-flex items-center px-8 py-4 border border-transparent rounded-full text-lg font-medium text-white bg-sf-accent hover:bg-sf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sf-accent transition-all duration-200 shadow-[var(--sf-shadow-accent)] active:scale-[0.98]"
           >
             <svg className="-ml-1 mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -57,7 +57,7 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
         {/* Setup Progress Card */}
         <div className="bg-sf-base rounded-2xl shadow-[var(--sf-shadow-accent)] border border-sf-border overflow-hidden">
           {/* Card Header */}
-          <div className="bg-wl-accent px-8 py-6">
+          <div className="bg-sf-accent px-8 py-6">
             <h2 className="text-2xl font-bold text-white">
               Setup Progress
             </h2>
@@ -104,8 +104,8 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
           <div className="bg-sf-deep px-8 py-6 border-t border-sf-border">
             <div className="flex flex-wrap justify-center gap-6 text-center">
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-wl-accent-soft rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-wl-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-10 h-10 bg-sf-accent-soft rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-5 h-5 text-sf-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
@@ -146,9 +146,9 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
             href="/dashboard/products"
-            className="group p-6 bg-sf-base rounded-2xl transition-all duration-300 border border-sf-border hover:border-wl-border-accent"
+            className="group p-6 bg-sf-base rounded-2xl transition-all duration-300 border border-sf-border hover:border-sf-border-accent"
           >
-            <div className="w-12 h-12 bg-wl-accent rounded-xl flex items-center justify-center mb-4">
+            <div className="w-12 h-12 bg-sf-accent rounded-xl flex items-center justify-center mb-4">
               <svg className="w-6 h-6 text-sf-heading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
@@ -198,9 +198,9 @@ export default function AdminOnboardingCTA({ shopName, shopEmail }: AdminOnboard
 
         {/* Decorative Background */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-wl-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-wl-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-wl-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sf-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-sf-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-sf-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
         </div>
       </div>
 

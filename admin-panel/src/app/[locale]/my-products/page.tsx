@@ -140,7 +140,7 @@ export default function MyProductsPage() {
             <p className="text-sf-body mb-6">{error}</p>
             <button 
               onClick={fetchProductsData} 
-              className="px-6 py-3 bg-wl-accent hover:bg-wl-accent-hover text-white rounded-full transition-colors active:scale-[0.98]"
+              className="px-6 py-3 bg-sf-accent hover:bg-sf-accent-hover text-white rounded-full transition-colors active:scale-[0.98]"
             >
               {t('tryAgain')}
             </button>
@@ -159,7 +159,7 @@ export default function MyProductsPage() {
             <p className="text-sf-body mb-6">{t('pleaseLoginToSeeProducts')}</p>
             <Link
               href="/login"
-              className="inline-flex items-center px-6 py-3 border border-transparent rounded-full text-base font-medium text-white bg-wl-accent hover:bg-wl-accent-hover active:scale-[0.98]"
+              className="inline-flex items-center px-6 py-3 border border-transparent rounded-full text-base font-medium text-white bg-sf-accent hover:bg-sf-accent-hover active:scale-[0.98]"
             >
               {t('login')}
             </Link>
@@ -205,7 +205,7 @@ export default function MyProductsPage() {
           </h3>
           <div className="flex items-center mt-1">
             {product.price > 0 ? (
-               <div className="flex items-center px-2 py-1 bg-wl-accent-soft border border-wl-border-accent rounded-full">
+               <div className="flex items-center px-2 py-1 bg-sf-accent-soft border border-sf-border-accent rounded-full">
                 <svg className="w-3 h-3 text-sf-accent mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                 </svg>
@@ -232,7 +232,7 @@ export default function MyProductsPage() {
 
       <Link
         href={`/p/${product.slug}`}
-        className={`block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] ${accessible ? 'bg-sf-success hover:bg-sf-success/90 text-sf-inverse' : 'bg-wl-accent hover:bg-wl-accent-hover text-white'}`}
+        className={`block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] ${accessible ? 'bg-sf-success hover:bg-sf-success/90 text-sf-inverse' : 'bg-sf-accent hover:bg-sf-accent-hover text-white'}`}
       >
         {accessible ? t('launchProduct') : t('viewProduct')}
       </Link>

@@ -88,7 +88,7 @@ export default function VariantSelectorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-wl-deep flex items-center justify-center">
+      <div className="min-h-screen bg-sf-deep flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent"></div>
       </div>
     );
@@ -96,7 +96,7 @@ export default function VariantSelectorPage() {
 
   if (error || variants.length === 0) {
     return (
-      <div className="min-h-screen bg-wl-deep flex items-center justify-center">
+      <div className="min-h-screen bg-sf-deep flex items-center justify-center">
         <div className="bg-sf-base rounded-2xl shadow-[var(--sf-shadow-accent)] p-8 max-w-md mx-4">
           <div className="text-center">
             <div className="text-6xl mb-4">😕</div>
@@ -116,7 +116,7 @@ export default function VariantSelectorPage() {
   const productName = variants[0]?.name || 'Product';
 
   return (
-    <div className="min-h-screen bg-wl-deep py-12 px-4">
+    <div className="min-h-screen bg-sf-deep py-12 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
@@ -138,15 +138,15 @@ export default function VariantSelectorPage() {
                 relative bg-sf-base rounded-2xl shadow-[var(--sf-shadow-accent)]
                 transition-all duration-300 cursor-pointer border-2
                 ${variant.is_featured
-                  ? 'border-sf-accent ring-2 ring-wl-accent-soft'
-                  : 'border-transparent hover:border-wl-border-accent'
+                  ? 'border-sf-accent ring-2 ring-sf-accent-soft'
+                  : 'border-transparent hover:border-sf-border-accent'
                 }
               `}
             >
               {/* Featured badge */}
               {variant.is_featured && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-wl-accent text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider shadow-[var(--sf-shadow-accent)]">
+                  <span className="bg-sf-accent text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider shadow-[var(--sf-shadow-accent)]">
                     {t('popular', { defaultValue: 'Most Popular' })}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ export default function VariantSelectorPage() {
                     className={`
                       px-6 py-2.5 rounded-full font-semibold transition-all duration-200 active:scale-[0.98]
                       ${variant.is_featured
-                        ? 'bg-wl-accent text-white hover:bg-wl-accent-hover shadow-[var(--sf-shadow-accent)]'
+                        ? 'bg-sf-accent text-white hover:bg-sf-accent-hover shadow-[var(--sf-shadow-accent)]'
                         : 'bg-sf-raised text-sf-heading hover:bg-sf-hover'
                       }
                     `}

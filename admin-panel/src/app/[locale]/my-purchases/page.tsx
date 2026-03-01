@@ -222,7 +222,7 @@ export default function MyPurchasesPage() {
         {/* Header */}
         <header className="relative pt-10 pb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-sf-heading mb-4">
-            <span className="text-wl-accent">
+            <span className="text-sf-accent">
               {t('title', { defaultValue: 'My Purchases' })}
             </span>
           </h1>
@@ -266,7 +266,7 @@ export default function MyPurchasesPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-wl-accent">
+                      <div className="text-lg font-bold text-sf-accent">
                         {formatPrice(purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                       </div>
                       {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
@@ -317,7 +317,7 @@ export default function MyPurchasesPage() {
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-wl-accent"
+                  className="w-full px-3 py-2 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent"
                   placeholder={t('refundReasonPlaceholder', { defaultValue: 'Tell us why you want a refund...' })}
                 />
               </div>

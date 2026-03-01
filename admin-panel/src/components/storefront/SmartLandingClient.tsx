@@ -24,7 +24,7 @@ export default function SmartLandingClient({
   // Show loading spinner while auth is loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-wl-deep flex items-center justify-center">
+      <div className="min-h-screen bg-sf-deep flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent"></div>
       </div>
     );

@@ -118,7 +118,7 @@ export default function OtoOfferSection({
             ? 'bg-sf-danger-soft border-sf-danger animate-pulse'
             : isWarning
               ? 'bg-sf-warning-soft border-sf-warning'
-              : 'bg-wl-accent-soft border-wl-border-accent'
+              : 'bg-sf-accent-soft border-sf-border-accent'
           }
         `}
       >
@@ -131,7 +131,7 @@ export default function OtoOfferSection({
             <div className="flex items-center gap-3">
               <div className={`
                 flex items-center justify-center w-12 h-12 rounded-full
-                ${isUrgent ? 'bg-sf-danger-bg' : isWarning ? 'bg-sf-warning' : 'bg-wl-accent'}
+                ${isUrgent ? 'bg-sf-danger-bg' : isWarning ? 'bg-sf-warning' : 'bg-sf-accent'}
                 text-white
               `}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +140,7 @@ export default function OtoOfferSection({
               </div>
               <div>
                 <p className="text-sm text-sf-body">{t('exclusiveOffer')}</p>
-                <p className={`text-lg font-bold ${isUrgent ? 'text-sf-danger' : isWarning ? 'text-sf-warning' : 'text-wl-accent'}`}>
+                <p className={`text-lg font-bold ${isUrgent ? 'text-sf-danger' : isWarning ? 'text-sf-warning' : 'text-sf-accent'}`}>
                   {t('saveAmount', { amount: formatDiscount(otoOffer.discountType, otoOffer.discountValue, otoOffer.currency) })}
                 </p>
               </div>
@@ -155,7 +155,7 @@ export default function OtoOfferSection({
                   ? 'bg-sf-danger-bg text-sf-inverse'
                   : isWarning
                     ? 'bg-sf-warning text-sf-inverse'
-                    : 'bg-wl-accent text-white'
+                    : 'bg-sf-accent text-white'
                 }
               `}>
                 {formatTime(secondsRemaining)}
@@ -182,7 +182,7 @@ export default function OtoOfferSection({
                   ? 'bg-sf-danger-bg hover:bg-sf-danger/90'
                   : isWarning
                     ? 'bg-sf-warning hover:bg-sf-warning/90'
-                    : 'bg-wl-accent hover:bg-wl-accent-hover'
+                    : 'bg-sf-accent hover:bg-sf-accent-hover'
                 }
                 active:scale-[0.98]
               `}

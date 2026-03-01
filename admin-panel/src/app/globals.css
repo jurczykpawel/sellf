@@ -16,7 +16,7 @@
   --sf-bg-input: #0B1120;
 
   --sf-accent: #0078BB;
-  --sf-accent-bg: #0078BB;
+  --sf-accent-bg: var(--sf-accent);
   --sf-accent-soft: rgba(0,120,187,0.10);
   --sf-accent-med: rgba(0,120,187,0.22);
   --sf-accent-hover: #2090D0;
@@ -39,7 +39,7 @@
   --sf-warning: #F59E0B;
   --sf-warning-soft: rgba(245,158,11,0.10);
   --sf-danger: #EF4444;
-  --sf-danger-bg: #EF4444;
+  --sf-danger-bg: var(--sf-danger);
   --sf-danger-soft: rgba(239,68,68,0.10);
   --sf-info: #F97316;
   --sf-info-soft: rgba(249,115,22,0.10);
@@ -68,6 +68,17 @@
   --sf-duration-fast: 150ms;
   --sf-duration-normal: 250ms;
   --sf-duration-slow: 400ms;
+
+  /* Typography defaults (overridable by theme) */
+  --sf-font-family: inherit;
+  --sf-font-heading-weight: 700;
+  --sf-font-body-weight: 400;
+
+  /* Shape defaults (overridable by theme) */
+  --sf-radius-sm: 6px;
+  --sf-radius-md: 12px;
+  --sf-radius-lg: 16px;
+  --sf-radius-full: 9999px;
 }
 
 /* Light mode overrides — when .dark is NOT on <html>, landing uses these */
@@ -81,7 +92,7 @@
   --sf-bg-input: #ffffff;
 
   --sf-accent: #006AAB;
-  --sf-accent-bg: #006AAB;
+  --sf-accent-bg: var(--sf-accent);
   --sf-accent-soft: rgba(0,106,171,0.08);
   --sf-accent-med: rgba(0,106,171,0.15);
   --sf-accent-hover: #005C8F;
@@ -100,10 +111,10 @@
   --sf-warning: #92400E;
   --sf-warning-soft: rgba(146,64,14,0.12);
   --sf-danger: #991B1B;
-  --sf-danger-bg: #991B1B;
+  --sf-danger-bg: var(--sf-danger);
   --sf-danger-soft: rgba(153,27,27,0.12);
-  --sf-info: #EA580C;
-  --sf-info-soft: rgba(234,88,12,0.10);
+  --sf-info: #B93F0B;
+  --sf-info-soft: rgba(185,63,11,0.10);
 
   --sf-sidebar-bg: #f8fafc;
   --sf-sidebar-text: #5b6578;
@@ -121,7 +132,7 @@
   /* Tailwind v4 @theme color overrides for light mode
      (needed because @theme resolves var() at build time, not runtime) */
   --color-sf-accent: #006AAB;
-  --color-sf-accent-bg: #006AAB;
+  --color-sf-accent-bg: var(--color-sf-accent);
   --color-sf-accent-soft: rgba(0,106,171,0.08);
   --color-sf-accent-med: rgba(0,106,171,0.15);
   --color-sf-accent-hover: #005C8F;
@@ -131,7 +142,7 @@
   --color-sf-warning: #92400E;
   --color-sf-warning-soft: rgba(146,64,14,0.12);
   --color-sf-danger: #991B1B;
-  --color-sf-danger-bg: #991B1B;
+  --color-sf-danger-bg: var(--color-sf-danger);
   --color-sf-danger-soft: rgba(153,27,27,0.12);
   --color-sf-heading: #0B1120;
   --color-sf-body: #3E5068;
@@ -149,48 +160,16 @@
   --color-sf-border-subtle: rgba(0,0,0,0.06);
   --color-sf-border-medium: rgba(0,0,0,0.12);
   --color-sf-border-strong: rgba(0,0,0,0.20);
-  --color-sf-info: #EA580C;
-  --color-sf-info-soft: rgba(234,88,12,0.10);
+  --color-sf-info: #B93F0B;
+  --color-sf-info-soft: rgba(185,63,11,0.10);
   --color-sf-sidebar-bg: #f8fafc;
   --color-sf-sidebar-text: #5b6578;
   --color-sf-sidebar-text-active: #0b1120;
   --color-sf-sidebar-accent: rgba(0,106,171,0.08);
 }
 
-/* ===== Whitelabel Tokens — default to Sellf brand, overridden by theme ===== */
-:root {
-  --wl-accent: var(--sf-accent);
-  --wl-accent-hover: var(--sf-accent-hover);
-  --wl-accent-soft: var(--sf-accent-soft);
-  --wl-accent-med: var(--sf-accent-med);
-  --wl-accent-glow: var(--sf-accent-glow);
-  --wl-bg-deep: var(--sf-bg-deep);
-  --wl-bg-base: var(--sf-bg-base);
-  --wl-bg-raised: var(--sf-bg-raised);
-  --wl-bg-float: var(--sf-bg-float);
-  --wl-text-heading: var(--sf-text-heading);
-  --wl-text-body: var(--sf-text-body);
-  --wl-text-muted: var(--sf-text-muted);
-  --wl-border: var(--sf-border);
-  --wl-border-accent: var(--sf-border-accent);
-  --wl-success: var(--sf-success);
-  --wl-warning: var(--sf-warning);
-  --wl-danger: var(--sf-danger);
-  --wl-info: var(--sf-info);
-  --wl-shadow: var(--sf-shadow);
-  --wl-shadow-accent: var(--sf-shadow-accent);
-  --wl-font-family: inherit;
-  --wl-font-heading-weight: 700;
-  --wl-font-body-weight: 400;
-  --wl-radius-sm: 6px;
-  --wl-radius-md: 12px;
-  --wl-radius-lg: 16px;
-  --wl-radius-full: 9999px;
-}
-
-/* Tailwind v4 theme tokens — enables bg-sf-deep, text-sf-accent, bg-wl-accent, etc. */
+/* Tailwind v4 theme tokens — enables bg-sf-deep, text-sf-accent, etc. */
 @theme {
-  /* Sellf brand tokens (admin panel) */
   --color-sf-deep: var(--sf-bg-deep);
   --color-sf-base: var(--sf-bg-base);
   --color-sf-raised: var(--sf-bg-raised);
@@ -226,29 +205,6 @@
   --color-sf-border-subtle: var(--sf-border-subtle);
   --color-sf-border-medium: var(--sf-border-medium);
   --color-sf-border-strong: var(--sf-border-strong);
-
-  /* Whitelabel tokens (public pages — customizable via theme) */
-  --color-wl-accent: var(--wl-accent);
-  --color-wl-accent-hover: var(--wl-accent-hover);
-  --color-wl-accent-soft: var(--wl-accent-soft);
-  --color-wl-accent-med: var(--wl-accent-med);
-  --color-wl-accent-glow: var(--wl-accent-glow);
-  --color-wl-deep: var(--wl-bg-deep);
-  --color-wl-base: var(--wl-bg-base);
-  --color-wl-raised: var(--wl-bg-raised);
-  --color-wl-float: var(--wl-bg-float);
-  --color-wl-heading: var(--wl-text-heading);
-  --color-wl-body: var(--wl-text-body);
-  --color-wl-muted: var(--wl-text-muted);
-  --color-wl-border: var(--wl-border);
-  --color-wl-border-accent: var(--wl-border-accent);
-  --color-wl-success: var(--wl-success);
-  --color-wl-warning: var(--wl-warning);
-  --color-wl-danger: var(--wl-danger);
-  --radius-wl-sm: var(--wl-radius-sm);
-  --radius-wl-md: var(--wl-radius-md);
-  --radius-wl-lg: var(--wl-radius-lg);
-  --radius-wl-full: var(--wl-radius-full);
 }
 
 /* Sidebar layout — desktop margin for fixed sidebar */

@@ -1,7 +1,7 @@
 /**
  * Theme system — type definitions, Zod schema, and preset loader.
- * Themes are JSON configs that map to CSS custom properties (--wl-*).
- * @see globals.css for the --wl-* variable definitions
+ * Themes are JSON configs that map to CSS custom properties (--sf-*).
+ * @see globals.css for the --sf-* variable definitions
  * @see components/providers/whitelabel-provider.tsx for CSS injection
  */
 
@@ -95,52 +95,70 @@ export function getPresetById(id: string): ThemeConfig | null {
 
 // ===== CSS VARIABLE MAPPING =====
 
-/** Maps theme JSON keys to CSS custom property names */
+/**
+ * Maps theme JSON color key to --sf-* and --color-sf-* CSS variable pairs.
+ * The --sf-* variable is used by direct var() references in CSS.
+ * The --color-sf-* variable is used by Tailwind v4 utility classes (bg-sf-*, text-sf-*, etc.).
+ * Both must be set as inline styles to override :root and :root:not(.dark) declarations.
+ */
+const COLOR_MAP: Record<string, { sf: string; color?: string; alsoSet?: { sf: string; color?: string }[] }> = {
+  accent:          { sf: '--sf-accent',        color: '--color-sf-accent',        alsoSet: [{ sf: '--sf-accent-bg', color: '--color-sf-accent-bg' }] },
+  'accent-hover':  { sf: '--sf-accent-hover',  color: '--color-sf-accent-hover'  },
+  'accent-soft':   { sf: '--sf-accent-soft',   color: '--color-sf-accent-soft'   },
+  'accent-med':    { sf: '--sf-accent-med',    color: '--color-sf-accent-med'    },
+  'accent-glow':   { sf: '--sf-accent-glow',   color: '--color-sf-accent-glow'   },
+  'bg-deep':       { sf: '--sf-bg-deep',       color: '--color-sf-deep'          },
+  'bg-base':       { sf: '--sf-bg-base',       color: '--color-sf-base'          },
+  'bg-raised':     { sf: '--sf-bg-raised',     color: '--color-sf-raised'        },
+  'bg-float':      { sf: '--sf-bg-float',      color: '--color-sf-float'         },
+  'text-heading':  { sf: '--sf-text-heading',  color: '--color-sf-heading'       },
+  'text-body':     { sf: '--sf-text-body',     color: '--color-sf-body'          },
+  'text-muted':    { sf: '--sf-text-muted',    color: '--color-sf-muted'         },
+  border:          { sf: '--sf-border',         color: '--color-sf-border'        },
+  'border-accent': { sf: '--sf-border-accent', color: '--color-sf-border-accent' },
+  success:         { sf: '--sf-success',        color: '--color-sf-success'       },
+  warning:         { sf: '--sf-warning',        color: '--color-sf-warning'       },
+  danger:          { sf: '--sf-danger',         color: '--color-sf-danger',       alsoSet: [{ sf: '--sf-danger-bg', color: '--color-sf-danger-bg' }] },
+};
+
+/** Maps theme JSON keys to --sf-* CSS custom properties (+ --color-sf-* for Tailwind v4) */
 export function themeToCSS(theme: ThemeConfig, isDark: boolean): Record<string, string> {
   const vars: Record<string, string> = {};
 
   const colors = isDark ? theme.colors : { ...theme.colors, ...theme['colors-light'] };
 
   for (const [key, value] of Object.entries(colors)) {
-    if (value) vars[`--wl-${key.startsWith('bg-') || key.startsWith('text-') ? key : key}`] = value;
-  }
+    if (!value) continue;
+    const mapping = COLOR_MAP[key];
+    if (!mapping) continue;
 
-  // Map color keys to proper CSS variable names
-  if (colors.accent) vars['--wl-accent'] = colors.accent;
-  if (colors['accent-hover']) vars['--wl-accent-hover'] = colors['accent-hover'];
-  if (colors['accent-soft']) vars['--wl-accent-soft'] = colors['accent-soft'];
-  if (colors['accent-med']) vars['--wl-accent-med'] = colors['accent-med'];
-  if (colors['accent-glow']) vars['--wl-accent-glow'] = colors['accent-glow'];
-  if (colors['bg-deep']) vars['--wl-bg-deep'] = colors['bg-deep'];
-  if (colors['bg-base']) vars['--wl-bg-base'] = colors['bg-base'];
-  if (colors['bg-raised']) vars['--wl-bg-raised'] = colors['bg-raised'];
-  if (colors['bg-float']) vars['--wl-bg-float'] = colors['bg-float'];
-  if (colors['text-heading']) vars['--wl-text-heading'] = colors['text-heading'];
-  if (colors['text-body']) vars['--wl-text-body'] = colors['text-body'];
-  if (colors['text-muted']) vars['--wl-text-muted'] = colors['text-muted'];
-  if (colors.border) vars['--wl-border'] = colors.border;
-  if (colors['border-accent']) vars['--wl-border-accent'] = colors['border-accent'];
-  if (colors.success) vars['--wl-success'] = colors.success;
-  if (colors.warning) vars['--wl-warning'] = colors.warning;
-  if (colors.danger) vars['--wl-danger'] = colors.danger;
+    vars[mapping.sf] = value;
+    if (mapping.color) vars[mapping.color] = value;
+    if (mapping.alsoSet) {
+      for (const alias of mapping.alsoSet) {
+        vars[alias.sf] = value;
+        if (alias.color) vars[alias.color] = value;
+      }
+    }
+  }
 
   if (theme.typography) {
     const t = theme.typography;
-    if (t['font-family']) vars['--wl-font-family'] = t['font-family'];
-    if (t['font-heading-weight']) vars['--wl-font-heading-weight'] = t['font-heading-weight'];
-    if (t['font-body-weight']) vars['--wl-font-body-weight'] = t['font-body-weight'];
-    if (t['font-size-base']) vars['--wl-font-size-base'] = t['font-size-base'];
-    if (t['letter-spacing-heading']) vars['--wl-letter-spacing-heading'] = t['letter-spacing-heading'];
+    if (t['font-family']) vars['--sf-font-family'] = t['font-family'];
+    if (t['font-heading-weight']) vars['--sf-font-heading-weight'] = t['font-heading-weight'];
+    if (t['font-body-weight']) vars['--sf-font-body-weight'] = t['font-body-weight'];
+    if (t['font-size-base']) vars['--sf-font-size-base'] = t['font-size-base'];
+    if (t['letter-spacing-heading']) vars['--sf-letter-spacing-heading'] = t['letter-spacing-heading'];
   }
 
   if (theme.shapes) {
     const s = theme.shapes;
-    if (s['radius-sm']) vars['--wl-radius-sm'] = s['radius-sm'];
-    if (s['radius-md']) vars['--wl-radius-md'] = s['radius-md'];
-    if (s['radius-lg']) vars['--wl-radius-lg'] = s['radius-lg'];
-    if (s['radius-full']) vars['--wl-radius-full'] = s['radius-full'];
-    if (s.shadow) vars['--wl-shadow'] = s.shadow;
-    if (s['shadow-accent']) vars['--wl-shadow-accent'] = s['shadow-accent'];
+    if (s['radius-sm']) vars['--sf-radius-sm'] = s['radius-sm'];
+    if (s['radius-md']) vars['--sf-radius-md'] = s['radius-md'];
+    if (s['radius-lg']) vars['--sf-radius-lg'] = s['radius-lg'];
+    if (s['radius-full']) vars['--sf-radius-full'] = s['radius-full'];
+    if (s.shadow) vars['--sf-shadow'] = s.shadow;
+    if (s['shadow-accent']) vars['--sf-shadow-accent'] = s['shadow-accent'];
   }
 
   return vars;

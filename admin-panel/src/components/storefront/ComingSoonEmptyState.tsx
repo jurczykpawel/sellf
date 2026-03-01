@@ -11,7 +11,7 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
   const t = useTranslations('storefront.comingSoon');
 
   return (
-    <div data-testid="coming-soon" className="min-h-screen bg-wl-deep flex items-center justify-center px-4 py-12">
+    <div data-testid="coming-soon" className="min-h-screen bg-sf-deep flex items-center justify-center px-4 py-12">
       <div className="max-w-2xl w-full text-center">
         {/* Animated Rocket */}
         <div className="mb-8 flex justify-center">
@@ -31,7 +31,7 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
 
         {/* Title */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-sf-heading mb-6">
-          <span className="text-wl-accent">
+          <span className="text-sf-accent">
             {t('title')}
           </span>
         </h1>
@@ -45,7 +45,7 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
         <div className="mb-12">
           <a 
             href="/about" 
-            className="inline-flex items-center px-6 py-3 rounded-full bg-wl-accent-soft text-wl-accent font-bold hover:bg-wl-accent-soft transition-all group border border-wl-border-accent"
+            className="inline-flex items-center px-6 py-3 rounded-full bg-sf-accent-soft text-sf-accent font-bold hover:bg-sf-accent-soft transition-all group border border-sf-border-accent"
           >
             <span className="mr-2">🚀</span>
             {t('learnMore')}
@@ -64,9 +64,9 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
 
         {/* Decorative Elements */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-wl-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-wl-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-wl-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sf-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-sf-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-sf-accent-soft rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
         </div>
       </div>
 

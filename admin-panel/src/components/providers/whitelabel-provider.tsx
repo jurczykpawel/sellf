@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * WhitelabelProvider — injects theme CSS custom properties on public pages.
+ * WhitelabelProvider — injects theme CSS custom properties (--sf-* + --color-sf-*).
  * Receives pre-validated theme data from server components.
  * Only applies overrides when license is valid AND a theme is configured.
  * @see lib/themes/index.ts for themeToCSS mapping

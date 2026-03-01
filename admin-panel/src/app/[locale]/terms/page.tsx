@@ -40,7 +40,7 @@ export default async function TermsPage() {
 
   // Fallback content if no URL is configured
   return (
-    <div className="min-h-screen bg-wl-deep py-12">
+    <div className="min-h-screen bg-sf-deep py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-sf-raised/80 backdrop-blur-sm rounded-2xl p-8 shadow-[var(--sf-shadow-accent)] border border-sf-border">
           <div className="text-center mb-8">
@@ -53,9 +53,9 @@ export default async function TermsPage() {
               <h2 className="text-xl font-semibold text-sf-heading mb-3">{t('configRequired')}</h2>
               <p>{t('configDescription')}</p>
 
-              <div className="mt-4 p-4 bg-wl-accent-soft border border-wl-border-accent rounded-xl">
-                <p className="text-wl-accent font-medium">{t('option1Title')}</p>
-                <p className="text-wl-accent text-sm mt-2">{t('option1Description')}</p>
+              <div className="mt-4 p-4 bg-sf-accent-soft border border-sf-border-accent rounded-xl">
+                <p className="text-sf-accent font-medium">{t('option1Title')}</p>
+                <p className="text-sf-accent text-sm mt-2">{t('option1Description')}</p>
               </div>
 
               <div className="mt-4 p-4 bg-sf-accent-soft border border-sf-accent/30 rounded-xl">
