@@ -64,9 +64,9 @@ INSERT INTO shop_config (
   'Sellf Demo Shop',
   0.23, -- 23% VAT (Polish default)
   NULL, -- Upload logo to imgbb.com
-  '#9333ea', -- purple-600
-  '#ec4899', -- pink-600
-  '#8b5cf6', -- violet-500
+  NULL, -- uses var(--sf-accent) fallback
+  NULL, -- uses var(--sf-accent-hover) fallback
+  NULL, -- uses var(--sf-accent) fallback
   'system',
   '{}'::jsonb
 )

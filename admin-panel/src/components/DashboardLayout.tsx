@@ -164,8 +164,8 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
   // Extract branding from shop config
   const shopName = shopConfig?.shop_name || 'Sellf'
   const logoUrl = shopConfig?.logo_url
-  const primaryColor = shopConfig?.primary_color || '#00AAFF'
-  const secondaryColor = shopConfig?.secondary_color || '#33BBFF'
+  const primaryColor = shopConfig?.primary_color || 'var(--sf-accent)'
+  const secondaryColor = shopConfig?.secondary_color || 'var(--sf-accent-hover)'
 
   const handleSignOut = async () => {
     await signOut()
