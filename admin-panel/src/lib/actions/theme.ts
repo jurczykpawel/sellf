@@ -12,6 +12,7 @@ import { revalidatePath } from 'next/cache';
 import { themeConfigSchema, THEME_PRESETS, getPresetById } from '@/lib/themes';
 import { createPublicClient } from '@/lib/supabase/server';
 import { validateLicense } from '@/lib/license/verify';
+import { isDemoMode } from '@/lib/demo-guard';
 import type { ThemeConfig, ThemePreset } from '@/lib/themes';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -38,6 +39,12 @@ export async function getActiveTheme(): Promise<ThemeConfig | null> {
 // ===== WRITE =====
 
 export async function saveActiveTheme(theme: ThemeConfig): Promise<{ success: boolean; error?: string }> {
+  // Server-side license gate (demo mode bypasses)
+  const licensed = await checkThemeLicense();
+  if (!licensed) {
+    return { success: false, error: 'Valid Sellf Pro license required to save themes' };
+  }
+
   try {
     const result = themeConfigSchema.safeParse(theme);
     if (!result.success) {
@@ -68,6 +75,11 @@ export async function applyPreset(presetId: string): Promise<{ success: boolean;
 // ===== DELETE =====
 
 export async function removeActiveTheme(): Promise<{ success: boolean; error?: string }> {
+  const licensed = await checkThemeLicense();
+  if (!licensed) {
+    return { success: false, error: 'Valid Sellf Pro license required' };
+  }
+
   try {
     await fs.unlink(ACTIVE_THEME_PATH);
     revalidatePath('/', 'layout');
@@ -91,6 +103,9 @@ export async function getThemePresets(): Promise<ThemePreset[]> {
 // ===== LICENSE CHECK =====
 
 export async function checkThemeLicense(): Promise<boolean> {
+  // In demo mode, unlock PRO features so visitors can test theme editing
+  if (isDemoMode()) return true;
+
   try {
     const supabase = await createPublicClient();
     const { data } = await supabase

@@ -30,6 +30,9 @@ export const loadThemeData = cache(async (): Promise<ThemeData> => {
 });
 
 async function checkLicenseValidity(): Promise<boolean> {
+  // In demo mode, unlock PRO features (theme application) for visitors
+  if (process.env.DEMO_MODE === 'true') return true;
+
   try {
     const supabase = await createPublicClient();
     const { data } = await supabase

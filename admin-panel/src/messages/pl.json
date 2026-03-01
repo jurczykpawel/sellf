@@ -135,6 +135,8 @@
     "error": "Błąd",
     "success": "Sukces",
     "cancel": "Anuluj",
+    "startDate": "Data początkowa",
+    "endDate": "Data końcowa",
     "save": "Zapisz",
     "delete": "Usuń",
     "edit": "Edytuj",
@@ -2276,7 +2278,9 @@
       "previewStatus": "Kolory statusów",
       "themeNamePlaceholder": "Mój motyw",
       "fontFamilyPlaceholder": "Montserrat, system-ui, sans-serif",
-      "letterSpacingPlaceholder": "-0.02em"
+      "letterSpacingPlaceholder": "-0.02em",
+      "demoProTitle": "Edytor motywów — Funkcja PRO",
+      "demoProDesc": "To jest płatna funkcja, odblokowana za darmo w trybie demo. Edytuj motywy, wybieraj presety i podglądaj zmiany na żywo."
     },
     "checkoutTheme": {
       "title": "Motyw strony",

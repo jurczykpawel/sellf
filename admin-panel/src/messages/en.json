@@ -134,6 +134,8 @@
     "edit": "Edit",
     "create": "Create",
     "close": "Close",
+    "startDate": "Start date",
+    "endDate": "End date",
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
@@ -2261,7 +2263,9 @@
       "previewStatus": "Status colors",
       "themeNamePlaceholder": "My Custom Theme",
       "fontFamilyPlaceholder": "Montserrat, system-ui, sans-serif",
-      "letterSpacingPlaceholder": "-0.02em"
+      "letterSpacingPlaceholder": "-0.02em",
+      "demoProTitle": "Theme Editor — PRO Feature",
+      "demoProDesc": "This is a paid feature, unlocked for free in demo mode. Edit themes, pick presets, and see changes live."
     },
     "checkoutTheme": {
       "title": "Site Theme",

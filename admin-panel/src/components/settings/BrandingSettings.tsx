@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/contexts/ToastContext';
+import { useConfig } from '@/components/providers/config-provider';
 import {
  getActiveTheme,
  saveActiveTheme,
@@ -76,6 +77,7 @@ function ColorField({
 export default function BrandingSettings() {
  const t = useTranslations('settings.branding');
  const { addToast } = useToast();
+ const { demoMode } = useConfig();
 
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
@@ -293,8 +295,26 @@ export default function BrandingSettings() {
 
  return (
  <div className="space-y-6">
+ {/* Demo PRO Badge */}
+ {demoMode && (
+ <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20">
+ <svg className="w-5 h-5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+ <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+ </svg>
+ <div>
+ <p className="text-sm font-medium text-blue-400">
+ <span className="inline-flex items-center gap-1.5">
+ {t('demoProTitle')}
+ <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300">PRO</span>
+ </span>
+ </p>
+ <p className="text-xs text-blue-400/80">{t('demoProDesc')}</p>
+ </div>
+ </div>
+ )}
+
  {/* License Badge */}
- {!licenseValid && (
+ {!licenseValid && !demoMode && (
  <div className="flex items-center gap-3 p-4 bg-sf-warning-soft border border-sf-warning/20">
  <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
