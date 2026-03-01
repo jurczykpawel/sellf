@@ -331,7 +331,7 @@ export function ContentDeliverySection({
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="px-3 py-1 text-sm bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover"
+                className="px-3 py-1 text-sm bg-gf-accent-bg text-white hover:bg-gf-accent-hover"
               >
                 {t('addContentItem')}
               </button>

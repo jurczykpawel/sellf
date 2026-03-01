@@ -492,7 +492,7 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                           disabled={!formData.facebook_capi_token}
                           className="w-4 h-4 text-gf-accent rounded border-gf-border focus:ring-gf-accent disabled:opacity-50"
                         />
-                        <label htmlFor="fb_capi_enabled" className={`text-sm font-medium ${!formData.facebook_capi_token ? 'text-gray-400' : 'text-gf-body'}`}>
+                        <label htmlFor="fb_capi_enabled" className={`text-sm font-medium ${!formData.facebook_capi_token ? 'text-gf-muted' : 'text-gf-body'}`}>
                           {t('facebook.enableCAPI')}
                         </label>
                       </div>
@@ -585,7 +585,7 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                        className="w-4 h-4 mt-0.5 text-amber-600 rounded border-gray-300 focus:ring-amber-500 disabled:opacity-50"
                      />
                      <div className="flex-1">
-                       <label htmlFor="send_conversions_without_consent" className={`text-sm font-medium ${!formData.fb_capi_enabled ? 'text-gray-400' : 'text-gf-heading'}`}>
+                       <label htmlFor="send_conversions_without_consent" className={`text-sm font-medium ${!formData.fb_capi_enabled ? 'text-gf-muted' : 'text-gf-heading'}`}>
                          {t('consent.sendConversionsWithoutConsent')}
                        </label>
                        <p className="mt-1 text-xs text-gf-body">
@@ -611,7 +611,7 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
 
             {!['scripts', 'currency', 'gus'].includes(activeTab) && (
                 <div className="mt-6 border-t pt-4 flex justify-end">
-                    <button type="submit" disabled={loading} className="px-4 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse">{loading ? t('messages.saving') : t('saveConfig')}</button>
+                    <button type="submit" disabled={loading} className="px-4 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white">{loading ? t('messages.saving') : t('saveConfig')}</button>
                 </div>
             )}
           </form>
@@ -722,7 +722,7 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
 
                 <div className="flex justify-end gap-3 pt-2">
                     <button onClick={() => setIsScriptModalOpen(false)} className="px-4 py-2 text-gf-body hover:bg-gf-hover rounded">{t('scripts.modal.cancel')}</button>
-                    <button onClick={handleAddScript} disabled={loading} className="px-4 py-2 bg-gf-accent text-gf-inverse rounded hover:bg-gf-accent-hover">{t('scripts.modal.add')}</button>
+                    <button onClick={handleAddScript} disabled={loading} className="px-4 py-2 bg-gf-accent-bg text-white rounded hover:bg-gf-accent-hover">{t('scripts.modal.add')}</button>
                 </div>
             </div>
         </div>

@@ -191,7 +191,7 @@ const VariantsPageContent: React.FC = () => {
               setEditingGroup(null);
               setShowFormModal(true);
             }}
-            className="px-4 py-2 bg-gf-accent text-white hover:bg-gf-accent-hover transition-colors flex items-center space-x-2"
+            className="px-4 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors flex items-center space-x-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -268,7 +268,7 @@ const VariantsPageContent: React.FC = () => {
           <div className="bg-gf-base border-2 border-gf-border-medium p-12">
             <div className="text-center">
               <div className="w-16 h-16 bg-gf-raised flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-gf-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
@@ -283,7 +283,7 @@ const VariantsPageContent: React.FC = () => {
                   setEditingGroup(null);
                   setShowFormModal(true);
                 }}
-                className="px-4 py-2 bg-gf-accent text-white hover:bg-gf-accent-hover transition-colors"
+                className="px-4 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors"
               >
                 {t('createGroup')}
               </button>
@@ -411,7 +411,7 @@ const VariantsPageContent: React.FC = () => {
                         className={`p-1.5 transition-colors ${
                           item.is_featured
                             ? 'text-yellow-500 hover:text-yellow-600'
-                            : 'text-gray-400 hover:text-yellow-500'
+                            : 'text-gf-muted hover:text-yellow-500'
                         }`}
                         title={item.is_featured ? t('removeFeatured') : t('setFeatured')}
                       >

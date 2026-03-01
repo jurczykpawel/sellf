@@ -99,7 +99,7 @@ export function HeroSection() {
         >
           <Link
             href="#deployment"
-            className="group inline-flex items-center gap-2 bg-gf-accent hover:bg-gf-accent-hover text-white rounded-full px-8 py-4 text-lg font-bold transition-[background-color,transform,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
+            className="group inline-flex items-center gap-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white rounded-full px-8 py-4 text-lg font-bold transition-[background-color,transform,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
           >
             {t('hero.ctaDeploy')}
             <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />

@@ -421,7 +421,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
               {showSellfCTA && (
                 <Link
                   href="/about"
-                  className="hidden sm:inline-flex items-center px-4 py-2 bg-gf-accent text-white text-xs font-bold hover:bg-gf-accent-hover transition-all"
+                  className="hidden sm:inline-flex items-center px-4 py-2 bg-gf-accent-bg text-white text-xs font-bold hover:bg-gf-accent-hover transition-all"
                 >
                   <span className="mr-1.5">🚀</span>
                   {t('getSellf', { defaultValue: 'Get Sellf' })}
@@ -434,7 +434,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
               <div className="h-8 w-px bg-gf-border mx-2 hidden sm:block"></div>
               <Link
                 href="/login"
-                className="inline-flex items-center px-4 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse text-sm font-semibold transition-all hover:active:scale-95"
+                className="inline-flex items-center px-4 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white text-sm font-semibold transition-all hover:active:scale-95"
               >
                 {t('login')}
               </Link>
@@ -534,7 +534,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
             {showSellfCTA && (
               <Link
                 href="/about"
-                className="hidden sm:inline-flex items-center px-4 py-2 bg-gf-accent text-white text-xs font-bold hover:bg-gf-accent-hover transition-all"
+                className="hidden sm:inline-flex items-center px-4 py-2 bg-gf-accent-bg text-white text-xs font-bold hover:bg-gf-accent-hover transition-all"
               >
                 <span className="mr-1.5">🚀</span>
                 {t('getSellf', { defaultValue: 'Get Sellf' })}

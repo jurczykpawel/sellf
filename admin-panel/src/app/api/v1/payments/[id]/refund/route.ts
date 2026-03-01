@@ -206,6 +206,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Revoke product access after successful refund
+    let accessRevocationFailed = false;
+
     if (payment.user_id && payment.product_id) {
       const { error: revokeError } = await adminClient
         .from('user_product_access')
@@ -214,7 +216,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .eq('product_id', payment.product_id);
 
       if (revokeError) {
-        console.error('Warning: Failed to revoke product access after refund:', revokeError);
+        console.error('[refund] Failed to revoke product access:', revokeError);
+        accessRevocationFailed = true;
       }
     }
 
@@ -226,7 +229,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .eq('session_id', payment.session_id);
 
       if (guestRevokeError) {
-        console.error('Warning: Failed to revoke guest purchase after refund:', guestRevokeError);
+        console.error('[refund] Failed to revoke guest purchase:', guestRevokeError);
+        accessRevocationFailed = true;
       }
     }
 
@@ -241,6 +245,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         amount: stripeRefund.amount,
         reason: reason || null,
         via_api: true,
+        access_revocation_failed: accessRevocationFailed,
       },
       created_at: new Date().toISOString(),
     });
@@ -258,6 +263,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         payment_status: newStatus,
         total_refunded: totalRefunded,
         created_at: new Date().toISOString(),
+        ...(accessRevocationFailed && {
+          warning: 'Refund processed but access revocation failed. Remove user access manually.',
+        }),
       }),
       request
     );

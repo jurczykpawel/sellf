@@ -134,7 +134,7 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
               className={clsx(
                 'px-3 py-2 cursor-pointer text-sm',
                 index === highlightedIndex
-                  ? 'bg-gf-accent text-gf-inverse'
+                  ? 'bg-gf-accent-bg text-white'
                   : 'hover:bg-gf-hover text-gf-heading'
               )}
               onMouseEnter={() => setHighlightedIndex(index)}

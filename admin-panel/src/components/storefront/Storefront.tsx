@@ -65,8 +65,8 @@ export default function Storefront({
             ].join(', '),
           }}
         />
-        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.06]" />
-        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-gf-accent rounded-full filter blur-3xl opacity-[0.04]" />
+        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-gf-accent-bg rounded-full filter blur-3xl opacity-[0.06]" />
+        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-gf-accent-bg rounded-full filter blur-3xl opacity-[0.04]" />
       </div>
 
       {/* Hero Section - Dynamic based on product mix */}
@@ -76,7 +76,7 @@ export default function Storefront({
             {/* Shop name badge with pulse effect */}
             <div className="mb-8 inline-block group">
               <div className="relative">
-                <div className="absolute -inset-1 bg-gf-accent rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
+                <div className="absolute -inset-1 bg-gf-accent-bg rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
                 <div className="relative px-8 py-3 bg-gf-raised backdrop-blur-xl border border-gf-border rounded-full">
                   <span className="text-lg font-semibold text-gf-accent">
                     {shopName}
@@ -135,8 +135,8 @@ export default function Storefront({
             <div className="flex flex-wrap justify-center gap-4 mt-12">
               <div className="flex items-center gap-3 px-6 py-3 bg-gf-raised/80 backdrop-blur-xl border border-gf-border rounded-full group hover:bg-gf-hover transition-all duration-300">
                 <div className="relative">
-                  <div className="absolute -inset-1 bg-gf-accent rounded-full blur opacity-25 group-hover:opacity-75 transition duration-300"></div>
-                  <div className="relative w-8 h-8 bg-gf-accent rounded-full flex items-center justify-center">
+                  <div className="absolute -inset-1 bg-gf-accent-bg rounded-full blur opacity-25 group-hover:opacity-75 transition duration-300"></div>
+                  <div className="relative w-8 h-8 bg-gf-accent-bg rounded-full flex items-center justify-center">
                     <span className="text-gf-heading font-bold text-sm">{products.length}</span>
                   </div>
                 </div>
@@ -205,7 +205,7 @@ export default function Storefront({
                       isHero ? 'md:col-span-2 md:row-span-2' : ''
                     }`}
                   >
-                    <div className="absolute -inset-0.5 bg-gf-accent rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
+                    <div className="absolute -inset-0.5 bg-gf-accent-bg rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
                     <div className="relative h-full bg-gf-raised backdrop-blur-xl border border-gf-border rounded-2xl p-6 md:p-8 hover:border-gf-border-accent transition-all duration-300 flex flex-col">
                       {/* Badges */}
                       <div className="flex flex-wrap gap-2 mb-4">
@@ -269,8 +269,8 @@ export default function Storefront({
                           href={`/p/${product.slug}`}
                           className={`block w-full text-center font-bold ${isHero ? 'py-5 text-lg' : 'py-4'} px-6 rounded-full transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)] ${
                             product.price === 0
-                              ? 'bg-gf-success hover:bg-gf-success/90 text-gf-heading'
-                              : 'bg-gf-accent hover:bg-gf-accent-hover text-gf-heading'
+                              ? 'bg-gf-success hover:bg-gf-success/90 text-gf-inverse'
+                              : 'bg-gf-accent-bg hover:bg-gf-accent-hover text-white'
                           }`}
                         >
                           {product.price === 0 ? t('product.getFreeAccessIcon') : t('product.getAccessNowIcon')}
@@ -341,7 +341,7 @@ export default function Storefront({
 
                       <Link
                         href={`/p/${product.slug}`}
-                        className="block w-full text-center font-bold py-3 px-6 rounded-full bg-gf-success hover:bg-gf-success/90 text-gf-heading transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)]"
+                        className="block w-full text-center font-bold py-3 px-6 rounded-full bg-gf-success hover:bg-gf-success/90 text-gf-inverse transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)]"
                       >
                         {t('product.getFreeAccess')}
                       </Link>
@@ -399,7 +399,7 @@ export default function Storefront({
 
                 return (
                   <div key={product.id} className="group relative">
-                    <div className="absolute -inset-0.5 bg-gf-accent rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
+                    <div className="absolute -inset-0.5 bg-gf-accent-bg rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
                     <div className="relative h-full bg-gf-raised backdrop-blur-xl border border-gf-border rounded-2xl p-6 hover:border-gf-border-accent transition-all duration-300 flex flex-col">
                       {/* Badges */}
                       <div className="flex flex-wrap gap-2 mb-4">
@@ -445,7 +445,7 @@ export default function Storefront({
 
                         <Link
                           href={`/p/${product.slug}`}
-                          className="block w-full text-center font-bold py-3 px-6 rounded-full bg-gf-accent hover:bg-gf-accent-hover text-gf-heading transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)]"
+                          className="block w-full text-center font-bold py-3 px-6 rounded-full bg-gf-accent-bg hover:bg-gf-accent-hover text-white transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)]"
                         >
                           {t('product.getAccessNow')}
                         </Link>
@@ -477,7 +477,7 @@ export default function Storefront({
       <section className="relative py-32 px-4 sm:px-6 lg:px-8 z-10">
         <div className="max-w-4xl mx-auto text-center">
           <div className="relative">
-            <div className="absolute -inset-4 bg-gf-accent rounded-2xl blur-2xl opacity-20"></div>
+            <div className="absolute -inset-4 bg-gf-accent-bg rounded-2xl blur-2xl opacity-20"></div>
             <div className="relative bg-gf-base/90 backdrop-blur-2xl border border-gf-border rounded-2xl p-12 md:p-16 shadow-[var(--gf-shadow-accent)]">
               <h2 className="text-4xl md:text-5xl font-bold text-gf-heading mb-6">
                 {isFreeOnly && t('cta.freeOnly.title')}
@@ -492,7 +492,7 @@ export default function Storefront({
 
               <a
                 href="#products"
-                className="inline-flex items-center gap-3 px-10 py-5 bg-gf-accent hover:bg-gf-accent-hover text-gf-heading rounded-full font-bold text-lg transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)]"
+                className="inline-flex items-center gap-3 px-10 py-5 bg-gf-accent-bg hover:bg-gf-accent-hover text-white rounded-full font-bold text-lg transition-all duration-300 active:scale-[0.98] shadow-[var(--gf-shadow-accent)]"
                 onClick={(e) => {
                   e.preventDefault();
                   document.getElementById('products')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

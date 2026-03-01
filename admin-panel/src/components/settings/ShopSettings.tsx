@@ -102,10 +102,11 @@ export default function ShopSettings() {
  <form onSubmit={handleSubmit} className="space-y-6">
  {/* Shop Name */}
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="shop-name" className="block text-sm font-medium text-gf-body mb-2">
  {t('shopName')}
  </label>
  <input
+ id="shop-name"
  type="text"
  value={formData.shop_name}
  onChange={(e) => setFormData({ ...formData, shop_name: e.target.value })}
@@ -117,13 +118,14 @@ export default function ShopSettings() {
 
  {/* Default Currency */}
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="shop-currency" className="block text-sm font-medium text-gf-body mb-2">
  {t('defaultCurrency')}
  <span className="block text-xs text-gf-muted font-normal mt-1">
  {t('defaultCurrencyHelp')}
  </span>
  </label>
  <select
+ id="shop-currency"
  value={formData.default_currency}
  onChange={(e) => setFormData({ ...formData, default_currency: e.target.value })}
  className="w-full px-4 py-2 border-2 border-gf-border-medium bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent"
@@ -138,10 +140,11 @@ export default function ShopSettings() {
 
  {/* Contact Email */}
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="shop-contact-email" className="block text-sm font-medium text-gf-body mb-2">
  {t('contactEmail')}
  </label>
  <input
+ id="shop-contact-email"
  type="email"
  value={formData.contact_email}
  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
@@ -152,7 +155,7 @@ export default function ShopSettings() {
 
  {/* Tax Rate */}
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="shop-tax-rate" className="block text-sm font-medium text-gf-body mb-2">
  {t('taxRate')}
  <span className="block text-xs text-gf-muted font-normal mt-1">
  {t('taxRateHelp')}
@@ -160,6 +163,7 @@ export default function ShopSettings() {
  </label>
  <div className="flex items-center gap-2">
  <input
+ id="shop-tax-rate"
  type="number"
  step="1"
  min="0"
@@ -178,7 +182,7 @@ export default function ShopSettings() {
  <button
  type="submit"
  disabled={saving}
- className="px-6 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+ className="px-6 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  {saving ? t('saving') : t('saveButton')}
  </button>

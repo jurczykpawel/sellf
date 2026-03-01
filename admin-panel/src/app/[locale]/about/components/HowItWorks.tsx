@@ -55,7 +55,7 @@ export async function HowItWorks() {
                   <div className="relative flex items-start gap-6 md:gap-0">
                     {/* Mobile node */}
                     <div className="md:hidden relative z-10 flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-gf-accent flex items-center justify-center shadow-[var(--gf-shadow-accent)]">
+                      <div className="w-12 h-12 rounded-full bg-gf-accent-bg flex items-center justify-center shadow-[var(--gf-shadow-accent)]">
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                     </div>
@@ -90,7 +90,7 @@ export async function HowItWorks() {
 
                     {/* Desktop center node */}
                     <div className="hidden md:flex md:w-16 md:justify-center relative z-10 flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-gf-accent flex items-center justify-center shadow-[var(--gf-shadow-accent)]">
+                      <div className="w-12 h-12 rounded-full bg-gf-accent-bg flex items-center justify-center shadow-[var(--gf-shadow-accent)]">
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                     </div>

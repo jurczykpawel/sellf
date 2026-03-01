@@ -118,6 +118,7 @@ export default function CurrencySelector() {
           onMouseLeave={() => setShowTooltip(false)}
           className="p-1 text-gf-muted hover:text-gf-body transition-colors"
           type="button"
+          aria-label={tCurrency('dashboardInfo')}
         >
           <Info className="w-4 h-4" />
         </button>

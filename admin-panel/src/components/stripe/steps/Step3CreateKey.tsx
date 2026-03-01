@@ -87,7 +87,7 @@ export function Step3CreateKey() {
             href={stripeDashboardUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gf-accent text-gf-inverse font-semibold hover:bg-gf-accent-hover transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gf-accent-bg text-white font-semibold hover:bg-gf-accent-hover transition-colors"
           >
             {t('openDashboard.button', { defaultValue: 'Open Stripe' })}
             <ExternalLink className="w-4 h-4" />
@@ -257,7 +257,7 @@ export function Step3CreateKey() {
 
         <button
           onClick={nextStep}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-gf-accent text-gf-inverse font-semibold hover:bg-gf-accent-hover transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-gf-accent-bg text-white font-semibold hover:bg-gf-accent-hover transition-colors"
         >
           {t('nextButton', { defaultValue: "I've Created the Key" })}
           <ArrowRight className="w-4 h-4" />

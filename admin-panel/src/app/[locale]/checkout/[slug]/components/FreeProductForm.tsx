@@ -269,7 +269,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
               captchaLoading || // Disable when captcha is loading
               (!user && (!email || !termsAccepted || (process.env.NODE_ENV === 'production' && !captchaToken)))
             }
-            className="w-full bg-gf-success hover:bg-gf-success/90 disabled:bg-gf-muted/30 disabled:cursor-not-allowed text-gf-heading font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gf-success focus:ring-offset-2 active:scale-[0.98]"
+            className="w-full bg-gf-success hover:bg-gf-success/90 disabled:bg-gf-muted/30 disabled:cursor-not-allowed text-gf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gf-success focus:ring-offset-2 active:scale-[0.98]"
           >
             {loading || captchaLoading ? (
               <div className="flex items-center justify-center">

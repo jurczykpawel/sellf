@@ -62,7 +62,7 @@ export async function UseCases() {
                     <ul className="space-y-2">
                       {(['feature1', 'feature2', 'feature3'] as const).map((feature) => (
                         <li key={feature} className="flex items-center gap-2 text-sm text-gf-body">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gf-accent shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-gf-accent-bg shrink-0" />
                           {t(`useCases.${useCase.key}.${feature}`)}
                         </li>
                       ))}

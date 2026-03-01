@@ -501,7 +501,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                   className={`
                     px-4 py-2 rounded-lg border text-sm font-medium transition-all
                     ${customAmount === preset
-                      ? 'bg-gf-accent border-gf-accent text-gf-heading'
+                      ? 'bg-gf-accent-bg border-gf-accent text-white'
                       : 'bg-gf-raised border-gf-border text-gf-heading hover:bg-gf-hover'}
                   `}
                 >
@@ -570,7 +570,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               type="button"
               onClick={handlePwywFreeAccess}
               disabled={pwywFreeLoading}
-              className="w-full py-3 px-6 bg-gf-success hover:bg-gf-success/90 disabled:opacity-50 text-gf-heading font-semibold rounded-full transition-all active:scale-[0.98]"
+              className="w-full py-3 px-6 bg-gf-success hover:bg-gf-success/90 disabled:opacity-50 text-gf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
             >
               {pwywFreeLoading ? '...' : t('customPrice.getForFree')}
             </button>
@@ -600,7 +600,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                   !pwywFreeTermsAccepted ||
                   (process.env.NODE_ENV === 'production' && !pwywFreeCaptchaToken)
                 }
-                className="w-full py-3 px-6 bg-gf-success hover:bg-gf-success/90 disabled:opacity-50 text-gf-heading font-semibold rounded-full transition-all active:scale-[0.98]"
+                className="w-full py-3 px-6 bg-gf-success hover:bg-gf-success/90 disabled:opacity-50 text-gf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
               >
                 {pwywFreeLoading || pwywFreeCaptchaLoading ? (
                   <span className="flex items-center justify-center">
@@ -791,7 +791,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       {!(isPwywFree && !error && !hasAccess) && (
       <div className="bg-gf-raised backdrop-blur-md rounded-2xl p-6 border border-gf-border relative overflow-hidden">
         {isVerifyingCoupon && (
-          <div className="absolute top-0 left-0 h-0.5 bg-gf-accent animate-pulse w-full" />
+          <div className="absolute top-0 left-0 h-0.5 bg-gf-accent-bg animate-pulse w-full" />
         )}
 
         <h2 className="text-xl font-semibold text-gf-heading mb-4">{t('title')}</h2>
@@ -853,7 +853,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               </div>
               <button
                 onClick={handleRedirectToProduct}
-                className="bg-gf-success hover:bg-gf-success/90 text-gf-heading px-6 py-3 rounded-full transition-all duration-200 font-medium text-sm active:scale-[0.98]"
+                className="bg-gf-success hover:bg-gf-success/90 text-gf-inverse px-6 py-3 rounded-full transition-all duration-200 font-medium text-sm active:scale-[0.98]"
               >
                 {t('goToProduct')}
               </button>

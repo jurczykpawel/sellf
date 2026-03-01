@@ -502,7 +502,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
               <button
                 type="submit"
                 disabled={submitting || selectedProducts.length < 2}
-                className="px-6 py-2 bg-gf-accent text-white hover:bg-gf-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-6 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 {submitting ? (
                   <>

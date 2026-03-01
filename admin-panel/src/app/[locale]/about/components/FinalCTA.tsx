@@ -29,7 +29,7 @@ export async function FinalCTA() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <a
             href="#deployment"
-            className="inline-flex items-center px-8 py-4 rounded-full text-lg font-bold text-white bg-gf-accent hover:bg-gf-accent-hover shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] transition-[background-color,box-shadow] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent gap-3"
+            className="inline-flex items-center px-8 py-4 rounded-full text-lg font-bold text-white bg-gf-accent-bg hover:bg-gf-accent-hover shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] transition-[background-color,box-shadow] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent gap-3"
           >
             {t('finalCta.ctaDeploy')}
             <ArrowRight className="h-5 w-5" />

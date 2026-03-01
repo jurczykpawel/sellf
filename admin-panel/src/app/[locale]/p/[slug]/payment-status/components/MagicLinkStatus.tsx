@@ -196,7 +196,7 @@ export default function MagicLinkStatus({
             <div className="mt-3">
               <Link 
                 href="/login?message=payment_completed_login_required" 
-                className="inline-block px-4 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-heading text-sm rounded transition-colors"
+                className="inline-block px-4 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white text-sm rounded transition-colors"
               >
                 {t('goToLoginPage')}
               </Link>

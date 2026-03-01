@@ -96,8 +96,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
         subtitle={userProfile?.user.email || t('modal.loading')}
         icon={
           userProfile ? (
-            <div className="w-8 h-8 bg-gf-accent flex items-center justify-center">
-              <span className="text-sm font-medium text-gf-inverse">
+            <div className="w-8 h-8 bg-gf-accent-bg flex items-center justify-center">
+              <span className="text-sm font-medium text-white">
                 {userProfile.user.email.charAt(0).toUpperCase()}
               </span>
             </div>
@@ -129,8 +129,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             <ModalSection title={t('modal.accountInfo')}>
               <div className="flex items-center space-x-4 p-4 bg-gf-accent-soft border-2 border-gf-border-medium">
                 <div className="flex-shrink-0 h-12 w-12">
-                  <div className="h-12 w-12 bg-gf-accent flex items-center justify-center">
-                    <span className="text-lg font-medium text-gf-inverse">
+                  <div className="h-12 w-12 bg-gf-accent-bg flex items-center justify-center">
+                    <span className="text-lg font-medium text-white">
                       {userProfile.user.email.charAt(0).toUpperCase()}
                     </span>
                   </div>

@@ -46,6 +46,7 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
           value={formatDateForInput(startDate)}
           onChange={handleStartChange}
           max={formatDateForInput(endDate || new Date())}
+          aria-label={t('startDate', { defaultValue: 'Start date' })}
           className="bg-transparent border-none outline-none text-sm text-gf-body w-[130px]"
         />
         <span className="text-gf-muted text-sm">-</span>
@@ -55,6 +56,7 @@ export default function DateRangeFilter({ startDate, endDate, onChange }: DateRa
           onChange={handleEndChange}
           min={formatDateForInput(startDate)}
           max={formatDateForInput(new Date())}
+          aria-label={t('endDate', { defaultValue: 'End date' })}
           className="bg-transparent border-none outline-none text-sm text-gf-body w-[130px]"
         />
       </div>

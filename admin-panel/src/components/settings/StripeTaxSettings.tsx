@@ -50,21 +50,24 @@ function Toggle({
  enabled,
  onChange,
  disabled,
+ label,
 }: {
  enabled: boolean
  onChange: (value: boolean) => void
  disabled: boolean
+ label: string
 }) {
  return (
  <button
  type="button"
  role="switch"
  aria-checked={enabled}
+ aria-label={label}
  onClick={() => onChange(!enabled)}
  disabled={disabled}
  className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2 focus:ring-offset-gf-base ${
  disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
- } ${enabled ? 'bg-gf-accent' : 'bg-gf-raised'}`}
+ } ${enabled ? 'bg-gf-accent-bg' : 'bg-gf-raised'}`}
  >
  <span
  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -377,6 +380,7 @@ export default function StripeTaxSettings() {
  enabled={automaticTax}
  onChange={(v) => handleToggle('automatic_tax_enabled', v)}
  disabled={saving}
+ label={t('toggles.automaticTax')}
  />
  </div>
 
@@ -397,6 +401,7 @@ export default function StripeTaxSettings() {
  enabled={taxIdCollection}
  onChange={(v) => handleToggle('tax_id_collection_enabled', v)}
  disabled={saving}
+ label={t('toggles.taxIdCollection')}
  />
  </div>
 
@@ -421,7 +426,7 @@ export default function StripeTaxSettings() {
  disabled={saving}
  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
  billingAddress === value
- ? 'bg-gf-accent text-white'
+ ? 'bg-gf-accent-bg text-white'
  : 'bg-gf-raised text-gf-body hover:bg-gf-hover'
  } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
  >
@@ -453,6 +458,7 @@ export default function StripeTaxSettings() {
  onChange={(e) => setExpiresHours(Number(e.target.value))}
  onBlur={() => handleExpiresHours(expiresHours)}
  disabled={saving}
+ aria-label={t('toggles.expiresHoursDescription')}
  className={`w-20 px-2 py-1.5 text-sm text-right border-2 border-gf-border-medium bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent focus:border-transparent ${
  saving ? 'opacity-50 cursor-not-allowed' : ''
  }`}
@@ -480,6 +486,7 @@ export default function StripeTaxSettings() {
  enabled={collectTerms}
  onChange={(v) => handleToggle('checkout_collect_terms', v)}
  disabled={saving}
+ label={t('toggles.collectTerms')}
  />
  </div>
  </div>

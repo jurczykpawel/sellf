@@ -146,7 +146,7 @@ export default function VariantSelectorPage() {
               {/* Featured badge */}
               {variant.is_featured && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-wl-accent text-gf-heading text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider shadow-[var(--gf-shadow-accent)]">
+                  <span className="bg-wl-accent text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider shadow-[var(--gf-shadow-accent)]">
                     {t('popular', { defaultValue: 'Most Popular' })}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ export default function VariantSelectorPage() {
                     className={`
                       px-6 py-2.5 rounded-full font-semibold transition-all duration-200 active:scale-[0.98]
                       ${variant.is_featured
-                        ? 'bg-wl-accent text-gf-heading hover:bg-wl-accent-hover shadow-[var(--gf-shadow-accent)]'
+                        ? 'bg-wl-accent text-white hover:bg-wl-accent-hover shadow-[var(--gf-shadow-accent)]'
                         : 'bg-gf-raised text-gf-heading hover:bg-gf-hover'
                       }
                     `}

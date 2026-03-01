@@ -15,11 +15,16 @@
   --gf-bg-row-alt: #0e1626;
   --gf-bg-input: #0B1120;
 
-  --gf-accent: #00AAFF;
-  --gf-accent-soft: rgba(0,170,255,0.08);
-  --gf-accent-med: rgba(0,170,255,0.20);
-  --gf-accent-hover: #33BBFF;
-  --gf-accent-glow: rgba(0,170,255,0.35);
+  --gf-accent: #0078BB;
+  --gf-accent-bg: #0078BB;
+  --gf-accent-soft: rgba(0,120,187,0.10);
+  --gf-accent-med: rgba(0,120,187,0.22);
+  --gf-accent-hover: #2090D0;
+  --gf-accent-glow: rgba(0,120,187,0.35);
+
+  /* Tailwind v4 @theme overrides: brighter colors for dark-mode text contrast */
+  --color-gf-accent: #1A8FC8;
+  --color-gf-danger: #F25555;
 
   --gf-text-heading: #F0F4FA;
   --gf-text-body: #94A3B8;
@@ -27,13 +32,14 @@
   --gf-text-inverse: #0b1120;
 
   --gf-border: rgba(255,255,255,0.06);
-  --gf-border-accent: rgba(0,170,255,0.15);
+  --gf-border-accent: rgba(0,120,187,0.18);
 
   --gf-success: #10B981;
   --gf-success-soft: rgba(16,185,129,0.10);
   --gf-warning: #F59E0B;
   --gf-warning-soft: rgba(245,158,11,0.10);
   --gf-danger: #EF4444;
+  --gf-danger-bg: #EF4444;
   --gf-danger-soft: rgba(239,68,68,0.10);
   --gf-info: #F97316;
   --gf-info-soft: rgba(249,115,22,0.10);
@@ -41,10 +47,10 @@
   --gf-sidebar-bg: #070c18;
   --gf-sidebar-text: #7A8DA3;
   --gf-sidebar-text-active: #F0F4FA;
-  --gf-sidebar-accent: rgba(0,170,255,0.10);
+  --gf-sidebar-accent: rgba(0,120,187,0.12);
 
   --gf-shadow: 0 4px 24px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
-  --gf-shadow-accent: 0 4px 30px -4px rgba(0,170,255,0.25);
+  --gf-shadow-accent: 0 4px 30px -4px rgba(0,120,187,0.30);
 
   /* Brutalist border tiers */
   --gf-border-subtle: rgba(255,255,255,0.06);
@@ -74,11 +80,12 @@
   --gf-bg-row-alt: #f8fafc;
   --gf-bg-input: #ffffff;
 
-  --gf-accent: #0070b8;
-  --gf-accent-soft: rgba(0,112,184,0.08);
-  --gf-accent-med: rgba(0,112,184,0.15);
+  --gf-accent: #006AAB;
+  --gf-accent-bg: #006AAB;
+  --gf-accent-soft: rgba(0,106,171,0.08);
+  --gf-accent-med: rgba(0,106,171,0.15);
   --gf-accent-hover: #005C8F;
-  --gf-accent-glow: rgba(0,112,184,0.20);
+  --gf-accent-glow: rgba(0,106,171,0.20);
 
   --gf-text-heading: #0B1120;
   --gf-text-body: #3E5068;
@@ -88,12 +95,13 @@
   --gf-border: rgba(0,0,0,0.10);
   --gf-border-accent: rgba(0,112,184,0.18);
 
-  --gf-success: #059669;
-  --gf-success-soft: rgba(5,150,105,0.10);
-  --gf-warning: #D97706;
-  --gf-warning-soft: rgba(217,119,6,0.10);
-  --gf-danger: #DC2626;
-  --gf-danger-soft: rgba(220,38,38,0.10);
+  --gf-success: #065f46;
+  --gf-success-soft: rgba(6,95,70,0.12);
+  --gf-warning: #92400E;
+  --gf-warning-soft: rgba(146,64,14,0.12);
+  --gf-danger: #991B1B;
+  --gf-danger-bg: #991B1B;
+  --gf-danger-soft: rgba(153,27,27,0.12);
   --gf-info: #EA580C;
   --gf-info-soft: rgba(234,88,12,0.10);
 
@@ -109,6 +117,44 @@
   --gf-border-subtle: rgba(0,0,0,0.06);
   --gf-border-medium: rgba(0,0,0,0.12);
   --gf-border-strong: rgba(0,0,0,0.20);
+
+  /* Tailwind v4 @theme color overrides for light mode
+     (needed because @theme resolves var() at build time, not runtime) */
+  --color-gf-accent: #006AAB;
+  --color-gf-accent-bg: #006AAB;
+  --color-gf-accent-soft: rgba(0,106,171,0.08);
+  --color-gf-accent-med: rgba(0,106,171,0.15);
+  --color-gf-accent-hover: #005C8F;
+  --color-gf-accent-glow: rgba(0,106,171,0.20);
+  --color-gf-success: #065f46;
+  --color-gf-success-soft: rgba(6,95,70,0.12);
+  --color-gf-warning: #92400E;
+  --color-gf-warning-soft: rgba(146,64,14,0.12);
+  --color-gf-danger: #991B1B;
+  --color-gf-danger-bg: #991B1B;
+  --color-gf-danger-soft: rgba(153,27,27,0.12);
+  --color-gf-heading: #0B1120;
+  --color-gf-body: #3E5068;
+  --color-gf-muted: #5b6578;
+  --color-gf-inverse: #ffffff;
+  --color-gf-deep: #F0F4F8;
+  --color-gf-base: #FFFFFF;
+  --color-gf-raised: #F1F5F9;
+  --color-gf-float: #FAFCFF;
+  --color-gf-hover: #f0f4f8;
+  --color-gf-row-alt: #f8fafc;
+  --color-gf-input: #ffffff;
+  --color-gf-border: rgba(0,0,0,0.10);
+  --color-gf-border-accent: rgba(0,106,171,0.18);
+  --color-gf-border-subtle: rgba(0,0,0,0.06);
+  --color-gf-border-medium: rgba(0,0,0,0.12);
+  --color-gf-border-strong: rgba(0,0,0,0.20);
+  --color-gf-info: #EA580C;
+  --color-gf-info-soft: rgba(234,88,12,0.10);
+  --color-gf-sidebar-bg: #f8fafc;
+  --color-gf-sidebar-text: #5b6578;
+  --color-gf-sidebar-text-active: #0b1120;
+  --color-gf-sidebar-accent: rgba(0,106,171,0.08);
 }
 
 /* ===== Whitelabel Tokens — default to Sellf brand, overridden by theme ===== */
@@ -150,6 +196,7 @@
   --color-gf-raised: var(--gf-bg-raised);
   --color-gf-float: var(--gf-bg-float);
   --color-gf-accent: var(--gf-accent);
+  --color-gf-accent-bg: var(--gf-accent-bg);
   --color-gf-accent-hover: var(--gf-accent-hover);
   --color-gf-accent-soft: var(--gf-accent-soft);
   --color-gf-accent-med: var(--gf-accent-med);
@@ -164,6 +211,7 @@
   --color-gf-warning: var(--gf-warning);
   --color-gf-warning-soft: var(--gf-warning-soft);
   --color-gf-danger: var(--gf-danger);
+  --color-gf-danger-bg: var(--gf-danger-bg);
   --color-gf-danger-soft: var(--gf-danger-soft);
   --color-gf-info: var(--gf-info);
   --color-gf-info-soft: var(--gf-info-soft);

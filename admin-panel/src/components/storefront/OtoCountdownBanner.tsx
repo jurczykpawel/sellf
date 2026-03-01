@@ -112,8 +112,8 @@ export default function OtoCountdownBanner({
         <div className="flex items-center gap-3">
           <div className={`
             flex items-center justify-center w-12 h-12 rounded-full
-            ${isUrgent ? 'bg-gf-danger' : isWarning ? 'bg-gf-warning' : 'bg-wl-accent'}
-            text-gf-heading font-bold text-lg
+            ${isUrgent ? 'bg-gf-danger-bg' : isWarning ? 'bg-gf-warning' : 'bg-wl-accent'}
+            text-white font-bold text-lg
           `}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -133,10 +133,10 @@ export default function OtoCountdownBanner({
           <div className={`
             px-4 py-2 rounded-xl font-mono text-2xl font-bold
             ${isUrgent
-              ? 'bg-gf-danger text-gf-heading'
+              ? 'bg-gf-danger-bg text-gf-inverse'
               : isWarning
-                ? 'bg-gf-warning text-gf-heading'
-                : 'bg-wl-accent text-gf-heading'
+                ? 'bg-gf-warning text-gf-inverse'
+                : 'bg-wl-accent text-white'
             }
           `}>
             {formatTime(secondsRemaining)}

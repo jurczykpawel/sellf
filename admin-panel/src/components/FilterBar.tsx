@@ -106,7 +106,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         <button
           ref={addButtonRef}
           onClick={onAddProduct}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium text-gf-inverse bg-gf-accent hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent transition-all duration-200"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium text-white bg-gf-accent-bg hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent transition-all duration-200"
           title={t('add')}
         >
           <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

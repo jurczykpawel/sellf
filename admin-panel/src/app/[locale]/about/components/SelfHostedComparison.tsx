@@ -49,7 +49,7 @@ export async function SelfHostedComparison() {
           <Reveal animation="fade-right" delay={100}>
             <div className="p-8 rounded-2xl bg-gf-raised/80 border-2 border-gf-accent shadow-[var(--gf-shadow-accent)] ring-2 ring-gf-accent/20 relative h-full">
               <div className="absolute -top-3 right-6">
-                <span className="bg-gf-accent text-white text-xs font-bold px-3 py-1 rounded-full">
+                <span className="bg-gf-accent-bg text-white text-xs font-bold px-3 py-1 rounded-full">
                   {t('selfHosted.production.badge')}
                 </span>
               </div>
@@ -84,7 +84,7 @@ export async function SelfHostedComparison() {
               href="https://demo.sellf.app/login"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-gf-accent hover:bg-gf-accent-hover text-white shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] rounded-full px-8 py-4 text-lg font-bold transition-[background-color,box-shadow] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
+              className="inline-flex items-center gap-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] rounded-full px-8 py-4 text-lg font-bold transition-[background-color,box-shadow] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
             >
               {t('selfHosted.demoCta')}
               <ExternalLink className="h-5 w-5" />

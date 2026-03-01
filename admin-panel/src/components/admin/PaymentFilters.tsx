@@ -78,10 +78,11 @@ export default function PaymentFilters({
         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
           {/* Status Filter */}
           <div>
-            <label className="block text-sm font-medium text-gf-body mb-1">
+            <label htmlFor="payment-status-filter" className="block text-sm font-medium text-gf-body mb-1">
               {t('status')}
             </label>
             <select
+              id="payment-status-filter"
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
               className="w-full sm:w-auto px-3 py-2 border-2 border-gf-border-medium focus:outline-none focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading"
@@ -98,10 +99,11 @@ export default function PaymentFilters({
 
           {/* Date Range Filter */}
           <div>
-            <label className="block text-sm font-medium text-gf-body mb-1">
+            <label htmlFor="payment-date-range-filter" className="block text-sm font-medium text-gf-body mb-1">
               {t('dateRange')}
             </label>
             <select
+              id="payment-date-range-filter"
               value={filters.dateRange}
               onChange={(e) => handleFilterChange('dateRange', e.target.value)}
               className="w-full sm:w-auto px-3 py-2 border-2 border-gf-border-medium focus:outline-none focus:ring-2 focus:ring-gf-accent bg-gf-input text-gf-heading"
@@ -116,10 +118,11 @@ export default function PaymentFilters({
 
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gf-body mb-1">
+            <label htmlFor="payment-search-filter" className="block text-sm font-medium text-gf-body mb-1">
               {t('search')}
             </label>
             <input
+              id="payment-search-filter"
               type="text"
               placeholder={t('searchPlaceholder')}
               value={filters.searchTerm}
@@ -139,7 +142,7 @@ export default function PaymentFilters({
           </button>
           <button
             onClick={onRefresh}
-            className="px-4 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse transition-colors"
+            className="px-4 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white transition-colors"
           >
             🔄 {t('refresh')}
           </button>

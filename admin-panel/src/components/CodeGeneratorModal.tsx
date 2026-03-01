@@ -251,7 +251,7 @@ export default function CodeGeneratorModal({ isOpen, onClose, product }: CodeGen
           </button>
           <button
             onClick={handleCopy}
-            className="px-4 py-2 bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover transition"
+            className="px-4 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition"
           >
             {t('copyCode')}
           </button>

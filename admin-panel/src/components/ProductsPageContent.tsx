@@ -388,7 +388,7 @@ const ProductsPageContent: React.FC = () => {
               </button>
               <button
                 onClick={confirmExport}
-                className="px-4 py-2 text-sm font-medium text-gf-inverse bg-gf-accent border border-transparent hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent"
+                className="px-4 py-2 text-sm font-medium text-white bg-gf-accent-bg border border-transparent hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent"
               >
                 {t('export')}
               </button>

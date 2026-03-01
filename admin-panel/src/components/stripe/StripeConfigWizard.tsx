@@ -109,7 +109,7 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
                   <div
                     className={`flex items-center justify-center w-8 h-8 text-sm font-semibold transition-colors ${
                       step === state.currentStep
-                        ? 'bg-gf-accent text-gf-inverse'
+                        ? 'bg-gf-accent-bg text-white'
                         : step < state.currentStep
                           ? 'bg-gf-success text-gf-inverse'
                           : 'bg-gf-raised text-gf-muted'
@@ -121,7 +121,7 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
                     <div
                       className={`flex-1 h-1 mx-2 transition-colors ${
                         step < state.currentStep
-                          ? 'bg-gf-accent'
+                          ? 'bg-gf-accent-bg'
                           : 'bg-gf-raised'
                       }`}
                     />
@@ -165,7 +165,7 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
                 </button>
                 <button
                   onClick={confirmExit}
-                  className="px-4 py-2 bg-gf-danger hover:opacity-90 text-gf-inverse transition-colors"
+                  className="px-4 py-2 bg-gf-danger-bg hover:opacity-90 text-gf-inverse transition-colors"
                 >
                   {t('confirmExit.confirm', { defaultValue: 'Exit Anyway' })}
                 </button>

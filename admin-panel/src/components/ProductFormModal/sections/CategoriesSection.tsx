@@ -29,9 +29,9 @@ export function CategoriesSection({
           </label>
           <div className="border-2 border-gf-border-medium max-h-40 overflow-y-auto p-2 bg-gf-input">
             {loadingCategories ? (
-              <div className="text-sm text-gray-500 p-2">Loading categories...</div>
+              <div className="text-sm text-gf-muted p-2">Loading categories...</div>
             ) : allCategories.length === 0 ? (
-              <div className="text-sm text-gray-500 p-2">No categories found. Create one in Settings &gt; Categories.</div>
+              <div className="text-sm text-gf-muted p-2">No categories found. Create one in Settings &gt; Categories.</div>
             ) : (
               <div className="space-y-2">
                 {allCategories.map((cat) => (

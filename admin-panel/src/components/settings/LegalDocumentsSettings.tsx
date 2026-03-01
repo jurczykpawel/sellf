@@ -88,10 +88,11 @@ export default function LegalDocumentsSettings() {
  <form onSubmit={handleSubmit} className="space-y-6">
  {/* Terms of Service URL */}
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="legal-terms-url" className="block text-sm font-medium text-gf-body mb-2">
  {t('termsOfServiceUrl')}
  </label>
  <input
+ id="legal-terms-url"
  type="url"
  value={formData.terms_of_service_url}
  onChange={(e) => setFormData({ ...formData, terms_of_service_url: e.target.value })}
@@ -105,10 +106,11 @@ export default function LegalDocumentsSettings() {
 
  {/* Privacy Policy URL */}
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="legal-privacy-url" className="block text-sm font-medium text-gf-body mb-2">
  {t('privacyPolicyUrl')}
  </label>
  <input
+ id="legal-privacy-url"
  type="url"
  value={formData.privacy_policy_url}
  onChange={(e) => setFormData({ ...formData, privacy_policy_url: e.target.value })}
@@ -152,7 +154,7 @@ export default function LegalDocumentsSettings() {
  <button
  type="submit"
  disabled={saving}
- className="px-6 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+ className="px-6 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
  >
  {saving ? t('saving') : t('saveButton')}
  </button>

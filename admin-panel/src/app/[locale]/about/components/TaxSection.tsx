@@ -39,17 +39,17 @@ export async function TaxSection() {
               </div>
               <ul className="space-y-4 mt-6">
                 <li className="flex items-start gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-gf-danger shrink-0" />
+                  <span className="mt-1.5 h-2 w-2 rounded-full bg-gf-danger-bg shrink-0" />
                   <span className="text-gf-body">
                     {t('tax.morPlatformFees')}: <span className="font-semibold text-gf-danger">{t('tax.morFeeAmount')}</span>
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-gf-danger shrink-0" />
+                  <span className="mt-1.5 h-2 w-2 rounded-full bg-gf-danger-bg shrink-0" />
                   <span className="text-gf-danger font-medium">{t('tax.morDataOwnership')}</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-gf-danger shrink-0" />
+                  <span className="mt-1.5 h-2 w-2 rounded-full bg-gf-danger-bg shrink-0" />
                   <span className="text-gf-danger font-medium">{t('tax.morPlatformRisk')}</span>
                 </li>
               </ul>
@@ -60,7 +60,7 @@ export async function TaxSection() {
           <Reveal animation="fade-right" delay={100}>
             <div className="p-8 rounded-2xl border-2 border-gf-success/40 bg-gf-success-soft ring-2 ring-gf-success/20 relative h-full">
               <div className="absolute -top-3 right-6">
-                <span className="bg-gf-success text-white text-xs font-bold px-3 py-1 rounded-full">
+                <span className="bg-gf-success text-gf-inverse text-xs font-bold px-3 py-1 rounded-full">
                   {t('tax.recommended')}
                 </span>
               </div>

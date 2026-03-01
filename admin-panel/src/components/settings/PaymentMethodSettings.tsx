@@ -529,6 +529,7 @@ export default function PaymentMethodSettings() {
  }}
  className="flex-1 px-3 py-2 border-2 border-gf-border-medium bg-gf-input text-gf-heading"
  disabled={stripePmcsLoading}
+ aria-label={t('paymentMethods.stripeConfig.title')}
  >
  <option value="">{t('paymentMethods.stripeConfig.selectPlaceholder')}</option>
  {stripePmcs.map((pmc) => (
@@ -655,7 +656,7 @@ export default function PaymentMethodSettings() {
  className="flex items-center p-3 bg-gf-base border-2 border-gf-border-medium cursor-move hover:border-gf-border-accent transition-colors"
  style={{ opacity: draggedIndex === index ? 0.5 : 1 }}
  >
- <GripVertical className="w-5 h-5 text-gray-400 mr-2" />
+ <GripVertical className="w-5 h-5 text-gf-muted mr-2" />
  <span className="text-lg font-medium text-gf-body mr-2">
  {index + 1}.
  </span>
@@ -780,7 +781,7 @@ export default function PaymentMethodSettings() {
  <button
  type="button"
  onClick={() => removeCurrencyOverride(currency)}
- className="text-gray-400 hover:text-red-500 transition-colors"
+ className="text-gf-muted hover:text-red-500 transition-colors"
  title={t('paymentMethods.currencyOverrides.remove')}
  >
  <Trash2 className="w-4 h-4" />
@@ -801,14 +802,14 @@ export default function PaymentMethodSettings() {
  className="flex items-center p-2 bg-gf-raised cursor-move hover:bg-gf-hover transition-colors"
  style={{ opacity: isDragging ? 0.5 : 1 }}
  >
- <GripVertical className="w-4 h-4 text-gray-400 mr-2" />
+ <GripVertical className="w-4 h-4 text-gf-muted mr-2" />
  <span className="text-sm text-gf-body mr-2">{index + 1}.</span>
  <span className="text-lg mr-2">{info.icon}</span>
  <span className="text-sm text-gf-heading flex-1">{info.name}</span>
  <button
  type="button"
  onClick={() => removeMethodFromOverride(currency, type)}
- className="text-gray-400 hover:text-red-500 transition-colors ml-2"
+ className="text-gf-muted hover:text-red-500 transition-colors ml-2"
  title={t('paymentMethods.currencyOverrides.remove')}
  >
  <X className="w-3.5 h-3.5" />
@@ -876,7 +877,7 @@ export default function PaymentMethodSettings() {
  <button
  onClick={handleResetToRecommended}
  disabled={resettingToRecommended || saving}
- className="px-4 py-2 bg-gf-accent text-white text-sm hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+ className="px-4 py-2 bg-gf-accent-bg text-white text-sm hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
  >
  {resettingToRecommended ? (
  <>
@@ -905,7 +906,7 @@ export default function PaymentMethodSettings() {
  <button
  onClick={handleSave}
  disabled={saving}
- className="px-6 py-2 bg-gf-accent text-white hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+ className="px-6 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
  >
  {saving ? (
  <>

@@ -16,7 +16,7 @@ export default function SellfBranding() {
         href="https://demo.sellf.app?ref=checkout"
         target="_blank"
         rel="noopener noreferrer"
-        className="pointer-events-auto inline-flex items-center gap-1.5 text-xs text-gf-muted hover:text-gf-body transition-colors"
+        className="pointer-events-auto inline-flex items-center gap-1.5 text-xs text-gf-body hover:text-gf-heading transition-colors"
       >
         {t('checkoutBranding')}{' '}
         <span className="font-semibold underline decoration-dotted underline-offset-2">

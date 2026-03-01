@@ -76,7 +76,7 @@ export default function OmnibusPrice({
   return (
     <div className="relative">
       <div
-        className="text-sm text-gray-400 mt-2 flex items-center gap-1 cursor-help"
+        className="text-sm text-gf-muted mt-2 flex items-center gap-1 cursor-help"
         data-testid="omnibus-price"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -92,7 +92,7 @@ export default function OmnibusPrice({
         <div className="absolute z-10 bottom-full left-0 mb-2 w-80 p-4 bg-gray-900 border border-gray-700 rounded-lg text-sm text-gray-300">
           <p className="font-semibold text-white mb-2">{t('lowestPriceTooltipTitle')}</p>
           <p className="mb-2">{t('lowestPriceTooltipDescription')}</p>
-          <p className="text-xs text-gray-400">{t('lowestPriceTooltipDisclaimer')}</p>
+          <p className="text-xs text-gf-muted">{t('lowestPriceTooltipDisclaimer')}</p>
         </div>
       )}
     </div>

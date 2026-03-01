@@ -23,7 +23,7 @@ function calculateFees(revenue: number): PlatformFee[] {
 
   return [
     { key: 'sellf', label: '', feeNote: '', fee: sellfFee, barColor: 'bg-gf-success' },
-    { key: 'gumroad', label: '', feeNote: '', fee: gumroadFee, barColor: 'bg-gf-danger' },
+    { key: 'gumroad', label: '', feeNote: '', fee: gumroadFee, barColor: 'bg-gf-danger-bg' },
     { key: 'paddle', label: '', feeNote: '', fee: paddleFee, barColor: 'bg-gf-warning' },
     { key: 'lemon', label: '', feeNote: '', fee: lemonFee, barColor: 'bg-gf-warning' },
   ];

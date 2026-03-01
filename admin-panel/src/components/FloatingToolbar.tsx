@@ -155,7 +155,7 @@ export default function FloatingToolbar({
                 aria-label={t('userMenu')}
                 title={`${user.email}`}
               >
-                <div className="w-5 h-5 bg-gf-accent rounded-full flex items-center justify-center">
+                <div className="w-5 h-5 bg-gf-accent-bg rounded-full flex items-center justify-center">
                   <span className="text-white text-xs font-medium">
                     {user.email?.charAt(0).toUpperCase()}
                   </span>

@@ -132,6 +132,7 @@ export default function RefundRequestsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label={t('filterByStatus', { defaultValue: 'Filter by status' })}
           className="px-4 py-2 border border-gf-border rounded-lg bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent"
         >
           <option value="">{t('allStatuses', { defaultValue: 'All Statuses' })}</option>
@@ -143,7 +144,7 @@ export default function RefundRequestsPage() {
 
         <button
           onClick={fetchRequests}
-          className="px-4 py-2 bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse rounded-lg transition-colors"
+          className="px-4 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white rounded-lg transition-colors"
         >
           {t('refresh', { defaultValue: 'Refresh' })}
         </button>
@@ -251,7 +252,7 @@ export default function RefundRequestsPage() {
                         {request.admin_response}
                       </span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gf-muted">—</span>
                     )}
                   </td>
                 </tr>

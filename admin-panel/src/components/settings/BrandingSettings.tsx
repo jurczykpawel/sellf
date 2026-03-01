@@ -31,6 +31,8 @@ const DEFAULT_THEME: ThemeConfig = THEME_PRESETS[0].theme;
 
 // ===== COLOR PICKER =====
 
+let colorFieldCounter = 0;
+
 function ColorField({
  label,
  value,
@@ -42,6 +44,7 @@ function ColorField({
  onChange: (v: string) => void;
  disabled?: boolean;
 }) {
+ const [id] = useState(() => `color-field-${++colorFieldCounter}`);
  const isHex = value.startsWith('#');
  return (
  <div className="flex items-center gap-2">
@@ -50,11 +53,13 @@ function ColorField({
  value={isHex ? value : '#000000'}
  onChange={(e) => onChange(e.target.value)}
  disabled={disabled}
+ aria-label={label}
  className="w-8 h-8 border-2 border-gf-border-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
  />
  <div className="flex-1 min-w-0">
- <label className="block text-xs text-gf-muted truncate">{label}</label>
+ <label htmlFor={id} className="block text-xs text-gf-muted truncate">{label}</label>
  <input
+ id={id}
  type="text"
  value={value}
  onChange={(e) => onChange(e.target.value)}
@@ -375,7 +380,7 @@ export default function BrandingSettings() {
  </div>
  <p className="text-xs font-medium text-gf-heading truncate">{preset.theme.name}</p>
  {selectedPresetId === preset.id && (
- <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-gf-accent flex items-center justify-center">
+ <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-gf-accent-bg flex items-center justify-center">
  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
  </svg>
@@ -410,8 +415,9 @@ export default function BrandingSettings() {
  <div className="p-6">
  {/* Theme Name */}
  <div className="mb-6">
- <label className="block text-sm font-medium text-gf-body mb-1">{t('themeName')}</label>
+ <label htmlFor="branding-theme-name" className="block text-sm font-medium text-gf-body mb-1">{t('themeName')}</label>
  <input
+ id="branding-theme-name"
  type="text"
  value={editTheme.name}
  onChange={(e) => {
@@ -467,8 +473,9 @@ export default function BrandingSettings() {
  {activeTab === 'typography' && (
  <div className="space-y-4">
  <div>
- <label className="block text-sm font-medium text-gf-body mb-1">{t('fontFamilyLabel')}</label>
+ <label htmlFor="branding-font-family" className="block text-sm font-medium text-gf-body mb-1">{t('fontFamilyLabel')}</label>
  <input
+ id="branding-font-family"
  type="text"
  value={typo['font-family'] || 'inherit'}
  onChange={(e) => updateTypography('font-family', e.target.value)}
@@ -480,8 +487,9 @@ export default function BrandingSettings() {
 
  <div className="grid grid-cols-2 gap-4">
  <div>
- <label className="block text-sm font-medium text-gf-body mb-1">{t('headingWeight')}</label>
+ <label htmlFor="branding-heading-weight" className="block text-sm font-medium text-gf-body mb-1">{t('headingWeight')}</label>
  <select
+ id="branding-heading-weight"
  value={typo['font-heading-weight'] || '700'}
  onChange={(e) => updateTypography('font-heading-weight', e.target.value)}
  className="w-full px-3 py-2 border-2 border-gf-border-medium bg-gf-input text-gf-heading text-sm"
@@ -495,8 +503,9 @@ export default function BrandingSettings() {
  </select>
  </div>
  <div>
- <label className="block text-sm font-medium text-gf-body mb-1">{t('bodyWeight')}</label>
+ <label htmlFor="branding-body-weight" className="block text-sm font-medium text-gf-body mb-1">{t('bodyWeight')}</label>
  <select
+ id="branding-body-weight"
  value={typo['font-body-weight'] || '400'}
  onChange={(e) => updateTypography('font-body-weight', e.target.value)}
  className="w-full px-3 py-2 border-2 border-gf-border-medium bg-gf-input text-gf-heading text-sm"
@@ -509,8 +518,9 @@ export default function BrandingSettings() {
  </div>
 
  <div>
- <label className="block text-sm font-medium text-gf-body mb-1">{t('letterSpacing')}</label>
+ <label htmlFor="branding-letter-spacing" className="block text-sm font-medium text-gf-body mb-1">{t('letterSpacing')}</label>
  <input
+ id="branding-letter-spacing"
  type="text"
  value={typo['letter-spacing-heading'] || '-0.02em'}
  onChange={(e) => updateTypography('letter-spacing-heading', e.target.value)}
@@ -532,8 +542,9 @@ export default function BrandingSettings() {
  { key: 'radius-full', label: t('radiusFull'), placeholder: '9999px' },
  ].map(({ key, label, placeholder }) => (
  <div key={key}>
- <label className="block text-sm font-medium text-gf-body mb-1">{label}</label>
+ <label htmlFor={`branding-shape-${key}`} className="block text-sm font-medium text-gf-body mb-1">{label}</label>
  <input
+ id={`branding-shape-${key}`}
  type="text"
  value={(shapes as Record<string, string | undefined>)[key] || ''}
  onChange={(e) => updateShapes(key, e.target.value)}
@@ -557,7 +568,7 @@ export default function BrandingSettings() {
  type="button"
  onClick={handleSave}
  disabled={saving || !hasChanges || !licenseValid}
- className="px-5 py-2 bg-gf-accent hover:bg-gf-accent-hover text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+ className="px-5 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
  >
  {saving ? t('saving') : t('saveTheme')}
  </button>
@@ -573,6 +584,7 @@ export default function BrandingSettings() {
 
  {/* Mini store preview */}
  <div
+ data-a11y-preview="branding"
  className="overflow-hidden border-2 border-gf-border-medium"
  style={{
  backgroundColor: colors['bg-deep'],

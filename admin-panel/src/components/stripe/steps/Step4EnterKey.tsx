@@ -317,7 +317,7 @@ export function Step4EnterKey() {
                           {perm.resource} - {perm.operation}
                         </span>
                         {perm.errorMessage && (
-                          <span className="text-xs text-gray-500">({perm.errorMessage})</span>
+                          <span className="text-xs text-gf-muted">({perm.errorMessage})</span>
                         )}
                       </div>
                     )
@@ -375,7 +375,7 @@ export function Step4EnterKey() {
             disabled={!canValidate || state.validationStatus === 'validating'}
             className={`w-full py-3 font-semibold flex items-center justify-center gap-2 transition-colors ${
               canValidate && state.validationStatus !== 'validating'
-                ? 'bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover'
+                ? 'bg-gf-accent-bg text-white hover:bg-gf-accent-hover'
                 : 'bg-gf-raised text-gf-muted cursor-not-allowed'
             }`}
           >

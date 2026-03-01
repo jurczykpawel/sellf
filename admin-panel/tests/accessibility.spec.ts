@@ -11,7 +11,6 @@ import { createTestAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { checkAccessibility } from './helpers/axe';
 
-test.describe.configure({ mode: 'serial' });
 test.setTimeout(120_000);
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
@@ -25,7 +24,7 @@ let adminPassword: string;
 let cleanup: () => Promise<void>;
 
 // Third-party selectors excluded from all checks
-const THIRD_PARTY_EXCLUDES = ['#klaro', 'iframe[src*="stripe"]', '[data-turnstile]'];
+const THIRD_PARTY_EXCLUDES = ['#klaro', 'iframe[src*="stripe"]', '[data-turnstile]', '.__PrivateStripeElement', '.__PrivateStripeElementLoader'];
 
 // ===== SETUP / TEARDOWN =====
 
@@ -115,7 +114,7 @@ const adminPages = [
   { name: 'payments', path: '/dashboard/payments' },
   { name: 'users', path: '/dashboard/users' },
   { name: 'coupons', path: '/dashboard/coupons' },
-  { name: 'settings', path: '/dashboard/settings' },
+  { name: 'settings', path: '/dashboard/settings', excludeSelectors: ['[data-a11y-preview]'] },
   { name: 'webhooks', path: '/dashboard/webhooks' },
   { name: 'integrations', path: '/dashboard/integrations' },
   { name: 'api-keys', path: '/dashboard/api-keys' },
@@ -132,9 +131,9 @@ for (const theme of ['light', 'dark'] as const) {
       await setTheme(page, theme);
     });
 
-    for (const { name, path } of adminPages) {
+    for (const { name, path, ...opts } of adminPages) {
       test(name, async ({ page }) => {
-        await visitAndCheck(page, path);
+        await visitAndCheck(page, path, opts);
       });
     }
   });

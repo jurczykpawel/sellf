@@ -372,7 +372,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center space-x-2"
+              className="px-6 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors disabled:opacity-50 flex items-center space-x-2"
             >
               {isSubmitting ? (
                 <span>{t('form.saving')}</span>

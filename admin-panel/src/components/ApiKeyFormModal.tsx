@@ -145,7 +145,7 @@ export default function ApiKeyFormModal({
                   onClick={() => applyPreset(preset.scopes)}
                   className={`px-3 py-1.5 text-sm border transition-colors ${
                     JSON.stringify(formData.scopes.sort()) === JSON.stringify(preset.scopes.sort())
-                      ? 'bg-gf-accent text-gf-inverse border-gf-accent'
+                      ? 'bg-gf-accent-bg text-white border-gf-accent'
                       : 'bg-gf-base text-gf-body border-gf-border hover:bg-gf-hover'
                   }`}
                 >

@@ -230,7 +230,7 @@ export default function RevenueChart() {
               onClick={() => setPredefinedRange(0)}
               className={`px-3 py-1.5 text-sm font-medium border-2 border-gf-border-medium transition-colors -mr-0.5 ${
                 viewMode === 'hourly'
-                  ? 'bg-gf-accent text-gf-inverse border-gf-accent'
+                  ? 'bg-gf-accent-bg text-white border-gf-accent'
                   : 'text-gf-muted hover:text-gf-heading hover:border-gf-border-strong'
               }`}
             >
@@ -240,7 +240,7 @@ export default function RevenueChart() {
               onClick={() => setPredefinedRange(7)}
               className={`px-3 py-1.5 text-sm font-medium border-2 border-gf-border-medium transition-colors -mr-0.5 ${
                 viewMode === 'daily' && dateRange.start && (new Date().getTime() - dateRange.start.getTime()) < 8 * 24 * 3600 * 1000
-                  ? 'bg-gf-accent text-gf-inverse border-gf-accent'
+                  ? 'bg-gf-accent-bg text-white border-gf-accent'
                   : 'text-gf-muted hover:text-gf-heading hover:border-gf-border-strong'
               }`}
             >
@@ -250,7 +250,7 @@ export default function RevenueChart() {
               onClick={() => setPredefinedRange(30)}
               className={`px-3 py-1.5 text-sm font-medium border-2 border-gf-border-medium transition-colors ${
                 viewMode === 'daily' && dateRange.start && (new Date().getTime() - dateRange.start.getTime()) > 20 * 24 * 3600 * 1000
-                  ? 'bg-gf-accent text-gf-inverse border-gf-accent'
+                  ? 'bg-gf-accent-bg text-white border-gf-accent'
                   : 'text-gf-muted hover:text-gf-heading hover:border-gf-border-strong'
               }`}
             >

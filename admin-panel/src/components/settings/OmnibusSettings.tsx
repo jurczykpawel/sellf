@@ -119,11 +119,12 @@ export default function OmnibusSettings() {
  className={`
  relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
  transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2
- ${omnibusEnabled ? 'bg-gf-accent' : 'bg-gf-raised'}
+ ${omnibusEnabled ? 'bg-gf-accent-bg' : 'bg-gf-raised'}
  ${saving ? 'opacity-50 cursor-not-allowed' : ''}
  `}
  role="switch"
  aria-checked={omnibusEnabled}
+ aria-label={t('enableOmnibus')}
  >
  <span
  aria-hidden="true"

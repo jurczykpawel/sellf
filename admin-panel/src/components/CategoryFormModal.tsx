@@ -136,7 +136,7 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
             <button
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors disabled:opacity-50"
             >
               {isLoading ? commonT('loading') : commonT('save')}
             </button>

@@ -185,7 +185,7 @@ export default function GUSSettings() {
  href="https://api.stat.gov.pl/Home/RegonApi"
  target="_blank"
  rel="noopener noreferrer"
- className="text-gf-accent hover:underline inline-flex items-center gap-1"
+ className="text-gf-accent underline hover:no-underline inline-flex items-center gap-1"
  >
  {t('getApiKey')}
  <ExternalLink className="w-3 h-3" />
@@ -215,7 +215,7 @@ export default function GUSSettings() {
  <button
  onClick={handleSave}
  disabled={saving || deleting}
- className="px-6 py-2.5 bg-gf-accent hover:bg-gf-accent-hover disabled:bg-gray-400 text-gf-inverse font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
+ className="px-6 py-2.5 bg-gf-accent-bg hover:bg-gf-accent-hover disabled:bg-gf-muted text-white font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
  >
  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
  {t('saveButton')}
@@ -225,7 +225,7 @@ export default function GUSSettings() {
  <button
  onClick={() => setShowDeleteModal(true)}
  disabled={saving || deleting}
- className="px-6 py-2.5 bg-gf-danger hover:opacity-90 disabled:bg-gray-400 text-gf-inverse font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
+ className="px-6 py-2.5 bg-gf-danger-bg hover:opacity-90 disabled:bg-gf-muted text-gf-inverse font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
  >
  {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
  {t('deleteButton')}

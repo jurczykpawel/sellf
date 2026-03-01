@@ -175,7 +175,7 @@ export default function StripeSettings() {
  <div className="flex flex-wrap gap-3">
  <button
  onClick={() => setIsWizardOpen(true)}
- className="inline-flex items-center gap-2 px-4 py-2 bg-gf-accent text-gf-inverse font-medium hover:bg-gf-accent-hover transition-colors"
+ className="inline-flex items-center gap-2 px-4 py-2 bg-gf-accent-bg text-white font-medium hover:bg-gf-accent-hover transition-colors"
  >
  <Settings className="w-4 h-4" />
  {activeConfigs.length > 0 ? t('configureAnother') : t('configureButton')}

@@ -175,7 +175,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={isLoading || (!demoMode && captchaLoading)}
-        className="w-full py-3 px-4 bg-gf-accent hover:bg-gf-accent-hover text-gf-heading font-semibold rounded-full shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2 focus:ring-offset-gf-deep transition-[background-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+        className="w-full py-3 px-4 bg-gf-accent-bg hover:bg-gf-accent-hover text-white font-semibold rounded-full shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--gf-accent-glow)] focus:outline-none focus:ring-2 focus:ring-gf-accent focus:ring-offset-2 focus:ring-offset-gf-deep transition-[background-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
         {isLoading || (!demoMode && captchaLoading) ? (
           <div className="flex items-center justify-center">
@@ -289,7 +289,7 @@ export default function LoginForm() {
           {emailProvider && (
             <button
               onClick={() => window.open(emailProvider.url, '_blank')}
-              className="w-full py-3 px-4 bg-gf-accent hover:bg-gf-accent-hover text-gf-heading font-semibold rounded-full shadow-[var(--gf-shadow-accent)] transition-colors duration-200 flex items-center justify-center space-x-2 active:scale-[0.98]"
+              className="w-full py-3 px-4 bg-gf-accent-bg hover:bg-gf-accent-hover text-white font-semibold rounded-full shadow-[var(--gf-shadow-accent)] transition-colors duration-200 flex items-center justify-center space-x-2 active:scale-[0.98]"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

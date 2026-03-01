@@ -160,7 +160,7 @@ export default function TurnstileWidget({
       
       {/* Minimal development info */}
       {isUsingDummyKey && (
-        <div className="text-xs text-gray-500 mt-1 opacity-50 text-center">
+        <div className="text-xs text-gf-muted mt-1 opacity-50 text-center">
           🧪 Test Mode
         </div>
       )}

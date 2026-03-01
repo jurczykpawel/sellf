@@ -344,7 +344,7 @@ export default function MyPurchasesPage() {
                 <button
                   onClick={submitRefundRequest}
                   disabled={submitting}
-                  className="flex-1 px-4 py-2 bg-gf-danger hover:bg-gf-danger/90 text-gf-heading rounded-full transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gf-danger-bg hover:bg-gf-danger/90 text-gf-inverse rounded-full transition-colors disabled:opacity-50"
                 >
                   {submitting ? t('submitting', { defaultValue: 'Submitting...' }) : t('submitRequest', { defaultValue: 'Submit Request' })}
                 </button>

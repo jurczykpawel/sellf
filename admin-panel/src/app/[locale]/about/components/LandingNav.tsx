@@ -43,7 +43,7 @@ export function LandingNav() {
             href="/store"
             className="flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent rounded-lg"
           >
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gf-accent">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gf-accent-bg">
               <Lock className="h-4 w-4 text-white" />
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-gf-raised bg-gf-success">
                 <span className="absolute inset-0 animate-ping rounded-full bg-gf-success opacity-75" />
@@ -88,7 +88,7 @@ export function LandingNav() {
 
             <Link
               href={ctaLink.href}
-              className="px-4 py-2 rounded-full text-sm font-semibold text-white bg-gf-accent hover:bg-gf-accent-hover transition-[background-color,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_30px_-4px_var(--gf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
+              className="px-4 py-2 rounded-full text-sm font-semibold text-white bg-gf-accent-bg hover:bg-gf-accent-hover transition-[background-color,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] hover:shadow-[0_6px_30px_-4px_var(--gf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
             >
               {ctaLink.label}
             </Link>
@@ -164,7 +164,7 @@ export function LandingNav() {
 
               <Link
                 href={ctaLink.href}
-                className="mt-2 block rounded-full px-4 py-2 text-center text-sm font-semibold text-white bg-gf-accent hover:bg-gf-accent-hover transition-[background-color,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
+                className="mt-2 block rounded-full px-4 py-2 text-center text-sm font-semibold text-white bg-gf-accent-bg hover:bg-gf-accent-hover transition-[background-color,box-shadow] duration-200 shadow-[var(--gf-shadow-accent)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gf-accent"
                 onClick={() => setMobileOpen(false)}
               >
                 {ctaLink.label}

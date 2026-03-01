@@ -124,7 +124,7 @@ export default function UpdateNotificationModal({
               </button>
               <button
                 onClick={onUpgrade}
-                className="px-4 py-2 text-sm font-medium text-white bg-gf-accent hover:bg-gf-accent-hover transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-gf-accent-bg hover:bg-gf-accent-hover transition-colors"
               >
                 {t('modal.upgradeNow')}
               </button>
@@ -150,7 +150,7 @@ export default function UpdateNotificationModal({
                 </div>
                 <div className="w-full bg-gf-raised rounded-full h-2.5">
                   <div
-                    className={`h-2.5 rounded-full transition-all duration-500 ${isDone ? 'bg-green-500' : 'bg-gf-accent'}`}
+                    className={`h-2.5 rounded-full transition-all duration-500 ${isDone ? 'bg-green-500' : 'bg-gf-accent-bg'}`}
                     style={{ width: `${Math.max(0, upgradeProgress?.progress || 0)}%` }}
                   />
                 </div>
@@ -199,7 +199,7 @@ export default function UpdateNotificationModal({
               <div className="flex justify-end">
                 <button
                   onClick={() => isDone ? window.location.reload() : onDismiss()}
-                  className="px-4 py-2 text-sm font-medium text-white bg-gf-accent hover:bg-gf-accent-hover transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-gf-accent-bg hover:bg-gf-accent-hover transition-colors"
                 >
                   {isDone ? t('progress.reload') : t('progress.close')}
                 </button>

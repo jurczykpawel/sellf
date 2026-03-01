@@ -236,7 +236,7 @@ export function PriceVatInline({
                 step="0.10"
                 className="w-16 px-2 py-1 border-2 border-gf-border-medium text-sm focus:ring-2 focus:ring-gf-accent focus:border-transparent bg-gf-input text-gf-heading"
               />
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gf-muted">
                 {formData.custom_price_min === 0
                   ? t('customPricing.freeOptionHint')
                   : `(${t('customPricing.stripeMinimum')})`}
@@ -267,7 +267,7 @@ export function PriceVatInline({
                 />
               ))}
               {formData.show_price_presets && (
-                <span className="text-xs text-gray-400">(0 = ukryty)</span>
+                <span className="text-xs text-gf-muted">(0 = ukryty)</span>
               )}
             </div>
           </div>

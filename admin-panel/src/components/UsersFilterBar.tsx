@@ -36,7 +36,7 @@ const UsersFilterBar: React.FC<UsersFilterBarProps> = ({
       <div className="flex-shrink-0">
         <button
           onClick={onRefresh}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium text-gf-inverse bg-gf-accent hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent transition-all duration-200 hover:transform hover:scale-105"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium text-white bg-gf-accent-bg hover:bg-gf-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-accent transition-all duration-200 hover:transform hover:scale-105"
           title={t('refresh')}
         >
           <svg className="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

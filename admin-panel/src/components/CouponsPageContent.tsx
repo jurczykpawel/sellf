@@ -292,7 +292,7 @@ const CouponsPageContent: React.FC = () => {
           {expiredCoupons.length > 0 && (
             <button
               onClick={() => setShowDeleteExpiredConfirm(true)}
-              className="px-3 py-1.5 text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 text-sm font-medium bg-amber-700 text-white hover:bg-amber-700 transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -324,7 +324,7 @@ const CouponsPageContent: React.FC = () => {
         ) : error ? (
           <div className="text-center p-12 text-red-500">{error}</div>
         ) : filteredCoupons.length === 0 ? (
-          <div className="text-center p-12 text-gray-500">{t('noCoupons')}</div>
+          <div className="text-center p-12 text-gf-muted">{t('noCoupons')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -335,6 +335,7 @@ const CouponsPageContent: React.FC = () => {
                       type="checkbox"
                       checked={filteredCoupons.length > 0 && selectedIds.size === filteredCoupons.length}
                       onChange={handleSelectAll}
+                      aria-label={t('selectAll', { defaultValue: 'Select all coupons' })}
                       className="w-4 h-4 rounded border-gf-border text-gf-accent focus:ring-gf-accent"
                     />
                   </th>
@@ -358,6 +359,7 @@ const CouponsPageContent: React.FC = () => {
                           type="checkbox"
                           checked={selectedIds.has(coupon.id)}
                           onChange={() => handleSelectOne(coupon.id)}
+                          aria-label={`${t('select', { defaultValue: 'Select' })} ${coupon.code}`}
                           className="w-4 h-4 rounded border-gf-border text-gf-accent focus:ring-gf-accent"
                         />
                       </td>
@@ -370,9 +372,9 @@ const CouponsPageContent: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        {coupon.name && <div className="text-xs text-gray-500">{coupon.name}</div>}
+                        {coupon.name && <div className="text-xs text-gf-muted">{coupon.name}</div>}
                         {restrictedProducts.length > 0 && (
-                          <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                          <div className="text-xs text-gf-muted mt-1 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                             </svg>
@@ -494,7 +496,7 @@ const CouponsPageContent: React.FC = () => {
             </p>
             <div className="flex justify-end space-x-3">
               <button onClick={() => setShowDeleteExpiredConfirm(false)} className="px-4 py-2 text-gf-body hover:bg-gf-hover">{t('form.cancel')}</button>
-              <button onClick={handleDeleteExpired} className="px-4 py-2 bg-amber-600 text-white hover:bg-amber-700">{t('deleteExpired', { count: expiredCoupons.length })}</button>
+              <button onClick={handleDeleteExpired} className="px-4 py-2 bg-amber-700 text-white hover:bg-amber-700">{t('deleteExpired', { count: expiredCoupons.length })}</button>
             </div>
           </div>
         </div>

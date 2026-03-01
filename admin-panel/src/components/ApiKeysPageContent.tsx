@@ -238,7 +238,7 @@ export default function ApiKeysPageContent() {
                   <tr key={key.id} className={`hover:bg-gf-hover transition-colors ${index % 2 === 1 ? 'bg-gf-row-alt' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <Key className="w-4 h-4 text-gray-400" />
+                        <Key className="w-4 h-4 text-gf-muted" />
                         <span className="font-medium text-gf-heading">{key.name}</span>
                       </div>
                     </td>
@@ -277,14 +277,14 @@ export default function ApiKeysPageContent() {
                           <>
                             <button
                               onClick={() => setKeyToRotate(key)}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-gf-accent-soft transition-colors"
+                              className="p-2 text-gf-muted hover:text-blue-600 hover:bg-gf-accent-soft transition-colors"
                               title={t('rotateKey')}
                             >
                               <RotateCw className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setKeyToRevoke(key)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-gf-danger-soft transition-colors"
+                              className="p-2 text-gf-muted hover:text-red-600 hover:bg-gf-danger-soft transition-colors"
                               title={t('revokeKey')}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -340,7 +340,7 @@ export default function ApiKeysPageContent() {
                     <button
                       type="button"
                       onClick={() => setShowSecret(!showSecret)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gf-muted hover:text-gray-600"
                     >
                       {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>

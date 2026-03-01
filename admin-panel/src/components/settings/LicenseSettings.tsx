@@ -89,7 +89,7 @@ export default function LicenseSettings() {
  <div className="bg-gf-base border-2 border-gf-border-medium overflow-hidden">
  <div className="bg-gf-accent-soft px-6 py-4 border-b border-gf-border-accent">
  <div className="flex items-center gap-3">
- <div className="w-10 h-10 bg-gf-accent flex items-center justify-center">
+ <div className="w-10 h-10 bg-gf-accent-bg flex items-center justify-center">
  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
  </svg>
@@ -107,10 +107,11 @@ export default function LicenseSettings() {
 
  <form onSubmit={handleSubmit} className="p-6 space-y-6">
  <div>
- <label className="block text-sm font-medium text-gf-body mb-2">
+ <label htmlFor="license-key" className="block text-sm font-medium text-gf-body mb-2">
  {t('licenseKey')}
  </label>
  <input
+ id="license-key"
  type="text"
  placeholder={t('keyPlaceholder')}
  value={license}
@@ -152,7 +153,7 @@ export default function LicenseSettings() {
  </div>
  <div className="flex justify-between items-center">
  <span className="text-gf-muted">{t('signature')}:</span>
- <span className="font-mono text-gray-400 text-xs">
+ <span className="font-mono text-gf-muted text-xs">
  {licenseInfo.signature?.slice(0, 20)}...
  </span>
  </div>
@@ -167,7 +168,7 @@ export default function LicenseSettings() {
  <button
  type="submit"
  disabled={saving}
- className="px-6 py-2 bg-gf-accent hover:bg-gf-accent-hover text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+ className="px-6 py-2 bg-gf-accent-bg hover:bg-gf-accent-hover text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
  >
  {saving ? t('saving') : t('saveLicense')}
  </button>
@@ -187,7 +188,7 @@ export default function LicenseSettings() {
  href="https://demo.sellf.app"
  target="_blank"
  rel="noopener noreferrer"
- className="text-gf-accent hover:underline"
+ className="text-gf-accent underline hover:no-underline"
  >
  demo.sellf.app
  </a>

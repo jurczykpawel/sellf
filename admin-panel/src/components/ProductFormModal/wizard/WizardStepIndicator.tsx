@@ -33,7 +33,7 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                 <div
                   className={`h-0.5 w-16 mx-2 transition-colors duration-200 ${
                     isCompleted
-                      ? 'bg-gf-accent'
+                      ? 'bg-gf-accent-bg'
                       : 'bg-gf-raised'
                   }`}
                 />
@@ -51,9 +51,9 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                     flex items-center justify-center w-8 h-8 text-sm font-semibold
                     transition-all duration-200 flex-shrink-0
                     ${isCompleted
-                      ? 'bg-gf-accent text-gf-inverse'
+                      ? 'bg-gf-accent-bg text-white'
                       : isCurrent
-                        ? 'bg-gf-accent text-gf-inverse ring-2 ring-gf-accent-med'
+                        ? 'bg-gf-accent-bg text-white ring-2 ring-gf-accent-med'
                         : 'bg-gf-raised text-gf-muted'
                     }
                     ${isClickable ? 'group-hover:ring-2 group-hover:ring-gf-accent-med' : ''}
@@ -98,7 +98,7 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                   <div
                     className={`h-0.5 w-6 transition-colors duration-200 ${
                       isCompleted
-                        ? 'bg-gf-accent'
+                        ? 'bg-gf-accent-bg'
                         : 'bg-gf-raised'
                     }`}
                   />
@@ -111,9 +111,9 @@ export const WizardStepIndicator: React.FC<WizardStepIndicatorProps> = ({
                     flex items-center justify-center w-7 h-7 text-xs font-semibold
                     transition-all duration-200
                     ${isCompleted
-                      ? 'bg-gf-accent text-gf-inverse'
+                      ? 'bg-gf-accent-bg text-white'
                       : isCurrent
-                        ? 'bg-gf-accent text-gf-inverse ring-2 ring-gf-accent-med'
+                        ? 'bg-gf-accent-bg text-white ring-2 ring-gf-accent-med'
                         : 'bg-gf-raised text-gf-muted'
                     }
                   `}

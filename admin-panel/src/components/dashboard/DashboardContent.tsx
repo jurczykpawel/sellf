@@ -37,6 +37,7 @@ export default function DashboardContent({ failedWebhooksCount }: DashboardConte
               onClick={toggleHideValues}
               className="p-2 bg-gf-base border-2 border-gf-border-subtle hover:border-gf-border-medium text-gf-muted transition-colors"
               title={hideValues ? t('showValues') : t('hideValues')}
+              aria-label={hideValues ? t('showValues') : t('hideValues')}
             >
               {hideValues ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>

@@ -142,29 +142,31 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
           <h3 className="text-lg font-bold text-gf-heading">
             {t('personalInfo.title')}
           </h3>
-          <p className="text-sm text-gray-500">{t('personalInfo.subtitle')}</p>
+          <p className="text-sm text-gf-muted">{t('personalInfo.subtitle')}</p>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gf-body mb-1">
+              <label htmlFor="profile-email" className="block text-sm font-medium text-gf-body mb-1">
                 {t('fields.email')}
               </label>
               <input
+                id="profile-email"
                 type="text"
                 disabled
                 value={userEmail}
                 className="w-full border-2 border-gf-border-medium px-3 py-2 bg-gf-deep text-gf-muted cursor-not-allowed"
               />
-              <p className="mt-1 text-xs text-gray-400">{t('fields.emailHelp')}</p>
+              <p className="mt-1 text-xs text-gf-muted">{t('fields.emailHelp')}</p>
             </div>
             
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gf-border pt-6">
               <div>
-                <label className="block text-sm font-medium text-gf-body mb-1">
+                <label htmlFor="profile-first-name" className="block text-sm font-medium text-gf-body mb-1">
                   {t('fields.firstName')}
                 </label>
                 <input
+                  id="profile-first-name"
                   type="text"
                   value={formData.first_name || ''}
                   onChange={(e) => handleChange('first_name', e.target.value)}
@@ -173,10 +175,11 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gf-body mb-1">
+                <label htmlFor="profile-last-name" className="block text-sm font-medium text-gf-body mb-1">
                   {t('fields.lastName')}
                 </label>
                 <input
+                  id="profile-last-name"
                   type="text"
                   value={formData.last_name || ''}
                   onChange={(e) => handleChange('last_name', e.target.value)}
@@ -195,15 +198,16 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
           <h3 className="text-lg font-bold text-gf-heading">
             {t('billingInfo.title')}
           </h3>
-          <p className="text-sm text-gray-500">{t('billingInfo.subtitle')}</p>
+          <p className="text-sm text-gf-muted">{t('billingInfo.subtitle')}</p>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gf-body mb-1">
+              <label htmlFor="profile-company-name" className="block text-sm font-medium text-gf-body mb-1">
                 {t('fields.companyName')}
               </label>
               <input
+                id="profile-company-name"
                 type="text"
                 value={formData.company_name || ''}
                 onChange={(e) => handleChange('company_name', e.target.value)}
@@ -213,11 +217,12 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gf-body mb-1">
+              <label htmlFor="profile-tax-id" className="block text-sm font-medium text-gf-body mb-1">
                 {t('fields.taxId')}
               </label>
               <div className="relative">
                 <input
+                  id="profile-tax-id"
                   type="text"
                   value={formData.tax_id || ''}
                   onChange={(e) => handleChange('tax_id', e.target.value)}
@@ -253,7 +258,7 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
                 <p className="mt-1 text-xs text-gf-warning">⚠️ {gusError}</p>
               )}
               {!taxIdError && !taxIdSuccess && !gusError && (
-                <p className="mt-1 text-xs text-gray-500">{t('fields.taxIdHelp')}</p>
+                <p className="mt-1 text-xs text-gf-muted">{t('fields.taxIdHelp')}</p>
               )}
             </div>
 
@@ -261,10 +266,11 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
               <h4 className="text-sm font-semibold mb-4">{t('billingInfo.addressTitle')}</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gf-body mb-1">
+                  <label htmlFor="profile-address1" className="block text-sm font-medium text-gf-body mb-1">
                     {t('fields.address')}
                   </label>
                   <input
+                    id="profile-address1"
                     type="text"
                     value={formData.address_line1 || ''}
                     onChange={(e) => handleChange('address_line1', e.target.value)}
@@ -272,19 +278,22 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
                     className="w-full border-2 border-gf-border-medium px-3 py-2 bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent outline-none mb-2"
                   />
                   <input
+                    id="profile-address2"
                     type="text"
                     value={formData.address_line2 || ''}
                     onChange={(e) => handleChange('address_line2', e.target.value)}
                     placeholder={t('fields.address2Placeholder')}
+                    aria-label={t('fields.address2Placeholder')}
                     className="w-full border-2 border-gf-border-medium px-3 py-2 bg-gf-input text-gf-heading focus:ring-2 focus:ring-gf-accent outline-none"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gf-body mb-1">
+                  <label htmlFor="profile-city" className="block text-sm font-medium text-gf-body mb-1">
                     {t('fields.city')}
                   </label>
                   <input
+                    id="profile-city"
                     type="text"
                     value={formData.city || ''}
                     onChange={(e) => handleChange('city', e.target.value)}
@@ -293,10 +302,11 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gf-body mb-1">
+                  <label htmlFor="profile-zip-code" className="block text-sm font-medium text-gf-body mb-1">
                     {t('fields.zipCode')}
                   </label>
                   <input
+                    id="profile-zip-code"
                     type="text"
                     value={formData.zip_code || ''}
                     onChange={(e) => handleChange('zip_code', e.target.value)}
@@ -305,10 +315,11 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gf-body mb-1">
+                  <label htmlFor="profile-country" className="block text-sm font-medium text-gf-body mb-1">
                     {t('fields.country')}
                   </label>
                   <input
+                    id="profile-country"
                     type="text"
                     value={formData.country || ''}
                     onChange={(e) => handleChange('country', e.target.value)}

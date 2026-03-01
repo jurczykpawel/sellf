@@ -145,7 +145,7 @@ export function Step1Welcome() {
       <div className="flex justify-center">
         <button
           onClick={nextStep}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gf-accent text-gf-inverse font-semibold hover:bg-gf-accent-hover transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gf-accent-bg text-white font-semibold hover:bg-gf-accent-hover transition-colors"
         >
           {t('startButton', { defaultValue: 'Start Configuration' })}
           <ArrowRight className="w-5 h-5" />

@@ -254,7 +254,7 @@ export default function RevenueGoal() {
                 </div>
                 <button
                   onClick={handleSave}
-                  className="text-xs bg-gf-accent text-gf-inverse px-2 py-1 hover:opacity-90"
+                  className="text-xs bg-gf-accent-bg text-white px-2 py-1 hover:opacity-90"
                 >
                   {tCommon('save')}
                 </button>
@@ -303,7 +303,7 @@ export default function RevenueGoal() {
             <div
               style={{ width: `${visualPercentage}%` }}
               className={`h-full motion-safe:animate-[progress-fill_0.8s_ease-out_0.3s_both] ${
-                rawPercentage >= 100 ? 'bg-gf-success' : 'bg-gf-accent'
+                rawPercentage >= 100 ? 'bg-gf-success' : 'bg-gf-accent-bg'
               }`}
             ></div>
           </div>

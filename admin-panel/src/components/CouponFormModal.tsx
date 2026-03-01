@@ -384,7 +384,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover transition-colors font-medium disabled:opacity-50"
+                className="px-6 py-2.5 bg-gf-accent-bg text-white hover:bg-gf-accent-hover transition-colors font-medium disabled:opacity-50"
               >
                 {isSubmitting ? t('form.saving') : (editingCoupon ? t('form.update') : t('form.save'))}
               </button>

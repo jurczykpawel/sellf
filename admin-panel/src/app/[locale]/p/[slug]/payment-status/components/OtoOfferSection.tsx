@@ -131,8 +131,8 @@ export default function OtoOfferSection({
             <div className="flex items-center gap-3">
               <div className={`
                 flex items-center justify-center w-12 h-12 rounded-full
-                ${isUrgent ? 'bg-gf-danger' : isWarning ? 'bg-gf-warning' : 'bg-wl-accent'}
-                text-gf-heading
+                ${isUrgent ? 'bg-gf-danger-bg' : isWarning ? 'bg-gf-warning' : 'bg-wl-accent'}
+                text-white
               `}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -152,10 +152,10 @@ export default function OtoOfferSection({
               <div className={`
                 px-4 py-2 rounded-lg font-mono text-2xl font-bold
                 ${isUrgent
-                  ? 'bg-gf-danger text-gf-heading'
+                  ? 'bg-gf-danger-bg text-gf-inverse'
                   : isWarning
-                    ? 'bg-gf-warning text-gf-heading'
-                    : 'bg-wl-accent text-gf-heading'
+                    ? 'bg-gf-warning text-gf-inverse'
+                    : 'bg-wl-accent text-white'
                 }
               `}>
                 {formatTime(secondsRemaining)}
@@ -177,9 +177,9 @@ export default function OtoOfferSection({
             <button
               onClick={handleAccept}
               className={`
-                flex-1 px-6 py-3 rounded-full font-semibold text-gf-heading transition-all
+                flex-1 px-6 py-3 rounded-full font-semibold text-white transition-all
                 ${isUrgent
-                  ? 'bg-gf-danger hover:bg-gf-danger/90'
+                  ? 'bg-gf-danger-bg hover:bg-gf-danger/90'
                   : isWarning
                     ? 'bg-gf-warning hover:bg-gf-warning/90'
                     : 'bg-wl-accent hover:bg-wl-accent-hover'

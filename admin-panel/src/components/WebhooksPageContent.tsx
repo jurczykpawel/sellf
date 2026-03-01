@@ -219,7 +219,7 @@ export default function WebhooksPageContent() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-[40px] font-[800] text-gf-heading tracking-[-0.03em] leading-[1.1]">{t('title')}</h1>
-          <p className="text-sm text-gray-500 mt-1">{t('pageDescription')}</p>
+          <p className="text-sm text-gf-muted mt-1">{t('pageDescription')}</p>
         </div>
         <button
           onClick={handleOpenCreate}
@@ -238,7 +238,7 @@ export default function WebhooksPageContent() {
       ) : endpoints.length === 0 ? (
         <div className="bg-gf-base p-12 text-center border border-dashed border-gf-border">
           <div className="mx-auto w-12 h-12 bg-gf-raised flex items-center justify-center mb-4">
-            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-gf-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>

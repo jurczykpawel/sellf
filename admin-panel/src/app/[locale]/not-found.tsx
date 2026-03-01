@@ -84,7 +84,7 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-10">
           <Link
             href={content.actionHref}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white bg-gf-accent hover:bg-gf-accent-hover transition-[background-color] duration-200 active:scale-[0.98]"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white bg-gf-accent-bg hover:bg-gf-accent-hover transition-[background-color] duration-200 active:scale-[0.98]"
           >
             {content.actionText}
           </Link>

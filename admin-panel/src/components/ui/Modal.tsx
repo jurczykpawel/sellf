@@ -192,15 +192,15 @@ export const Button: React.FC<ButtonProps> = ({
   const getVariantClasses = () => {
     switch (variant) {
       case 'primary':
-        return 'bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse border-transparent focus:ring-gf-accent';
+        return 'bg-gf-accent-bg hover:bg-gf-accent-hover text-white border-transparent focus:ring-gf-accent';
       case 'secondary':
         return 'bg-gf-raised hover:bg-gf-hover text-gf-heading border-gf-border focus:ring-gf-accent';
       case 'danger':
-        return 'bg-gf-danger hover:opacity-90 text-white border-transparent focus:ring-gf-danger';
+        return 'bg-gf-danger-bg hover:opacity-90 text-gf-inverse border-transparent focus:ring-gf-danger';
       case 'ghost':
         return 'bg-transparent hover:bg-gf-hover text-gf-body border-gf-border focus:ring-gf-accent';
       default:
-        return 'bg-gf-accent hover:bg-gf-accent-hover text-gf-inverse border-transparent focus:ring-gf-accent';
+        return 'bg-gf-accent-bg hover:bg-gf-accent-hover text-white border-transparent focus:ring-gf-accent';
     }
   };
 

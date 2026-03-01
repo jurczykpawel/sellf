@@ -186,7 +186,7 @@ export function Step2ModeSelection() {
           disabled={!state.mode}
           className={`inline-flex items-center gap-2 px-6 py-2.5 font-semibold transition-colors ${
             state.mode
-              ? 'bg-gf-accent text-gf-inverse hover:bg-gf-accent-hover'
+              ? 'bg-gf-accent-bg text-white hover:bg-gf-accent-hover'
               : 'bg-gf-raised text-gf-muted cursor-not-allowed'
           }`}
         >

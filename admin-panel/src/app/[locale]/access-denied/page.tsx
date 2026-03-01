@@ -36,7 +36,7 @@ export default function AccessDenied() {
         <div className="space-y-3">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center px-4 py-2 bg-gf-danger text-gf-heading rounded-full hover:opacity-90 transition-opacity duration-200 active:scale-[0.98]"
+            className="w-full flex items-center justify-center px-4 py-2 bg-gf-danger-bg text-gf-inverse rounded-full hover:opacity-90 transition-opacity duration-200 active:scale-[0.98]"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
