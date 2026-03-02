@@ -1156,6 +1156,8 @@
       "listedEnabled": "Product is now listed on store",
       "listedDisabled": "Product is now unlisted from store",
       "listedToggleError": "Failed to toggle listed status",
+      "hideFromStore": "Hide from store",
+      "showOnStore": "Show on store",
       "noRedirectUrl": "This product does not have a redirect URL.",
       "noProductsToExport": "No products to export",
       "exportSuccess": "{count} products exported successfully",

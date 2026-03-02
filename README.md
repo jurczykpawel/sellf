@@ -18,6 +18,12 @@
 
 </div>
 
+<div align="center">
+  <br>
+  <img src="admin-panel/public/screenshots/dashboard.png" alt="Sellf Admin Dashboard" width="800">
+  <p><em>Admin Dashboard — revenue analytics, sales trends, and product management</em></p>
+</div>
+
 ---
 
 ## Why Sellf?
@@ -178,6 +184,21 @@ Try Sellf without installing anything: **[demo.sellf.app](https://demo.sellf.app
 - Full admin panel access — browse products, dashboard, settings
 - Test checkout with Stripe test cards (`4242 4242 4242 4242`)
 - Data resets every hour
+
+<details>
+<summary><strong>Screenshots</strong></summary>
+<br>
+
+| | |
+|:---:|:---:|
+| ![Products](admin-panel/public/screenshots/products.png) | ![Storefront](admin-panel/public/screenshots/storefront.png) |
+| **Products** — manage pricing, status, and visibility | **Storefront** — your public store with free & premium products |
+| ![Checkout](admin-panel/public/screenshots/checkout.png) | ![Settings](admin-panel/public/screenshots/settings.png) |
+| **Checkout** — one-page purchase with upsells and tax fields | **Settings** — 5 theme presets with live preview |
+| ![Dashboard Dark](admin-panel/public/screenshots/dashboard-dark.png) | ![Products Dark](admin-panel/public/screenshots/products-dark.png) |
+| **Dashboard** — dark mode | **Products** — dark mode |
+
+</details>
 
 ---
 

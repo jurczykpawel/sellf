@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, Play, CheckCircle } from 'lucide-react'
@@ -114,6 +115,32 @@ export function HeroSection() {
             <Play className="h-5 w-5" />
             {t('hero.ctaDemo')}
           </a>
+        </motion.div>
+
+        {/* Product screenshot */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.2, duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="hidden md:block mb-16"
+        >
+          <div className="relative mx-auto max-w-5xl rounded-2xl border border-sf-border shadow-2xl overflow-hidden">
+            <Image
+              src="/screenshots/dashboard.png"
+              alt="Sellf Admin Dashboard"
+              width={1920}
+              height={1080}
+              priority
+              className="w-full h-auto dark:hidden"
+            />
+            <Image
+              src="/screenshots/dashboard-dark.png"
+              alt="Sellf Admin Dashboard"
+              width={1920}
+              height={1080}
+              className="w-full h-auto hidden dark:block"
+            />
+          </div>
         </motion.div>
 
         {/* Trust indicators */}

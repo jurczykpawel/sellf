@@ -1171,6 +1171,8 @@
       "listedEnabled": "Produkt jest teraz widoczny w sklepie",
       "listedDisabled": "Produkt jest teraz ukryty ze sklepu",
       "listedToggleError": "Nie udało się zmienić widoczności produktu",
+      "hideFromStore": "Ukryj ze sklepu",
+      "showOnStore": "Pokaż w sklepie",
       "noRedirectUrl": "Ten produkt nie ma adresu URL przekierowania.",
       "noProductsToExport": "Brak produktów do eksportu",
       "exportSuccess": "{count} produktów wyeksportowano pomyślnie",
