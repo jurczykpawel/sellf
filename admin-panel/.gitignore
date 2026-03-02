@@ -60,4 +60,6 @@ next-env.d.ts
 
 # visual testing screenshots
 /screenshots/
+/screenshots-before/
+/screenshots-after/
 *.bak

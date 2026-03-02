@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getStripeServer } from '@/lib/stripe/server';
 import { ProductValidationService, type ValidatedProduct } from '@/lib/services/product-validation';
 import {
@@ -65,7 +66,8 @@ export class CheckoutService {
    * Check rate limiting for checkout creation
    */
   async checkRateLimit(): Promise<void> {
-    const { data: rateLimitOk, error } = await this.supabase.rpc('check_rate_limit', {
+    const adminClient = createAdminClient();
+    const { data: rateLimitOk, error } = await adminClient.rpc('check_rate_limit', {
       function_name_param: STRIPE_CONFIG.rate_limit.action_type,
       max_calls: STRIPE_CONFIG.rate_limit.max_requests,
       time_window_seconds: STRIPE_CONFIG.rate_limit.window_minutes * 60,
