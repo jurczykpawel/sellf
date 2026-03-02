@@ -353,7 +353,7 @@ describe('CORS/CSRF Security', () => {
     });
 
     it('should fall back to siteUrl when origin not whitelisted', () => {
-      vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://mysite.com');
+      vi.stubEnv('SITE_URL', 'https://mysite.com');
       vi.stubEnv('ALLOWED_ORIGINS', 'https://app1.com');
       const request = createMockRequest({ origin: 'https://evil.com' });
       const headers = getCrossOriginHeaders(request);

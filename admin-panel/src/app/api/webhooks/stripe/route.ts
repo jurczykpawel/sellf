@@ -122,7 +122,7 @@ async function handleCheckoutSessionCompleted(
 
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
     trackServerSideConversion({
       eventName: 'Purchase',
       eventId: generatePurchaseEventId(sessionId),
@@ -253,7 +253,7 @@ async function handlePaymentIntentSucceeded(
     }
 
     // Server-side Purchase tracking via Facebook CAPI
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+    const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
     trackServerSideConversion({
       eventName: 'Purchase',
       eventId: generatePurchaseEventId(paymentIntent.id),

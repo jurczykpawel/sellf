@@ -50,7 +50,7 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
       redirect(redirectUrl);
     } else if (productId) {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000'}/api/products/${productId}`);
+        const response = await fetch(`${process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/products/${productId}`);
         const data = await response.json();
         if (data.product?.slug) {
           const locale = 'pl'; // TODO: get from Accept-Language header or cookie

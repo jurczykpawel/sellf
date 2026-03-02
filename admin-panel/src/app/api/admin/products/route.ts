@@ -14,7 +14,7 @@ import { requireAdminApi } from '@/lib/auth-server';
  */
 export async function OPTIONS(request: Request) {
   const origin = request.headers.get('origin');
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
   // Only allow same-origin or configured site URL
   const allowedOrigin = origin && (
@@ -37,7 +37,7 @@ export async function OPTIONS(request: Request) {
 
 // Helper function to get allowed CORS origin for admin routes
 function getAdminCorsOrigin(requestOrigin: string | null): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
   if (requestOrigin && (
     requestOrigin === siteUrl ||

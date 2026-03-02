@@ -27,7 +27,7 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
   // Validate Sellf license if provided
   if (values.sellf_license) {
     // Get current site URL from environment
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
 
     const licenseValidation = validateLicense(values.sellf_license, currentDomain || undefined);

@@ -55,7 +55,7 @@ export function validateCrossOriginRequest(request: Request): NextResponse | nul
  */
 export function getCrossOriginHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin')
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS
 
   let effectiveOrigin: string

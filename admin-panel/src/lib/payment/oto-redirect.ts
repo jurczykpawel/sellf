@@ -71,7 +71,7 @@ export function buildOtoRedirectUrl(params: OtoRedirectParams): OtoRedirectResul
     otoProductSlug,
     customerEmail,
     couponCode,
-    baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || 'http://localhost:3000',
+    baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
     hideBump,
     passParams,
     sourceProductId,
@@ -160,7 +160,7 @@ const FILTERED_PARAMS = ['session_id', 'success_url', 'payment_intent'];
 export function buildSuccessRedirectUrl(params: SuccessRedirectParams): SuccessRedirectResult {
   const {
     targetUrl,
-    baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || 'http://localhost:3000',
+    baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
     passParams = false,
     customerEmail,
     productId,

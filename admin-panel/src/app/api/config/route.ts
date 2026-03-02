@@ -19,11 +19,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get configuration from environment variables (runtime config)
-    // Prefer NEXT_PUBLIC_ variants — they hold the public-facing URLs.
-    // Non-prefixed vars may point to internal service addresses in Docker setups.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    // Server-side env vars (loaded at runtime) take priority over NEXT_PUBLIC_*
+    // (which are baked at build time and may contain placeholder values in standalone mode)
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json({
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest) {
     });
 
     // CORS headers — config.js is loaded cross-origin by sellf but without credentials
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     const requestOrigin = request.headers.get('origin');
     const corsHeaders = {
       'Access-Control-Allow-Origin': requestOrigin || siteUrl || '*',
@@ -84,7 +83,7 @@ export async function GET(request: NextRequest) {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': request.headers.get('origin') || process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '*',
         'Access-Control-Allow-Methods': 'GET',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Vary': 'Origin'

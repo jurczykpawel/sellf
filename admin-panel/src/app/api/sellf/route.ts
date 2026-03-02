@@ -134,7 +134,7 @@ export async function GET(request: Request) {
     // Get license validity from cache (5 min TTL) or fetch from database
     let licenseValid = false;
     if (supabaseServiceKey) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
       licenseValid = await getCachedLicenseValid(supabaseUrl, supabaseServiceKey, siteUrl);
     }
 

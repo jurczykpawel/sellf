@@ -80,7 +80,7 @@ export type AuthResult = SessionAuthResult | ApiKeyAuthResult;
  * CORS headers for API v1 endpoints
  */
 export function getApiCorsHeaders(origin: string | null): Record<string, string> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
   const isAllowed = origin && (
     origin === siteUrl ||

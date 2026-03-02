@@ -54,7 +54,7 @@ describe('API Middleware', () => {
 
   describe('getApiCorsHeaders', () => {
     it('should allow site URL origin', () => {
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://mysite.com';
+      process.env.SITE_URL = 'https://mysite.com';
 
       const headers = getApiCorsHeaders('https://mysite.com');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
@@ -71,15 +71,15 @@ describe('API Middleware', () => {
     });
 
     it('should fallback to site URL for unknown origins', () => {
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://mysite.com';
+      process.env.SITE_URL = 'https://mysite.com';
 
       const headers = getApiCorsHeaders('https://unknown-site.com');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
     });
 
-    it('should fallback to SITE_URL if NEXT_PUBLIC_SITE_URL not set', () => {
-      delete process.env.NEXT_PUBLIC_SITE_URL;
-      process.env.SITE_URL = 'https://backend.com';
+    it('should fallback to NEXT_PUBLIC_SITE_URL if SITE_URL not set', () => {
+      delete process.env.SITE_URL;
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://backend.com';
 
       const headers = getApiCorsHeaders('https://unknown.com');
       expect(headers['Access-Control-Allow-Origin']).toBe('https://backend.com');
@@ -109,7 +109,7 @@ describe('API Middleware', () => {
     });
 
     it('should handle null origin', () => {
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://mysite.com';
+      process.env.SITE_URL = 'https://mysite.com';
 
       const headers = getApiCorsHeaders(null);
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
