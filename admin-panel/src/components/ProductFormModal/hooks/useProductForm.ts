@@ -6,6 +6,7 @@ import { ProductContentConfig } from '@/types';
 import { getIconEmoji } from '@/utils/themeUtils';
 import { getCategories, getProductCategories, Category } from '@/lib/actions/categories';
 import { getDefaultCurrency, getShopConfig } from '@/lib/actions/shop-config';
+import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { createClient } from '@/lib/supabase/client';
 import { api } from '@/lib/api/client';
@@ -56,6 +57,9 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
   // Shop-level default VAT rate (from shop_config.tax_rate, stored as decimal e.g. 0.23)
   const [shopDefaultVatRate, setShopDefaultVatRate] = useState<number | null>(null);
 
+  // Tax mode from shop config
+  const [taxMode, setTaxMode] = useState<TaxMode>('local');
+
   // OTO (One-Time Offer) state
   const [oto, setOto] = useState<OtoState>(initialOtoState);
 
@@ -95,12 +99,13 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         });
       }
 
-      // Fetch Omnibus Directive global setting + default VAT rate
+      // Fetch Omnibus Directive global setting, default VAT rate, and tax mode
       getShopConfig().then(config => {
         if (config) {
           setOmnibusEnabled(config.omnibus_enabled);
           // tax_rate is stored as decimal (0.23 = 23%)
           setShopDefaultVatRate(config.tax_rate ?? null);
+          setTaxMode((config.tax_mode as TaxMode) || 'local');
         }
       }).catch(err => {
         console.error('Failed to fetch shop config', err);
@@ -484,6 +489,11 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     if (!formData.description.trim()) errors.description = 'required';
     if (priceDisplayValue === '') errors.price = 'required';
 
+    // In local tax mode: VAT rate is required when no shop default is set
+    if (taxMode === 'local' && formData.price_includes_vat && formData.vat_rate == null) {
+      errors.vat_rate = 'required';
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       if (errors.name) nameInputRef.current?.focus();
@@ -491,7 +501,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
     setFieldErrors({});
     return true;
-  }, [formData.name, formData.slug, formData.description, priceDisplayValue]);
+  }, [formData.name, formData.slug, formData.description, formData.price_includes_vat, formData.vat_rate, priceDisplayValue, taxMode]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -576,6 +586,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     defaultCurrency,
     omnibusEnabled,
     shopDefaultVatRate,
+    taxMode,
 
     // OTO
     oto,

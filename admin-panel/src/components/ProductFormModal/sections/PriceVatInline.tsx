@@ -3,11 +3,13 @@
 import React, { useRef } from 'react';
 import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
 import type { SectionProps } from '../types';
+import type { TaxMode } from '@/lib/actions/shop-config';
 
 interface PriceVatInlineProps extends SectionProps {
   priceDisplayValue: string;
   setPriceDisplayValue: (value: string) => void;
   shopDefaultVatRate: number | null;
+  taxMode?: TaxMode;
   fieldErrors?: Record<string, string>;
   setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
@@ -19,6 +21,7 @@ export function PriceVatInline({
   priceDisplayValue,
   setPriceDisplayValue,
   shopDefaultVatRate,
+  taxMode = 'local',
   fieldErrors = {},
   setFieldErrors,
 }: PriceVatInlineProps) {
@@ -157,44 +160,62 @@ export function PriceVatInline({
         </div>
 
         {/* Brutto checkbox + VAT rate — wrap together */}
-        <div className="flex items-center gap-3">
-          <label htmlFor="price_includes_vat" className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              id="price_includes_vat"
-              checked={formData.price_includes_vat}
-              onChange={(e) => setFormData(prev => ({ ...prev, price_includes_vat: e.target.checked }))}
-              className="h-4 w-4 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
-            />
-            <span className="text-sm text-sf-body whitespace-nowrap">
-              {formData.price_includes_vat ? t('vatIncluded') : t('vatExcluded')}
+        {taxMode === 'stripe_tax' ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-sf-muted px-2 py-1.5 bg-sf-raised border border-sf-border">
+              {t('vatStripeTaxInfo', { defaultValue: 'Tax calculated by Stripe' })}
             </span>
-          </label>
-
-          {formData.price_includes_vat && (
-            <div className="flex items-center gap-1">
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <label htmlFor="price_includes_vat" className="flex items-center gap-2 cursor-pointer select-none">
               <input
-                type="number"
-                id="vat_rate"
-                value={formData.vat_rate ?? ''}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  vat_rate: e.target.value === '' ? null : parseFloat(e.target.value)
-                }))}
-                min="0"
-                max="100"
-                step="1"
-                placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : '23'}
-                className="w-14 px-2 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm text-center"
+                type="checkbox"
+                id="price_includes_vat"
+                checked={formData.price_includes_vat}
+                onChange={(e) => setFormData(prev => ({ ...prev, price_includes_vat: e.target.checked }))}
+                className="h-4 w-4 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
               />
-              <span className="text-sm text-sf-muted">%</span>
-            </div>
-          )}
-        </div>
+              <span className="text-sm text-sf-body whitespace-nowrap">
+                {formData.price_includes_vat ? t('vatIncluded') : t('vatExcluded')}
+              </span>
+            </label>
+
+            {formData.price_includes_vat && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  id="vat_rate"
+                  value={formData.vat_rate ?? ''}
+                  onChange={(e) => {
+                    if (fieldErrors.vat_rate && setFieldErrors) {
+                      setFieldErrors(prev => { const next = { ...prev }; delete next.vat_rate; return next; });
+                    }
+                    setFormData(prev => ({
+                      ...prev,
+                      vat_rate: e.target.value === '' ? null : parseFloat(e.target.value)
+                    }));
+                  }}
+                  min="0"
+                  max="100"
+                  step="1"
+                  placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : ''}
+                  required={shopDefaultVatRate == null}
+                  className={`w-14 px-2 py-2 border-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm text-center ${
+                    fieldErrors.vat_rate ? 'border-red-500' : 'border-sf-border-medium'
+                  }`}
+                />
+                <span className="text-sm text-sf-muted">%</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {fieldErrors.price ? (
         <p className="mt-1.5 text-xs text-red-500">{t('price')} is required</p>
+      ) : fieldErrors.vat_rate ? (
+        <p className="mt-1.5 text-xs text-red-500">{t('vatRateRequired', { defaultValue: 'VAT rate is required (no default set in Tax settings)' })}</p>
       ) : (
         <p className="mt-1.5 text-xs text-sf-muted">
           {t('setToZeroForFree')}

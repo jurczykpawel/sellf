@@ -3,6 +3,7 @@
 import React from 'react';
 import { BasicInfoSection, PriceVatInline } from '../../sections';
 import type { ProductFormData, TranslationFunction } from '../../types';
+import type { TaxMode } from '@/lib/actions/shop-config';
 
 interface StepEssentialsProps {
   formData: ProductFormData;
@@ -18,6 +19,7 @@ interface StepEssentialsProps {
   priceDisplayValue: string;
   setPriceDisplayValue: (value: string) => void;
   shopDefaultVatRate: number | null;
+  taxMode?: TaxMode;
 }
 
 export const StepEssentials: React.FC<StepEssentialsProps> = ({
@@ -34,6 +36,7 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   priceDisplayValue,
   setPriceDisplayValue,
   shopDefaultVatRate,
+  taxMode,
 }) => {
   return (
     <div className="space-y-6">
@@ -56,6 +59,7 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         priceDisplayValue={priceDisplayValue}
         setPriceDisplayValue={setPriceDisplayValue}
         shopDefaultVatRate={shopDefaultVatRate}
+        taxMode={taxMode}
         fieldErrors={fieldErrors}
         setFieldErrors={setFieldErrors}
       />

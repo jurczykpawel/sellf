@@ -8,12 +8,14 @@ import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import { useTranslations } from 'next-intl';
 import OmnibusPrice from '@/components/OmnibusPrice';
+import type { TaxMode } from '@/lib/actions/shop-config';
 
 interface ProductShowcaseProps {
   product: Product;
+  taxMode?: TaxMode;
 }
 
-export default function ProductShowcase({ product }: ProductShowcaseProps) {
+export default function ProductShowcase({ product, taxMode }: ProductShowcaseProps) {
   const t = useTranslations('checkout');
 
   // Check if sale price is active (considers both time and quantity limits)
@@ -89,7 +91,7 @@ export default function ProductShowcase({ product }: ProductShowcaseProps) {
             {formatPrice(grossPrice, product.currency)} {product.currency}
           </div>
 
-          {product.vat_rate && product.vat_rate > 0 && (
+          {taxMode !== 'stripe_tax' && product.vat_rate && product.vat_rate > 0 && (
             <div className="text-sm text-sf-muted">
               {t('includingVat', { defaultValue: 'including VAT' })} {vatRate}%
             </div>

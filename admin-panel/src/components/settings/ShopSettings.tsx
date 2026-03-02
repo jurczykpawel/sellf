@@ -26,7 +26,6 @@ export default function ShopSettings() {
  default_currency: 'USD',
  shop_name: '',
  contact_email: '',
- tax_rate: '',
  });
 
  useEffect(() => {
@@ -39,7 +38,6 @@ export default function ShopSettings() {
  default_currency: data.default_currency,
  shop_name: data.shop_name,
  contact_email: data.contact_email || '',
- tax_rate: data.tax_rate ? Math.round(data.tax_rate * 100).toString() : '',
  });
  }
  } catch (error) {
@@ -60,7 +58,6 @@ export default function ShopSettings() {
  default_currency: formData.default_currency,
  shop_name: formData.shop_name,
  contact_email: formData.contact_email || null,
- tax_rate: formData.tax_rate ? parseFloat(formData.tax_rate) / 100 : null,
  };
 
  const success = await updateShopConfig(updates);
@@ -151,30 +148,6 @@ export default function ShopSettings() {
  className="w-full px-4 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
  placeholder={t('contactEmailPlaceholder')}
  />
- </div>
-
- {/* Tax Rate */}
- <div>
- <label htmlFor="shop-tax-rate" className="block text-sm font-medium text-sf-body mb-2">
- {t('taxRate')}
- <span className="block text-xs text-sf-muted font-normal mt-1">
- {t('taxRateHelp')}
- </span>
- </label>
- <div className="flex items-center gap-2">
- <input
- id="shop-tax-rate"
- type="number"
- step="1"
- min="0"
- max="100"
- value={formData.tax_rate}
- onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
- className="w-32 px-4 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
- placeholder={t('taxRatePlaceholder')}
- />
- <span className="text-sm text-sf-muted">%</span>
- </div>
  </div>
 
  {/* Save Button */}

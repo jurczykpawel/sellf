@@ -2,6 +2,7 @@
 
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
+import type { TaxMode } from '@/lib/actions/shop-config';
 import FreeProductForm from './FreeProductForm';
 import PaidProductForm from './PaidProductForm';
 import WaitlistForm from '@/components/WaitlistForm';
@@ -14,6 +15,7 @@ interface ProductPurchaseViewProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   licenseValid?: boolean;
+  taxMode?: TaxMode;
 }
 
 type UnavailableReason = 'not_started' | 'expired' | 'inactive' | null;
@@ -44,7 +46,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled
@@ -61,7 +63,7 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       ) : product.price === 0 && !product.allow_custom_price ? (
         <FreeProductForm product={product} />
       ) : (
-        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} />
+        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} />
       )}
 
       {/* Sellf branding — hidden when a valid license is active */}

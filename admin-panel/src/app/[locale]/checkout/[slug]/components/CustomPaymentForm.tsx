@@ -12,6 +12,7 @@ import { validateTaxId, isPolishNIP, normalizeNIP } from '@/lib/validation/nip';
 import { useTracking } from '@/hooks/useTracking';
 import { usePricing } from '@/hooks/usePricing';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
+import type { TaxMode } from '@/lib/actions/shop-config';
 
 interface AppliedCoupon {
   code: string;
@@ -33,6 +34,7 @@ interface CustomPaymentFormProps {
   clientSecret?: string; // Payment Intent client secret for metadata updates
   paymentMethodOrder?: string[]; // Custom payment method ordering from config
   expressCheckoutConfig?: ExpressCheckoutConfig; // Express Checkout visibility config
+  taxMode?: TaxMode;
 }
 
 export default function CustomPaymentForm({
@@ -47,7 +49,8 @@ export default function CustomPaymentForm({
   customAmountError,
   clientSecret,
   paymentMethodOrder,
-  expressCheckoutConfig
+  expressCheckoutConfig,
+  taxMode
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const stripe = useStripe();
@@ -667,7 +670,7 @@ export default function CustomPaymentForm({
                 <span className="text-xs font-normal ml-2">({t('invalidAmount', { defaultValue: 'invalid amount' })})</span>
               )}
             </div>
-            {!customAmountError && product.vat_rate && product.vat_rate > 0 && (
+            {taxMode !== 'stripe_tax' && !customAmountError && product.vat_rate && product.vat_rate > 0 && (
               <div className="text-xs text-sf-muted">
                 {t('netPrice')}: {formatPrice(totalNet, product.currency)} {product.currency} + {t('vat')} {vatRate}%
               </div>
@@ -715,7 +718,7 @@ export default function CustomPaymentForm({
         className={`w-full px-6 py-4 text-white font-bold rounded-full shadow-[var(--sf-shadow-accent)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] ${
           customAmountError
             ? 'bg-sf-muted/30 cursor-not-allowed'
-            : 'bg-sf-accent hover:bg-sf-accent-hover'
+            : 'bg-sf-accent-bg hover:bg-sf-accent-hover'
         }`}
       >
         {isProcessing ? (

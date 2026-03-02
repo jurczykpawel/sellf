@@ -60,6 +60,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     loadingCategories,
     omnibusEnabled,
     shopDefaultVatRate,
+    taxMode,
     oto,
     setOto,
     urlValidation,
@@ -210,6 +211,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 priceDisplayValue={priceDisplayValue}
                 setPriceDisplayValue={setPriceDisplayValue}
                 shopDefaultVatRate={shopDefaultVatRate}
+                taxMode={taxMode}
               />
             )}
 

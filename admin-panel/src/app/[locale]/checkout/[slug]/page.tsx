@@ -8,6 +8,8 @@ import { getEffectivePaymentMethodOrder } from '@/lib/utils/payment-method-helpe
 import { extractExpressCheckoutConfig } from '@/types/payment-config';
 import type { PaymentMethodConfig } from '@/types/payment-config';
 import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify';
+import { getShopConfig } from '@/lib/actions/shop-config';
+import type { TaxMode } from '@/lib/actions/shop-config';
 
 interface PageProps {
   params: Promise<{ slug: string; locale: string }>;
@@ -99,6 +101,10 @@ export default async function CheckoutPage({ params }: PageProps) {
   const licenseResult = validateLicense(integrationsConfig?.sellf_license || '', currentDomain || undefined);
   const licenseValid = licenseResult.valid;
 
+  // Get tax mode for conditional VAT display
+  const shopConfig = await getShopConfig();
+  const taxMode: TaxMode = (shopConfig?.tax_mode as TaxMode) || 'local';
+
   // ProductPurchaseView handles showing either checkout form or waitlist form
   return (
     <ProductPurchaseView
@@ -106,6 +112,7 @@ export default async function CheckoutPage({ params }: PageProps) {
       paymentMethodOrder={paymentMethodOrder}
       expressCheckoutConfig={expressCheckoutConfig}
       licenseValid={licenseValid}
+      taxMode={taxMode}
     />
   );
 }

@@ -12,6 +12,7 @@ import { getStripeTaxStatus, getCheckoutConfigAction } from '@/lib/actions/strip
 import type { StripeTaxStatus } from '@/lib/actions/stripe-tax'
 import type { ConfigSource } from '@/lib/stripe/checkout-config'
 import { getShopConfig, updateShopConfig } from '@/lib/actions/shop-config'
+import type { TaxMode } from '@/lib/actions/shop-config'
 import { useToast } from '@/contexts/ToastContext'
 import { useTranslations } from 'next-intl'
 import SourceBadge from '@/components/ui/SourceBadge'
@@ -85,8 +86,11 @@ export default function StripeTaxSettings() {
  const [taxStatus, setTaxStatus] = useState<StripeTaxStatus | null>(null)
  const [error, setError] = useState<string | null>(null)
 
+ // Tax mode state
+ const [taxMode, setTaxMode] = useState<TaxMode>('stripe_tax')
+ const [defaultVatRate, setDefaultVatRate] = useState('')
+
  // Toggle state
- const [automaticTax, setAutomaticTax] = useState(true)
  const [taxIdCollection, setTaxIdCollection] = useState(true)
  const [billingAddress, setBillingAddress] = useState<'auto' | 'required'>('auto')
  const [expiresHours, setExpiresHours] = useState(24)
@@ -111,9 +115,10 @@ export default function StripeTaxSettings() {
  const load = async () => {
  setLoading(true)
  try {
- const [statusResult, configResult] = await Promise.all([
+ const [statusResult, configResult, shopConfig] = await Promise.all([
  getStripeTaxStatus(),
  getCheckoutConfigAction(),
+ getShopConfig(),
  ])
 
  if (statusResult.success && statusResult.data) {
@@ -123,7 +128,7 @@ export default function StripeTaxSettings() {
  }
 
  if (configResult.success && configResult.data) {
- setAutomaticTax(configResult.data.automatic_tax.enabled)
+ setTaxMode(configResult.data.tax_mode)
  setTaxIdCollection(configResult.data.tax_id_collection.enabled)
  setBillingAddress(configResult.data.billing_address_collection)
  setExpiresHours(configResult.data.expires_hours)
@@ -143,7 +148,15 @@ export default function StripeTaxSettings() {
  collect_terms: configResult.data.envExists.collect_terms,
  })
  }
- } catch (err) {
+
+ if (shopConfig) {
+ setDefaultVatRate(
+ shopConfig.tax_rate != null
+ ? Math.round(shopConfig.tax_rate * 100).toString()
+ : ''
+ )
+ }
+ } catch {
  setError(t('loadError'))
  } finally {
  setLoading(false)
@@ -152,18 +165,50 @@ export default function StripeTaxSettings() {
  load()
  }, [])
 
+ const handleTaxModeChange = async (mode: TaxMode) => {
+ setSaving(true)
+ try {
+ const success = await updateShopConfig({ tax_mode: mode })
+ if (success) {
+ setTaxMode(mode)
+ setSources((s) => ({ ...s, automatic_tax: 'db' }))
+ addToast(t('saveSuccess'), 'success')
+ } else {
+ addToast(t('saveError'), 'error')
+ }
+ } catch {
+ addToast(t('saveError'), 'error')
+ } finally {
+ setSaving(false)
+ }
+ }
+
+ const handleDefaultVatRate = async () => {
+ const parsed = defaultVatRate ? parseFloat(defaultVatRate) / 100 : null
+ setSaving(true)
+ try {
+ const success = await updateShopConfig({ tax_rate: parsed })
+ if (success) {
+ addToast(t('saveSuccess'), 'success')
+ } else {
+ addToast(t('saveError'), 'error')
+ }
+ } catch {
+ addToast(t('saveError'), 'error')
+ } finally {
+ setSaving(false)
+ }
+ }
+
  const handleToggle = async (
- field: 'automatic_tax_enabled' | 'tax_id_collection_enabled' | 'checkout_collect_terms',
+ field: 'tax_id_collection_enabled' | 'checkout_collect_terms',
  value: boolean,
  ) => {
  setSaving(true)
  try {
  const success = await updateShopConfig({ [field]: value })
  if (success) {
- if (field === 'automatic_tax_enabled') {
- setAutomaticTax(value)
- setSources((s) => ({ ...s, automatic_tax: 'db' }))
- } else if (field === 'tax_id_collection_enabled') {
+ if (field === 'tax_id_collection_enabled') {
  setTaxIdCollection(value)
  setSources((s) => ({ ...s, tax_id_collection: 'db' }))
  } else {
@@ -229,6 +274,9 @@ export default function StripeTaxSettings() {
  )
  }
 
+ const isLocalMode = taxMode === 'local'
+ const stripeTaxIsActive = taxStatus?.status === 'active'
+
  return (
  <div className="bg-sf-base border-2 border-sf-border-medium p-6">
  <div className="flex items-start justify-between mb-6">
@@ -243,7 +291,7 @@ export default function StripeTaxSettings() {
  <Receipt className="w-8 h-8 text-sf-accent" />
  </div>
 
- {/* Status Banner */}
+ {/* Error Banner */}
  {error && (
  <div className="mb-6 bg-sf-danger-soft border border-sf-danger/20 p-4">
  <div className="flex items-start gap-3">
@@ -253,7 +301,85 @@ export default function StripeTaxSettings() {
  </div>
  )}
 
- {taxStatus && (
+ {/* Tax Mode Selector */}
+ <div className="mb-6">
+ <div className="mb-2">
+ <p className="text-sm font-medium text-sf-heading mb-1">
+ {t('taxMode.label')}
+ </p>
+ <p className="text-xs text-sf-muted">
+ {t('taxMode.description')}
+ </p>
+ </div>
+ <div className="flex gap-1 mt-3">
+ {(['local', 'stripe_tax'] as const).map((mode) => (
+ <button
+ key={mode}
+ onClick={() => handleTaxModeChange(mode)}
+ disabled={saving}
+ className={`px-4 py-2 text-sm font-medium transition-colors ${
+ taxMode === mode
+ ? 'bg-sf-accent-bg text-white'
+ : 'bg-sf-raised text-sf-body hover:bg-sf-hover'
+ } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+ >
+ {t(`taxMode.${mode === 'local' ? 'local' : 'stripeTax'}`)}
+ </button>
+ ))}
+ </div>
+ <p className="text-xs text-sf-muted mt-2">
+ {isLocalMode ? t('taxMode.localDescription') : t('taxMode.stripeTaxDescription')}
+ </p>
+ </div>
+
+ {/* Local mode: Default VAT Rate input + warnings */}
+ {isLocalMode && (
+ <div className="mb-6 p-4 bg-sf-raised border border-sf-border">
+ <label htmlFor="default-vat-rate" className="block text-sm font-medium text-sf-heading mb-1">
+ {t('taxMode.vatRateLabel')}
+ </label>
+ <p className="text-xs text-sf-muted mb-3">
+ {t('taxMode.vatRateHelp')}
+ </p>
+ <div className="flex items-center gap-2 mb-3">
+ <input
+ id="default-vat-rate"
+ type="number"
+ step="1"
+ min="0"
+ max="100"
+ value={defaultVatRate}
+ onChange={(e) => setDefaultVatRate(e.target.value)}
+ onBlur={handleDefaultVatRate}
+ disabled={saving}
+ className={`w-24 px-3 py-1.5 text-sm border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent ${
+ saving ? 'opacity-50 cursor-not-allowed' : ''
+ }`}
+ placeholder={t('taxMode.vatRatePlaceholder')}
+ />
+ <span className="text-sm text-sf-muted">%</span>
+ </div>
+
+ {/* No rate warning */}
+ {(!defaultVatRate || defaultVatRate === '0') && (
+ <div className="flex items-start gap-2 p-2 bg-sf-warning-soft border border-sf-warning/20">
+ <AlertCircle className="w-4 h-4 text-sf-warning mt-0.5 flex-shrink-0" />
+ <p className="text-xs text-sf-warning">{t('taxMode.noRateWarning')}</p>
+ </div>
+ )}
+
+ {/* Stripe Tax active but not used warning */}
+ {stripeTaxIsActive && (
+ <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800 mt-2">
+ <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+ <p className="text-xs text-amber-700 dark:text-amber-300">{t('taxMode.stripeTaxActiveWarning')}</p>
+ </div>
+ )}
+ </div>
+ )}
+
+ {/* Stripe Tax mode: show status, registrations, head office */}
+ {!isLocalMode && taxStatus && (
  <>
  {taxStatus.status === 'active' && (
  <div className="mb-6 bg-sf-success-soft border border-sf-success/20 p-4">
@@ -363,27 +489,6 @@ export default function StripeTaxSettings() {
 
  {/* Checkout Settings Toggles */}
  <div className="mb-6 space-y-0">
- {/* Automatic Tax */}
- <div className="flex items-center justify-between py-3 border-t border-sf-border">
- <div className="flex-1 min-w-0 mr-4">
- <div className="flex items-center gap-2 mb-1">
- <p className="text-sm font-medium text-sf-heading">
- {t('toggles.automaticTax')}
- </p>
- <SourceBadge source={sources.automatic_tax} envAlsoSet={envExists.automatic_tax} />
- </div>
- <p className="text-xs text-sf-muted">
- {t('toggles.automaticTaxDescription')}
- </p>
- </div>
- <Toggle
- enabled={automaticTax}
- onChange={(v) => handleToggle('automatic_tax_enabled', v)}
- disabled={saving}
- label={t('toggles.automaticTax')}
- />
- </div>
-
  {/* Tax ID Collection */}
  <div className="flex items-center justify-between py-3 border-t border-sf-border">
  <div className="flex-1 min-w-0 mr-4">
