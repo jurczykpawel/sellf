@@ -6,7 +6,7 @@
 
 **An alternative to** Gumroad, LemonSqueezy, Paddle — with zero platform fees
 
-![Version](https://img.shields.io/badge/version-1.0.3-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Tests](https://img.shields.io/badge/tests-2,650%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)

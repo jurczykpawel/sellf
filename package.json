@@ -1,6 +1,6 @@
 {
   "name": "sellf",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Open-source platform for selling and protecting digital products — built on Next.js, Supabase & Stripe",
   "main": "sellf.js",
   "scripts": {
