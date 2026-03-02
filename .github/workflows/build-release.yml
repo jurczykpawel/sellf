@@ -113,11 +113,10 @@ jobs:
           cp scripts/upgrade.sh ../release/scripts/ 2>/dev/null || true
           chmod +x ../release/scripts/upgrade.sh 2>/dev/null || true
 
-          # Copy Supabase migrations, seed, and email templates
+          # Copy Supabase migrations and email templates
           mkdir -p ../release/supabase
           cp -r ../supabase/migrations ../release/supabase/ 2>/dev/null || true
           cp -r ../supabase/templates ../release/supabase/ 2>/dev/null || true
-          cp ../supabase/seed.sql ../release/supabase/ 2>/dev/null || true
 
           # Create .env.example for reference
           cat > ../release/.env.example << 'EOF'
