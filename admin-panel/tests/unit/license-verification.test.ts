@@ -23,9 +23,9 @@ import {
 
 describe('License Verification', () => {
   // Fixtures: real ECDSA P-256 signatures generated with the private key
-  const VALID_LICENSE_UNLIMITED = 'SF-test.example.com-UNLIMITED-MEUCIFu0eHmjYGTkO2LeOf-H9wbPADxtb2e2y9zwI-UbNs2IAiEA9zLeqLOTNsyeIR8APM0wkZOcKY4RYJw2T_DqPWfjCwQ';
-  const VALID_LICENSE_DATED = 'SF-test.example.com-20301231-MEUCIQCs9QVA6-9uwH2wdoNy3UAlR_bzB4IivExlM1KeqUgPiQIgKNkpD5XEFVKMELTu8T3RAhi80hOuRnSWaef0T-JNSFA';
-  const EXPIRED_LICENSE = 'SF-test.example.com-20201231-MEUCIGHfTwXx0_VbMaS1iK4uZ9yx72FzyDJ0iu4_1wMjz4mAAiEAwHCJIx1owoyCTg4xDqaSnVhHKxCtl4pdJkyrZ3p7pAo';
+  const VALID_LICENSE_UNLIMITED = 'SF-test.example.com-UNLIMITED-MEUCIEHqYzD3xj-ro61wuTmeBnXI7atQ3d_NWX6QcZUk05zrAiEA53-g5nGLU3_hR2OZfCeUruyVU3lY_57ZQbmO4obico8';
+  const VALID_LICENSE_DATED = 'SF-test.example.com-20301231-MEQCIFsw5GEhrFgVQnq-fz0qVEs3vXbo4u6iMsi5S6gJw43PAiACNsshNQIqPLGwVeNlQW22K0pRvfhnC0yzE0M6roOC4A';
+  const EXPIRED_LICENSE = 'SF-test.example.com-20201231-MEYCIQCIDcA-LOWSM9PT67A0Gt8WI44ME0FbpM0XXspCgoMe5QIhANtBIAE3Mk1Bp6sRFvKh2AeAYSuiKwDchK8tA6nbhIyE';
 
   // Invalid: tampered / fabricated signatures
   const INVALID_LICENSE = 'SF-test.example.com-UNLIMITED-INVALID_SIGNATURE_HERE';

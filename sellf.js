@@ -37,8 +37,8 @@ const CONSTANTS = {
     // License public key for offline verification (ECDSA P-256)
     // Only the private key holder (Sellf) can generate valid licenses
     LICENSE_PUBLIC_KEY: `-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIENJbqxv7nmfxKjGCu98LTpekvLW
-bBv/FwWkjy1pnLiuFZDGNITxN6YC1L4628tXv1cPey6WcQqEC3jTWz2ZsQ==
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE8K2XLvuxHQsCMSvBLemkdpMZqXpy
+LeS3pFS7JyEEyi9Kew8TADDYBKh7mVLJSxqfXfy4H0qsCwy2S+zMdoCiIg==
 -----END PUBLIC KEY-----`,
     
     // Event names
