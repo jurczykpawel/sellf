@@ -11,9 +11,10 @@ RESET=$'\033[0m'
 _PW=$(mktemp)
 trap 'rm -f "$_PW"' EXIT
 
-FORCE_COLOR=0 npx playwright test "$@" --reporter=list 2>&1 | tee "$_PW" | awk -v red="$RED" -v dim="$DIM" -v reset="$RESET" \
-  '/^\s*✘/ {printf "%s%s%s\n", red, $0, reset; fflush(); next}
-   /^\s*✓/ {printf "%s%s%s\n", dim, $0, reset; fflush(); next}'
+FORCE_COLOR=0 npx playwright test "$@" --reporter=list 2>&1 | tee "$_PW" | grep -E '^\s*[✓✘]' | awk -v red="$RED" -v green="$GREEN" -v dim="$DIM" -v reset="$RESET" \
+  '/✘/ {printf "%s%s%s\n", red, $0, reset; next}
+   /✓/ {printf "%s%s%s\n", dim, $0, reset; next}
+   {print}'
 
 # Print error details (lines after "  N) ...")
 ERRORS=$(awk '/^[[:space:]]+[0-9]+\) /{f=1} f' "$_PW")
