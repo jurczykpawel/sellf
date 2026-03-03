@@ -737,7 +737,7 @@ export default function CustomPaymentForm({
       </button>
 
       <p className="text-xs text-sf-muted text-center">
-        🔒 {t('securePayment')}
+        {t('securePayment')}
       </p>
     </form>
   );

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { trackServerSideConversion } from '@/lib/tracking';
+import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 
 export async function POST(
   request: NextRequest,
@@ -60,81 +62,46 @@ export async function POST(
       return NextResponse.json({ error: 'Payment required' }, { status: 400 });
     }
 
-    // Check if user already has valid access
-    const { data: existingAccess } = await supabase
-      .from('user_product_access')
-      .select('access_expires_at')
-      .eq('user_id', user.id)
-      .eq('product_id', product.id)
-      .single();
+    const adminClient = createAdminClient();
+    const accessResult = await grantFreeProductAccess(supabase, adminClient, {
+      product: { id: product.id, slug, price: product.price, isPwywFree },
+      user: { id: user.id, email: user.email ?? '' },
+    });
 
-    if (existingAccess) {
-      const expiresAt = existingAccess.access_expires_at ? new Date(existingAccess.access_expires_at) : null;
-      const isExpired = expiresAt && expiresAt < now;
-      
-      if (!isExpired) {
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Access already granted',
-          alreadyHadAccess: true 
-        });
-      }
+    if (!accessResult.accessGranted) {
+      const status = accessResult.error?.includes('not be free or active') ? 400 : 500;
+      return NextResponse.json({ error: accessResult.error }, { status });
     }
 
-    // Grant access using the appropriate database function
-    const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
-    const { data: grantResult, error: grantError } = await supabase
-      .rpc(rpcName, {
-        product_slug_param: slug
-      });
-
-    if (grantError) {
-      console.error('Error granting access:', grantError);
-      return NextResponse.json({ error: 'Failed to grant access' }, { status: 500 });
-    }
-
-    if (!grantResult) {
-      return NextResponse.json({ error: 'Failed to grant access - product may not be free or active' }, { status: 400 });
-    }
-
-    // Trigger webhook for lead capture
-    WebhookService.trigger('lead.captured', {
-      customer: {
-        email: user.email,
-        userId: user.id
-      },
-      product: {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        price: product.price,
-        currency: product.currency,
-        icon: product.icon
-      }
-    }).catch(err => console.error('Webhook trigger error:', err));
-
-    // Track server-side Lead conversion to Facebook CAPI
-    // This runs independently of client-side tracking
-    trackServerSideConversion({
-      eventName: 'Lead',
-      eventSourceUrl: request.headers.get('referer') || '',
-      value: 0,
-      currency: 'USD',
-      items: [
-        {
-          item_id: product.id,
-          item_name: product.name,
-          price: 0,
-          quantity: 1,
+    // Trigger webhook and tracking only for new grants (not repeat calls)
+    if (!accessResult.alreadyHadAccess) {
+      WebhookService.trigger('lead.captured', {
+        customer: { email: user.email, userId: user.id },
+        product: {
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          price: product.price,
+          currency: product.currency,
+          icon: product.icon,
         },
-      ],
-      userEmail: user.email || undefined,
-    }).catch(err => console.error('[FB CAPI] Server-side Lead tracking error:', err));
+      }).catch(err => console.error('Webhook trigger error:', err));
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Access granted successfully',
-      alreadyHadAccess: false 
+      trackServerSideConversion({
+        eventName: 'Lead',
+        eventSourceUrl: request.headers.get('referer') || '',
+        value: 0,
+        currency: 'USD',
+        items: [{ item_id: product.id, item_name: product.name, price: 0, quantity: 1 }],
+        userEmail: user.email || undefined,
+      }).catch(err => console.error('[FB CAPI] Server-side Lead tracking error:', err));
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: accessResult.alreadyHadAccess ? 'Access already granted' : 'Access granted successfully',
+      alreadyHadAccess: accessResult.alreadyHadAccess,
+      ...(accessResult.otoInfo ? { otoInfo: accessResult.otoInfo } : {}),
     });
 
   } catch (error) {

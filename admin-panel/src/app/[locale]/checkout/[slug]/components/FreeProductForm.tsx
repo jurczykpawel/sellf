@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
+import { buildOtoRedirectUrl } from '@/lib/payment/oto-redirect';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -21,6 +22,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   const t = useTranslations('productView');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');
+  const locale = useLocale();
   const { user } = useAuth();
   const { addToast } = useToast();
   const router = useRouter();
@@ -100,7 +102,19 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
           userEmail: user.email || undefined,
         });
 
-        // Redirect to success page (no session_id needed for free products)
+        // Redirect to OTO checkout if an OTO offer is configured for this product
+        if (data.otoInfo?.has_oto && data.otoInfo.oto_product_slug) {
+          const { url: otoUrl } = buildOtoRedirectUrl({
+            locale,
+            otoProductSlug: data.otoInfo.oto_product_slug,
+            customerEmail: user.email || undefined,
+            couponCode: data.otoInfo.coupon_code,
+          });
+          router.push(otoUrl);
+          return;
+        }
+
+        // No OTO — redirect to success page (no session_id needed for free products)
         const redirectPath = `/p/${product.slug}/payment-status${successUrl ? `?success_url=${encodeURIComponent(successUrl)}` : ''}`;
         router.push(redirectPath);
       } catch {

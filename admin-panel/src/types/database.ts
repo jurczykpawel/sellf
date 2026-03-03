@@ -34,6 +34,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      _migration_history: {
+        Row: {
+          applied_at: string
+          applied_by: string
+          checksum: string | null
+          execution_ms: number | null
+          version: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string
+          checksum?: string | null
+          execution_ms?: number | null
+          version: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string
+          checksum?: string | null
+          execution_ms?: number | null
+          version?: string
+        }
+        Relationships: []
+      }
       admin_actions: {
         Row: {
           action: string
@@ -2066,6 +2090,14 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_migration: {
+        Args: {
+          content_checksum: string
+          migration_sql: string
+          migration_version: string
+        }
+        Returns: Json
+      }
       batch_check_user_product_access: {
         Args: { product_slugs_param: string[] }
         Returns: Json
@@ -2129,7 +2161,7 @@ export type Database = {
         Args: {
           customer_email_param: string
           source_product_id_param: string
-          transaction_id_param: string
+          transaction_id_param?: string
         }
         Returns: Json
       }
@@ -2197,6 +2229,7 @@ export type Database = {
           orders: number
         }[]
       }
+      get_migration_status: { Args: never; Returns: Json }
       get_oto_coupon_info: {
         Args: { coupon_code_param: string; email_param: string }
         Returns: Json
