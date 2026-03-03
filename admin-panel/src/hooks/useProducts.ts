@@ -6,7 +6,7 @@
  * frontend's offset-based pagination UI.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Product } from '@/types';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -86,39 +86,61 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
     hasMore: false,
   });
 
+  // Maps page number → cursor to use when fetching that page.
+  // Page 1 always uses no cursor (null). Populated as pages are visited.
+  const cursorMapRef = useRef<Map<number, string | null>>(new Map([[1, null]]));
+  // Detects filter changes so the cursor map can be reset.
+  const prevFilterKeyRef = useRef<string>('');
+
   /**
-   * Fetch products from v1 API
+   * Fetch products from v1 API with cursor-based pagination.
    *
-   * Fetches only the needed items for the current page.
-   * Uses limit+1 pattern to detect if there are more pages.
+   * Translates the offset-based page param into the correct cursor by
+   * tracking next_cursor values as pages are visited sequentially.
    */
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Build sort param (v1 uses "-field" for desc, "field" for asc)
-      const sort = sortOrder === 'desc' ? `-${sortBy}` : sortBy;
+      // Reset cursor map when filters change so stale cursors aren't reused.
+      const filterKey = `${search}|${status}|${sortBy}|${sortOrder}|${limit}`;
+      if (filterKey !== prevFilterKeyRef.current) {
+        cursorMapRef.current = new Map([[1, null]]);
+        prevFilterKeyRef.current = filterKey;
+      }
 
-      // Fetch limit+1 to detect if there's a next page
+      const cursor = cursorMapRef.current.get(page) ?? null;
+
       const response = await api.list<Product>('products', {
         limit: limit + 1,
         search: search || undefined,
         status: status === 'all' ? undefined : status,
-        sort,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        cursor: cursor || undefined,
       });
 
       const allProducts = response.data;
       const hasMore = allProducts.length > limit;
-
-      // Take only the requested limit
       const pageProducts = allProducts.slice(0, limit);
+
+      // Store cursor for the next page so forward navigation works.
+      const nextCursor = response.pagination?.next_cursor;
+      if (nextCursor) {
+        cursorMapRef.current.set(page + 1, nextCursor);
+      }
+
+      const total = response.pagination?.total;
+      const totalPages = total
+        ? Math.ceil(total / limit)
+        : hasMore ? page + 1 : page;
 
       setProducts(pageProducts);
       setPagination({
         currentPage: page,
-        totalPages: hasMore ? page + 1 : page, // We don't know exact total, show current+1 if more
-        totalItems: pageProducts.length + (hasMore ? 1 : 0), // Approximate
+        totalPages,
+        totalItems: total ?? 0,
         hasMore,
       });
     } catch (err) {
@@ -252,7 +274,8 @@ export function useProductsDropdown(status: 'all' | 'active' = 'active') {
       const response = await api.list<Product>('products', {
         limit: 1000, // Get all products for dropdown
         status: status === 'all' ? undefined : status,
-        sort: 'name',
+        sort_by: 'name',
+        sort_order: 'asc',
       });
 
       setProducts(response.data);

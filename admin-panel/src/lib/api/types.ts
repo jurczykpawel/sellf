@@ -11,6 +11,7 @@ export interface CursorPagination {
   next_cursor: string | null; // Cursor for next page (null if no more)
   has_more: boolean;          // Whether more items exist
   limit: number;              // Items per page
+  total?: number;             // Total count (when available via count: 'exact')
 }
 
 // Success response with data

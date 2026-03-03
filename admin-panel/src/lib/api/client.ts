@@ -17,6 +17,7 @@ export interface PaginatedResponse<T> {
   pagination: {
     next_cursor: string | null;
     has_more: boolean;
+    total?: number;
   };
 }
 

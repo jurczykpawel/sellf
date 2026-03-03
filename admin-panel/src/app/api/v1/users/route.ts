@@ -81,6 +81,16 @@ export async function GET(request: NextRequest) {
     // Pagination options - users view uses user_id instead of id
     const paginationOptions = { idField: 'user_id' };
 
+    // Count query (no cursor, no limit — accurate total for current filters)
+    let countQuery = adminClient
+      .from('user_access_stats')
+      .select('user_id', { count: 'exact', head: true });
+    if (search) {
+      const escapedSearch = escapeIlikePattern(search);
+      countQuery = countQuery.ilike('email', `%${escapedSearch}%`);
+    }
+    const { count } = await countQuery;
+
     // Build query for user stats (explicit fields)
     let query = adminClient
       .from('user_access_stats')
@@ -185,7 +195,7 @@ export async function GET(request: NextRequest) {
     // Remove internal fields from response
     const cleanItems = items.map(({ user_id, [sortBy]: _sortField, ...rest }) => rest);
 
-    return jsonResponse(successResponse(cleanItems, pagination), request);
+    return jsonResponse(successResponse(cleanItems, { ...pagination, total: count ?? undefined }), request);
   } catch (error) {
     return handleApiError(error, request);
   }

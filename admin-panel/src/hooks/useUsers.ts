@@ -6,7 +6,7 @@
  * frontend's offset-based pagination UI.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { UserWithAccess } from '@/types';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -53,38 +53,60 @@ export function useUsers(params: UseUsersParams = {}): UseUsersResult {
     hasMore: false,
   });
 
+  // Maps page number → cursor to use when fetching that page.
+  // Page 1 always uses no cursor (null). Populated as pages are visited.
+  const cursorMapRef = useRef<Map<number, string | null>>(new Map([[1, null]]));
+  // Detects filter changes so the cursor map can be reset.
+  const prevFilterKeyRef = useRef<string>('');
+
   /**
-   * Fetch users from v1 API
+   * Fetch users from v1 API with cursor-based pagination.
    *
-   * Fetches only the needed items for the current page.
-   * Uses limit+1 pattern to detect if there are more pages.
+   * Translates the offset-based page param into the correct cursor by
+   * tracking next_cursor values as pages are visited sequentially.
    */
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Build sort param (v1 uses "-field" for desc, "field" for asc)
-      const sort = sortOrder === 'desc' ? `-${sortBy}` : sortBy;
+      // Reset cursor map when filters change so stale cursors aren't reused.
+      const filterKey = `${search}|${sortBy}|${sortOrder}|${limit}`;
+      if (filterKey !== prevFilterKeyRef.current) {
+        cursorMapRef.current = new Map([[1, null]]);
+        prevFilterKeyRef.current = filterKey;
+      }
 
-      // Fetch limit+1 to detect if there's a next page
+      const cursor = cursorMapRef.current.get(page) ?? null;
+
       const response = await api.list<UserWithAccess>('users', {
         limit: limit + 1,
         search: search || undefined,
-        sort,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        cursor: cursor || undefined,
       });
 
       const allUsers = response.data;
       const hasMore = allUsers.length > limit;
-
-      // Take only the requested limit
       const pageUsers = allUsers.slice(0, limit);
+
+      // Store cursor for the next page so forward navigation works.
+      const nextCursor = response.pagination?.next_cursor;
+      if (nextCursor) {
+        cursorMapRef.current.set(page + 1, nextCursor);
+      }
+
+      const total = response.pagination?.total;
+      const totalPages = total
+        ? Math.ceil(total / limit)
+        : hasMore ? page + 1 : page;
 
       setUsers(pageUsers);
       setPagination({
         currentPage: page,
-        totalPages: hasMore ? page + 1 : page,
-        totalItems: pageUsers.length + (hasMore ? 1 : 0),
+        totalPages,
+        totalItems: total ?? 0,
         hasMore,
       });
     } catch (err) {

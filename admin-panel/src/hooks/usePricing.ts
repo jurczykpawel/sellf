@@ -39,6 +39,14 @@ export interface PricingResult {
 /**
  * Pure function for calculating pricing - can be used server-side
  */
+// IMPORTANT: The DB function process_stripe_payment_completion_with_bump performs only
+// a lenient amount check when coupon_id_param IS NOT NULL (amount > 0 AND amount <= full price).
+// It trusts that this function produced the correct discounted amount that ends up in the
+// Stripe PaymentIntent. If you change the discount logic here, the DB will accept whatever
+// amount Stripe reports — there is no exact re-validation server-side in the DB.
+// If you introduce a significant change (new discount type, rounding strategy, minimum floor),
+// update the DB function's amount validation block accordingly.
+// See: supabase/migrations/20250103000000_features.sql → process_stripe_payment_completion_with_bump
 export function calculatePricing(input: PricingInput): PricingResult {
   const {
     productPrice,

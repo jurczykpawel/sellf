@@ -109,9 +109,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
 
   return (
     <div className="flex flex-col">
-      <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-        <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-          <div className="overflow-hidden border-2 border-sf-border-medium sm:bg-sf-base">
+      <div>
+        <div className="overflow-hidden border-2 border-sf-border-medium sm:bg-sf-base">
             <table className="min-w-full divide-y divide-sf-border-subtle">
               <thead className="bg-sf-raised">
                 <tr>
@@ -371,11 +370,12 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                 />
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>
   );
 };
+
+
 
 export default ProductsTable;

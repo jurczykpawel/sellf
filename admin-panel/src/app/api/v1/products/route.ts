@@ -67,17 +67,33 @@ export async function GET(request: NextRequest) {
     // Validate sort column
     const sortBy = validateProductSortColumn(sortByRaw);
 
-    // Build query - fetch limit + 1 to check for more
+    // Validate search length early
+    if (search && search.length > 200) {
+      return apiError(request, 'INVALID_INPUT', 'Search query must be 200 characters or less');
+    }
+    const escapedSearch = search ? escapeIlikePattern(search) : null;
+
+    // Count query (no cursor, no limit — accurate total for current filters)
+    let countQuery = supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true });
+    if (escapedSearch) {
+      countQuery = countQuery.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`);
+    }
+    if (status === 'active') {
+      countQuery = countQuery.eq('is_active', true);
+    } else if (status === 'inactive') {
+      countQuery = countQuery.eq('is_active', false);
+    }
+    const { count } = await countQuery;
+
+    // Build main query - fetch limit + 1 to detect next page
     let query = supabase
       .from('products')
       .select(PRODUCT_API_FIELDS);
 
-    // Apply search filter (limit length to prevent abuse)
-    if (search) {
-      if (search.length > 200) {
-        return apiError(request, 'INVALID_INPUT', 'Search query must be 200 characters or less');
-      }
-      const escapedSearch = escapeIlikePattern(search);
+    // Apply search filter
+    if (escapedSearch) {
       query = query.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`);
     }
 
@@ -115,7 +131,7 @@ export async function GET(request: NextRequest) {
       cursor
     );
 
-    return jsonResponse(successResponse(items, pagination), request);
+    return jsonResponse(successResponse(items, { ...pagination, total: count ?? undefined }), request);
   } catch (error) {
     return handleApiError(error, request);
   }
