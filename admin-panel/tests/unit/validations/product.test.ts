@@ -444,6 +444,119 @@ describe('Product Validation', () => {
     });
   });
 
+  describe('validateCreateProduct — VAT cross-field validation', () => {
+    const validProduct = {
+      name: 'Test',
+      slug: 'test',
+      description: 'A test product',
+      price: 99,
+    };
+
+    it('should pass for paid product without VAT fields', () => {
+      const result = validateCreateProduct(validProduct);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass for free product without price_includes_vat', () => {
+      const result = validateCreateProduct({ ...validProduct, price: 0 });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject price_includes_vat: true when price is 0', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        price: 0,
+        price_includes_vat: true,
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => e.includes('price_includes_vat'))).toBe(true);
+    });
+
+    it('should reject price_includes_vat: true when price is negative', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        price: -10,
+        price_includes_vat: true,
+      });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('should pass for paid product with price_includes_vat: true', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        price: 49,
+        price_includes_vat: true,
+        vat_rate: 23,
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass for free product with price_includes_vat: false', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        price: 0,
+        price_includes_vat: false,
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass for PWYW product with price 0 and price_includes_vat: true', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        price: 0,
+        allow_custom_price: true,
+        price_includes_vat: true,
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass for PWYW product with suggested price > 0 and price_includes_vat: true', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        price: 10,
+        allow_custom_price: true,
+        price_includes_vat: true,
+        vat_rate: 23,
+      });
+      expect(result.isValid).toBe(true);
+    });
+  });
+
+  describe('validateUpdateProduct — VAT cross-field validation', () => {
+    it('should reject price_includes_vat: true when price: 0 sent together', () => {
+      const result = validateUpdateProduct({ price: 0, price_includes_vat: true });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => e.includes('price_includes_vat'))).toBe(true);
+    });
+
+    it('should pass when only price_includes_vat is updated (no price in payload)', () => {
+      // PATCH with just price_includes_vat — no way to know current price server-side
+      const result = validateUpdateProduct({ price_includes_vat: true });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass when price: 0 is updated without touching price_includes_vat', () => {
+      const result = validateUpdateProduct({ price: 0 });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass when changing to paid product with VAT', () => {
+      const result = validateUpdateProduct({ price: 99, price_includes_vat: true, vat_rate: 23 });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should pass when enabling PWYW with price 0 and price_includes_vat: true', () => {
+      const result = validateUpdateProduct({ price: 0, allow_custom_price: true, price_includes_vat: true });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should still reject price 0 with price_includes_vat: true when allow_custom_price is false', () => {
+      const result = validateUpdateProduct({ price: 0, allow_custom_price: false, price_includes_vat: true });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => e.includes('price_includes_vat'))).toBe(true);
+    });
+  });
+
   describe('validateProductSortColumn', () => {
     it('should return valid column for known sort key', () => {
       expect(validateProductSortColumn('name')).toBe('name');

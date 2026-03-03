@@ -166,7 +166,7 @@ export function PriceVatInline({
               {t('vatStripeTaxInfo', { defaultValue: 'Tax calculated by Stripe' })}
             </span>
           </div>
-        ) : (
+        ) : (formData.price > 0 || formData.allow_custom_price) ? (
           <div className="flex items-center gap-3">
             <label htmlFor="price_includes_vat" className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -209,7 +209,7 @@ export function PriceVatInline({
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
 
       {fieldErrors.price ? (

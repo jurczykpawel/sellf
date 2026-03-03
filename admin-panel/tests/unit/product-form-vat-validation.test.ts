@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 /**
  * Tests for VAT rate validation logic extracted from useProductForm.
  * The hook uses this rule:
- *   if (taxMode === 'local' && formData.price_includes_vat && formData.vat_rate == null)
+ *   if (taxMode === 'local' && (price > 0 || allow_custom_price) && price_includes_vat && vat_rate == null)
  *     → errors.vat_rate = 'required'
  *
  * We test the pure validation logic without rendering React hooks.
@@ -15,13 +15,18 @@ interface VatValidationInput {
   taxMode: TaxMode
   price_includes_vat: boolean
   vat_rate: number | null
+  allow_custom_price: boolean
   name: string
   slug: string
   description: string
   priceDisplayValue: string
 }
 
-function validateProductForm(input: VatValidationInput): Record<string, string> {
+interface VatValidationInputWithPrice extends VatValidationInput {
+  price: number
+}
+
+function validateProductForm(input: VatValidationInputWithPrice): Record<string, string> {
   const errors: Record<string, string> = {}
 
   if (!input.name.trim()) errors.name = 'required'
@@ -30,17 +35,19 @@ function validateProductForm(input: VatValidationInput): Record<string, string> 
   if (input.priceDisplayValue === '') errors.price = 'required'
 
   // VAT validation — mirrors useProductForm.validateRequiredFields
-  if (input.taxMode === 'local' && input.price_includes_vat && input.vat_rate == null) {
+  if (input.taxMode === 'local' && (input.price > 0 || input.allow_custom_price) && input.price_includes_vat && input.vat_rate == null) {
     errors.vat_rate = 'required'
   }
 
   return errors
 }
 
-const validBase: VatValidationInput = {
+const validBase: VatValidationInputWithPrice = {
   taxMode: 'local',
   price_includes_vat: true,
   vat_rate: 23,
+  price: 99,
+  allow_custom_price: false,
   name: 'Test Product',
   slug: 'test-product',
   description: 'A test product',
@@ -158,6 +165,106 @@ describe('Product form VAT validation', () => {
       const errors = validateProductForm({
         ...validBase,
         price_includes_vat: false,
+        vat_rate: null,
+      })
+      expect(errors.vat_rate).toBeUndefined()
+    })
+  })
+
+  describe('free products (price = 0)', () => {
+    it('should not require vat_rate when price is 0', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 0,
+        priceDisplayValue: '0',
+        price_includes_vat: true,
+        vat_rate: null,
+      })
+      expect(errors.vat_rate).toBeUndefined()
+    })
+
+    it('should not require vat_rate for free product with empty price display', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 0,
+        priceDisplayValue: '',
+        price_includes_vat: true,
+        vat_rate: null,
+      })
+      // price field itself is required but vat_rate should not be
+      expect(errors.price).toBe('required')
+      expect(errors.vat_rate).toBeUndefined()
+    })
+
+    it('should still require vat_rate when price > 0', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 49,
+        priceDisplayValue: '49',
+        price_includes_vat: true,
+        vat_rate: null,
+      })
+      expect(errors.vat_rate).toBe('required')
+    })
+  })
+
+  describe('PWYW (allow_custom_price) mode', () => {
+    it('should require vat_rate when allow_custom_price is true even if price is 0', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 0,
+        priceDisplayValue: '0',
+        allow_custom_price: true,
+        price_includes_vat: true,
+        vat_rate: null,
+      })
+      expect(errors.vat_rate).toBe('required')
+    })
+
+    it('should pass when allow_custom_price is true and vat_rate is set', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 0,
+        priceDisplayValue: '0',
+        allow_custom_price: true,
+        price_includes_vat: true,
+        vat_rate: 23,
+      })
+      expect(errors.vat_rate).toBeUndefined()
+    })
+
+    it('should not require vat_rate when allow_custom_price is true but price_includes_vat is false', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 0,
+        priceDisplayValue: '0',
+        allow_custom_price: true,
+        price_includes_vat: false,
+        vat_rate: null,
+      })
+      expect(errors.vat_rate).toBeUndefined()
+    })
+
+    it('should require vat_rate when allow_custom_price is true and price > 0 (PWYW with suggested price)', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        price: 10,
+        priceDisplayValue: '10',
+        allow_custom_price: true,
+        price_includes_vat: true,
+        vat_rate: null,
+      })
+      expect(errors.vat_rate).toBe('required')
+    })
+
+    it('should not require vat_rate in stripe_tax mode even with allow_custom_price', () => {
+      const errors = validateProductForm({
+        ...validBase,
+        taxMode: 'stripe_tax',
+        price: 0,
+        priceDisplayValue: '0',
+        allow_custom_price: true,
+        price_includes_vat: true,
         vat_rate: null,
       })
       expect(errors.vat_rate).toBeUndefined()

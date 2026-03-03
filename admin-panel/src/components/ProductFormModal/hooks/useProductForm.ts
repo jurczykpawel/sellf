@@ -489,8 +489,8 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     if (!formData.description.trim()) errors.description = 'required';
     if (priceDisplayValue === '') errors.price = 'required';
 
-    // In local tax mode: VAT rate is required when no shop default is set
-    if (taxMode === 'local' && formData.price_includes_vat && formData.vat_rate == null) {
+    // In local tax mode: VAT rate is required when no shop default is set (only for paid products)
+    if (taxMode === 'local' && (formData.price > 0 || formData.allow_custom_price) && formData.price_includes_vat && formData.vat_rate == null) {
       errors.vat_rate = 'required';
     }
 
@@ -501,7 +501,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
     setFieldErrors({});
     return true;
-  }, [formData.name, formData.slug, formData.description, formData.price_includes_vat, formData.vat_rate, priceDisplayValue, taxMode]);
+  }, [formData.name, formData.slug, formData.description, formData.price, formData.allow_custom_price, formData.price_includes_vat, formData.vat_rate, priceDisplayValue, taxMode]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

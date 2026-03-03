@@ -485,6 +485,11 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     }
   }
 
+  // VAT rate is only relevant for paid products (or PWYW where customer always pays > 0)
+  if (input.price_includes_vat === true && (input.price == null || input.price <= 0) && !input.allow_custom_price) {
+    errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
+  }
+
   return { isValid: errors.length === 0, errors };
 }
 
@@ -564,6 +569,12 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     if (fromDate >= untilDate) {
       errors.push('Available from date must be before available until date');
     }
+  }
+
+  // VAT rate is only relevant for paid products (when both fields are provided together)
+  // Exception: PWYW (allow_custom_price) products always have a payment, so price_includes_vat is allowed
+  if (input.price_includes_vat === true && input.price !== undefined && input.price <= 0 && !input.allow_custom_price) {
+    errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
   }
 
   return { isValid: errors.length === 0, errors };
