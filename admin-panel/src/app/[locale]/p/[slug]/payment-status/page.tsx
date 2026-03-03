@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import PaymentStatusView from './components/PaymentStatusView';
 import { verifyPaymentSession, verifyPaymentIntent, OtoInfo } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
+import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { PaymentStatus, OtoOfferInfo } from './types';
 
 interface PageProps {
@@ -35,7 +37,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   // Get product details
   const { data: product, error: productError } = await supabase
     .from('products')
-    .select('id, name, slug, description, icon, price, currency, success_redirect_url, pass_params_to_redirect')
+    .select('id, name, slug, description, icon, price, currency, allow_custom_price, custom_price_min, success_redirect_url, pass_params_to_redirect')
     .eq('slug', resolvedParams.slug)
     .single();
 
@@ -168,38 +170,29 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         .eq('product_id', product.id)
         .single();
 
-      if (existingAccess) {
-        const expiresAt = existingAccess.access_expires_at 
-          ? new Date(existingAccess.access_expires_at) 
-          : null;
-        const isExpired = expiresAt && expiresAt < new Date();
-        
-        if (!isExpired) {
-          accessGranted = true;
-          paymentStatus = 'completed';
-        } else {
-          paymentStatus = 'expired';
-          errorMessage = 'Your access has expired. Please purchase again.';
-        }
-      } else {
-        // Grant access for free product
-        const { error: accessError } = await supabase
-          .from('user_product_access')
-          .insert({
-            user_id: user.id,
-            product_id: product.id,
-            access_granted_at: new Date().toISOString(),
-            access_expires_at: null, // Free products don't expire
-            access_duration_days: null,
-          });
+      const adminClient = createAdminClient();
+      const freeAccessResult = await grantFreeProductAccess(supabase, adminClient, {
+        product: {
+          id: product.id,
+          slug: resolvedParams.slug,
+          price: product.price,
+          isPwywFree: !!(product.allow_custom_price && product.custom_price_min === 0),
+        },
+        user: { id: user.id, email: customerEmail },
+      });
 
-        if (accessError) {
-          paymentStatus = 'failed';
-          errorMessage = 'Failed to grant access to free product';
-        } else {
-          accessGranted = true;
-          paymentStatus = 'completed';
+      if (freeAccessResult.accessGranted) {
+        accessGranted = true;
+        paymentStatus = 'completed';
+        if (freeAccessResult.otoInfo) {
+          otoInfo = freeAccessResult.otoInfo as unknown as OtoInfo;
         }
+      } else if (freeAccessResult.error?.includes('not be free or active')) {
+        paymentStatus = 'expired';
+        errorMessage = 'Your access has expired. Please purchase again.';
+      } else {
+        paymentStatus = 'failed';
+        errorMessage = 'Failed to grant access to free product';
       }
     }
   } catch {

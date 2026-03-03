@@ -370,7 +370,11 @@ export async function verifyPaymentSession(
           }
 
           if (paymentError) {
-            console.error('Database payment processing error:', paymentError);
+            console.error(
+              '[verify-payment] PAYMENT_DB_FAILURE | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
+              session.id, productId, customerEmail, couponId ?? 'none',
+              session.amount_total, paymentError.message, paymentError.code
+            );
             return {
               ...baseResponse,
               access_granted: false,
@@ -379,6 +383,11 @@ export async function verifyPaymentSession(
           }
 
           if (!paymentResult?.success) {
+            console.error(
+              '[verify-payment] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
+              session.id, productId, customerEmail, couponId ?? 'none',
+              session.amount_total, paymentResult?.error ?? 'unknown'
+            );
             return {
               ...baseResponse,
               access_granted: false,
@@ -671,7 +680,11 @@ export async function verifyPaymentIntent(
           }
 
           if (paymentError) {
-            console.error('Database payment processing error:', paymentError);
+            console.error(
+              '[verify-payment] PAYMENT_DB_FAILURE | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
+              paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+              paymentIntent.amount, paymentError.message, paymentError.code
+            );
             return {
               ...baseResponse,
               access_granted: false,
@@ -680,6 +693,11 @@ export async function verifyPaymentIntent(
           }
 
           if (!paymentResult?.success) {
+            console.error(
+              '[verify-payment] PAYMENT_DB_REJECTED | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
+              paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+              paymentIntent.amount, paymentResult?.error ?? 'unknown'
+            );
             return {
               ...baseResponse,
               access_granted: false,

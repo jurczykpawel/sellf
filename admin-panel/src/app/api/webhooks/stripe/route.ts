@@ -92,11 +92,20 @@ async function handleCheckoutSessionCompleted(
   });
 
   if (error) {
-    console.error('[Stripe Webhook] Payment processing error:', error);
+    console.error(
+      '[stripe-webhook] PAYMENT_DB_FAILURE | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
+      sessionId, productId, customerEmail, couponId ?? 'none',
+      session.amount_total, error.message, error.code
+    );
     return { processed: false, message: 'Payment processing failed' };
   }
 
   if (!result?.success) {
+    console.error(
+      '[stripe-webhook] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
+      sessionId, productId, customerEmail, couponId ?? 'none',
+      session.amount_total, result?.error ?? 'unknown'
+    );
     return { processed: false, message: result?.error || 'Payment processing failed' };
   }
 
@@ -206,8 +215,6 @@ async function handlePaymentIntentSucceeded(
   const bumpProductId = paymentIntent.metadata?.bump_product_id || null;
   const hasBump = paymentIntent.metadata?.has_bump === 'true';
   const couponId = paymentIntent.metadata?.coupon_id || null;
-  const hasCoupon = paymentIntent.metadata?.has_coupon === 'true';
-  const discountAmount = parseFloat(paymentIntent.metadata?.discount_amount || '0') || 0;
   const userId = paymentIntent.metadata?.user_id || null;
 
   // Process payment using database function
@@ -220,15 +227,24 @@ async function handlePaymentIntentSucceeded(
     stripe_payment_intent_id: paymentIntent.id,
     user_id_param: userId && userId !== '' ? userId : null,
     bump_product_id_param: hasBump && bumpProductId ? bumpProductId : null,
-    coupon_id_param: hasCoupon && couponId ? couponId : null,
+    coupon_id_param: couponId || null,
   });
 
   if (error) {
-    console.error('[Stripe Webhook] Payment intent processing error:', error);
+    console.error(
+      '[stripe-webhook] PAYMENT_DB_FAILURE | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
+      paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+      paymentIntent.amount, error.message, error.code
+    );
     return { processed: false, message: 'Payment processing failed' };
   }
 
   if (!result?.success) {
+    console.error(
+      '[stripe-webhook] PAYMENT_DB_REJECTED | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
+      paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+      paymentIntent.amount, result?.error ?? 'unknown'
+    );
     return { processed: false, message: result?.error || 'Payment processing failed' };
   }
 
@@ -297,7 +313,7 @@ async function handlePaymentIntentSucceeded(
         amount: paymentIntent.amount,
         currency: paymentIntent.currency,
         paymentIntentId: paymentIntent.id,
-        couponId: hasCoupon && couponId ? couponId : null,
+        couponId: couponId || null,
         isGuest: result.is_guest_purchase
       },
       source: 'stripe_webhook'

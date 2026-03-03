@@ -243,6 +243,7 @@ export async function POST(request: NextRequest) {
         bump_product_id: bumpProduct?.id || '',  // Only set if bump was validated and applied
         bump_product_name: bumpProduct?.name || '',
         coupon_code: appliedCoupon?.code || '',
+        coupon_id: appliedCoupon?.id || '',
         coupon_discount: appliedCoupon ? `${appliedCoupon.discount_value}${appliedCoupon.discount_type === 'percentage' ? '%' : product.currency}` : '',
         needs_invoice: needsInvoice ? 'true' : 'false',
         nip: nip || '',

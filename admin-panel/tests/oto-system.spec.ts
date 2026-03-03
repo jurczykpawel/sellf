@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
+import { setAuthSession } from './helpers/admin-auth';
 
 // NOTE: Run with --workers=1 because tests modify global DB state
 
@@ -1232,5 +1233,299 @@ test.describe('OTO Checkout Page E2E', () => {
 
     // Banner should show countdown timer or time remaining
     await expect(otoBanner.getByText(/\d+:\d+|\d+\s*(min|minut)/i)).toBeVisible({ timeout: 10000 });
+  });
+
+});
+
+// =====================================================
+// BUG REGRESSION: OTO coupon not passed to payment processing
+// https://github.com/jurczykpawel/sellf/issues/oto-amount-mismatch
+// =====================================================
+// Root cause: verify-payment.ts reads coupon_id from paymentIntent.metadata.coupon_id,
+// but create-payment-intent API does not store coupon_id in Stripe metadata when a coupon
+// is applied. As a result, process_stripe_payment_completion_with_bump is called with
+// coupon_id_param: null even when a coupon was used, which causes the DB function to
+// validate the exact (pre-discount) price → "Amount mismatch" error → access NOT granted.
+//
+// Fix required: store coupon_id in PaymentIntent metadata when creating the payment intent.
+// =====================================================
+
+test.describe('OTO Payment Completion with Coupon (bug regression)', () => {
+  let sourceProduct: { id: string; slug: string; price: number };
+  let otoProduct: { id: string; slug: string; price: number };
+  let otoOffer: { id: string };
+  let couponCode: string;
+  let couponId: string;
+  const OTO_FIXED_DISCOUNT = 50; // $50 off
+  const testEmail = `oto-payment-bug-${Date.now()}@example.com`;
+
+  test.beforeAll(async () => {
+    // OTO product price mirrors the demo scenario: $199.99 - $50 coupon = $149.99 paid
+    sourceProduct = await createTestProduct('BugSource', 49.99);
+    otoProduct = await createTestProduct('BugOTO', 199.99);
+
+    const { data: offer } = await supabaseAdmin
+      .from('oto_offers')
+      .insert({
+        source_product_id: sourceProduct.id,
+        oto_product_id: otoProduct.id,
+        discount_type: 'fixed',
+        discount_value: OTO_FIXED_DISCOUNT,
+        duration_minutes: 30,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    otoOffer = offer!;
+
+    // Complete a source product purchase to generate the OTO coupon
+    const tx = await createTestTransaction(sourceProduct.id, testEmail);
+    const { data: otoResult } = await supabaseAdmin.rpc('generate_oto_coupon', {
+      source_product_id_param: sourceProduct.id,
+      customer_email_param: testEmail,
+      transaction_id_param: tx.id,
+    });
+
+    couponCode = otoResult.coupon_code;
+
+    // Fetch the coupon UUID needed to pass as coupon_id_param
+    const { data: coupon } = await supabaseAdmin
+      .from('coupons')
+      .select('id')
+      .eq('code', couponCode)
+      .single();
+
+    couponId = coupon!.id;
+
+    // Clean up the source product transaction (not needed beyond coupon generation)
+    await supabaseAdmin.from('payment_transactions').delete().eq('id', tx.id);
+  });
+
+  test.afterAll(async () => {
+    if (couponCode) await supabaseAdmin.from('coupons').delete().eq('code', couponCode);
+    if (otoOffer?.id) await supabaseAdmin.from('oto_offers').delete().eq('id', otoOffer.id);
+    if (sourceProduct?.id) await supabaseAdmin.from('products').delete().eq('id', sourceProduct.id);
+    if (otoProduct?.id) await supabaseAdmin.from('products').delete().eq('id', otoProduct.id);
+  });
+
+  test.beforeEach(async () => {
+    await supabaseAdmin
+      .from('application_rate_limits')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+  });
+
+  test('[SECURITY] DB correctly rejects discounted amount when coupon_id is not provided', async () => {
+    // Documents the DB security property that prevents price manipulation:
+    // Without coupon_id_param, the DB validates the exact product price.
+    // This is the failure mode that occurred in production when create-payment-intent
+    // did not store coupon_id in Stripe PaymentIntent metadata.
+    //
+    // Fix applied: create-payment-intent now stores coupon_id in metadata so that
+    // verify-payment.ts can pass it as coupon_id_param to the DB function.
+
+    const piId = `pi_test_security_null_coupon_${Date.now()}`;
+    const discountedCents = Math.round((199.99 - OTO_FIXED_DISCOUNT) * 100); // 14999
+
+    const { error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: piId,
+        product_id_param: otoProduct.id,
+        customer_email_param: testEmail,
+        amount_total: discountedCents,
+        currency_param: 'usd',
+        stripe_payment_intent_id: piId,
+        user_id_param: null,
+        bump_product_id_param: null,
+        coupon_id_param: null,
+      }
+    );
+
+    // Cleanup any partial state created before the exception
+    await supabaseAdmin
+      .from('payment_transactions')
+      .delete()
+      .eq('stripe_payment_intent_id', piId);
+
+    // DB MUST reject discounted amount when no coupon_id is supplied.
+    // This is a security invariant — without coupon_id, exact price must match.
+    expect(error, 'DB should reject discounted amount without coupon_id (price manipulation guard)').not.toBeNull();
+    expect(error?.message).toContain('Amount mismatch');
+  });
+
+  test('[CONTROL] DB function correctly grants access when coupon_id is properly passed', async () => {
+    // This test verifies that the DB function itself handles discounted OTO payments correctly
+    // when coupon_id_param is provided. This is what SHOULD happen after the fix.
+
+    const piId = `pi_test_correct_coupon_${Date.now()}`;
+    const discountedCents = Math.round((199.99 - OTO_FIXED_DISCOUNT) * 100); // 14999
+
+    // The DB security system requires a pre-existing reservation before a coupon can be consumed.
+    // In production this is created by verify_coupon; here we insert it directly.
+    await supabaseAdmin.from('coupon_reservations').insert({
+      coupon_id: couponId,
+      customer_email: testEmail,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: piId,
+        product_id_param: otoProduct.id,
+        customer_email_param: testEmail,
+        amount_total: discountedCents,
+        currency_param: 'usd',
+        stripe_payment_intent_id: piId,
+        user_id_param: null,
+        bump_product_id_param: null,
+        coupon_id_param: couponId, // CORRECT: coupon_id passed as it should be
+      }
+    );
+
+    // Cleanup (reservation is consumed by the DB function on success)
+    await supabaseAdmin
+      .from('payment_transactions')
+      .delete()
+      .eq('stripe_payment_intent_id', piId);
+    await supabaseAdmin
+      .from('guest_purchases')
+      .delete()
+      .eq('customer_email', testEmail)
+      .eq('product_id', otoProduct.id);
+    // Guard: clean up reservation if test fails before DB function consumes it
+    await supabaseAdmin
+      .from('coupon_reservations')
+      .delete()
+      .eq('coupon_id', couponId)
+      .eq('customer_email', testEmail);
+
+    // For guest checkout (user_id_param: null) the function intentionally returns
+    // access_granted: false — the user must claim access via magic link.
+    // What matters here is that the function succeeds and records the guest purchase.
+    expect(error).toBeNull();
+    expect(result?.success).toBe(true);
+    expect(result?.is_guest_purchase).toBe(true);
+  });
+});
+
+// =====================================================
+// BUG REGRESSION: OTO skipped for free ($0) products
+// Root cause: grant-access/route.ts never calls generate_oto_coupon — it only
+// grants user_product_access and returns { success: true }. The frontend
+// therefore has no OTO redirect URL and goes directly to payment-status,
+// bypassing the OTO intermediate checkout screen.
+//
+// Fix required:
+// 1. generate_oto_coupon must accept transaction_id_param = NULL (free products
+//    have no payment transaction).
+// 2. grant-access route must call generate_oto_coupon after granting access
+//    and return otoRedirectUrl in the response.
+// 3. FreeProductForm (and PaidProductForm PWYW-free path) must redirect to
+//    otoRedirectUrl when present.
+// =====================================================
+
+test.describe('OTO for Free Products (bug regression)', () => {
+  let freeProduct: { id: string; slug: string; price: number };
+  let otoProduct: { id: string; slug: string; price: number };
+  let otoOffer: { id: string };
+  let testUser: { id: string; email: string };
+  const TEST_PASSWORD = 'FreeOTO123!';
+  const OTO_DISCOUNT_PCT = 20;
+  const testEmail = `oto-free-product-${Date.now()}@example.com`;
+
+  test.beforeAll(async () => {
+    const timestamp = Date.now();
+
+    freeProduct = await createTestProduct(`FreeSrc-${timestamp}`, 0);
+    otoProduct = await createTestProduct(`FreeOTO-${timestamp}`, 99.99);
+
+    const { data: offer, error: offerError } = await supabaseAdmin
+      .from('oto_offers')
+      .insert({
+        source_product_id: freeProduct.id,
+        oto_product_id: otoProduct.id,
+        discount_type: 'percentage',
+        discount_value: OTO_DISCOUNT_PCT,
+        duration_minutes: 15,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (offerError) throw offerError;
+    otoOffer = offer!;
+
+    const { data: userResult, error: userError } = await supabaseAdmin.auth.admin.createUser({
+      email: testEmail,
+      password: TEST_PASSWORD,
+      email_confirm: true,
+    });
+    if (userError) throw userError;
+    testUser = { id: userResult.user!.id, email: testEmail };
+  });
+
+  test.beforeEach(async () => {
+    await supabaseAdmin
+      .from('application_rate_limits')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    // Revoke access so each test starts clean
+    if (testUser?.id && freeProduct?.id) {
+      await supabaseAdmin
+        .from('user_product_access')
+        .delete()
+        .eq('user_id', testUser.id)
+        .eq('product_id', freeProduct.id);
+    }
+  });
+
+  test.afterAll(async () => {
+    await supabaseAdmin
+      .from('coupons')
+      .delete()
+      .filter('allowed_emails', 'cs', JSON.stringify([testEmail]));
+    if (otoOffer?.id) await supabaseAdmin.from('oto_offers').delete().eq('id', otoOffer.id);
+    if (freeProduct?.id) await supabaseAdmin.from('products').delete().eq('id', freeProduct.id);
+    if (otoProduct?.id) await supabaseAdmin.from('products').delete().eq('id', otoProduct.id);
+    if (testUser?.id) await supabaseAdmin.auth.admin.deleteUser(testUser.id);
+  });
+
+  test('[BUG] grant-access returns no OTO redirect URL for free product with OTO configured', async ({ page }) => {
+    // Navigate first so relative URLs work in page.evaluate
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Authenticate the test user in the browser context
+    await setAuthSession(page, testEmail, TEST_PASSWORD);
+
+    // Call the grant-access API endpoint directly (same call as FreeProductForm.handleFreeAccess)
+    const response = await page.evaluate(async (slug) => {
+      const res = await fetch(`/api/public/products/${slug}/grant-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      return res.json();
+    }, freeProduct.slug);
+
+    // Basic access grant should succeed
+    expect(response.success, 'Grant-access should succeed for authenticated user').toBe(true);
+
+    // BUG: grant-access never calls generate_oto_coupon → no otoInfo in response
+    // After the fix, grant-access should detect the OTO offer and return coupon info
+    // so that FreeProductForm can redirect to the OTO checkout screen.
+    expect(
+      response.otoInfo,
+      'Grant-access must return otoInfo when the free product has an active OTO offer'
+    ).toBeTruthy();
+
+    // After the fix: otoInfo must contain all fields needed to build the OTO redirect URL
+    if (response.otoInfo) {
+      expect(response.otoInfo.has_oto).toBe(true);
+      expect(response.otoInfo.oto_product_slug).toBe(otoProduct.slug);
+      expect(response.otoInfo.coupon_code).toMatch(/^OTO-/);
+    }
   });
 });
