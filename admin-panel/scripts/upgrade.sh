@@ -290,20 +290,64 @@ log "Files swapped"
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
 
-# Read DATABASE_URL from .env.local (direct Postgres connection string)
-DB_URL=$(grep -E '^DATABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+# Read Supabase connection info from .env.local
+SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
+SERVICE_KEY=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
 
-if [ -n "$DB_URL" ] && command -v npx &>/dev/null && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
-  cd "$INSTALL_DIR"
-  npx supabase db push --db-url "$DB_URL" >> "$LOG_FILE" 2>&1 || {
-    log "WARNING: Migration failed — check logs. Continuing with restart..."
-    # Don't abort on migration failure — the new code may still work
-  }
-  log "Migrations complete"
-elif [ -z "$DB_URL" ]; then
-  log "Skipping migrations (no DATABASE_URL in .env.local)"
+if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabase/migrations" ]; then
+  if ! command -v jq &>/dev/null; then
+    log "WARNING: jq not installed — skipping automated migrations (apt-get install jq)"
+  else
+    # Check which migrations are already applied via RPC
+    APPLIED=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/get_migration_status" \
+      -H "apikey: ${SERVICE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{}' 2>/dev/null || echo "RPC_NOT_FOUND")
+
+    if [ "$APPLIED" = "RPC_NOT_FOUND" ]; then
+      log "Migration RPC not available yet — skipping automated migrations"
+      log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
+    else
+      MIGRATION_COUNT=0
+      MIGRATION_ERRORS=0
+
+      for migration_file in "$INSTALL_DIR/supabase/migrations/"*.sql; do
+        [ -f "$migration_file" ] || continue
+        [ -d "$migration_file" ] && continue
+        VERSION=$(basename "$migration_file" .sql)
+
+        # Skip if already applied
+        echo "$APPLIED" | grep -q "\"$VERSION\"" && continue
+
+        SQL_CONTENT=$(cat "$migration_file")
+        CHECKSUM=$(echo -n "$SQL_CONTENT" | sha256sum | cut -d' ' -f1)
+
+        # Call RPC — jq handles JSON escaping of SQL content safely
+        RESULT=$(curl -sf "${SUPABASE_URL}/rest/v1/rpc/apply_migration" \
+          -H "apikey: ${SERVICE_KEY}" \
+          -H "Authorization: Bearer ${SERVICE_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "$(jq -n \
+            --arg v "$VERSION" \
+            --arg s "$SQL_CONTENT" \
+            --arg c "$CHECKSUM" \
+            '{migration_version: $v, migration_sql: $s, content_checksum: $c}')" \
+          2>>"$LOG_FILE") || {
+          log "WARNING: Migration $VERSION failed"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+          continue
+        }
+
+        log "Migration $VERSION: $RESULT"
+        MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+      done
+
+      log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_ERRORS errors"
+    fi
+  fi
 else
-  log "Skipping migrations (no supabase CLI or no migrations dir)"
+  log "Skipping migrations (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)"
 fi
 
 # ===== STEP 8: START PM2 =====
