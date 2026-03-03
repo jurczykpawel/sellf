@@ -107,11 +107,13 @@ BEGIN
   END IF;
 
   -- LAYER 6: Verify checksum — ensures SQL content matches what was shipped in the release
-  IF encode(sha256(migration_sql::bytea), 'hex') IS DISTINCT FROM content_checksum THEN
+  -- Use convert_to() instead of ::bytea cast to avoid "invalid input syntax for type bytea"
+  -- errors when migration SQL contains backslash sequences (e.g. E'\n' in string literals).
+  IF encode(sha256(convert_to(migration_sql, 'UTF8')), 'hex') IS DISTINCT FROM content_checksum THEN
     RAISE EXCEPTION 'Checksum mismatch for migration %: expected %, got %',
       migration_version,
       content_checksum,
-      encode(sha256(migration_sql::bytea), 'hex')
+      encode(sha256(convert_to(migration_sql, 'UTF8')), 'hex')
       USING ERRCODE = '22023';  -- invalid_parameter_value
   END IF;
 

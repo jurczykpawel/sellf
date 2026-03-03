@@ -710,11 +710,18 @@ BEGIN
   -- SECURITY: Validate amount matches product price (prevent price manipulation)
   -- Check total: main product + bump (if present), accounting for coupons
   -- Skip validation if product has no fixed price (PWYW - Pay What You Want)
-  -- NOTE: Stripe sends amount_total AFTER applying coupon discount, so we need to
-  --       account for that. However, we can't validate exact amount with coupons
-  --       because we don't have coupon details at this point (only coupon_id).
-  --       The coupon was already validated in verify_coupon() and reserved.
-  --       We only validate that amount is reasonable (not manipulated to zero or negative).
+  -- NOTE: When coupon_id_param IS NOT NULL, only a lenient check is performed
+  --       (amount > 0 AND amount <= full price). The exact discounted amount is NOT
+  --       re-validated here — we trust calculatePricing() in admin-panel/src/hooks/usePricing.ts
+  --       to have produced the correct amount that was set in the Stripe PaymentIntent.
+  --
+  --       REFACTOR WARNING: If you change calculatePricing() (new discount type, rounding,
+  --       STRIPE_MINIMUM_AMOUNT floor, PWYW interaction with coupons), verify that the
+  --       assumptions below still hold. To add exact validation: fetch the coupon's
+  --       discount_type/discount_value/exclude_order_bumps here by joining coupons WHERE
+  --       id = coupon_id_param, replicate the calculatePricing formula in SQL using ROUND(),
+  --       and compare against amount_total. Watch out for floating-point edge cases (±1 cent).
+  --       See: admin-panel/src/hooks/usePricing.ts → calculatePricing()
   IF product_record.price IS NOT NULL THEN
     DECLARE
       bump_price NUMERIC := NULL;

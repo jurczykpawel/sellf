@@ -25,6 +25,47 @@ Complete guide for deploying Sellf on a production server using Docker Compose.
 - **Disk**: 20 GB SSD (recommended: 50 GB)
 - **Transfer**: 100 GB/month
 
+### Recommended Server (Sellf + Supabase self-hosted on one machine)
+
+**[Hetzner CX33](https://www.hetzner.com/cloud)** — tested and recommended for early production:
+
+| Spec | Value |
+|------|-------|
+| CPU | 4 vCPU (AMD, shared) |
+| RAM | 8 GB |
+| Disk | 80 GB NVMe |
+| Transfer | 20 TB/month |
+| Price | ~€6.14/month |
+
+**Why it works:**
+- Supabase self-hosted uses ~2.0–2.5 GB RAM (13 containers)
+- Sellf (PM2/Next.js) uses ~200–300 MB RAM
+- Total: ~2.7 GB in use, 5+ GB free headroom
+- Sellf connects to Supabase via localhost → 5–10 ms latency vs. 90–130 ms over the internet
+- **~€6/month (~25 PLN) is enough to serve several thousand customers in a fully self-hosted environment** — no Supabase Pro (~$25/mo), no platform lock-in
+
+**Disk space estimate:**
+- Docker images (Supabase): ~3–4 GB
+- OS + swap: ~3 GB
+- App + DB data: growing over time
+- 80 GB is sufficient for early production; consider CPX32 (160 GB NVMe) if heavy Supabase Storage usage is planned
+
+**Swap (recommended):** Hetzner CX33 is a KVM VM with full kernel access — swap works without restrictions. Enable 2 GB swapfile as a buffer for traffic spikes (e.g. Supabase analytics container startup):
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Reduce swappiness (default 60 is too aggressive for NVMe)
+echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+> Note: LXC-based VPS (e.g. Mikrus) does not support swap — kernel access is blocked by the host.
+
 ### Software
 - **Operating System**: Ubuntu 22.04 LTS or newer (recommended)
 - **Docker**: version 24.0 or newer

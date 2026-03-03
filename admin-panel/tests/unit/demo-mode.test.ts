@@ -252,11 +252,11 @@ describe('Server action demo guards', () => {
     });
   });
 
-  describe('preferences (throw pattern)', () => {
-    it('updateUserPreferences throws in demo mode', async () => {
+  describe('preferences', () => {
+    it('updateUserPreferences silently succeeds in demo mode', async () => {
       const { updateUserPreferences } = await import('@/lib/actions/preferences');
-      await expect(updateUserPreferences({ hideValues: true }))
-        .rejects.toThrow('This action is disabled in demo mode');
+      const result = await updateUserPreferences({ hideValues: true });
+      expect(result).toEqual({ success: true });
     });
   });
 
