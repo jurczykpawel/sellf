@@ -10,6 +10,15 @@ get {
   auth: bearer
 }
 
+params:query {
+  ~status: active
+  ~search:
+  ~cursor:
+  ~limit: 20
+  ~sort_by: created_at
+  ~sort_order: desc
+}
+
 auth:bearer {
   token: {{API_KEY}}
 }
@@ -17,11 +26,19 @@ auth:bearer {
 docs {
   # List Products
 
-  Returns paginated list of products.
+  Returns cursor-paginated list of products.
 
   ## Query Parameters
   - `status`: active | inactive | all (default: all)
-  - `search`: search by name
-  - `cursor`: pagination cursor
-  - `limit`: items per page (default: 20)
+  - `search`: search by name or description
+  - `cursor`: pagination cursor from previous response
+  - `limit`: items per page, max 100 (default: 20)
+  - `sort_by`: created_at | name | price | updated_at (default: created_at)
+  - `sort_order`: asc | desc (default: desc)
+
+  ## Response
+  Returns `data[]` with pagination metadata:
+  - `next_cursor`: pass as `cursor` for next page (null if no more)
+  - `has_more`: boolean
+  - `total`: total count matching current filters
 }

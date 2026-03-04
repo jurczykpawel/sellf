@@ -95,9 +95,9 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Fine-grained API keys with 13 permission scopes (`products:read`, `users:write`, `*`, ...)
 - Zero-downtime key rotation with configurable grace period
 - Per-key rate limiting (1–1000 req/min)
-- Cursor-based pagination, OpenAPI 3.1 spec, Swagger UI at `/api/v1/docs`
+- Cursor-based pagination with sorting (`sort_by`, `sort_order`), OpenAPI 3.1 spec, Swagger UI at `/api/v1/docs`
 - MCP Server for Claude Desktop (45 tools, 4 resources, 6 prompts)
-- Bruno API collection for testing
+- Bruno API collection for testing (includes all query params)
 
 📖 **[Full API Documentation →](docs/API.md)**
 

@@ -10,6 +10,14 @@ get {
   auth: bearer
 }
 
+params:query {
+  ~search:
+  ~cursor:
+  ~limit: 20
+  ~sort_by: created_at
+  ~sort_order: desc
+}
+
 auth:bearer {
   token: {{API_KEY}}
 }
@@ -17,10 +25,18 @@ auth:bearer {
 docs {
   # List Users
 
-  Returns paginated list of users with their product access.
+  Returns cursor-paginated list of users with their product access.
 
   ## Query Parameters
   - `search`: search by email
-  - `cursor`: pagination cursor
-  - `limit`: items per page (default: 20)
+  - `cursor`: pagination cursor from previous response
+  - `limit`: items per page, max 100 (default: 20)
+  - `sort_by`: created_at | email (default: created_at)
+  - `sort_order`: asc | desc (default: desc)
+
+  ## Response
+  Returns `data[]` with pagination metadata:
+  - `next_cursor`: pass as `cursor` for next page (null if no more)
+  - `has_more`: boolean
+  - `total`: total count matching current filters
 }
