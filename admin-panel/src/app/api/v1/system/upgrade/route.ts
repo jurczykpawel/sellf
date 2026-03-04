@@ -117,9 +117,21 @@ export async function POST(request: NextRequest) {
       console.error('[system/upgrade] Audit log insert failed:', auditErr instanceof Error ? auditErr.message : 'Unknown error');
     }
 
+    // Derive INSTALL_DIR from cwd in standalone mode so the script doesn't
+    // fall back to glob auto-detection (which picks the first sellf-* dir
+    // alphabetically and can target the wrong instance, e.g. sellf-demo
+    // instead of sellf-tsa).
+    // In standalone, cwd = <install>/admin-panel/.next/standalone/admin-panel
+    // so three levels up = <install>/admin-panel
+    const cwd = process.cwd();
+    const installDir = cwd.includes('.next/standalone')
+      ? resolve(cwd, '..', '..', '..')
+      : null;
+
     // Launch upgrade as detached process — spawn() prevents shell injection
     const logFd = openSync(`/tmp/sellf-upgrade-${token}.log`, 'w', 0o600);
-    const child = spawn('bash', [scriptPath, token], {
+    const spawnArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
+    const child = spawn('bash', spawnArgs, {
       detached: true,
       stdio: ['ignore', logFd, logFd],
     });
