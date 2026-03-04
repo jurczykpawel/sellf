@@ -1728,7 +1728,11 @@
         "readOnly": "Tylko odczyt",
         "productsOnly": "Tylko produkty",
         "usersOnly": "Tylko użytkownicy"
-      }
+      },
+      "editKeyTitle": "Edytuj klucz API",
+      "editKeySubtitle": "Zmień nazwę, uprawnienia lub limit zapytań",
+      "editSuccess": "Klucz API został zaktualizowany",
+      "editError": "Nie udało się zaktualizować klucza API"
     },
     "coupons": {
       "title": "Kupony",

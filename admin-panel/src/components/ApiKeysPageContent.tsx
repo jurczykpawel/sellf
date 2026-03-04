@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { Key, Plus, RotateCw, Trash2, Copy, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Key, Plus, RotateCw, Trash2, Copy, Eye, EyeOff, AlertTriangle, Pencil } from 'lucide-react';
 import ApiKeyFormModal from './ApiKeyFormModal';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 
@@ -45,6 +45,7 @@ export default function ApiKeysPageContent() {
 
   // Modals
   const [showForm, setShowForm] = useState(false);
+  const [keyToEdit, setKeyToEdit] = useState<ApiKey | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [keyToRevoke, setKeyToRevoke] = useState<ApiKey | null>(null);
   const [keyToRotate, setKeyToRotate] = useState<ApiKey | null>(null);
@@ -93,6 +94,32 @@ export default function ApiKeysPageContent() {
       toast.success(t('createSuccess'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('createError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Update API key
+  const handleUpdate = async (formData: { name: string; scopes: string[]; rate_limit_per_minute?: number }) => {
+    if (!keyToEdit) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/v1/api-keys/${keyToEdit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error?.message || t('editError'));
+      }
+
+      await fetchApiKeys();
+      setKeyToEdit(null);
+      toast.success(t('editSuccess'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('editError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -272,6 +299,15 @@ export default function ApiKeysPageContent() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        {!key.revoked_at && (
+                          <button
+                            onClick={() => setKeyToEdit(key)}
+                            className="p-2 text-sf-muted hover:text-sf-accent hover:bg-sf-accent-soft transition-colors"
+                            title={t('editKeyTitle')}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                         {!key.revoked_at && key.is_active && (
                           <>
                             <button
@@ -306,6 +342,19 @@ export default function ApiKeysPageContent() {
         onClose={() => setShowForm(false)}
         onSubmit={handleCreate}
         isSubmitting={isSubmitting}
+      />
+
+      {/* Edit Key Modal */}
+      <ApiKeyFormModal
+        isOpen={!!keyToEdit}
+        onClose={() => setKeyToEdit(null)}
+        onSubmit={handleUpdate}
+        isSubmitting={isSubmitting}
+        initialData={keyToEdit ? {
+          name: keyToEdit.name,
+          scopes: keyToEdit.scopes,
+          rate_limit_per_minute: keyToEdit.rate_limit_per_minute,
+        } : undefined}
       />
 
       {/* New Key Secret Modal */}

@@ -5,26 +5,38 @@ import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Mod
 import { useTranslations } from 'next-intl';
 import { Key } from 'lucide-react';
 
+interface ApiKeyFormData {
+  name: string;
+  scopes: string[];
+  rate_limit_per_minute?: number;
+  expires_at?: string;
+}
+
+interface ApiKeyInitialData {
+  name: string;
+  scopes: string[];
+  rate_limit_per_minute: number;
+}
+
 interface ApiKeyFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    name: string;
-    scopes: string[];
-    rate_limit_per_minute?: number;
-    expires_at?: string;
-  }) => Promise<void>;
+  onSubmit: (data: ApiKeyFormData) => Promise<void>;
   isSubmitting: boolean;
+  initialData?: ApiKeyInitialData;
 }
 
 export default function ApiKeyFormModal({
   isOpen,
   onClose,
   onSubmit,
-  isSubmitting
+  isSubmitting,
+  initialData,
 }: ApiKeyFormModalProps) {
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
+
+  const isEditMode = !!initialData;
 
   const AVAILABLE_SCOPES = [
     { value: '*', label: t('scopes.fullAccess'), description: t('scopeDescriptions.fullAccess') },
@@ -57,18 +69,27 @@ export default function ApiKeyFormModal({
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        name: '',
-        scopes: ['*'],
-        rate_limit_per_minute: 60,
-        expires_at: '',
-      });
-      setShowAdvanced(false);
+      if (initialData) {
+        setFormData({
+          name: initialData.name,
+          scopes: initialData.scopes,
+          rate_limit_per_minute: initialData.rate_limit_per_minute,
+          expires_at: '',
+        });
+        setShowAdvanced(initialData.rate_limit_per_minute !== 60);
+      } else {
+        setFormData({
+          name: '',
+          scopes: ['*'],
+          rate_limit_per_minute: 60,
+          expires_at: '',
+        });
+        setShowAdvanced(false);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   const toggleScope = (scope: string) => {
-    // If selecting full access, clear other scopes
     if (scope === '*') {
       setFormData(prev => ({
         ...prev,
@@ -77,7 +98,6 @@ export default function ApiKeyFormModal({
       return;
     }
 
-    // If full access is selected and we're adding another scope, remove full access
     setFormData(prev => {
       let newScopes = prev.scopes.filter(s => s !== '*');
       if (newScopes.includes(scope)) {
@@ -95,14 +115,14 @@ export default function ApiKeyFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const submitData: any = {
+    const submitData: ApiKeyFormData = {
       name: formData.name,
       scopes: formData.scopes.length > 0 ? formData.scopes : ['*'],
     };
     if (formData.rate_limit_per_minute && formData.rate_limit_per_minute !== 60) {
       submitData.rate_limit_per_minute = formData.rate_limit_per_minute;
     }
-    if (formData.expires_at) {
+    if (!isEditMode && formData.expires_at) {
       submitData.expires_at = new Date(formData.expires_at).toISOString();
     }
     await onSubmit(submitData);
@@ -111,8 +131,8 @@ export default function ApiKeyFormModal({
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="lg">
       <ModalHeader
-        title={t('createKeyTitle')}
-        subtitle={t('createKeySubtitle')}
+        title={isEditMode ? t('editKeyTitle') : t('createKeyTitle')}
+        subtitle={isEditMode ? t('editKeySubtitle') : t('createKeySubtitle')}
         icon={<Key className="w-6 h-6 text-blue-500" />}
       />
       <ModalBody>
@@ -211,20 +231,22 @@ export default function ApiKeyFormModal({
                   </div>
                 </div>
 
-                {/* Expiration */}
-                <div>
-                  <label className="block text-sm font-medium text-sf-body mb-1">
-                    {t('expiration')}
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.expires_at}
-                    onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"
-                  />
-                  <p className="text-xs text-sf-muted mt-1">{t('expirationHelp')}</p>
-                </div>
+                {/* Expiration — only shown when creating */}
+                {!isEditMode && (
+                  <div>
+                    <label className="block text-sm font-medium text-sf-body mb-1">
+                      {t('expiration')}
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.expires_at}
+                      onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                      min={new Date().toISOString().slice(0, 16)}
+                      className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"
+                    />
+                    <p className="text-xs text-sf-muted mt-1">{t('expirationHelp')}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -235,7 +257,7 @@ export default function ApiKeyFormModal({
           {tCommon('cancel')}
         </Button>
         <Button type="submit" form="api-key-form" loading={isSubmitting} variant="primary">
-          {t('createKey')}
+          {isEditMode ? tCommon('save') : t('createKey')}
         </Button>
       </ModalFooter>
     </BaseModal>

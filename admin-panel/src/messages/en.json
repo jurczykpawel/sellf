@@ -1713,7 +1713,11 @@
         "readOnly": "Read Only",
         "productsOnly": "Products Only",
         "usersOnly": "Users Only"
-      }
+      },
+      "editKeyTitle": "Edit API Key",
+      "editKeySubtitle": "Update name, permissions, or rate limit",
+      "editSuccess": "API key updated successfully",
+      "editError": "Failed to update API key"
     },
     "coupons": {
       "title": "Coupons",
