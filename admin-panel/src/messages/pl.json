@@ -1588,7 +1588,8 @@
         "access_expired": "Dostęp wygasł",
         "subscription_started": "Subskrypcja rozpoczęta",
         "subscription_ended": "Subskrypcja zakończona",
-        "refund_issued": "Zwrot wykonany"
+        "refund_issued": "Zwrot wykonany",
+        "test_event": "Zdarzenie testowe"
       },
       "logs": {
         "title": "Logi Dostarczeń",

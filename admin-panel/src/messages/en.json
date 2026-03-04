@@ -1573,7 +1573,8 @@
         "access_expired": "Access Expired",
         "subscription_started": "Subscription Started",
         "subscription_ended": "Subscription Ended",
-        "refund_issued": "Refund Issued"
+        "refund_issued": "Refund Issued",
+        "test_event": "Test Event"
       },
       "logs": {
         "title": "Delivery Logs",
