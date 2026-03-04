@@ -1570,6 +1570,7 @@
         "purchase_completed": "Purchase Completed",
         "lead_captured": "Lead Captured (Free Product)",
         "waitlist_signup": "Waitlist Signup",
+        "access_expired": "Access Expired",
         "subscription_started": "Subscription Started",
         "subscription_ended": "Subscription Ended",
         "refund_issued": "Refund Issued"

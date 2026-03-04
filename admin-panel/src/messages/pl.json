@@ -1585,6 +1585,7 @@
         "purchase_completed": "Zakup zakończony",
         "lead_captured": "Lead pozyskany (Darmowy produkt)",
         "waitlist_signup": "Zapis na listę oczekujących",
+        "access_expired": "Dostęp wygasł",
         "subscription_started": "Subskrypcja rozpoczęta",
         "subscription_ended": "Subskrypcja zakończona",
         "refund_issued": "Zwrot wykonany"
