@@ -23,7 +23,8 @@
     "funnelTest": {
       "banner": "FUNNEL TEST",
       "description": "You are previewing this checkout as admin. No payment will be processed.",
-      "completeButton": "Complete Test"
+      "completeButton": "Pay (simulation)",
+      "endToast": "End of funnel - no further steps"
     },
     "loadError": "Failed to load checkout. Please try again later.",
     "createSessionError": "Failed to create checkout session",

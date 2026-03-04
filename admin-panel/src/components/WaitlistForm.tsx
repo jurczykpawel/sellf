@@ -194,7 +194,7 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
                     !termsAccepted ||
                     (process.env.NODE_ENV === 'production' && !captchaToken)
                   }
-                  className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-heading font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
+                  className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
                 >
                   {loading || captchaLoading ? (
                     <div className="flex items-center justify-center">

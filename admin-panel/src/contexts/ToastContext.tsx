@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useReducer, ReactNode } from 'react';
 import Toast, { ToastType } from '@/components/Toast';
 
 interface Toast {
@@ -42,16 +42,16 @@ const toastReducer = (state: Toast[], action: ToastAction): Toast[] => {
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, dispatch] = useReducer(toastReducer, []);
 
-  const addToast = (message: string, type: ToastType, duration = 3000) => {
+  const addToast = useCallback((message: string, type: ToastType, duration = 3000) => {
     dispatch({
       type: 'ADD_TOAST',
       toast: { message, type, duration },
     });
-  };
+  }, [dispatch]);
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     dispatch({ type: 'REMOVE_TOAST', id });
-  };
+  }, [dispatch]);
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>

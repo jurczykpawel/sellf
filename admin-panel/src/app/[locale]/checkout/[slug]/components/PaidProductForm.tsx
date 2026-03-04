@@ -106,6 +106,25 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   } | null>(null);
   const [otoExpired, setOtoExpired] = useState(false);
 
+  // Funnel test: pre-fetch OTO target slug so handleRedirectToProduct can use it
+  const [funnelTestOtoSlug, setFunnelTestOtoSlug] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isFunnelTest) return;
+    const checkOto = async () => {
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from('oto_offers')
+        .select('oto_product:products!oto_offers_oto_product_id_fkey(slug)')
+        .eq('source_product_id', product.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      const slug = (data?.oto_product as { slug?: string } | null)?.slug;
+      if (slug) setFunnelTestOtoSlug(slug);
+    };
+    checkOto();
+  }, [isFunnelTest, product.id]);
+
   // Reset manual removal flag when email changes to allow auto-apply for new email
   useEffect(() => {
     setCouponManuallyRemoved(false);
@@ -268,12 +287,41 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   };
 
   const handleRedirectToProduct = useCallback(() => {
+    // Priority 1: ?success_url param override (from URL)
+    const successUrl = searchParams.get('success_url');
+    if (successUrl) {
+      router.push(successUrl);
+      return;
+    }
+
+    // Priority 2: product.success_redirect_url (configured on product)
+    if (product.success_redirect_url) {
+      router.push(product.success_redirect_url);
+      return;
+    }
+
+    // Priority 3: OTO — funnel test mode simulates post-purchase OTO flow
+    if (isFunnelTest && funnelTestOtoSlug) {
+      router.push(`/checkout/${funnelTestOtoSlug}?funnel_test=1`);
+      return;
+    }
+
+    // Priority 4: bump selected → my-products
     if (bumpSelected) {
       router.push('/my-products');
-    } else {
-      router.push(`/p/${product.slug}`);
+      return;
     }
-  }, [product.slug, router, bumpSelected]);
+
+    // Priority 5: funnel test fallback — no redirect configured, end of chain
+    if (isFunnelTest) {
+      addToast(t('funnelTest.endToast'), 'info');
+      router.push('/dashboard/products');
+      return;
+    }
+
+    // Priority 6: default — product page
+    router.push(`/p/${product.slug}`);
+  }, [product.slug, product.success_redirect_url, router, bumpSelected, searchParams, isFunnelTest, funnelTestOtoSlug, addToast, t]);
 
   useEffect(() => {
     if (hasAccess && countdown > 0) {

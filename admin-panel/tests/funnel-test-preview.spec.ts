@@ -6,7 +6,7 @@
  *
  * Covers:
  * - "Test Funnel" button visible in admin products table
- * - Funnel test banner + "Complete Test" button for admin
+ * - Funnel test banner + "Zapłać.*symulacja|Pay.*simulation" button for admin
  * - Product variants: simple paid, with order bump, with coupon, PWYW
  * - Non-admin users see normal checkout with ?funnel_test=1
  *
@@ -210,12 +210,12 @@ test.describe('Admin Funnel Test Preview', () => {
     await expect(page.getByText(/Podgląd checkoutu jako administrator/i)).toBeVisible();
   });
 
-  test('should show "Complete Test" button instead of Stripe Elements', async ({ page }) => {
+  test('should show "Zapłać.*symulacja|Pay.*simulation" button instead of Stripe Elements', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto(`/checkout/${simpleProductSlug}?funnel_test=1`);
     await page.waitForLoadState('domcontentloaded');
 
-    const completeButton = page.getByRole('button', { name: /Zakończ test/i });
+    const completeButton = page.getByRole('button', { name: /Zapłać.*symulacja/i });
     await expect(completeButton).toBeVisible({ timeout: 15000 });
 
     // Stripe Pay button should NOT be present
@@ -231,12 +231,12 @@ test.describe('Admin Funnel Test Preview', () => {
     await expect(page.getByText(/99/)).toBeVisible();
   });
 
-  test('should show success state when clicking "Complete Test"', async ({ page }) => {
+  test('should show success state when clicking "Zapłać.*symulacja|Pay.*simulation"', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto(`/checkout/${simpleProductSlug}?funnel_test=1`);
     await page.waitForLoadState('domcontentloaded');
 
-    const completeButton = page.getByRole('button', { name: /Zakończ test/i });
+    const completeButton = page.getByRole('button', { name: /Zapłać.*symulacja/i });
     await expect(completeButton).toBeVisible({ timeout: 15000 });
     await completeButton.click();
 
@@ -246,7 +246,7 @@ test.describe('Admin Funnel Test Preview', () => {
     // "Go to Product" button should be visible in success state
     await expect(page.getByRole('button', { name: /Go to Product|Przejdź do produktu/i })).toBeVisible({ timeout: 3000 });
 
-    // "Complete Test" button should disappear after access granted
+    // "Zapłać.*symulacja|Pay.*simulation" button should disappear after access granted
     await expect(completeButton).not.toBeVisible();
   });
 
@@ -272,8 +272,8 @@ test.describe('Admin Funnel Test Preview', () => {
     // Bump price visible (use first() since "49" can appear in multiple places)
     await expect(page.getByText(/49/).first()).toBeVisible();
 
-    // Complete Test button present
-    await expect(page.getByRole('button', { name: /Zakończ test/i })).toBeVisible();
+    // Zapłać.*symulacja|Pay.*simulation button present
+    await expect(page.getByRole('button', { name: /Zapłać.*symulacja/i })).toBeVisible();
 
     // Stripe Pay button should NOT be present
     await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).not.toBeVisible({ timeout: 3000 });
@@ -290,7 +290,7 @@ test.describe('Admin Funnel Test Preview', () => {
     await bumpCard.click();
 
     // Complete test
-    const completeButton = page.getByRole('button', { name: /Zakończ test/i });
+    const completeButton = page.getByRole('button', { name: /Zapłać.*symulacja/i });
     await expect(completeButton).toBeVisible({ timeout: 5000 });
     await completeButton.click();
 
@@ -330,8 +330,8 @@ test.describe('Admin Funnel Test Preview', () => {
     // Discount should be applied (green checkmark or discount text)
     await expect(page.getByText(/20%/)).toBeVisible({ timeout: 5000 });
 
-    // Complete Test button should still be present after coupon applied
-    await expect(page.getByRole('button', { name: /Zakończ test/i })).toBeVisible();
+    // Zapłać.*symulacja|Pay.*simulation button should still be present after coupon applied
+    await expect(page.getByRole('button', { name: /Zapłać.*symulacja/i })).toBeVisible();
 
     // Stripe Pay button should NOT be present
     await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).not.toBeVisible({ timeout: 3000 });
@@ -351,8 +351,8 @@ test.describe('Admin Funnel Test Preview', () => {
     // Coupon should auto-apply from URL param
     await expect(page.getByText(/20%/)).toBeVisible({ timeout: 10000 });
 
-    // Complete Test button present
-    await expect(page.getByRole('button', { name: /Zakończ test/i })).toBeVisible();
+    // Zapłać.*symulacja|Pay.*simulation button present
+    await expect(page.getByRole('button', { name: /Zapłać.*symulacja/i })).toBeVisible();
 
     // Stripe Pay button should NOT be present
     await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).not.toBeVisible({ timeout: 3000 });
@@ -384,8 +384,8 @@ test.describe('Admin Funnel Test Preview', () => {
     // Currency label visible
     await expect(page.getByText('PLN').first()).toBeVisible();
 
-    // Complete Test button present
-    await expect(page.getByRole('button', { name: /Zakończ test/i })).toBeVisible();
+    // Zapłać.*symulacja|Pay.*simulation button present
+    await expect(page.getByRole('button', { name: /Zapłać.*symulacja/i })).toBeVisible();
 
     // Stripe Pay button should NOT be present
     await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).not.toBeVisible({ timeout: 3000 });
@@ -402,7 +402,7 @@ test.describe('Admin Funnel Test Preview', () => {
     await preset25.click();
 
     // Complete test
-    const completeButton = page.getByRole('button', { name: /Zakończ test/i });
+    const completeButton = page.getByRole('button', { name: /Zapłać.*symulacja/i });
     await expect(completeButton).toBeVisible({ timeout: 5000 });
     await completeButton.click();
 
@@ -422,8 +422,8 @@ test.describe('Admin Funnel Test Preview', () => {
     // Funnel test banner should NOT be visible
     await expect(page.getByText('TEST LEJKA')).not.toBeVisible({ timeout: 3000 });
 
-    // "Complete Test" button should NOT be present
-    await expect(page.locator('button', { hasText: /Zakończ test/i })).toHaveCount(0, { timeout: 3000 });
+    // "Zapłać.*symulacja|Pay.*simulation" button should NOT be present
+    await expect(page.locator('button', { hasText: /Zapłać.*symulacja/i })).toHaveCount(0, { timeout: 3000 });
 
     // Product name should still be visible
     await expect(page.getByText('Funnel Test — Simple')).toBeVisible({ timeout: 15000 });
@@ -469,8 +469,8 @@ test.describe('Admin Funnel Test Preview', () => {
       await expect(page.locator('text="TEST LEJKA"')).toHaveCount(0, { timeout: 5000 });
       await expect(page.locator('text="FUNNEL TEST"')).toHaveCount(0, { timeout: 2000 });
 
-      // "Complete Test" button should NOT be present for non-admin
-      await expect(page.locator('button', { hasText: /Zakończ test|Complete Test/i })).toHaveCount(0, { timeout: 3000 });
+      // "Zapłać.*symulacja|Pay.*simulation" button should NOT be present for non-admin
+      await expect(page.locator('button', { hasText: /Zapłać.*symulacja|Pay.*simulation|Zapłać.*symulacja|Pay.*simulation/i })).toHaveCount(0, { timeout: 3000 });
 
       // Normal checkout should load
       await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).toBeVisible({ timeout: 15000 });

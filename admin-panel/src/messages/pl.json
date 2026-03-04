@@ -23,7 +23,8 @@
     "funnelTest": {
       "banner": "TEST LEJKA",
       "description": "Podgląd checkoutu jako administrator. Żadna płatność nie zostanie przetworzona.",
-      "completeButton": "Zakończ test"
+      "completeButton": "Zapłać (symulacja)",
+      "endToast": "Koniec lejka - brak dalszych kroków"
     },
     "loadError": "Nie udało się załadować płatności. Spróbuj ponownie później.",
     "createSessionError": "Nie udało się utworzyć sesji płatności",
@@ -2170,12 +2171,12 @@
       "subtitle": "Zarządzaj kluczami API Stripe i ustawieniami integracji płatności",
       "currentMethod": {
         "env": {
-          "title": "Obecnie używana: konfiguracja .env",
+          "title": "Obecnie używana konfiguracja: .env",
           "description": "Twój Stripe jest skonfigurowany poprzez zmienną środowiskową STRIPE_SECRET_KEY. To idealne rozwiązanie dla deweloperów, wdrożeń Docker i CI/CD.",
           "alternative": "💡 Alternatywa: Możesz opcjonalnie użyć kreatora poniżej, aby zarządzać kluczami poprzez bazę danych z szyfrowaniem, wizualnymi przewodnikami i automatyczną walidacją."
         },
         "database": {
-          "title": "Obecnie używana: konfiguracja bazy danych",
+          "title": "Obecnie używana konfiguracja: baza danych",
           "description": "Twoje klucze Stripe są bezpiecznie zaszyfrowane przy użyciu AES-256-GCM i przechowywane w bazie danych.",
           "alternative": "💡 Alternatywa: Deweloperzy mogą również skonfigurować Stripe poprzez STRIPE_SECRET_KEY w pliku .env."
         },
