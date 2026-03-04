@@ -96,7 +96,7 @@ export async function testStripeKeyConnection(apiKey: string): Promise<TestConne
 
     // Initialize Stripe client with the provided key
     const stripe = new Stripe(apiKey.trim(), {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: '2026-02-25.clover',
       typescript: true,
     })
 
@@ -150,7 +150,7 @@ export async function testStripeKeyConnection(apiKey: string): Promise<TestConne
 export async function verifyStripeKeyPermissions(apiKey: string): Promise<VerifyPermissionsResponse> {
   try {
     const stripe = new Stripe(apiKey.trim(), {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: '2026-02-25.clover',
       typescript: true,
     })
 
@@ -582,7 +582,7 @@ export async function getStripeAccountInfo(): Promise<{ accountId: string | null
     const apiKey = await getDecryptedStripeKey(mode) || process.env.STRIPE_SECRET_KEY
     if (!apiKey) return null
 
-    const stripe = new Stripe(apiKey, { apiVersion: '2025-12-15.clover' })
+    const stripe = new Stripe(apiKey, { apiVersion: '2026-02-25.clover' })
     const account = await stripe.accounts.retrieve()
     const anyAccount = account as { business_profile?: { name?: string | null }; email?: string | null }
     return {

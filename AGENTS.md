@@ -468,14 +468,9 @@ User access can have:
 
 All enforced at database level in RLS policies and access check functions.
 
-### Stable Versions & Known Issues (CRITICAL)
+### Stable Versions & Known Issues
 
-To maintain Realtime functionality, the following "Golden Stack" of dependencies must be preserved:
-- **Supabase CLI**: 2.70.5 (run via `npx supabase`)
-- **@supabase/supabase-js**: 2.45.4 (STABLE)
-- **@supabase/ssr**: 0.5.2 (STABLE)
-
-**⚠️ DO NOT UPDATE**: Newer versions of the JS client (specifically `2.89.0+`) have a confirmed bug with Realtime that triggers a "mismatch between server and client bindings" error. Stick to `2.45.4` until a fix is verified.
+- **Supabase CLI**: 2.70.5 (run via `npx supabase`) — pin via `npx supabase@2.70.5` if needed
 
 ## Troubleshooting
 

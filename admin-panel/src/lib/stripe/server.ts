@@ -51,7 +51,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
       if (dbKey) {
         console.log(`[Stripe] Using database configuration (${mode} mode)`);
         stripe = new Stripe(dbKey, {
-          apiVersion: '2025-12-15.clover',
+          apiVersion: '2026-02-25.clover',
           typescript: true,
         });
         return stripe;
@@ -66,7 +66,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
     if (envKey) {
       console.log(`[Stripe] Using .env configuration (${mode} mode)`);
       stripe = new Stripe(envKey, {
-        apiVersion: '2025-12-15.clover',
+        apiVersion: '2026-02-25.clover',
         typescript: true,
       });
       return stripe;
