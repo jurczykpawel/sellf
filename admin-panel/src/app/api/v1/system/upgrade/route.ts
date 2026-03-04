@@ -128,15 +128,32 @@ export async function POST(request: NextRequest) {
       ? resolve(cwd, '..', '..', '..')
       : null;
 
-    // Launch upgrade as detached process — spawn() prevents shell injection
-    const logFd = openSync(`/tmp/sellf-upgrade-${token}.log`, 'w', 0o600);
-    const spawnArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
-    const child = spawn('bash', spawnArgs, {
+    // Create log file with restricted permissions before launching.
+    // upgrade.sh writes to it via its own log() function using >>.
+    const logFile = `/tmp/sellf-upgrade-${token}.log`;
+    const logFd = openSync(logFile, 'w', 0o600);
+    closeSync(logFd);
+
+    // Launch upgrade via systemd transient service so it runs in its own
+    // cgroup, independent of pm2-root.service. This is necessary because
+    // PM2 v6 (Go) kills the entire cgroup when stopping a managed process,
+    // which would terminate upgrade.sh mid-run even with detached: true.
+    //
+    // systemd-run creates a new scope under system.slice/<unit>.service
+    // that is unaffected by pm2 stop on the parent process.
+    const scriptArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
+    const systemdRunArgs = [
+      `--unit=sellf-upgrade-${token}`,
+      '--collect',   // auto-remove unit after exit
+      '--no-block',  // return immediately, don't wait for completion
+      '--',
+      'bash', ...scriptArgs,
+    ];
+    const child = spawn('systemd-run', systemdRunArgs, {
       detached: true,
-      stdio: ['ignore', logFd, logFd],
+      stdio: ['ignore', 'ignore', 'ignore'],
     });
     child.unref();
-    closeSync(logFd);
 
     return jsonResponse(
       {
