@@ -218,8 +218,10 @@ test.describe('Admin Funnel Test Preview', () => {
     const completeButton = page.getByRole('button', { name: /Zapłać.*symulacja/i });
     await expect(completeButton).toBeVisible({ timeout: 15000 });
 
-    // Stripe Pay button should NOT be present
-    await expect(page.getByRole('button', { name: /Pay|Zapłać/i })).not.toBeVisible({ timeout: 3000 });
+    // Stripe Pay button should NOT be present (exclude the simulation button)
+    await expect(
+      page.getByRole('button', { name: /Pay|Zapłać/i }).filter({ hasNotText: /symulacja/i })
+    ).not.toBeVisible({ timeout: 3000 });
   });
 
   test('should show product name and pricing in funnel test mode', async ({ page }) => {

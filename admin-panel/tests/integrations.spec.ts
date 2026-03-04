@@ -139,7 +139,7 @@ test.describe('Integrations & Script Injection', () => {
     }
 
     // Check for any toast message (success or error)
-    const toast = page.locator('div.fixed.bottom-4.right-4');
+    const toast = page.locator('[data-sonner-toast]').first();
     await expect(toast).toBeVisible({ timeout: 15000 });
     const toastText = await toast.textContent();
     console.log('Toast message:', toastText);
@@ -247,7 +247,7 @@ test.describe('Integrations & Script Injection', () => {
     await saveBtn.click({ force: true });
     
     await responsePromise;
-    await expect(page.locator('div.fixed.bottom-4.right-4')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-sonner-toast]').first()).toBeVisible({ timeout: 15000 });
     
     // Wait for cache revalidation propagation
     await page.waitForTimeout(3000);

@@ -165,7 +165,7 @@ test.describe('Currency API Configuration', () => {
     await saveButton.click();
 
     // Should show error toast about required API key
-    const errorToast = page.locator('[role="alert"]', { hasText: /API key is required|Klucz API jest wymagany/i });
+    const errorToast = page.locator('[data-sonner-toast]', { hasText: /API key is required|Klucz API jest wymagany/i });
     await expect(errorToast).toBeVisible({ timeout: 5000 });
   });
 
@@ -272,7 +272,7 @@ test.describe('Currency API Configuration', () => {
     await confirmDeleteButton.click();
 
     // Wait for success toast
-    const successToast = page.locator('[role="alert"]', { hasText: /deleted successfully|pomyślnie usunięty/i });
+    const successToast = page.locator('[data-sonner-toast]', { hasText: /deleted successfully|pomyślnie usunięty/i });
     await expect(successToast).toBeVisible({ timeout: 10000 });
 
     // Verify in database - should be reset

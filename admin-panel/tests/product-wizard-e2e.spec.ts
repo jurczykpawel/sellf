@@ -231,6 +231,10 @@ test.describe('Product Creation Wizard', () => {
     await goToProducts(page);
     await openWizard(page);
 
+    // Enter a price > 0 to reveal the VAT checkbox (hidden when price = 0)
+    const priceInput = page.locator('input#price');
+    await priceInput.fill('10');
+
     // VAT checkbox should be visible (price_includes_vat)
     const vatCheckbox = page.locator('input#price_includes_vat');
     await expect(vatCheckbox).toBeVisible();

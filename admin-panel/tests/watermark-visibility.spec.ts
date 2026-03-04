@@ -10,12 +10,12 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-// Test licenses for localhost (generated with scripts/generate-license.js)
+// Test licenses for localhost (generated with scripts/generate-license.js using v2 key)
 // These licenses are for 'localhost' domain to match NEXT_PUBLIC_SITE_URL=http://localhost:3000
 const TEST_LICENSES = {
-  unlimited: 'SF-localhost-UNLIMITED-MEYCIQDmEAvHQyvdCu-BFEm1pXh1GCsm8sUVN6k_0lB5loj-CgIhAKdKPs0tPFtAlRgS4LWLSDFddvAJrmK4EgfbDuCm9fcd',
-  expired: 'SF-localhost-20251231-MEUCIQDWCdAQqEooBjrY-NcDSCd6ULjXuv-FfF54wNPoNbdOzgIgcDcMfPZaACiniDg_Ph0qvZE91Qy8K1fJqZ5rwBRHNKQ',
-  future: 'SF-localhost-20301231-MEYCIQCOLJqPK06fqDwAxJyuGiUfMaWZYmRjqkN8U4VzfwRJLQIhAPMZN5P5BqaEhUXa3TmafNtg2gW3ghwI4YeEvhruMXSK',
+  unlimited: 'SF-localhost-UNLIMITED-MEQCIGNN8RHvZ36XfI6d9nbL6QkW6-ygvmxiFkIqpUoledckAiBfxPhyxkNoQBRghX8fOs3H2HoAoqigXT_1-g-EaBqwqg',
+  expired: 'SF-localhost-20251231-MEQCIHVQYmrREUupC_Bj-8de11HrYjzo6E0c3LKEwDWmatZfAiA3Peoc58ZEmuFb3hYUWHyq4p7Kp2C2mlBfr97oE04xQg',
+  future: 'SF-localhost-20301231-MEYCIQCWjuZ-TYJIG_c6Lp6X02QtRF5U7HTcMT4e7xs37GDP9wIhAO4EoCyihqxyj43uKFMxR39JhfbEBoo3ilFkPZe2KVfh',
   invalid: 'INVALID-LICENSE-FORMAT',
 };
 

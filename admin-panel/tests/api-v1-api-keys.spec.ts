@@ -249,7 +249,7 @@ test.describe('API Keys v1', () => {
       expect(body.data.name).toBe('Updated Name');
     });
 
-    test('should reject scope change — scopes are immutable after creation', async ({ page }) => {
+    test('should silently ignore scopes — DB scopes unchanged even when sent with valid field', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const createResponse = await page.request.post('/api/v1/api-keys', {
@@ -258,21 +258,23 @@ test.describe('API Keys v1', () => {
       const { data: key } = await createResponse.json();
       createdKeyIds.push(key.id);
 
+      // scopes + valid field → 200, name updated, scopes ignored
       const response = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
-        data: { scopes: ['products:read'] }
+        data: { name: 'Scope Immutability Key Renamed', scopes: ['products:read'] }
       });
 
-      expect(response.status()).toBe(400);
-      const body = await response.json();
-      expect(body.error.message).toMatch(/[Ss]copes cannot be changed/);
+      expect(response.status()).toBe(200);
 
-      // Original scopes must be unchanged
-      const getResponse = await page.request.get(`/api/v1/api-keys/${key.id}`);
-      const getBody = await getResponse.json();
-      expect(getBody.data.scopes).toContain('*');
+      // Scopes must be unchanged in DB
+      const { data: dbKey } = await supabaseAdmin
+        .from('api_keys')
+        .select('scopes')
+        .eq('id', key.id)
+        .single();
+      expect(dbKey?.scopes).toContain('*');
     });
 
-    test('should reject rate_limit change — rate_limit is immutable after creation', async ({ page }) => {
+    test('should silently ignore rate_limit_per_minute — DB rate_limit unchanged even when sent with valid field', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const createResponse = await page.request.post('/api/v1/api-keys', {
@@ -281,18 +283,20 @@ test.describe('API Keys v1', () => {
       const { data: key } = await createResponse.json();
       createdKeyIds.push(key.id);
 
+      // rate_limit + valid field → 200, name updated, rate_limit ignored
       const response = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
-        data: { rate_limit_per_minute: 200 }
+        data: { name: 'Rate Limit Key Renamed', rate_limit_per_minute: 999 }
       });
 
-      expect(response.status()).toBe(400);
-      const body = await response.json();
-      expect(body.error.message).toMatch(/[Rr]ate limit cannot be changed/);
+      expect(response.status()).toBe(200);
 
-      // Original rate limit must be unchanged
-      const getResponse = await page.request.get(`/api/v1/api-keys/${key.id}`);
-      const getBody = await getResponse.json();
-      expect(getBody.data.rate_limit_per_minute).toBe(60);
+      // Rate limit must be unchanged in DB
+      const { data: dbKey } = await supabaseAdmin
+        .from('api_keys')
+        .select('rate_limit_per_minute')
+        .eq('id', key.id)
+        .single();
+      expect(dbKey?.rate_limit_per_minute).toBe(60);
     });
 
     test('should deactivate key', async ({ page }) => {
@@ -357,7 +361,7 @@ test.describe('API Keys v1', () => {
       expect(expiresResponse.status()).toBe(400);
     });
 
-    test('should ignore key_hash when sent alongside a valid field', async ({ page }) => {
+    test('should silently ignore key_hash — valid fields still update, DB hash unchanged', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const createResponse = await page.request.post('/api/v1/api-keys', {
@@ -366,7 +370,15 @@ test.describe('API Keys v1', () => {
       const { data: key, key: rawKey } = await createResponse.json();
       createdKeyIds.push(key.id);
 
-      // Send a valid field + an immutable one
+      // Capture the real hash from DB before the attempt
+      const { data: before } = await supabaseAdmin
+        .from('api_keys')
+        .select('key_hash')
+        .eq('id', key.id)
+        .single();
+      expect(before?.key_hash).toBeTruthy();
+
+      // key_hash is unknown to the endpoint — silently dropped, name still updates
       const response = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
         data: { name: 'Mixed Fields Key Updated', key_hash: 'tampered' }
       });
@@ -374,15 +386,20 @@ test.describe('API Keys v1', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body.data.name).toBe('Mixed Fields Key Updated');
-      // key_prefix is derived from the hash — it must not change
-      expect(body.data.key_prefix).toBe(key.key_prefix);
 
-      // Original key must still authenticate (hash unchanged)
+      // Verify DB hash is unchanged — the tampered value was never written
+      const { data: after } = await supabaseAdmin
+        .from('api_keys')
+        .select('key_hash')
+        .eq('id', key.id)
+        .single();
+      expect(after?.key_hash).toBe(before?.key_hash);
+
+      // Original key still authenticates
       if (rawKey) {
         const verifyResponse = await page.request.get('/api/v1/api-keys', {
           headers: { Authorization: `Bearer ${rawKey}` }
         });
-        // If the hash were changed, auth would fail with 401
         expect(verifyResponse.status()).not.toBe(401);
       }
     });
@@ -403,38 +420,26 @@ test.describe('API Keys v1', () => {
       expect(response.status()).toBe(400);
     });
 
-    test('should reject invalid scope', async ({ page }) => {
+    test('should return 400 when only unknown/immutable fields sent (no valid update fields)', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const createResponse = await page.request.post('/api/v1/api-keys', {
-        data: { name: 'Invalid Scope Test' }
+        data: { name: 'No Valid Fields Test' }
       });
       const { data: key } = await createResponse.json();
       createdKeyIds.push(key.id);
 
-      const response = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
-        data: { scopes: ['products:read', 'not:a:real:scope'] }
+      // scopes alone — not an editable field
+      const scopesResponse = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
+        data: { scopes: ['products:read'] }
       });
+      expect(scopesResponse.status()).toBe(400);
 
-      expect(response.status()).toBe(400);
-    });
-
-    test('should reject any rate_limit value — rate_limit is immutable after creation', async ({ page }) => {
-      await loginAsAdmin(page, adminEmail, adminPassword);
-
-      const createResponse = await page.request.post('/api/v1/api-keys', {
-        data: { name: 'Rate Limit Any Value Test' }
+      // rate_limit alone — not an editable field
+      const rateLimitResponse = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
+        data: { rate_limit_per_minute: 200 }
       });
-      const { data: key } = await createResponse.json();
-      createdKeyIds.push(key.id);
-
-      // Even a valid value is rejected because rate_limit is immutable
-      for (const value of [0, 60, 200, 1001]) {
-        const res = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
-          data: { rate_limit_per_minute: value }
-        });
-        expect(res.status()).toBe(400);
-      }
+      expect(rateLimitResponse.status()).toBe(400);
     });
   });
 

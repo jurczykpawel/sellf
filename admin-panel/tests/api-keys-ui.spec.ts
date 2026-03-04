@@ -343,9 +343,12 @@ test.describe('API Keys Management UI', () => {
   test('should open edit modal with pre-populated fields', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/api-keys');
+    await page.waitForLoadState('networkidle');
 
-    // Find the default test key row and click edit (Pencil icon)
-    const keyRow = page.locator('tr').filter({ hasText: 'Test Key Default' });
+    // Find the original "Test Key Default" row (exclude the "(rotated)" copy if rotation ran earlier)
+    const keyRow = page.locator('tr')
+      .filter({ hasText: 'Test Key Default' })
+      .filter({ hasNotText: '(rotated)' });
     await expect(keyRow).toBeVisible({ timeout: 10000 });
 
     const editButton = keyRow.locator('button').filter({ has: page.locator('svg.lucide-pencil') });

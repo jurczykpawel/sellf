@@ -257,7 +257,7 @@ test.describe('GUS API Admin Configuration', () => {
     await confirmDeleteButton.click();
 
     // Wait for success toast (support both EN and PL)
-    const successToast = page.locator('[role="alert"]', { hasText: /został pomyślnie usunięty|deleted successfully/i });
+    const successToast = page.locator('[data-sonner-toast]', { hasText: /został pomyślnie usunięty|deleted successfully/i });
     await expect(successToast).toBeVisible({ timeout: 5000 });
 
     // Verify in database

@@ -2,7 +2,7 @@
  * API Keys Management - Single Key Operations
  *
  * GET /api/v1/api-keys/:id - Get key details
- * PATCH /api/v1/api-keys/:id - Update key (name, scopes, rate limit)
+ * PATCH /api/v1/api-keys/:id - Update key (name, is_active)
  * DELETE /api/v1/api-keys/:id - Revoke key
  */
 
@@ -15,7 +15,6 @@ import {
   parseJsonBody,
   ApiValidationError,
   successResponse,
-  validateScopes,
 } from '@/lib/api';
 import { createClient } from '@/lib/supabase/server';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -124,17 +123,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await parseJsonBody<{
       name?: string;
       is_active?: boolean;
-      scopes?: unknown;
-      rate_limit_per_minute?: unknown;
     }>(request);
-
-    // Scopes and rate_limit are immutable after creation — use key rotation to change them
-    if (body.scopes !== undefined) {
-      throw new ApiValidationError('Scopes cannot be changed after creation. Rotate the key to apply new scopes.');
-    }
-    if (body.rate_limit_per_minute !== undefined) {
-      throw new ApiValidationError('Rate limit cannot be changed after creation. Rotate the key to apply a new rate limit.');
-    }
 
     const updateData: Record<string, unknown> = {};
 
