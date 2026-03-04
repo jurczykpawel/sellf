@@ -84,19 +84,23 @@ async function handleAccessExpired(): Promise<CronJobResult> {
     return { processed: 0, errors: 0 };
   }
 
-  // Batch fetch user emails in parallel (auth.users is in a separate schema, can't join via PostgREST)
+  // Batch fetch user emails (auth.users is in a separate schema, can't join via PostgREST)
+  // Limited to 10 concurrent requests to avoid hitting Supabase Auth rate limits
   const userIds = [...new Set(expiredRows.map(r => r.user_id))];
   const emailMap: Record<string, string | null> = {};
-  await Promise.all(
-    userIds.map(async (userId) => {
-      try {
-        const { data: { user } } = await supabase.auth.admin.getUserById(userId);
-        emailMap[userId] = user?.email ?? null;
-      } catch {
-        emailMap[userId] = null;
-      }
-    })
-  );
+  const EMAIL_BATCH_SIZE = 10;
+  for (let i = 0; i < userIds.length; i += EMAIL_BATCH_SIZE) {
+    await Promise.all(
+      userIds.slice(i, i + EMAIL_BATCH_SIZE).map(async (userId) => {
+        try {
+          const { data: { user } } = await supabase.auth.admin.getUserById(userId);
+          emailMap[userId] = user?.email ?? null;
+        } catch {
+          emailMap[userId] = null;
+        }
+      })
+    );
+  }
 
   let processed = 0;
   let errors = 0;
@@ -145,7 +149,8 @@ async function handleAccessExpired(): Promise<CronJobResult> {
 
 // ===== JOB: cleanup-webhook-logs =====
 
-const WEBHOOK_LOG_RETENTION_DAYS = Number(process.env.WEBHOOK_LOG_RETENTION_DAYS ?? 30);
+const raw = Number(process.env.WEBHOOK_LOG_RETENTION_DAYS);
+const WEBHOOK_LOG_RETENTION_DAYS = Number.isFinite(raw) && raw > 0 ? raw : 30;
 
 async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
   const supabase = createAdminClient();
