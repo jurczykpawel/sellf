@@ -249,25 +249,50 @@ test.describe('API Keys v1', () => {
       expect(body.data.name).toBe('Updated Name');
     });
 
-    test('should update key scopes', async ({ page }) => {
+    test('should reject scope change — scopes are immutable after creation', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
-      // Create a key with full access
       const createResponse = await page.request.post('/api/v1/api-keys', {
-        data: { name: 'Scope Update Key' }
+        data: { name: 'Scope Immutability Key' }
       });
-      const createBody = await createResponse.json();
-      createdKeyIds.push(createBody.data.id);
+      const { data: key } = await createResponse.json();
+      createdKeyIds.push(key.id);
 
-      // Update to limited scopes
-      const response = await page.request.patch(`/api/v1/api-keys/${createBody.data.id}`, {
+      const response = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
         data: { scopes: ['products:read'] }
       });
 
-      expect(response.status()).toBe(200);
+      expect(response.status()).toBe(400);
       const body = await response.json();
-      expect(body.data.scopes).toContain('products:read');
-      expect(body.data.scopes).not.toContain('*');
+      expect(body.error.message).toMatch(/[Ss]copes cannot be changed/);
+
+      // Original scopes must be unchanged
+      const getResponse = await page.request.get(`/api/v1/api-keys/${key.id}`);
+      const getBody = await getResponse.json();
+      expect(getBody.data.scopes).toContain('*');
+    });
+
+    test('should reject rate_limit change — rate_limit is immutable after creation', async ({ page }) => {
+      await loginAsAdmin(page, adminEmail, adminPassword);
+
+      const createResponse = await page.request.post('/api/v1/api-keys', {
+        data: { name: 'Rate Limit Immutability Key', rate_limit_per_minute: 60 }
+      });
+      const { data: key } = await createResponse.json();
+      createdKeyIds.push(key.id);
+
+      const response = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
+        data: { rate_limit_per_minute: 200 }
+      });
+
+      expect(response.status()).toBe(400);
+      const body = await response.json();
+      expect(body.error.message).toMatch(/[Rr]ate limit cannot be changed/);
+
+      // Original rate limit must be unchanged
+      const getResponse = await page.request.get(`/api/v1/api-keys/${key.id}`);
+      const getBody = await getResponse.json();
+      expect(getBody.data.rate_limit_per_minute).toBe(60);
     });
 
     test('should deactivate key', async ({ page }) => {
@@ -394,24 +419,22 @@ test.describe('API Keys v1', () => {
       expect(response.status()).toBe(400);
     });
 
-    test('should reject rate_limit out of range', async ({ page }) => {
+    test('should reject any rate_limit value — rate_limit is immutable after creation', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 
       const createResponse = await page.request.post('/api/v1/api-keys', {
-        data: { name: 'Rate Limit Test' }
+        data: { name: 'Rate Limit Any Value Test' }
       });
       const { data: key } = await createResponse.json();
       createdKeyIds.push(key.id);
 
-      const tooLow = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
-        data: { rate_limit_per_minute: 0 }
-      });
-      expect(tooLow.status()).toBe(400);
-
-      const tooHigh = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
-        data: { rate_limit_per_minute: 1001 }
-      });
-      expect(tooHigh.status()).toBe(400);
+      // Even a valid value is rejected because rate_limit is immutable
+      for (const value of [0, 60, 200, 1001]) {
+        const res = await page.request.patch(`/api/v1/api-keys/${key.id}`, {
+          data: { rate_limit_per_minute: value }
+        });
+        expect(res.status()).toBe(400);
+      }
     });
   });
 

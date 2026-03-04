@@ -123,10 +123,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const body = await parseJsonBody<{
       name?: string;
-      scopes?: string[];
-      rate_limit_per_minute?: number;
       is_active?: boolean;
+      scopes?: unknown;
+      rate_limit_per_minute?: unknown;
     }>(request);
+
+    // Scopes and rate_limit are immutable after creation — use key rotation to change them
+    if (body.scopes !== undefined) {
+      throw new ApiValidationError('Scopes cannot be changed after creation. Rotate the key to apply new scopes.');
+    }
+    if (body.rate_limit_per_minute !== undefined) {
+      throw new ApiValidationError('Rate limit cannot be changed after creation. Rotate the key to apply a new rate limit.');
+    }
 
     const updateData: Record<string, unknown> = {};
 
@@ -139,26 +147,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         throw new ApiValidationError('Name must be less than 100 characters');
       }
       updateData.name = body.name.trim();
-    }
-
-    // Validate and add scopes
-    if (body.scopes !== undefined) {
-      const scopeValidation = validateScopes(body.scopes);
-      if (!scopeValidation.isValid) {
-        throw new ApiValidationError(
-          `Invalid scopes: ${scopeValidation.invalidScopes.join(', ')}`
-        );
-      }
-      updateData.scopes = body.scopes;
-    }
-
-    // Validate and add rate limit
-    if (body.rate_limit_per_minute !== undefined) {
-      const rateLimit = body.rate_limit_per_minute;
-      if (typeof rateLimit !== 'number' || !Number.isInteger(rateLimit) || rateLimit < 1 || rateLimit > 1000) {
-        throw new ApiValidationError('Rate limit must be an integer between 1 and 1000');
-      }
-      updateData.rate_limit_per_minute = rateLimit;
     }
 
     // Validate and add is_active
