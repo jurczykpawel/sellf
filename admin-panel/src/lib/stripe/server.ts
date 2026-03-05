@@ -2,7 +2,8 @@
 // Secure Stripe server configuration for Next.js Server Actions and API routes
 
 import Stripe from 'stripe';
-import { getDecryptedStripeKey } from '@/lib/actions/stripe-config';
+import { getDecryptedStripeKey, getDecryptedWebhookSecret } from '@/lib/actions/stripe-config';
+import { STRIPE_API_VERSION } from '@/lib/constants';
 import type { StripeMode } from '@/types/stripe-config';
 
 let stripe: Stripe | null = null;
@@ -51,7 +52,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
       if (dbKey) {
         console.log(`[Stripe] Using database configuration (${mode} mode)`);
         stripe = new Stripe(dbKey, {
-          apiVersion: '2026-02-25.clover',
+          apiVersion: STRIPE_API_VERSION,
           typescript: true,
         });
         return stripe;
@@ -66,7 +67,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
     if (envKey) {
       console.log(`[Stripe] Using .env configuration (${mode} mode)`);
       stripe = new Stripe(envKey, {
-        apiVersion: '2026-02-25.clover',
+        apiVersion: STRIPE_API_VERSION,
         typescript: true,
       });
       return stripe;
@@ -88,10 +89,17 @@ export const verifyWebhookSignature = async (
   body: string | Buffer,
   signature: string
 ): Promise<Stripe.Event> => {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Prefer env var; fall back to DB-stored secret (set by createStripeWebhookEndpoint)
+  let webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    throw new Error('STRIPE_WEBHOOK_SECRET is not set');
+    webhookSecret = await getDecryptedWebhookSecret() ?? undefined;
+  }
+
+  if (!webhookSecret) {
+    throw new Error(
+      'Webhook secret not configured. Set STRIPE_WEBHOOK_SECRET or register the webhook via Settings.'
+    );
   }
 
   const stripeInstance = await getStripeServer();

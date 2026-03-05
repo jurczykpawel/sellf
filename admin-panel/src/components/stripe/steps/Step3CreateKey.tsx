@@ -22,14 +22,14 @@ export function Step3CreateKey() {
   }
 
   // Required permissions for Sellf
-  const requiredPermissions = [
+  const requiredPermissions: { resource: string; access: string; required: boolean; recommended?: boolean }[] = [
     { resource: 'Charges', access: 'Write', required: true },
     { resource: 'Customers', access: 'Write', required: true },
     { resource: 'Checkout Sessions', access: 'Write', required: true },
     { resource: 'Payment Intents', access: 'Read', required: true },
-    { resource: 'Webhook Endpoints', access: 'Read', required: false },
-    { resource: 'Products', access: 'Read', required: false },
-    { resource: 'Prices', access: 'Read', required: false },
+    { resource: 'Webhook Endpoints', access: 'Read', required: false, recommended: true },
+    { resource: 'Products', access: 'Read', required: false, recommended: false },
+    { resource: 'Prices', access: 'Read', required: false, recommended: false },
   ]
 
   return (
@@ -193,9 +193,17 @@ export function Step3CreateKey() {
                   >
                     <div className="flex items-center gap-3">
                       {perm.required && <span className="text-red-600">⚠️</span>}
-                      <span className="text-sm font-medium text-sf-heading">
-                        {perm.resource}
-                      </span>
+                      {!perm.required && perm.recommended && <span className="text-sf-accent">★</span>}
+                      <div>
+                        <span className="text-sm font-medium text-sf-heading">
+                          {perm.resource}
+                        </span>
+                        {perm.recommended && (
+                          <p className="text-xs text-sf-muted mt-0.5">
+                            {t('step4.webhookRecommendedNote', { defaultValue: 'Enables automatic webhook configuration' })}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-sf-body">
@@ -204,6 +212,10 @@ export function Step3CreateKey() {
                       {perm.required ? (
                         <span className="px-2 py-0.5 text-xs font-medium bg-sf-danger-soft text-sf-danger">
                           Required
+                        </span>
+                      ) : perm.recommended ? (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-sf-accent-soft text-sf-accent border border-sf-border-accent">
+                          Recommended
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 text-xs font-medium bg-sf-raised text-sf-body">

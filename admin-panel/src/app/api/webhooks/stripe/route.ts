@@ -200,14 +200,16 @@ async function handlePaymentIntentSucceeded(
     return { processed: false, message: 'Missing product_id or email in payment intent' };
   }
 
-  // Idempotency check: Skip if already processed
+  // Idempotency check: Skip only if already completed (not pending)
+  // A pending row exists when the PI was created but not yet paid - the webhook
+  // must still process it to convert it to completed.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status')
     .eq('session_id', paymentIntent.id)
     .maybeSingle();
 
-  if (existingTransaction) {
+  if (existingTransaction?.status === 'completed') {
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 

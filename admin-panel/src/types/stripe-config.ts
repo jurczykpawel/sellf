@@ -39,9 +39,24 @@ export interface StripeConfiguration {
   expires_at: string | null;
   rotation_reminder_sent: boolean;
 
+  // Webhook registration
+  webhook_endpoint_id: string | null;
+  webhook_signing_secret_enc: string | null;
+  webhook_signing_iv: string | null;
+  webhook_signing_tag: string | null;
+
   // Status
   is_active: boolean;
 }
+
+export type WebhookRegistrationStatus = 'registered' | 'not_registered';
+
+export interface WebhookRegistrationInfo {
+  status: WebhookRegistrationStatus;
+  endpointId: string | null;
+}
+
+export type RegisterWebhookResponse = ActionResponse<WebhookRegistrationInfo>;
 
 /**
  * Input for creating a new Stripe configuration

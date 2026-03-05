@@ -1,22 +1,27 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Shield, ExternalLink, Settings, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { Shield, ExternalLink, Settings, CheckCircle2, AlertCircle, Info, Copy, Check, Globe } from 'lucide-react'
 import { StripeConfigWizard } from '@/components/stripe/StripeConfigWizard'
-import { listStripeConfigs, getStripeAccountInfo, getStripeKeySource } from '@/lib/actions/stripe-config'
-import type { StripeConfiguration } from '@/types/stripe-config'
+import { listStripeConfigs, getStripeAccountInfo, getStripeKeySource, getWebhookRegistrationInfo, createStripeWebhookEndpoint } from '@/lib/actions/stripe-config'
+import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants'
+import type { StripeConfiguration, WebhookRegistrationInfo } from '@/types/stripe-config'
 import { useTranslations } from 'next-intl'
 import SourceBadge from '@/components/ui/SourceBadge'
 
 // Session-level cache for Stripe account info — cleared on config change
 let _accountInfoCache: { accountId: string | null; accountName: string | null } | null | undefined = undefined
 
-export default function StripeSettings() {
+export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  const t = useTranslations('settings.stripe')
  const [isWizardOpen, setIsWizardOpen] = useState(false)
  const [configs, setConfigs] = useState<StripeConfiguration[]>([])
  const [keySource, setKeySource] = useState<{ activeSource: 'db' | 'env' | 'none'; dbConfigured: boolean; envConfigured: boolean }>({ activeSource: 'none', dbConfigured: false, envConfigured: false })
  const [loading, setLoading] = useState(true)
+ const [copied, setCopied] = useState(false)
+ const [webhookInfo, setWebhookInfo] = useState<WebhookRegistrationInfo | null>(null)
+ const [webhookRegistering, setWebhookRegistering] = useState(false)
+ const [webhookError, setWebhookError] = useState<string | null>(null)
  const [accountInfo, setAccountInfo] = useState<{ accountId: string | null; accountName: string | null } | null>(null)
 
  const loadConfigs = async (invalidateAccountCache = false) => {
@@ -27,10 +32,11 @@ export default function StripeSettings() {
  ? Promise.resolve(_accountInfoCache)
  : getStripeAccountInfo()
 
- const [configsResult, sourceResult, accountInfoResult] = await Promise.all([
+ const [configsResult, sourceResult, accountInfoResult, webhookInfoResult] = await Promise.all([
  listStripeConfigs(),
  getStripeKeySource(),
  accountInfoPromise,
+ getWebhookRegistrationInfo(),
  ])
 
  if (configsResult.success && configsResult.data) {
@@ -39,6 +45,7 @@ export default function StripeSettings() {
  setKeySource(sourceResult)
  _accountInfoCache = accountInfoResult
  setAccountInfo(accountInfoResult)
+ setWebhookInfo(webhookInfoResult)
  } catch (error) {
  console.error('Failed to load Stripe configs:', error)
  } finally {
@@ -51,6 +58,26 @@ export default function StripeSettings() {
  }, [])
 
  const activeConfigs = configs.filter((c) => c.is_active)
+ const webhookUrl = `${siteUrl}/api/webhooks/stripe`
+ const isLocalUrl = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(siteUrl)
+
+ const handleCopy = async () => {
+   await navigator.clipboard.writeText(webhookUrl)
+   setCopied(true)
+   setTimeout(() => setCopied(false), 2000)
+ }
+
+ const handleRegisterWebhook = async () => {
+   setWebhookRegistering(true)
+   setWebhookError(null)
+   const result = await createStripeWebhookEndpoint()
+   if (result.success && result.data) {
+     setWebhookInfo(result.data)
+   } else if (!result.success) {
+     setWebhookError(result.error ?? 'Unknown error')
+   }
+   setWebhookRegistering(false)
+ }
 
  if (loading) {
  return (
@@ -216,7 +243,8 @@ export default function StripeSettings() {
  </a>
  </div>
 
- {/* Info Box */}
+ {/* Info Box — only when not yet configured */}
+ {keySource.activeSource === 'none' && (
  <div className="mt-6 bg-sf-raised p-4 border-2 border-sf-border-medium">
  <h4 className="text-sm font-medium text-sf-heading mb-2">
  {t('infoBox.title')}
@@ -229,6 +257,139 @@ export default function StripeSettings() {
  </li>
  </ul>
  </div>
+ )}
+ </div>
+
+{/* Webhook Endpoint */}
+<div className="bg-sf-base border-2 border-sf-border-medium p-6">
+   <div className="flex items-center justify-between mb-2">
+     <div className="flex items-center gap-2">
+       <Globe className="w-5 h-5 text-sf-accent" />
+       <h4 className="text-base font-semibold text-sf-heading">{t('webhook.title')}</h4>
+     </div>
+     <a
+       href="https://dashboard.stripe.com/webhooks"
+       target="_blank"
+       rel="noopener noreferrer"
+       className="flex items-center gap-1.5 px-3 py-1.5 border border-sf-border-light text-sf-muted hover:text-sf-heading hover:bg-sf-hover transition-colors text-xs whitespace-nowrap"
+     >
+       {t('webhook.configure')}
+       <ExternalLink className="w-3.5 h-3.5" />
+     </a>
+   </div>
+   <p className="text-sm text-sf-body mb-4">{t('webhook.description')}</p>
+
+   {/* Endpoint URL */}
+   <div className="mb-3">
+     <p className="text-xs text-sf-muted mb-1">{t('webhook.endpointLabel')}</p>
+     <div className="flex items-center gap-2">
+       <code className="flex-1 font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body truncate">
+         {webhookUrl}
+       </code>
+       <button
+         onClick={handleCopy}
+         title={t('webhook.copy')}
+         className="flex items-center gap-1.5 px-3 py-2 border border-sf-border-light text-sf-muted hover:text-sf-heading hover:bg-sf-hover transition-colors text-xs"
+       >
+         {copied ? <Check className="w-3.5 h-3.5 text-sf-success" /> : <Copy className="w-3.5 h-3.5" />}
+         {copied ? t('webhook.copied') : t('webhook.copy')}
+       </button>
+     </div>
+   </div>
+
+   {/* API Version */}
+   <div className="mb-3">
+     <p className="text-xs text-sf-muted mb-1">{t('webhook.apiVersionLabel')}</p>
+     <code className="font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body inline-block">
+       {STRIPE_API_VERSION}
+     </code>
+   </div>
+
+   {/* Events */}
+   <div className="mb-3">
+     <p className="text-xs text-sf-muted mb-1">{t('webhook.eventsLabel')}</p>
+     <div className="flex flex-wrap gap-1.5">
+       {STRIPE_WEBHOOK_EVENTS.map((event) => (
+         <code key={event} className="font-mono text-xs bg-sf-raised px-2 py-1 border border-sf-border-light text-sf-body">
+           {event}
+         </code>
+       ))}
+     </div>
+   </div>
+
+   {/* Registration status + action */}
+   {keySource.activeSource !== 'none' && (
+     <div className="pt-3 border-t border-sf-border-light">
+       {isLocalUrl ? (
+         <div className="space-y-2">
+           <div className="flex items-start gap-2">
+             <Info className="w-4 h-4 text-sf-muted flex-shrink-0 mt-0.5" />
+             <p className="text-xs text-sf-muted">
+               {t('webhook.localDevNotice')}{' '}
+               <a
+                 href="https://stripe.com/docs/webhooks#test-webhook"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="underline hover:text-sf-body"
+               >
+                 Stripe CLI
+               </a>
+             </p>
+           </div>
+           <div className="ml-6 space-y-1.5">
+             <p className="text-xs text-sf-muted font-medium">1. {t('webhook.localStep1')}</p>
+             <code className="block font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body select-all">
+               stripe listen --forward-to {webhookUrl.replace(/^https?:\/\/[^/]+/, 'localhost:3000')}
+             </code>
+             <p className="text-xs text-sf-muted font-medium">2. {t('webhook.localStep2')}</p>
+             <code className="block font-mono text-xs bg-sf-raised px-3 py-2 border border-sf-border-light text-sf-body">
+               STRIPE_WEBHOOK_SECRET=whsec_...
+             </code>
+           </div>
+         </div>
+       ) : (
+         <>
+           {webhookError && (
+             <p className="text-xs text-red-500 mb-2 flex items-center gap-1">
+               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+               {webhookError}
+             </p>
+           )}
+           <div className="flex items-center justify-between gap-3">
+             <div className="flex items-center gap-2">
+               {webhookInfo?.status === 'registered' ? (
+                 <>
+                   <CheckCircle2 className="w-4 h-4 text-sf-success flex-shrink-0" />
+                   <span className="text-xs text-sf-body">
+                     {t('webhook.registered')}
+                     {webhookInfo.endpointId && (
+                       <span className="ml-1 font-mono text-sf-muted">{webhookInfo.endpointId}</span>
+                     )}
+                   </span>
+                 </>
+               ) : (
+                 <>
+                   <AlertCircle className="w-4 h-4 text-sf-warning flex-shrink-0" />
+                   <span className="text-xs text-sf-body">{t('webhook.notRegistered')}</span>
+                 </>
+               )}
+             </div>
+             <button
+               onClick={handleRegisterWebhook}
+               disabled={webhookRegistering}
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-sf-accent-bg text-white text-xs font-medium hover:bg-sf-accent-hover transition-colors disabled:opacity-50"
+             >
+               {webhookRegistering
+                 ? t('webhook.registering')
+                 : webhookInfo?.status === 'registered'
+                 ? t('webhook.reRegister')
+                 : t('webhook.createButton')}
+             </button>
+           </div>
+         </>
+       )}
+     </div>
+   )}
  </div>
 
  {/* Wizard Modal */}

@@ -47,3 +47,22 @@ export const formatPrice = (price: number, currencyCode: string): string => {
   
   return `${symbol}${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
+
+/**
+ * Stripe API version used across all Stripe SDK calls.
+ * When updating, also update the webhook endpoint version in the Stripe Dashboard.
+ * @see https://stripe.com/docs/upgrades
+ */
+export const STRIPE_API_VERSION = '2026-02-25.clover' as const;
+
+/**
+ * Stripe webhook events that must be subscribed to in the Stripe Dashboard.
+ * @see admin-panel/src/app/api/webhooks/stripe/route.ts
+ */
+export const STRIPE_WEBHOOK_EVENTS = [
+  'checkout.session.completed',
+  'checkout.session.async_payment_succeeded',
+  'payment_intent.succeeded',
+  'charge.refunded',
+  'charge.dispute.created',
+] as const;

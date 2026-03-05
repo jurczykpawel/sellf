@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptStripeKey, decryptStripeKey } from '@/lib/services/stripe-encryption'
 import { requireAdminApi } from '@/lib/auth-server'
 import Stripe from 'stripe'
@@ -23,7 +24,15 @@ import type {
   VerifyPermissionsResponse,
   CreateStripeConfigInput,
   REQUIRED_PERMISSIONS,
+  RegisterWebhookResponse,
+  WebhookRegistrationInfo,
 } from '@/types/stripe-config'
+import {
+  findExistingWebhookEndpoint,
+  buildWebhookParams,
+  getWebhookRegistrationStatus,
+} from '@/lib/stripe/webhook-registration'
+import { STRIPE_API_VERSION } from '@/lib/constants'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -650,5 +659,172 @@ export async function listStripeConfigs(): Promise<ActionResponse<StripeConfigur
       error: error instanceof Error ? error.message : 'Unknown error occurred',
       errorCode: 'UNKNOWN_ERROR',
     }
+  }
+}
+
+/**
+ * Returns the webhook registration info for the active Stripe configuration.
+ * Used by StripeSettings to show registration status without triggering any mutations.
+ */
+export async function getWebhookRegistrationInfo(): Promise<WebhookRegistrationInfo> {
+  try {
+    const supabase = await createClient()
+    await requireAdminApi(supabase)
+
+    const { data } = await supabase
+      .from('stripe_configurations')
+      .select('webhook_endpoint_id')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    return {
+      status: getWebhookRegistrationStatus(data),
+      endpointId: data?.webhook_endpoint_id ?? null,
+    }
+  } catch {
+    return { status: 'not_registered', endpointId: null }
+  }
+}
+
+/**
+ * Registers (or updates) a Stripe webhook endpoint for this Sellf installation.
+ *
+ * Idempotent: if an endpoint with our URL already exists in Stripe, updates its
+ * API version and events instead of creating a new one.
+ *
+ * Stores the signing secret (AES-256-GCM encrypted) in the active DB config row
+ * so STRIPE_WEBHOOK_SECRET env var is no longer required for DB-config installs.
+ */
+export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResponse> {
+  if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
+
+  try {
+    const supabase = await createClient()
+    await requireAdminApi(supabase)
+
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl) {
+      return { success: false, error: 'SITE_URL is not set', errorCode: 'CONFIGURATION_ERROR' }
+    }
+
+    const webhookUrl = `${siteUrl}/api/webhooks/stripe`
+    const mode: StripeMode = process.env.NODE_ENV === 'production' ? 'live' : 'test'
+    const apiKey = await getDecryptedStripeKey(mode) || process.env.STRIPE_SECRET_KEY
+    if (!apiKey) {
+      return { success: false, error: 'Stripe is not configured', errorCode: 'CONFIGURATION_ERROR' }
+    }
+    const stripe = new Stripe(apiKey, { apiVersion: STRIPE_API_VERSION })
+    const params = buildWebhookParams(webhookUrl)
+
+    // Find existing endpoint for our URL
+    const allEndpoints = await stripe.webhookEndpoints.list({ limit: 100 })
+    const existing = findExistingWebhookEndpoint(allEndpoints.data, webhookUrl)
+
+    let endpointId: string
+    let signingSecret: string | undefined
+
+    // Always delete existing endpoint and recreate — ensures we always get a fresh
+    // signing secret that can be saved (Stripe only exposes the secret at creation time)
+    if (existing) {
+      await stripe.webhookEndpoints.del(existing.id)
+    }
+    const created = await stripe.webhookEndpoints.create(params)
+    endpointId = created.id
+    signingSecret = created.secret
+
+    // Persist to DB
+    const update: Record<string, string | null> = { webhook_endpoint_id: endpointId }
+
+    if (signingSecret) {
+      const encrypted = await encryptStripeKey(signingSecret)
+      update.webhook_signing_secret_enc = encrypted.encryptedKey
+      update.webhook_signing_iv = encrypted.iv
+      update.webhook_signing_tag = encrypted.tag
+    }
+
+    // Try to UPDATE existing active row (DB-config installs)
+    const { count: activeCount } = await supabase
+      .from('stripe_configurations')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true)
+
+    if (activeCount && activeCount > 0) {
+      const { error: dbError } = await supabase
+        .from('stripe_configurations')
+        .update(update)
+        .eq('is_active', true)
+      if (dbError) {
+        console.error('[createStripeWebhookEndpoint] DB update failed:', dbError)
+        return { success: false, error: 'Failed to save webhook registration', errorCode: 'DATABASE_ERROR' }
+      }
+    } else {
+      // ENV-config install: no DB row exists — insert a sentinel row to track webhook registration.
+      // Sentinel uses placeholder encryption fields that intentionally fail decryption so
+      // getDecryptedStripeKey returns null → dbConfigured stays false → activeSource stays 'env'.
+      const envKey = process.env.STRIPE_SECRET_KEY ?? ''
+      const { error: dbError } = await supabase
+        .from('stripe_configurations')
+        .insert({
+          ...update,
+          mode,
+          encrypted_key: 'env_config_sentinel',
+          encryption_iv: 'env_config_sentinel',
+          encryption_tag: 'env_config_sentinel',
+          key_last_4: envKey.slice(-4) || 'env_',
+          key_prefix: envKey.slice(0, 8) || 'env_',
+          is_active: true,
+        })
+      if (dbError) {
+        console.error('[createStripeWebhookEndpoint] DB insert sentinel failed:', dbError)
+        return { success: false, error: 'Failed to save webhook registration', errorCode: 'DATABASE_ERROR' }
+      }
+    }
+
+    revalidatePath('/[locale]/dashboard/settings', 'page')
+
+    return {
+      success: true,
+      data: { status: 'registered', endpointId },
+    }
+  } catch (error) {
+    console.error('[createStripeWebhookEndpoint] Error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorCode: 'UNKNOWN_ERROR',
+    }
+  }
+}
+
+/**
+ * Retrieves and decrypts the webhook signing secret from the active DB config.
+ * Used by verifyWebhookSignature() as fallback when STRIPE_WEBHOOK_SECRET env is not set.
+ */
+export async function getDecryptedWebhookSecret(): Promise<string | null> {
+  try {
+    const supabase = createAdminClient()
+
+    const { data } = await supabase
+      .from('stripe_configurations')
+      .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!data?.webhook_signing_secret_enc || !data.webhook_signing_iv || !data.webhook_signing_tag) {
+      return null
+    }
+
+    return await decryptStripeKey({
+      encrypted_key: data.webhook_signing_secret_enc,
+      encryption_iv: data.webhook_signing_iv,
+      encryption_tag: data.webhook_signing_tag,
+    })
+  } catch (error) {
+    console.error('[getDecryptedWebhookSecret] Error:', error)
+    return null
   }
 }

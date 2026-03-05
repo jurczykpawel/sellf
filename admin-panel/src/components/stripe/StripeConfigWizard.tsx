@@ -107,22 +107,22 @@ function WizardContent({ onClose, onComplete }: StripeConfigWizardProps) {
               {[1, 2, 3, 4, 5].map((step) => (
                 <div key={step} className="flex items-center flex-1">
                   <div
-                    className={`flex items-center justify-center w-8 h-8 text-sm font-semibold transition-colors ${
+                    className={`flex items-center justify-center w-8 h-8 shrink-0 text-sm font-semibold transition-colors ${
                       step === state.currentStep
                         ? 'bg-sf-accent-bg text-white'
                         : step < state.currentStep
                           ? 'bg-sf-success text-sf-inverse'
-                          : 'bg-sf-raised text-sf-muted'
+                          : 'bg-sf-base border-2 border-sf-border-strong text-sf-muted'
                     }`}
                   >
                     {step}
                   </div>
                   {step < 5 && (
                     <div
-                      className={`flex-1 h-1 mx-2 transition-colors ${
+                      className={`flex-1 h-0.5 mx-2 transition-colors ${
                         step < state.currentStep
                           ? 'bg-sf-accent-bg'
-                          : 'bg-sf-raised'
+                          : 'bg-sf-border-strong'
                       }`}
                     />
                   )}

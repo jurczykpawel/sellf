@@ -1598,6 +1598,10 @@ export type Database = {
           permissions_verified: boolean
           rotation_reminder_sent: boolean | null
           updated_at: string
+          webhook_endpoint_id: string | null
+          webhook_signing_iv: string | null
+          webhook_signing_secret_enc: string | null
+          webhook_signing_tag: string | null
         }
         Insert: {
           account_id?: string | null
@@ -1615,6 +1619,10 @@ export type Database = {
           permissions_verified?: boolean
           rotation_reminder_sent?: boolean | null
           updated_at?: string
+          webhook_endpoint_id?: string | null
+          webhook_signing_iv?: string | null
+          webhook_signing_secret_enc?: string | null
+          webhook_signing_tag?: string | null
         }
         Update: {
           account_id?: string | null
@@ -1632,6 +1640,10 @@ export type Database = {
           permissions_verified?: boolean
           rotation_reminder_sent?: boolean | null
           updated_at?: string
+          webhook_endpoint_id?: string | null
+          webhook_signing_iv?: string | null
+          webhook_signing_secret_enc?: string | null
+          webhook_signing_tag?: string | null
         }
         Relationships: []
       }
