@@ -17,11 +17,32 @@ export const dynamic = 'force-dynamic';
 
 // OPTIMIZED: Cached data fetcher - React cache() deduplicates requests in the same render cycle
 // This eliminates duplicate queries between generateMetadata() and ProductPage()
+// Explicit field list — avoids pulling future sensitive columns automatically.
+// Must stay in sync with the Product interface in src/types/index.ts.
+// IMPORTANT: content_config IS fetched here (needed for redirect_url + preview)
+// but is sanitized via safeProduct before being sent to the client.
+const PRODUCT_FIELDS = [
+  'id', 'name', 'slug', 'description', 'long_description',
+  'icon', 'image_url', 'thumbnail_url',
+  'price', 'currency', 'vat_rate', 'price_includes_vat',
+  'features', 'layout_template',
+  'is_active', 'is_featured', 'is_listed',
+  'omnibus_exempt',
+  'sale_price', 'sale_price_until', 'sale_quantity_limit', 'sale_quantity_sold',
+  'available_from', 'available_until', 'auto_grant_duration_days',
+  'content_delivery_type', 'content_config',
+  'success_redirect_url', 'pass_params_to_redirect',
+  'is_refundable', 'refund_period_days',
+  'enable_waitlist',
+  'allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets',
+  'created_at', 'updated_at', 'tenant_id',
+].join(', ');
+
 const getProduct = cache(async (slug: string) => {
   const supabase = createPublicClient();
   const { data: product, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PRODUCT_FIELDS)
     .eq('slug', slug)
     .single();
 
@@ -78,7 +99,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
       .from('products')
-      .select('*')
+      .select(PRODUCT_FIELDS)
       .eq('slug', slug)
       .single();
     product = data;
