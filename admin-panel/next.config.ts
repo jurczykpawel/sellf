@@ -96,6 +96,33 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // YouTube video thumbnails (used by VideoPlayer / PlayerThumbnail)
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+        port: '',
+        pathname: '/vi/**',
+      },
+      // Vimeo video thumbnails
+      {
+        protocol: 'https',
+        hostname: 'vumbnail.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Wistia video thumbnails
+      {
+        protocol: 'https',
+        hostname: 'embed-ssl.wistia.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'fast.wistia.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   env: {
@@ -135,9 +162,9 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com challenges.cloudflare.com cdn.kiprotect.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com challenges.cloudflare.com cdn.kiprotect.com www.youtube.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: i.ibb.co *.stripe.com",
+              "img-src 'self' data: blob: i.ibb.co *.stripe.com img.youtube.com vumbnail.com embed-ssl.wistia.com fast.wistia.com",
               "font-src 'self' data:",
               "frame-src js.stripe.com challenges.cloudflare.com *.youtube.com player.vimeo.com iframe.mediadelivery.net *.loom.com fast.wistia.net *.dailymotion.com player.twitch.tv",
               "connect-src 'self' *.supabase.co *.stripe.com challenges.cloudflare.com http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*",
