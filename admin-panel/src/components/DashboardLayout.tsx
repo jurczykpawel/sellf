@@ -452,6 +452,53 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
   return (
     <div className="min-h-screen bg-sf-deep sf-dashboard">
       {/* Desktop Sidebar — Collapsible Icon Rail */}
+      {/* Logo in top-left corner — fixed, syncs width with sidebar */}
+      <div
+        className="hidden lg:flex fixed top-0 left-0 h-14 z-50 bg-sf-base border-b border-r border-sf-border-subtle items-center overflow-hidden"
+        style={{
+          width: isExpanded ? 'var(--sf-sidebar-width-expanded)' : 'var(--sf-sidebar-width-collapsed)',
+          transition: 'width var(--sf-duration-slow) var(--sf-ease-out)',
+        }}
+      >
+        <Link href="/" className="flex items-center gap-3 px-5 flex-1 min-w-0">
+          {logoUrl ? (
+            <img src={logoUrl} alt={shopName} className="w-7 h-7 object-contain flex-shrink-0" />
+          ) : (
+            <div
+              className="w-7 h-7 flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(to right, var(--sf-accent), var(--sf-accent-hover))' }}
+            >
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+          )}
+          <span
+            className="text-[15px] font-bold text-sf-heading whitespace-nowrap tracking-tight"
+            style={{
+              opacity: isExpanded ? 1 : 0,
+              transition: 'opacity var(--sf-duration-normal, 250ms) var(--sf-ease-out, ease-out)',
+            }}
+          >
+            {shopName}
+          </span>
+        </Link>
+        <button
+          onClick={togglePin}
+          className="flex-shrink-0 mr-2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover rounded"
+          style={{
+            opacity: isExpanded ? 1 : 0,
+            pointerEvents: isExpanded ? 'auto' : 'none',
+            transition: 'opacity var(--sf-duration-normal, 250ms) var(--sf-ease-out, ease-out)',
+          }}
+          aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+        >
+          <span style={{ display: 'inline-flex', transform: isPinned ? 'rotate(45deg)' : 'none', transition: 'transform 250ms' }}>
+            {Icons.pin}
+          </span>
+        </button>
+      </div>
+
       <aside
         className="hidden lg:flex fixed top-14 bottom-0 left-0 flex-col bg-sf-sidebar-bg border-r border-sf-border-subtle z-40 overflow-hidden"
         style={{
@@ -461,8 +508,6 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <SidebarLogo expanded={isExpanded} showPin />
-
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <SidebarNav expanded={isExpanded} />
         </div>
