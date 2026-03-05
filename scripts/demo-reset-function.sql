@@ -774,7 +774,7 @@ We offer this bundle to subscribers as a thank-you for being part of our communi
   INSERT INTO webhook_endpoints (id, url, events, description, is_active, secret)
   VALUES (
     '88888888-8888-4888-a888-888888888888',
-    'https://webhook.site/growth-academy-demo',
+    'https://httpbin.org/post',
     ARRAY['purchase.completed', 'lead.captured'],
     'Zapier → CRM Integration',
     true,
@@ -808,11 +808,38 @@ We offer this bundle to subscribers as a thank-you for being part of our communi
     'Request timed out after 5s', 5001, NOW() - INTERVAL '5 minutes'
   );
 
-  -- Waitlist webhook → Brevo (sends to email list on signup)
+  -- Access expiry webhook → renewal reminder automation
+  INSERT INTO webhook_endpoints (id, url, events, description, is_active, secret)
+  VALUES (
+    'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+    'https://httpbin.org/post',
+    ARRAY['access.expired'],
+    'Make.com → Renewal Reminder Sequence',
+    true,
+    replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '')
+  );
+
+  INSERT INTO webhook_logs (endpoint_id, event_type, payload, status, http_status, response_body, duration_ms, created_at)
+  VALUES (
+    'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+    'access.expired',
+    '{"event": "access.expired", "data": {"email": "james.wilson@example.com", "product": "annual-academy-pass", "expired_at": "2026-03-01T00:00:00Z"}}'::jsonb,
+    'success', 200, '{"accepted": true}',
+    198, NOW() - INTERVAL '4 days'
+  ),
+  (
+    'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+    'access.expired',
+    '{"event": "access.expired", "data": {"email": "emma.brown@example.com", "product": "group-coaching", "expired_at": "2026-03-03T00:00:00Z"}}'::jsonb,
+    'success', 200, '{"accepted": true}',
+    211, NOW() - INTERVAL '2 days'
+  );
+
+  -- Waitlist webhook → httpbin (sends to email list on signup)
   INSERT INTO webhook_endpoints (id, url, events, description, is_active, secret)
   VALUES (
     '99999999-9999-4999-a999-999999999999',
-    'https://api.brevo.com/v3/contacts',
+    'https://httpbin.org/post',
     ARRAY['waitlist.signup'],
     'Brevo → Waitlist Email List',
     true,
