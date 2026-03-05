@@ -15,10 +15,12 @@ const languages = {
 
 interface FloatingToolbarProps {
   position?: 'top-right' | 'bottom-right'
+  mode?: 'floating' | 'inline'
 }
 
 export default function FloatingToolbar({ 
-  position = 'top-right'
+  position = 'top-right',
+  mode = 'floating'
 }: FloatingToolbarProps) {
   const locale = useLocale()
   const router = useRouter()
@@ -63,10 +65,8 @@ export default function FloatingToolbar({
   const currentLanguage = languages[locale as keyof typeof languages]
   const isLoading = isPending || isAuthLoading
 
-  return (
-    <div className={`fixed ${positionClasses[position]} z-50`}>
-      {/* Unified Toolbar */}
-      <div className="flex items-center gap-1 p-1 bg-sf-base/80 backdrop-blur-md border-2 border-sf-border-medium rounded-full hover:transition-all duration-200">
+  const inner = (
+    <div className="flex items-center gap-1 p-1 bg-sf-base/80 backdrop-blur-md border-2 border-sf-border-medium rounded-full">
         
         {/* Language Switcher */}
         <div className="relative">
@@ -227,6 +227,13 @@ export default function FloatingToolbar({
           )}
         </div>
       </div>
+  )
+
+  if (mode === 'inline') return inner
+
+  return (
+    <div className={`fixed ${positionClasses[position]} z-50`}>
+      {inner}
     </div>
   )
 }

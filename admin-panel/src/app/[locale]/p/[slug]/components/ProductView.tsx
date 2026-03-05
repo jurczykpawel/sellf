@@ -16,9 +16,10 @@ const LOADING_SAFETY_TIMEOUT_MS = 15_000;
 
 interface ProductViewProps {
   product: Product;
+  licenseValid: boolean;
 }
 
-export default function ProductView({ product }: ProductViewProps) {
+export default function ProductView({ product, licenseValid }: ProductViewProps) {
   const t = useTranslations('productView');
   const { accessData, loading, error: accessError } = useProductAccess(product);
   const [redirecting, setRedirecting] = useState(false);
@@ -136,12 +137,7 @@ export default function ProductView({ product }: ProductViewProps) {
 
   // Check if user has access (non-redirect products)
   if (accessData?.hasAccess) {
-    return (
-      <div>
-        <FloatingToolbar position="top-right" />
-        <ProductAccessView product={product} />
-      </div>
-    );
+    return <ProductAccessView product={product} licenseValid={licenseValid} />;
   }
 
   // Handle different reasons for lack of access

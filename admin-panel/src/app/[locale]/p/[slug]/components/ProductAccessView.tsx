@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Product } from '@/types';
 import DigitalContentRenderer from '@/components/DigitalContentRenderer';
+import SellfBranding from '@/components/SellfBranding';
+import FloatingToolbar from '@/components/FloatingToolbar';
 import Confetti from 'react-confetti';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/fetch-with-timeout';
@@ -15,6 +17,7 @@ interface ProductAccessViewProps {
     access_duration_days?: number | null;
     access_granted_at: string;
   } | null;
+  licenseValid: boolean;
 }
 
 interface SecureProductData {
@@ -28,10 +31,14 @@ interface SecureProductData {
     is_expiring_soon: boolean;
     days_until_expiration: number | null;
   };
+  branding?: {
+    shop_name: string | null;
+  };
 }
 
-export default function ProductAccessView({ product }: ProductAccessViewProps) {
+export default function ProductAccessView({ product, licenseValid }: ProductAccessViewProps) {
   const t = useTranslations('productView');
+  const tContent = useTranslations('digitalContent');
   
   const [showConfetti, setShowConfetti] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -270,111 +277,105 @@ export default function ProductAccessView({ product }: ProductAccessViewProps) {
   }
 
   // Show the actual product content
+  const shopName = secureData?.branding?.shop_name ?? null;
+  const contentItems = secureProduct.content_config.content_items?.filter(i => i.is_active) ?? [];
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-sf-deep overflow-hidden relative font-sans">
-      {/* Background aurora effect */}
-      <div 
-        className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_20%_20%,var(--sf-accent-glow)_0%,transparent_40%),radial-gradient(circle_at_80%_70%,var(--sf-accent-glow)_0%,transparent_40%)]"
-        style={{
-          animation: 'aurora 20s infinite linear',
-        }}
-      />
-      
-      <style jsx>{`
-        @keyframes aurora {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
-      
-      <div className="max-w-4xl mx-auto p-8 bg-sf-raised/80 backdrop-blur-md border border-sf-border rounded-2xl shadow-[var(--sf-shadow-accent)] z-10">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="text-6xl mr-4">{secureProduct.icon}</div>
-            <h1 className="text-3xl font-bold text-sf-heading">{secureProduct.name}</h1>
+    <div className="min-h-screen bg-sf-deep font-sans">
+
+      {/* Sticky mini-header */}
+      <header className="sticky top-0 z-20 bg-sf-base/90 backdrop-blur-md border-b border-sf-border">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="text-lg leading-none shrink-0">{secureProduct.icon}</span>
           </div>
-          
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            <div className="inline-flex items-center px-4 py-2 bg-sf-success-soft border border-sf-success/30 rounded-full">
-              <svg className="w-5 h-5 text-sf-success mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sf-success font-medium">
-                {secureUserAccess.is_expired ? t('accessExpiredStatusLabel') : t('accessGrantedStatus')}
+          <div className="flex items-center gap-2 shrink-0">
+            {secureUserAccess.is_expired ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-sf-danger-soft border border-sf-danger/30 text-sf-danger">
+                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                {t('accessExpiredStatusLabel')}
               </span>
-              {secureProduct.is_featured && (
-                <svg className="w-4 h-4 text-sf-warning ml-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              )}
-            </div>
-            
-            {/* Show access expiration info */}
-            {secureUserAccess.access_expires_at && (
-              <div className={`inline-flex items-center px-4 py-2 rounded-full ${
-                secureUserAccess.is_expired 
-                  ? 'bg-sf-danger-soft border border-sf-danger/30' 
-                  : secureUserAccess.is_expiring_soon
-                    ? 'bg-sf-warning-soft border border-sf-warning/30'
-                    : 'bg-sf-accent-soft border border-sf-accent/30'
-              }`}>
-                <svg className={`w-5 h-5 mr-2 ${
-                  secureUserAccess.is_expired 
-                    ? 'text-sf-danger' 
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-sf-success-soft border border-sf-success/30 text-sf-success">
+                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                {t('accessGrantedStatus')}
+              </span>
+            )}
+            <FloatingToolbar mode="inline" />
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 pb-24">
+
+        {/* Hero — icon + title + description */}
+        <div className="mb-10">
+          <div className="text-5xl mb-4 leading-none">{secureProduct.icon}</div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-sf-heading tracking-tight mb-3">
+            {secureProduct.name}
+          </h1>
+          {secureProduct.description && (
+            <p className="text-sf-body text-base leading-relaxed">{secureProduct.description}</p>
+          )}
+
+          {/* Status banners */}
+          {(secureUserAccess.access_expires_at || !secureProduct.is_active) && (
+            <div className="flex flex-col gap-2 mt-5">
+              {secureUserAccess.access_expires_at && (
+                <div className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium w-fit border ${
+                  secureUserAccess.is_expired
+                    ? 'bg-sf-danger-soft border-sf-danger/30 text-sf-danger'
                     : secureUserAccess.is_expiring_soon
-                      ? 'text-sf-warning'
-                      : 'text-sf-accent'
-                }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className={`font-medium ${
-                  secureUserAccess.is_expired 
-                    ? 'text-sf-danger' 
-                    : secureUserAccess.is_expiring_soon
-                      ? 'text-sf-warning'
-                      : 'text-sf-accent'
+                      ? 'bg-sf-warning-soft border-sf-warning/30 text-sf-warning'
+                      : 'bg-sf-accent-soft border-sf-accent/30 text-sf-accent'
                 }`}>
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   {secureUserAccess.is_expired
                     ? t('accessExpiredStatus', { date: formatDate(secureUserAccess.access_expires_at) })
-                    : t('accessExpiresStatus', { date: formatDate(secureUserAccess.access_expires_at) })
-                  }
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {/* Show inactive product warning */}
-          {!secureProduct.is_active && (
-            <div className="inline-flex items-center px-4 py-2 bg-sf-warning-soft border border-sf-warning/30 rounded-full mt-2">
-              <svg className="w-5 h-5 text-sf-warning mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833-.23 2.5 1.732 2.5z" />
-              </svg>
-              <span className="text-sf-warning font-medium">{t('legacyAccess')}</span>
+                    : t('accessExpiresStatus', { date: formatDate(secureUserAccess.access_expires_at) })}
+                </div>
+              )}
+              {!secureProduct.is_active && (
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium w-fit bg-sf-warning-soft border border-sf-warning/30 text-sf-warning">
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833-.23 2.5 1.732 2.5z" /></svg>
+                  {t('legacyAccess')}
+                </div>
+              )}
             </div>
           )}
         </div>
-        
-        <div className="bg-sf-raised border border-sf-border rounded-xl p-6 mb-8">
-          <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('productDescription')}</h2>
-          <p className="text-sf-body">{secureProduct.description}</p>
-        </div>
-        
-        {/* Render digital content based on content_delivery_type */}
-        <DigitalContentRenderer 
-          contentItems={secureProduct.content_config.content_items || []} 
+
+        {/* Content section label */}
+        {contentItems.length > 0 && (
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-sf-body">
+              {tContent('sectionTitle')}
+            </h2>
+            <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-sf-raised border border-sf-border text-xs font-semibold text-sf-body">
+              {contentItems.length}
+            </span>
+          </div>
+        )}
+
+        {/* Digital content */}
+        <DigitalContentRenderer
+          contentItems={secureProduct.content_config.content_items || []}
           productName={secureProduct.name}
         />
-        
-        <div className="text-center mt-8 text-sm text-sf-muted">
-          {t('securedBySellf')} • {new Date().toLocaleDateString()}
+
+        {/* Footer */}
+        <div className="mt-16 text-center text-xs text-sf-body">
+          {shopName
+            ? `${shopName} • ${new Date().toLocaleDateString()}`
+            : new Date().toLocaleDateString()
+          }
           {!secureProduct.is_active && (
-            <div className="mt-2 text-xs text-sf-warning">
-              {t('notAvailableToNew')}
-            </div>
+            <div className="mt-1 text-sf-warning">{t('notAvailableToNew')}</div>
           )}
         </div>
-      </div>
+      </main>
+
+      {!licenseValid && <SellfBranding variant="product" />}
     </div>
   );
 }
