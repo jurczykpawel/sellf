@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getShopConfig } from '@/lib/actions/shop-config';
 
 export async function GET(
   request: NextRequest,
@@ -66,6 +67,10 @@ export async function GET(
       return NextResponse.json({ error: 'Product not available' }, { status: 403 });
     }
 
+    // Fetch shop name for the footer
+    const shopConfig = await getShopConfig();
+    const shopName = shopConfig?.shop_name ?? null;
+
     // Return secure product data with computed access status
     return NextResponse.json({
       product: {
@@ -82,6 +87,9 @@ export async function GET(
         available_until: productWithAccess.available_until,
         content_config: productWithAccess.content_config,
         content_delivery_type: productWithAccess.content_delivery_type
+      },
+      branding: {
+        shop_name: shopName,
       },
       userAccess: {
         access_expires_at: userAccess.access_expires_at,
