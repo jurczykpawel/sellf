@@ -1,4 +1,3 @@
--- =============================================================================
 -- OTO SUPPORT FOR FREE ($0) PRODUCTS
 -- =============================================================================
 -- Free products never create a payment_transactions record, so generate_oto_coupon
@@ -250,3 +249,45 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 GRANT EXECUTE ON FUNCTION public.generate_oto_coupon TO service_role;
+
+-- Drop legacy color columns from shop_config.
+-- These were never exposed in the settings UI and are superseded
+-- by the JSON-based theme system in BrandingSettings.
+ALTER TABLE public.shop_config
+  DROP COLUMN IF EXISTS primary_color,
+  DROP COLUMN IF EXISTS secondary_color,
+  DROP COLUMN IF EXISTS accent_color;
+
+-- Add expiry_notified_at to user_product_access
+-- Used by the /api/cron?job=access-expired endpoint to prevent duplicate webhook dispatch.
+-- When the cron fires, it queries: access_expires_at < NOW() AND expiry_notified_at IS NULL
+-- After dispatching the access.expired webhook, it sets expiry_notified_at = NOW().
+
+ALTER TABLE public.user_product_access
+  ADD COLUMN IF NOT EXISTS expiry_notified_at TIMESTAMPTZ;
+
+-- Index: cron job queries this column frequently
+CREATE INDEX IF NOT EXISTS idx_user_product_access_expiry_notified
+  ON public.user_product_access (expiry_notified_at)
+  WHERE expiry_notified_at IS NULL;
+
+-- ── Stripe webhook endpoint registration ─────────────────────────────────
+-- Stores the Stripe-generated webhook endpoint ID and its signing secret
+-- (AES-256-GCM encrypted, same pattern as the API key).
+-- Enables DB-based Stripe config to be fully self-contained —
+-- no STRIPE_WEBHOOK_SECRET env var required when using DB config.
+
+ALTER TABLE public.stripe_configurations
+  ADD COLUMN IF NOT EXISTS webhook_endpoint_id TEXT,
+  ADD COLUMN IF NOT EXISTS webhook_signing_secret_enc TEXT,
+  ADD COLUMN IF NOT EXISTS webhook_signing_iv TEXT,
+  ADD COLUMN IF NOT EXISTS webhook_signing_tag TEXT;
+
+COMMENT ON COLUMN public.stripe_configurations.webhook_endpoint_id
+  IS 'Stripe webhook endpoint ID (we_xxx). NULL = not registered via Sellf.';
+COMMENT ON COLUMN public.stripe_configurations.webhook_signing_secret_enc
+  IS 'AES-256-GCM encrypted webhook signing secret (whsec_xxx). Base64 encoded.';
+COMMENT ON COLUMN public.stripe_configurations.webhook_signing_iv
+  IS 'AES-256-GCM IV for webhook signing secret. Base64 encoded.';
+COMMENT ON COLUMN public.stripe_configurations.webhook_signing_tag
+  IS 'AES-256-GCM auth tag for webhook signing secret. Base64 encoded.';
