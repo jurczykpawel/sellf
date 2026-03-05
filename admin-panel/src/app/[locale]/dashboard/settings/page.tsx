@@ -1,16 +1,6 @@
 import { verifyAdminAccess } from '@/lib/auth-server';
-import ShopSettings from '@/components/settings/ShopSettings';
-import BrandingSettings from '@/components/settings/BrandingSettings';
-import CheckoutThemeSettings from '@/components/settings/CheckoutThemeSettings';
-import StripeSettings from '@/components/settings/StripeSettings';
-import StripeTaxSettings from '@/components/settings/StripeTaxSettings';
-import PaymentMethodSettingsWrapper from '@/components/settings/PaymentMethodSettingsWrapper';
-import OmnibusSettings from '@/components/settings/OmnibusSettings';
-import LegalDocumentsSettings from '@/components/settings/LegalDocumentsSettings';
-import LicenseSettings from '@/components/settings/LicenseSettings';
-import SystemUpdateSettings from '@/components/settings/SystemUpdateSettings';
-import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
+import SettingsTabs from '@/components/settings/SettingsTabs';
 
 export default async function SettingsPage() {
   await verifyAdminAccess();
@@ -27,25 +17,7 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <ShopSettings />
-
-      <BrandingSettings />
-
-      <CheckoutThemeSettings />
-
-      <LegalDocumentsSettings />
-
-      <OmnibusSettings />
-
-      <StripeSettings />
-
-      <StripeTaxSettings />
-
-      <PaymentMethodSettingsWrapper />
-
-      <LicenseSettings />
-
-      <SystemUpdateSettings />
+      <SettingsTabs siteUrl={process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || ''} />
     </div>
   );
 }
