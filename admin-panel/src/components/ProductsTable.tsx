@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { formatUTCForDisplay } from '@/lib/timezone';
@@ -33,6 +33,56 @@ interface ProductsTableProps {
   onSort: (column: string) => void;
 }
 
+// ---------------------------------------------------------------------------
+// Dropdown for secondary product actions
+// Uses position:fixed so it escapes the table's overflow:hidden container.
+// ---------------------------------------------------------------------------
+interface DropdownItem {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  separator?: boolean;
+}
+
+function ActionsDropdown({ items, onClose }: { items: DropdownItem[]; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    // defer so the triggering click doesn't immediately close the menu
+    const id = setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => { clearTimeout(id); document.removeEventListener('mousedown', handler); };
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="py-1 min-w-[200px]">
+      {items.map((item, i) => (
+        <React.Fragment key={i}>
+          {item.separator && i > 0 && <div className="my-1 border-t border-sf-border" />}
+          <button
+            disabled={item.disabled}
+            onClick={() => { item.onClick(); onClose(); }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors
+              ${ item.disabled
+                ? 'text-sf-muted cursor-not-allowed opacity-50'
+                : item.danger
+                  ? 'text-sf-danger hover:bg-sf-danger-soft'
+                  : 'text-sf-body hover:bg-sf-hover'
+              }`}
+          >
+            <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center">{item.icon}</span>
+            {item.label}
+          </button>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 const ProductsTable: React.FC<ProductsTableProps> = ({
   products,
   loading,
@@ -58,6 +108,29 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   const t = useTranslations('admin.products');
   const locale = useLocale();
   const startIndex = (currentPage - 1) * limit + 1;
+
+  // ---------------------------------------------------------------------------
+  // Dropdown state — position:fixed panel anchored to the ⋯ button
+  // ---------------------------------------------------------------------------
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const handleToggleDropdown = (productId: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (openDropdownId === productId) {
+      setOpenDropdownId(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      // align right edge of dropdown with right edge of button
+      right: window.innerWidth - rect.right,
+      zIndex: 9999,
+    });
+    setOpenDropdownId(productId);
+  };
   const endIndex = Math.min(startIndex + products.length - 1, totalItems);
 
   const SortableHeader = ({ column, title, className = "" }: { column: string; title: string; className?: string }) => (
@@ -245,116 +318,144 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         day: 'numeric'
                       })}
                     </td>
-                    <td className="px-3 py-4 text-right text-sm font-medium whitespace-nowrap">
-                      <div className="flex items-center justify-end space-x-1">
-                        {/* view */}
+                    <td className="px-3 py-4 text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-0.5">
+
+                        {/* ── Primary action 1: Admin preview ─────────────── */}
                         <button
                           onClick={() => onPreviewProduct(product)}
-                          className="text-sf-success hover:text-sf-success transition-colors p-1"
-                          aria-label={t('previewLabel', { name: product.name })}
+                          className="p-1.5 rounded text-sf-muted hover:text-sf-heading hover:bg-sf-raised transition-colors"
                           title={t('preview')}
+                          aria-label={t('previewLabel', { name: product.name })}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10" strokeWidth={2} />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => onPreviewRedirect(product)}
-                          className="text-sf-accent hover:text-sf-accent transition-colors p-1 hidden sm:block"
-                          aria-label={t('previewRedirectLabel', { name: product.name })}
-                          title={t('previewRedirect')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => window.open(`/checkout/${product.slug}?funnel_test=1`, '_blank')}
-                          className="text-sf-warning hover:text-sf-warning transition-colors p-1 hidden sm:block"
-                          aria-label={t('testFunnelLabel', { name: product.name })}
-                          title={t('testFunnel')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M5 14.5l-1.43 5.725a1.125 1.125 0 001.09 1.4h14.68a1.125 1.125 0 001.09-1.4L19 14.5" />
-                          </svg>
-                        </button>
-                        {/* toggle */}
-                        <button
-                          onClick={() => onToggleListed(product.id, product.is_listed !== false)}
-                          className={`p-1 transition-colors ${
-                            product.is_listed !== false
-                              ? 'text-sf-muted hover:text-sf-warning'
-                              : 'text-sf-warning hover:text-sf-warning'
-                          }`}
-                          title={product.is_listed !== false ? t('hideFromStore') : t('showOnStore')}
-                        >
-                          {product.is_listed !== false ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                            </svg>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => onToggleFeatured(product.id, product.is_featured)}
-                          className={`p-1 transition-colors ${
-                            product.is_featured
-                              ? 'text-sf-warning hover:text-sf-warning'
-                              : 'text-sf-muted hover:text-sf-warning'
-                          }`}
-                          title={product.is_featured ? t('removeFeatured') : t('setFeatured')}
-                        >
-                          <svg className="w-4 h-4" fill={product.is_featured ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                        </button>
-                        {/* developer */}
-                        <button
-                          onClick={() => onGenerateCode(product)}
-                          className="text-sf-accent hover:text-sf-accent transition-colors p-1"
-                          aria-label={t('generateCodeLabel', { name: product.name })}
-                          title={t('generateCode')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                          </svg>
-                        </button>
-                        {/* crud */}
+
+                        {/* ── Primary action 2: Edit ───────────────────────── */}
                         <button
                           onClick={() => onEditProduct(product)}
-                          className="text-sf-accent hover:text-sf-accent transition-colors p-1"
-                          aria-label={t('editLabel', { name: product.name })}
+                          className="p-1.5 rounded text-sf-muted hover:text-sf-heading hover:bg-sf-raised transition-colors"
                           title={t('edit')}
+                          aria-label={t('editLabel', { name: product.name })}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z"></path>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => onDuplicateProduct(product)}
-                          className="text-sf-success hover:text-sf-success transition-colors p-1"
-                          aria-label={t('duplicateLabel', { name: product.name })}
-                          title={t('duplicate')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
+
+                        {/* ── Primary action 3: Delete ─────────────────────── */}
                         <button
                           onClick={() => onDeleteProduct(product)}
-                          className="text-sf-danger hover:text-sf-danger transition-colors p-1"
-                          aria-label={t('deleteLabel', { name: product.name })}
+                          className="p-1.5 rounded text-sf-muted hover:text-sf-danger hover:bg-sf-danger-soft transition-colors"
                           title={t('delete')}
+                          aria-label={t('deleteLabel', { name: product.name })}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
+
+                        {/* ── More actions ⋯ ──────────────────────────────── */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => handleToggleDropdown(product.id, e)}
+                            className={`p-1.5 rounded transition-colors ${
+                              openDropdownId === product.id
+                                ? 'text-sf-heading bg-sf-raised'
+                                : 'text-sf-muted hover:text-sf-heading hover:bg-sf-raised'
+                            }`}
+                            title={t('moreActions')}
+                            aria-label={t('moreActions')}
+                            aria-expanded={openDropdownId === product.id}
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <circle cx="5" cy="12" r="1.5" />
+                              <circle cx="12" cy="12" r="1.5" />
+                              <circle cx="19" cy="12" r="1.5" />
+                            </svg>
+                          </button>
+
+                          {openDropdownId === product.id && (
+                            <div
+                              style={dropdownStyle}
+                              className="bg-sf-raised border border-sf-border rounded-lg shadow-[var(--sf-shadow-accent)] overflow-hidden"
+                            >
+                              <ActionsDropdown
+                                onClose={() => setOpenDropdownId(null)}
+                                items={[
+                                  // ── View ────────────────────────────────────
+                                  {
+                                    label: t('testFunnel'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M5 14.5l-1.43 5.725a1.125 1.125 0 001.09 1.4h14.68a1.125 1.125 0 001.09-1.4L19 14.5" />
+                                      </svg>
+                                    ),
+                                    onClick: () => window.open(`/checkout/${product.slug}?funnel_test=1`, '_blank'),
+                                  },
+                                  {
+                                    label: t('previewRedirect'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onPreviewRedirect(product),
+                                    disabled: product.content_delivery_type !== 'redirect',
+                                  },
+                                  // ── Toggles ──────────────────────────────────
+                                  {
+                                    separator: true,
+                                    label: product.is_listed !== false ? t('hideFromStore') : t('showOnStore'),
+                                    icon: product.is_listed !== false ? (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                      </svg>
+                                    ) : (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onToggleListed(product.id, product.is_listed !== false),
+                                  },
+                                  {
+                                    label: product.is_featured ? t('removeFeatured') : t('setFeatured'),
+                                    icon: (
+                                      <svg fill={product.is_featured ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onToggleFeatured(product.id, product.is_featured),
+                                  },
+                                  // ── Dev / CRUD ───────────────────────────────
+                                  {
+                                    separator: true,
+                                    label: t('generateCode'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onGenerateCode(product),
+                                  },
+                                  {
+                                    label: t('duplicate'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onDuplicateProduct(product),
+                                  },
+                                ]}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
