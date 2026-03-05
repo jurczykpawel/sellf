@@ -451,54 +451,87 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-sf-deep sf-dashboard">
-      {/* Desktop Sidebar — Collapsible Icon Rail */}
-      {/* Logo in top-left corner — fixed, syncs width with sidebar */}
-      <div
-        className="hidden lg:flex fixed top-0 left-0 h-14 z-50 bg-sf-base border-b border-r border-sf-border-subtle items-center overflow-hidden"
-        style={{
-          width: isExpanded ? 'var(--sf-sidebar-width-expanded)' : 'var(--sf-sidebar-width-collapsed)',
-          transition: 'width var(--sf-duration-slow) var(--sf-ease-out)',
-        }}
-      >
-        <Link href="/" className="flex items-center gap-3 px-5 flex-1 min-w-0">
-          {logoUrl ? (
-            <img src={logoUrl} alt={shopName} className="w-7 h-7 object-contain flex-shrink-0" />
-          ) : (
-            <div
-              className="w-7 h-7 flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(to right, var(--sf-accent), var(--sf-accent-hover))' }}
+      {/* Full-width top header — fixed, logo on the left in sidebar-width zone */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-sf-base border-b border-sf-border-subtle z-50 flex items-center">
+        {/* Mobile: hamburger */}
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="lg:hidden p-2 ml-2 text-sf-muted hover:text-sf-body hover:bg-sf-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sf-accent"
+        >
+          <span className="sr-only">{t('openSidebar')}</span>
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        {/* Desktop: logo area — width mirrors sidebar, sits in the sidebar zone */}
+        <div
+          className="hidden lg:flex items-center h-full border-r border-sf-border-subtle flex-shrink-0 overflow-hidden"
+          style={{
+            width: isExpanded ? 'var(--sf-sidebar-width-expanded)' : 'var(--sf-sidebar-width-collapsed)',
+            transition: 'width var(--sf-duration-slow) var(--sf-ease-out)',
+          }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <Link href="/" className="flex items-center gap-3 px-5 flex-1 min-w-0">
+            {logoUrl ? (
+              <img src={logoUrl} alt={shopName} className="w-7 h-7 object-contain flex-shrink-0" />
+            ) : (
+              <div
+                className="w-7 h-7 flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(to right, var(--sf-accent), var(--sf-accent-hover))' }}
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
+            )}
+            <span
+              className="text-[15px] font-bold text-sf-heading whitespace-nowrap tracking-tight"
+              style={{
+                opacity: isExpanded ? 1 : 0,
+                transition: 'opacity var(--sf-duration-normal, 250ms) var(--sf-ease-out, ease-out)',
+              }}
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-            </div>
-          )}
-          <span
-            className="text-[15px] font-bold text-sf-heading whitespace-nowrap tracking-tight"
+              {shopName}
+            </span>
+          </Link>
+          <button
+            onClick={togglePin}
+            className="flex-shrink-0 mr-2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover rounded"
             style={{
               opacity: isExpanded ? 1 : 0,
+              pointerEvents: isExpanded ? 'auto' : 'none',
               transition: 'opacity var(--sf-duration-normal, 250ms) var(--sf-ease-out, ease-out)',
             }}
+            aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
           >
-            {shopName}
-          </span>
-        </Link>
-        <button
-          onClick={togglePin}
-          className="flex-shrink-0 mr-2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover rounded"
-          style={{
-            opacity: isExpanded ? 1 : 0,
-            pointerEvents: isExpanded ? 'auto' : 'none',
-            transition: 'opacity var(--sf-duration-normal, 250ms) var(--sf-ease-out, ease-out)',
-          }}
-          aria-label={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
-        >
-          <span style={{ display: 'inline-flex', transform: isPinned ? 'rotate(45deg)' : 'none', transition: 'transform 250ms' }}>
-            {Icons.pin}
-          </span>
-        </button>
-      </div>
+            <span style={{ display: 'inline-flex', transform: isPinned ? 'rotate(45deg)' : 'none', transition: 'transform 250ms' }}>
+              {Icons.pin}
+            </span>
+          </button>
+        </div>
 
+        {/* Right-side actions */}
+        <div className="flex-1 flex justify-end items-center gap-4 px-4 sm:px-6">
+          {showSellfCTA && (
+            <Link
+              href="/about"
+              className="hidden sm:inline-flex items-center px-4 py-2 bg-sf-accent-bg text-white text-xs font-bold hover:bg-sf-accent-hover transition-all"
+            >
+              <span className="mr-1.5">🚀</span>
+              {t('getSellf', { defaultValue: 'Get Sellf' })}
+            </Link>
+          )}
+          <div className="hidden lg:flex lg:items-center lg:gap-1">
+            <ThemeToggleButton size="sm" />
+            <FloatingLanguageSwitcher mode="static" variant="compact" />
+          </div>
+        </div>
+      </header>
+
+      {/* Desktop Sidebar — navigation only, sits below the fixed header */}
       <aside
         className="hidden lg:flex fixed top-14 bottom-0 left-0 flex-col bg-sf-sidebar-bg border-r border-sf-border-subtle z-40 overflow-hidden"
         style={{
@@ -559,37 +592,8 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
       )}
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col min-w-0 min-h-screen sf-main-content ${isPinned ? 'sf-pinned' : ''}`}>
-        {/* Top bar */}
-        <header className="h-14 bg-sf-base border-b border-sf-border-subtle flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-50">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden p-2 text-sf-muted hover:text-sf-body hover:bg-sf-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sf-accent"
-          >
-            <span className="sr-only">{t('openSidebar')}</span>
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          <div className="flex-1 flex justify-end items-center gap-4">
-            {showSellfCTA && (
-              <Link
-                href="/about"
-                className="hidden sm:inline-flex items-center px-4 py-2 bg-sf-accent-bg text-white text-xs font-bold hover:bg-sf-accent-hover transition-all"
-              >
-                <span className="mr-1.5">🚀</span>
-                {t('getSellf', { defaultValue: 'Get Sellf' })}
-              </Link>
-            )}
-            <div className="hidden lg:flex lg:items-center lg:gap-1">
-              <ThemeToggleButton size="sm" />
-              <FloatingLanguageSwitcher mode="static" variant="compact" />
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto bg-sf-deep p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+      <div className={`min-h-screen sf-main-content ${isPinned ? 'sf-pinned' : ''}`}>
+        <main className="pt-14 flex-1 overflow-y-auto bg-sf-deep p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
           <DemoBanner />
           <div className="max-w-7xl mx-auto">
             {children}
