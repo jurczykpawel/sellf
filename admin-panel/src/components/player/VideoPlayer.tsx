@@ -21,7 +21,8 @@
  * @see PlayerControls.tsx  — custom control bar
  */
 
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import type { Ref } from 'react';
 import type { ParsedVideoUrl } from '@/lib/videoUtils';
 import { addEmbedOptions } from '@/lib/videoUtils';
 import type { PlayerOptions } from './adapters/types';
@@ -54,7 +55,7 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
       : '';
     return (
       <iframe
-        ref={adapter.iframeRef as React.Ref<HTMLIFrameElement>}
+        ref={adapter.iframeRef as Ref<HTMLIFrameElement>}
         src={fallbackSrc}
         className="w-full h-full"
         frameBorder="0"
@@ -99,9 +100,9 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
           No sandbox: the YT IFrame API communicates via cross-origin postMessage. */}
       {started && (
         <div
-          ref={adapter.iframeRef as React.Ref<HTMLDivElement>}
+          ref={adapter.iframeRef as Ref<HTMLDivElement>}
           className={`absolute inset-0 overflow-hidden ${useOverscan ? 'pointer-events-none' : ''}`}
-          data-testid="player-iframe"
+          data-testid="player-container"
         />
       )}
 

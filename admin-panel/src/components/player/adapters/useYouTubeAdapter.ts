@@ -143,7 +143,7 @@ export function useYouTubeAdapter(
   // DOM ref — updated via callback ref (iframeRef below)
   const containerElRef = useRef<HTMLElement | null>(null);
   const playerRef      = useRef<YT.Player | null>(null);
-  const containerId    = useRef(`yt-player-${videoId}-${Math.random().toString(36).slice(2, 7)}`);
+  const containerIdRef = useRef(`yt-player-${videoId}-${Math.random().toString(36).slice(2, 7)}`);
 
   // Gate flags — tryInit runs only when both are true
   const apiReadyRef    = useRef(false);
@@ -187,11 +187,11 @@ export function useYouTubeAdapter(
     if (!apiReadyRef.current || !containerElRef.current || playerRef.current) return;
 
     const container = containerElRef.current;
-    container.id = containerId.current;
+    container.id = containerIdRef.current;
 
     const opts = optionsRef.current;
 
-    playerRef.current = new window.YT.Player(containerId.current, {
+    playerRef.current = new window.YT.Player(containerIdRef.current, {
       videoId,
       playerVars: {
         controls: opts.controls ? 1 : 0,
@@ -277,11 +277,11 @@ export function useYouTubeAdapter(
     pendingPlayRef.current = true;
 
     // Lazy-load the YT API, then open the API gate and attempt init.
-    // If the iframe is already in the DOM (iframeElRef set by callback ref),
+    // If the container div is already in the DOM (containerElRef set by callback ref),
     // tryInit will create the player immediately.
-    // If the iframe hasn't mounted yet (React batched the setStarted re-render),
+    // If the container hasn't mounted yet (React batched the setStarted re-render),
     // tryInit will be a no-op here and will fire again from the callback ref
-    // once React flushes the render and the iframe enters the DOM.
+    // once React flushes the render and the container div enters the DOM.
     loadYouTubeApi().then(() => {
       apiReadyRef.current = true;
       tryInit();

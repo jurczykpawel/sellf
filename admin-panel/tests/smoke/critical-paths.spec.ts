@@ -331,7 +331,7 @@ test.describe('Product Access & Content Delivery', () => {
 // ===== 5. VIDEO PLAYER =====
 
 test.describe('Video Player', () => {
-  test('thumbnail visible before play, iframe mounts after click', async ({ page }) => {
+  test('thumbnail visible before play, player mounts after click', async ({ page }) => {
     await login(page);
     await page.goto(`/p/${contentProduct.slug}`);
 
@@ -342,8 +342,8 @@ test.describe('Video Player', () => {
     const thumbnail = page.getByTestId('player-thumbnail');
     await expect(thumbnail).toBeVisible({ timeout: 10000 });
 
-    // iframe should NOT yet exist
-    await expect(page.getByTestId('player-iframe')).toHaveCount(0);
+    // Player container should NOT yet exist
+    await expect(page.getByTestId('player-container')).toHaveCount(0);
 
     // Block YouTube requests to prevent flakiness — we only care about DOM changes
     await page.route('https://*.youtube.com/**', (route) => route.abort());
@@ -352,8 +352,8 @@ test.describe('Video Player', () => {
     // Click play
     await thumbnail.click();
 
-    // After clicking, the iframe should be mounted
-    await expect(page.getByTestId('player-iframe')).toBeVisible({ timeout: 5000 });
+    // After clicking, the player container should be mounted
+    await expect(page.getByTestId('player-container')).toBeVisible({ timeout: 5000 });
 
     // Thumbnail should no longer be visible
     await expect(page.getByTestId('player-thumbnail')).toHaveCount(0);

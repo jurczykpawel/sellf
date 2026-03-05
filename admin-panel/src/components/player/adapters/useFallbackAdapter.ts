@@ -15,7 +15,7 @@ export function useFallbackAdapter(
   _embedUrl: string,
   _options: PlayerOptions = {}
 ): PlayerAdapter {
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const iframeRef = useRef<HTMLElement | null>(null);
 
   const noop = () => {};
 
