@@ -1,6 +1,4 @@
 import { minify } from 'terser';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { obfuscate } = require('javascript-obfuscator');
 
 export interface ObfuscationConfig {
   minify: boolean;
@@ -71,6 +69,7 @@ export class JSProcessor {
    * Obfuscate JavaScript code
    */
   private static async obfuscateCode(code: string): Promise<string> {
+    const { obfuscate } = await import('javascript-obfuscator');
     const obfuscated = obfuscate(code, {
       compact: true,
       controlFlowFlattening: true,

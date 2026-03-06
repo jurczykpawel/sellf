@@ -67,7 +67,7 @@ export function ThemeProvider({ children, adminTheme }: ThemeProviderProps) {
   // Apply theme class on mount (ThemeScript already did this, but ensures consistency)
   useEffect(() => {
     applyTheme(resolvedTheme)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [resolvedTheme])
 
   // Listen for OS theme changes when in system mode
   useEffect(() => {

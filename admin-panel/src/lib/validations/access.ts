@@ -120,19 +120,18 @@ function validateAction(action: string): ValidationResult {
 // Main validation functions
 export function validateGrantAccess(data: unknown): ValidationResult {
   const errors: string[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const input = data as any;
-  
+  const input = data as Partial<GrantAccessInput>;
+
   // Validate required fields
-  const productIdResult = validateUUID(input.product_id);
+  const productIdResult = validateUUID(input.product_id as string);
   errors.push(...productIdResult.errors);
-  
+
   // Validate optional fields ONLY if they are provided
   if (input.access_duration_days !== undefined && input.access_duration_days !== null) {
     const durationResult = validateDuration(input.access_duration_days);
     errors.push(...durationResult.errors);
   }
-  
+
   if (input.access_expires_at !== undefined && input.access_expires_at !== null && input.access_expires_at !== '') {
     const dateResult = validateDate(input.access_expires_at);
     errors.push(...dateResult.errors);
@@ -146,13 +145,12 @@ export function validateGrantAccess(data: unknown): ValidationResult {
 
 export function validateUserAction(data: unknown): ValidationResult {
   const errors: string[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const input = data as any;
-  
+  const input = data as Partial<UserActionInput>;
+
   // Validate required fields
-  const userIdResult = validateUUID(input.userId);
-  const productIdResult = validateUUID(input.productId);
-  const actionResult = validateAction(input.action);
+  const userIdResult = validateUUID(input.userId as string);
+  const productIdResult = validateUUID(input.productId as string);
+  const actionResult = validateAction(input.action as string);
   
   errors.push(...userIdResult.errors, ...productIdResult.errors, ...actionResult.errors);
   
@@ -161,8 +159,7 @@ export function validateUserAction(data: unknown): ValidationResult {
 
 export function validateAccessCheck(data: unknown): ValidationResult {
   const errors: string[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const input = data as any;
+  const input = data as Partial<AccessCheckInput>;
   
   // Validate that either productSlug or productSlugs is provided
   if (!input.productSlug && !input.productSlugs) {

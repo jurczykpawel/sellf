@@ -119,8 +119,7 @@ interface TrackingLogData {
  */
 export async function logTrackingEvent(
   log: TrackingLogData,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabaseClient?: { from: (table: string) => any }
+  supabaseClient?: { from: (table: string) => { insert: (data: Record<string, unknown>) => PromiseLike<unknown> } }
 ): Promise<void> {
   try {
     const supabase = supabaseClient || createServiceClient();

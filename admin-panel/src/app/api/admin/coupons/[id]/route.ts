@@ -33,12 +33,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       'max_discount_amount',
     ];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         // Normalize code to uppercase
-        if (field === 'code' && body[field]) {
+        if (field === 'code' && typeof body[field] === 'string') {
           updateData[field] = body[field].toUpperCase();
         } else {
           updateData[field] = body[field];

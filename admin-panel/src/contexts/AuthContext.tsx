@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Initializes auth state by getting the current session
    */
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       const supabase = await createClient()
       const { data: { session }, error } = await supabase.auth.getSession()
@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
       }
     }
-  }
+  }, [handleAuthStateChange])
 
   /**
    * Signs out the current user with proper cache cleanup
@@ -224,8 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         subscription.unsubscribe()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleAuthStateChange]) // initializeAuth is defined inline and supabase.auth is stable
+  }, [initializeAuth, handleAuthStateChange])
 
   return (
     <AuthContext.Provider

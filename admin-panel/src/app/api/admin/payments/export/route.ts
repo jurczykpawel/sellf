@@ -124,21 +124,24 @@ export async function POST(request: NextRequest) {
       'Updated At'
     ];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const csvRows = transactions?.map((transaction: any) => [
-      transaction.id,
-      transaction.session_id,
-      transaction.user_id,
-      Array.isArray(transaction.products) ? transaction.products[0]?.name || '' : transaction.products?.name || '',
-      Array.isArray(transaction.products) ? transaction.products[0]?.slug || '' : transaction.products?.slug || '',
-      transaction.amount,
-      transaction.currency,
-      transaction.status,
-      transaction.refunded_amount || 0,
-      transaction.refund_reason || '',
-      new Date(transaction.created_at).toISOString(),
-      new Date(transaction.updated_at).toISOString()
-    ]) || [];
+    const csvRows = transactions?.map((transaction: Record<string, unknown>) => {
+      const products = transaction.products as Record<string, unknown> | Record<string, unknown>[] | null;
+      const product = Array.isArray(products) ? products[0] : products;
+      return [
+        transaction.id,
+        transaction.session_id,
+        transaction.user_id,
+        (product as Record<string, unknown> | null)?.name || '',
+        (product as Record<string, unknown> | null)?.slug || '',
+        transaction.amount,
+        transaction.currency,
+        transaction.status,
+        transaction.refunded_amount || 0,
+        transaction.refund_reason || '',
+        new Date(String(transaction.created_at)).toISOString(),
+        new Date(String(transaction.updated_at)).toISOString(),
+      ];
+    }) || [];
 
     // Sanitize CSV field to prevent formula injection (=, +, -, @, tab, CR)
     const sanitizeCsvField = (field: unknown): string => {
