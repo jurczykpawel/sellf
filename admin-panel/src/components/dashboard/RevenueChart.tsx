@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { getSalesChartData, getHourlyRevenueStats, CurrencyAmount } from '@/lib/actions/analytics';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useRealtime } from '@/contexts/RealtimeContext';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
@@ -25,6 +25,7 @@ const CURRENCY_COLORS: { [key: string]: string } = {
 
 export default function RevenueChart() {
   const t = useTranslations('admin.dashboard');
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId') || undefined;
   const { addRefreshListener, removeRefreshListener } = useRealtime();
@@ -291,7 +292,7 @@ export default function RevenueChart() {
                   : 'text-sf-muted hover:text-sf-heading hover:border-sf-border-strong'
               }`}
             >
-              Today
+              {t('revenueChart.periodToday')}
             </button>
             <button
               onClick={() => setPredefinedRange(7)}
@@ -301,7 +302,7 @@ export default function RevenueChart() {
                   : 'text-sf-muted hover:text-sf-heading hover:border-sf-border-strong'
               }`}
             >
-              7d
+              {t('revenueChart.period7d')}
             </button>
             <button
               onClick={() => setPredefinedRange(30)}
@@ -311,7 +312,7 @@ export default function RevenueChart() {
                   : 'text-sf-muted hover:text-sf-heading hover:border-sf-border-strong'
               }`}
             >
-              30d
+              {t('revenueChart.period30d')}
             </button>
           </div>
 
@@ -332,9 +333,9 @@ export default function RevenueChart() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-sf-heading">No Revenue Data Yet</h3>
+          <h3 className="text-lg font-medium text-sf-heading">{t('revenueChart.noDataTitle')}</h3>
           <p className="text-sm text-sf-muted mt-1 max-w-xs">
-            {viewMode === 'daily' ? 'Once you start making sales, your revenue trend will appear here.' : 'No sales recorded today yet.'}
+            {viewMode === 'daily' ? t('revenueChart.noDataDaily') : t('revenueChart.noDataHourly')}
           </p>
         </div>
       ) : (
@@ -391,7 +392,7 @@ export default function RevenueChart() {
                 tickFormatter={(value) => {
                   if (viewMode === 'hourly') return `${value}:00`;
                   const date = new Date(value)
-                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
                 }}
               />
               <YAxis
@@ -424,8 +425,8 @@ export default function RevenueChart() {
                   return [formatCurrency(numericValue, currencyName), currencyName];
                 }}
                 labelFormatter={(label) => {
-                  if (viewMode === 'hourly') return `Today, ${label}:00 - ${label}:59`;
-                  return new Date(label).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                  if (viewMode === 'hourly') return t('revenueChart.tooltipHourly', { hour: label, hourEnd: label });
+                  return new Date(label).toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
                 }}
               />
               {/* Legend only in grouped mode with multiple currencies */}

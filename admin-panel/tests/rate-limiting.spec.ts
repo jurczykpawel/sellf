@@ -66,6 +66,10 @@ test.describe('Rate Limiting', () => {
       const identifier = `test-user-${Date.now()}`;
       const actionType = 'test_action';
       const maxRequests = 5;
+      // Use a 60-minute window to avoid flaking at minute boundaries.
+      // The function buckets by wall-clock minute, so a 1-minute window
+      // causes a fresh bucket if the 6th request crosses a minute boundary.
+      const windowMinutes = 60;
 
       // Make requests until limit is reached
       for (let i = 0; i < maxRequests; i++) {
@@ -73,7 +77,7 @@ test.describe('Rate Limiting', () => {
           identifier_param: identifier,
           action_type_param: actionType,
           max_requests: maxRequests,
-          window_minutes: 1,
+          window_minutes: windowMinutes,
         });
         expect(data).toBe(true);
       }
@@ -83,7 +87,7 @@ test.describe('Rate Limiting', () => {
         identifier_param: identifier,
         action_type_param: actionType,
         max_requests: maxRequests,
-        window_minutes: 1,
+        window_minutes: windowMinutes,
       });
 
       expect(error).toBeNull();

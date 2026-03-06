@@ -206,7 +206,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             {/* Product Access */}
             <ModalSection title={t('modal.productAccess')}>
               {userProfile.access.length > 0 ? (
-                <div className="overflow-hidden border-2 border-sf-border-medium">
+                <div className="overflow-x-auto border-2 border-sf-border-medium">
                   <table className="min-w-full divide-y divide-sf-border">
                     <thead className="bg-sf-raised">
                       <tr>

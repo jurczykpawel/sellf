@@ -79,7 +79,7 @@ export default function WebhookLogsTable({
   };
 
   return (
-    <div className="border-2 border-sf-border-medium overflow-hidden bg-sf-base">
+    <div className="border-2 border-sf-border-medium overflow-x-auto bg-sf-base">
       <table className="min-w-full divide-y divide-sf-border-subtle">
         <thead className="bg-sf-raised">
           <tr>

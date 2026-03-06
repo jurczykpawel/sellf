@@ -102,7 +102,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
 
   return (
     <div className="flex flex-col">
-      <div className="overflow-hidden border-2 border-sf-border-medium sm:bg-sf-base">
+      <div className="overflow-x-auto border-2 border-sf-border-medium sm:bg-sf-base">
             <table className="min-w-full divide-y divide-sf-border-subtle">
               <thead className="bg-sf-raised">
                 <tr>

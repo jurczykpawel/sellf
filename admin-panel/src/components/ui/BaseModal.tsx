@@ -121,11 +121,12 @@ const BaseModal: React.FC<BaseModalProps> = ({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
     >
+      <div className="flex min-h-full items-center justify-center p-4">
       <div
         ref={modalRef}
         className={`
@@ -152,6 +153,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
           </button>
         )}
         {children}
+      </div>
       </div>
     </div>
   );

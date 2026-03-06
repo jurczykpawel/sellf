@@ -157,7 +157,7 @@ export default function WebhookListTable({
   };
 
   return (
-    <div className="bg-sf-base border-2 border-sf-border-medium overflow-hidden">
+    <div className="bg-sf-base border-2 border-sf-border-medium overflow-x-auto">
       <table className="min-w-full divide-y divide-sf-border-subtle">
         <thead className="bg-sf-raised">
           <tr>

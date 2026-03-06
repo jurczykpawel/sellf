@@ -217,7 +217,7 @@ export default function StatsOverview() {
       ),
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-sf-accent-soft',
-      change: revenueStats?.lastOrderAt ? `Last: ${timeAgo(revenueStats.lastOrderAt)}` : null,
+      change: revenueStats?.lastOrderAt ? t('stats.lastOrder', { time: timeAgo(revenueStats.lastOrderAt) ?? '' }) : null,
     },
     {
       id: 'total-users',

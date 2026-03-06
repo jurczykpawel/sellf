@@ -77,6 +77,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'selected' | 'available'>('selected');
 
   // Generate slug from text
   const generateSlug = (text: string): string => {
@@ -89,6 +90,11 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
       .replace(/-+/g, '-') // Multiple hyphens to single
       .replace(/^-|-$/g, ''); // Trim hyphens
   };
+
+  // Set default mobile tab based on mode
+  useEffect(() => {
+    setMobileTab(editingGroup ? 'selected' : 'available');
+  }, [editingGroup]);
 
   // Initialize with existing group data
   useEffect(() => {
@@ -158,6 +164,8 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
           is_active: product.is_active,
         },
       ]);
+      // Switch to selected tab on mobile so user can immediately edit the variant name
+      setMobileTab('selected');
     }
   };
 
@@ -250,13 +258,14 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
+      <div className="flex min-h-full items-center justify-center p-4">
       {/* Modal */}
       <div
         className="relative bg-sf-base w-full max-w-4xl max-h-[90vh] flex flex-col"
@@ -322,9 +331,35 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
             </div>
           </div>
 
+          {/* Mobile tab switcher */}
+          <div className="flex md:hidden border-b border-sf-border">
+            <button
+              type="button"
+              onClick={() => setMobileTab('selected')}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                mobileTab === 'selected'
+                  ? 'text-sf-accent border-b-2 border-sf-accent'
+                  : 'text-sf-muted hover:text-sf-body'
+              }`}
+            >
+              {t('selectedProducts')} ({selectedProducts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('available')}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                mobileTab === 'available'
+                  ? 'text-sf-accent border-b-2 border-sf-accent'
+                  : 'text-sf-muted hover:text-sf-body'
+              }`}
+            >
+              {t('addProducts')} ({availableProducts.length})
+            </button>
+          </div>
+
           <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
             {/* Product List */}
-            <div className="flex-1 p-4 border-r border-sf-border overflow-y-auto">
+            <div className={`flex-1 p-4 border-r border-sf-border overflow-y-auto ${mobileTab === 'available' ? 'block' : 'hidden'} md:block`}>
               <div className="mb-4">
                 <input
                   type="text"
@@ -383,7 +418,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
             </div>
 
             {/* Selected Products with Variant Names */}
-            <div className="w-full md:w-96 p-4 bg-sf-raised overflow-y-auto">
+            <div className={`w-full md:w-96 p-4 bg-sf-raised overflow-y-auto ${mobileTab === 'selected' ? 'block' : 'hidden'} md:block`}>
               <h3 className="font-semibold text-sf-heading mb-3">
                 {t('selectedProducts')} ({selectedProducts.length})
               </h3>
@@ -515,6 +550,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
             </div>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

@@ -142,7 +142,8 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
       <div className="bg-sf-base max-w-2xl w-full my-8">
         <div className="p-6 border-b border-sf-border">
           <h2 className="text-2xl font-bold text-sf-heading">
@@ -382,6 +383,7 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
             </button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

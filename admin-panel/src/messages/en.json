@@ -1088,7 +1088,8 @@
         "totalRevenue": "Total Revenue",
         "todayRevenue": "Today's Revenue",
         "todayOrders": "Today's Orders",
-        "since": "Since: {date}"
+        "since": "Since: {date}",
+        "lastOrder": "Last: {time}"
       },
       "recentActivity": {
         "title": "Recent Activity",
@@ -1123,7 +1124,14 @@
         "title": "Revenue Trend",
         "subtitle": "Last {days} days performance",
         "hourlyTitle": "Today's Revenue",
-        "hourlySubtitle": "Hourly breakdown"
+        "hourlySubtitle": "Hourly breakdown",
+        "periodToday": "Today",
+        "period7d": "7d",
+        "period30d": "30d",
+        "noDataTitle": "No Revenue Data Yet",
+        "noDataDaily": "Once you start making sales, your revenue trend will appear here.",
+        "noDataHourly": "No sales recorded today yet.",
+        "tooltipHourly": "Today, {hour}:00\u2013{hourEnd}:59"
       },
       "showValues": "Show values",
       "hideValues": "Hide values",
@@ -1970,6 +1978,7 @@
       "regenerateSlug": "Regenerate from name",
       "searchProducts": "Search products...",
       "selectedProducts": "Selected Products",
+      "addProducts": "Add products",
       "selectAtLeastTwo": "Select at least 2 products to create a variant group",
       "variantLabel": "Variant Label",
       "variantNamePlaceholder": "e.g., Basic, Pro, 1 Year...",
@@ -2918,7 +2927,7 @@
     },
     "selfHosted": {
       "title": "Deploy anywhere, your way",
-      "subtitle": "From $3/month VPS for hobbyists to production-ready infrastructure",
+      "subtitle": "From ~$3/month VPS for hobbyists to production-ready infrastructure",
       "quickStart": {
         "title": "Quick Start",
         "subtitle": "mikr.us (free SSL) or any VPS + Caddy",
@@ -2926,7 +2935,7 @@
         "ssl": "Auto SSL included",
         "supabase": "Supabase Cloud",
         "price": "~$3/mo",
-        "ram": "~300MB RAM footprint"
+        "ram": "~130MB RAM footprint"
       },
       "production": {
         "badge": "RECOMMENDED",
@@ -3019,7 +3028,7 @@
       "items": [
         {
           "q": "Is it really free? What's the catch?",
-          "a": "Yes. The software is free forever (MIT license). You pay only for hosting ($3-14/mo) and Stripe processing (~2.9%). No platform fees, no subscriptions, no lock-in."
+          "a": "Yes. The software is free forever (MIT license). You pay only for hosting (~$3/mo and up) and Stripe processing (~2.9%). No platform fees, no subscriptions, no lock-in."
         },
         {
           "q": "I already use Gumroad. Why should I switch?",
@@ -3047,7 +3056,7 @@
         },
         {
           "q": "Will it handle my traffic if I scale?",
-          "a": "Yes. Next.js 16 + PostgreSQL scale horizontally. Deploy on anything from a $3 VPS to Kubernetes. Supabase handles connection pooling."
+          "a": "Yes. Next.js 16 + PostgreSQL scale horizontally. Deploy on anything from a ~$3/mo VPS to Kubernetes. Supabase handles connection pooling."
         },
         {
           "q": "Do I need a Merchant of Record?",

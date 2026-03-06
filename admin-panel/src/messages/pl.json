@@ -1122,13 +1122,21 @@
         "totalRevenue": "Przychody ogółem",
         "todayRevenue": "Dzisiejszy przychód",
         "todayOrders": "Dzisiejsze zamówienia",
-        "since": "Od: {date}"
+        "since": "Od: {date}",
+        "lastOrder": "Ostatnie: {time}"
       },
       "revenueChart": {
         "title": "Trend przychodów",
         "subtitle": "Wyniki z ostatnich {days} dni",
         "hourlyTitle": "Dzisiejszy przychód",
-        "hourlySubtitle": "Podział godzinowy"
+        "hourlySubtitle": "Podział godzinowy",
+        "periodToday": "Dziś",
+        "period7d": "7d",
+        "period30d": "30d",
+        "noDataTitle": "Brak danych o przychodach",
+        "noDataDaily": "Gdy zaczniesz sprzedawać, tutaj pojawi się trend przychodów.",
+        "noDataHourly": "Brak sprzedaży zarejestrowanej dzisiaj.",
+        "tooltipHourly": "Dziś, {hour}:00\u2013{hourEnd}:59"
       },
       "recentActivity": {
         "title": "Ostatnia aktywność",
@@ -1985,6 +1993,7 @@
       "regenerateSlug": "Wygeneruj ponownie z nazwy",
       "searchProducts": "Szukaj produktów...",
       "selectedProducts": "Wybrane produkty",
+      "addProducts": "Dodaj produkty",
       "selectAtLeastTwo": "Wybierz co najmniej 2 produkty, aby utworzyć grupę wariantów",
       "variantLabel": "Etykieta wariantu",
       "variantNamePlaceholder": "np. Basic, Pro, 1 Rok...",
@@ -2933,15 +2942,15 @@
     },
     "selfHosted": {
       "title": "Wdróż gdzie chcesz, jak chcesz",
-      "subtitle": "Od 11 zł/mies VPS dla hobbystów do gotowej infrastruktury produkcyjnej",
+      "subtitle": "Od ~3 zł/mies VPS dla hobbystów do gotowej infrastruktury produkcyjnej",
       "quickStart": {
         "title": "Szybki Start",
         "subtitle": "mikr.us (darmowy SSL) lub inny VPS + Caddy",
         "pm2": "Menedżer procesów PM2",
         "ssl": "Automatyczny SSL",
         "supabase": "Supabase Cloud",
-        "price": "~11 zł/mies",
-        "ram": "~300MB zużycia RAM"
+        "price": "~3 zł/mies",
+        "ram": "~130MB zużycia RAM"
       },
       "production": {
         "badge": "POLECANE",
@@ -3062,7 +3071,7 @@
         },
         {
           "q": "Czy poradzi sobie z ruchem, gdy zacznę rosnąć?",
-          "a": "Tak. Next.js 16 + PostgreSQL skalują się horyzontalnie. Wdróż na czymkolwiek - od VPS za 11 zł po Kubernetes. Supabase obsługuje pooling połączeń."
+          "a": "Tak. Next.js 16 + PostgreSQL skalują się horyzontalnie. Wdróż na czymkolwiek - od VPS za ~3 zł/mies po Kubernetes. Supabase zarządza pulą połączeń."
         },
         {
           "q": "Czy potrzebuję Merchant of Record?",

@@ -31,6 +31,15 @@ export function encodeCursor(data: CursorData): string {
 // Allowed field names for cursor ordering (prevent filter injection via field name)
 const ALLOWED_CURSOR_FIELDS = new Set([
   'created_at', 'updated_at', 'id', 'name', 'email', 'description',
+  // Users
+  'user_created_at', 'last_sign_in_at', 'total_products', 'total_value',
+  'last_access_granted_at', 'access_created_at',
+  // Products
+  'price', 'is_active', 'is_featured', 'slug',
+  // Payments
+  'amount', 'customer_email',
+  // Coupons
+  'code', 'current_usage_count',
 ]);
 
 // PostgREST filter metacharacters — commas and parens can inject filter conditions
