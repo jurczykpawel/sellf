@@ -670,7 +670,7 @@ export default function CustomPaymentForm({
                 <span className="text-xs font-normal ml-2">({t('invalidAmount', { defaultValue: 'invalid amount' })})</span>
               )}
             </div>
-            {taxMode !== 'stripe_tax' && !customAmountError && product.vat_rate && product.vat_rate > 0 && (
+            {taxMode !== 'stripe_tax' && !customAmountError && product.vat_rate != null && product.vat_rate > 0 && (
               <div className="text-xs text-sf-muted">
                 {t('netPrice')}: {formatPrice(totalNet, product.currency)} {product.currency} + {t('vat')} {vatRate}%
               </div>

@@ -91,7 +91,7 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
             {formatPrice(grossPrice, product.currency)} {product.currency}
           </div>
 
-          {taxMode !== 'stripe_tax' && product.vat_rate && product.vat_rate > 0 && (
+          {taxMode !== 'stripe_tax' && product.vat_rate != null && product.vat_rate > 0 && (
             <div className="text-sm text-sf-muted">
               {t('includingVat', { defaultValue: 'including VAT' })} {vatRate}%
             </div>
