@@ -179,43 +179,39 @@ export default function MyProductsPage() {
       key={product.id}
       className={`group bg-sf-raised/80 backdrop-blur-md border rounded-2xl p-6 hover:bg-sf-hover transition-all duration-300 active:scale-[0.98] relative overflow-hidden ${accessible ? 'border-sf-success/30' : 'border-sf-border'}`}
     >
-      <div className="flex items-start gap-3 mb-4">
+      <div className="flex items-start gap-3 mb-2">
         <div className="text-4xl shrink-0">{product.icon}</div>
         <div className="flex-1 min-w-0">
           <h3 className={`text-xl font-semibold text-sf-heading transition-colors ${accessible ? 'group-hover:text-sf-success' : 'group-hover:text-sf-accent'}`}>
             {product.name}
           </h3>
-          <div className="flex items-center mt-1">
-            {product.price > 0 ? (
-               <div className="flex items-center px-2 py-1 bg-sf-accent-soft border border-sf-border-accent rounded-full">
-                <svg className="w-3 h-3 text-sf-accent mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-                <span className="text-xs font-medium text-sf-accent">{t('premium')}</span>
-              </div>
-            ) : (
-              <span className="inline-flex items-center px-2 py-1 bg-sf-success-soft border border-sf-success/30 rounded-full text-xs font-medium text-sf-success">
-                {t('free')}
-              </span>
-            )}
-          </div>
         </div>
-        {(accessible || product.is_featured) && (
-          <div className="flex flex-col gap-1.5 items-end shrink-0">
-            {accessible && (
-              <div className="flex items-center px-2 py-1 bg-sf-success-soft border border-sf-success/30 rounded-full text-xs font-medium text-sf-success whitespace-nowrap">
-                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                {t('accessible')}
-              </div>
-            )}
-            {product.is_featured && (
-              <div className="flex items-center px-3 py-1 bg-sf-warning-soft border border-sf-warning/30 rounded-full text-xs font-medium text-sf-warning whitespace-nowrap">
-                <svg className="w-3 h-3 text-sf-warning mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                {t('featured')}
-              </div>
-            )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        {product.price > 0 ? (
+          <div className="flex items-center px-2 py-1 bg-sf-accent-soft border border-sf-border-accent rounded-full">
+            <svg className="w-3 h-3 text-sf-accent mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            <span className="text-xs font-medium text-sf-accent">{t('premium')}</span>
+          </div>
+        ) : (
+          <span className="inline-flex items-center px-2 py-1 bg-sf-success-soft border border-sf-success/30 rounded-full text-xs font-medium text-sf-success">
+            {t('free')}
+          </span>
+        )}
+        {accessible && (
+          <div className="flex items-center px-2 py-1 bg-sf-success-soft border border-sf-success/30 rounded-full text-xs font-medium text-sf-success whitespace-nowrap">
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            {t('accessible')}
+          </div>
+        )}
+        {product.is_featured && (
+          <div className="flex items-center px-2 py-1 bg-sf-warning-soft border border-sf-warning/30 rounded-full text-xs font-medium text-sf-warning whitespace-nowrap">
+            <svg className="w-3 h-3 text-sf-warning mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            {t('featured')}
           </div>
         )}
       </div>
