@@ -3,10 +3,10 @@
 /**
  * VideoPlayer — Universal video player component
  *
- * Two rendering modes:
+ * Three rendering modes:
  *
- * 1. supportsControl === true (YouTube):
- *    - Shows PlayerThumbnail until user clicks Play
+ * 1. supportsControl === true AND useCustomPlayer !== false (YouTube):
+ *    - Shows PlayerThumbnail until user clicks Play (skipped when autoplay=true)
  *    - On play: thumbnail fades, div container + PlayerControls appear
  *    - YouTube adapter mounts a <div>; YT.Player creates its own <iframe> inside it
  *    - CSS overscan trick: adapter applies height:200% top:-50% to the YT-created
@@ -16,12 +16,16 @@
  *    - Renders a plain iframe with native platform controls
  *    - No thumbnail, no overlay
  *
+ * 3. useCustomPlayer === false (any platform):
+ *    - Forces plain iframe mode regardless of adapter capabilities
+ *    - Useful when admin wants native platform UI instead of custom player
+ *
  * @see useVideoPlayer.ts   — adapter selector
  * @see PlayerThumbnail.tsx — thumbnail + play button
  * @see PlayerControls.tsx  — custom control bar
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import type { ParsedVideoUrl } from '@/lib/videoUtils';
 import { addEmbedOptions } from '@/lib/videoUtils';
@@ -40,22 +44,33 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
   const adapter = useVideoPlayer({ parsed, options });
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Whether the user has clicked play at least once (triggers iframe mount for YT)
-  const [started, setStarted] = useState(false);
+  // Whether the user has clicked play at least once (triggers iframe mount for YT).
+  // When autoplay is enabled, skip the thumbnail and mount the player immediately.
+  const autoplay = options?.autoplay === true;
+  const [started, setStarted] = useState(autoplay);
 
   const handleThumbnailPlay = () => {
     setStarted(true);
     adapter.play();
   };
 
-  // ── Fallback: plain iframe ────────────────────────────────────────────────
-  if (!adapter.supportsControl) {
+  // When autoplay is enabled, trigger play() on mount to start API loading
+  useEffect(() => {
+    if (autoplay) adapter.play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Fallback: plain iframe ──────────────────────────────────────────────── 
+  // Render plain iframe when adapter has no control API OR when custom player
+  // is explicitly disabled via useCustomPlayer === false.
+  const forceNativePlayer = options?.useCustomPlayer === false;
+
+  if (!adapter.supportsControl || forceNativePlayer) {
     const fallbackSrc = parsed.embedUrl
       ? addEmbedOptions(parsed.embedUrl, options ?? {})
       : '';
     return (
       <iframe
-        ref={adapter.iframeRef as Ref<HTMLIFrameElement>}
         src={fallbackSrc}
         className="w-full h-full"
         frameBorder="0"

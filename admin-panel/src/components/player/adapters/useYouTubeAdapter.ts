@@ -148,7 +148,7 @@ export function useYouTubeAdapter(
   // Gate flags — tryInit runs only when both are true
   const apiReadyRef    = useRef(false);
   const pendingPlayRef = useRef(false);
-  const mountedRef     = useRef(true);
+  const mountedRef     = useRef(false);
 
   // Capture latest options in a ref so callbacks always see current values
   // without needing to be listed as useCallback dependencies
@@ -252,10 +252,15 @@ export function useYouTubeAdapter(
     }
   }, [tryInit]);
 
+  // Track mount state — survives StrictMode mount/unmount/remount cycle
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      mountedRef.current = false;
       if (playerRef.current) {
         try { playerRef.current.destroy(); } catch { /* ignore */ }
         playerRef.current = null;

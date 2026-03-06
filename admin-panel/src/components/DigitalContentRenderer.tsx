@@ -99,6 +99,7 @@ export default function DigitalContentRenderer({ contentItems, productName }: Di
                         muted: item.config.muted,
                         preload: item.config.preload,
                         controls: item.config.controls,
+                        useCustomPlayer: item.config.useCustomPlayer,
                       }}
                     />
                   ) : (

@@ -71,4 +71,6 @@ export interface PlayerOptions {
   preload?: boolean;
   /** When true, show native platform controls instead of custom overlay */
   controls?: boolean;
+  /** When false, skip custom player entirely — render plain iframe with native platform UI */
+  useCustomPlayer?: boolean;
 }
