@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import DashboardLayout from '@/components/DashboardLayout';
 
 interface Product {
@@ -54,28 +54,29 @@ function ProductImage({ src, alt, icon }: { src: string; alt: string; icon: stri
   );
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+function formatDateLocalized(dateString: string, locale: string) {
+  return new Date(dateString).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
-};
+}
 
-const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
+function formatPriceLocalized(price: number | null, currency: string | null = 'USD', locale: string = 'en-US', naLabel = 'N/A', invalidLabel = 'Invalid Price') {
   if (price === null) return naLabel;
   const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
   if (isNaN(numericPrice)) return invalidLabel;
 
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency || 'USD',
   }).format(numericPrice);
-};
+}
 
 export default function MyProductsPage() {
   const { user, loading: authLoading } = useAuth();
   const t = useTranslations('myProducts');
+  const locale = useLocale();
   const [userProducts, setUserProducts] = useState<UserProductAccess[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,7 +238,7 @@ export default function MyProductsPage() {
         </p>
 
         <div className="text-sm text-sf-muted mb-4">
-          {t('accessSince', { date: formatDate(grantedAt) })}
+          {t('accessSince', { date: formatDateLocalized(grantedAt, locale) })}
         </div>
 
         <Link
@@ -297,7 +298,7 @@ export default function MyProductsPage() {
         </p>
 
         <div className="text-2xl font-bold text-sf-accent mb-4">
-          {formatPrice(product.price, product.currency, t('naLabel'), t('invalidPrice'))}
+          {formatPriceLocalized(product.price, product.currency, locale, t('naLabel'), t('invalidPrice'))}
         </div>
 
         <Link

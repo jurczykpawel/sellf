@@ -365,7 +365,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
       {showPin && (
         <button
           onClick={(e) => { e.stopPropagation(); togglePin(); }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hovertransition-all"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-sf-sidebar-text hover:text-sf-accent hover:bg-sf-hover transition-all"
           style={{
             opacity: expanded ? 1 : 0,
             pointerEvents: expanded ? 'auto' : 'none',

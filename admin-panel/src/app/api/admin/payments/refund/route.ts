@@ -113,8 +113,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Process refund through Stripe
+    // SECURITY: Use payment intent from DB, not client-supplied value
     const refundData: Stripe.RefundCreateParams = {
-      payment_intent: paymentIntentId,
+      payment_intent: transaction.stripe_payment_intent_id,
     };
 
     if (amount) {
@@ -131,8 +132,8 @@ export async function POST(request: NextRequest) {
     const totalRefunded = alreadyRefunded + (refund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= transaction.amount;
 
-    // Update transaction status in database
-    const { error: updateError } = await supabase
+    // Update transaction status in database (optimistic lock on refunded_amount)
+    const { data: updated, error: updateError } = await supabase
       .from('payment_transactions')
       .update({
         status: isFullRefund ? 'refunded' : 'completed',
@@ -143,13 +144,15 @@ export async function POST(request: NextRequest) {
         refund_reason: reason || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', transactionId);
+      .eq('id', transactionId)
+      .eq('refunded_amount', alreadyRefunded)
+      .select('id');
 
-    if (updateError) {
-      console.error('Error updating transaction:', updateError);
+    if (updateError || !updated || updated.length === 0) {
+      console.error('Error updating transaction (concurrent refund?):', updateError);
       return NextResponse.json(
-        { message: 'Refund processed but failed to update database' },
-        { status: 500 }
+        { message: 'Refund processed but failed to update database — possible concurrent refund' },
+        { status: 409 }
       );
     }
 
@@ -172,7 +175,8 @@ export async function POST(request: NextRequest) {
         const { error: guestRevokeError } = await supabase
           .from('guest_purchases')
           .delete()
-          .eq('session_id', transaction.session_id);
+          .eq('session_id', transaction.session_id)
+          .eq('product_id', transaction.product_id);
 
         if (guestRevokeError) {
           console.error('Warning: Failed to revoke guest purchase after refund:', guestRevokeError);

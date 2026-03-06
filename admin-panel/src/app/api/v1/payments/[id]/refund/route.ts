@@ -227,7 +227,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const { error: guestRevokeError } = await adminClient
           .from('guest_purchases')
           .delete()
-          .eq('session_id', payment.session_id);
+          .eq('session_id', payment.session_id)
+          .eq('product_id', payment.product_id);
 
         if (guestRevokeError) {
           console.error('[refund] Failed to revoke guest purchase:', guestRevokeError);

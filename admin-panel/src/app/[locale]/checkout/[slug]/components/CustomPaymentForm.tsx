@@ -368,8 +368,8 @@ export default function CustomPaymentForm({
         setErrorMessage(error.message || t('paymentFailed'));
         setIsProcessing(false);
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || t('unexpectedError'));
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : t('unexpectedError'));
       setIsProcessing(false);
     }
   };

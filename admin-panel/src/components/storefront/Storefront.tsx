@@ -170,6 +170,7 @@ export default function Storefront({
                 dotColor="var(--sf-warning, #FBBF24)"
                 label={t('featured.badge')}
                 count={featuredProducts.length}
+                productCountLabel={t('sections.productCount', { count: featuredProducts.length })}
               />
               <RevealGroup animation="fade-up" stagger={60}>
                 {featuredProducts.map((product, index) => (
@@ -192,6 +193,7 @@ export default function Storefront({
                 dotColor="var(--sf-success, #10B981)"
                 label={t('sections.free.badge', { count: freeProducts.length })}
                 count={freeProducts.length}
+                productCountLabel={t('sections.productCount', { count: freeProducts.length })}
               />
               <RevealGroup animation="fade-up" stagger={60}>
                 {displayedFreeProducts.map((product) => (
@@ -226,6 +228,7 @@ export default function Storefront({
                 dotColor="var(--sf-accent, #0078BB)"
                 label={t('sections.premium.badge', { count: paidProducts.length })}
                 count={paidProducts.length}
+                productCountLabel={t('sections.productCount', { count: paidProducts.length })}
               />
               <RevealGroup animation="fade-up" stagger={60}>
                 {displayedPaidProducts.map((product) => (
@@ -283,14 +286,14 @@ function FilterPill({ active, onClick, label }: { active: boolean; onClick: () =
   );
 }
 
-function SectionHeader({ dotColor, label, count }: { dotColor: string; label: string; count: number }) {
+function SectionHeader({ dotColor, label, count, productCountLabel }: { dotColor: string; label: string; count: number; productCountLabel: string }) {
   return (
     <div className="flex items-center gap-3 pt-6 pb-3">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
       <span className="text-[0.7rem] uppercase tracking-wider text-sf-muted whitespace-nowrap">{label}</span>
       <div className="flex-1 h-px bg-sf-border" />
       <span className="text-[0.7rem] text-sf-muted whitespace-nowrap">
-        {count} {count === 1 ? 'product' : 'products'}
+        {productCountLabel}
       </span>
     </div>
   );
@@ -331,7 +334,7 @@ function ProductRow({
         isHero ? 'w-[88px] min-h-[88px] text-[32px]' : 'w-[72px] min-h-[72px] text-[26px]'
       }`}>
         {product.image_url ? (
-          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
         ) : (
           product.icon || (isFree ? '🎁' : '📦')
         )}

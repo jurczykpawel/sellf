@@ -426,7 +426,8 @@ async function processRefundForTransaction(
       const { error: guestRevokeError } = await supabase
         .from('guest_purchases')
         .delete()
-        .eq('session_id', txFull.session_id);
+        .eq('session_id', txFull.session_id)
+        .eq('product_id', txFull.product_id);
 
       if (guestRevokeError) {
         console.error('[Stripe Webhook] Failed to revoke guest purchase after refund:', guestRevokeError);

@@ -478,12 +478,16 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     errors.push(...contentConfigResult.errors);
   }
 
-  // Validate preview_video_url platform
+  // Validate preview_video_url platform and HTTPS
   if (typeof input.preview_video_url === 'string' && input.preview_video_url) {
-    const parsed = parseVideoUrl(input.preview_video_url);
-    const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
-    if (!allowedPlatforms.includes(parsed.platform)) {
-      errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+    if (!input.preview_video_url.startsWith('https://')) {
+      errors.push('Preview video URL must use HTTPS');
+    } else {
+      const parsed = parseVideoUrl(input.preview_video_url);
+      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
+      if (!allowedPlatforms.includes(parsed.platform)) {
+        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+      }
     }
   }
 
@@ -572,12 +576,16 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     errors.push(...contentConfigResult.errors);
   }
 
-  // Validate preview_video_url platform
+  // Validate preview_video_url platform and HTTPS
   if (typeof input.preview_video_url === 'string' && input.preview_video_url) {
-    const parsed = parseVideoUrl(input.preview_video_url);
-    const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
-    if (!allowedPlatforms.includes(parsed.platform)) {
-      errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+    if (!input.preview_video_url.startsWith('https://')) {
+      errors.push('Preview video URL must use HTTPS');
+    } else {
+      const parsed = parseVideoUrl(input.preview_video_url);
+      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
+      if (!allowedPlatforms.includes(parsed.platform)) {
+        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+      }
     }
   }
 

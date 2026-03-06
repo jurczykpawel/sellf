@@ -92,11 +92,21 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
 
     // Only revoke access on full refund
     if (isFullRefund) {
-      await supabase
-        .from('user_product_access')
-        .delete()
-        .eq('user_id', transaction.user_id)
-        .eq('product_id', transaction.product_id);
+      if (transaction.user_id && transaction.product_id) {
+        await supabase
+          .from('user_product_access')
+          .delete()
+          .eq('user_id', transaction.user_id)
+          .eq('product_id', transaction.product_id);
+      }
+
+      if (transaction.session_id && transaction.product_id) {
+        await supabase
+          .from('guest_purchases')
+          .delete()
+          .eq('session_id', transaction.session_id)
+          .eq('product_id', transaction.product_id);
+      }
     }
 
     // Revalidate admin pages

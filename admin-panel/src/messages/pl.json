@@ -802,7 +802,8 @@
       "showAll": {
         "free": "Pokaż wszystkie {count} darmowe zasoby",
         "premium": "Pokaż wszystkie {count} produkty premium"
-      }
+      },
+      "productCount": "{count, plural, one {# produkt} few {# produkty} other {# produktów}}"
     },
     "freeSection": {
       "title": "Zacznij za darmo",

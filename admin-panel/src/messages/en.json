@@ -787,7 +787,8 @@
       "showAll": {
         "free": "Show All {count} Free Resources",
         "premium": "Show All {count} Premium Products"
-      }
+      },
+      "productCount": "{count, plural, one {# product} other {# products}}"
     },
     "freeSection": {
       "title": "Start Free",
