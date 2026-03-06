@@ -136,8 +136,8 @@ test.describe('Product Variants E2E Flow', () => {
       }
     }
 
-    // Step 6: Verify at least 2 products selected (enough for variant group)
-    await expect(modal.getByText(/Wybrane produkty \([2-9]\)|Selected Products \([2-9]\)/i)).toBeVisible({ timeout: 5000 });
+    // Step 6: Verify at least 2 products selected (use heading to avoid matching mobile tab button)
+    await expect(modal.getByRole('heading', { name: /Wybrane produkty \([2-9]\)|Selected Products \([2-9]\)/i })).toBeVisible({ timeout: 5000 });
 
     // Step 7: Submit and create group
     const submitButton = modal.locator('button[type="submit"]');

@@ -516,17 +516,16 @@ test.describe('v1 API: Refund - Access Revocation Source Verification', () => {
   test('SECURITY: Refund route contains access revocation code for users and guests', async () => {
     // Authenticated user access revocation: delete from user_product_access
     expect(routeSource).toContain(".from('user_product_access')");
-    expect(routeSource).toContain(
-      ".from('user_product_access')\n        .delete()"
-    );
+    expect(routeSource).toMatch(/\.from\(\s*['"]user_product_access['"]\s*\)[\s\S]*?\.delete\(\)/);
     expect(routeSource).toContain(".eq('user_id', payment.user_id)");
     expect(routeSource).toContain(".eq('product_id', payment.product_id)");
 
     // Guest purchase cleanup: delete from guest_purchases
     expect(routeSource).toContain(".from('guest_purchases')");
-    expect(routeSource).toContain(
-      ".from('guest_purchases')\n        .delete()"
-    );
+    expect(routeSource).toMatch(/\.from\(\s*['"]guest_purchases['"]\s*\)[\s\S]*?\.delete\(\)/);
     expect(routeSource).toContain(".eq('session_id', payment.session_id)");
+
+    // Access revocation only on full refund
+    expect(routeSource).toContain('isFullRefund');
   });
 });

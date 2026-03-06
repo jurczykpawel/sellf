@@ -196,8 +196,8 @@ test.describe('Variants Admin Page', () => {
       const firstProduct = modal.locator('.cursor-pointer').filter({ hasText: 'Admin UI Test 1' }).first();
       await firstProduct.click();
 
-      // Selected count should update
-      await expect(modal.getByText(/Wybrane produkty \(1\)|Selected Products \(1\)/i)).toBeVisible();
+      // Selected count should update (use heading to avoid matching mobile tab button too)
+      await expect(modal.getByRole('heading', { name: /Wybrane produkty \(1\)|Selected Products \(1\)/i })).toBeVisible();
     });
 
     test('should show variant name input for selected products', async ({ page }) => {
