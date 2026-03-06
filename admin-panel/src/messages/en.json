@@ -2908,6 +2908,10 @@
         "title": "Handle refunds without headaches",
         "desc": "Set refund rules separately for each product. Customer fills a form, you approve with one click."
       },
+      "security": {
+        "title": "Your keys never leave your server",
+        "desc": "Stripe credentials stay in your .env file. No telemetry, no external calls. RLS on every table, penetration-tested, with a built-in security audit panel."
+      },
       "gus": {
         "title": "Auto-fill company data",
         "desc": "Enter NIP. GUS API auto-fills company data."
@@ -3089,7 +3093,7 @@
         },
         {
           "q": "Is it secure enough for real customers?",
-          "a": "Yes. Next.js + PostgreSQL + Supabase with RLS policies, HMAC webhooks, AES-256 key encryption, and input validation out of the box."
+          "a": "Yes. Regularly penetration-tested (280+ test cases, OWASP Top 10). RLS on every database table, AES-256 key encryption, HMAC webhooks, secure-by-default CORS. Your Stripe keys never leave your server. Built-in Security Audit panel checks your configuration automatically."
         },
         {
           "q": "What if I get stuck during setup?",

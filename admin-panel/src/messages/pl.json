@@ -2923,6 +2923,10 @@
         "title": "Obsługuj zwroty bez bólu głowy",
         "desc": "Ustaw zasady zwrotów osobno dla każdego produktu. Klient wypełnia formularz, Ty zatwierdzasz jednym kliknięciem."
       },
+      "security": {
+        "title": "Twoje klucze nie opuszczają serwera",
+        "desc": "Dane Stripe zostają w pliku .env. Brak telemetrii, brak zewnętrznych wywołań. RLS na każdej tabeli, testy penetracyjne, wbudowany panel audytu bezpieczeństwa."
+      },
       "gus": {
         "title": "Auto-uzupełnianie danych firmy",
         "desc": "Klient wpisuje NIP, a dane firmy uzupełniają się automatycznie z bazy GUS."
@@ -3104,7 +3108,7 @@
         },
         {
           "q": "Czy jest wystarczająco bezpieczne dla prawdziwych klientów?",
-          "a": "Tak. Next.js + PostgreSQL + Supabase z politykami RLS, webhookami HMAC, szyfrowaniem kluczy AES-256 i walidacją danych wejściowych od startu."
+          "a": "Tak. Regularnie testowane penetracyjnie (280+ przypadków testowych, OWASP Top 10). RLS na każdej tabeli, szyfrowanie kluczy AES-256, webhookami HMAC, domyślnie bezpieczny CORS. Twoje klucze Stripe nie opuszczają serwera. Wbudowany panel audytu bezpieczeństwa sprawdza konfigurację automatycznie."
         },
         {
           "q": "Co jeśli utknę podczas instalacji?",

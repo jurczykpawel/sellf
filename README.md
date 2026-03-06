@@ -371,6 +371,18 @@ Ways to contribute:
 
 ## Security
 
+Sellf handles sensitive data (Stripe API keys, payment transactions, user accounts), so security is treated as a first-class requirement, not an afterthought.
+
+**What we do:**
+
+- **Regular penetration testing** — automated and manual security audits covering OWASP Top 10, with 280+ test cases across authentication, authorization, input validation, CORS, CSRF, injection vectors, business logic, and infrastructure
+- **Row Level Security (RLS)** on every database table — enforced at the PostgreSQL level, not just the application layer
+- **Zero platform access to your keys** — Stripe credentials are stored in your `.env.local` on your server. Sellf never phones home, has no telemetry, and no external API calls except to Supabase and Stripe
+- **Built-in Security Audit panel** — Settings > System runs 11 automated checks against your Supabase and app configuration, with actionable fix instructions for each issue found
+- **Secure defaults** — CORS locked to your domain only, `HttpOnly` + `Secure` cookies, Content-Type validation, rate limiting on all public endpoints, webhook signature verification
+
+**Your Stripe keys stay on your server.** Sellf is fully self-hosted — there is no SaaS component, no cloud dependency, and no way for anyone (including us) to access your credentials.
+
 See [SECURITY.md](./SECURITY.md) for reporting vulnerabilities.
 
 ---
