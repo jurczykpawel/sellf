@@ -9,6 +9,7 @@ import type { TaxMode } from '@/lib/actions/shop-config';
 import { formatPrice } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
+import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { useRouter } from 'next/navigation';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTheme } from '@/components/providers/theme-provider';
@@ -286,17 +287,21 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   };
 
   const handleRedirectToProduct = useCallback(() => {
-    // Priority 1: ?success_url param override (from URL)
+    // Priority 1: ?success_url param override (from URL) — validated to prevent open redirect
     const successUrl = searchParams.get('success_url');
-    if (successUrl) {
+    if (successUrl && isSafeRedirectUrl(successUrl)) {
       router.push(successUrl);
       return;
     }
 
     // Priority 2: product.success_redirect_url (configured on product)
+    // Allow absolute URLs here since they're admin-configured, but validate protocol
     if (product.success_redirect_url) {
-      router.push(product.success_redirect_url);
-      return;
+      const redirectUrl = product.success_redirect_url;
+      if (isSafeRedirectUrl(redirectUrl) || redirectUrl.startsWith('https://')) {
+        router.push(redirectUrl);
+        return;
+      }
     }
 
     // Priority 3: OTO — funnel test mode simulates post-purchase OTO flow

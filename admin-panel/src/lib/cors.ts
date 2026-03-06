@@ -48,25 +48,33 @@ export function validateCrossOriginRequest(request: Request): NextResponse | nul
  * Get CORS headers for cross-origin access endpoints.
  * Only use this for endpoints in CROSS_ORIGIN_ALLOWED_PATHS.
  *
- * SECURITY: When ALLOWED_ORIGINS env var is set (comma-separated list),
- * only those origins are reflected (strict mode). When unset, any origin
- * is reflected (permissive mode) — required for cross-domain sellf feature.
+ * SECURITY: Secure by default — only SITE_URL/MAIN_DOMAIN origin is allowed.
+ * To enable cross-domain sellf feature, set ALLOWED_ORIGINS env var with
+ * a comma-separated whitelist of customer domains.
  * Vary: Origin is always set for correct caching behavior.
  */
 export function getCrossOriginHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('origin')
   const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
+  const mainDomain = process.env.MAIN_DOMAIN
   const allowedOriginsEnv = process.env.ALLOWED_ORIGINS
 
-  let effectiveOrigin: string
-
+  // Build allowed origins list: always include own domain + explicit whitelist
+  const allowedOrigins: string[] = []
+  if (siteUrl) allowedOrigins.push(siteUrl)
+  if (mainDomain) {
+    allowedOrigins.push(`https://${mainDomain}`)
+    allowedOrigins.push(`http://${mainDomain}`)
+  }
   if (allowedOriginsEnv) {
-    // Strict mode: only reflect origins from the whitelist
-    const allowedOrigins = allowedOriginsEnv.split(',').map(o => o.trim())
-    effectiveOrigin = (origin && allowedOrigins.includes(origin)) ? origin : (siteUrl || 'null')
+    allowedOrigins.push(...allowedOriginsEnv.split(',').map(o => o.trim()))
+  }
+
+  let effectiveOrigin: string
+  if (origin && origin !== 'null' && allowedOrigins.some(ao => ao === origin)) {
+    effectiveOrigin = origin
   } else {
-    // Permissive mode (cross-domain sellf feature): reflect origin
-    effectiveOrigin = origin || siteUrl || 'null'
+    effectiveOrigin = siteUrl || 'null'
   }
 
   return {

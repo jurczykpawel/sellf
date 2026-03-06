@@ -73,14 +73,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Get current transaction to check existing refunded amount
         const { data: transaction } = await supabase
           .from('payment_transactions')
-          .select('user_id, product_id, amount, refunded_amount')
+          .select('user_id, product_id, amount, refunded_amount, session_id')
           .eq('id', processResult.transaction_id)
           .single();
 
         const totalRefunded = (transaction?.refunded_amount || 0) + processResult.amount;
         const isFullRefund = transaction ? totalRefunded >= transaction.amount : true;
 
-        await supabase
+        const { data: updatedRows } = await supabase
           .from('payment_transactions')
           .update({
             refunded_amount: totalRefunded,
@@ -90,15 +90,39 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             refund_reason: admin_response || 'Customer request approved',
             updated_at: new Date().toISOString(),
           })
-          .eq('id', processResult.transaction_id);
+          .eq('id', processResult.transaction_id)
+          .eq('refunded_amount', transaction?.refunded_amount || 0)
+          .select('id');
 
-        // Only revoke access on full refund
-        if (isFullRefund && transaction?.user_id) {
-          await supabase
-            .from('user_product_access')
-            .delete()
-            .eq('user_id', transaction.user_id)
-            .eq('product_id', transaction.product_id);
+        // Revoke access on full refund — do this regardless of optimistic lock result
+        // because the Stripe refund already succeeded
+        if (isFullRefund) {
+          if (transaction?.user_id) {
+            await supabase
+              .from('user_product_access')
+              .delete()
+              .eq('user_id', transaction.user_id)
+              .eq('product_id', transaction.product_id);
+          }
+
+          if (transaction?.session_id && transaction?.product_id) {
+            await supabase
+              .from('guest_purchases')
+              .delete()
+              .eq('session_id', transaction.session_id)
+              .eq('product_id', transaction.product_id);
+          }
+        }
+
+        if (!updatedRows || updatedRows.length === 0) {
+          console.error('[refund-request] Optimistic lock failed for transaction:', processResult.transaction_id);
+          return NextResponse.json({
+            success: true,
+            status: 'approved',
+            message: 'Refund processed in Stripe but database was modified concurrently. Verify transaction status manually.',
+            stripe_refund_created: true,
+            warning: 'concurrent_modification',
+          });
         }
 
         return NextResponse.json({

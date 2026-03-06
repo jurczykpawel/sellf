@@ -56,7 +56,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         events,
         description,
         is_active,
-        secret,
         created_at,
         updated_at
       `)
@@ -156,7 +155,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (Object.keys(updates).length === 0) {
       const { data: webhook } = await adminClient
         .from('webhook_endpoints')
-        .select('id, url, events, description, is_active, secret, created_at, updated_at')
+        .select('id, url, events, description, is_active, created_at, updated_at')
         .eq('id', id)
         .single();
 
@@ -170,7 +169,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .from('webhook_endpoints')
       .update(updates)
       .eq('id', id)
-      .select('id, url, events, description, is_active, secret, created_at, updated_at')
+      .select('id, url, events, description, is_active, created_at, updated_at')
       .single();
 
     if (error) {

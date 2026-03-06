@@ -286,7 +286,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent mx-auto mb-4"></div>
             <h2 className="text-xl font-semibold text-sf-heading mb-2">{t('redirectingTitle')}</h2>
             <p className="text-sf-muted text-sm mb-4">{t('redirectingMessage')}</p>
-            {redirectUrl && (
+            {redirectUrl && (redirectUrl.startsWith('https://') || redirectUrl.startsWith('http://') || (redirectUrl.startsWith('/') && !redirectUrl.startsWith('//'))) && (
               <a
                 href={redirectUrl}
                 className="inline-flex items-center px-4 py-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-medium rounded-full transition-colors active:scale-[0.98]"

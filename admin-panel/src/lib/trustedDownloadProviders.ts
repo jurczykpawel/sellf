@@ -3,13 +3,12 @@
  * Used both in form validation (useProductForm) and content rendering (DigitalContentRenderer).
  * Keep this list as the single source of truth.
  */
+/** Domain suffixes — matched via exact match or `.suffix` */
 export const TRUSTED_DOWNLOAD_PROVIDERS = [
   'amazonaws.com',
   'googleapis.com',
   'supabase.co',
   'supabase.in',
-  'cdn.',
-  'storage.',
   'bunny.net',
   'b-cdn.net',
   'drive.google.com',
@@ -36,7 +35,9 @@ export function isTrustedDownloadUrl(url: string): boolean {
   if (!url.startsWith('https://')) return false;
   try {
     const { hostname } = new URL(url);
-    return TRUSTED_DOWNLOAD_PROVIDERS.some((provider) => hostname.includes(provider));
+    return TRUSTED_DOWNLOAD_PROVIDERS.some((provider) =>
+      hostname === provider || hostname.endsWith('.' + provider)
+    );
   } catch {
     return false;
   }

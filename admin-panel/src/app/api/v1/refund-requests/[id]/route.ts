@@ -201,7 +201,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Get transaction details for Stripe refund
     const { data: transaction, error: txError } = await adminClient
       .from('payment_transactions')
-      .select('id, stripe_payment_intent_id, amount, refunded_amount, user_id, product_id')
+      .select('id, stripe_payment_intent_id, amount, refunded_amount, user_id, product_id, session_id')
       .eq('id', refundRequest.transaction_id)
       .single();
 
@@ -248,7 +248,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         const totalRefunded = (transaction.refunded_amount || 0) + refundRequest.requested_amount;
         const isFullRefund = totalRefunded >= transaction.amount;
 
-        await adminClient
+        const { data: updatedRows } = await adminClient
           .from('payment_transactions')
           .update({
             refunded_amount: totalRefunded,
@@ -258,15 +258,42 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             refund_reason: admin_response || 'Customer request approved',
             updated_at: new Date().toISOString(),
           })
-          .eq('id', transaction.id);
+          .eq('id', transaction.id)
+          .eq('refunded_amount', transaction.refunded_amount || 0)
+          .select('id');
 
-        // Only revoke access on full refund
-        if (isFullRefund && transaction.user_id) {
-          await adminClient
-            .from('user_product_access')
-            .delete()
-            .eq('user_id', transaction.user_id)
-            .eq('product_id', transaction.product_id);
+        // Revoke access on full refund — do this regardless of optimistic lock result
+        // because the Stripe refund already succeeded
+        if (isFullRefund) {
+          if (transaction.user_id) {
+            await adminClient
+              .from('user_product_access')
+              .delete()
+              .eq('user_id', transaction.user_id)
+              .eq('product_id', transaction.product_id);
+          }
+
+          if (transaction.session_id && transaction.product_id) {
+            await adminClient
+              .from('guest_purchases')
+              .delete()
+              .eq('session_id', transaction.session_id)
+              .eq('product_id', transaction.product_id);
+          }
+        }
+
+        if (!updatedRows || updatedRows.length === 0) {
+          console.error('[refund-request] Optimistic lock failed for transaction:', transaction.id);
+          return jsonResponse(
+            successResponse({
+              id,
+              status: 'approved',
+              message: 'Refund processed in Stripe but database was modified concurrently. Verify transaction status manually.',
+              stripe_refund_created: true,
+              warning: 'concurrent_modification',
+            }),
+            request
+          );
         }
 
         return jsonResponse(

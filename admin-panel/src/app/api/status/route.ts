@@ -49,34 +49,15 @@ export async function GET() {
       console.error('Error fetching products for status:', productsError);
     }
 
-    // Get basic system info
+    // Basic system status — no version/environment/counts to avoid info leak
     const status = {
       system: {
         status: 'ok',
         timestamp: new Date().toISOString(),
         service: 'sellf-admin',
-        version: '1.0.0',
-        environment: process.env.NODE_ENV || 'development'
-      },
-      api: {
-        health: '/api/health',
-        sellf: '/api/sellf',
-        config: '/api/config',
-        status: '/api/status'
-      },
-      frontend: {
-        login: '/login',
-        dashboard: '/dashboard',
-        products: '/dashboard/products'
-      },
-      counts: {
-        total_products: products?.length || 0,
-        active_products: products?.length || 0,
-        all_products: products?.length || 0
       },
       database: {
         connected: !productsError,
-        error: productsError ? 'Connection failed' : null
       }
     };
 
@@ -96,18 +77,9 @@ export async function GET() {
           status: 'error',
           timestamp: new Date().toISOString(),
           service: 'sellf-admin',
-          version: '1.0.0',
-          environment: process.env.NODE_ENV || 'development'
         },
-        error: 'Internal server error',
         database: {
           connected: false,
-          error: 'Connection failed'
-        },
-        counts: {
-          total_products: 0,
-          active_products: 0,
-          all_products: 0
         }
       },
       { 

@@ -100,6 +100,21 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
   if (isDemoMode()) return false
   const supabase = await createClient()
 
+  // Verify caller is admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { data: adminUser } = await supabase
+    .from('admin_users')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!adminUser) {
+    console.error('[updateShopConfig] Non-admin attempted to update shop config')
+    return false
+  }
+
   // Get current config first
   const config = await getShopConfig()
   if (!config) {

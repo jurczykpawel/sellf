@@ -161,29 +161,10 @@ test.describe('Stripe Webhook Registration', () => {
 
   // ── Signature verification fallback ──────────────────────────────────────
 
-  test('Webhook signature verification works with DB-stored secret', async ({ page }) => {
-    // Get the stored webhook secret from DB and decrypt it (via server action)
+  test('Webhook status endpoint responds without server error', async ({ page }) => {
     const verifyResponse = await page.goto('/api/v1/stripe/webhook-status');
     expect(verifyResponse?.status()).toBeLessThan(500);
-
-    // Generate a valid webhook event signed with the Stripe-generated secret
-    // (the DB secret should match what Stripe uses to sign events)
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION });
-
-    const payload = JSON.stringify({
-      id: `evt_test_${Date.now()}`,
-      object: 'event',
-      api_version: STRIPE_API_VERSION,
-      created: Math.floor(Date.now() / 1000),
-      type: 'checkout.session.completed',
-      data: { object: { id: 'cs_test_fallback', payment_status: 'unpaid', status: 'expired' } },
-    });
-
-    const timestamp = Math.floor(Date.now() / 1000);
-    const crypto = require('crypto');
-    // We can't easily test the fallback without access to the actual DB secret here
-    // This is covered by the unit test for getDecryptedWebhookSecret()
-    // Just verify the endpoint responds (not 500) to valid requests
-    expect(true).toBe(true); // placeholder — see unit tests for fallback logic
+    // Full signature verification with DB-stored secret is covered by unit tests
+    // for getDecryptedWebhookSecret() — E2E can only verify the endpoint is reachable
   });
 });

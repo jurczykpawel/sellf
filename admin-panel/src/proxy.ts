@@ -7,7 +7,8 @@ import { locales, defaultLocale } from './lib/locales'
 const intlMiddleware = createMiddleware({
   locales,
   defaultLocale,
-  localePrefix: 'as-needed'
+  localePrefix: 'as-needed',
+  alternateLinks: false,
 })
 
 // =============================================================================
@@ -91,6 +92,19 @@ export async function proxy(request: NextRequest) {
     ));
   }
 
+  // Body size limit for API routes (1MB) — prevents large payload DoS
+  // Server actions have their own bodySizeLimit in next.config.ts
+  const MAX_API_BODY_SIZE = 1_048_576 // 1MB
+  if (pathname.startsWith('/api') && (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH')) {
+    const contentLength = request.headers.get('content-length')
+    if (contentLength && parseInt(contentLength, 10) > MAX_API_BODY_SIZE) {
+      return addSecurityHeaders(NextResponse.json(
+        { error: 'Request body too large' },
+        { status: 413 }
+      ))
+    }
+  }
+
   // Skip proxy processing for API routes, static files, and payment success page
   if (
     pathname.startsWith('/api') ||
@@ -148,11 +162,15 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
+          const isProduction = process.env.NODE_ENV === 'production'
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set({
               name,
               value,
-              ...options
+              ...options,
+              httpOnly: true,
+              sameSite: isProduction ? 'none' : ((options?.sameSite as 'lax' | 'strict' | 'none' | undefined) ?? 'lax'),
+              secure: isProduction ? true : ((options?.secure as boolean | undefined) ?? false),
             })
           })
         }

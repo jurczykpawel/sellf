@@ -4,6 +4,13 @@ import { checkRateLimit } from '@/lib/rate-limiting'
 
 export async function POST(request: NextRequest) {
   try {
+    // Origin validation: only accept requests from our own site (prevents cross-origin DB noise)
+    const origin = request.headers.get('origin');
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    if (origin && siteUrl && !siteUrl.startsWith(origin)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Rate limiting: 30 requests per minute (prevents DB flooding)
     const rateLimitOk = await checkRateLimit('consent_log', 30, 60);
     if (!rateLimitOk) {
@@ -11,6 +18,11 @@ export async function POST(request: NextRequest) {
         { error: 'Too many requests. Please try again later.' },
         { status: 429 }
       );
+    }
+
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return NextResponse.json({ error: 'Content-Type must be application/json' }, { status: 415 });
     }
 
     const body = await request.json()

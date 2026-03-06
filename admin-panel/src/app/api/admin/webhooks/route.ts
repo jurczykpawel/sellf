@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     const { data: endpoints, error } = await supabase
       .from('webhook_endpoints')
-      .select('*')
+      .select('id, url, events, description, is_active, created_at, updated_at')
       .order('created_at', { ascending: false });
 
     if (error) throw error;

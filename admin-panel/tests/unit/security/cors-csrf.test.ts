@@ -132,7 +132,8 @@ describe('CORS/CSRF Security', () => {
   });
 
   describe('getCrossOriginHeaders', () => {
-    it('should reflect the origin header', () => {
+    it('should reflect whitelisted origin', () => {
+      vi.stubEnv('ALLOWED_ORIGINS', 'https://my-app.com');
       const request = createMockRequest({
         origin: 'https://my-app.com',
       });
@@ -140,6 +141,17 @@ describe('CORS/CSRF Security', () => {
       const headers = getCrossOriginHeaders(request);
 
       expect(headers['Access-Control-Allow-Origin']).toBe('https://my-app.com');
+    });
+
+    it('should reject unknown origin (secure by default)', () => {
+      const request = createMockRequest({
+        origin: 'https://evil.com',
+      });
+
+      const headers = getCrossOriginHeaders(request);
+
+      // Falls back to SITE_URL, not the attacker's origin
+      expect(headers['Access-Control-Allow-Origin']).not.toBe('https://evil.com');
     });
 
     it('should include credentials header', () => {
@@ -229,7 +241,8 @@ describe('CORS/CSRF Security', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should include CORS headers', () => {
+    it('should include CORS headers for whitelisted origin', () => {
+      vi.stubEnv('ALLOWED_ORIGINS', 'https://my-app.com');
       const request = createMockRequest({
         origin: 'https://my-app.com',
       });
@@ -265,6 +278,7 @@ describe('CORS/CSRF Security', () => {
 
     it('should handle preflight + actual request flow', () => {
       const origin = 'https://legitimate-app.com';
+      vi.stubEnv('ALLOWED_ORIGINS', origin);
 
       // 1. Preflight (OPTIONS)
       const preflightRequest = createMockRequest({
@@ -305,6 +319,7 @@ describe('CORS/CSRF Security', () => {
 
   describe('Security Headers Completeness', () => {
     it('getCrossOriginHeaders should include all necessary CORS headers with correct values', () => {
+      vi.stubEnv('ALLOWED_ORIGINS', 'https://app.com');
       const request = createMockRequest({ origin: 'https://app.com' });
       const headers = getCrossOriginHeaders(request);
 

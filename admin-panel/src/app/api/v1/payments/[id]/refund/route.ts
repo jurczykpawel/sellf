@@ -181,8 +181,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const totalRefunded = alreadyRefunded + stripeRefund.amount!;
     const isFullRefund = totalRefunded >= payment.amount;
 
-    // Update transaction in database
-    const { error: updateError } = await adminClient
+    // Update transaction in database with optimistic lock to prevent concurrent refunds
+    const { data: updatedRows, error: updateError } = await adminClient
       .from('payment_transactions')
       .update({
         status: isFullRefund ? 'refunded' : 'completed',
@@ -193,11 +193,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         refund_reason: reason || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('refunded_amount', alreadyRefunded)
+      .select('id');
 
     if (updateError) {
       console.error('Error updating transaction:', updateError);
-      // Refund was processed in Stripe but DB update failed
       return apiError(
         request,
         'INTERNAL_ERROR',
@@ -205,7 +206,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Only revoke access on full refund
+    // Revoke access on full refund — do this regardless of optimistic lock result
+    // because the Stripe refund already succeeded
     let accessRevocationFailed = false;
 
     if (isFullRefund) {
@@ -235,6 +237,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           accessRevocationFailed = true;
         }
       }
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      console.error('[refund] Optimistic lock failed — concurrent refund detected for transaction:', id);
+      return apiError(
+        request,
+        'CONFLICT',
+        'Transaction was modified concurrently. The refund was processed in Stripe — please verify the transaction status.'
+      );
     }
 
     // Log the refund action

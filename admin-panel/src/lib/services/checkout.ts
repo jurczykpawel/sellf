@@ -418,7 +418,23 @@ export class CheckoutService {
     }
 
     // Validate custom amount for Pay What You Want
-    if (request.customAmount !== undefined && request.customAmount > 0) {
+    if (request.customAmount !== undefined) {
+      if (typeof request.customAmount !== 'number' || !Number.isFinite(request.customAmount) || request.customAmount <= 0) {
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'Custom amount must be a positive number',
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+
+      if (!product.allow_custom_price) {
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'This product does not allow custom pricing',
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+
       const minPrice = product.custom_price_min ?? 0.50;
       if (request.customAmount < minPrice) {
         throw new CheckoutError(

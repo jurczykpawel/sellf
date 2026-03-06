@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json(
-        { accessResults: accessResults || {}, userId: user.id },
+        { accessResults: accessResults || {}, authenticated: true },
         {
           status: 200,
           headers: {
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json(
-        { hasAccess: !!hasAccess, userId: user.id },
+        { hasAccess: !!hasAccess, authenticated: true },
         {
           status: 200,
           headers: {

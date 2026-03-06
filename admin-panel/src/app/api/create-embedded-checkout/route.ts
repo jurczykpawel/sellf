@@ -21,6 +21,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateChe
       );
     }
 
+    // Reject non-JSON Content-Type to prevent blind CSRF via text/plain simple requests
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json', type: CheckoutErrorType.UNKNOWN_ERROR },
+        { status: 415 }
+      );
+    }
+
     const requestData: CreateCheckoutRequest = await request.json();
     
     // Get origin for return URL

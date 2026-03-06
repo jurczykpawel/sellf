@@ -4,13 +4,11 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 /**
  * Handle CORS preflight requests
  */
-export async function OPTIONS(request: Request) {
-  const origin = request.headers.get('origin') || '*';
-  
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400', // 24 hours
@@ -18,7 +16,7 @@ export async function OPTIONS(request: Request) {
   });
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Rate limiting: 60 requests per minute
     const rateLimitOk = await checkRateLimit('health', 60, 60);
@@ -29,19 +27,17 @@ export async function GET(request: Request) {
       );
     }
 
-    // Basic health check
+    // Basic health check — no version/environment to avoid info leak
     const health = {
       status: 'ok',
       timestamp: new Date().toISOString(),
       service: 'sellf-admin',
-      version: process.env.NEXT_PUBLIC_APP_VERSION || 'unknown',
-      environment: process.env.NODE_ENV || 'development'
     }
 
     return NextResponse.json(health, { 
       status: 200,
       headers: {
-        'Access-Control-Allow-Origin': request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || '*',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
@@ -56,7 +52,7 @@ export async function GET(request: Request) {
       { 
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || '*',
+          'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }

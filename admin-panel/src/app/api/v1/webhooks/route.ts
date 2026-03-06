@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
         events,
         description,
         is_active,
-        secret,
         created_at,
         updated_at
       `);

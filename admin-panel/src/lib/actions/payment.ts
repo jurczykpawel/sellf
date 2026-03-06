@@ -73,7 +73,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
     const totalRefunded = alreadyRefunded + (refund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= transaction.amount;
 
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('payment_transactions')
       .update({
         refunded_amount: totalRefunded,
@@ -84,13 +84,16 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
         refund_reason: data.reason,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', data.transactionId);
+      .eq('id', data.transactionId)
+      .eq('refunded_amount', alreadyRefunded)
+      .select('id');
 
     if (updateError) {
       throw new Error('Failed to update transaction status');
     }
 
-    // Only revoke access on full refund
+    // Revoke access on full refund — do this regardless of optimistic lock result
+    // because the Stripe refund already succeeded
     if (isFullRefund) {
       if (transaction.user_id && transaction.product_id) {
         await supabase
@@ -107,6 +110,10 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
           .eq('session_id', transaction.session_id)
           .eq('product_id', transaction.product_id);
       }
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new Error('Transaction was modified concurrently. Refund processed in Stripe — verify manually.');
     }
 
     // Revalidate admin pages
