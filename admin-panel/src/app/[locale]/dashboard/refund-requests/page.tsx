@@ -168,7 +168,7 @@ export default function RefundRequestsPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-sf-base rounded-lg shadow overflow-hidden">
+        <div className="bg-sf-base rounded-lg shadow overflow-x-auto">
           <table className="min-w-full divide-y divide-sf-border">
             <thead className="bg-sf-raised">
               <tr>
