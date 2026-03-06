@@ -148,7 +148,7 @@ describe('Payment status page.tsx — source verification', () => {
     expect(pageSource).toContain("from('user_product_access')");
     expect(pageSource).toContain('oto_product_id');
     expect(pageSource).toMatch(
-      /customerHasOtoAccess[\s\S]*?skipping OTO/,
+      /customerHasOtoAccess[\s\S]*?skip OTO/,
     );
     expect(pageSource).toContain('buildOtoRedirectUrl');
   });
