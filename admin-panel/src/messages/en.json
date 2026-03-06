@@ -2704,6 +2704,8 @@
     "refundPeriodExpired": "Refund period expired",
     "requestRefund": "Request Refund",
     "daysRemaining": "{days} days left",
+    "daysHoursRemaining": "{days}d {hours}h left",
+    "hoursRemaining": "{hours}h left",
     "refundRequestTitle": "Request Refund",
     "refundReason": "Reason for refund (optional)",
     "refundReasonPlaceholder": "Tell us why you want a refund...",

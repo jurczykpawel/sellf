@@ -2719,6 +2719,8 @@
     "refundPeriodExpired": "Okres zwrotu minął",
     "requestRefund": "Poproś o zwrot",
     "daysRemaining": "Zostało {days} dni",
+    "daysHoursRemaining": "Zostało {days}d {hours}godz.",
+    "hoursRemaining": "Zostało {hours}godz.",
     "refundRequestTitle": "Prośba o zwrot",
     "refundReason": "Powód zwrotu (opcjonalnie)",
     "refundReasonPlaceholder": "Powiedz nam, dlaczego chcesz zwrotu...",

@@ -169,9 +169,19 @@ export default function MyPurchasesPage() {
       );
     }
 
-    const daysRemaining = purchase.refund_period_days
-      ? purchase.refund_period_days - purchase.days_since_purchase
-      : null;
+    const getTimeRemaining = () => {
+      if (!purchase.refund_period_days || !purchase.purchase_date) return null;
+      const deadline = new Date(purchase.purchase_date);
+      deadline.setDate(deadline.getDate() + purchase.refund_period_days);
+      const msLeft = deadline.getTime() - Date.now();
+      if (msLeft <= 0) return null;
+      const hoursLeft = Math.floor(msLeft / (1000 * 60 * 60));
+      const days = Math.floor(hoursLeft / 24);
+      const hours = hoursLeft % 24;
+      return { days, hours };
+    };
+
+    const timeRemaining = getTimeRemaining();
 
     return (
       <div className="flex flex-col items-end gap-1">
@@ -181,9 +191,12 @@ export default function MyPurchasesPage() {
         >
           {t('requestRefund', { defaultValue: 'Request Refund' })}
         </button>
-        {daysRemaining !== null && daysRemaining > 0 && (
+        {timeRemaining && (
           <span className="text-xs text-sf-muted">
-            {t('daysRemaining', { days: daysRemaining, defaultValue: `${daysRemaining} days left` })}
+            {timeRemaining.days > 0
+              ? t('daysHoursRemaining', { days: timeRemaining.days, hours: timeRemaining.hours, defaultValue: `${timeRemaining.days}d ${timeRemaining.hours}h left` })
+              : t('hoursRemaining', { hours: timeRemaining.hours, defaultValue: `${timeRemaining.hours}h left` })
+            }
           </span>
         )}
       </div>
