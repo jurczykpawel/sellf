@@ -326,11 +326,15 @@ function ProductRow({
         <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-sf-accent to-[color-mix(in_srgb,var(--sf-accent)_70%,white)] rounded-l-xl" />
       )}
 
-      {/* Icon */}
-      <div className={`flex items-center justify-center shrink-0 border-r border-sf-border bg-sf-base ${
+      {/* Icon / Image */}
+      <div className={`flex items-center justify-center shrink-0 border-r border-sf-border bg-sf-base overflow-hidden ${
         isHero ? 'w-[88px] min-h-[88px] text-[32px]' : 'w-[72px] min-h-[72px] text-[26px]'
       }`}>
-        {product.icon || (isFree ? '🎁' : '📦')}
+        {product.image_url ? (
+          <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+        ) : (
+          product.icon || (isFree ? '🎁' : '📦')
+        )}
       </div>
 
       {/* Body */}

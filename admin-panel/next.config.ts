@@ -123,6 +123,13 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Placeholder images for development/testing
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   env: {
@@ -162,12 +169,12 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com challenges.cloudflare.com cdn.kiprotect.com www.youtube.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com challenges.cloudflare.com cdn.kiprotect.com www.youtube.com s.ytimg.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: i.ibb.co *.stripe.com img.youtube.com vumbnail.com embed-ssl.wistia.com fast.wistia.com",
+              "img-src 'self' data: blob: i.ibb.co *.stripe.com img.youtube.com vumbnail.com embed-ssl.wistia.com fast.wistia.com placehold.co",
               "font-src 'self' data:",
               "frame-src js.stripe.com challenges.cloudflare.com *.youtube.com player.vimeo.com iframe.mediadelivery.net *.loom.com fast.wistia.net *.dailymotion.com player.twitch.tv",
-              "connect-src 'self' *.supabase.co *.stripe.com challenges.cloudflare.com http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*",
+              "connect-src 'self' *.supabase.co *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*",
               "object-src 'none'",
               "base-uri 'self'",
             ].join('; '),

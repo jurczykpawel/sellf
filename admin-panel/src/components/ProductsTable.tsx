@@ -204,9 +204,17 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     <td className="px-3 py-4">
                       <div className="flex items-center max-w-[300px]">
                         <div className="flex-shrink-0 h-8 w-8">
-                          <div className="h-8 w-8 bg-sf-raised flex items-center justify-center text-lg">
-                            {product.icon?.length === 2 || product.icon?.match(/\p{Emoji}/u) ? product.icon : getIconEmoji(product.icon)}
-                          </div>
+                          {product.image_url ? (
+                            <img
+                              src={product.image_url}
+                              alt={product.name}
+                              className="h-8 w-8 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 bg-sf-raised flex items-center justify-center text-lg">
+                              {product.icon?.length === 2 || product.icon?.match(/\p{Emoji}/u) ? product.icon : getIconEmoji(product.icon)}
+                            </div>
+                          )}
                         </div>
                         <div className="ml-3 min-w-0 flex-1 overflow-hidden">
                           <div className="flex items-center gap-1">

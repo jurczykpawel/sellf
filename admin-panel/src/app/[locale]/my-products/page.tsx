@@ -13,6 +13,7 @@ interface Product {
   slug: string;
   description: string;
   icon: string;
+  image_url: string | null;
   price: number;
   currency: string;
   is_active: boolean;
@@ -31,6 +32,35 @@ interface UserAccessData {
     created_at: string;
     product: Product;
 }
+
+function ProductImage({ src, alt, icon }: { src: string; alt: string; icon: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <div className="h-40 flex items-center justify-center bg-sf-float">
+        <span className="text-6xl">{icon || '📦'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
@@ -70,7 +100,7 @@ export default function MyProductsPage() {
           id,
           created_at,
           product:products!inner (
-            id, name, slug, description, icon, price, currency, is_active, is_featured, created_at
+            id, name, slug, description, icon, image_url, price, currency, is_active, is_featured, created_at
           )
         `)
         .eq('user_id', user.id);
@@ -174,40 +204,21 @@ export default function MyProductsPage() {
   const freeProducts = availableProducts.filter(p => p.price === 0);
   const paidProducts = availableProducts.filter(p => p.price > 0);
 
-  const renderProductCard = (product: Product, accessible: boolean) => (
+  const renderOwnedProductCard = (product: Product, grantedAt: string) => (
     <div
       key={product.id}
-      className={`group bg-sf-raised/80 backdrop-blur-md border rounded-2xl p-6 hover:bg-sf-hover transition-all duration-300 active:scale-[0.98] relative overflow-hidden ${accessible ? 'border-sf-success/30' : 'border-sf-border'}`}
+      className="group bg-sf-raised/80 backdrop-blur-md border border-sf-success/30 rounded-2xl overflow-hidden hover:bg-sf-hover transition-all duration-300 active:scale-[0.98] relative"
     >
-      <div className="flex items-start gap-3 mb-2">
-        <div className="text-4xl shrink-0">{product.icon}</div>
-        <div className="flex-1 min-w-0">
-          <h3 className={`text-xl font-semibold text-sf-heading transition-colors ${accessible ? 'group-hover:text-sf-success' : 'group-hover:text-sf-accent'}`}>
-            {product.name}
-          </h3>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
-        {product.price > 0 ? (
-          <div className="flex items-center px-2 py-1 bg-sf-accent-soft border border-sf-border-accent rounded-full">
-            <svg className="w-3 h-3 text-sf-accent mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
-            <span className="text-xs font-medium text-sf-accent">{t('premium')}</span>
-          </div>
+      <div className="relative h-40 overflow-hidden">
+        {product.image_url ? (
+          <ProductImage src={product.image_url} alt={product.name} icon={product.icon} />
         ) : (
-          <span className="inline-flex items-center px-2 py-1 bg-sf-success-soft border border-sf-success/30 rounded-full text-xs font-medium text-sf-success">
-            {t('free')}
-          </span>
-        )}
-        {accessible && (
-          <div className="flex items-center px-2 py-1 bg-sf-success-soft border border-sf-success/30 rounded-full text-xs font-medium text-sf-success whitespace-nowrap">
-            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-            {t('accessible')}
+          <div className="h-full flex items-center justify-center bg-sf-float">
+            <span className="text-6xl">{product.icon || '📦'}</span>
           </div>
         )}
         {product.is_featured && (
-          <div className="flex items-center px-2 py-1 bg-sf-warning-soft border border-sf-warning/30 rounded-full text-xs font-medium text-sf-warning whitespace-nowrap">
+          <div className="absolute top-3 right-3 flex items-center px-2 py-1 bg-sf-base border border-sf-warning/30 rounded-full text-xs font-medium text-sf-warning shadow-sm">
             <svg className="w-3 h-3 text-sf-warning mr-1" fill="currentColor" viewBox="0 0 20 20">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
@@ -216,22 +227,86 @@ export default function MyProductsPage() {
         )}
       </div>
 
-      <p className="text-sf-body mb-6 min-h-[3rem] line-clamp-2">
-        {product.description}
-      </p>
-      
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-2xl font-bold text-sf-accent">
-          {formatPrice(product.price, product.currency, t('naLabel'), t('invalidPrice'))}
+      <div className="p-6 pt-4">
+        <h3 className="text-xl font-semibold text-sf-heading transition-colors group-hover:text-sf-success mb-2">
+          {product.name}
+        </h3>
+
+        <p className="text-sf-body mb-4 min-h-[3rem] line-clamp-2">
+          {product.description}
+        </p>
+
+        <div className="text-sm text-sf-muted mb-4">
+          {t('accessSince', { date: formatDate(grantedAt) })}
         </div>
+
+        <Link
+          href={`/p/${product.slug}`}
+          className="block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] bg-sf-success hover:bg-sf-success/90 text-sf-inverse"
+        >
+          {t('openProduct')}
+        </Link>
+      </div>
+    </div>
+  );
+
+  const renderAvailableProductCard = (product: Product) => (
+    <div
+      key={product.id}
+      className="group bg-sf-raised/80 backdrop-blur-md border border-sf-border rounded-2xl overflow-hidden hover:bg-sf-hover transition-all duration-300 active:scale-[0.98] relative"
+    >
+      <div className="relative h-40 overflow-hidden">
+        {product.image_url ? (
+          <ProductImage src={product.image_url} alt={product.name} icon={product.icon} />
+        ) : (
+          <div className="h-full flex items-center justify-center bg-sf-float">
+            <span className="text-6xl">{product.icon || '📦'}</span>
+          </div>
+        )}
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          {product.price > 0 ? (
+            <div className="flex items-center px-2 py-1 bg-sf-base border border-sf-border-accent rounded-full shadow-sm">
+              <svg className="w-3 h-3 text-sf-accent mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              <span className="text-xs font-medium text-sf-accent">{t('premium')}</span>
+            </div>
+          ) : (
+            <span className="inline-flex items-center px-2 py-1 bg-sf-base border border-sf-success/30 rounded-full text-xs font-medium text-sf-success shadow-sm">
+              {t('free')}
+            </span>
+          )}
+        </div>
+        {product.is_featured && (
+          <div className="absolute top-3 right-3 flex items-center px-2 py-1 bg-sf-base border border-sf-warning/30 rounded-full text-xs font-medium text-sf-warning shadow-sm">
+            <svg className="w-3 h-3 text-sf-warning mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            {t('featured')}
+          </div>
+        )}
       </div>
 
-      <Link
-        href={`/p/${product.slug}`}
-        className={`block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] ${accessible ? 'bg-sf-success hover:bg-sf-success/90 text-sf-inverse' : 'bg-sf-accent-bg hover:bg-sf-accent-hover text-white'}`}
-      >
-        {accessible ? t('launchProduct') : t('viewProduct')}
-      </Link>
+      <div className="p-6 pt-4">
+        <h3 className="text-xl font-semibold text-sf-heading transition-colors group-hover:text-sf-accent mb-2">
+          {product.name}
+        </h3>
+
+        <p className="text-sf-body mb-4 min-h-[3rem] line-clamp-2">
+          {product.description}
+        </p>
+
+        <div className="text-2xl font-bold text-sf-accent mb-4">
+          {formatPrice(product.price, product.currency, t('naLabel'), t('invalidPrice'))}
+        </div>
+
+        <Link
+          href={`/p/${product.slug}`}
+          className="block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] bg-sf-accent-bg hover:bg-sf-accent-hover text-white"
+        >
+          {t('viewDetails')}
+        </Link>
+      </div>
     </div>
   );
 
@@ -242,24 +317,30 @@ export default function MyProductsPage() {
     } : null}>
       <div className="min-h-screen bg-sf-deep text-sf-heading -mx-4 -my-6 px-4 py-6">
         {/* Header */}
-        <header className="relative pt-20 pb-16 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-sf-heading mb-6">
+        <header className="relative pt-10 pb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-sf-heading mb-3">
             <span className="text-sf-accent">
               {t('title')}
             </span>
           </h1>
-          <p className="text-xl text-sf-body max-w-3xl mx-auto">
+          <p className="text-lg text-sf-body max-w-2xl mx-auto">
             {t('subtitle')}
           </p>
         </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        {/* My Access Section */}
+        {/* My Products Section */}
         {userProducts.length > 0 && (
           <section className="mb-16">
-            <h2 className="text-3xl font-bold text-sf-heading mb-8">{t('myAccessibleProducts')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {userProducts.map((userProduct) => renderProductCard(userProduct.product, true))}
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-sf-heading">
+                {t('yourProducts')}
+                <span className="ml-2 text-base font-normal text-sf-muted">({userProducts.length})</span>
+              </h2>
+              <p className="text-sf-body mt-1">{t('yourProductsDescription')}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {userProducts.map((userProduct) => renderOwnedProductCard(userProduct.product, userProduct.granted_at))}
             </div>
           </section>
         )}
@@ -267,22 +348,28 @@ export default function MyProductsPage() {
         {/* Available Products Section */}
         {(freeProducts.length > 0 || paidProducts.length > 0) && (
           <section>
-            <h2 className="text-3xl font-bold text-sf-heading mb-8">{t('availableProducts')}</h2>
-            
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-sf-heading">
+                {t('exploreMore')}
+                <span className="ml-2 text-base font-normal text-sf-muted">({availableProducts.length})</span>
+              </h2>
+              <p className="text-sf-body mt-1">{t('exploreMoreDescription')}</p>
+            </div>
+
             {freeProducts.length > 0 && (
-              <div className="mb-12">
-                <h3 className="text-2xl font-semibold text-sf-success mb-6">{t('freeResources')}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {freeProducts.map((product) => renderProductCard(product, false))}
+              <div className="mb-10">
+                <h3 className="text-lg font-semibold text-sf-success mb-4">{t('freeResources')}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {freeProducts.map((product) => renderAvailableProductCard(product))}
                 </div>
               </div>
             )}
 
             {paidProducts.length > 0 && (
               <div>
-                <h3 className="text-2xl font-semibold text-sf-accent mb-6">{t('premiumSolutions')}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {paidProducts.map((product) => renderProductCard(product, false))}
+                <h3 className="text-lg font-semibold text-sf-accent mb-4">{t('premiumSolutions')}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {paidProducts.map((product) => renderAvailableProductCard(product))}
                 </div>
               </div>
             )}
