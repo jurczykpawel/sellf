@@ -637,8 +637,8 @@ test.describe('Variant Selector - PWYW, Icon and Branding', () => {
   });
 
   test('should display minimum price for PWYW product', async ({ page }) => {
-    // "od $9.00 USD" or "from $9.00 USD"
-    await expect(page.getByText(/od \$9|from \$9/i)).toBeVisible();
+    // Rendered as "min. $9.00" (translation key: minimumFrom = "min. {price}")
+    await expect(page.getByText(/min\. \$9/i)).toBeVisible();
   });
 
   test('should NOT display PWYW badge for fixed-price products', async ({ page }) => {

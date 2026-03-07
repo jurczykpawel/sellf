@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import LoginForm from '@/components/LoginForm'
-import FloatingLanguageSwitcher from '@/components/FloatingLanguageSwitcher'
-import ThemeToggleButton from '@/components/ThemeToggleButton'
+import SiteMenu from '@/components/SiteMenu'
 import { useConfig } from '@/components/providers/config-provider'
 
 export default function LoginPage() {
@@ -84,11 +83,7 @@ export default function LoginPage() {
         }
       `}</style>
       
-      {/* Floating: language + theme (no auth link — we're already on login) */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-        <ThemeToggleButton size="sm" />
-        <FloatingLanguageSwitcher mode="static" variant="compact" />
-      </div>
+      <SiteMenu mode="floating" position="top-right" />
       
       <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
       
