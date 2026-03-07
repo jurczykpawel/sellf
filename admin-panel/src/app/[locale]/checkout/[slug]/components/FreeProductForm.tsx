@@ -175,7 +175,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
     try {
       const supabase = await createClient();
       
-      const authRedirectPath = `/auth/product-access?product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+      const authRedirectPath = `/auth/product-access?product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
       const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
       
       const { error } = await supabase.auth.signInWithOtp({
@@ -225,9 +225,13 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
       setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
       return;
     }
-    const authRedirectPath = `/auth/product-access?product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
-    const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
-    await signInWithOAuth(provider, redirectUrl);
+    const authRedirectPath = `/auth/product-access?product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+    // Store redirect path in a short-lived cookie instead of embedding it as a query param
+    // in the OAuth redirectTo URL. Supabase validates redirectTo against the allowlist and
+    // does not allow arbitrary query params — only the exact registered URL passes.
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `sf_oauth_redirect=${encodeURIComponent(authRedirectPath)}; path=/; max-age=300; SameSite=Lax${secure}`;
+    await signInWithOAuth(provider, `${window.location.origin}/auth/callback`);
   };
 
   const renderProductInfo = () => (

@@ -27,7 +27,9 @@ export default function LoginPage() {
     const error = searchParams.get('error')
     const message = searchParams.get('message')
     
-    if (error === 'disposable_email') {
+    if (error === 'oauth_failed') {
+      setErrorMessage(t('auth.oauthFailed'))
+    } else if (error === 'disposable_email') {
       setErrorMessage(t('auth.disposableEmailBlocked'))
     } else if (message === 'payment_completed_login_required') {
       setSuccessMessage(t('auth.paymentCompletedLoginRequired'))

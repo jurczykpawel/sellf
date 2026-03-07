@@ -547,6 +547,7 @@
     "openEmailProvider": "Otwórz {provider}",
     "backToLogin": "Powrót do logowania",
     "title": "Sellf Admin",
+    "oauthFailed": "Logowanie przez serwis zewnętrzny nie powiodło się lub zostało anulowane. Spróbuj ponownie lub użyj magic linka.",
     "disposableEmailBlocked": "Rejestracja zablokowana: Tymczasowe adresy email nie są dozwolone. Użyj stałego adresu email.",
     "emailValidationFailed": "Weryfikacja email nie powiodła się. Spróbuj ponownie.",
     "emailPlaceholder": "twoj@email.com",
@@ -1147,7 +1148,7 @@
         "noDataTitle": "Brak danych o przychodach",
         "noDataDaily": "Gdy zaczniesz sprzedawać, tutaj pojawi się trend przychodów.",
         "noDataHourly": "Brak sprzedaży zarejestrowanej dzisiaj.",
-        "tooltipHourly": "Dziś, {hour}:00\u2013{hourEnd}:59"
+        "tooltipHourly": "Dziś, {hour}:00–{hourEnd}:59"
       },
       "recentActivity": {
         "title": "Ostatnia aktywność",

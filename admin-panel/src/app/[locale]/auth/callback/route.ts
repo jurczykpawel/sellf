@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Session, AuthError } from '@supabase/supabase-js'
 import { DisposableEmailService } from '@/lib/services/disposable-email'
+import { isSafeRedirectUrl } from '@/lib/validations/redirect'
 
 /**
  * Auth callback handler for Supabase magic links
@@ -38,6 +39,14 @@ export async function GET(request: NextRequest) {
   }
   
   const origin = getOrigin()
+
+  // OAuth provider returned an error (e.g. user denied access, token expired)
+  const oauthError = requestUrl.searchParams.get('error')
+  if (oauthError) {
+    const loginUrl = new URL('/login', origin)
+    loginUrl.searchParams.set('error', 'oauth_failed')
+    return NextResponse.redirect(loginUrl)
+  }
 
   // Check if we have code or token_hash parameter
   if (!code && !tokenHash) {
@@ -127,47 +136,67 @@ export async function GET(request: NextRequest) {
       // Decode the redirect URL to handle encoded parameters
       const decodedRedirectTo = decodeURIComponent(redirectTo)
 
-      // SECURITY: Check if it's a safe relative path (starts with / but not //)
-      // Paths like "//evil.com" would redirect to external domains in some browsers
-      if (decodedRedirectTo.startsWith('/') && !decodedRedirectTo.startsWith('//')) {
-        redirectPath = decodedRedirectTo
-      } else if (!decodedRedirectTo.startsWith('/')) {
-        // If it's a full URL, validate it's on our domain
-        const redirectToUrl = new URL(decodedRedirectTo)
-        if (redirectToUrl.origin === origin) {
+      // SECURITY: use isSafeRedirectUrl — handles backslash normalization (/\evil.com → //)
+      // and blocks protocol-relative URLs (//evil.com)
+      if (isSafeRedirectUrl(decodedRedirectTo, origin)) {
+        if (decodedRedirectTo.startsWith('/')) {
+          redirectPath = decodedRedirectTo
+        } else {
+          // Absolute same-origin URL — extract just the path
+          const redirectToUrl = new URL(decodedRedirectTo)
           redirectPath = redirectToUrl.pathname + redirectToUrl.search
         }
       }
-      // If path starts with //, ignore it (potential open redirect attack)
     } catch {
       // Silent error handling - if decoding fails, fallback to default
     }
   } else {
-    // No custom redirect, check user role to determine default redirect
-    try {
-      const { data: isAdmin } = await supabase.rpc('is_admin')
-      
-      if (isAdmin) {
-        redirectPath = '/dashboard' // Admins go to dashboard
-      } else {
-        redirectPath = '/my-products' // Regular users go to their products
+    // No URL-based redirect_to — check for OAuth redirect cookie set by FreeProductForm.
+    // This avoids embedding the redirect path as a query param in the OAuth redirectTo URL,
+    // which would require registering every possible URL variant in the Supabase allowlist.
+    const oauthRedirectCookie = request.cookies.get('sf_oauth_redirect')?.value
+    if (oauthRedirectCookie && code) {
+      try {
+        const decoded = decodeURIComponent(oauthRedirectCookie)
+        // SECURITY: same validation as redirect_to — blocks backslash tricks and //evil.com
+        if (isSafeRedirectUrl(decoded, origin) && decoded.startsWith('/')) {
+          redirectPath = decoded
+        }
+      } catch {
+        // Invalid cookie value — fall through to role-based default
       }
-    } catch {
-      // If we can't determine admin status, send to user page as safer default
-      redirectPath = '/my-products'
+    } else {
+      // No custom redirect, check user role to determine default redirect
+      try {
+        const { data: isAdmin } = await supabase.rpc('is_admin')
+
+        if (isAdmin) {
+          redirectPath = '/dashboard' // Admins go to dashboard
+        } else {
+          redirectPath = '/my-products' // Regular users go to their products
+        }
+      } catch {
+        // If we can't determine admin status, send to user page as safer default
+        redirectPath = '/my-products'
+      }
     }
   }
-  
+
   // Use the correct origin for redirects
   const redirectUrl = new URL(redirectPath, origin)
-  
+
   // Create redirect response and transfer auth cookies
   const redirectResponse = NextResponse.redirect(redirectUrl)
-  
+
   // Transfer cookies from the temp response to the redirect response
   tempResponse.cookies.getAll().forEach(cookie => {
     redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
   })
-  
+
+  // Clear the OAuth redirect cookie if it was used
+  if (request.cookies.get('sf_oauth_redirect')) {
+    redirectResponse.cookies.set('sf_oauth_redirect', '', { path: '/', maxAge: 0 })
+  }
+
   return redirectResponse
 }

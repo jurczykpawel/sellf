@@ -532,6 +532,7 @@
     "openEmailProvider": "Open {provider}",
     "backToLogin": "Back to Login",
     "title": "Sellf Admin",
+    "oauthFailed": "Social login failed or was cancelled. Please try again or use a magic link.",
     "disposableEmailBlocked": "Registration blocked: Disposable email addresses are not allowed. Please use a permanent email address.",
     "emailValidationFailed": "Email validation failed. Please try again.",
     "emailPlaceholder": "your@email.com",
@@ -1142,7 +1143,7 @@
         "noDataTitle": "No Revenue Data Yet",
         "noDataDaily": "Once you start making sales, your revenue trend will appear here.",
         "noDataHourly": "No sales recorded today yet.",
-        "tooltipHourly": "Today, {hour}:00\u2013{hourEnd}:59"
+        "tooltipHourly": "Today, {hour}:00–{hourEnd}:59"
       },
       "showValues": "Show values",
       "hideValues": "Hide values",

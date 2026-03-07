@@ -88,6 +88,10 @@ export function OAuthIconButtons({ providers, onSignIn, disabled }: OAuthIconBut
   )
 }
 
+/**
+ * Low-level OAuth helper. Callers are responsible for checking terms acceptance
+ * before invoking — this function has no built-in compliance guard.
+ */
 export async function signInWithOAuth(provider: OAuthProvider, redirectTo: string) {
   const supabase = await createClient()
   await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
