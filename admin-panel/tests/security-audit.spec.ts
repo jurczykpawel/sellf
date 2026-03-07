@@ -136,11 +136,8 @@ test.describe('Security - Open Redirect Prevention', () => {
     // Route decodes redirect_to and validates it
     expect(callbackSource).toContain("decodeURIComponent(redirectTo)");
 
-    // SECURITY: blocks protocol-relative URLs (//evil.com)
-    expect(callbackSource).toContain("!decodedRedirectTo.startsWith('//')");
-
-    // SECURITY: blocks absolute URLs not on our domain
-    expect(callbackSource).toContain("redirectToUrl.origin === origin");
+    // SECURITY: isSafeRedirectUrl handles backslash normalization and //evil.com blocking
+    expect(callbackSource).toContain("isSafeRedirectUrl");
 
     // Safe paths must start with /
     expect(callbackSource).toContain("decodedRedirectTo.startsWith('/')");
