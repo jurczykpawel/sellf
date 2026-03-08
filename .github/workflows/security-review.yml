@@ -1,0 +1,45 @@
+name: Security Review
+
+# Runs automated security review on every PR via Claude Code.
+# Posts inline comments with detected vulnerabilities directly on the PR.
+#
+# Setup:
+#   1. Add CLAUDE_API_KEY secret in GitHub repo settings → Secrets and variables → Actions
+#   2. Get the key from: https://console.anthropic.com/
+#
+# Note: Only runs on PRs from trusted contributors (not external forks) to prevent prompt injection.
+# For external PRs, manually trigger via workflow_dispatch after code review.
+
+on:
+  pull_request:
+    branches: [main]
+    # Only run on PRs that touch source code (skip docs-only changes)
+    paths:
+      - 'admin-panel/src/**'
+      - 'admin-panel/tests/**'
+      - 'supabase/migrations/**'
+      - 'sellf.js'
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  security:
+    name: Claude Security Review
+    runs-on: ubuntu-latest
+    # Skip for Dependabot PRs (they touch deps only, not src)
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - uses: anthropics/claude-code-security-review@main
+        with:
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          comment-pr: true
+          upload-results: true
+          exclude-directories: 'node_modules,.next,coverage'
+          custom-security-scan-instructions: '.github/security-scan-instructions.md'
