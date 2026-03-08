@@ -14,6 +14,12 @@
 
 set -euo pipefail
 
+# Ensure PM2 can locate its socket regardless of how this script was spawned.
+# When called from Node.js (detached child_process), $HOME may be unset or
+# wrong, causing PM2 to use /etc/.pm2 instead of /root/.pm2.
+export HOME="${HOME:-/root}"
+export PM2_HOME="${PM2_HOME:-${HOME}/.pm2}"
+
 # ===== ARGUMENTS =====
 TOKEN="${1:?Usage: upgrade.sh <TOKEN> [INSTALL_DIR]}"
 INSTALL_DIR="${2:-}"
