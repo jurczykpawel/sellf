@@ -14,6 +14,7 @@ import OmnibusSettings from './OmnibusSettings'
 import LicenseSettings from './LicenseSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
+import { useConfig } from '@/components/providers/config-provider'
 
 type TabId = 'shop' | 'payments' | 'legal' | 'system'
 
@@ -27,6 +28,7 @@ const TABS = [
 export default function SettingsTabs({ siteUrl }: { siteUrl: string }) {
   const t = useTranslations('settings')
   const [active, setActive] = useState<TabId>('shop')
+  const { demoMode } = useConfig()
 
   return (
     <div>
@@ -79,7 +81,7 @@ export default function SettingsTabs({ siteUrl }: { siteUrl: string }) {
           <>
             <LicenseSettings />
             <SystemUpdateSettings />
-            <SecurityAuditSettings />
+            {!demoMode && <SecurityAuditSettings />}
           </>
         )}
       </div>
