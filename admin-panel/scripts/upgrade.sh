@@ -111,26 +111,12 @@ log "Install dir: $INSTALL_DIR"
 
 PM2_NAME="${PM2_NAME:-}"
 if [ -z "$PM2_NAME" ]; then
-  # Pass INSTALL_DIR via environment variable to avoid shell injection in Python
-  PM2_NAME=$(SELLF_INSTALL_DIR="$INSTALL_DIR" pm2 jlist 2>/dev/null | python3 -c "
-import sys, json, os
-try:
-    install_dir = os.environ.get('SELLF_INSTALL_DIR', '')
-    procs = json.load(sys.stdin)
-    # CWD match: collect all candidates, then prefer online over stopped
-    cwd_matches = [p for p in procs if install_dir and install_dir in p.get('pm2_env', {}).get('pm_cwd', '')]
-    if cwd_matches:
-        online = [p for p in cwd_matches if p.get('pm2_env', {}).get('status') == 'online']
-        print((online or cwd_matches)[0]['name'])
-        sys.exit(0)
-    # Fallback: name match, prefer online
-    name_matches = [p for p in procs if 'sellf' in p.get('name', '').lower()]
-    if name_matches:
-        online = [p for p in name_matches if p.get('pm2_env', {}).get('status') == 'online']
-        print((online or name_matches)[0]['name'])
-        sys.exit(0)
-except: pass
-" 2>/dev/null || true)
+  # Primary: PM2 name matches the install directory basename by convention.
+  # e.g. /opt/stacks/sellf-tsa → sellf-tsa, /opt/stacks/sellf-test → sellf-test
+  BASENAME_NAME=$(basename "$INSTALL_DIR")
+  if pm2 describe "$BASENAME_NAME" &>/dev/null; then
+    PM2_NAME="$BASENAME_NAME"
+  fi
 fi
 
 if [ -z "$PM2_NAME" ]; then
