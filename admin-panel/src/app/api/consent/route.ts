@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     // Origin validation: only accept requests from our own site (prevents cross-origin DB noise)
     const origin = request.headers.get('origin');
     const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-    if (origin && siteUrl && !siteUrl.startsWith(origin)) {
+    if (origin && siteUrl && origin !== new URL(siteUrl).origin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
