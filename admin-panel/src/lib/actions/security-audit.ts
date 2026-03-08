@@ -16,6 +16,7 @@ export interface SecurityCheckResult {
   status: 'pass' | 'warn' | 'fail';
   message: string;
   fix?: string;
+  steps?: string[];
 }
 
 export interface SecurityAuditResult {
@@ -138,6 +139,13 @@ async function checkGraphQLIntrospection(url: string, key: string): Promise<Secu
       fix: exposed
         ? 'Block /graphql/v1 in your reverse proxy (nginx/Cloudflare), or disable introspection in Supabase dashboard under API settings.'
         : undefined,
+      steps: exposed ? [
+        'Log into Cloudflare Dashboard (dash.cloudflare.com) and select your domain.',
+        'Go to Security → WAF → Custom rules.',
+        'Create a rule: URI Path equals "/graphql/v1" → Block.',
+        'Alternatively, in your nginx config: location /graphql/v1 { deny all; }',
+        'Verify by running the audit again — status should change to PASS.',
+      ] : undefined,
     };
   } catch {
     return { id: 'graphql-introspection', name: 'GraphQL introspection', status: 'pass', message: 'GraphQL endpoint not reachable (likely blocked).' };
@@ -164,6 +172,12 @@ async function checkMCPEndpoint(url: string, key: string): Promise<SecurityCheck
       fix: accessible
         ? 'Block /mcp in your reverse proxy. In production Supabase, this is disabled by default.'
         : undefined,
+      steps: accessible ? [
+        'In Cloudflare Dashboard: Security → WAF → Custom rules.',
+        'Create a rule: URI Path equals "/mcp" → Block.',
+        'In nginx: location /mcp { deny all; }',
+        'Note: on Supabase Cloud this endpoint is disabled by default — only affects self-hosted Supabase.',
+      ] : undefined,
     };
   } catch {
     return { id: 'mcp-endpoint', name: 'MCP endpoint', status: 'pass', message: 'MCP endpoint not reachable.' };
@@ -191,6 +205,19 @@ async function checkServerHeaders(url: string, key: string): Promise<SecurityChe
       fix: exposed
         ? 'Configure your reverse proxy (nginx/Cloudflare) to strip Server and Via headers: proxy_hide_header Server; proxy_hide_header Via;'
         : undefined,
+      steps: exposed ? (
+        (server || '').includes('cloudflare') ? [
+          'Note: "Server: cloudflare" means your backend is already hidden behind Cloudflare — good.',
+          'To remove the Cloudflare header too: go to Cloudflare Dashboard → your domain → Rules → Transform Rules.',
+          'Click "Create transform rule" → "Modify response header".',
+          'Add action: Remove header named "Server". Save and deploy.',
+          'This is low-priority — the header only reveals you use Cloudflare, not your backend.',
+        ] : [
+          'In nginx config, add to your server block: proxy_hide_header Server; and proxy_hide_header Via;',
+          'Reload nginx: sudo nginx -s reload',
+          'In Cloudflare: Rules → Transform Rules → Modify response header → Remove "Server" and "Via".',
+        ]
+      ) : undefined,
     };
   } catch {
     return { id: 'version-headers', name: 'Server version headers', status: 'pass', message: 'Could not check headers.' };
@@ -216,6 +243,13 @@ async function checkEmailAutoconfirm(url: string, key: string): Promise<Security
       fix: autoconfirm
         ? 'In supabase/config.toml set [auth] enable_confirmations = true. In Supabase dashboard: Authentication > Settings > Enable email confirmations.'
         : undefined,
+      steps: autoconfirm ? [
+        'Log into your Supabase dashboard (supabase.com/dashboard).',
+        'Select your project → Authentication → Settings.',
+        'Find "Email confirmations" and toggle it ON.',
+        'Save changes.',
+        'For self-hosted: in supabase/config.toml, set [auth] enable_confirmations = true, then run: npx supabase db push',
+      ] : undefined,
     };
   } catch {
     return { id: 'email-autoconfirm', name: 'Email confirmation', status: 'pass', message: 'Could not check auth settings.' };
@@ -240,6 +274,12 @@ async function checkProductCountLeak(url: string, key: string): Promise<Security
       fix: leaks
         ? 'Configure PostgREST max-rows or use a reverse proxy to strip the Prefer header from incoming requests.'
         : undefined,
+      steps: leaks ? [
+        'This is low-risk (count leak, not data leak). Fix only if you want to minimize information exposure.',
+        'In Cloudflare: Rules → Transform Rules → Modify request header → Remove "Prefer" header.',
+        'Or in nginx: proxy_set_header Prefer "";',
+        'Note: this disables counting in Supabase API responses globally — check if any part of your app uses it.',
+      ] : undefined,
     };
   } catch {
     return { id: 'count-header-leak', name: 'Row count via Prefer header', status: 'pass', message: 'Could not check.' };
@@ -266,6 +306,12 @@ async function checkRPCFunctionHints(url: string, key: string): Promise<Security
       fix: hasHint
         ? 'Set db-plan-enabled = false in PostgREST config, or restrict the exposed schema search path.'
         : undefined,
+      steps: hasHint ? [
+        'In Supabase Cloud this cannot be directly configured — contact support or use a WAF rule.',
+        'In Cloudflare WAF: block or sanitize responses that contain "Perhaps you meant" in the body.',
+        'For self-hosted PostgREST: in postgrest.conf set db-plan-enabled = false.',
+        'This is low-risk — only affects naming hints, not data access.',
+      ] : undefined,
     };
   } catch {
     return { id: 'rpc-function-hints', name: 'RPC function name hints', status: 'pass', message: 'Could not check.' };
@@ -293,6 +339,11 @@ async function checkHttpsRedirect(siteUrl: string): Promise<SecurityCheckResult>
         : `HTTP requests are not redirected to HTTPS (HTTP ${res.status}). Users accessing via HTTP get unencrypted content.`,
       fix: redirectsToHttps ? undefined
         : 'Enable "Always Use HTTPS" in Cloudflare: SSL/TLS > Edge Certificates. Or configure your reverse proxy to redirect HTTP to HTTPS.',
+      steps: redirectsToHttps ? undefined : [
+        'In Cloudflare Dashboard: select your domain → SSL/TLS → Edge Certificates.',
+        'Enable "Always Use HTTPS" toggle.',
+        'Without Cloudflare: add to nginx: return 301 https://$host$request_uri; in the HTTP server block.',
+      ],
     };
   } catch {
     return { id: 'https-redirect', name: 'HTTPS redirect', status: 'pass', message: 'HTTP not reachable (likely blocked — good).' };
@@ -316,6 +367,14 @@ async function checkHstsHeader(siteUrl: string): Promise<SecurityCheckResult> {
         : 'Strict-Transport-Security header is missing. First-time visitors can be intercepted via HTTP before redirect.',
       fix: hsts ? undefined
         : 'Enable HSTS in Cloudflare: SSL/TLS > Edge Certificates > Enable HSTS. Or ensure DISABLE_HSTS is not set to "true" in your environment.',
+      steps: hsts ? undefined : [
+        'In Cloudflare Dashboard: select your domain → SSL/TLS → Edge Certificates.',
+        'Scroll to "HTTP Strict Transport Security (HSTS)" and click "Enable HSTS".',
+        'Set max-age to at least 6 months (recommended: 1 year = 31536000 seconds).',
+        'Optionally enable "Include subdomains" and "Preload".',
+        'Click "Save". HSTS takes effect immediately for new visitors.',
+        'Without Cloudflare: add to nginx: add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;',
+      ],
     };
   } catch {
     return { id: 'hsts', name: 'HSTS header', status: 'warn', message: 'Could not reach site to check HSTS.' };
@@ -352,6 +411,14 @@ async function checkAllowedOrigins(): Promise<SecurityCheckResult> {
       : 'ALLOWED_ORIGINS is not set. Cross-domain API access (/api/access) is limited to your own domain. If you embed Sellf on external sites, add their origins.',
     fix: hasOrigins ? undefined
       : 'If you use Sellf cross-domain (sellf.js on external sites), set ALLOWED_ORIGINS in .env.local to a comma-separated list of customer domains: ALLOWED_ORIGINS=https://site1.com,https://site2.com',
+    steps: hasOrigins ? undefined : [
+      'First, decide: do you embed sellf.js on any external domains (outside your Sellf domain)?',
+      'If NO — you can safely ignore this warning. CORS is not needed for single-domain use.',
+      'If YES — identify all external domains where sellf.js is embedded (e.g., https://yourshop.com).',
+      'SSH into your server and edit: /opt/stacks/sellf-tsa/admin-panel/.env.local',
+      'Add: ALLOWED_ORIGINS=https://yourshop.com,https://another-site.com',
+      'Restart: pm2 restart sellf-tsa',
+    ],
   };
 }
 
@@ -441,6 +508,16 @@ async function checkCronSecret(): Promise<SecurityCheckResult> {
       status: 'warn',
       message: 'CRON_SECRET is not set. All requests to /api/cron are rejected, so scheduled jobs (access-expired webhooks, webhook log cleanup) are not running.',
       fix: 'Generate a secret with: openssl rand -base64 32, add CRON_SECRET=<value> to .env.local, restart the app, and configure your cron scheduler to call /api/cron with Authorization: Bearer <secret>.',
+      steps: [
+        'Generate a random secret — run in terminal: openssl rand -base64 32',
+        'Copy the output (e.g., "abc123..."). Keep it safe.',
+        'SSH into your server: ssh mikrus',
+        'Edit: nano /opt/stacks/sellf-tsa/admin-panel/.env.local',
+        'Add a new line: CRON_SECRET=<paste-your-secret-here>',
+        'Restart: pm2 restart sellf-tsa',
+        'Set up an hourly cron job — option A: free service at cron-job.org, URL: https://yourdomain.com/api/cron, method: GET, header: Authorization: Bearer <your-secret>',
+        'Option B: on your server — crontab -e → add: 0 * * * * curl -s -H "Authorization: Bearer <secret>" https://yourdomain.com/api/cron',
+      ],
     };
   }
 
@@ -471,6 +548,16 @@ async function checkStripeWebhookSecret(): Promise<SecurityCheckResult> {
     status: 'warn',
     message: 'STRIPE_WEBHOOK_SECRET is not set in environment variables. The app uses the encrypted value from the database (Settings → Integrations) as the primary source. If neither is configured, Stripe webhooks will fail signature verification and purchases will not be confirmed.',
     fix: 'Configure the webhook secret in Settings → Integrations → Stripe (preferred), or set STRIPE_WEBHOOK_SECRET in .env.local as a fallback. Ensure APP_ENCRYPTION_KEY is valid for DB-stored secrets to work.',
+    steps: [
+      'Preferred method (stored encrypted in database):',
+      '1. Go to Stripe Dashboard → Developers → Webhooks → select your endpoint.',
+      '2. Copy the "Signing secret" (starts with whsec_...).',
+      '3. In Sellf admin panel: Settings → Integrations → Stripe → paste the webhook secret and save.',
+      'Alternative (environment variable):',
+      '4. SSH into your server and edit .env.local.',
+      '5. Add: STRIPE_WEBHOOK_SECRET=whsec_... and restart: pm2 restart sellf-tsa',
+      'Make sure APP_ENCRYPTION_KEY is set — it is required to decrypt the DB-stored secret.',
+    ],
   };
 }
 
@@ -498,6 +585,12 @@ async function checkCookieSecure(siteUrl: string): Promise<SecurityCheckResult> 
         : `${insecureCookies.length} of ${setCookies.length} cookies are missing the Secure flag. These cookies will be sent over unencrypted HTTP connections.`,
       fix: allSecure ? undefined
         : 'Ensure all cookies are set with the Secure flag. For NEXT_LOCALE, this requires next-intl configuration. For auth cookies, check Supabase cookie settings.',
+      steps: allSecure ? undefined : [
+        'The NEXT_LOCALE cookie (from next-intl) is typically the cause — it lacks the Secure flag by default.',
+        'If your site enforces HTTPS everywhere (recommended), this is low-risk in practice.',
+        'To fix: in your Next.js middleware, manually override the NEXT_LOCALE cookie with the Secure flag after next-intl sets it.',
+        'Auth cookies from Supabase use HttpOnly + Secure in production by default — verify in browser DevTools → Application → Cookies.',
+      ],
     };
   } catch {
     return { id: 'cookie-secure', name: 'Cookie security', status: 'warn', message: 'Could not reach site to check cookies.' };
