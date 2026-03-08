@@ -3261,7 +3261,8 @@
       "checking": "Checking...",
       "upToDate": "You are running the latest version.",
       "updateAvailable": "Version {version} is available.",
-      "upgradeNow": "Upgrade now"
+      "upgradeNow": "Upgrade now",
+      "reinstall": "Reinstall"
     }
   },
   "securityAudit": {

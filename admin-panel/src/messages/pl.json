@@ -3276,7 +3276,8 @@
       "checking": "Sprawdzanie...",
       "upToDate": "Posiadasz najnowszą wersję.",
       "updateAvailable": "Dostępna wersja {version}.",
-      "upgradeNow": "Aktualizuj teraz"
+      "upgradeNow": "Aktualizuj teraz",
+      "reinstall": "Przeinstaluj"
     }
   },
   "securityAudit": {
