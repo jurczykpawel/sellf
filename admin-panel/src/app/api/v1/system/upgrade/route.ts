@@ -27,7 +27,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { existsSync, openSync, closeSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, basename } from 'path';
 
 /**
  * Resolve upgrade script path dynamically based on process.cwd().
@@ -77,16 +77,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check lock file
-    if (existsSync('/tmp/sellf-upgrade.lock')) {
-      return jsonResponse(
-        { error: { code: 'CONFLICT', message: 'An upgrade is already in progress.' } },
-        request,
-        409
-      );
-    }
-
-    // Find upgrade script
+    // Find upgrade script first (needed to derive instance name for lock check)
     const scriptPath = findUpgradeScript();
 
     if (!scriptPath) {
@@ -128,6 +119,19 @@ export async function POST(request: NextRequest) {
       ? resolve(cwd, '..', '..', '..')
       : null;
 
+    // Check per-instance lock file (keyed on stack dir basename, not global).
+    // installDir = /opt/stacks/sellf-tsa/admin-panel → parent = sellf-tsa
+    // This matches the lock key used by upgrade.sh.
+    const instanceName = installDir ? basename(resolve(installDir, '..')) : 'unknown';
+    const instanceLockFile = `/tmp/sellf-upgrade-${instanceName}.lock`;
+    if (existsSync(instanceLockFile)) {
+      return jsonResponse(
+        { error: { code: 'CONFLICT', message: 'An upgrade is already in progress.' } },
+        request,
+        409
+      );
+    }
+
     // Create log file with restricted permissions before launching.
     // upgrade.sh writes to it via its own log() function using >>.
     const logFile = `/tmp/sellf-upgrade-${token}.log`;
@@ -146,6 +150,12 @@ export async function POST(request: NextRequest) {
       `--unit=sellf-upgrade-${token}`,
       '--collect',   // auto-remove unit after exit
       '--no-block',  // return immediately, don't wait for completion
+      // systemd-run creates a clean environment without $HOME. Pass it
+      // explicitly so PM2 resolves the correct ~/.pm2 daemon socket instead
+      // of defaulting to /etc/.pm2 (which doesn't exist and causes
+      // pm2 stop/start to silently target a different daemon).
+      '--setenv=HOME=/root',
+      '--setenv=PM2_HOME=/root/.pm2',
       '--',
       'bash', ...scriptArgs,
     ];

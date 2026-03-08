@@ -14,6 +14,11 @@
 
 set -euo pipefail
 
+# Force bash to read the entire script into memory before executing.
+# Without this, the self-update step (cp new upgrade.sh over the running one)
+# corrupts bash's read offset, causing "command not found" errors mid-run.
+main() {
+
 # Ensure PM2 can locate its socket regardless of how this script was spawned.
 # When called from Node.js (detached child_process), $HOME may be unset or
 # wrong, causing PM2 to use /etc/.pm2 instead of /root/.pm2.
@@ -100,10 +105,12 @@ fi
 log "Install dir: $INSTALL_DIR"
 
 # ===== LOCK (per-instance, atomic via flock) =====
-# Lock is keyed on install dir basename so concurrent upgrades of different
-# instances are allowed, but two upgrades of the same instance are blocked.
+# Lock is keyed on the stack name (parent of admin-panel dir) so concurrent
+# upgrades of different instances are allowed (sellf-tsa vs sellf-demo),
+# but two upgrades of the same instance are blocked.
+# INSTALL_DIR = /opt/stacks/sellf-tsa/admin-panel → parent = sellf-tsa
 
-INSTANCE_NAME=$(basename "$INSTALL_DIR")
+INSTANCE_NAME=$(basename "$(dirname "$INSTALL_DIR")")
 LOCK_FILE="/tmp/sellf-upgrade-${INSTANCE_NAME}.lock"
 
 cleanup_lock() {
@@ -121,9 +128,9 @@ fi
 
 PM2_NAME="${PM2_NAME:-}"
 if [ -z "$PM2_NAME" ]; then
-  # Primary: PM2 name matches the install directory basename by convention.
-  # e.g. /opt/stacks/sellf-tsa → sellf-tsa, /opt/stacks/sellf-test → sellf-test
-  BASENAME_NAME=$(basename "$INSTALL_DIR")
+  # Primary: PM2 name matches the stack dir basename by convention.
+  # e.g. /opt/stacks/sellf-tsa/admin-panel → parent = sellf-tsa → PM2 name = sellf-tsa
+  BASENAME_NAME=$(basename "$(dirname "$INSTALL_DIR")")
   if pm2 describe "$BASENAME_NAME" &>/dev/null; then
     PM2_NAME="$BASENAME_NAME"
   fi
@@ -296,10 +303,10 @@ if [ -d "$STANDALONE_DIR" ] && [ -f "$INSTALL_DIR/.env.local" ]; then
   cp "$INSTALL_DIR/.env.local" "$STANDALONE_DIR/.env.local"
 fi
 
-# Link static assets into standalone dir (Next.js standalone does not copy them automatically)
-STANDALONE_STATIC="$STANDALONE_DIR/.next/static"
-if [ -d "$INSTALL_DIR/.next/static" ] && [ ! -e "$STANDALONE_STATIC" ]; then
-  ln -s "$INSTALL_DIR/.next/static" "$STANDALONE_STATIC" 2>/dev/null || true
+# Link static assets and public into standalone dir (Next.js standalone does not copy them)
+if [ -d "$STANDALONE_DIR" ]; then
+  [ -d "$INSTALL_DIR/.next/static" ] && ln -sfn "$INSTALL_DIR/.next/static" "$STANDALONE_DIR/.next/static" 2>/dev/null || true
+  [ -d "$INSTALL_DIR/public" ]       && ln -sfn "$INSTALL_DIR/public"       "$STANDALONE_DIR/public"       2>/dev/null || true
 fi
 
 log "Files swapped"
@@ -467,3 +474,6 @@ fi
 
 rm -rf "$TMP_DIR"
 log "Temp files cleaned up. Backup preserved at $BACKUP_DIR"
+
+}
+main "$@"

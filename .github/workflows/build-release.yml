@@ -169,15 +169,6 @@ jobs:
           cd ../release
           tar -czvf ../sellf-build.tar.gz .
 
-      - name: Get version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Upload artifact to release
         if: github.event_name == 'release'
         run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz --clobber

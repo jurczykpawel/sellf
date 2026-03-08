@@ -142,12 +142,16 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
 
     let healthPollCount = 0;
     let switchedToHealthPoll = false;
+    let consecutiveErrors = 0;
 
     pollRef.current = setInterval(async () => {
       try {
         if (!switchedToHealthPoll) {
-          const response = await fetch(`/api/v1/system/upgrade-status?token=${token}`);
+          const response = await fetch(`/api/v1/system/upgrade-status?token=${token}`, {
+            signal: AbortSignal.timeout(5000),
+          });
           if (response.ok) {
+            consecutiveErrors = 0;
             const json = await response.json();
             const progress: UpgradeProgress = json.data;
             setUpgradeProgress(progress);
@@ -155,9 +159,9 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
             if (progress.step === 'done') {
               if (pollRef.current) clearInterval(pollRef.current);
               setUpgradeInProgress(false);
-              // Clear update cache so it re-checks with new version
               localStorage.removeItem(STORAGE_KEY);
               localStorage.removeItem(DISMISSED_KEY);
+              setTimeout(() => window.location.reload(), 3000);
               return;
             }
 
@@ -167,11 +171,23 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
               return;
             }
 
-            // When server restarts, switch to health polling
             if (progress.step === 'restarting') {
               switchedToHealthPoll = true;
             }
+          } else {
+            consecutiveErrors++;
           }
+        }
+
+        // Switch to health polling when server is explicitly restarting,
+        // OR when 3+ consecutive network errors (server went down during upgrade)
+        if (!switchedToHealthPoll && consecutiveErrors >= 3) {
+          switchedToHealthPoll = true;
+          setUpgradeProgress({
+            step: 'restarting',
+            progress: 90,
+            message: 'Server is restarting...',
+          });
         }
 
         if (switchedToHealthPoll) {
@@ -189,6 +205,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
               setUpgradeInProgress(false);
               localStorage.removeItem(STORAGE_KEY);
               localStorage.removeItem(DISMISSED_KEY);
+              setTimeout(() => window.location.reload(), 3000);
               return;
             }
           } catch {
@@ -206,7 +223,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
           }
         }
       } catch {
-        // Network error during restart — expected, keep polling
+        consecutiveErrors++;
       }
     }, 3000);
   }, []);

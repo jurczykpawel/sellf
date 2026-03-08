@@ -4,8 +4,10 @@
  * @see /api/admin/system/update-check
  */
 
-/** Current app version from build-time env */
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || 'unknown';
+import pkg from '../../package.json';
+
+/** Current app version — read from package.json at build time (single source of truth). */
+export const APP_VERSION: string = pkg.version;
 
 /**
  * Compare two semver strings. Returns true if `latest` is newer than `current`.
