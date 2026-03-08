@@ -65,6 +65,15 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "VERSION=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
         working-directory: ./admin-panel
         run: bun install --frozen-lockfile
