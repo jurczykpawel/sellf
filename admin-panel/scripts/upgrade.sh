@@ -25,7 +25,6 @@ if ! [[ "$TOKEN" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
   exit 1
 fi
 
-LOCK_FILE="/tmp/sellf-upgrade.lock"
 PROGRESS_FILE="/tmp/sellf-upgrade-${TOKEN}.json"
 LOG_FILE="/tmp/sellf-upgrade-${TOKEN}.log"
 
@@ -53,22 +52,9 @@ write_error() {
     "$safe_msg" "$rollback" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$PROGRESS_FILE"
 }
 
-cleanup_lock() {
-  rm -f "$LOCK_FILE"
-}
-trap cleanup_lock EXIT
-
 log() {
   echo "[$(date -u +%H:%M:%S)] $*" >> "$LOG_FILE"
 }
-
-# ===== LOCK (atomic via flock) =====
-
-exec 200>"$LOCK_FILE"
-if ! flock -n 200; then
-  write_error "Upgrade already in progress"
-  exit 1
-fi
 
 # ===== AUTO-DETECT INSTALL DIR =====
 
@@ -106,6 +92,24 @@ if [ -z "$INSTALL_DIR" ] || [ ! -d "$INSTALL_DIR" ]; then
 fi
 
 log "Install dir: $INSTALL_DIR"
+
+# ===== LOCK (per-instance, atomic via flock) =====
+# Lock is keyed on install dir basename so concurrent upgrades of different
+# instances are allowed, but two upgrades of the same instance are blocked.
+
+INSTANCE_NAME=$(basename "$INSTALL_DIR")
+LOCK_FILE="/tmp/sellf-upgrade-${INSTANCE_NAME}.lock"
+
+cleanup_lock() {
+  rm -f "$LOCK_FILE"
+}
+trap cleanup_lock EXIT
+
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+  write_error "Upgrade already in progress for ${INSTANCE_NAME}"
+  exit 1
+fi
 
 # ===== AUTO-DETECT PM2 NAME =====
 
