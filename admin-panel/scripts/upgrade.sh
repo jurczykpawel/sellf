@@ -117,17 +117,18 @@ import sys, json, os
 try:
     install_dir = os.environ.get('SELLF_INSTALL_DIR', '')
     procs = json.load(sys.stdin)
-    # First pass: match by cwd (precise — avoids hitting wrong instance when multiple sellf-* exist)
-    for p in procs:
-        cwd = p.get('pm2_env', {}).get('pm_cwd', '')
-        if install_dir and install_dir in cwd:
-            print(p['name'])
-            sys.exit(0)
-    # Second pass: fallback to name match (only when no cwd match found)
-    for p in procs:
-        if 'sellf' in p.get('name', '').lower():
-            print(p['name'])
-            sys.exit(0)
+    # CWD match: collect all candidates, then prefer online over stopped
+    cwd_matches = [p for p in procs if install_dir and install_dir in p.get('pm2_env', {}).get('pm_cwd', '')]
+    if cwd_matches:
+        online = [p for p in cwd_matches if p.get('pm2_env', {}).get('status') == 'online']
+        print((online or cwd_matches)[0]['name'])
+        sys.exit(0)
+    # Fallback: name match, prefer online
+    name_matches = [p for p in procs if 'sellf' in p.get('name', '').lower()]
+    if name_matches:
+        online = [p for p in name_matches if p.get('pm2_env', {}).get('status') == 'online']
+        print((online or name_matches)[0]['name'])
+        sys.exit(0)
 except: pass
 " 2>/dev/null || true)
 fi
