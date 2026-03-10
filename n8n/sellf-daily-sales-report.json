@@ -1,0 +1,105 @@
+{
+  "name": "Sellf: Daily Sales Report → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-1",
+      "name": "Every Day at 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://yourdomain.com/api/v1/analytics/dashboard",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Get Dashboard Stats (Sellf API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://yourdomain.com/api/v1/analytics/top-products?period=day&sort_by=revenue&limit=5",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-2",
+      "name": "Get Top Products (Sellf API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 500],
+      "notes": "TODO: Configure HTTP Header Auth with Sellf API key."
+    },
+    {
+      "parameters": {
+        "jsCode": "const dashboard = $('Get Dashboard Stats (Sellf API)').first().json;\nconst topProducts = $('Get Top Products (Sellf API)').first().json;\n\nconst stats = dashboard.data || dashboard;\nconst products = (topProducts.data || topProducts.products || []).slice(0, 5);\n\nconst topList = products.length > 0\n  ? products.map((p, i) => `  ${i+1}. ${p.name || p.product_name} — ${p.revenue || p.total_revenue || 0}`).join('\\n')\n  : '  Brak sprzedaży';\n\nconst msg = `📊 *Sellf Daily Report*\\n` +\n  `📅 ${new Date().toLocaleDateString('pl-PL')}\\n\\n` +\n  `💰 Przychód dziś: *${stats.revenue_today || stats.todayRevenue || 0}*\\n` +\n  `🛒 Zamówienia dziś: *${stats.orders_today || stats.todayOrders || 0}*\\n` +\n  `👥 Aktywni użytkownicy: *${stats.active_users || stats.activeUsers || 0}*\\n` +\n  `📦 Aktywne produkty: *${stats.active_products || stats.activeProducts || 0}*\\n\\n` +\n  `🏆 *Top produkty (dziś):*\\n${topList}`;\n\nreturn [{ json: { message: msg } }];"
+      },
+      "id": "code-1",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-1",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [760, 400],
+      "notes": "TODO: Configure Telegram Bot credentials and set YOUR_CHAT_ID."
+    }
+  ],
+  "connections": {
+    "Every Day at 9:00": {
+      "main": [
+        [
+          { "node": "Get Dashboard Stats (Sellf API)", "type": "main", "index": 0 },
+          { "node": "Get Top Products (Sellf API)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Dashboard Stats (Sellf API)": {
+      "main": [
+        [{ "node": "Format Report", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Top Products (Sellf API)": {
+      "main": [
+        [{ "node": "Format Report", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [{ "node": "Send to Telegram", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+}

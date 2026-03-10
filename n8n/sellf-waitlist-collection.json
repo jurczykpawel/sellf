@@ -1,0 +1,92 @@
+{
+  "name": "Sellf: Waitlist Signup → Email Collection",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sellf-waitlist",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "sellf-waitlist"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nif (body.event !== 'waitlist.signup') return [];\n\nconst d = body.data;\nreturn [{\n  json: {\n    email: d.customer.email,\n    productName: d.product.name,\n    productSlug: d.product.slug,\n    productId: d.product.id,\n    tag: `waitlist:${d.product.slug}`,\n    timestamp: body.timestamp\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Extract Waitlist Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "resource": "subscriber",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "status": "active"
+        }
+      },
+      "id": "ml-1",
+      "name": "Add to MailerLite",
+      "type": "n8n-nodes-base.mailerLite",
+      "typeVersion": 1,
+      "position": [700, 200],
+      "notes": "TODO: Configure MailerLite credentials. Create a group 'waitlist:{product-slug}' and assign subscriber to it."
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@yourdomain.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Jesteś na liście oczekujących: {{ $json.productName }}",
+        "emailType": "html",
+        "html": "=<h2>Dziękujemy za zapisanie się!</h2>\n<p>Trafiłeś/aś na listę oczekujących na <strong>{{ $json.productName }}</strong>.</p>\n<p>Powiadomimy Cię jak tylko produkt będzie dostępny.</p>\n<p style=\"color:#888;font-size:12px\">Zapisano: {{ $json.email }}</p>",
+        "options": {}
+      },
+      "id": "email-1",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [700, 440],
+      "notes": "TODO: Configure SMTP credentials and customize."
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          { "node": "Respond OK", "type": "main", "index": 0 },
+          { "node": "Extract Waitlist Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extract Waitlist Data": {
+      "main": [
+        [
+          { "node": "Add to MailerLite", "type": "main", "index": 0 },
+          { "node": "Send Confirmation Email", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+}

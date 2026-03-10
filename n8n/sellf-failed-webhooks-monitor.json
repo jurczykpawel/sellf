@@ -1,0 +1,150 @@
+{
+  "name": "Sellf: Failed Webhook Monitor + Auto-Retry",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "cron-1",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://yourdomain.com/api/v1/webhooks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "List Webhooks (Sellf API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst webhooks = response.data || response.webhooks || response || [];\n\nif (!Array.isArray(webhooks)) return [];\n\n// Return each webhook ID so we can fetch its logs\nreturn webhooks.map(w => ({\n  json: {\n    webhookId: w.id,\n    webhookUrl: w.url,\n    events: w.events\n  }\n}));"
+      },
+      "id": "code-1",
+      "name": "Extract Webhook IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://yourdomain.com/api/v1/webhooks/' + $json.webhookId + '/logs?status=failed&limit=10' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-2",
+      "name": "Get Failed Logs (Sellf API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 300],
+      "notes": "TODO: Configure HTTP Header Auth."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst logs = response.data || response.logs || response || [];\n\nif (!Array.isArray(logs) || logs.length === 0) return [];\n\nconst retryable = logs.filter(l => l.status === 'failed');\nif (retryable.length === 0) return [];\n\n// Output: alert message + list of log IDs to retry\nconst lines = retryable.slice(0, 5).map(l =>\n  `• ${l.event_type || l.event || 'unknown'} @ ${l.created_at || ''} (${l.http_status || 'timeout'})`\n).join('\\n');\n\nreturn [{\n  json: {\n    webhookId: $('Extract Webhook IDs').item.json.webhookId,\n    webhookUrl: $('Extract Webhook IDs').item.json.webhookUrl,\n    failedCount: retryable.length,\n    logIds: retryable.map(l => l.id),\n    alertMessage: `🔴 *${retryable.length} failed webhook(s)*\\nEndpoint: ${$('Extract Webhook IDs').item.json.webhookUrl}\\n\\n${lines}`\n  }\n}];"
+      },
+      "id": "code-2",
+      "name": "Check for Failures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "={{ $json.alertMessage }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-1",
+      "name": "Alert on Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1240, 200],
+      "notes": "TODO: Configure Telegram Bot credentials and set YOUR_CHAT_ID."
+    },
+    {
+      "parameters": {
+        "jsCode": "const logIds = $input.first().json.logIds || [];\nconst webhookId = $input.first().json.webhookId;\n\n// Return each log ID as separate item for retry\nreturn logIds.slice(0, 5).map(id => ({\n  json: { webhookId, logId: id }\n}));"
+      },
+      "id": "code-3",
+      "name": "Split Log IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1240, 440]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://yourdomain.com/api/v1/webhooks/' + $json.webhookId + '/logs/' + $json.logId + '/retry' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-3",
+      "name": "Retry Failed Webhook (Sellf API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 440],
+      "notes": "TODO: Configure HTTP Header Auth. Retries up to 5 failed logs per webhook per run."
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [{ "node": "List Webhooks (Sellf API)", "type": "main", "index": 0 }]
+      ]
+    },
+    "List Webhooks (Sellf API)": {
+      "main": [
+        [{ "node": "Extract Webhook IDs", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Webhook IDs": {
+      "main": [
+        [{ "node": "Get Failed Logs (Sellf API)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Failed Logs (Sellf API)": {
+      "main": [
+        [{ "node": "Check for Failures", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check for Failures": {
+      "main": [
+        [
+          { "node": "Alert on Telegram", "type": "main", "index": 0 },
+          { "node": "Split Log IDs", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Split Log IDs": {
+      "main": [
+        [{ "node": "Retry Failed Webhook (Sellf API)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+}

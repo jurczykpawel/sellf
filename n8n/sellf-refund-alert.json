@@ -1,0 +1,82 @@
+{
+  "name": "Sellf: Refund Request Alert → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "cron-1",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://yourdomain.com/api/v1/refund-requests?status=pending",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Check Pending Refunds (Sellf API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 300],
+      "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst refunds = response.data || response.refund_requests || response || [];\n\nif (!Array.isArray(refunds) || refunds.length === 0) return [];\n\nconst lines = refunds.map(r =>\n  `• ${r.customer_email || r.email || 'N/A'} — ${r.product_name || r.product || 'N/A'} (${r.amount ? r.amount/100 : '?'} ${r.currency || ''})`\n).join('\\n');\n\nconst msg = `⚠️ *Pending Refund Requests: ${refunds.length}*\\n\\n${lines}\\n\\n👉 Sprawdź w panelu admina`;\n\nreturn [{ json: { message: msg, count: refunds.length } }];"
+      },
+      "id": "code-1",
+      "name": "Format Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-1",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [760, 300],
+      "notes": "TODO: Configure Telegram Bot credentials and set YOUR_CHAT_ID."
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [{ "node": "Check Pending Refunds (Sellf API)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Pending Refunds (Sellf API)": {
+      "main": [
+        [{ "node": "Format Alert", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Alert": {
+      "main": [
+        [{ "node": "Send to Telegram", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+}
