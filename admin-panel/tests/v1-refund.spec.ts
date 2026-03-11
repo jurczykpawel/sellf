@@ -497,33 +497,32 @@ test.describe('v1 API: Refund Tests', () => {
 
 /**
  * ============================================================================
- * v1 API: Refund Route Contains Access Revocation Code
+ * v1 API: Refund Route Delegates Access Revocation
  * ============================================================================
  *
- * Verifies the v1 refund route source code contains proper cleanup logic
- * for both authenticated user access (user_product_access) and guest purchases
- * (guest_purchases) after a refund is processed.
+ * Verifies the v1 refund route delegates access revocation to the shared
+ * revokeTransactionAccess() service, which handles both user_product_access
+ * and guest_purchases cleanup (including bump products).
  *
- * These are source-verification tests (readFileSync) rather than DB simulation
- * tests, because we cannot call the actual refund endpoint without a real Stripe
- * payment intent. The pattern matches tests/unit/security/refund-access-revocation.test.ts.
+ * The shared service is tested directly in:
+ * - tests/unit/lib/services/access-revocation.test.ts
+ * - tests/unit/security/refund-access-revocation.test.ts
  * ============================================================================
  */
 test.describe('v1 API: Refund - Access Revocation Source Verification', () => {
   const routePath = join(__dirname, '../src/app/api/v1/payments/[id]/refund/route.ts');
   const routeSource = readFileSync(routePath, 'utf-8');
 
-  test('SECURITY: Refund route contains access revocation code for users and guests', async () => {
-    // Authenticated user access revocation: delete from user_product_access
-    expect(routeSource).toContain(".from('user_product_access')");
-    expect(routeSource).toMatch(/\.from\(\s*['"]user_product_access['"]\s*\)[\s\S]*?\.delete\(\)/);
-    expect(routeSource).toContain(".eq('user_id', payment.user_id)");
-    expect(routeSource).toContain(".eq('product_id', payment.product_id)");
+  test('SECURITY: Refund route delegates access revocation to shared service', async () => {
+    // Route imports and calls the shared revocation function
+    expect(routeSource).toContain('revokeTransactionAccess');
+    expect(routeSource).toContain("from '@/lib/services/access-revocation'");
 
-    // Guest purchase cleanup: delete from guest_purchases
-    expect(routeSource).toContain(".from('guest_purchases')");
-    expect(routeSource).toMatch(/\.from\(\s*['"]guest_purchases['"]\s*\)[\s\S]*?\.delete\(\)/);
-    expect(routeSource).toContain(".eq('session_id', payment.session_id)");
+    // Passes payment context to revocation function
+    expect(routeSource).toContain('transactionId:');
+    expect(routeSource).toContain('userId: payment.user_id');
+    expect(routeSource).toContain('productId: payment.product_id');
+    expect(routeSource).toContain('sessionId: payment.session_id');
 
     // Access revocation only on full refund
     expect(routeSource).toContain('isFullRefund');

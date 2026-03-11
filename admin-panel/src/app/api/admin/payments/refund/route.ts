@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 
 // Note: These must be read at runtime, not build time
 const getSupabaseUrl = () => process.env.SUPABASE_URL!;
@@ -156,31 +157,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only revoke access on full refund
+    // Revoke all product access on full refund (main + bumps, user + guest)
     if (isFullRefund) {
-      if (transaction.user_id && transaction.product_id) {
-        const { error: revokeError } = await supabase
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', transaction.user_id)
-          .eq('product_id', transaction.product_id);
+      const revocation = await revokeTransactionAccess(supabase, {
+        transactionId: transaction.id,
+        userId: transaction.user_id,
+        productId: transaction.product_id,
+        sessionId: transaction.session_id,
+      });
 
-        if (revokeError) {
-          console.error('Warning: Failed to revoke product access after refund:', revokeError);
-        }
-      }
-
-      // Also revoke guest purchases after full refund
-      if (transaction.session_id && transaction.product_id) {
-        const { error: guestRevokeError } = await supabase
-          .from('guest_purchases')
-          .delete()
-          .eq('session_id', transaction.session_id)
-          .eq('product_id', transaction.product_id);
-
-        if (guestRevokeError) {
-          console.error('Warning: Failed to revoke guest purchase after refund:', guestRevokeError);
-        }
+      if (revocation.warnings.length > 0) {
+        console.error('[admin-refund] Revocation warnings:', revocation.warnings);
       }
     }
 

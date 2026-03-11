@@ -371,9 +371,9 @@ describe('Stripe Integration Security', () => {
         expect(REFUND_ROUTE_SOURCE).toContain('refundAmount > maxRefundable');
       });
 
-      it('should verify production refund route revokes product access', () => {
-        expect(REFUND_ROUTE_SOURCE).toContain("'user_product_access'");
-        expect(REFUND_ROUTE_SOURCE).toContain('.delete()');
+      it('should verify production refund route delegates access revocation to shared service', () => {
+        expect(REFUND_ROUTE_SOURCE).toContain('revokeTransactionAccess');
+        expect(REFUND_ROUTE_SOURCE).toContain("from '@/lib/services/access-revocation'");
       });
 
       it('should verify production refund route requires admin auth', () => {

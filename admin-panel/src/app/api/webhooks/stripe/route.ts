@@ -20,6 +20,7 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
 
 // Supabase service client for database operations
@@ -418,85 +419,23 @@ async function processRefundForTransaction(
     return { processed: true, message: `Partial refund recorded (${charge.amount_refunded}/${charge.amount} cents)` };
   }
 
-  // SECURITY: Revoke product access on full refund (main product + bump products)
-  if (transaction.user_id && transaction.product_id) {
-    // Revoke main product access
-    const { error: revokeError } = await supabase
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', transaction.user_id)
-      .eq('product_id', transaction.product_id);
+  // SECURITY: Revoke all product access (main + bumps, user + guest)
+  // Webhook handler needs session_id for guest cleanup — re-fetch from transaction
+  const { data: txFull } = await supabase
+    .from('payment_transactions')
+    .select('session_id')
+    .eq('id', transaction.id)
+    .single();
 
-    if (revokeError) {
-      console.error('[Stripe Webhook] Failed to revoke main product access after refund:', revokeError);
-    }
+  const revocation = await revokeTransactionAccess(supabase, {
+    transactionId: transaction.id,
+    userId: transaction.user_id,
+    productId: transaction.product_id,
+    sessionId: txFull?.session_id ?? null,
+  });
 
-    // Revoke bump product access from payment_line_items
-    const { data: bumpLineItems, error: bumpQueryError } = await supabase
-      .from('payment_line_items')
-      .select('product_id')
-      .eq('transaction_id', transaction.id)
-      .eq('item_type', 'order_bump');
-
-    if (bumpQueryError) {
-      console.error('[Stripe Webhook] Failed to query bump line items for refund:', bumpQueryError);
-    } else if (bumpLineItems && bumpLineItems.length > 0) {
-      for (const item of bumpLineItems) {
-        const { error: bumpRevokeError } = await supabase
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', transaction.user_id)
-          .eq('product_id', item.product_id);
-
-        if (bumpRevokeError) {
-          console.error(`[Stripe Webhook] Failed to revoke bump product ${item.product_id} access after refund:`, bumpRevokeError);
-        }
-      }
-      console.log(`[Stripe Webhook] Revoked access for ${bumpLineItems.length} bump product(s) after refund`);
-    }
-  }
-
-  // Also clean up guest purchases (session-based access) for main + bump products
-  if (transaction.id) {
-    const { data: txFull } = await supabase
-      .from('payment_transactions')
-      .select('session_id, product_id')
-      .eq('id', transaction.id)
-      .single();
-
-    if (txFull?.session_id && txFull?.product_id) {
-      // Revoke main product guest purchase
-      const { error: guestRevokeError } = await supabase
-        .from('guest_purchases')
-        .delete()
-        .eq('session_id', txFull.session_id)
-        .eq('product_id', txFull.product_id);
-
-      if (guestRevokeError) {
-        console.error('[Stripe Webhook] Failed to revoke guest purchase after refund:', guestRevokeError);
-      }
-
-      // Revoke bump product guest purchases
-      const { data: bumpLineItems } = await supabase
-        .from('payment_line_items')
-        .select('product_id')
-        .eq('transaction_id', transaction.id)
-        .eq('item_type', 'order_bump');
-
-      if (bumpLineItems && bumpLineItems.length > 0) {
-        for (const item of bumpLineItems) {
-          const { error: guestBumpRevokeError } = await supabase
-            .from('guest_purchases')
-            .delete()
-            .eq('session_id', txFull.session_id)
-            .eq('product_id', item.product_id);
-
-          if (guestBumpRevokeError) {
-            console.error(`[Stripe Webhook] Failed to revoke guest bump product ${item.product_id} after refund:`, guestBumpRevokeError);
-          }
-        }
-      }
-    }
+  if (revocation.warnings.length > 0) {
+    console.error('[Stripe Webhook] Revocation warnings after refund:', revocation.warnings);
   }
 
   return { processed: true, message: 'Full refund processed and access revoked (main + bumps)' };
@@ -562,42 +501,23 @@ async function handleChargeDisputeCreated(
     console.error('[Stripe Webhook] Failed to update dispute status:', updateError);
   }
 
-  // SECURITY: Immediately revoke product access on dispute (main product + bump products)
-  if (transaction.user_id && transaction.product_id) {
-    // Revoke main product access
-    const { error: revokeError } = await supabase
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', transaction.user_id)
-      .eq('product_id', transaction.product_id);
+  // SECURITY: Immediately revoke all product access (main + bumps, user + guest)
+  // Dispute query doesn't select session_id — re-fetch for guest cleanup
+  const { data: txForGuest } = await supabase
+    .from('payment_transactions')
+    .select('session_id')
+    .eq('id', transaction.id)
+    .single();
 
-    if (revokeError) {
-      console.error('[Stripe Webhook] Failed to revoke main product access after dispute:', revokeError);
-    }
+  const revocation = await revokeTransactionAccess(supabase, {
+    transactionId: transaction.id,
+    userId: transaction.user_id,
+    productId: transaction.product_id,
+    sessionId: txForGuest?.session_id ?? null,
+  });
 
-    // Revoke bump product access from payment_line_items
-    const { data: bumpLineItems, error: bumpQueryError } = await supabase
-      .from('payment_line_items')
-      .select('product_id')
-      .eq('transaction_id', transaction.id)
-      .eq('item_type', 'order_bump');
-
-    if (bumpQueryError) {
-      console.error('[Stripe Webhook] Failed to query bump line items for dispute:', bumpQueryError);
-    } else if (bumpLineItems && bumpLineItems.length > 0) {
-      for (const item of bumpLineItems) {
-        const { error: bumpRevokeError } = await supabase
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', transaction.user_id)
-          .eq('product_id', item.product_id);
-
-        if (bumpRevokeError) {
-          console.error(`[Stripe Webhook] Failed to revoke bump product ${item.product_id} access after dispute:`, bumpRevokeError);
-        }
-      }
-      console.log(`[Stripe Webhook] Revoked access for ${bumpLineItems.length} bump product(s) after dispute`);
-    }
+  if (revocation.warnings.length > 0) {
+    console.error('[Stripe Webhook] Revocation warnings after dispute:', revocation.warnings);
   }
 
   return { processed: true, message: 'Dispute recorded and access revoked (main + bumps)' };

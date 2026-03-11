@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getStripeServer } from '@/lib/stripe/server';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -94,23 +95,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           .eq('refunded_amount', transaction?.refunded_amount || 0)
           .select('id');
 
-        // Revoke access on full refund — do this regardless of optimistic lock result
-        // because the Stripe refund already succeeded
-        if (isFullRefund) {
-          if (transaction?.user_id) {
-            await supabase
-              .from('user_product_access')
-              .delete()
-              .eq('user_id', transaction.user_id)
-              .eq('product_id', transaction.product_id);
-          }
+        // Revoke all product access on full refund (main + bumps, user + guest)
+        if (isFullRefund && transaction) {
+          const revocation = await revokeTransactionAccess(supabase, {
+            transactionId: processResult.transaction_id,
+            userId: transaction.user_id,
+            productId: transaction.product_id,
+            sessionId: transaction.session_id,
+          });
 
-          if (transaction?.session_id && transaction?.product_id) {
-            await supabase
-              .from('guest_purchases')
-              .delete()
-              .eq('session_id', transaction.session_id)
-              .eq('product_id', transaction.product_id);
+          if (revocation.warnings.length > 0) {
+            console.error('[refund-request] Revocation warnings:', revocation.warnings);
           }
         }
 

@@ -6,6 +6,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getStripeServer } from '@/lib/stripe/server';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import type {
   RefundRequest,
   RefundResponse
@@ -92,23 +93,18 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
       throw new Error('Failed to update transaction status');
     }
 
-    // Revoke access on full refund — do this regardless of optimistic lock result
-    // because the Stripe refund already succeeded
+    // Revoke all product access on full refund (main + bumps, user + guest)
+    // Do this regardless of optimistic lock result because the Stripe refund already succeeded
     if (isFullRefund) {
-      if (transaction.user_id && transaction.product_id) {
-        await supabase
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', transaction.user_id)
-          .eq('product_id', transaction.product_id);
-      }
+      const revocation = await revokeTransactionAccess(supabase, {
+        transactionId: transaction.id,
+        userId: transaction.user_id,
+        productId: transaction.product_id,
+        sessionId: transaction.session_id,
+      });
 
-      if (transaction.session_id && transaction.product_id) {
-        await supabase
-          .from('guest_purchases')
-          .delete()
-          .eq('session_id', transaction.session_id)
-          .eq('product_id', transaction.product_id);
+      if (revocation.warnings.length > 0) {
+        console.error('[processRefund] Revocation warnings:', revocation.warnings);
       }
     }
 
