@@ -11,6 +11,8 @@
  * - payment_intent.succeeded: Process successful direct payments
  * - charge.refunded: Revoke access when refund is processed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
+ * - account.updated: Sync Stripe Connect onboarding status (marketplace)
+ * - account.application.deauthorized: Handle seller disconnecting their Stripe account (marketplace)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,9 +24,10 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
+import { handleAccountUpdated, handleAccountDeauthorized } from '@/lib/stripe/connect';
 
 // Supabase service client for database operations
-const getServiceClient = () => {
+const getServiceClient = (schema?: string) => {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -37,11 +40,13 @@ const getServiceClient = () => {
       autoRefreshToken: false,
       persistSession: false,
     },
+    ...(schema && { db: { schema } }),
   });
 };
 
 /**
- * Process successful payment from checkout session
+ * Process successful payment from checkout session.
+ * For marketplace payments (metadata.is_marketplace='true'), uses the seller's schema.
  */
 async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
@@ -50,6 +55,12 @@ async function handleCheckoutSessionCompleted(
   const sessionId = session.id;
   const productId = session.metadata?.product_id;
   const customerEmail = session.customer_details?.email || session.customer_email;
+
+  // Marketplace: route to seller's schema if present
+  const sellerSchema = session.metadata?.seller_schema;
+  if (sellerSchema && session.metadata?.is_marketplace === 'true') {
+    supabase = getServiceClient(sellerSchema);
+  }
 
   if (!productId || !customerEmail) {
     return { processed: false, message: 'Missing product_id or customer_email in session' };
@@ -197,7 +208,8 @@ async function handleCheckoutSessionCompleted(
 }
 
 /**
- * Process successful payment from payment intent (direct payment flow)
+ * Process successful payment from payment intent (direct payment flow).
+ * For marketplace payments (metadata.is_marketplace='true'), uses the seller's schema.
  */
 async function handlePaymentIntentSucceeded(
   paymentIntent: Stripe.PaymentIntent,
@@ -205,6 +217,12 @@ async function handlePaymentIntentSucceeded(
 ): Promise<{ processed: boolean; message: string }> {
   const productId = paymentIntent.metadata?.product_id;
   const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.email;
+
+  // Marketplace: route to seller's schema if present
+  const sellerSchema = paymentIntent.metadata?.seller_schema;
+  if (sellerSchema && paymentIntent.metadata?.is_marketplace === 'true') {
+    supabase = getServiceClient(sellerSchema);
+  }
 
   if (!productId || !customerEmail) {
     return { processed: false, message: 'Missing product_id or email in payment intent' };
@@ -618,6 +636,25 @@ export async function POST(request: NextRequest) {
       case 'charge.dispute.created': {
         const dispute = event.data.object as Stripe.Dispute;
         result = await handleChargeDisputeCreated(dispute, supabase);
+        break;
+      }
+
+      // ===== STRIPE CONNECT EVENTS =====
+
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account;
+        result = await handleAccountUpdated(account);
+        break;
+      }
+
+      case 'account.application.deauthorized': {
+        // event.account contains the connected account ID that deauthorized
+        const connectedAccountId = event.account;
+        if (connectedAccountId) {
+          result = await handleAccountDeauthorized(connectedAccountId);
+        } else {
+          result = { processed: true, message: 'No account ID in deauthorization event' };
+        }
         break;
       }
 

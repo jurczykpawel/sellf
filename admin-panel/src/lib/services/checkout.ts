@@ -289,12 +289,40 @@ export class CheckoutService {
             custom_amount: customAmount.toString(),
             is_pwyw: 'true'
           }),
+          // Marketplace seller metadata
+          ...(options.seller && {
+            seller_slug: options.seller.sellerSlug,
+            seller_schema: options.seller.schemaName,
+            is_marketplace: 'true',
+          }),
         },
         expires_at: Math.floor(Date.now() / 1000) + (checkoutConfig.expires_hours * 60 * 60),
         automatic_tax: checkoutConfig.automatic_tax,
         tax_id_collection: checkoutConfig.tax_id_collection,
         billing_address_collection: checkoutConfig.billing_address_collection,
       };
+
+      // Marketplace: route payment to seller's Stripe account with platform fee
+      if (options.seller) {
+        // Calculate total amount across all line items (in cents)
+        let totalCents = Math.round(mainProductPrice * 100);
+        for (const bp of bumpList) {
+          let bpPrice = bp.price;
+          if (coupon && coupon.discount_type === 'percentage' && !coupon.exclude_order_bumps) {
+            bpPrice = bpPrice * (1 - coupon.discount_value / 100);
+          }
+          totalCents += Math.round(bpPrice * 100);
+        }
+
+        const feeAmount = Math.round(totalCents * options.seller.platformFeePercent / 100);
+
+        sessionConfig.payment_intent_data = {
+          application_fee_amount: feeAmount,
+          transfer_data: {
+            destination: options.seller.stripeAccountId,
+          },
+        };
+      }
 
       // Apply payment method config based on mode
       if (checkoutConfig.paymentMethodMode === 'automatic') {

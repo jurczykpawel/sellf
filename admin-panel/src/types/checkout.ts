@@ -68,6 +68,14 @@ export interface UserAccessData {
   access_granted_at: string;
 }
 
+// Marketplace seller info for checkout (Stripe Connect)
+export interface CheckoutSellerInfo {
+  stripeAccountId: string;
+  platformFeePercent: number;
+  sellerSlug: string;
+  schemaName: string;
+}
+
 // Checkout session options
 export interface CheckoutSessionOptions {
   product: ProductForCheckout;
@@ -85,4 +93,5 @@ export interface CheckoutSessionOptions {
     exclude_order_bumps?: boolean;
   };
   customAmount?: number; // Pay What You Want - customer-chosen price
+  seller?: CheckoutSellerInfo; // Marketplace: seller info for Stripe Connect
 }
