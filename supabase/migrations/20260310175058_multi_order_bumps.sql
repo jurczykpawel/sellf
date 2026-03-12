@@ -652,7 +652,7 @@ ALTER TABLE seller_main.order_bumps
   CHECK (urgency_duration_minutes IS NULL OR (urgency_duration_minutes >= 1 AND urgency_duration_minutes <= 1440));
 
 -- Refresh proxy view to include new column
-CREATE OR REPLACE VIEW public.order_bumps AS SELECT * FROM seller_main.order_bumps;
+CREATE OR REPLACE VIEW public.order_bumps WITH (security_invoker = on) AS SELECT * FROM seller_main.order_bumps;
 
 COMMENT ON COLUMN seller_main.order_bumps.urgency_duration_minutes IS
   'Urgency countdown timer in minutes (NULL = no timer, 1-1440). Purely cosmetic — counts from page load.';
@@ -708,4 +708,4 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = seller_main, publi
 GRANT EXECUTE ON FUNCTION seller_main.admin_get_product_order_bumps TO authenticated, service_role;
 
 -- Proxy view for backward compatibility
-CREATE OR REPLACE VIEW public.payment_line_items AS SELECT * FROM seller_main.payment_line_items;
+CREATE OR REPLACE VIEW public.payment_line_items WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_line_items;

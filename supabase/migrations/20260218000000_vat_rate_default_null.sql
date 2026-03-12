@@ -16,7 +16,7 @@ ALTER TABLE seller_main.shop_config
 ADD COLUMN IF NOT EXISTS stripe_tax_rate_cache JSONB DEFAULT '{}'::jsonb;
 
 -- Refresh proxy view to include new columns
-CREATE OR REPLACE VIEW public.shop_config AS SELECT * FROM seller_main.shop_config;
+CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;
 
 -- Migrate existing: if automatic_tax was explicitly disabled, assume local mode
 UPDATE seller_main.shop_config SET tax_mode = 'local' WHERE automatic_tax_enabled = false;

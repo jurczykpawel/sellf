@@ -293,6 +293,6 @@ INSERT INTO seller_main.payment_method_config (
   updated_at = NOW();
 
 -- Proxy view for backward compatibility
-CREATE OR REPLACE VIEW public.payment_method_config AS SELECT * FROM seller_main.payment_method_config;
+CREATE OR REPLACE VIEW public.payment_method_config WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_method_config;
 
 COMMIT;

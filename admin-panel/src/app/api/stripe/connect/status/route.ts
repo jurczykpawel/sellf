@@ -15,21 +15,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
-import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
+import { requireMarketplaceAdmin } from '@/lib/auth-server';
 import { getSellerById } from '@/lib/marketplace/seller-client';
 import { getConnectedAccountStatus } from '@/lib/stripe/connect';
 
 export async function GET(request: NextRequest) {
   try {
-    const access = checkMarketplaceAccess();
-    if (!access.accessible) {
-      return NextResponse.json({ error: 'Marketplace is not enabled' }, { status: 403 });
-    }
-
-    // Auth: admin only
+    // Auth: admin + marketplace gate
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    await requireMarketplaceAdmin(supabase);
 
     const sellerId = request.nextUrl.searchParams.get('seller_id');
     if (!sellerId) {
@@ -67,6 +61,9 @@ export async function GET(request: NextRequest) {
       }
       if (error.message === 'Forbidden') {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (error.message === 'Marketplace is not enabled') {
+        return NextResponse.json({ error: 'Marketplace is not enabled' }, { status: 403 });
       }
     }
 

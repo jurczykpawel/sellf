@@ -41,6 +41,20 @@ export interface ConnectAccountStatus {
   onboardingComplete: boolean;
 }
 
+// ===== URL HELPERS =====
+
+/**
+ * Build Stripe Connect onboarding URLs for a seller.
+ * Extracted to avoid duplication between onboard and refresh routes.
+ */
+export function buildOnboardingUrls(sellerId: string): { refreshUrl: string; returnUrl: string } {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || '';
+  return {
+    refreshUrl: `${baseUrl}/api/stripe/connect/refresh?seller_id=${sellerId}`,
+    returnUrl: `${baseUrl}/admin/sellers?connect_return=true&seller_id=${sellerId}`,
+  };
+}
+
 // ===== ACCOUNT MANAGEMENT =====
 
 /**

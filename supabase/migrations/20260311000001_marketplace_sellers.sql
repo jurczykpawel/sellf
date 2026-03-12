@@ -110,15 +110,33 @@ BEGIN
     RAISE EXCEPTION 'Seller slug must be 2-50 characters after sanitization. Got: "%"', v_clean_slug;
   END IF;
 
-  -- Reserved slugs
-  IF v_clean_slug IN ('admin', 'api', 'auth', 'public', 'main', 'test', 'demo', 'system', 'platform', 'seller', 'sellers') THEN
+  -- Reserved slugs (expanded — includes Supabase internal schemas + common names)
+  IF v_clean_slug IN (
+    'admin', 'api', 'auth', 'public', 'main', 'test', 'demo',
+    'system', 'platform', 'seller', 'sellers',
+    -- Supabase internal schemas
+    'storage', 'graphql', 'graphql_public', 'realtime', 'pgsodium',
+    'pgsodium_masks', 'pgsodium_keyiduser', 'supabase_functions',
+    'supabase_migrations', 'extensions', 'vault', 'pgbouncer',
+    -- Common reserved names
+    'www', 'app', 'mail', 'smtp', 'ftp', 'root', 'support', 'help',
+    'billing', 'checkout', 'login', 'signup', 'register', 'dashboard',
+    'settings', 'config', 'webhook', 'webhooks', 'stripe', 'payment',
+    'payments', 'status', 'health', 'monitor', 'internal'
+  ) THEN
     RAISE EXCEPTION 'Slug "%" is reserved', v_clean_slug;
   END IF;
 
   v_schema_name := 'seller_' || v_clean_slug;
 
   -- ==========================================
-  -- 2. Check for duplicates
+  -- 2. Acquire advisory lock to prevent TOCTOU race condition
+  -- Serializes all provisioning attempts for the same slug
+  -- ==========================================
+  PERFORM pg_advisory_xact_lock(hashtext(v_clean_slug));
+
+  -- ==========================================
+  -- 3. Check for duplicates (now safe under lock)
   -- ==========================================
   IF EXISTS (SELECT 1 FROM public.sellers WHERE slug = v_clean_slug) THEN
     RAISE EXCEPTION 'Seller with slug "%" already exists', v_clean_slug;
@@ -129,7 +147,7 @@ BEGIN
   END IF;
 
   -- ==========================================
-  -- 3. Clone seller_main schema
+  -- 4. Clone seller_main schema
   -- ==========================================
   -- Fix for pg-clone-schema $user search_path bug:
   -- Set search_path to 'public' before calling clone_schema
@@ -143,20 +161,32 @@ BEGIN
   END IF;
 
   -- ==========================================
-  -- 4. Grant permissions to Supabase roles
+  -- 5. Grant permissions to Supabase roles (O2: restricted grants)
   -- ==========================================
   EXECUTE format('GRANT USAGE ON SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
-  EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
-  EXECUTE format('GRANT ALL ON ALL SEQUENCES IN SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
+
+  -- anon: read-only access to tables (needed for public product pages)
+  EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO anon', v_schema_name);
+  -- authenticated: full CRUD (RLS policies control actual access)
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO authenticated', v_schema_name);
+  -- service_role: unrestricted
+  EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA %I TO service_role', v_schema_name);
+
+  -- Sequences: authenticated + service_role need usage for inserts
+  EXECUTE format('GRANT USAGE ON ALL SEQUENCES IN SCHEMA %I TO authenticated, service_role', v_schema_name);
+
+  -- Functions: all roles can execute (individual function permissions handle auth)
   EXECUTE format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
 
   -- Default privileges for future objects
-  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON TABLES TO anon, authenticated, service_role', v_schema_name);
-  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON SEQUENCES TO anon, authenticated, service_role', v_schema_name);
+  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT ON TABLES TO anon', v_schema_name);
+  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated', v_schema_name);
+  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON TABLES TO service_role', v_schema_name);
+  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT USAGE ON SEQUENCES TO authenticated, service_role', v_schema_name);
   EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role', v_schema_name);
 
   -- ==========================================
-  -- 5. Insert seller record
+  -- 6. Insert seller record
   -- ==========================================
   INSERT INTO public.sellers (
     slug, schema_name, display_name, user_id, status
@@ -166,7 +196,7 @@ BEGIN
   RETURNING id INTO v_seller_id;
 
   -- ==========================================
-  -- 6. Notify PostgREST to reload schemas
+  -- 7. Notify PostgREST to reload schemas
   -- ==========================================
   NOTIFY pgrst, 'reload config';
   NOTIFY pgrst, 'reload schema';
@@ -195,10 +225,11 @@ AS $$
 DECLARE
   v_seller RECORD;
 BEGIN
-  -- Get seller record
+  -- Get seller record with row lock to prevent concurrent deprovision
   SELECT * INTO v_seller
   FROM public.sellers
-  WHERE id = p_seller_id;
+  WHERE id = p_seller_id
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Seller with id "%" not found', p_seller_id;
@@ -265,4 +296,4 @@ INSERT INTO public.sellers (
 ) VALUES (
   'main', 'seller_main', 'Platform Owner', 0.00, 'active'
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (slug) DO NOTHING;

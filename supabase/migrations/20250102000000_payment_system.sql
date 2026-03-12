@@ -331,7 +331,7 @@ BEGIN
         ALTER TABLE seller_main.user_product_access ADD COLUMN version INTEGER DEFAULT 1 NOT NULL;
         
         -- Refresh proxy view to include new column
-        CREATE OR REPLACE VIEW public.user_product_access AS SELECT * FROM seller_main.user_product_access;
+        CREATE OR REPLACE VIEW public.user_product_access WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access;
         
         -- Create index for efficient version-based queries
         CREATE INDEX IF NOT EXISTS idx_user_product_access_version 
@@ -2524,9 +2524,9 @@ CREATE TRIGGER trigger_update_refund_request_timestamp
 -- These views allow existing code referencing public.* tables to continue working
 -- while the actual data lives in seller_main schema.
 
-CREATE OR REPLACE VIEW public.payment_transactions AS SELECT * FROM seller_main.payment_transactions;
-CREATE OR REPLACE VIEW public.guest_purchases AS SELECT * FROM seller_main.guest_purchases;
-CREATE OR REPLACE VIEW public.refund_requests AS SELECT * FROM seller_main.refund_requests;
+CREATE OR REPLACE VIEW public.payment_transactions WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_transactions;
+CREATE OR REPLACE VIEW public.guest_purchases WITH (security_invoker = on) AS SELECT * FROM seller_main.guest_purchases;
+CREATE OR REPLACE VIEW public.refund_requests WITH (security_invoker = on) AS SELECT * FROM seller_main.refund_requests;
 
 COMMIT;
 

@@ -18,7 +18,7 @@ BEGIN
       ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb NOT NULL;
 
     -- Refresh proxy view to include new column
-    CREATE OR REPLACE VIEW public.guest_purchases AS SELECT * FROM seller_main.guest_purchases;
+    CREATE OR REPLACE VIEW public.guest_purchases WITH (security_invoker = on) AS SELECT * FROM seller_main.guest_purchases;
 
     COMMENT ON COLUMN seller_main.guest_purchases.metadata IS
       'Additional purchase metadata (e.g., NIP, company details from GUS, invoice information)';
@@ -37,7 +37,7 @@ ALTER TABLE seller_main.integrations_config
   ADD COLUMN IF NOT EXISTS gus_api_enabled BOOLEAN DEFAULT false NOT NULL;
 
 -- Refresh proxy view to include new columns
-CREATE OR REPLACE VIEW public.integrations_config AS SELECT * FROM seller_main.integrations_config;
+CREATE OR REPLACE VIEW public.integrations_config WITH (security_invoker = on) AS SELECT * FROM seller_main.integrations_config;
 
 -- Step 3: Add comments for documentation
 COMMENT ON COLUMN seller_main.integrations_config.gus_api_key_encrypted IS 'AES-256-GCM encrypted GUS REGON API key (base64 encoded)';

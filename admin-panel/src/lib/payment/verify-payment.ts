@@ -6,8 +6,8 @@
  * Only use in Server Components and API Routes.
  */
 
-import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getStripeServer } from '@/lib/stripe/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 
@@ -185,12 +185,13 @@ async function getProcessedPaymentFromDatabase(
   // Generate OTO info if applicable
   let otoInfo: OtoInfo = { has_oto: false };
   try {
-    const { data: otoResult } = await serviceClient
+    const { data: otoResultRaw } = await serviceClient
       .rpc('generate_oto_coupon', {
         source_product_id_param: transaction.product_id,
         customer_email_param: transaction.customer_email,
         transaction_id_param: transaction.id
       });
+    const otoResult = otoResultRaw as any;
 
     if (otoResult?.has_oto || otoResult?.reason) {
       otoInfo = otoResult as OtoInfo;
@@ -240,28 +241,8 @@ export async function verifyPaymentSession(
     };
   }
 
-  // Check environment variables
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return {
-      session_id: sessionId,
-      status: 'error',
-      payment_status: null,
-      error: 'Server configuration error'
-    };
-  }
-
-  // Create Service Role client for secure operations
-  const serviceClient = createServiceClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      db: { schema: 'seller_main' },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
+  // Create admin client (service_role, seller_main schema)
+  const serviceClient = createAdminClient();
 
   try {
     // First, check if payment was already processed (database cache)
@@ -359,14 +340,17 @@ export async function verifyPaymentSession(
             customer_email_param: customerEmail,
             amount_total: session.amount_total || 0,
             currency_param: session.currency || 'usd',
-            stripe_payment_intent_id: stripePaymentIntentId || null,
-            user_id_param: user?.id || null,
-            bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : null,
-            coupon_id_param: hasCoupon && couponId ? couponId : null
+            stripe_payment_intent_id: stripePaymentIntentId || undefined,
+            user_id_param: user?.id || undefined,
+            bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
+            coupon_id_param: hasCoupon && couponId ? couponId : undefined
           };
           
-          const { data: paymentResult, error: paymentError } = await serviceClient
+          const { data: paymentResultRaw, error: paymentError } = await serviceClient
             .rpc('process_stripe_payment_completion_with_bump', rpcParams);
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rpc returns jsonb, shape validated at runtime
+          const paymentResult = paymentResultRaw as any;
 
           if (paymentError) {
             console.error(
@@ -385,12 +369,12 @@ export async function verifyPaymentSession(
             console.error(
               '[verify-payment] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
               session.id, productId, customerEmail, couponId ?? 'none',
-              session.amount_total, paymentResult?.error ?? 'unknown'
+              session.amount_total, (paymentResult?.error as string) ?? 'unknown'
             );
             return {
               ...baseResponse,
               access_granted: false,
-              error: paymentResult?.error || 'Payment processing failed'
+              error: (paymentResult?.error as string) || 'Payment processing failed'
             };
           }
 
@@ -486,12 +470,13 @@ export async function verifyPaymentSession(
                 .single();
 
               if (transaction?.id) {
-                const { data: otoResult, error: otoError } = await serviceClient
+                const { data: otoResultRaw, error: otoError } = await serviceClient
                   .rpc('generate_oto_coupon', {
                     source_product_id_param: productId,
                     customer_email_param: customerEmail,
                     transaction_id_param: transaction.id
                   });
+                const otoResult = otoResultRaw as any;
 
                 if (otoError) {
                   console.error('OTO generation error:', otoError);
@@ -588,27 +573,8 @@ export async function verifyPaymentIntent(
     };
   }
 
-  // Check environment variables
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return {
-      payment_intent_id: paymentIntentId,
-      status: 'error',
-      error: 'Server configuration error'
-    };
-  }
-
-  // Create Service Role client for secure operations
-  const serviceClient = createServiceClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      db: { schema: 'seller_main' },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
+  // Create admin client (service_role, seller_main schema)
+  const serviceClient = createAdminClient();
 
   try {
     // Get Stripe instance
@@ -673,13 +639,16 @@ export async function verifyPaymentIntent(
             amount_total: paymentIntent.amount,
             currency_param: paymentIntent.currency,
             stripe_payment_intent_id: paymentIntent.id,
-            user_id_param: user?.id || null,
-            bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : null,
-            coupon_id_param: couponId || null
+            user_id_param: user?.id || undefined,
+            bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
+            coupon_id_param: couponId || undefined
           };
 
-          const { data: paymentResult, error: paymentError } = await serviceClient
+          const { data: paymentResultRaw2, error: paymentError } = await serviceClient
             .rpc('process_stripe_payment_completion_with_bump', rpcParams);
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rpc returns jsonb, shape validated at runtime
+          const paymentResult = paymentResultRaw2 as any;
 
           if (paymentError) {
             console.error(
@@ -803,12 +772,13 @@ export async function verifyPaymentIntent(
                 .single();
 
               if (transaction?.id) {
-                const { data: otoResult, error: otoError } = await serviceClient
+                const { data: otoResultRaw, error: otoError } = await serviceClient
                   .rpc('generate_oto_coupon', {
                     source_product_id_param: productId,
                     customer_email_param: customerEmail,
                     transaction_id_param: transaction.id
                   });
+                const otoResult = otoResultRaw as any;
 
                 if (otoError) {
                   console.error('OTO generation error:', otoError);

@@ -16,7 +16,7 @@ ADD COLUMN IF NOT EXISTS sale_quantity_limit INTEGER CHECK (sale_quantity_limit 
 ADD COLUMN IF NOT EXISTS sale_quantity_sold INTEGER DEFAULT 0 NOT NULL CHECK (sale_quantity_sold >= 0);
 
 -- Refresh proxy view to include new columns
-CREATE OR REPLACE VIEW public.products AS SELECT * FROM seller_main.products;
+CREATE OR REPLACE VIEW public.products WITH (security_invoker = on) AS SELECT * FROM seller_main.products;
 
 COMMENT ON COLUMN seller_main.products.omnibus_exempt IS
   'Exempt this product from Omnibus price history display (e.g., perishable goods, new arrivals <30 days)';
@@ -69,7 +69,7 @@ ALTER TABLE seller_main.shop_config
 ADD COLUMN IF NOT EXISTS omnibus_enabled BOOLEAN DEFAULT true NOT NULL;
 
 -- Refresh proxy view to include new column
-CREATE OR REPLACE VIEW public.shop_config AS SELECT * FROM seller_main.shop_config;
+CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;
 
 COMMENT ON COLUMN seller_main.shop_config.omnibus_enabled IS
   'Global toggle for EU Omnibus Directive (2019/2161) price history display';
@@ -293,4 +293,4 @@ GRANT EXECUTE ON FUNCTION seller_main.increment_sale_quantity_sold(UUID) TO serv
 GRANT EXECUTE ON FUNCTION seller_main.is_sale_price_active(NUMERIC, TIMESTAMPTZ, INTEGER, INTEGER) TO anon, authenticated, service_role;
 
 -- Proxy view for backward compatibility
-CREATE OR REPLACE VIEW public.product_price_history AS SELECT * FROM seller_main.product_price_history;
+CREATE OR REPLACE VIEW public.product_price_history WITH (security_invoker = on) AS SELECT * FROM seller_main.product_price_history;

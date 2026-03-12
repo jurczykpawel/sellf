@@ -15,22 +15,25 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
-import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
+import { requireMarketplaceAdmin } from '@/lib/auth-server';
 import { getSellerById } from '@/lib/marketplace/seller-client';
-import { createConnectedAccount, createOnboardingLink } from '@/lib/stripe/connect';
+import { createConnectedAccount, createOnboardingLink, buildOnboardingUrls } from '@/lib/stripe/connect';
+import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function POST(request: NextRequest) {
   try {
-    // Gate: marketplace must be enabled
-    const access = checkMarketplaceAccess();
-    if (!access.accessible) {
-      return NextResponse.json({ error: 'Marketplace is not enabled' }, { status: 403 });
-    }
-
-    // Auth: admin only
+    // Auth: admin + marketplace gate
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const { user } = await requireMarketplaceAdmin(supabase);
+
+    // Rate limit: 10 onboard requests per 60 minutes per admin
+    const rateLimitOk = await checkRateLimit('stripe_connect_onboard', 10, 60, user.id);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
 
     // Parse and validate input
     const body = await request.json();
@@ -67,9 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate onboarding link
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || '';
-    const refreshUrl = `${baseUrl}/api/stripe/connect/refresh?seller_id=${sellerId}`;
-    const returnUrl = `${baseUrl}/admin/sellers?connect_return=true&seller_id=${sellerId}`;
+    const { refreshUrl, returnUrl } = buildOnboardingUrls(sellerId);
 
     const linkResult = await createOnboardingLink(accountResult.accountId, refreshUrl, returnUrl);
     if (!linkResult.success || !linkResult.url) {
@@ -90,6 +91,9 @@ export async function POST(request: NextRequest) {
       }
       if (error.message === 'Forbidden') {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (error.message === 'Marketplace is not enabled') {
+        return NextResponse.json({ error: 'Marketplace is not enabled' }, { status: 403 });
       }
     }
 

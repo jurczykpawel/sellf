@@ -49,7 +49,7 @@ ALTER TABLE seller_main.integrations_config
   ADD COLUMN IF NOT EXISTS gtm_ss_enabled BOOLEAN DEFAULT FALSE;
 
 -- Refresh proxy view to include new column
-CREATE OR REPLACE VIEW public.integrations_config AS SELECT * FROM seller_main.integrations_config;
+CREATE OR REPLACE VIEW public.integrations_config WITH (security_invoker = on) AS SELECT * FROM seller_main.integrations_config;
 
 COMMENT ON COLUMN seller_main.integrations_config.gtm_ss_enabled
   IS 'Enable sending server-side conversion events to GTM SS container';

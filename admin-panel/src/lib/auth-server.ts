@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { sanitizeForLog } from '@/lib/logger';
+import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { SupabaseClient, User } from '@supabase/supabase-js';
 
 /**
@@ -57,4 +58,18 @@ export async function requireAdminApi(supabase: SupabaseClient) {
   }
 
   return { user, admin };
+}
+
+/**
+ * Combined guard: admin auth + marketplace feature flag.
+ * Use in marketplace API routes and server actions.
+ * Throws on auth failure, returns { user, admin } on success.
+ */
+export async function requireMarketplaceAdmin(supabase: SupabaseClient) {
+  const access = checkMarketplaceAccess();
+  if (!access.accessible) {
+    throw new Error('Marketplace is not enabled');
+  }
+
+  return requireAdminApi(supabase);
 }

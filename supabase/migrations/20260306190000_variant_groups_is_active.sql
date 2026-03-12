@@ -5,7 +5,7 @@ ALTER TABLE seller_main.variant_groups
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;
 
 -- Refresh proxy view to include new column
-CREATE OR REPLACE VIEW public.variant_groups AS SELECT * FROM seller_main.variant_groups;
+CREATE OR REPLACE VIEW public.variant_groups WITH (security_invoker = on) AS SELECT * FROM seller_main.variant_groups;
 
 COMMENT ON COLUMN seller_main.variant_groups.is_active IS 'Controls visibility of the variant group on the public selector page';
 

@@ -12,19 +12,43 @@ export async function GET() {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    // Step 1: Fetch refund requests (no FK embedding — proxy views don't support it)
+    const { data: requests, error } = await supabase
       .from('refund_requests')
-      .select(`
-        *,
-        products:product_id (name, icon, slug),
-        payment_transactions:transaction_id (created_at, amount, currency)
-      `)
+      .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json({ requests: data });
+    if (!requests || requests.length === 0) {
+      return NextResponse.json({ requests: [] });
+    }
+
+    // Step 2: Fetch related products and transactions
+    const productIds = [...new Set(requests.map(r => r.product_id).filter(Boolean))];
+    const transactionIds = [...new Set(requests.map(r => r.transaction_id).filter(Boolean))];
+
+    const [productsResult, transactionsResult] = await Promise.all([
+      productIds.length > 0
+        ? supabase.from('products').select('id, name, icon, slug').in('id', productIds)
+        : { data: [], error: null },
+      transactionIds.length > 0
+        ? supabase.from('payment_transactions').select('id, created_at, amount, currency').in('id', transactionIds)
+        : { data: [], error: null },
+    ]);
+
+    const productsMap = new Map((productsResult.data || []).map(p => [p.id, p]));
+    const transactionsMap = new Map((transactionsResult.data || []).map(t => [t.id, t]));
+
+    // Step 3: Merge results to match the original FK embedding shape
+    const enrichedRequests = requests.map(r => ({
+      ...r,
+      products: r.product_id ? productsMap.get(r.product_id) || null : null,
+      payment_transactions: r.transaction_id ? transactionsMap.get(r.transaction_id) || null : null,
+    }));
+
+    return NextResponse.json({ requests: enrichedRequests });
   } catch (error) {
     console.error('Error fetching refund requests:', error);
     return NextResponse.json(

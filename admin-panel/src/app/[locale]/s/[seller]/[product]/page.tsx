@@ -28,22 +28,7 @@ interface PageProps {
 // Per-user access checks → force dynamic
 export const dynamic = 'force-dynamic';
 
-const PRODUCT_FIELDS = [
-  'id', 'name', 'slug', 'description', 'long_description',
-  'icon', 'image_url', 'thumbnail_url', 'preview_video_url',
-  'price', 'currency', 'vat_rate', 'price_includes_vat',
-  'features', 'layout_template',
-  'is_active', 'is_featured', 'is_listed',
-  'omnibus_exempt',
-  'sale_price', 'sale_price_until', 'sale_quantity_limit', 'sale_quantity_sold',
-  'available_from', 'available_until', 'auto_grant_duration_days',
-  'content_delivery_type', 'content_config',
-  'success_redirect_url', 'pass_params_to_redirect',
-  'is_refundable', 'refund_period_days',
-  'enable_waitlist',
-  'allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets',
-  'created_at', 'updated_at',
-].join(', ');
+import { PRODUCT_PAGE_FIELDS } from '@/lib/constants';
 
 const getSellerProduct = cache(async (sellerSlug: string, productSlug: string) => {
   const seller = await getSellerBySlug(sellerSlug);
@@ -52,7 +37,7 @@ const getSellerProduct = cache(async (sellerSlug: string, productSlug: string) =
   const client = createSellerPublicClient(seller.schema_name);
   const { data: product, error } = await client
     .from('products')
-    .select(PRODUCT_FIELDS)
+    .select(PRODUCT_PAGE_FIELDS)
     .eq('slug', productSlug)
     .single();
 
@@ -115,7 +100,7 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
     const adminClient = createSellerAdminClient(seller.schema_name);
     const { data } = await adminClient
       .from('products')
-      .select(PRODUCT_FIELDS)
+      .select(PRODUCT_PAGE_FIELDS)
       .eq('slug', productSlug)
       .single();
     product = data as unknown as Product | null;

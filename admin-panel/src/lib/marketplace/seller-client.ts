@@ -10,6 +10,7 @@
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createPlatformClient } from '@/lib/supabase/admin';
+import { isValidSellerSchema } from '@/lib/marketplace/tenant';
 
 // ===== TYPES =====
 
@@ -25,6 +26,26 @@ export interface SellerInfo {
   user_id: string | null;
 }
 
+// ===== CONSTANTS =====
+
+/** Columns to select from sellers table (shared between getSellerBySlug and getSellerById) */
+const SELLER_COLUMNS = 'id, slug, schema_name, display_name, stripe_account_id, stripe_onboarding_complete, platform_fee_percent, status, user_id' as const;
+
+/** Map a raw DB row to SellerInfo */
+function toSellerInfo(data: Record<string, unknown>): SellerInfo {
+  return {
+    id: data.id as string,
+    slug: data.slug as string,
+    schema_name: data.schema_name as string,
+    display_name: data.display_name as string,
+    stripe_account_id: data.stripe_account_id as string | null,
+    stripe_onboarding_complete: data.stripe_onboarding_complete as boolean,
+    platform_fee_percent: data.platform_fee_percent as number,
+    status: data.status as string,
+    user_id: data.user_id as string | null,
+  };
+}
+
 // ===== CACHE =====
 
 interface CacheEntry {
@@ -33,6 +54,7 @@ interface CacheEntry {
 }
 
 const CACHE_TTL_MS = 60_000; // 60 seconds
+const CACHE_MAX_SIZE = 1000; // O6: prevent unbounded growth (DoS vector)
 const sellerCache = new Map<string, CacheEntry>();
 
 /**
@@ -40,6 +62,16 @@ const sellerCache = new Map<string, CacheEntry>();
  */
 export function clearSellerCache(): void {
   sellerCache.clear();
+}
+
+/** Set a cache entry with eviction when exceeding max size */
+function setCacheEntry(key: string, seller: SellerInfo | null): void {
+  // Evict oldest entries if cache is full
+  if (sellerCache.size >= CACHE_MAX_SIZE && !sellerCache.has(key)) {
+    const firstKey = sellerCache.keys().next().value;
+    if (firstKey !== undefined) sellerCache.delete(firstKey);
+  }
+  sellerCache.set(key, { seller, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
 // ===== SELLER LOOKUP =====
@@ -62,30 +94,19 @@ export async function getSellerBySlug(slug: string): Promise<SellerInfo | null> 
   const platform = createPlatformClient();
   const { data, error } = await platform
     .from('sellers')
-    .select('id, slug, schema_name, display_name, stripe_account_id, stripe_onboarding_complete, platform_fee_percent, status, user_id')
+    .select(SELLER_COLUMNS)
     .eq('slug', slug)
     .eq('status', 'active')
     .single();
 
   if (error || !data) {
     // Cache negative result too (prevents repeated DB queries for non-existent sellers)
-    sellerCache.set(slug, { seller: null, expiresAt: Date.now() + CACHE_TTL_MS });
+    setCacheEntry(slug, null);
     return null;
   }
 
-  const seller: SellerInfo = {
-    id: data.id,
-    slug: data.slug,
-    schema_name: data.schema_name,
-    display_name: data.display_name,
-    stripe_account_id: data.stripe_account_id,
-    stripe_onboarding_complete: data.stripe_onboarding_complete,
-    platform_fee_percent: data.platform_fee_percent,
-    status: data.status,
-    user_id: data.user_id,
-  };
-
-  sellerCache.set(slug, { seller, expiresAt: Date.now() + CACHE_TTL_MS });
+  const seller = toSellerInfo(data);
+  setCacheEntry(slug, seller);
   return seller;
 }
 
@@ -99,23 +120,13 @@ export async function getSellerById(sellerId: string): Promise<SellerInfo | null
   const platform = createPlatformClient();
   const { data, error } = await platform
     .from('sellers')
-    .select('id, slug, schema_name, display_name, stripe_account_id, stripe_onboarding_complete, platform_fee_percent, status, user_id')
+    .select(SELLER_COLUMNS)
     .eq('id', sellerId)
     .single();
 
   if (error || !data) return null;
 
-  return {
-    id: data.id,
-    slug: data.slug,
-    schema_name: data.schema_name,
-    display_name: data.display_name,
-    stripe_account_id: data.stripe_account_id,
-    stripe_onboarding_complete: data.stripe_onboarding_complete,
-    platform_fee_percent: data.platform_fee_percent,
-    status: data.status,
-    user_id: data.user_id,
-  };
+  return toSellerInfo(data);
 }
 
 // ===== TENANT-SCOPED CLIENTS =====
@@ -127,6 +138,11 @@ export async function getSellerById(sellerId: string): Promise<SellerInfo | null
  * @param schemaName - PostgreSQL schema name (e.g., 'seller_nick')
  */
 export function createSellerAdminClient(schemaName: string) {
+  // K4: Validate schema name to prevent arbitrary schema access via service_role
+  if (!isValidSellerSchema(schemaName)) {
+    throw new Error(`Invalid seller schema name: "${schemaName}". Must match pattern seller_[a-z0-9_]{2,50} and not be seller_main.`);
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 

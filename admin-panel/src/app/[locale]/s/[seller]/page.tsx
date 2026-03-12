@@ -68,7 +68,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
     return notFound();
   }
 
-  const { seller: sellerSlug } = await params;
+  const { seller: sellerSlug, locale } = await params;
   const data = await getSellerData(sellerSlug);
 
   if (!data) {
@@ -98,7 +98,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
             {products.map((product) => (
               <a
                 key={product.id}
-                href={`/s/${sellerSlug}/${product.slug}`}
+                href={`/${locale}/s/${sellerSlug}/${product.slug}`}
                 className="block bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow p-6"
               >
                 {product.icon && (

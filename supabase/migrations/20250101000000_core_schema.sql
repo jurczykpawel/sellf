@@ -1386,16 +1386,16 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT EXECUTE ON FUNCTIONS TO ano
 -- PROXY VIEWS: public -> seller_main (backward compatibility for standalone mode)
 -- These allow existing code and PostgREST to access seller_main tables via public schema
 --
-CREATE OR REPLACE VIEW public.products AS SELECT * FROM seller_main.products;
-CREATE OR REPLACE VIEW public.variant_groups AS SELECT * FROM seller_main.variant_groups;
-CREATE OR REPLACE VIEW public.product_variant_groups AS SELECT * FROM seller_main.product_variant_groups;
-CREATE OR REPLACE VIEW public.categories AS SELECT * FROM seller_main.categories;
-CREATE OR REPLACE VIEW public.product_categories AS SELECT * FROM seller_main.product_categories;
-CREATE OR REPLACE VIEW public.tags AS SELECT * FROM seller_main.tags;
-CREATE OR REPLACE VIEW public.product_tags AS SELECT * FROM seller_main.product_tags;
-CREATE OR REPLACE VIEW public.user_product_access AS SELECT * FROM seller_main.user_product_access;
-CREATE OR REPLACE VIEW public.user_access_stats AS SELECT * FROM seller_main.user_access_stats;
-CREATE OR REPLACE VIEW public.user_product_access_detailed AS SELECT * FROM seller_main.user_product_access_detailed;
+CREATE OR REPLACE VIEW public.products WITH (security_invoker = on) AS SELECT * FROM seller_main.products;
+CREATE OR REPLACE VIEW public.variant_groups WITH (security_invoker = on) AS SELECT * FROM seller_main.variant_groups;
+CREATE OR REPLACE VIEW public.product_variant_groups WITH (security_invoker = on) AS SELECT * FROM seller_main.product_variant_groups;
+CREATE OR REPLACE VIEW public.categories WITH (security_invoker = on) AS SELECT * FROM seller_main.categories;
+CREATE OR REPLACE VIEW public.product_categories WITH (security_invoker = on) AS SELECT * FROM seller_main.product_categories;
+CREATE OR REPLACE VIEW public.tags WITH (security_invoker = on) AS SELECT * FROM seller_main.tags;
+CREATE OR REPLACE VIEW public.product_tags WITH (security_invoker = on) AS SELECT * FROM seller_main.product_tags;
+CREATE OR REPLACE VIEW public.user_product_access WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access;
+CREATE OR REPLACE VIEW public.user_access_stats WITH (security_invoker = on) AS SELECT * FROM seller_main.user_access_stats;
+CREATE OR REPLACE VIEW public.user_product_access_detailed WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access_detailed;
 
 -- 
 -- CRON JOB MANAGEMENT

@@ -32,64 +32,43 @@ export async function GET(request: NextRequest) {
     const adminClient = createAdminClient();
     const now = new Date();
 
-    // Check database connectivity by running simple counts
-    let databaseHealthy = true;
-    let databaseError: string | null = null;
-
-    // Get product counts
-    const { count: totalProducts, error: productsError } = await adminClient
-      .from('products')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: activeProducts } = await adminClient
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-
-    if (productsError) {
-      databaseHealthy = false;
-      databaseError = 'Database connection error';
-    }
-
-    // Get user counts
-    const { count: totalUsers } = await adminClient
-      .from('profiles')
-      .select('*', { count: 'exact', head: true });
-
-    // Get transaction counts
-    const { count: totalTransactions } = await adminClient
-      .from('payment_transactions')
-      .select('*', { count: 'exact', head: true });
-
-    const { count: completedTransactions } = await adminClient
-      .from('payment_transactions')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed');
-
-    // Get pending refund requests
-    const { count: pendingRefunds } = await adminClient
-      .from('refund_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
-
-    // Get active webhooks
-    const { count: activeWebhooks } = await adminClient
-      .from('webhook_endpoints')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-
-    // Get active coupons
-    const { count: activeCoupons } = await adminClient
-      .from('coupons')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-
-    // Get API key count (api_keys is in public schema)
+    // Run all count queries in parallel (N3: was sequential — 7 round trips)
     const platformClient = createPlatformClient();
-    const { count: activeApiKeys } = await platformClient
-      .from('api_keys')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
+
+    const [
+      totalProductsResult,
+      activeProductsResult,
+      totalUsersResult,
+      totalTransactionsResult,
+      completedTransactionsResult,
+      pendingRefundsResult,
+      activeWebhooksResult,
+      activeCouponsResult,
+      activeApiKeysResult,
+    ] = await Promise.all([
+      adminClient.from('products').select('*', { count: 'exact', head: true }),
+      adminClient.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      adminClient.from('profiles').select('*', { count: 'exact', head: true }),
+      adminClient.from('payment_transactions').select('*', { count: 'exact', head: true }),
+      adminClient.from('payment_transactions').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+      adminClient.from('refund_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      adminClient.from('webhook_endpoints').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      adminClient.from('coupons').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      platformClient.from('api_keys').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    ]);
+
+    const databaseHealthy = !totalProductsResult.error;
+    const databaseError = totalProductsResult.error ? 'Database connection error' : null;
+
+    const totalProducts = totalProductsResult.count;
+    const activeProducts = activeProductsResult.count;
+    const totalUsers = totalUsersResult.count;
+    const totalTransactions = totalTransactionsResult.count;
+    const completedTransactions = completedTransactionsResult.count;
+    const pendingRefunds = pendingRefundsResult.count;
+    const activeWebhooks = activeWebhooksResult.count;
+    const activeCoupons = activeCouponsResult.count;
+    const activeApiKeys = activeApiKeysResult.count;
 
     const response = {
       status: databaseHealthy ? 'healthy' : 'degraded',

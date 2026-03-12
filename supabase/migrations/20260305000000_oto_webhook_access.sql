@@ -262,7 +262,7 @@ ALTER TABLE seller_main.shop_config
   DROP COLUMN IF EXISTS accent_color;
 
 -- Recreate proxy view after DROP COLUMN
-CREATE OR REPLACE VIEW public.shop_config AS SELECT * FROM seller_main.shop_config;
+CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;
 
 -- Add expiry_notified_at to user_product_access
 -- Used by the /api/cron?job=access-expired endpoint to prevent duplicate webhook dispatch.
@@ -273,7 +273,7 @@ ALTER TABLE seller_main.user_product_access
   ADD COLUMN IF NOT EXISTS expiry_notified_at TIMESTAMPTZ;
 
 -- Refresh proxy view to include new column
-CREATE OR REPLACE VIEW public.user_product_access AS SELECT * FROM seller_main.user_product_access;
+CREATE OR REPLACE VIEW public.user_product_access WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access;
 
 -- Index: cron job queries this column frequently
 CREATE INDEX IF NOT EXISTS idx_user_product_access_expiry_notified
@@ -293,7 +293,7 @@ ALTER TABLE seller_main.stripe_configurations
   ADD COLUMN IF NOT EXISTS webhook_signing_tag TEXT;
 
 -- Refresh proxy view to include new columns
-CREATE OR REPLACE VIEW public.stripe_configurations AS SELECT * FROM seller_main.stripe_configurations;
+CREATE OR REPLACE VIEW public.stripe_configurations WITH (security_invoker = on) AS SELECT * FROM seller_main.stripe_configurations;
 
 COMMENT ON COLUMN seller_main.stripe_configurations.webhook_endpoint_id
   IS 'Stripe webhook endpoint ID (we_xxx). NULL = not registered via Sellf.';
@@ -312,4 +312,4 @@ ALTER TABLE seller_main.products
   ADD COLUMN IF NOT EXISTS preview_video_url TEXT;
 
 -- Refresh proxy view to include new column
-CREATE OR REPLACE VIEW public.products AS SELECT * FROM seller_main.products;
+CREATE OR REPLACE VIEW public.products WITH (security_invoker = on) AS SELECT * FROM seller_main.products;

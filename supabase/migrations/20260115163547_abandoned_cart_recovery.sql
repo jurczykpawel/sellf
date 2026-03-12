@@ -20,7 +20,7 @@ ALTER TABLE seller_main.payment_transactions
   ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 
 -- Refresh proxy view to include new columns
-CREATE OR REPLACE VIEW public.payment_transactions AS SELECT * FROM seller_main.payment_transactions;
+CREATE OR REPLACE VIEW public.payment_transactions WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_transactions;
 
 -- 4. Create index for finding pending/abandoned payments efficiently
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_status_created

@@ -2075,18 +2075,18 @@ COMMENT ON COLUMN seller_main.shop_config.privacy_policy_url IS 'URL to Privacy 
 -- PROXY VIEWS (backward compatibility for shop tables moved to seller_main)
 -- =============================================================================
 
-CREATE OR REPLACE VIEW public.video_progress AS SELECT * FROM seller_main.video_progress;
-CREATE OR REPLACE VIEW public.video_events AS SELECT * FROM seller_main.video_events;
-CREATE OR REPLACE VIEW public.order_bumps AS SELECT * FROM seller_main.order_bumps;
-CREATE OR REPLACE VIEW public.coupons AS SELECT * FROM seller_main.coupons;
-CREATE OR REPLACE VIEW public.coupon_redemptions AS SELECT * FROM seller_main.coupon_redemptions;
-CREATE OR REPLACE VIEW public.coupon_reservations AS SELECT * FROM seller_main.coupon_reservations;
-CREATE OR REPLACE VIEW public.webhook_endpoints AS SELECT * FROM seller_main.webhook_endpoints;
-CREATE OR REPLACE VIEW public.webhook_logs AS SELECT * FROM seller_main.webhook_logs;
-CREATE OR REPLACE VIEW public.integrations_config AS SELECT * FROM seller_main.integrations_config;
-CREATE OR REPLACE VIEW public.custom_scripts AS SELECT * FROM seller_main.custom_scripts;
-CREATE OR REPLACE VIEW public.consent_logs AS SELECT * FROM seller_main.consent_logs;
-CREATE OR REPLACE VIEW public.profiles AS SELECT * FROM seller_main.profiles;
-CREATE OR REPLACE VIEW public.revenue_goals AS SELECT * FROM seller_main.revenue_goals;
-CREATE OR REPLACE VIEW public.stripe_configurations AS SELECT * FROM seller_main.stripe_configurations;
-CREATE OR REPLACE VIEW public.shop_config AS SELECT * FROM seller_main.shop_config;
+CREATE OR REPLACE VIEW public.video_progress WITH (security_invoker = on) AS SELECT * FROM seller_main.video_progress;
+CREATE OR REPLACE VIEW public.video_events WITH (security_invoker = on) AS SELECT * FROM seller_main.video_events;
+CREATE OR REPLACE VIEW public.order_bumps WITH (security_invoker = on) AS SELECT * FROM seller_main.order_bumps;
+CREATE OR REPLACE VIEW public.coupons WITH (security_invoker = on) AS SELECT * FROM seller_main.coupons;
+CREATE OR REPLACE VIEW public.coupon_redemptions WITH (security_invoker = on) AS SELECT * FROM seller_main.coupon_redemptions;
+CREATE OR REPLACE VIEW public.coupon_reservations WITH (security_invoker = on) AS SELECT * FROM seller_main.coupon_reservations;
+CREATE OR REPLACE VIEW public.webhook_endpoints WITH (security_invoker = on) AS SELECT * FROM seller_main.webhook_endpoints;
+CREATE OR REPLACE VIEW public.webhook_logs WITH (security_invoker = on) AS SELECT * FROM seller_main.webhook_logs;
+CREATE OR REPLACE VIEW public.integrations_config WITH (security_invoker = on) AS SELECT * FROM seller_main.integrations_config;
+CREATE OR REPLACE VIEW public.custom_scripts WITH (security_invoker = on) AS SELECT * FROM seller_main.custom_scripts;
+CREATE OR REPLACE VIEW public.consent_logs WITH (security_invoker = on) AS SELECT * FROM seller_main.consent_logs;
+CREATE OR REPLACE VIEW public.profiles WITH (security_invoker = on) AS SELECT * FROM seller_main.profiles;
+CREATE OR REPLACE VIEW public.revenue_goals WITH (security_invoker = on) AS SELECT * FROM seller_main.revenue_goals;
+CREATE OR REPLACE VIEW public.stripe_configurations WITH (security_invoker = on) AS SELECT * FROM seller_main.stripe_configurations;
+CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * Variant Groups API (M:N relationship)
@@ -61,8 +62,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
+    // Use admin client (seller_main schema) for FK embedding support
+    const adminClient = createAdminClient();
+
     // Get all variant groups
-    const { data: groups, error: groupsError } = await supabase
+    const { data: groups, error: groupsError } = await adminClient
       .from('variant_groups')
       .select('id, name, slug, created_at, updated_at')
       .order('created_at', { ascending: false });
@@ -76,7 +80,7 @@ export async function GET() {
     }
 
     // Get all product-group relationships with product details
-    const { data: productGroups, error: pgError } = await supabase
+    const { data: productGroups, error: pgError } = await adminClient
       .from('product_variant_groups')
       .select(`
         id,
