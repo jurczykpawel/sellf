@@ -192,7 +192,7 @@ const T=${JSON.stringify(t)};
 
 const widgetState=new Map();
 let cssInjected=false;
-${captchaProvider === 'turnstile' ? generateTurnstileGlobals() : ''}
+${generateCaptchaGlobals(captchaProvider)}
 
 function isValidEmail(email){
   return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
@@ -225,14 +225,6 @@ function injectCSS(){
     .sellf-terms{color:rgba(255,255,255,.8);font-size:.85rem;margin-top:1rem;text-align:center}
     .sellf-terms a{color:#fff;text-decoration:underline}
     .sellf-captcha{margin-top:1rem;display:flex;justify-content:center}
-    .sellf-altcha{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.9);font-size:.9rem;min-height:48px;transition:all .3s}
-    .sellf-altcha.sellf-altcha-verified{border-color:rgba(16,185,129,.5);background:rgba(16,185,129,.15)}
-    .sellf-altcha-checkbox{width:20px;height:20px;border:2px solid rgba(255,255,255,.4);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;flex-shrink:0}
-    .sellf-altcha-checkbox:hover{border-color:rgba(255,255,255,.7)}
-    .sellf-altcha-checkbox.sellf-altcha-solving{border-color:#667eea;animation:sellf-spin .8s linear infinite;border-top-color:rgba(255,255,255,.8);border-radius:50%}
-    .sellf-altcha-checkbox.sellf-altcha-solved{border-color:rgba(16,185,129,.8);background:rgba(16,185,129,.6)}
-    .sellf-altcha-check{display:none;color:#fff;font-size:14px;line-height:1}
-    .sellf-altcha-solved .sellf-altcha-check{display:block}
   \`;
   document.head.appendChild(style);
 }
@@ -378,19 +370,23 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
 
 // ===== CAPTCHA-SPECIFIC CODE GENERATORS =====
 
-function generateTurnstileGlobals(): string {
-  return `let turnstileLoading=false;
+function generateCaptchaGlobals(provider: CaptchaProvider): string {
+  if (provider === 'turnstile') {
+    return `let turnstileLoading=false;
 let turnstileCallbacks=[];`;
+  }
+  if (provider === 'altcha') {
+    return `let altchaLoading=false;
+let altchaCallbacks=[];`;
+  }
+  return '';
 }
 
 function generateCaptchaFunctions(provider: CaptchaProvider): string {
   switch (provider) {
-    case 'turnstile':
-      return generateTurnstileFunctions();
-    case 'altcha':
-      return generateAltchaFunctions();
-    case 'none':
-      return generateNoCaptchaFunctions();
+    case 'turnstile': return generateTurnstileFunctions();
+    case 'altcha':    return generateAltchaFunctions();
+    case 'none':      return generateNoCaptchaFunctions();
   }
 }
 
@@ -428,79 +424,49 @@ function resetCaptcha(widgetId){
 }
 
 function generateAltchaFunctions(): string {
-  // Pure vanilla JS ALTCHA solver — no npm package, no web component.
-  // Implements the ALTCHA proof-of-work protocol:
-  // 1. Fetch challenge (algorithm, salt, challenge hash, maxNumber)
-  // 2. Iterate numbers 0..maxNumber, hash(salt + number), compare to challenge
-  // 3. Base64-encode solution payload and set as captcha token
-  return `function initCaptcha(widgetId){
+  // Load altcha web component from CDN (analogous to Turnstile loading challenges.cloudflare.com).
+  // The <altcha-widget> web component handles PoW solving internally and fires a
+  // 'statechange' event with payload when verified — same protocol as our React AltchaWidget.
+  // Upgrading to v3 only requires updating ALTCHA_CDN_URL.
+  return `const ALTCHA_CDN_URL='https://cdn.altcha.org/altcha/latest/altcha.min.js';
+
+function initCaptcha(widgetId){
+  if(customElements.get('altcha-widget')){renderAltcha(widgetId);return}
+  if(altchaLoading){altchaCallbacks.push(()=>renderAltcha(widgetId));return}
+  altchaLoading=true;
+  altchaCallbacks.push(()=>renderAltcha(widgetId));
+  const script=document.createElement('script');
+  script.src=ALTCHA_CDN_URL;
+  script.async=true;
+  script.onload=()=>{altchaLoading=false;altchaCallbacks.forEach(cb=>cb());altchaCallbacks=[]};
+  script.onerror=()=>{altchaLoading=false;console.error('Sellf: Failed to load ALTCHA')};
+  document.head.appendChild(script);
+}
+
+function renderAltcha(widgetId){
   const container=document.getElementById(widgetId+'-captcha');
   if(!container)return;
-  container.innerHTML='<div class="sellf-altcha" id="'+widgetId+'-altcha"><div class="sellf-altcha-checkbox" id="'+widgetId+'-altcha-cb" role="button" tabindex="0" aria-label="Verify"><span class="sellf-altcha-check">\\u2713</span></div><span id="'+widgetId+'-altcha-label">'+T.errorCaptcha+'</span></div>';
-  const cb=document.getElementById(widgetId+'-altcha-cb');
-  cb.addEventListener('click',()=>solveAltcha(widgetId));
-  cb.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();solveAltcha(widgetId)}});
-}
-
-async function solveAltcha(widgetId){
-  const state=widgetState.get(widgetId);
-  if(!state||state.captchaToken)return;
-  const cb=document.getElementById(widgetId+'-altcha-cb');
-  const label=document.getElementById(widgetId+'-altcha-label');
-  const wrapper=document.getElementById(widgetId+'-altcha');
-  if(!cb||!label)return;
-
-  cb.classList.add('sellf-altcha-solving');
-  label.textContent=T.verifying;
-
-  try{
-    const resp=await fetch(API_BASE_URL+'/api/captcha/challenge');
-    if(!resp.ok)throw new Error('Challenge fetch failed');
-    const challenge=await resp.json();
-    const solution=await solvePow(challenge);
-    if(!solution)throw new Error('No solution found');
-
-    const payload=btoa(JSON.stringify({
-      algorithm:challenge.algorithm,
-      challenge:challenge.challenge,
-      number:solution,
-      salt:challenge.salt,
-      signature:challenge.signature
-    }));
-
-    state.captchaToken=payload;
-    cb.classList.remove('sellf-altcha-solving');
-    cb.classList.add('sellf-altcha-solved');
-    if(wrapper)wrapper.classList.add('sellf-altcha-verified');
-    label.textContent=T.verified;
-  }catch(err){
-    console.error('Sellf ALTCHA error:',err);
-    cb.classList.remove('sellf-altcha-solving');
-    label.textContent=T.errorCaptcha;
-  }
-}
-
-async function solvePow(challenge){
-  const algo=challenge.algorithm==='SHA-512'?'SHA-512':'SHA-256';
-  const max=challenge.maxnumber||1000000;
-  for(let n=0;n<=max;n++){
-    const msg=new TextEncoder().encode(challenge.salt+n);
-    const buf=await crypto.subtle.digest(algo,msg);
-    const hex=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-    if(hex===challenge.challenge)return n;
-  }
-  return null;
+  const widget=document.createElement('altcha-widget');
+  widget.setAttribute('challengeurl',API_BASE_URL+'/api/captcha/challenge');
+  widget.setAttribute('hidelogo','');
+  widget.setAttribute('hidefooter','');
+  widget.style.maxWidth='100%';
+  widget.addEventListener('statechange',function(ev){
+    const detail=ev.detail;
+    const s=widgetState.get(widgetId);
+    if(!s)return;
+    if(detail&&detail.state==='verified'&&detail.payload){s.captchaToken=detail.payload}
+    else if(detail&&detail.state==='error'){s.captchaToken=null}
+  });
+  container.appendChild(widget);
 }
 
 function resetCaptcha(widgetId){
-  const state=widgetState.get(widgetId);
-  if(state)state.captchaToken=null;
-  const cb=document.getElementById(widgetId+'-altcha-cb');
-  const label=document.getElementById(widgetId+'-altcha-label');
-  const wrapper=document.getElementById(widgetId+'-altcha');
-  if(cb){cb.classList.remove('sellf-altcha-solving','sellf-altcha-solved')}
-  if(wrapper)wrapper.classList.remove('sellf-altcha-verified');
-  if(label)label.textContent=T.errorCaptcha;
+  const container=document.getElementById(widgetId+'-captcha');
+  const widget=container&&container.querySelector('altcha-widget');
+  if(widget&&typeof widget.reset==='function'){try{widget.reset()}catch(_){}}
+  const s=widgetState.get(widgetId);
+  if(s)s.captchaToken=null;
 }`;
 }
 
