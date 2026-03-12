@@ -331,6 +331,10 @@ test.describe('Omnibus Frontend - Admin Side', () => {
 
     expect(updatedProduct!.omnibus_exempt).toBe(true);
 
+    // Wait for the success toast to disappear before reopening the modal
+    // (toast can intercept Edit button clicks)
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10000 });
+
     // Reopen modal and verify checkbox is still checked
     await row.locator('button[title*="Edit"], button[title*="Edytuj"]').first().click();
     await expect(modal).toBeVisible({ timeout: 5000 });
@@ -339,12 +343,15 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     await page.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
     await expect(modal.getByRole('button', { name: /Dalej|Continue Setup/i })).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
+    // Wait for step 3 to fully render before interacting with it
+    await expect(modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i })).toBeVisible({ timeout: 5000 });
 
-    // Advanced Settings may already be expanded (defaultExpanded depends on omnibus_exempt=true)
+    // Advanced Settings may already be expanded (defaultExpanded=true when omnibus_exempt=true)
     const omnibusCheckbox2 = modal.locator('input[name="omnibus_exempt"]');
     if (!(await omnibusCheckbox2.isVisible())) {
       await modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i }).click();
     }
+    await expect(omnibusCheckbox2).toBeVisible({ timeout: 3000 });
     await omnibusCheckbox2.scrollIntoViewIfNeeded();
     await expect(omnibusCheckbox2).toBeChecked();
 
