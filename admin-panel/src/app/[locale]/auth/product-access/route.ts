@@ -47,13 +47,27 @@ export async function GET(request: Request) {
   }
 
   try {
-    // First, check if the user already has access to the product
-    const { data: existingAccess, error: accessError } = await supabase
-      .from('user_product_access')
-      .select('*, products!inner(slug)')
-      .eq('user_id', user.id)
-      .eq('products.slug', productSlug)
+    // First, check if the user already has access to the product.
+    // Two-step query: find product by slug, then check access — avoids FK embedding
+    // which doesn't work through proxy views in public schema (PGRST200).
+    const { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('slug', productSlug)
       .single();
+
+    let existingAccess = null;
+    let accessError = null;
+    if (product) {
+      const result = await supabase
+        .from('user_product_access')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('product_id', product.id)
+        .single();
+      existingAccess = result.data;
+      accessError = result.error;
+    }
 
     if (accessError && accessError.code !== 'PGRST116') { // PGRST116 is "not found" error
       console.error(`[ProductAccess] Error checking existing access:`, accessError);
@@ -62,7 +76,7 @@ export async function GET(request: Request) {
 
     // If the user doesn't have access, check if product is free and grant access if so
     if (!existingAccess) {
-      const { data: product, error: productError } = await supabase
+      const { data: productDetails, error: productError } = await supabase
         .from('products')
         .select('*')
         .eq('slug', productSlug)
@@ -76,19 +90,19 @@ export async function GET(request: Request) {
         return;
       }
 
-      if (!product) {
+      if (!productDetails) {
         handleRedirect('/', returnUrl);
         return;
       }
 
       // Check if product qualifies for free access grant
       // SECURITY: Only explicit 0 qualifies — null is NOT treated as free (fail-closed)
-      const isPwywFree = product.allow_custom_price && product.custom_price_min === 0;
-      const isFreeEligible = product.price === 0 || isPwywFree;
+      const isPwywFree = productDetails.allow_custom_price && productDetails.custom_price_min === 0;
+      const isFreeEligible = productDetails.price === 0 || isPwywFree;
 
       if (isFreeEligible) {
         // Use appropriate RPC based on product type
-        const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
+        const rpcName = isPwywFree && productDetails.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
         const { data: accessResult, error: grantError } = await supabase
           .rpc(rpcName, {
             product_slug_param: productSlug,
@@ -117,7 +131,7 @@ export async function GET(request: Request) {
     }
     // At this point, user either already had access or we've granted it (for free products)
     // Get the product's content delivery configuration
-    const { data: product, error: redirectError } = await supabase
+    const { data: redirectProduct, error: redirectError } = await supabase
       .from('products')
       .select('content_delivery_type, content_config')
       .eq('slug', productSlug)
@@ -131,10 +145,10 @@ export async function GET(request: Request) {
     }
 
     // Redirect to the specified URL if available, otherwise to the product page
-    if (product?.content_delivery_type === 'redirect' && product?.content_config?.redirect_url) {
+    if (redirectProduct?.content_delivery_type === 'redirect' && redirectProduct?.content_config?.redirect_url) {
       // Security: Validate redirect URL to prevent open redirect attacks
       try {
-        const redirectUrl = new URL(product.content_config.redirect_url);
+        const redirectUrl = new URL(redirectProduct.content_config.redirect_url);
         
         // Basic security checks
         if (redirectUrl.protocol !== 'https:' && redirectUrl.protocol !== 'http:') {
@@ -152,7 +166,7 @@ export async function GET(request: Request) {
         }
         
         // Redirect to the validated URL
-        redirect(product.content_config.redirect_url);
+        redirect(redirectProduct.content_config.redirect_url);
       } catch (error) {
         console.error(`[ProductAccess] Invalid redirect URL:`, error);
         handleRedirect(`/p/${productSlug}`, returnUrl);

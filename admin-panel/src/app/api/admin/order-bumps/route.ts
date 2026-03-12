@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { OrderBumpFormData, OrderBumpAdmin } from '@/types/order-bump';
 
 /**
@@ -58,8 +59,10 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(data || []);
     } else {
-      // Get all bumps
-      const { data, error } = await supabase
+      // Use adminClient (seller_main schema) for FK embedding queries —
+      // PostgREST can't resolve FK relationships through proxy views in public schema.
+      const adminClient = createAdminClient();
+      const { data, error } = await adminClient
         .from('order_bumps')
         .select(
           `

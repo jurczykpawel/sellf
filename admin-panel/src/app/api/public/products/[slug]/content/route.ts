@@ -17,7 +17,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get product with access check using RLS
+    // Two-step query to avoid FK embedding through proxy views (PGRST200).
+    // Step 1: Fetch product by slug
     const { data: productWithAccess, error: productError } = await supabase
       .from('products')
       .select(`
@@ -33,24 +34,30 @@ export async function GET(
         available_from,
         available_until,
         content_config,
-        content_delivery_type,
-        user_access:user_product_access!inner(
-          access_expires_at,
-          access_duration_days,
-          created_at
-        )
+        content_delivery_type
       `)
       .eq('slug', slug)
-      .eq('user_access.user_id', user.id)
       .single();
 
-    if (productError) {
+    if (productError || !productWithAccess) {
       console.error('Error fetching product:', productError);
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    // Step 2: Check user access separately
+    const { data: userAccessData, error: accessError } = await supabase
+      .from('user_product_access')
+      .select('access_expires_at, access_duration_days, created_at')
+      .eq('product_id', productWithAccess.id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (accessError || !userAccessData) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
     // Additional security check: verify access hasn't expired
-    const userAccess = productWithAccess.user_access[0];
+    const userAccess = userAccessData;
     const now = new Date();
     const expiresAt = userAccess.access_expires_at ? new Date(userAccess.access_expires_at) : null;
     const isExpired = expiresAt && expiresAt < now;

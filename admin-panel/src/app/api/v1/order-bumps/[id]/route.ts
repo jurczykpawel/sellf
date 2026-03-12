@@ -20,6 +20,7 @@ import {
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
 import { ORDER_BUMP_SELECT } from '../constants';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return apiError(request, 'INVALID_INPUT', 'Invalid order bump ID format');
     }
 
-    const { data, error } = await supabase
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
       .from('order_bumps')
       .select(ORDER_BUMP_SELECT)
       .eq('id', id)
@@ -199,8 +201,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return apiError(request, 'VALIDATION_ERROR', 'No valid update fields provided');
     }
 
-    // Update order bump
-    const { data, error } = await supabase
+    // Update order bump (use adminClient for FK embedding in ORDER_BUMP_SELECT)
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
       .from('order_bumps')
       .update(updates)
       .eq('id', id)

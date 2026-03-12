@@ -38,8 +38,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Use service role client for admin operations
-    const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
+    // Use service role client for admin operations (seller_main schema for FK embedding)
+    const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey(), {
+      db: { schema: 'seller_main' },
+    });
 
     // Check admin privileges
     const { data: adminUser, error: adminError } = await supabase

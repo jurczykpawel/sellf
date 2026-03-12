@@ -36,7 +36,7 @@ const PRODUCT_FIELDS = [
   'is_refundable', 'refund_period_days',
   'enable_waitlist',
   'allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets',
-  'created_at', 'updated_at', 'tenant_id',
+  'created_at', 'updated_at',
 ].join(', ');
 
 const getProduct = cache(async (slug: string) => {

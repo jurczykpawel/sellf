@@ -112,15 +112,22 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     if (!isFunnelTest) return;
     const checkOto = async () => {
       const supabase = await createClient();
-      const { data } = await supabase
+      // Two-step query to avoid FK embedding through proxy views (PGRST200).
+      const { data: offer } = await supabase
         .from('oto_offers')
-        .select('oto_product:products!oto_offers_oto_product_id_fkey(slug)')
+        .select('oto_product_id')
         .eq('source_product_id', product.id)
         .eq('is_active', true)
         .limit(1)
         .maybeSingle();
-      const slug = (data?.oto_product as { slug?: string } | null)?.slug;
-      if (slug) setFunnelTestOtoSlug(slug);
+      if (offer?.oto_product_id) {
+        const { data: otoProduct } = await supabase
+          .from('products')
+          .select('slug')
+          .eq('id', offer.oto_product_id)
+          .single();
+        if (otoProduct?.slug) setFunnelTestOtoSlug(otoProduct.slug);
+      }
     };
     checkOto();
   }, [isFunnelTest, product.id]);
