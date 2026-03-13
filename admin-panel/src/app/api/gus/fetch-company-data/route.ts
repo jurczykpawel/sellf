@@ -3,6 +3,8 @@ import { validateNIPChecksum, normalizeNIP } from '@/lib/validation/nip';
 import { GUSAPIClient } from '@/lib/services/gus-api-client';
 import { getDecryptedGUSAPIKey } from '@/lib/actions/gus-config';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { createClient } from '@/lib/supabase/server';
+import { requireAdminApi } from '@/lib/auth-server';
 
 /**
  * POST /api/gus/fetch-company-data
@@ -45,6 +47,10 @@ import { checkRateLimit } from '@/lib/rate-limiting';
  */
 export async function POST(request: NextRequest) {
   try {
+    // 0. Authentication - only admins can query company data
+    const supabase = await createClient();
+    await requireAdminApi(supabase);
+
     // 1. Rate Limiting - Database-backed rate limiting for production reliability
     const rateLimitOk = await checkRateLimit('gus_fetch_company_data', 5, 1); // 5 requests per 1 minute
 

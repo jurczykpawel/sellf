@@ -246,7 +246,7 @@ BEGIN
     'duration_minutes', oto_config.duration_minutes
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.generate_oto_coupon TO service_role;
 

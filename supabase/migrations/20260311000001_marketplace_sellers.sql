@@ -49,7 +49,7 @@ ALTER TABLE public.sellers ENABLE ROW LEVEL SECURITY;
 -- Admins: full access
 CREATE POLICY "sellers_admin_all" ON public.sellers
   FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 -- Public: read active sellers (for storefront listing)
 CREATE POLICY "sellers_public_read_active" ON public.sellers
@@ -66,7 +66,7 @@ CREATE POLICY "sellers_service_role_all" ON public.sellers
 -- Seller: read own record
 CREATE POLICY "sellers_own_read" ON public.sellers
   FOR SELECT
-  USING (user_id = auth.uid());
+  USING (user_id = (select auth.uid()));
 
 -- =====================================================
 -- PROVISION SELLER SCHEMA
@@ -161,15 +161,11 @@ BEGIN
   END IF;
 
   -- ==========================================
-  -- 5. Grant permissions to Supabase roles (O2: restricted grants)
+  -- 5. Grant permissions to Supabase roles (Security Rule #5: explicit per-table)
   -- ==========================================
   EXECUTE format('GRANT USAGE ON SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
 
-  -- anon: read-only access to tables (needed for public product pages)
-  EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO anon', v_schema_name);
-  -- authenticated: full CRUD (RLS policies control actual access)
-  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO authenticated', v_schema_name);
-  -- service_role: unrestricted
+  -- service_role: unrestricted on all tables
   EXECUTE format('GRANT ALL ON ALL TABLES IN SCHEMA %I TO service_role', v_schema_name);
 
   -- Sequences: authenticated + service_role need usage for inserts
@@ -178,12 +174,34 @@ BEGIN
   -- Functions: all roles can execute (individual function permissions handle auth)
   EXECUTE format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
 
-  -- Default privileges for future objects
-  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT ON TABLES TO anon', v_schema_name);
-  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated', v_schema_name);
+  -- Public catalog tables: anon + authenticated SELECT
+  EXECUTE format('GRANT SELECT ON %I.products TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.variant_groups TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.product_variant_groups TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.categories TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.product_categories TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.tags TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.product_tags TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.shop_config TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.product_price_history TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.order_bumps TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.oto_offers TO anon, authenticated', v_schema_name);
+  -- User data tables: authenticated CRUD (RLS enforced)
+  EXECUTE format('GRANT SELECT ON %I.user_product_access TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I.video_progress TO authenticated', v_schema_name);
+  EXECUTE format('GRANT INSERT ON %I.video_events TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT ON %I.coupon_redemptions TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, DELETE ON %I.coupon_reservations TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT ON %I.consent_logs TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, UPDATE ON %I.profiles TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.payment_transactions TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT ON %I.refund_requests TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.payment_line_items TO authenticated', v_schema_name);
+
+  -- Default privileges for future objects: only service_role gets automatic grants
   EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT ALL ON TABLES TO service_role', v_schema_name);
   EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT USAGE ON SEQUENCES TO authenticated, service_role', v_schema_name);
-  EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role', v_schema_name);
+  EXECUTE format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
 
   -- ==========================================
   -- 6. Insert seller record
@@ -282,8 +300,13 @@ REVOKE ALL ON FUNCTION public.deprovision_seller_schema FROM PUBLIC, anon, authe
 GRANT EXECUTE ON FUNCTION public.provision_seller_schema TO service_role;
 GRANT EXECUTE ON FUNCTION public.deprovision_seller_schema TO service_role;
 
--- Sellers table: PostgREST needs access for RLS-governed queries
-GRANT ALL ON public.sellers TO anon, authenticated, service_role;
+-- Sellers table: PostgREST needs access for RLS-governed queries.
+-- Principle of least privilege — anon/authenticated only need SELECT (public seller registry).
+-- Mutations happen via service_role only (provision/deprovision functions).
+-- HIGH-001: Revoke all privileges first so implicit defaults (INSERT/UPDATE/DELETE) are removed.
+REVOKE ALL ON public.sellers FROM anon, authenticated;
+GRANT SELECT ON public.sellers TO anon, authenticated;
+GRANT ALL ON public.sellers TO service_role;
 
 -- =====================================================
 -- OWNER SELLER (seller_main)
@@ -297,3 +320,44 @@ INSERT INTO public.sellers (
   'main', 'seller_main', 'Platform Owner', 0.00, 'active'
 )
 ON CONFLICT (slug) DO NOTHING;
+
+-- =====================================================
+-- SECURITY: REVOKE clone_schema helpers from anon/authenticated (Security Rule #7)
+-- =====================================================
+-- These functions are internal tools for schema provisioning.
+-- They MUST NOT be callable via PostgREST RPC by anon/authenticated users.
+REVOKE EXECUTE ON FUNCTION public.clone_schema(text, text, VARIADIC public.cloneparms[]) FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.clone_schema(text, text, VARIADIC public.cloneparms[]) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.pg_get_tabledef(varchar, varchar, boolean, VARIADIC public.tabledefs[]) FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.pg_get_tabledef(varchar, varchar, boolean, VARIADIC public.tabledefs[]) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.pg_get_coldef(text, text, text, boolean) FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.pg_get_coldef(text, text, text, boolean) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.get_insert_stmt_ddl(text, text, text, boolean, boolean) FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_insert_stmt_ddl(text, text, text, boolean, boolean) TO service_role;
+
+-- =====================================================
+-- SECURITY: Revoke default EXECUTE on new functions from anon/authenticated
+-- =====================================================
+-- By default, PostgreSQL grants EXECUTE on new functions to PUBLIC.
+-- This means every new function created in seller_main is callable by
+-- anon/authenticated via PostgREST RPC. Revoke this default and require
+-- explicit GRANT per function.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA seller_main
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated, PUBLIC;
+
+-- =====================================================
+-- SECURITY: REVOKE EXECUTE from anon on seller_main functions
+-- =====================================================
+-- Payment-critical and admin-only functions should not be callable by
+-- anonymous (unauthenticated) users. These functions have internal auth
+-- checks that reject anon callers, but the EXECUTE grant is unnecessary
+-- attack surface.
+REVOKE EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump FROM anon;
+REVOKE EXECUTE ON FUNCTION seller_main.admin_get_product_order_bumps FROM anon;
+REVOKE EXECUTE ON FUNCTION seller_main.admin_get_product_oto_offer FROM anon;
+REVOKE EXECUTE ON FUNCTION seller_main.admin_save_oto_offer FROM anon;
+REVOKE EXECUTE ON FUNCTION seller_main.admin_delete_oto_offer FROM anon;
+REVOKE EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user FROM anon;

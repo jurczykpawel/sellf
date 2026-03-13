@@ -118,7 +118,7 @@ DECLARE
 BEGIN
   -- Find the key
   SELECT * INTO v_key
-  FROM api_keys ak
+  FROM public.api_keys ak
   WHERE ak.key_hash = p_key_hash;
 
   -- Key not found
@@ -151,7 +151,7 @@ BEGIN
   END IF;
 
   -- Update usage stats (non-blocking)
-  UPDATE api_keys
+  UPDATE public.api_keys
   SET
     last_used_at = NOW(),
     usage_count = usage_count + 1
@@ -162,7 +162,8 @@ BEGIN
     v_key.id, v_key.admin_user_id, v_key.scopes, v_key.rate_limit_per_minute,
     true, NULL::TEXT;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 -- Audit log for API key events (optional but recommended)
 CREATE TABLE IF NOT EXISTS api_key_audit_log (
@@ -178,6 +179,16 @@ CREATE INDEX IF NOT EXISTS idx_api_key_audit_log_key_id ON api_key_audit_log(api
 CREATE INDEX IF NOT EXISTS idx_api_key_audit_log_created_at ON api_key_audit_log(created_at);
 
 COMMENT ON TABLE api_key_audit_log IS 'Audit trail for API key lifecycle events';
+
+-- Restrict table-level grants: anon has no business accessing API keys or their audit log.
+-- authenticated admins access via RLS policies below; service_role for internal writes.
+REVOKE ALL ON public.api_keys FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.api_keys TO authenticated;
+GRANT ALL ON public.api_keys TO service_role;
+
+REVOKE ALL ON public.api_key_audit_log FROM anon, authenticated;
+GRANT SELECT, INSERT ON public.api_key_audit_log TO authenticated;
+GRANT ALL ON public.api_key_audit_log TO service_role;
 
 -- RLS for audit log - admins can view logs for their own keys
 ALTER TABLE api_key_audit_log ENABLE ROW LEVEL SECURITY;

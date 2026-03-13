@@ -7,28 +7,9 @@ import { describe, it, expect } from 'vitest';
  * SECURITY TEST: Refund Access Revocation
  * ============================================================================
  *
- * VULNERABILITY: Guest Purchase Access Not Revoked After Refund (V-CRITICAL-06)
- * LOCATION: src/app/api/admin/payments/refund/route.ts
- *           src/lib/services/access-revocation.ts (shared revocation logic)
- *
- * ATTACK FLOW (before fix):
- * 1. Guest purchases product (creates record in guest_purchases table)
- * 2. Admin processes refund
- * 3. Refund handler ONLY deleted from user_product_access (for authenticated users)
- * 4. Guest purchase record remained in guest_purchases table
- * 5. Guest later creates account with same email
- * 6. claim_guest_purchases_for_user() grants access to refunded product
- * 7. Guest gets product for FREE after receiving refund
- *
- * ROOT CAUSE:
- * The refund handler only checked `if (transaction.user_id && transaction.product_id)`
- * For guest purchases, user_id is NULL, so the access revocation was skipped entirely.
- *
- * FIX (V16): Added separate cleanup for guest_purchases table using session_id
- * FIX (V17): Extracted all revocation logic into revokeTransactionAccess() —
- *            single source of truth for main + bump product access revocation.
- *
- * This file tests the REAL production code to ensure security fixes remain intact.
+ * Verifies that refund processing correctly revokes product access for
+ * all purchase types (authenticated users and guest purchases).
+ * Tests real production source code via static analysis.
  * ============================================================================
  */
 

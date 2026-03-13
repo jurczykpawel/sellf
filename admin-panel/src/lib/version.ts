@@ -10,8 +10,9 @@ import pkg from '../../package.json';
 export const APP_VERSION: string = pkg.version;
 
 /**
- * Compare two semver strings. Returns true if `latest` is newer than `current`.
- * Handles `v` prefix, partial versions (e.g. "1.0" vs "1.0.1").
+ * Compare two dot-separated version strings (CalVer YYYY.M.patch or semver).
+ * Returns true if `latest` is newer than `current`.
+ * Handles `v` prefix, partial versions (e.g. "2026.3" vs "2026.3.1").
  */
 export function isNewerVersion(current: string, latest: string): boolean {
   const normalize = (v: string) => v.replace(/^v/, '').split('.').map(Number);

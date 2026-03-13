@@ -10,6 +10,7 @@
 
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+import Link from 'next/link';
 import { cache } from 'react';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { getSellerBySlug, createSellerPublicClient } from '@/lib/marketplace/seller-client';
@@ -96,7 +97,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product) => (
-              <a
+              <Link
                 key={product.id}
                 href={`/${locale}/s/${sellerSlug}/${product.slug}`}
                 className="block bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow p-6"
@@ -123,7 +124,7 @@ export default async function SellerStorefrontPage({ params }: PageProps) {
                       : new Intl.NumberFormat('en-US', { style: 'currency', currency: product.currency || 'USD' }).format(product.price)
                   }
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         )}

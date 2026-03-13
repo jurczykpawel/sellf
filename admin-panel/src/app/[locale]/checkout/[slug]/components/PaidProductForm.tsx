@@ -5,6 +5,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
+import type { AppliedCoupon } from '@/types/coupon';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { formatPrice } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,7 +89,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
   const [showCouponInput, setShowCouponInput] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -889,7 +890,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     placeholder={t('couponPlaceholder')}
-                    disabled={appliedCoupon || isVerifyingCoupon}
+                    disabled={!!appliedCoupon || isVerifyingCoupon}
                     className={`
                       w-full px-3 py-2 bg-sf-input border rounded-lg text-sm transition-all outline-none
                       ${appliedCoupon ? 'border-sf-success/50 text-sf-success bg-sf-success-soft' : 'border-sf-border focus:border-sf-accent/50'}
@@ -1049,7 +1050,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               email={email}
               bumpProducts={availableBumps}
               selectedBumpIds={selectedBumpIds}
-              appliedCoupon={appliedCoupon}
+              appliedCoupon={appliedCoupon ?? undefined}
               successUrl={searchParams.get('success_url') || undefined}
               onChangeAccount={handleSignOutAndCheckout}
               customAmount={product.allow_custom_price ? customAmount : undefined}

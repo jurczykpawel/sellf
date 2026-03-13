@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS seller_main.user_product_access (
 );
 
 -- Create a view for user access statistics (seller schema)
-CREATE OR REPLACE VIEW seller_main.user_access_stats AS
+CREATE OR REPLACE VIEW seller_main.user_access_stats WITH (security_invoker = on) AS
 SELECT 
     u.id as user_id,
     u.email,
@@ -188,7 +188,7 @@ LEFT JOIN seller_main.products p ON upa.product_id = p.id
 GROUP BY u.id, u.email, u.created_at, u.email_confirmed_at, u.last_sign_in_at, u.raw_user_meta_data;
 
 -- Create a more detailed user product access view for admin panels (seller schema)
-CREATE OR REPLACE VIEW seller_main.user_product_access_detailed AS
+CREATE OR REPLACE VIEW seller_main.user_product_access_detailed WITH (security_invoker = on) AS
 SELECT 
     upa.id,
     upa.user_id,
@@ -332,8 +332,8 @@ ALTER TABLE application_rate_limits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role has full access to rate limits"
   ON application_rate_limits
   FOR ALL
-  USING (auth.role() = 'service_role')
-  WITH CHECK (auth.role() = 'service_role');
+  USING ((select auth.role()) = 'service_role')
+  WITH CHECK ((select auth.role()) = 'service_role');
 
 CREATE INDEX IF NOT EXISTS idx_application_rate_limits_lookup
   ON application_rate_limits(identifier, action_type, window_start DESC);
@@ -375,15 +375,15 @@ BEGIN
   VALUES (identifier_param, action_type_param, window_start_param, 1)
   ON CONFLICT (identifier, action_type, window_start)
   DO UPDATE SET
-    call_count = application_rate_limits.call_count + 1,
+    call_count = public.application_rate_limits.call_count + 1,
     updated_at = NOW()
-  RETURNING application_rate_limits.call_count INTO current_count;
+  RETURNING public.application_rate_limits.call_count INTO current_count;
 
   -- Check if we're over the limit
   RETURN current_count <= max_requests;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public;
+SET search_path = '';
 
 COMMENT ON FUNCTION check_application_rate_limit IS
   'Application-level rate limiting for Next.js API routes. Use this from /lib/rate-limiting.ts';
@@ -401,7 +401,8 @@ BEGIN
   GET DIAGNOSTICS deleted_count = ROW_COUNT;
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 COMMENT ON FUNCTION cleanup_application_rate_limits IS
   'Cleanup old application rate limit entries (run via cron job)';
@@ -846,247 +847,9 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_window_start ON rate_limits(window_st
 CREATE INDEX IF NOT EXISTS idx_audit_log_performed_at ON audit_log(performed_at DESC);
 
 
--- Enable Row Level Security (seller schema tables)
-ALTER TABLE seller_main.products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.product_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.product_tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.variant_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.product_variant_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE seller_main.user_product_access ENABLE ROW LEVEL SECURITY;
--- Platform tables (public)
-ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for products table (seller schema)
-CREATE POLICY "SELECT policy for products" ON seller_main.products
-  FOR SELECT
-  USING (
-    -- Admin users see everything
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE user_id = (SELECT auth.uid())
-    ) OR
-    -- Public users see active products
-    is_active = true OR
-    -- Public users see inactive products with waitlist enabled (for waitlist form)
-    (is_active = false AND enable_waitlist = true)
-  );
-
--- Polityki dla adminów - osobno dla każdej akcji
-CREATE POLICY "Allow admin users to insert products" ON seller_main.products
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
-CREATE POLICY "Allow admin users to update products" ON seller_main.products
-  FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
-CREATE POLICY "Allow admin users to delete products" ON seller_main.products
-  FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
--- RLS Policies for categories (seller schema)
-CREATE POLICY "Public read access for categories" ON seller_main.categories
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for categories" ON seller_main.categories
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for product_categories (seller schema)
-CREATE POLICY "Public read access for product_categories" ON seller_main.product_categories
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for product_categories" ON seller_main.product_categories
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for tags (seller schema)
-CREATE POLICY "Public read access for tags" ON seller_main.tags
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for tags" ON seller_main.tags
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for product_tags (seller schema)
-CREATE POLICY "Public read access for product_tags" ON seller_main.product_tags
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for product_tags" ON seller_main.product_tags
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for variant_groups (seller schema)
-CREATE POLICY "Public read access for variant_groups" ON seller_main.variant_groups
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for variant_groups" ON seller_main.variant_groups
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for product_variant_groups (seller schema)
-CREATE POLICY "Public read access for product_variant_groups" ON seller_main.product_variant_groups
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for product_variant_groups" ON seller_main.product_variant_groups
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
-
--- RLS Policies for user_product_access table (seller schema)
--- Allow users to read their own access records
-CREATE POLICY "Allow users to read their own product access" ON seller_main.user_product_access
-  FOR SELECT
-  USING (
-    (SELECT auth.uid()) = user_id OR
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
--- Allow service role to insert access records
-CREATE POLICY "Allow service role to insert product access" ON seller_main.user_product_access
-  FOR INSERT
-  TO service_role
-  WITH CHECK (true);
-
--- Combined INSERT policy for authenticated users
-CREATE POLICY "Combined INSERT policy for user_product_access" ON seller_main.user_product_access
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    -- Admin users can insert anything
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    ) OR
-    -- Regular users can insert access for FREE products for themselves
-    ((SELECT auth.uid()) = user_id AND
-     EXISTS (SELECT 1 FROM seller_main.products WHERE id = product_id AND price = 0))
-  );
-
--- Admin UPDATE policy
-CREATE POLICY "Allow admin users to update access" ON seller_main.user_product_access
-  FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
--- Admin DELETE policy
-CREATE POLICY "Allow admin users to delete access" ON seller_main.user_product_access
-  FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
-
--- RLS Policies for admin_users table
--- Allow users to check only their own admin status
-CREATE POLICY "Allow users to read their own admin status" ON admin_users
-  FOR SELECT
-  TO authenticated
-  USING ((select auth.uid()) = user_id);
-
--- RLS Policies for audit_log table
--- Only allow admin users to read audit logs
-CREATE POLICY "Allow admin users to read audit logs" ON audit_log
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (select auth.uid())
-    )
-  );
-
--- Allow system to insert audit logs (for triggers and functions)
--- SECURITY FIX (V-CRITICAL-09): Restricted to service_role only to prevent audit log forgery
--- The log_audit_entry() function uses SECURITY DEFINER which bypasses RLS,
--- so legitimate audit logging from triggers and functions still works.
-CREATE POLICY "Allow system to insert audit logs" ON audit_log
-  FOR INSERT
-  TO service_role
-  WITH CHECK (true);
-
--- Combined SELECT policy for rate limits
-CREATE POLICY "Combined SELECT policy for rate limits" ON rate_limits
-    FOR SELECT 
-    USING (
-        -- Admins can view all rate limits
-        EXISTS (
-            SELECT 1 FROM public.admin_users 
-            WHERE admin_users.user_id = (SELECT auth.uid())
-        ) OR
-        -- Users can read their own rate limits
-        (SELECT auth.uid()) = user_id
-    );
-
--- System policies for modifications
-CREATE POLICY "Allow system to insert rate limits" ON rate_limits
-    FOR INSERT 
-    TO service_role
-    WITH CHECK (true);
-
-CREATE POLICY "Allow system to update rate limits" ON rate_limits
-    FOR UPDATE 
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
-CREATE POLICY "Allow system to delete rate limits" ON rate_limits
-    FOR DELETE 
-    TO service_role
-    USING (true);
-
+-- =============================================================================
+-- ADMIN CHECK FUNCTIONS (must be defined before RLS policies that reference them)
+-- =============================================================================
 
 -- Check if user is admin (optimized)
 CREATE OR REPLACE FUNCTION is_admin(user_id_param UUID DEFAULT NULL)
@@ -1163,6 +926,212 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = '';
+
+-- Enable Row Level Security (seller schema tables)
+ALTER TABLE seller_main.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.product_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.product_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.variant_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.product_variant_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.user_product_access ENABLE ROW LEVEL SECURITY;
+-- Platform tables (public)
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for products table (seller schema)
+CREATE POLICY "SELECT policy for products" ON seller_main.products
+  FOR SELECT
+  USING (
+    -- Admin users see everything
+    ( select public.is_admin() ) OR
+    -- Public users see active products
+    is_active = true OR
+    -- Public users see inactive products with waitlist enabled (for waitlist form)
+    (is_active = false AND enable_waitlist = true)
+  );
+
+-- Polityki dla adminów - osobno dla każdej akcji
+CREATE POLICY "Allow admin users to insert products" ON seller_main.products
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    ( select public.is_admin() )
+  );
+
+CREATE POLICY "Allow admin users to update products" ON seller_main.products
+  FOR UPDATE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  )
+  WITH CHECK (
+    ( select public.is_admin() )
+  );
+
+CREATE POLICY "Allow admin users to delete products" ON seller_main.products
+  FOR DELETE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  );
+
+-- RLS Policies for categories (seller schema)
+CREATE POLICY "Public read access for categories" ON seller_main.categories
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for categories" ON seller_main.categories
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for product_categories (seller schema)
+CREATE POLICY "Public read access for product_categories" ON seller_main.product_categories
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for product_categories" ON seller_main.product_categories
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for tags (seller schema)
+CREATE POLICY "Public read access for tags" ON seller_main.tags
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for tags" ON seller_main.tags
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for product_tags (seller schema)
+CREATE POLICY "Public read access for product_tags" ON seller_main.product_tags
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for product_tags" ON seller_main.product_tags
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for variant_groups (seller schema)
+CREATE POLICY "Public read access for variant_groups" ON seller_main.variant_groups
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for variant_groups" ON seller_main.variant_groups
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for product_variant_groups (seller schema)
+CREATE POLICY "Public read access for product_variant_groups" ON seller_main.product_variant_groups
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for product_variant_groups" ON seller_main.product_variant_groups
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+
+-- RLS Policies for user_product_access table (seller schema)
+-- Allow users to read their own access records
+CREATE POLICY "Allow users to read their own product access" ON seller_main.user_product_access
+  FOR SELECT
+  USING (
+    (SELECT auth.uid()) = user_id OR
+    ( select public.is_admin() )
+  );
+
+-- Allow service role to insert access records
+CREATE POLICY "Allow service role to insert product access" ON seller_main.user_product_access
+  FOR INSERT
+  TO service_role
+  WITH CHECK (true);
+
+-- Combined INSERT policy for authenticated users
+CREATE POLICY "Combined INSERT policy for user_product_access" ON seller_main.user_product_access
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    -- Admin users can insert anything
+    ( select public.is_admin() ) OR
+    -- Regular users can insert access for FREE products for themselves
+    ((SELECT auth.uid()) = user_id AND
+     EXISTS (SELECT 1 FROM seller_main.products WHERE id = product_id AND price = 0))
+  );
+
+-- Admin UPDATE policy
+CREATE POLICY "Allow admin users to update access" ON seller_main.user_product_access
+  FOR UPDATE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  )
+  WITH CHECK (
+    ( select public.is_admin() )
+  );
+
+-- Admin DELETE policy
+CREATE POLICY "Allow admin users to delete access" ON seller_main.user_product_access
+  FOR DELETE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  );
+
+
+-- RLS Policies for admin_users table
+-- Allow users to check only their own admin status
+CREATE POLICY "Allow users to read their own admin status" ON admin_users
+  FOR SELECT
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+-- RLS Policies for audit_log table
+-- Only allow admin users to read audit logs
+CREATE POLICY "Allow admin users to read audit logs" ON audit_log
+  FOR SELECT
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  );
+
+-- Allow system to insert audit logs (for triggers and functions)
+-- SECURITY FIX (V-CRITICAL-09): Restricted to service_role only to prevent audit log forgery
+-- The log_audit_entry() function uses SECURITY DEFINER which bypasses RLS,
+-- so legitimate audit logging from triggers and functions still works.
+CREATE POLICY "Allow system to insert audit logs" ON audit_log
+  FOR INSERT
+  TO service_role
+  WITH CHECK (true);
+
+-- Combined SELECT policy for rate limits
+CREATE POLICY "Combined SELECT policy for rate limits" ON rate_limits
+    FOR SELECT 
+    USING (
+        -- Admins can view all rate limits
+        ( select public.is_admin() ) OR
+        -- Users can read their own rate limits
+        (SELECT auth.uid()) = user_id
+    );
+
+-- System policies for modifications
+CREATE POLICY "Allow system to insert rate limits" ON rate_limits
+    FOR INSERT 
+    TO service_role
+    WITH CHECK (true);
+
+CREATE POLICY "Allow system to update rate limits" ON rate_limits
+    FOR UPDATE 
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Allow system to delete rate limits" ON rate_limits
+    FOR DELETE 
+    TO service_role
+    USING (true);
+
 
 -- Create function to clear admin cache (useful for logout)
 CREATE OR REPLACE FUNCTION clear_admin_cache()
@@ -1373,13 +1342,29 @@ CREATE TRIGGER audit_user_product_access
 --
 -- Grant usage on seller_main to Supabase roles so PostgREST can access tables/functions
 GRANT USAGE ON SCHEMA seller_main TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA seller_main TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA seller_main TO anon, authenticated, service_role;
+
+-- Principle of least privilege: explicit per-table grants instead of blanket access.
+-- service_role gets ALL on everything; anon/authenticated get minimum required per table.
+-- RLS is the primary guard, but defence-in-depth requires minimal grants
+-- (if RLS is accidentally disabled, damage is limited).
+GRANT ALL ON ALL TABLES IN SCHEMA seller_main TO service_role;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA seller_main TO authenticated, service_role;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA seller_main TO anon, authenticated, service_role;
 
--- Set default privileges for future objects in seller_main
-ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT ALL ON TABLES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+-- Public catalog tables: anon + authenticated get SELECT (storefront browsing)
+GRANT SELECT ON seller_main.products TO anon, authenticated;
+GRANT SELECT ON seller_main.variant_groups TO anon, authenticated;
+GRANT SELECT ON seller_main.product_variant_groups TO anon, authenticated;
+GRANT SELECT ON seller_main.categories TO anon, authenticated;
+GRANT SELECT ON seller_main.product_categories TO anon, authenticated;
+GRANT SELECT ON seller_main.tags TO anon, authenticated;
+GRANT SELECT ON seller_main.product_tags TO anon, authenticated;
+GRANT SELECT ON seller_main.user_product_access TO authenticated;
+
+-- Default privileges for future objects: only service_role gets automatic grants.
+-- New tables for anon/authenticated MUST be granted explicitly (see Security Rule #5).
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT USAGE ON SEQUENCES TO authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
 
 --
@@ -1411,6 +1396,30 @@ CREATE OR REPLACE VIEW public.user_product_access_detailed WITH (security_invoke
 -- To enable: SELECT cron.schedule('cleanup-audit-logs', '0 2 * * 0', 'SELECT cleanup_audit_logs(90);');
 -- To manually run: SELECT cleanup_audit_logs(90);
 --
+
+-- =====================================================
+-- PUBLIC SCHEMA TABLE GRANTS (SECURITY HARDENING)
+-- =====================================================
+-- Supabase grants ALL privileges to anon/authenticated by default.
+-- Explicitly revoke and re-grant with principle of least privilege.
+
+-- admin_users: only service_role manages, authenticated can SELECT own row (for admin checks)
+REVOKE ALL ON public.admin_users FROM anon, authenticated;
+GRANT SELECT ON public.admin_users TO authenticated;
+GRANT ALL ON public.admin_users TO service_role;
+
+-- audit_log: service_role only (written via SECURITY DEFINER functions)
+-- Note: admin_actions grants are in 20250102000000_payment_system.sql (table defined there)
+REVOKE ALL ON public.audit_log FROM anon, authenticated;
+GRANT ALL ON public.audit_log TO service_role;
+
+-- rate_limits / application_rate_limits: SECURITY DEFINER functions write to these;
+-- authenticated needs INSERT/UPDATE via those functions, but not direct table access
+REVOKE ALL ON public.rate_limits FROM anon, authenticated;
+GRANT ALL ON public.rate_limits TO service_role;
+
+REVOKE ALL ON public.application_rate_limits FROM anon, authenticated;
+GRANT ALL ON public.application_rate_limits TO service_role;
 
 COMMIT;
 

@@ -95,6 +95,10 @@ CREATE TABLE IF NOT EXISTS admin_actions (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- admin_actions: service_role only (written via SECURITY DEFINER functions)
+REVOKE ALL ON public.admin_actions FROM anon, authenticated;
+GRANT ALL ON public.admin_actions TO service_role;
+
 -- =============================================================================
 -- PAYMENT TRACKING TABLES
 -- =============================================================================
@@ -240,20 +244,14 @@ ALTER TABLE seller_main.guest_purchases ENABLE ROW LEVEL SECURITY;
 -- Admin actions policies (SECURITY)
 CREATE POLICY "Admins can view admin actions" ON admin_actions
     FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.admin_users 
-            WHERE admin_users.user_id = (select auth.uid())
-        )
+        ( select public.is_admin() )
     );
 
 CREATE POLICY "Admins can insert admin actions" ON admin_actions
     FOR INSERT WITH CHECK (
         -- Allow logged-in admins to insert with their own admin_id
         (admin_id = (select auth.uid()) AND
-        EXISTS (
-            SELECT 1 FROM public.admin_users 
-            WHERE admin_users.user_id = (select auth.uid())
-        )) OR
+        ( select public.is_admin() )) OR
         -- Allow service_role (database functions) to insert with any admin_id (including NULL)
         (select (select auth.role())) = 'service_role'
     );
@@ -263,7 +261,7 @@ CREATE POLICY "Combined SELECT policy for payment transactions" ON seller_main.p
     FOR SELECT 
     USING (
         user_id = (SELECT auth.uid()) OR  -- Users can see their own transactions
-        EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = (SELECT auth.uid())) OR  -- Admins can see all transactions
+        ( select public.is_admin() ) OR  -- Admins can see all transactions
         (SELECT auth.role()) = 'service_role'  -- Service role can see all
     );
 
@@ -277,10 +275,7 @@ CREATE POLICY "Admins can update payment transactions for refunds" ON seller_mai
     FOR UPDATE 
     TO authenticated
     USING (
-        EXISTS (
-            SELECT 1 FROM public.admin_users 
-            WHERE admin_users.user_id = (SELECT auth.uid())
-        )
+        ( select public.is_admin() )
     );
 
 
@@ -1283,7 +1278,7 @@ BEGIN
 
     -- Security check: users can only view their own payment history (unless admin)
     IF user_id_param != auth.uid() THEN
-        IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+        IF NOT ( select public.is_admin() ) THEN
             RAISE EXCEPTION 'Unauthorized: Can only view your own payment history';
         END IF;
     END IF;
@@ -1342,7 +1337,7 @@ CREATE OR REPLACE FUNCTION log_admin_action(
 BEGIN
     -- SECURITY: Rate limiting to prevent log spam attacks by authenticated users
     -- Admins get higher limits since they need to perform legitimate admin actions
-    IF EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF ( select public.is_admin() ) THEN
         -- Admin users: 200 log entries per hour (higher limit for legitimate admin work)
         IF NOT public.check_rate_limit('log_admin_action_admin', 200, 3600) THEN
             RAISE EXCEPTION 'Rate limit exceeded: Too many admin actions logged. Please wait before performing more actions.';
@@ -1368,7 +1363,7 @@ BEGIN
     END IF;
     
     -- Validate JSONB is not too large (prevent DoS) - reduced limit for non-admins
-    IF EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF ( select public.is_admin() ) THEN
         -- Admins can log larger details (64KB) for legitimate debugging
         IF pg_column_size(action_details) > 65536 THEN -- 64KB limit
             RAISE EXCEPTION 'Action details too large (max 64KB for admins)';
@@ -1405,7 +1400,7 @@ DECLARE
     action_details JSONB;
 BEGIN
     -- Only log if the user is an admin
-    IF EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF ( select public.is_admin() ) THEN
         -- Determine specific action name based on operation and changes
         IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'payment_transactions' THEN
             IF OLD.status != NEW.status AND NEW.status = 'refunded' THEN
@@ -1828,7 +1823,7 @@ DECLARE
     stats JSONB;
 BEGIN
     -- Security check: only admins can access payment statistics
-    IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF NOT ( select public.is_admin() ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin privileges required';
     END IF;
     
@@ -1906,7 +1901,7 @@ DECLARE
     deleted_count INTEGER;
 BEGIN
     -- Security check: only admins can cleanup audit logs
-    IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF NOT ( select public.is_admin() ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin privileges required';
     END IF;
     
@@ -1946,7 +1941,7 @@ DECLARE
     deleted_count INTEGER;
 BEGIN
     -- Security check: only admins can cleanup rate limits
-    IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF NOT ( select public.is_admin() ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin privileges required';
     END IF;
     
@@ -1986,7 +1981,7 @@ DECLARE
     deleted_count INTEGER;
 BEGIN
     -- Security check: only admins can cleanup guest purchases
-    IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+    IF NOT ( select public.is_admin() ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin privileges required';
     END IF;
     
@@ -2127,7 +2122,7 @@ CREATE POLICY "Users can view own refund requests" ON seller_main.refund_request
     USING (
         user_id = (SELECT auth.uid()) OR
         customer_email = (SELECT email FROM auth.users WHERE id = (SELECT auth.uid())) OR
-        EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = (SELECT auth.uid())) OR
+        ( select public.is_admin() ) OR
         (SELECT auth.role()) = 'service_role'
     );
 
@@ -2143,7 +2138,7 @@ CREATE POLICY "Users can create refund requests" ON seller_main.refund_requests
 CREATE POLICY "Admins can update refund requests" ON seller_main.refund_requests
     FOR UPDATE
     USING (
-        EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = (SELECT auth.uid())) OR
+        ( select public.is_admin() ) OR
         (SELECT auth.role()) = 'service_role'
     );
 
@@ -2399,7 +2394,7 @@ BEGIN
 
     -- Only allow users to view their own purchases (or admins to view any)
     IF target_user_id != auth.uid() THEN
-        IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid()) THEN
+        IF NOT ( select public.is_admin() ) THEN
             RETURN;
         END IF;
     END IF;
@@ -2465,7 +2460,7 @@ CREATE OR REPLACE FUNCTION seller_main.get_admin_refund_requests(
 ) AS $$
 BEGIN
     -- Check admin permission
-    IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid()) THEN
+    IF NOT ( select public.is_admin() ) THEN
         RETURN;
     END IF;
 
@@ -2527,6 +2522,18 @@ CREATE TRIGGER trigger_update_refund_request_timestamp
 CREATE OR REPLACE VIEW public.payment_transactions WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_transactions;
 CREATE OR REPLACE VIEW public.guest_purchases WITH (security_invoker = on) AS SELECT * FROM seller_main.guest_purchases;
 CREATE OR REPLACE VIEW public.refund_requests WITH (security_invoker = on) AS SELECT * FROM seller_main.refund_requests;
+
+-- =============================================================================
+-- EXPLICIT TABLE GRANTS (Security Rule #5: never rely on blanket default privileges)
+-- =============================================================================
+-- payment_transactions: authenticated users can SELECT own (RLS enforced)
+REVOKE ALL ON seller_main.payment_transactions FROM anon, authenticated;
+GRANT SELECT ON seller_main.payment_transactions TO authenticated;
+-- guest_purchases: service_role only (no anon/authenticated direct access)
+REVOKE ALL ON seller_main.guest_purchases FROM anon, authenticated;
+-- refund_requests: authenticated users SELECT + INSERT own (RLS enforced)
+REVOKE ALL ON seller_main.refund_requests FROM anon, authenticated;
+GRANT SELECT, INSERT ON seller_main.refund_requests TO authenticated;
 
 COMMIT;
 

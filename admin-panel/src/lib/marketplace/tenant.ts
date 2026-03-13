@@ -13,10 +13,23 @@
 /** Regex to match seller routes: /s/{slug} or /{locale}/s/{slug} */
 const SELLER_ROUTE_REGEX = /^\/(?:(?:en|pl)\/)?s\/([a-z0-9][a-z0-9_-]{0,49})(?:\/|$)/;
 
-/** Reserved slugs that cannot be used as seller slugs */
+/** Reserved slugs that cannot be used as seller slugs.
+ * Must stay aligned with SQL in provision_seller_schema()
+ * @see supabase/migrations/20260311000001_marketplace_sellers.sql
+ */
 const RESERVED_SLUGS = new Set([
+  // Core app routes
   'admin', 'api', 'auth', 'public', 'main', 'test', 'demo',
   'system', 'platform', 'seller', 'sellers',
+  // Supabase internal schemas
+  'storage', 'graphql', 'graphql_public', 'realtime', 'pgsodium',
+  'pgsodium_masks', 'pgsodium_keyiduser', 'supabase_functions',
+  'supabase_migrations', 'extensions', 'vault', 'pgbouncer',
+  // Common reserved names
+  'www', 'app', 'mail', 'smtp', 'ftp', 'root', 'support', 'help',
+  'billing', 'checkout', 'login', 'signup', 'register', 'dashboard',
+  'settings', 'config', 'webhook', 'webhooks', 'stripe', 'payment',
+  'payments', 'status', 'health', 'monitor', 'internal',
 ]);
 
 // ===== FUNCTIONS =====

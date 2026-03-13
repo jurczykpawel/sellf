@@ -31,6 +31,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (code.length > 100 || email.length > 254) {
+      return NextResponse.json(
+        { valid: false, error: 'Invalid input length' },
+        { status: 400 }
+      );
+    }
+
     // 4. Call database function
     const supabase = await createClient();
 

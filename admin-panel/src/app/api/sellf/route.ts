@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { SellfGenerator } from '@/lib/sellf-generator'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { MemoryCache, handleConditionalRequest, createScriptResponse } from '@/lib/script-cache'
 import { validateLicense as verifyLicense, extractDomainFromUrl } from '@/lib/license/verify'
+import { checkRateLimit } from '@/lib/rate-limiting'
+import { createClient } from '@/lib/supabase/server'
+import { createPlatformClient } from '@/lib/supabase/admin'
 import packageJson from '../../../../package.json'
 
 /**
@@ -13,11 +16,7 @@ const licenseCache = new MemoryCache<boolean>({ ttl: 5 * 60 * 1000 });
 /**
  * Get cached license validity or fetch from database
  */
-async function getCachedLicenseValid(
-  supabaseUrl: string,
-  supabaseServiceKey: string,
-  siteUrl?: string
-): Promise<boolean> {
+async function getCachedLicenseValid(siteUrl?: string): Promise<boolean> {
   const cacheKey = 'license_valid';
 
   // Check cache first
@@ -28,7 +27,7 @@ async function getCachedLicenseValid(
 
   // Fetch from database
   try {
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAdmin = createAdminClient();
     const { data: integrationsConfig } = await supabaseAdmin
       .from('integrations_config')
       .select('sellf_license')
@@ -99,15 +98,23 @@ export async function OPTIONS(request: Request) {
  */
 export async function GET(request: Request) {
   try {
+    // Rate limiting — prevents abuse of script generation endpoint
+    const rateLimitOk = await checkRateLimit('sellf_js', 60, 1);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     // Extract configuration from environment variables
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     // Get the origin from the request headers or default to '*'
     const origin = request.headers.get('origin') || '*';
 
-    // Check for cache clearing parameter
+    // Check for cache clearing parameter — admin-only
     const url = new URL(request.url);
     const clearCache = url.searchParams.get('clearCache') === 'true';
 
@@ -125,17 +132,35 @@ export async function GET(request: Request) {
       )
     }
 
-    // Clear cache if requested
+    // Clear cache only if requester is admin (prevents public cache invalidation DoS)
     if (clearCache) {
-      SellfGenerator.clearCache();
-      clearLicenseCache();
+      try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const platformClient = createPlatformClient();
+          const { data: adminUser } = await platformClient
+            .from('admin_users')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+          if (adminUser) {
+            SellfGenerator.clearCache();
+            clearLicenseCache();
+          }
+        }
+      } catch {
+        // Silently ignore auth failures — cache clearing is best-effort
+      }
     }
 
     // Get license validity from cache (5 min TTL) or fetch from database
     let licenseValid = false;
-    if (supabaseServiceKey) {
-      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-      licenseValid = await getCachedLicenseValid(supabaseUrl, supabaseServiceKey, siteUrl);
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    try {
+      licenseValid = await getCachedLicenseValid(siteUrl);
+    } catch {
+      // If admin client creation fails (missing env vars), proceed without license
     }
 
     // Get productSlug from URL params for full page protection

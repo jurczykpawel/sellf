@@ -13,13 +13,7 @@ import { useTracking } from '@/hooks/useTracking';
 import { usePricing } from '@/hooks/usePricing';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import type { TaxMode } from '@/lib/actions/shop-config';
-
-interface AppliedCoupon {
-  code: string;
-  discount_type: 'percentage' | 'fixed';
-  discount_value: number;
-  exclude_order_bumps?: boolean;
-}
+import type { AppliedCoupon } from '@/types/coupon';
 
 interface CustomPaymentFormProps {
   product: Product;

@@ -108,7 +108,8 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = '';
 
 COMMENT ON FUNCTION seller_main.log_product_price_change() IS
   'Automatically logs price changes to product_price_history for Omnibus compliance';
@@ -173,10 +174,7 @@ CREATE POLICY "Only system or admins can insert price history"
     auth.uid() IS NULL
     OR
     -- Or allow admins
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- Only admins can update price history (for manual corrections)
@@ -184,10 +182,7 @@ CREATE POLICY "Only admins can update price history"
   ON seller_main.product_price_history
   FOR UPDATE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- Only admins can delete price history
@@ -195,10 +190,7 @@ CREATE POLICY "Only admins can delete price history"
   ON seller_main.product_price_history
   FOR DELETE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- shop_config already has RLS policies defined in core schema migration
@@ -216,7 +208,8 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = '';
 
 COMMENT ON FUNCTION seller_main.cleanup_old_price_history() IS
   'Automatically removes price history entries older than 30 days to comply with Omnibus Directive requirements';
@@ -258,7 +251,8 @@ BEGIN
 
   RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE
+SET search_path = '';
 
 COMMENT ON FUNCTION seller_main.is_sale_price_active IS
   'Check if sale price is currently active (considers both time and quantity limits)';
@@ -283,7 +277,8 @@ BEGIN
   GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
   RETURN v_rows_updated > 0;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 COMMENT ON FUNCTION seller_main.increment_sale_quantity_sold IS
   'Atomically increment sale_quantity_sold for a product (uses row locking to prevent race conditions)';
@@ -294,3 +289,7 @@ GRANT EXECUTE ON FUNCTION seller_main.is_sale_price_active(NUMERIC, TIMESTAMPTZ,
 
 -- Proxy view for backward compatibility
 CREATE OR REPLACE VIEW public.product_price_history WITH (security_invoker = on) AS SELECT * FROM seller_main.product_price_history;
+
+-- Explicit table grants (Security Rule #5)
+-- product_price_history: public price history for omnibus compliance display
+GRANT SELECT ON seller_main.product_price_history TO anon, authenticated;

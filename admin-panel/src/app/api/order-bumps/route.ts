@@ -30,6 +30,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(productId)) {
+      return NextResponse.json(
+        { error: 'Invalid productId format' },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createClient();
 
     // Call database function to get active order bumps

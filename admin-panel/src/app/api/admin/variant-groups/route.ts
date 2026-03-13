@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminApi } from '@/lib/auth-server';
 
 /**
  * Variant Groups API (M:N relationship)
@@ -45,22 +46,7 @@ interface VariantGroupWithProducts {
 export async function GET() {
   try {
     const supabase = await createClient();
-
-    // Check admin access
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     // Use admin client (seller_main schema) for FK embedding support
     const adminClient = createAdminClient();
@@ -130,6 +116,12 @@ export async function GET() {
 
     return NextResponse.json({ groups: groupsWithProducts });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
     console.error('Error fetching variant groups:', error);
     return NextResponse.json(
       { error: 'Failed to fetch variant groups' },
@@ -146,22 +138,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // Check admin access
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     const body = await request.json();
     const { name, slug, products } = body as {
@@ -241,6 +218,12 @@ export async function POST(request: NextRequest) {
       message: `Variant group created with ${products.length} products`
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
     console.error('Error creating variant group:', error);
     return NextResponse.json(
       { error: 'Failed to create variant group' },
@@ -257,22 +240,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // Check admin access
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -367,6 +335,12 @@ export async function PATCH(request: NextRequest) {
       message: 'Variant group updated'
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
     console.error('Error updating variant group:', error);
     return NextResponse.json(
       { error: 'Failed to update variant group' },
@@ -382,22 +356,7 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // Check admin access
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -428,6 +387,12 @@ export async function DELETE(request: NextRequest) {
       message: 'Variant group deleted'
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
     console.error('Error deleting variant group:', error);
     return NextResponse.json(
       { error: 'Failed to delete variant group' },

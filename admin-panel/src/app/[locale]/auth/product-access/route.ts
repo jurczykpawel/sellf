@@ -1,5 +1,3 @@
-'use server';
-
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
@@ -165,21 +163,15 @@ export async function GET(request: Request) {
           return;
         }
         
-        // Redirect to the validated URL
-        redirect(redirectProduct.content_config.redirect_url);
+        // Redirect to the validated URL (use parsed URL, not raw input)
+        redirect(redirectUrl.href);
       } catch (error) {
         console.error(`[ProductAccess] Invalid redirect URL:`, error);
         handleRedirect(`/p/${productSlug}`, returnUrl);
         return;
       }
     } else {
-      // Check if we have a return_url (cross-domain scenario)
-      if (returnUrl) {
-        handleRedirect(`/p/${productSlug}`, returnUrl);
-      } else {
-        // Standard redirect to product page
-        handleRedirect(`/p/${productSlug}`, returnUrl);
-      }
+      handleRedirect(`/p/${productSlug}`, returnUrl);
     }
   } catch (error) {
     // Handle any unexpected errors (but not NEXT_REDIRECT)

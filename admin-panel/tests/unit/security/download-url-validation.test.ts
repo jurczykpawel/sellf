@@ -6,20 +6,9 @@ import { validateCreateProduct, validateUpdateProduct } from '@/lib/validations/
  * SECURITY TEST: Download URL Validation
  * ============================================================================
  *
- * VULNERABILITY: Download URL Validation Bypass via Domain Spoofing
- * LOCATION: src/lib/validations/product.ts
- *
- * ATTACK FLOW (before fix):
- * 1. Attacker creates product with download URL: https://cdn.attacker.com/malware.exe
- * 2. Previous validation used hostname.includes('cdn.') which matched
- * 3. Users download malicious files thinking they're from trusted CDN
- *
- * FIX (V15):
- * - Changed from includes() to endsWith() for domain validation
- * - hostname must END with trusted domain, not just contain it
- * - This blocks cdn.attacker.com, amazonaws.com.evil.com, etc.
- *
- * Created during security audit (2026-01-08)
+ * Verifies that product download URL validation correctly enforces
+ * trusted domain checks and rejects spoofed or malicious URLs.
+ * Tests the production validateCreateProduct/validateUpdateProduct functions.
  * ============================================================================
  */
 

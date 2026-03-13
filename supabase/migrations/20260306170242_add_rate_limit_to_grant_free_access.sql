@@ -57,6 +57,11 @@ BEGIN
         RETURN FALSE;
     END IF;
 
+    -- Cap user-supplied duration to product config (prevent exceeding intended access window)
+    IF access_duration_days_param IS NOT NULL AND product_record.auto_grant_duration_days IS NOT NULL THEN
+        access_duration_days_param := LEAST(access_duration_days_param, product_record.auto_grant_duration_days);
+    END IF;
+
     -- Calculate access expiration
     IF access_duration_days_param IS NOT NULL THEN
         v_access_expires_at := NOW() + INTERVAL '1 day' * access_duration_days_param;
@@ -138,6 +143,11 @@ BEGIN
     -- Rate limiting: 20 calls per hour (prevents DB spam for expired/new access grants)
     IF NOT public.check_rate_limit('grant_pwyw_free_access'::TEXT, 20, 3600) THEN
         RETURN FALSE;
+    END IF;
+
+    -- Cap user-supplied duration to product config (prevent exceeding intended access window)
+    IF access_duration_days_param IS NOT NULL AND product_record.auto_grant_duration_days IS NOT NULL THEN
+        access_duration_days_param := LEAST(access_duration_days_param, product_record.auto_grant_duration_days);
     END IF;
 
     -- Calculate access expiration

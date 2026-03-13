@@ -153,6 +153,7 @@ CREATE OR REPLACE FUNCTION public.get_insert_stmt_ddl(
 )
 RETURNS text
 LANGUAGE plpgsql VOLATILE
+SET search_path = ''
 AS
 $$
   DECLARE

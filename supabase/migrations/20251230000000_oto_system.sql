@@ -286,7 +286,7 @@ BEGIN
     'duration_minutes', oto_config.duration_minutes
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.generate_oto_coupon TO service_role;
 
@@ -355,7 +355,7 @@ BEGIN
     )
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.get_oto_coupon_info TO anon, authenticated, service_role;
 
@@ -387,7 +387,7 @@ BEGIN
 
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.cleanup_expired_oto_coupons TO service_role;
 
@@ -402,9 +402,7 @@ DECLARE
   oto_record RECORD;
 BEGIN
   -- Check admin access
-  IF NOT EXISTS (
-    SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()
-  ) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied: Admin privileges required';
   END IF;
 
@@ -440,7 +438,7 @@ BEGIN
     'is_active', oto_record.is_active
   );
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.admin_get_product_oto_offer TO authenticated;
 
@@ -460,9 +458,7 @@ DECLARE
   result_id UUID;
 BEGIN
   -- Check admin access
-  IF NOT EXISTS (
-    SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()
-  ) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied: Admin privileges required';
   END IF;
 
@@ -512,7 +508,7 @@ BEGIN
     'id', result_id
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.admin_save_oto_offer TO authenticated;
 
@@ -527,9 +523,7 @@ DECLARE
   deleted_count INTEGER;
 BEGIN
   -- Check admin access
-  IF NOT EXISTS (
-    SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()
-  ) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied: Admin privileges required';
   END IF;
 
@@ -543,7 +537,7 @@ BEGIN
     'deleted', deleted_count
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.admin_delete_oto_offer TO authenticated;
 
@@ -565,7 +559,7 @@ ALTER TABLE seller_main.oto_offers ENABLE ROW LEVEL SECURITY;
 -- Admin full access to oto_offers
 CREATE POLICY "Admins can manage oto_offers" ON seller_main.oto_offers
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 -- Service role full access
 CREATE POLICY "Service role full access to oto_offers" ON seller_main.oto_offers
@@ -588,3 +582,7 @@ COMMENT ON FUNCTION seller_main.admin_delete_oto_offer IS 'Delete OTO offer for 
 
 -- Proxy view for backward compatibility
 CREATE OR REPLACE VIEW public.oto_offers WITH (security_invoker = on) AS SELECT * FROM seller_main.oto_offers;
+
+-- Explicit table grants (Security Rule #5)
+-- oto_offers: public catalog data for storefront display
+GRANT SELECT ON seller_main.oto_offers TO anon, authenticated;

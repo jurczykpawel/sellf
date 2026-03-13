@@ -73,6 +73,10 @@ function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string 
       if (ipv6 === '::1' || ipv6.startsWith('fe80:') || ipv6.startsWith('fc') || ipv6.startsWith('fd')) {
         return { valid: false, error: 'URL cannot point to IPv6 loopback or private addresses' };
       }
+      // Block IPv4-mapped IPv6 addresses (e.g., ::ffff:127.0.0.1)
+      if (ipv6.startsWith('::ffff:')) {
+        return { valid: false, error: 'URL cannot use IPv4-mapped IPv6 addresses' };
+      }
     }
 
     return { valid: true };

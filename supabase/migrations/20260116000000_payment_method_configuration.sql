@@ -99,12 +99,15 @@ CREATE INDEX IF NOT EXISTS idx_payment_method_config_currency_overrides
 
 -- Trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION seller_main.update_payment_method_config_timestamp()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER payment_method_config_updated_at
   BEFORE UPDATE ON seller_main.payment_method_config
@@ -113,12 +116,15 @@ CREATE TRIGGER payment_method_config_updated_at
 
 -- Trigger to protect created_at from modification
 CREATE OR REPLACE FUNCTION seller_main.protect_payment_method_config_created_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.created_at = OLD.created_at;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER payment_method_config_protect_created_at
   BEFORE UPDATE ON seller_main.payment_method_config
@@ -187,10 +193,7 @@ CREATE POLICY "Admin users can view payment method config"
   FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE admin_users.user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- Admin users can update configuration
@@ -199,16 +202,10 @@ CREATE POLICY "Admin users can update payment method config"
   FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE admin_users.user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   )
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE admin_users.user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- Service role can do anything (for API routes)
@@ -294,5 +291,11 @@ INSERT INTO seller_main.payment_method_config (
 
 -- Proxy view for backward compatibility
 CREATE OR REPLACE VIEW public.payment_method_config WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_method_config;
+
+-- Explicit table grants (Security Rule #5)
+-- payment_method_config: admin-only, RLS policies control actual access
+REVOKE ALL ON seller_main.payment_method_config FROM anon, authenticated;
+GRANT SELECT, UPDATE ON seller_main.payment_method_config TO authenticated;
+GRANT ALL ON seller_main.payment_method_config TO service_role;
 
 COMMIT;

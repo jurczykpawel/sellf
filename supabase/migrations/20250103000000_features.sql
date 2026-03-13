@@ -273,6 +273,10 @@ CREATE TABLE IF NOT EXISTS seller_main.consent_logs (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- Indexes for consent_logs lookups
+CREATE INDEX IF NOT EXISTS idx_consent_logs_user_id ON seller_main.consent_logs(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_consent_logs_anonymous_id ON seller_main.consent_logs(anonymous_id) WHERE anonymous_id IS NOT NULL;
+
 -- Comments for integrations_config
 COMMENT ON COLUMN seller_main.integrations_config.currency_api_provider IS 'Currency exchange rate provider: ecb (free EU, default), exchangerate-api (free 1500/mo), or fixer (paid)';
 COMMENT ON COLUMN seller_main.integrations_config.currency_api_key_encrypted IS 'AES-256-GCM encrypted Currency API key (base64 encoded) - for ExchangeRate-API or Fixer.io';
@@ -412,6 +416,7 @@ CREATE INDEX IF NOT EXISTS idx_order_bumps_created_at ON seller_main.order_bumps
 -- Coupons
 CREATE INDEX IF NOT EXISTS idx_coupons_code ON seller_main.coupons(code);
 CREATE INDEX IF NOT EXISTS idx_coupons_active ON seller_main.coupons(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_coupon ON seller_main.coupon_redemptions(coupon_id);
 CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_email ON seller_main.coupon_redemptions(customer_email);
 CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user ON seller_main.coupon_redemptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_coupon_reservations_expires ON seller_main.coupon_reservations(expires_at);
@@ -485,7 +490,7 @@ BEGIN
     'is_completed', progress_record.is_completed
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- -----------------------------------------------------------------------------
 -- ORDER BUMPS FUNCTIONS
@@ -530,7 +535,7 @@ BEGIN
   ORDER BY ob.display_order ASC, ob.created_at ASC
   LIMIT 1;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = seller_main, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.get_product_order_bumps TO authenticated, anon;
 
@@ -574,7 +579,7 @@ BEGIN
   WHERE ob.main_product_id = product_id_param
   ORDER BY ob.display_order ASC, ob.created_at DESC;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = seller_main, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.admin_get_product_order_bumps TO authenticated;
 
@@ -936,7 +941,7 @@ BEGIN
   END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = seller_main, pg_temp
+SET search_path = ''
 SET statement_timeout = '30s';
 
 GRANT EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump TO service_role, authenticated;
@@ -1074,7 +1079,7 @@ BEGIN
     'expires_in_minutes', 15
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 CREATE OR REPLACE FUNCTION seller_main.find_auto_apply_coupon(
   customer_email_param TEXT,
@@ -1111,7 +1116,7 @@ BEGIN
     'exclude_order_bumps', coupon_record.exclude_order_bumps
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = seller_main, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.find_auto_apply_coupon TO anon, authenticated, service_role;
 
@@ -1123,7 +1128,7 @@ CREATE OR REPLACE FUNCTION seller_main.get_public_integrations_config()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main
+SET search_path = ''
 AS $$
 DECLARE
   config_record RECORD;
@@ -1329,7 +1334,7 @@ CREATE OR REPLACE FUNCTION seller_main.get_dashboard_stats()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main, auth
+SET search_path = ''
 AS $$
 DECLARE
   total_users INTEGER;
@@ -1337,7 +1342,7 @@ DECLARE
   total_revenue NUMERIC;
   active_users_7d INTEGER;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1369,7 +1374,7 @@ CREATE OR REPLACE FUNCTION seller_main.get_detailed_revenue_stats(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main, auth
+SET search_path = ''
 AS $$
 DECLARE
   v_total_revenue_by_currency JSONB;
@@ -1377,7 +1382,7 @@ DECLARE
   v_today_orders INTEGER;
   v_last_order_at TIMESTAMPTZ;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1435,10 +1440,10 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1478,10 +1483,10 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1532,10 +1537,10 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1557,10 +1562,10 @@ CREATE OR REPLACE FUNCTION seller_main.set_revenue_goal(
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = seller_main, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1664,17 +1669,17 @@ ALTER TABLE seller_main.shop_config ENABLE ROW LEVEL SECURITY;
 -- -----------------------------------------------------------------------------
 
 CREATE POLICY "Users can view own video progress" ON seller_main.video_progress
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert own video progress" ON seller_main.video_progress
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own video progress" ON seller_main.video_progress
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Admins can view all video progress" ON seller_main.video_progress
   FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 CREATE POLICY "Users can view own video events" ON seller_main.video_events
   FOR SELECT USING (
@@ -1696,7 +1701,7 @@ CREATE POLICY "Users can insert own video events" ON seller_main.video_events
 
 CREATE POLICY "Admins can view all video events" ON seller_main.video_events
   FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 -- -----------------------------------------------------------------------------
 -- ORDER BUMPS POLICIES
@@ -1704,22 +1709,22 @@ CREATE POLICY "Admins can view all video events" ON seller_main.video_events
 
 CREATE POLICY "Admins can view order bumps" ON seller_main.order_bumps
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 CREATE POLICY "Admins can insert order bumps" ON seller_main.order_bumps
   FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 CREATE POLICY "Admins can update order bumps" ON seller_main.order_bumps
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 CREATE POLICY "Admins can delete order bumps" ON seller_main.order_bumps
   FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 CREATE POLICY "Public can view active order bumps" ON seller_main.order_bumps
@@ -1734,24 +1739,24 @@ CREATE POLICY "Service role can manage order bumps" ON seller_main.order_bumps
 
 CREATE POLICY "Admins full access coupons" ON seller_main.coupons
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 CREATE POLICY "Service role full access coupons" ON seller_main.coupons
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 CREATE POLICY "Admins full access redemptions" ON seller_main.coupon_redemptions
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 CREATE POLICY "Service role full access redemptions" ON seller_main.coupon_redemptions
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 CREATE POLICY "Users view own redemptions" ON seller_main.coupon_redemptions
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Admins full access reservations" ON seller_main.coupon_reservations
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 CREATE POLICY "Service role full access reservations" ON seller_main.coupon_reservations
   FOR ALL TO service_role USING (true) WITH CHECK (true);
@@ -1762,18 +1767,25 @@ CREATE POLICY "Service role full access reservations" ON seller_main.coupon_rese
 
 CREATE POLICY "Admins can manage webhook endpoints" ON seller_main.webhook_endpoints
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 CREATE POLICY "Admins can view webhook logs" ON seller_main.webhook_logs
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 CREATE POLICY "Admins can update webhook logs" ON seller_main.webhook_logs
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
+    ( select public.is_admin() )
   );
+
+-- INSERT and DELETE go through service_role (webhook delivery system), not direct user access
+CREATE POLICY "Service role can insert webhook logs" ON seller_main.webhook_logs
+  FOR INSERT WITH CHECK ((select auth.role()) = 'service_role');
+
+CREATE POLICY "Service role can delete webhook logs" ON seller_main.webhook_logs
+  FOR DELETE USING ((select auth.role()) = 'service_role');
 
 -- -----------------------------------------------------------------------------
 -- INTEGRATIONS POLICIES
@@ -1781,53 +1793,66 @@ CREATE POLICY "Admins can update webhook logs" ON seller_main.webhook_logs
 
 CREATE POLICY "Admins manage config" ON seller_main.integrations_config
   USING (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   )
   WITH CHECK (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
 CREATE POLICY "Admins manage scripts" ON seller_main.custom_scripts
   USING (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   )
   WITH CHECK (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
 CREATE POLICY "Admins view logs" ON seller_main.consent_logs
   FOR SELECT USING (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
-CREATE POLICY "Public log consent" ON seller_main.consent_logs
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users log own consent" ON seller_main.consent_logs
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = (select auth.uid()));
+
+CREATE POLICY "Service role insert consent" ON seller_main.consent_logs
+  FOR INSERT TO service_role
+  WITH CHECK (true);
 
 -- -----------------------------------------------------------------------------
 -- PROFILES POLICIES
 -- -----------------------------------------------------------------------------
 
 CREATE POLICY "Self view" ON seller_main.profiles
-  FOR SELECT USING (auth.uid() = id);
+  FOR SELECT USING ((select auth.uid()) = id);
 
 CREATE POLICY "Self update" ON seller_main.profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING ((select auth.uid()) = id);
 
 CREATE POLICY "Admin view" ON seller_main.profiles
-  FOR SELECT USING (auth.uid() IN (SELECT user_id FROM public.admin_users));
+  FOR SELECT USING (( select public.is_admin() ));
+
+CREATE POLICY "Service role insert profiles" ON seller_main.profiles
+  FOR INSERT TO service_role
+  WITH CHECK (true);
+
+CREATE POLICY "Admin delete profiles" ON seller_main.profiles
+  FOR DELETE TO service_role
+  USING (true);
 
 -- -----------------------------------------------------------------------------
 -- REVENUE GOALS POLICIES
 -- -----------------------------------------------------------------------------
 
 CREATE POLICY "Admins can manage revenue goals" ON seller_main.revenue_goals
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
 
 -- -----------------------------------------------------------------------------
 -- STRIPE CONFIGURATIONS POLICIES
@@ -1835,12 +1860,12 @@ CREATE POLICY "Admins can manage revenue goals" ON seller_main.revenue_goals
 
 CREATE POLICY "Admins full access to stripe_configurations" ON seller_main.stripe_configurations
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
 -- -----------------------------------------------------------------------------
@@ -1850,10 +1875,10 @@ CREATE POLICY "Admins full access to stripe_configurations" ON seller_main.strip
 -- Admin write access (INSERT, UPDATE, DELETE)
 CREATE POLICY "Admins full access to shop_config" ON seller_main.shop_config
   FOR ALL TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid())
+    ( select public.is_admin() )
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 -- Public read access (shop configuration needs to be visible to all users including guests)
@@ -1998,7 +2023,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = seller_main
+SET search_path = ''
 AS $$
   SELECT
     p.id,
@@ -2012,8 +2037,8 @@ AS $$
     p.description,
     p.image_url,
     p.is_active
-  FROM products p
-  INNER JOIN product_variant_groups pvg ON pvg.product_id = p.id
+  FROM seller_main.products p
+  INNER JOIN seller_main.product_variant_groups pvg ON pvg.product_id = p.id
   WHERE pvg.group_id = p_group_id
     AND p.is_active = true
   ORDER BY pvg.display_order ASC, p.price ASC;
@@ -2040,7 +2065,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = seller_main
+SET search_path = ''
 AS $$
   SELECT
     p.id,
@@ -2054,9 +2079,9 @@ AS $$
     p.description,
     p.image_url,
     p.is_active
-  FROM products p
-  INNER JOIN product_variant_groups pvg ON pvg.product_id = p.id
-  INNER JOIN variant_groups vg ON vg.id = pvg.group_id
+  FROM seller_main.products p
+  INNER JOIN seller_main.product_variant_groups pvg ON pvg.product_id = p.id
+  INNER JOIN seller_main.variant_groups vg ON vg.id = pvg.group_id
   WHERE vg.slug = p_slug
     AND p.is_active = true
   ORDER BY pvg.display_order ASC, p.price ASC;
@@ -2090,3 +2115,34 @@ CREATE OR REPLACE VIEW public.profiles WITH (security_invoker = on) AS SELECT * 
 CREATE OR REPLACE VIEW public.revenue_goals WITH (security_invoker = on) AS SELECT * FROM seller_main.revenue_goals;
 CREATE OR REPLACE VIEW public.stripe_configurations WITH (security_invoker = on) AS SELECT * FROM seller_main.stripe_configurations;
 CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;
+
+-- =============================================================================
+-- EXPLICIT TABLE GRANTS (Security Rule #5: never rely on blanket default privileges)
+-- =============================================================================
+-- Public catalog tables: anon + authenticated SELECT
+GRANT SELECT ON seller_main.order_bumps TO anon, authenticated;
+GRANT SELECT ON seller_main.shop_config TO anon, authenticated;
+-- User's own data: authenticated CRUD (RLS enforced)
+GRANT SELECT, INSERT, UPDATE ON seller_main.video_progress TO authenticated;
+GRANT INSERT ON seller_main.video_events TO authenticated;
+GRANT SELECT, INSERT ON seller_main.coupon_redemptions TO authenticated;
+GRANT SELECT, INSERT, DELETE ON seller_main.coupon_reservations TO authenticated;
+GRANT SELECT, INSERT ON seller_main.consent_logs TO authenticated;
+GRANT SELECT, UPDATE ON seller_main.profiles TO authenticated;
+-- Admin-only tables: REVOKE blanket access, then GRANT only what RLS policies need
+REVOKE ALL ON seller_main.coupons FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.coupons TO authenticated;
+REVOKE ALL ON seller_main.webhook_endpoints FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.webhook_endpoints TO authenticated;
+REVOKE ALL ON seller_main.webhook_logs FROM anon, authenticated;
+GRANT SELECT, UPDATE ON seller_main.webhook_logs TO authenticated;
+REVOKE ALL ON seller_main.integrations_config FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.integrations_config TO authenticated;
+REVOKE ALL ON seller_main.custom_scripts FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.custom_scripts TO authenticated;
+REVOKE ALL ON seller_main.revenue_goals FROM anon, authenticated;
+-- revenue_goals: no application code uses this table via authenticated role.
+-- Only service_role (via ALTER DEFAULT PRIVILEGES) has access. If future code
+-- needs authenticated access, add minimal grants here.
+REVOKE ALL ON seller_main.stripe_configurations FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.stripe_configurations TO authenticated;

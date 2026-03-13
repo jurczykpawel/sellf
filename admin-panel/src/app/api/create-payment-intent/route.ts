@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     // 2. Check if user already has access
     if (user) {
       const { data: existingAccess } = await supabase
-        .from('user_products')
+        .from('user_product_access')
         .select('id')
         .eq('user_id', user.id)
         .eq('product_id', productId)

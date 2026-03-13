@@ -24,7 +24,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = seller_main
+SET search_path = ''
 AS $$
   SELECT
     p.id,
@@ -73,7 +73,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = seller_main
+SET search_path = ''
 AS $$
   SELECT
     p.id,

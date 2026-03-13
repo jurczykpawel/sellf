@@ -54,7 +54,8 @@ BEGIN
   GET DIAGNOSTICS updated_count = ROW_COUNT;
   RETURN updated_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.mark_expired_pending_payments() TO service_role;
 
@@ -78,7 +79,7 @@ RETURNS TABLE (
 BEGIN
   -- Check if user is admin or service_role
   IF (SELECT auth.role()) != 'service_role' AND
-     NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+     NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied: Admin only';
   END IF;
 
@@ -101,7 +102,8 @@ BEGIN
   ORDER BY pt.created_at DESC
   LIMIT limit_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.get_abandoned_carts(INTEGER, INTEGER) TO authenticated;
 
@@ -115,7 +117,7 @@ DECLARE
 BEGIN
   -- Check if user is admin or service_role
   IF (SELECT auth.role()) != 'service_role' AND
-     NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+     NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied: Admin only';
   END IF;
 
@@ -132,7 +134,8 @@ BEGIN
 
   RETURN result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 GRANT EXECUTE ON FUNCTION seller_main.get_abandoned_cart_stats(INTEGER) TO authenticated;
 
@@ -152,7 +155,7 @@ CREATE POLICY "Users can view their own pending payments"
   FOR SELECT
   TO authenticated
   USING (
-    user_id = auth.uid()
+    user_id = (select auth.uid())
     AND status IN ('pending', 'completed', 'refunded')
   );
 

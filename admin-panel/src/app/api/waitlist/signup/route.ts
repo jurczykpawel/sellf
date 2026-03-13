@@ -6,6 +6,15 @@ import { sanitizeForLog } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
+    // SECURITY: Reject non-JSON Content-Type to prevent blind CSRF via text/plain forms
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 415 }
+      );
+    }
+
     // Rate limiting: 5 requests per 5 minutes (prevents webhook spam)
     const rateLimitOk = await checkRateLimit('waitlist_signup', 5, 300);
     if (!rateLimitOk) {
@@ -35,6 +44,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate productId is a UUID
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof productId !== 'string' || !UUID_REGEX.test(productId)) {
+      return NextResponse.json(
+        { error: 'Invalid product ID format' },
+        { status: 400 }
+      );
+    }
+
     // Verify captcha in production
     if (process.env.NODE_ENV === 'production') {
       if (!captchaToken) {
@@ -49,6 +67,7 @@ export async function POST(request: Request) {
 
       const verifyResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
         method: 'POST',
+        redirect: 'error',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ secret: turnstileSecret, response: captchaToken }),
       });

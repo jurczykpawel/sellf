@@ -33,3 +33,11 @@ export interface CouponVerificationResult {
   discount_value?: number;
   exclude_order_bumps?: boolean;
 }
+
+/** Shape of a successfully applied coupon used in checkout UI */
+export interface AppliedCoupon {
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  exclude_order_bumps?: boolean;
+}

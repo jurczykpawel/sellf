@@ -163,13 +163,22 @@ export function createSellerAdminClient(schemaName: string) {
  * @param schemaName - PostgreSQL schema name (e.g., 'seller_nick')
  */
 export function createSellerPublicClient(schemaName: string) {
+  // K4: Validate schema name to prevent arbitrary schema access
+  if (!isValidSellerSchema(schemaName)) {
+    throw new Error(`Invalid seller schema name: "${schemaName}". Must match pattern seller_[a-z0-9_]{2,50} and not be seller_main.`);
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const url = supabaseUrl || 'http://localhost:54321';
-  const key = supabaseAnonKey || 'dummy-anon-key-for-build-time';
+  if (!supabaseUrl) {
+    throw new Error('Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL for seller public client');
+  }
+  if (!supabaseAnonKey) {
+    throw new Error('Missing SUPABASE_ANON_KEY or ANON_KEY for seller public client');
+  }
 
-  return createSupabaseClient(url, key, {
+  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     db: { schema: schemaName },
     auth: { persistSession: false, autoRefreshToken: false },
   });

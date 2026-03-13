@@ -143,13 +143,13 @@ describe('Payment Config Database - RLS Policies & Constraints', () => {
         .eq('id', 1)
         .single();
 
-      // RLS should block unauthenticated access
+      // Anon has no table-level privileges (REVOKE ALL) so access is blocked.
+      // Depending on Supabase/PostgREST version, this returns either:
+      // - 42501 (insufficient_privilege) when table-level GRANT is missing
+      // - PGRST116 (no rows) when RLS hides all rows
       expect(data).toBeNull();
-      if (error) {
-        expect(error.code).toBe('PGRST116');
-      } else {
-        expect.fail('Expected PGRST116 error for RLS-blocked anonymous access');
-      }
+      expect(error).not.toBeNull();
+      expect(['PGRST116', '42501']).toContain(error!.code);
     });
   });
 

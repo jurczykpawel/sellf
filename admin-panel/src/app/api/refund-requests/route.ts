@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_REASON_LENGTH = 2000;
+
 // GET /api/refund-requests - Get user's refund requests
 export async function GET() {
   try {
@@ -80,11 +83,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { transaction_id, reason } = body;
 
-    if (!transaction_id) {
+    if (!transaction_id || typeof transaction_id !== 'string') {
       return NextResponse.json(
         { error: 'Transaction ID is required' },
         { status: 400 }
       );
+    }
+    if (!UUID_REGEX.test(transaction_id)) {
+      return NextResponse.json(
+        { error: 'Invalid Transaction ID format' },
+        { status: 400 }
+      );
+    }
+    if (reason !== undefined && reason !== null) {
+      if (typeof reason !== 'string' || reason.length > MAX_REASON_LENGTH) {
+        return NextResponse.json(
+          { error: `Reason must be a string of at most ${MAX_REASON_LENGTH} characters` },
+          { status: 400 }
+        );
+      }
     }
 
     // Use the database function to create the request

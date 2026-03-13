@@ -59,6 +59,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
       oto_duration_minutes,
     } = body;
 
+    // Validate types for fields that will be forwarded to RPC
+    if (typeof oto_enabled !== 'boolean' && oto_enabled !== undefined) {
+      return NextResponse.json({ error: 'oto_enabled must be a boolean' }, { status: 400 });
+    }
+    if (oto_product_id !== undefined && (typeof oto_product_id !== 'string' || !oto_product_id)) {
+      return NextResponse.json({ error: 'oto_product_id must be a non-empty string' }, { status: 400 });
+    }
+    const ALLOWED_DISCOUNT_TYPES = ['percentage', 'fixed'] as const;
+    if (oto_discount_type !== undefined && !ALLOWED_DISCOUNT_TYPES.includes(oto_discount_type)) {
+      return NextResponse.json({ error: 'oto_discount_type must be "percentage" or "fixed"' }, { status: 400 });
+    }
+    if (oto_discount_value !== undefined && (typeof oto_discount_value !== 'number' || oto_discount_value < 0)) {
+      return NextResponse.json({ error: 'oto_discount_value must be a non-negative number' }, { status: 400 });
+    }
+    if (oto_duration_minutes !== undefined && (typeof oto_duration_minutes !== 'number' || oto_duration_minutes < 1)) {
+      return NextResponse.json({ error: 'oto_duration_minutes must be a positive number' }, { status: 400 });
+    }
+
     const supabase = await createClient();
 
     // Check admin access

@@ -7,20 +7,9 @@ import { join } from 'path';
  * SECURITY TEST: Audit Log Access Control
  * ============================================================================
  *
- * Tests the REAL migration SQL to verify RLS policies on the audit_log table.
- *
- * VULNERABILITY: Unrestricted Audit Log INSERT (V-CRITICAL-09)
- * LOCATION: supabase/migrations/20250101000000_core_schema.sql
- *
- * ATTACK FLOW (before fix):
- * 1. Any authenticated or anonymous user could INSERT into audit_log directly
- * 2. Attacker forges audit entries to cover tracks or frame others
- * 3. Compliance audit becomes unreliable (cannot trust audit trail)
- *
- * FIX (V19): Added TO service_role to restrict direct INSERTs
- *
- * Created during security audit iteration 8 (2026-01-08)
- * Rewritten to test real migration SQL (2026-02-26)
+ * Verifies RLS policies on the audit_log table — INSERT restricted to
+ * service_role, SELECT restricted to admin users, no UPDATE/DELETE for
+ * regular users. Tests real migration SQL via static analysis.
  * ============================================================================
  */
 
@@ -68,15 +57,14 @@ describe('Audit Log Access Control', () => {
   });
 
   describe('RLS Policy: SELECT requires authenticated + admin check', () => {
-    it('SELECT policy requires authenticated role and checks admin_users with auth.uid()', () => {
+    it('SELECT policy requires authenticated role and checks is_admin()', () => {
       const selectPolicyMatch = migrationSQL.match(
         /CREATE\s+POLICY\s+"Allow admin users to read audit logs"\s+ON\s+audit_log[\s\S]*?;/
       );
       expect(selectPolicyMatch).not.toBeNull();
       const selectPolicy = selectPolicyMatch![0];
       expect(selectPolicy).toMatch(/TO\s+authenticated/);
-      expect(selectPolicy).toContain('admin_users');
-      expect(selectPolicy).toMatch(/auth\.uid\(\)/);
+      expect(selectPolicy).toContain('is_admin()');
     });
   });
 

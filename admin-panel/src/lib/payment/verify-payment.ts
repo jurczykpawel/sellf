@@ -11,6 +11,60 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/** Shape returned by process_stripe_payment_completion_with_bump RPC (JSONB) */
+interface PaymentRpcResult {
+  success: boolean;
+  error?: string;
+  access_granted?: boolean;
+  already_had_access?: boolean;
+  requires_login?: boolean;
+  is_guest_purchase?: boolean;
+  scenario?: string;
+  access_expires_at?: string | null;
+  send_magic_link?: boolean;
+  customer_email?: string;
+}
+
+interface ProductDetail {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+  icon: string | null;
+}
+
+interface PurchaseWebhookData {
+  customer: {
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    userId: string | null;
+  };
+  product: ProductDetail | { id: string };
+  bumpProduct: ProductDetail | null;
+  bumpProducts: ProductDetail[];
+  order: {
+    amount: number | null;
+    currency: string | null;
+    sessionId?: string;
+    paymentIntentId: string | null | undefined;
+    couponId: string | null;
+    isGuest: boolean | undefined;
+  };
+  invoice?: {
+    needsInvoice: boolean;
+    nip: string | null;
+    companyName: string | null;
+    address: string | null;
+    city: string | null;
+    postalCode: string | null;
+    country: string | null;
+  };
+}
+
 /**
  * Helper function to update user profile with customer data from payment
  *
@@ -24,12 +78,12 @@ import { WebhookService } from '@/lib/services/webhook-service';
  * migrate_guest_payment_data_to_profile() database function.
  */
 async function updateProfileWithCompanyData(
-  serviceClient: any,
+  serviceClient: AdminClient,
   userId: string,
-  metadata: Record<string, any>
+  metadata: Record<string, string | undefined>
 ): Promise<void> {
   try {
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, string> = {
       updated_at: new Date().toISOString()
     };
 
@@ -130,7 +184,7 @@ export interface PaymentVerificationResult {
  */
 async function getProcessedPaymentFromDatabase(
   sessionId: string,
-  serviceClient: any,
+  serviceClient: AdminClient,
   user?: User | null
 ): Promise<PaymentVerificationResult | null> {
   // Look up existing completed transaction
@@ -172,12 +226,15 @@ async function getProcessedPaymentFromDatabase(
   }
 
   // Check if user has access to the product
-  const { data: accessRecord } = await serviceClient
-    .from('user_product_access')
-    .select('id, access_expires_at')
-    .eq('product_id', transaction.product_id)
-    .eq('user_id', transaction.user_id || user?.id)
-    .maybeSingle();
+  const effectiveUserId = transaction.user_id || user?.id;
+  const { data: accessRecord } = effectiveUserId
+    ? await serviceClient
+        .from('user_product_access')
+        .select('id, access_expires_at')
+        .eq('product_id', transaction.product_id)
+        .eq('user_id', effectiveUserId)
+        .maybeSingle()
+    : { data: null };
 
   const hasAccess = !!accessRecord;
   const isGuestPurchase = !transaction.user_id;
@@ -191,10 +248,10 @@ async function getProcessedPaymentFromDatabase(
         customer_email_param: transaction.customer_email,
         transaction_id_param: transaction.id
       });
-    const otoResult = otoResultRaw as any;
+    const otoResult = otoResultRaw as OtoInfo | null;
 
     if (otoResult?.has_oto || otoResult?.reason) {
-      otoInfo = otoResult as OtoInfo;
+      otoInfo = otoResult;
     }
   } catch (otoErr) {
     console.error('OTO generation exception (cached):', otoErr);
@@ -349,8 +406,7 @@ export async function verifyPaymentSession(
           const { data: paymentResultRaw, error: paymentError } = await serviceClient
             .rpc('process_stripe_payment_completion_with_bump', rpcParams);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rpc returns jsonb, shape validated at runtime
-          const paymentResult = paymentResultRaw as any;
+          const paymentResult = paymentResultRaw as PaymentRpcResult | null;
 
           if (paymentError) {
             console.error(
@@ -369,12 +425,12 @@ export async function verifyPaymentSession(
             console.error(
               '[verify-payment] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
               session.id, productId, customerEmail, couponId ?? 'none',
-              session.amount_total, (paymentResult?.error as string) ?? 'unknown'
+              session.amount_total, paymentResult?.error ?? 'unknown'
             );
             return {
               ...baseResponse,
               access_granted: false,
-              error: (paymentResult?.error as string) || 'Payment processing failed'
+              error: paymentResult?.error || 'Payment processing failed'
             };
           }
 
@@ -388,7 +444,7 @@ export async function verifyPaymentSession(
               .single();
 
             // Fetch bump product info for all bumps
-            let bumpProductDetailsList: any[] = [];
+            let bumpProductDetailsList: ProductDetail[] = [];
             if (bumpProductIds.length > 0) {
               const { data: bumps } = await serviceClient
                 .from('products')
@@ -397,7 +453,7 @@ export async function verifyPaymentSession(
               if (bumps) bumpProductDetailsList = bumps;
             }
 
-            const webhookData: any = {
+            const webhookData: PurchaseWebhookData = {
               customer: {
                 email: customerEmail,
                 firstName: session.metadata?.first_name || null,
@@ -432,7 +488,7 @@ export async function verifyPaymentSession(
                 sessionId: session.id,
                 paymentIntentId: stripePaymentIntentId,
                 couponId: hasCoupon && couponId ? couponId : null,
-                isGuest: paymentResult.is_guest_purchase
+                isGuest: paymentResult?.is_guest_purchase
               }
             };
 
@@ -476,15 +532,15 @@ export async function verifyPaymentSession(
                     customer_email_param: customerEmail,
                     transaction_id_param: transaction.id
                   });
-                const otoResult = otoResultRaw as any;
+                const otoResult = otoResultRaw as OtoInfo | null;
 
                 if (otoError) {
                   console.error('OTO generation error:', otoError);
                 } else if (otoResult?.has_oto) {
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 } else if (otoResult?.reason) {
                   // Pass through skipped OTO info (e.g., user already owns the product)
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 }
               }
             } catch (otoErr) {
@@ -495,15 +551,15 @@ export async function verifyPaymentSession(
           // Convert database response to our interface
           return {
             ...baseResponse,
-            access_granted: paymentResult.access_granted || false,
-            already_had_access: paymentResult.already_had_access || false,
-            requires_login: paymentResult.requires_login || false,
-            is_guest_purchase: paymentResult.is_guest_purchase || false,
-            scenario: paymentResult.scenario,
-            access_expires_at: paymentResult.access_expires_at,
-            send_magic_link: paymentResult.send_magic_link || false,
+            access_granted: paymentResult?.access_granted || false,
+            already_had_access: paymentResult?.already_had_access || false,
+            requires_login: paymentResult?.requires_login || false,
+            is_guest_purchase: paymentResult?.is_guest_purchase || false,
+            scenario: paymentResult?.scenario,
+            access_expires_at: paymentResult?.access_expires_at,
+            send_magic_link: paymentResult?.send_magic_link || false,
             // Use customer email from DB result, fallback to Stripe session, fallback to what we passed in
-            customer_email: paymentResult.customer_email || baseResponse.customer_email || customerEmail,
+            customer_email: paymentResult?.customer_email || baseResponse.customer_email || customerEmail,
             oto_info: otoInfo
           };
 
@@ -647,8 +703,7 @@ export async function verifyPaymentIntent(
           const { data: paymentResultRaw2, error: paymentError } = await serviceClient
             .rpc('process_stripe_payment_completion_with_bump', rpcParams);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rpc returns jsonb, shape validated at runtime
-          const paymentResult = paymentResultRaw2 as any;
+          const paymentResult = paymentResultRaw2 as PaymentRpcResult | null;
 
           if (paymentError) {
             console.error(
@@ -686,7 +741,7 @@ export async function verifyPaymentIntent(
               .single();
 
             // Fetch bump product info for all bumps
-            let bumpProductDetailsList: any[] = [];
+            let bumpProductDetailsList: ProductDetail[] = [];
             if (bumpProductIds.length > 0) {
               const { data: bumps } = await serviceClient
                 .from('products')
@@ -695,7 +750,7 @@ export async function verifyPaymentIntent(
               if (bumps) bumpProductDetailsList = bumps;
             }
 
-            const webhookData: any = {
+            const webhookData: PurchaseWebhookData = {
               customer: {
                 email: customerEmail,
                 firstName: paymentIntent.metadata?.first_name || null,
@@ -727,7 +782,7 @@ export async function verifyPaymentIntent(
                 currency: paymentIntent.currency,
                 paymentIntentId: paymentIntent.id,
                 couponId: couponId || null,
-                isGuest: paymentResult.is_guest_purchase
+                isGuest: paymentResult?.is_guest_purchase
               }
             };
 
@@ -778,15 +833,15 @@ export async function verifyPaymentIntent(
                     customer_email_param: customerEmail,
                     transaction_id_param: transaction.id
                   });
-                const otoResult = otoResultRaw as any;
+                const otoResult = otoResultRaw as OtoInfo | null;
 
                 if (otoError) {
                   console.error('OTO generation error:', otoError);
                 } else if (otoResult?.has_oto) {
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 } else if (otoResult?.reason) {
                   // Pass through skipped OTO info (e.g., user already owns the product)
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 }
               }
             } catch (otoErr) {
@@ -797,13 +852,13 @@ export async function verifyPaymentIntent(
           // Convert database response to our interface
           return {
             ...baseResponse,
-            access_granted: paymentResult.access_granted || false,
-            requires_login: paymentResult.requires_login || false,
-            is_guest_purchase: paymentResult.is_guest_purchase || false,
-            scenario: paymentResult.scenario,
-            send_magic_link: paymentResult.send_magic_link || false,
+            access_granted: paymentResult?.access_granted || false,
+            requires_login: paymentResult?.requires_login || false,
+            is_guest_purchase: paymentResult?.is_guest_purchase || false,
+            scenario: paymentResult?.scenario,
+            send_magic_link: paymentResult?.send_magic_link || false,
             // Use customer email from DB result, fallback to Stripe, fallback to what we passed in
-            customer_email: paymentResult.customer_email || baseResponse.customer_email || customerEmail,
+            customer_email: paymentResult?.customer_email || baseResponse.customer_email || customerEmail,
             oto_info: otoInfo
           };
 

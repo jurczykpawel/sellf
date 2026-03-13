@@ -2,55 +2,16 @@
 // API endpoint for payment statistics
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-
-// Note: These must be read at runtime, not build time
-const getSupabaseUrl = () => process.env.SUPABASE_URL!;
-const getSupabaseServiceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
-    let user: { id: string } | null = null;
+    const { user } = await requireAdminApiWithRequest(request);
 
-    // Try Bearer token auth first (for API clients)
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
-      const { data: { user: tokenUser }, error: authError } = await supabase.auth.getUser(token);
-      if (!authError && tokenUser) {
-        user = tokenUser;
-      }
-    }
-
-    // Fall back to cookie auth (for browser clients)
-    if (!user) {
-      const supabase = await createServerClient();
-      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser();
-      if (!authError && cookieUser) {
-        user = cookieUser;
-      }
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Use service role client for admin operations
-    const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
-
-    // Check admin privileges
-    const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (adminError || !adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    // Use admin client for seller_main data operations
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit analytics operations (aggregation queries can be expensive)
     const rateLimitOk = await checkRateLimit(
@@ -95,7 +56,7 @@ export async function GET(request: NextRequest) {
       .select('refunded_amount')
       .gt('refunded_amount', 0);
 
-    const refundedAmount = refundData?.reduce((sum, transaction) => sum + transaction.refunded_amount, 0) || 0;
+    const refundedAmount = refundData?.reduce((sum, transaction) => sum + (transaction.refunded_amount ?? 0), 0) || 0;
 
     // Get today's revenue
     const { data: todayRevenueData } = await supabase
@@ -126,6 +87,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(stats);
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
     console.error('Stats API error:', error);
     return NextResponse.json({ error: 'Failed to fetch statistics' }, { status: 500 });
   }

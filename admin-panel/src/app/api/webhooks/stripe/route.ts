@@ -17,7 +17,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
@@ -25,23 +24,17 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
 import { handleAccountUpdated, handleAccountDeauthorized } from '@/lib/stripe/connect';
+import { isValidSellerSchema } from '@/lib/marketplace/tenant';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
 
-// Supabase service client for database operations
+// Service client factory — uses createAdminClient (seller_main) by default,
+// or createSellerAdminClient for marketplace seller schemas.
 const getServiceClient = (schema?: string) => {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase configuration');
+  if (schema && schema !== 'seller_main') {
+    return createSellerAdminClient(schema);
   }
-
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-    ...(schema && { db: { schema } }),
-  });
+  return createAdminClient();
 };
 
 /**
@@ -56,9 +49,14 @@ async function handleCheckoutSessionCompleted(
   const productId = session.metadata?.product_id;
   const customerEmail = session.customer_details?.email || session.customer_email;
 
-  // Marketplace: route to seller's schema if present
+  // Marketplace: route to seller's schema if present.
+  // SECURITY: validate schema name before using it — prevents arbitrary schema access.
   const sellerSchema = session.metadata?.seller_schema;
   if (sellerSchema && session.metadata?.is_marketplace === 'true') {
+    if (!isValidSellerSchema(sellerSchema)) {
+      console.error(`[Stripe Webhook] Invalid seller_schema in session metadata: ${sellerSchema}`);
+      return { processed: false, message: `Invalid seller_schema: ${sellerSchema}` };
+    }
     supabase = getServiceClient(sellerSchema);
   }
 
@@ -136,15 +134,14 @@ async function handleCheckoutSessionCompleted(
       .eq('id', productId)
       .single();
 
-    // Fetch bump product info for all purchased bumps
-    const bumpProductDetailsList: Array<{ id: string; name: string; slug: string; price: number; currency: string; icon: string | null }> = [];
-    for (const bumpId of bumpProductIds) {
-      const { data: bump } = await supabase
+    // Fetch bump product info for all purchased bumps (batch query)
+    let bumpProductDetailsList: Array<{ id: string; name: string; slug: string; price: number; currency: string; icon: string | null }> = [];
+    if (bumpProductIds.length > 0) {
+      const { data: bumps } = await supabase
         .from('products')
         .select('id, name, slug, price, currency, icon')
-        .eq('id', bumpId)
-        .single();
-      if (bump) bumpProductDetailsList.push(bump);
+        .in('id', bumpProductIds);
+      if (bumps) bumpProductDetailsList = bumps;
     }
     // Legacy compat: first bump for webhook payload
     const bumpProductDetails = bumpProductDetailsList[0] || null;
@@ -218,9 +215,14 @@ async function handlePaymentIntentSucceeded(
   const productId = paymentIntent.metadata?.product_id;
   const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.email;
 
-  // Marketplace: route to seller's schema if present
+  // Marketplace: route to seller's schema if present.
+  // SECURITY: validate schema name before using it — prevents arbitrary schema access.
   const sellerSchema = paymentIntent.metadata?.seller_schema;
   if (sellerSchema && paymentIntent.metadata?.is_marketplace === 'true') {
+    if (!isValidSellerSchema(sellerSchema)) {
+      console.error(`[Stripe Webhook] Invalid seller_schema in payment intent metadata: ${sellerSchema}`);
+      return { processed: false, message: `Invalid seller_schema: ${sellerSchema}` };
+    }
     supabase = getServiceClient(sellerSchema);
   }
 
@@ -293,15 +295,14 @@ async function handlePaymentIntentSucceeded(
       .eq('id', productId)
       .single();
 
-    // Fetch bump product info for all purchased bumps
-    const bumpProductDetailsList: Array<{ id: string; name: string; slug: string; price: number; currency: string; icon: string | null }> = [];
-    for (const bumpId of bumpProductIds) {
-      const { data: bump } = await supabase
+    // Fetch bump product info for all purchased bumps (batch query)
+    let bumpProductDetailsList: Array<{ id: string; name: string; slug: string; price: number; currency: string; icon: string | null }> = [];
+    if (bumpProductIds.length > 0) {
+      const { data: bumps } = await supabase
         .from('products')
         .select('id, name, slug, price, currency, icon')
-        .eq('id', bumpId)
-        .single();
-      if (bump) bumpProductDetailsList.push(bump);
+        .in('id', bumpProductIds);
+      if (bumps) bumpProductDetailsList = bumps;
     }
     const bumpProductDetails = bumpProductDetailsList[0] || null;
 
@@ -539,14 +540,6 @@ async function handleChargeDisputeCreated(
  * Main webhook handler
  */
 export async function POST(request: NextRequest) {
-  // Rate limit to prevent webhook endpoint flooding
-  const { maxRequests, windowMinutes, actionType } = RATE_LIMITS.STRIPE_WEBHOOK;
-  const allowed = await checkRateLimit(actionType, maxRequests, windowMinutes);
-  if (!allowed) {
-    // 429 tells Stripe to retry with exponential backoff
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  }
-
   let event: Stripe.Event;
 
   // SECURITY: Get raw body for signature verification
@@ -565,7 +558,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // SECURITY: Verify webhook signature
+  // SECURITY: Verify webhook signature BEFORE rate limiting.
+  // Rate limiting after signature verification ensures only legitimate Stripe requests
+  // consume rate limit quota — unauthenticated flood attempts are rejected first (400),
+  // preventing DoS that would block real Stripe webhooks from being processed.
   try {
     event = await verifyWebhookSignature(body, signature);
   } catch (err) {
@@ -575,6 +571,14 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid signature' },
       { status: 400 }
     );
+  }
+
+  // Rate limit AFTER signature verification — only legitimate Stripe events count.
+  const { maxRequests, windowMinutes, actionType } = RATE_LIMITS.STRIPE_WEBHOOK;
+  const allowed = await checkRateLimit(actionType, maxRequests, windowMinutes);
+  if (!allowed) {
+    // 429 tells Stripe to retry with exponential backoff
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 
   // Initialize Supabase client

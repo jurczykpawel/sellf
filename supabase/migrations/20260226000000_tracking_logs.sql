@@ -40,6 +40,11 @@ CREATE INDEX idx_tracking_logs_order_id ON public.tracking_logs(order_id);
 -- RLS: service_role only (admin data, no public access)
 ALTER TABLE public.tracking_logs ENABLE ROW LEVEL SECURITY;
 
+-- Explicit policies (Security Rule #1: zero-policy tables are a time bomb)
+CREATE POLICY "Service role full access to tracking_logs"
+  ON public.tracking_logs FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
 REVOKE ALL ON public.tracking_logs FROM anon, authenticated;
 GRANT ALL ON public.tracking_logs TO service_role;
 
@@ -91,8 +96,8 @@ DROP POLICY IF EXISTS "Only system or admins can insert price history" ON seller
 CREATE POLICY "Only system or admins can insert price history"
   ON seller_main.product_price_history FOR INSERT
   WITH CHECK (
-    current_setting('role', true) = 'service_role'
-    OR EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid())
+    (select auth.role()) = 'service_role'
+    OR ( select public.is_admin() )
   );
 
 -- Fix SECURITY DEFINER functions missing SET search_path.

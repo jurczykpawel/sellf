@@ -5,8 +5,15 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   // Use server-side environment variables
-  const supabaseUrl = process.env.SUPABASE_URL!
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+
+  if (!supabaseUrl) {
+    throw new Error('SUPABASE_URL is not defined. Server client cannot be created.')
+  }
+  if (!supabaseAnonKey) {
+    throw new Error('SUPABASE_ANON_KEY is not defined. Server client cannot be created.')
+  }
   const isProduction = process.env.NODE_ENV === 'production'
 
   return createServerClient(
@@ -61,11 +68,25 @@ export function createPublicClient() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY
 
-  // If env vars are not available (e.g., during build without .env file),
-  // use dummy values to allow build to complete. ISR pages will be marked as dynamic.
-  // In production with proper env vars, ISR will work correctly.
-  const url = supabaseUrl || 'http://localhost:54321'
-  const key = supabaseAnonKey || 'dummy-anon-key-for-build-time'
+  // At build time (next build), env vars may not be available.
+  // Throw at runtime to prevent accidental use with missing config.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      // During build, return a no-op client that will cause pages to be dynamic
+      return createServerClient(
+        'http://placeholder.invalid',
+        'placeholder-key',
+        { cookies: { getAll: () => [], setAll: () => {} } }
+      )
+    }
+    throw new Error(
+      'Missing SUPABASE_URL or SUPABASE_ANON_KEY. ' +
+      'Set environment variables or use NEXT_PUBLIC_SUPABASE_URL / ANON_KEY.'
+    )
+  }
+
+  const url = supabaseUrl
+  const key = supabaseAnonKey
 
   return createServerClient(
     url,

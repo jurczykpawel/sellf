@@ -2,15 +2,11 @@
 // API endpoint for processing payment refunds
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
-
-// Note: These must be read at runtime, not build time
-const getSupabaseUrl = () => process.env.SUPABASE_URL!;
-const getSupabaseServiceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,15 +20,15 @@ export async function POST(request: NextRequest) {
 
     // Initialize service client only after auth header validation
     const stripe = await getStripeServer();
-    const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
+    const platformClient = createPlatformClient();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await platformClient.auth.getUser(token);
     if (authError || !user) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin (using admin_users table, consistent with other admin routes)
-    const { data: adminUser } = await supabase
+    const { data: adminUser } = await platformClient
       .from('admin_users')
       .select('id')
       .eq('user_id', user.id)
@@ -41,6 +37,9 @@ export async function POST(request: NextRequest) {
     if (!adminUser) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
+
+    // Use admin client for seller_main data operations
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit refund operations (prevents abuse of compromised admin accounts)
     const rateLimitOk = await checkRateLimit(
@@ -115,15 +114,24 @@ export async function POST(request: NextRequest) {
     // Process refund through Stripe
     // SECURITY: Use payment intent from DB, not client-supplied value
     const refundData: Stripe.RefundCreateParams = {
-      payment_intent: transaction.stripe_payment_intent_id,
+      payment_intent: transaction.stripe_payment_intent_id ?? undefined,
     };
 
     if (amount) {
       refundData.amount = refundAmount;
     }
 
+    const VALID_REFUND_REASONS: Stripe.RefundCreateParams.Reason[] = [
+      'duplicate', 'fraudulent', 'requested_by_customer',
+    ];
     if (reason) {
-      refundData.reason = reason as Stripe.RefundCreateParams.Reason;
+      if (!VALID_REFUND_REASONS.includes(reason)) {
+        return NextResponse.json(
+          { message: `Invalid refund reason. Must be one of: ${VALID_REFUND_REASONS.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      refundData.reason = reason;
     }
 
     const refund = await stripe.refunds.create(refundData);
@@ -173,20 +181,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Log the refund action
-    await supabase.from('admin_actions').insert({
-      admin_id: user.id,
-      action: 'refund_processed',
-      target_type: 'payment_transaction',
-      target_id: transactionId,
-      details: {
-        refund_id: refund.id,
-        amount: refund.amount,
-        reason: reason || null,
-        access_revocation_failed: accessRevocationFailed,
-      },
-      created_at: new Date().toISOString(),
-    });
+    console.log(`[admin-refund] Refund processed by ${user.id}: txn=${transactionId} refund=${refund.id} amount=${refund.amount}`);
 
     return NextResponse.json({
       success: true,

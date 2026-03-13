@@ -102,18 +102,16 @@ describe('Marketplace: Seller Client', () => {
   // =====================================================
 
   describe('createSellerAdminClient()', () => {
-    it('should create a client for seller_main schema', () => {
-      const client = createSellerAdminClient('seller_main');
+    it('should reject seller_main (platform schema, not a seller)', () => {
+      expect(() => createSellerAdminClient('seller_main')).toThrow('Invalid seller schema name');
+    });
+
+    it('should create a client for a valid seller schema name', () => {
+      const client = createSellerAdminClient('seller_test_shop');
       expect(client).toBeTruthy();
       // Verify it's a valid Supabase client by checking it has expected methods
       expect(typeof client.from).toBe('function');
       expect(typeof client.rpc).toBe('function');
-    });
-
-    it('should create a client for any valid schema name', () => {
-      const client = createSellerAdminClient('seller_test_shop');
-      expect(client).toBeTruthy();
-      expect(typeof client.from).toBe('function');
     });
   });
 
@@ -122,8 +120,12 @@ describe('Marketplace: Seller Client', () => {
   // =====================================================
 
   describe('createSellerPublicClient()', () => {
-    it('should create a public client for a schema', () => {
-      const client = createSellerPublicClient('seller_main');
+    it('should reject seller_main (platform schema, not a seller)', () => {
+      expect(() => createSellerPublicClient('seller_main')).toThrow('Invalid seller schema name');
+    });
+
+    it('should create a public client for a valid seller schema', () => {
+      const client = createSellerPublicClient('seller_test_shop');
       expect(client).toBeTruthy();
       expect(typeof client.from).toBe('function');
     });

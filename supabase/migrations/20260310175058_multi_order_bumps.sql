@@ -55,7 +55,7 @@ BEGIN
   ORDER BY ob.display_order ASC, ob.created_at ASC;
   -- NOTE: Removed LIMIT 1 to support multiple order bumps per product
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
 -- Re-grant after DROP+CREATE (DROP loses previous GRANTs)
 GRANT EXECUTE ON FUNCTION seller_main.get_product_order_bumps TO anon, authenticated, service_role;
@@ -127,7 +127,7 @@ CREATE POLICY "Service role full access to line items"
 CREATE POLICY "Admin can view all line items"
   ON seller_main.payment_line_items FOR SELECT
   USING (
-    public.is_admin()
+    ( select public.is_admin() )
   );
 
 -- =============================================================================
@@ -489,7 +489,7 @@ BEGIN
   END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = seller_main, public, pg_temp
+SET search_path = ''
 SET statement_timeout = '30s';
 
 GRANT EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump TO service_role;
@@ -636,7 +636,7 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = seller_main, public, pg_temp
+SET search_path = ''
 SET statement_timeout = '30s';
 
 -- =============================================================================
@@ -677,9 +677,7 @@ CREATE OR REPLACE FUNCTION seller_main.admin_get_product_order_bumps(
   updated_at TIMESTAMPTZ
 ) AS $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()
-  ) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied: Admin privileges required';
   END IF;
 
@@ -702,10 +700,15 @@ BEGIN
   WHERE ob.main_product_id = product_id_param
   ORDER BY ob.display_order ASC, ob.created_at DESC;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = seller_main, public, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
 -- Re-grant after DROP+CREATE (DROP loses previous GRANTs)
 GRANT EXECUTE ON FUNCTION seller_main.admin_get_product_order_bumps TO authenticated, service_role;
 
 -- Proxy view for backward compatibility
 CREATE OR REPLACE VIEW public.payment_line_items WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_line_items;
+
+-- Explicit table grants (Security Rule #5)
+-- payment_line_items: authenticated users can SELECT own (RLS enforced)
+REVOKE ALL ON seller_main.payment_line_items FROM anon, authenticated;
+GRANT SELECT ON seller_main.payment_line_items TO authenticated;

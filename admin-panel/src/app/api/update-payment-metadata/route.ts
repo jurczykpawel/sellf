@@ -27,6 +27,15 @@ export async function POST(request: NextRequest) {
       process.env.SITE_URL,
     ].filter(Boolean);
 
+    // Reject if no allowed origins configured — empty SITE_URL means origin check is meaningless
+    if (allowedOrigins.length === 0) {
+      console.error('[update-payment-metadata] SITE_URL not configured — rejecting request');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     const isValidOrigin = origin && allowedOrigins.some(allowed =>
       origin === allowed || (allowed ? origin.startsWith(allowed) : false)
     );

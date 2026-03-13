@@ -8,7 +8,7 @@ import {
 
 /**
  * ============================================================================
- * SECURITY TEST: Webhook URL SSRF Validation
+ * SECURITY TEST: Webhook URL Validation
  * ============================================================================
  *
  * Tests the PRODUCTION isValidWebhookUrl() from @/lib/validations/webhook.ts
@@ -16,19 +16,8 @@ import {
  *   - src/app/api/admin/webhooks/route.ts (POST — create webhook)
  *   - src/app/api/admin/webhooks/[id]/route.ts (PUT — update webhook)
  *
- * VULNERABILITY: SSRF Bypass via Webhook PUT Endpoint (V-CRITICAL-07)
- *
- * ATTACK FLOW (before fix):
- * 1. Admin creates webhook with legitimate URL (e.g., https://example.com/webhook)
- * 2. POST validation passes (isValidWebhookUrl is called)
- * 3. Admin (or compromised admin account) updates webhook via PUT
- * 4. PUT had NO URL validation - accepts any URL including internal IPs
- * 5. Webhook URL changed to http://169.254.169.254/latest/meta-data/
- * 6. On next webhook trigger, server makes request to cloud metadata service
- * 7. Response (AWS credentials, instance identity) logged to webhook_logs
- *
- * Created during security audit iteration 6 (2026-01-08)
- * Fixed to import from production code (2026-02-26)
+ * Validates that webhook URLs are properly validated against internal network
+ * targets, cloud metadata endpoints, and protocol requirements.
  * ============================================================================
  */
 
