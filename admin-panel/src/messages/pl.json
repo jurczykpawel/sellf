@@ -1081,6 +1081,7 @@
     "verificationExpired": "Weryfikacja bezpieczeństwa wygasła. Spróbuj ponownie.",
     "captchaVerificationFailed": "Weryfikacja bezpieczeństwa (captcha) nie powiodła się.",
     "captchaTimeout": "Weryfikacja bezpieczeństwa przekroczyła limit czasu.",
+    "captchaVerified": "Zweryfikowano",
     "verifying": "Weryfikacja...",
     "captchaInteractiveWarning": "Proszę zweryfikować zabezpieczenie captcha.",
     "refreshAndTryLogin": "Proszę odświeżyć stronę i",

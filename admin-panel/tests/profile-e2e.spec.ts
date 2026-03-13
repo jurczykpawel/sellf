@@ -28,7 +28,7 @@ test.describe('Profile Management E2E', () => {
         await termsCheckbox.check({ force: true });
     }
 
-    // Wait for Turnstile (development mode dummy key usually verifies in ~1s)
+    // Wait for captcha auto-verify (Turnstile dummy key or ALTCHA PoW)
     await page.waitForTimeout(3000);
 
     // Submit

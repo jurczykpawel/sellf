@@ -1066,6 +1066,7 @@
     "verificationExpired": "Security verification expired. Please try again.",
     "captchaVerificationFailed": "Security verification (captcha) failed.",
     "captchaTimeout": "Security verification timed out.",
+    "captchaVerified": "Verified",
     "verifying": "Verifying...",
     "captchaInteractiveWarning": "Please interact with the captcha verification.",
     "refreshAndTryLogin": "Please refresh the page and",

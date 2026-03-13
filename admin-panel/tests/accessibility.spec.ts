@@ -20,7 +20,7 @@ let adminPassword: string;
 let cleanup: () => Promise<void>;
 
 // Third-party selectors excluded from all checks
-const THIRD_PARTY_EXCLUDES = ['#klaro', 'iframe[src*="stripe"]', '[data-turnstile]', '.__PrivateStripeElement', '.__PrivateStripeElementLoader'];
+const THIRD_PARTY_EXCLUDES = ['#klaro', 'iframe[src*="stripe"]', '[data-turnstile]', 'altcha-widget', '.__PrivateStripeElement', '.__PrivateStripeElementLoader'];
 
 // ===== SETUP / TEARDOWN =====
 

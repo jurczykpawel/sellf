@@ -97,8 +97,8 @@ test.describe('Storefront & Checkout Flows', () => {
     const termsLabel = page.locator('label').filter({ hasText: /I agree|Akceptuję|regulamin/i });
     await termsLabel.click();
     
-    // Wait for Turnstile Captcha to auto-verify
-    console.log('Waiting for Captcha auto-verify...');
+    // Wait for captcha to auto-verify (Turnstile dummy key or ALTCHA PoW)
+    console.log('Waiting for captcha auto-verify...');
     await page.waitForTimeout(4000);
     
     // Submit

@@ -185,10 +185,15 @@ describe('Security Audit', () => {
     });
 
     it('all pass when properly configured', async () => {
-      // Set env vars for app-level checks
+      // Set ALL env vars needed for every security check to pass
       process.env.SITE_URL = 'https://myapp.example.com';
       process.env.NEXT_PUBLIC_APP_URL = 'https://myapp.example.com';
       process.env.ALLOWED_ORIGINS = 'https://customer.com';
+      process.env.ALTCHA_HMAC_KEY = 'test-hmac-key-for-captcha';
+      // base64-encoded 32 bytes (openssl rand -base64 32 output format)
+      process.env.APP_ENCRYPTION_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+      process.env.CRON_SECRET = 'test-cron-secret';
+      process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret';
 
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/graphql/v1')) {

@@ -409,9 +409,9 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await expect(getForFreeText).toBeVisible();
   });
 
-  // --- Security: ToS + Turnstile ---
+  // --- Security: ToS + Captcha ---
 
-  test('anonymous $0 should show terms checkbox and Turnstile widget', async ({ page }) => {
+  test('anonymous $0 should show terms checkbox and captcha widget', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Wybierz kwotę')).toBeVisible({ timeout: 15000 });
@@ -431,11 +431,9 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     const termsLabel = freeCard.getByText(/Zgadzam się z/i);
     await expect(termsLabel).toBeVisible();
 
-    // Should show Turnstile widget container (iframe or placeholder)
-    const turnstileContainer = freeCard.locator('[class*="cf-turnstile"], iframe[src*="turnstile"]');
-    // In dev mode Turnstile may render as a placeholder — just verify the widget area exists
-    const turnstileArea = freeCard.locator('div.mt-3').last();
-    await expect(turnstileArea).toBeVisible();
+    // Should show captcha widget area (Turnstile iframe, ALTCHA widget, or "no captcha" dev msg)
+    const captchaArea = freeCard.locator('div.mt-3').last();
+    await expect(captchaArea).toBeVisible();
   });
 
   test('anonymous $0 magic link button should be disabled without terms accepted', async ({ page }) => {
@@ -487,7 +485,7 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await expect(sendButton).toBeDisabled();
   });
 
-  test('logged-in $0 should NOT show terms checkbox or Turnstile', async ({ page }) => {
+  test('logged-in $0 should NOT show terms checkbox or captcha', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await blockStripeOnPage(page);
 
@@ -521,9 +519,11 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     const emailInput = freeCard.locator('input[type="email"]');
     await expect(emailInput).not.toBeVisible();
 
-    // Should NOT show Turnstile
+    // Should NOT show captcha widget (Turnstile iframe or ALTCHA widget)
     const turnstileIframe = freeCard.locator('iframe[src*="turnstile"]');
+    const altchaWidget = freeCard.locator('altcha-widget');
     await expect(turnstileIframe).not.toBeVisible();
+    await expect(altchaWidget).not.toBeVisible();
   });
 });
 

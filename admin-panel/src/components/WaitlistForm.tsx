@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Product } from '@/types';
 import { validateEmailAction } from '@/lib/actions/validate-email';
-import TurnstileWidget from '@/components/TurnstileWidget';
+import CaptchaWidget from '@/components/captcha/CaptchaWidget';
+import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
 
 interface WaitlistFormProps {
@@ -20,19 +21,11 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
-  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const captcha = useCaptcha();
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info' | null; text: string }>({
     type: null,
     text: '',
   });
-
-  const resetCaptcha = useCallback(() => {
-    setCaptchaToken(null);
-    setCaptchaLoading(true);
-    setCaptchaResetTrigger(prev => prev + 1);
-  }, []);
 
   const getUnavailableMessage = () => {
     switch (unavailableReason) {
@@ -51,17 +44,17 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
 
     if (!email) {
       setMessage({ type: 'error', text: t('pleaseEnterEmail') });
-      resetCaptcha();
+      captcha.reset();
       return;
     }
 
     if (!termsAccepted) {
       setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-      resetCaptcha();
+      captcha.reset();
       return;
     }
 
-    if (!captchaToken && process.env.NODE_ENV === 'production') {
+    if (!captcha.token && process.env.NODE_ENV === 'production') {
       setMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
       return;
     }
@@ -71,12 +64,12 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
       const emailValidation = await validateEmailAction(email);
       if (!emailValidation.isValid) {
         setMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
-        resetCaptcha();
+        captcha.reset();
         return;
       }
     } catch {
       setMessage({ type: 'error', text: t('invalidEmail') });
-      resetCaptcha();
+      captcha.reset();
       return;
     }
 
@@ -91,14 +84,14 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
           email,
           productId: product.id,
           productSlug: product.slug,
-          captchaToken,
+          captchaToken: captcha.token,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.error || t('signupFailed') });
-        resetCaptcha();
+        captcha.reset();
         return;
       }
 
@@ -107,7 +100,7 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
       setTermsAccepted(false);
     } catch {
       setMessage({ type: 'error', text: t('signupFailed') });
-      resetCaptcha();
+      captcha.reset();
     } finally {
       setLoading(false);
     }
@@ -189,38 +182,30 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
                   type="submit"
                   disabled={
                     loading ||
-                    captchaLoading ||
+                    captcha.isLoading ||
                     !email ||
                     !termsAccepted ||
-                    (process.env.NODE_ENV === 'production' && !captchaToken)
+                    (process.env.NODE_ENV === 'production' && !captcha.token)
                   }
                   className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
                 >
-                  {loading || captchaLoading ? (
+                  {loading || captcha.isLoading ? (
                     <div className="flex items-center justify-center">
                       <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                      {captchaLoading ? tSecurity('verifying') : t('submitting')}
+                      {captcha.isLoading ? tSecurity('verifying') : t('submitting')}
                     </div>
                   ) : (
                     t('notifyMe')
                   )}
                 </button>
 
-                {/* Cloudflare Turnstile */}
+                {/* Captcha — auto-detects Turnstile vs ALTCHA */}
                 <div className="mt-3">
-                  <TurnstileWidget
-                    onVerify={(token) => {
-                      setCaptchaToken(token);
-                      setCaptchaLoading(false);
-                    }}
-                    onError={() => {
-                      setCaptchaToken(null);
-                      setCaptchaLoading(false);
-                    }}
-                    onTimeout={() => {
-                      setCaptchaLoading(false);
-                    }}
-                    resetTrigger={captchaResetTrigger}
+                  <CaptchaWidget
+                    onVerify={captcha.onVerify}
+                    onError={captcha.onError}
+                    onTimeout={captcha.onTimeout}
+                    resetTrigger={captcha.resetTrigger}
                     compact={true}
                   />
                 </div>

@@ -99,7 +99,7 @@ async function executeAudit(): Promise<SecurityAuditResult> {
     checkCookieSecure(siteUrl),
     // Environment variable checks
     checkAppEncryptionKey(),
-    checkTurnstile(),
+    checkCaptcha(),
     checkCronSecret(),
     checkStripeWebhookSecret(),
   ]);
@@ -466,35 +466,49 @@ async function checkAppEncryptionKey(): Promise<SecurityCheckResult> {
   };
 }
 
-async function checkTurnstile(): Promise<SecurityCheckResult> {
-  const siteKey = process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
-  const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+async function checkCaptcha(): Promise<SecurityCheckResult> {
+  const turnstileSiteKey = process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
+  const turnstileSecretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+  const altchaKey = process.env.ALTCHA_HMAC_KEY;
 
-  if (!siteKey && !secretKey) {
+  // Turnstile fully configured — best option
+  if (turnstileSiteKey && turnstileSecretKey) {
     return {
-      id: 'turnstile',
-      name: 'Cloudflare Turnstile (CAPTCHA)',
-      status: 'warn',
-      message: 'Turnstile is not configured. Bot protection on signup and free product claim endpoints is disabled.',
-      fix: 'Add CLOUDFLARE_TURNSTILE_SITE_KEY and CLOUDFLARE_TURNSTILE_SECRET_KEY to .env.local. Get keys at dash.cloudflare.com → Turnstile.',
+      id: 'captcha',
+      name: 'Captcha (bot protection)',
+      status: 'pass',
+      message: 'Cloudflare Turnstile is configured (site key + secret key).',
     };
   }
 
-  if (siteKey && !secretKey) {
+  // Turnstile site key without secret — broken config
+  if (turnstileSiteKey && !turnstileSecretKey) {
     return {
-      id: 'turnstile',
-      name: 'Cloudflare Turnstile (CAPTCHA)',
+      id: 'captcha',
+      name: 'Captcha (bot protection)',
       status: 'fail',
-      message: 'CLOUDFLARE_TURNSTILE_SITE_KEY is set but CLOUDFLARE_TURNSTILE_SECRET_KEY is missing. The captcha widget appears for users but server-side token verification is silently skipped — bots can bypass it freely.',
-      fix: 'Add CLOUDFLARE_TURNSTILE_SECRET_KEY to .env.local. Note: the correct name is SECRET_KEY, not SERVER_KEY.',
+      message: 'CLOUDFLARE_TURNSTILE_SITE_KEY is set but CLOUDFLARE_TURNSTILE_SECRET_KEY is missing. The widget appears but server-side verification is skipped.',
+      fix: 'Add CLOUDFLARE_TURNSTILE_SECRET_KEY to .env.local, or remove the site key and use ALTCHA instead (set ALTCHA_HMAC_KEY).',
     };
   }
 
+  // ALTCHA configured — self-hosted fallback
+  if (altchaKey) {
+    return {
+      id: 'captcha',
+      name: 'Captcha (bot protection)',
+      status: 'pass',
+      message: 'ALTCHA (self-hosted proof-of-work) is configured via ALTCHA_HMAC_KEY.',
+    };
+  }
+
+  // Nothing configured
   return {
-    id: 'turnstile',
-    name: 'Cloudflare Turnstile (CAPTCHA)',
-    status: 'pass',
-    message: 'Turnstile site key and secret key are both configured.',
+    id: 'captcha',
+    name: 'Captcha (bot protection)',
+    status: 'warn',
+    message: 'No captcha provider is configured. Bot protection on signup and free product claim endpoints is disabled.',
+    fix: 'Set ALTCHA_HMAC_KEY (self-hosted, zero dependencies) or configure Cloudflare Turnstile (CLOUDFLARE_TURNSTILE_SITE_KEY + CLOUDFLARE_TURNSTILE_SECRET_KEY).',
   };
 }
 

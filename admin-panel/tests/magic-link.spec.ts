@@ -23,10 +23,18 @@ test.describe('Magic Link Authentication (Mailpit)', () => {
     const termsCheckbox = page.locator('input#terms-checkbox');
     await termsCheckbox.check({ force: true });
 
-    // 4. Wait for Turnstile widget to load and auto-verify (dummy key)
-    // Look for "Test Mode" indicator which shows the widget has loaded
-    await page.waitForSelector('text=🧪 Test Mode', { timeout: 10000 });
-    // Give extra time for the dummy key to auto-verify and set the token
+    // 4. Wait for captcha widget to load and auto-verify
+    // Turnstile: shows "Test Mode" with dummy key; ALTCHA: auto-solves PoW challenge
+    // Wait for either provider's widget to appear, or skip if provider is 'none'
+    const turnstileTestMode = page.locator('text=🧪 Test Mode');
+    const altchaWidget = page.locator('altcha-widget');
+    const noCaptchaMsg = page.getByText('No captcha provider configured');
+    await Promise.race([
+      turnstileTestMode.waitFor({ timeout: 10000 }).catch(() => {}),
+      altchaWidget.waitFor({ timeout: 10000 }).catch(() => {}),
+      noCaptchaMsg.waitFor({ timeout: 10000 }).catch(() => {}),
+    ]);
+    // Give time for auto-verification (Turnstile dummy key or ALTCHA PoW solving)
     await page.waitForTimeout(4000);
 
     // 5. Request magic link — use type="submit" to avoid matching OAuth icon buttons
@@ -34,12 +42,11 @@ test.describe('Magic Link Authentication (Mailpit)', () => {
     await submitButton.click();
 
     // 6. Wait for form submission and check for success or retry
-    // If "Please complete the security verification" appears, wait and retry
+    // If captcha wasn't ready, the security verification error may appear
     await page.waitForTimeout(1500);
     const errorMessage = page.locator('text=Please complete the security verification');
     if (await errorMessage.isVisible()) {
-      console.log('Turnstile not ready, waiting and retrying...');
-      // Turnstile wasn't ready, wait more and retry
+      console.log('Captcha not ready, waiting and retrying...');
       await page.waitForTimeout(4000);
       await submitButton.click();
       await page.waitForTimeout(1500);

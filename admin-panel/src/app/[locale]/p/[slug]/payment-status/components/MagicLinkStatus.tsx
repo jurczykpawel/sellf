@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import TurnstileWidget from '@/components/TurnstileWidget';
+import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import { Product } from '../types';
 
@@ -99,13 +99,13 @@ export default function MagicLinkStatus({
               </div>
             )}
 
-            {/* Cloudflare Turnstile - show in yellow block when captcha became interactive */}
+            {/* Captcha — show in yellow block when captcha became interactive */}
             {needsTurnstile && showInteractiveWarning && (
-              <TurnstileWidget
+              <CaptchaWidget
                 onVerify={(token) => {
                   onCaptchaSuccess(token);
-                  onCaptchaError(null); // Clear any previous errors
-                  onAfterInteractive(); // Hide warning after successful verification
+                  onCaptchaError(null);
+                  onAfterInteractive();
                 }}
                 onError={() => {
                   onCaptchaError(tSecurity('captchaVerificationFailed'));
@@ -120,9 +120,9 @@ export default function MagicLinkStatus({
             
           </div>
         ) : needsTurnstile && !showInteractiveWarning ? (
-          // Always render invisible Turnstile when token is needed (outside yellow block)
+          // Always render captcha when token is needed (outside yellow block)
           <div className="hidden">
-            <TurnstileWidget
+            <CaptchaWidget
               onVerify={onCaptchaSuccess}
               onError={() => onCaptchaError(tSecurity('captchaVerificationFailed'))}
               onTimeout={() => {

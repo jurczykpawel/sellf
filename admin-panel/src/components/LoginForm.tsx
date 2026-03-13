@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { validateEmailAction } from '@/lib/actions/validate-email'
-import TurnstileWidget from './TurnstileWidget'
+import CaptchaWidget from '@/components/captcha/CaptchaWidget'
+import { useCaptcha } from '@/hooks/useCaptcha'
 import TermsCheckbox from './TermsCheckbox'
 import { useConfig } from '@/components/providers/config-provider'
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from './OAuthIconButtons'
@@ -22,9 +23,7 @@ export default function LoginForm() {
   const [sentEmail, setSentEmail] = useState(false)
   const [siteUrl, setSiteUrl] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
-  const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0)
-  const [captchaLoading, setCaptchaLoading] = useState(false) // Will be set to true only when needed
+  const captcha = useCaptcha()
   const t = useTranslations()
 
   // Get current site URL for redirects (works in any environment)
@@ -69,9 +68,8 @@ export default function LoginForm() {
         return
       }
 
-      // Check if Turnstile token is present
-      // In development, dummy token will be present, in production real verification is required
-      if (!captchaToken) {
+      // Check if captcha token is present
+      if (!captcha.token) {
         setMessage(t('compliance.securityVerificationRequired'))
         setIsLoading(false)
         return
@@ -86,7 +84,7 @@ export default function LoginForm() {
         setIsLoading(false)
 
         // Reset captcha after failed validation (token was consumed)
-        resetCaptcha()
+        captcha.reset()
         return;
       }
 
@@ -96,7 +94,7 @@ export default function LoginForm() {
         setIsLoading(false)
 
         // Reset captcha after failed validation (token was consumed)
-        resetCaptcha()
+        captcha.reset()
         return;
       }
 
@@ -108,7 +106,7 @@ export default function LoginForm() {
         email,
         options: {
           emailRedirectTo: redirectUrl,
-          captchaToken: captchaToken || undefined,
+          captchaToken: captcha.token || undefined,
         },
       })
 
@@ -117,7 +115,7 @@ export default function LoginForm() {
         setSentEmail(false)
 
         // Reset captcha after ANY error (it was consumed in the failed request)
-        resetCaptcha()
+        captcha.reset()
       } else {
         setSentEmail(true)
         setMessage(t('productView.checkEmailForMagicLink'))
@@ -128,13 +126,6 @@ export default function LoginForm() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Function to reset captcha - simple and reliable
-  const resetCaptcha = () => {
-    setCaptchaToken(null)
-    setCaptchaLoading(true) // Start loading immediately on reset (for invisible captcha)
-    setCaptchaResetTrigger(prev => prev + 1)
   }
 
   const hasOAuth = !demoMode && oauthProviders.length > 0
@@ -183,16 +174,16 @@ export default function LoginForm() {
       {/* Magic link button */}
       <button
         type="submit"
-        disabled={isLoading || (!demoMode && captchaLoading)}
+        disabled={isLoading || (!demoMode && captcha.isLoading)}
         className="w-full py-3 px-4 bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold rounded-full shadow-[var(--sf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--sf-accent-glow)] focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 focus:ring-offset-sf-deep transition-[background-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
-        {isLoading || (!demoMode && captchaLoading) ? (
+        {isLoading || (!demoMode && captcha.isLoading) ? (
           <div className="flex items-center justify-center">
             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            {!demoMode && captchaLoading ? t('security.verifying') : (demoMode ? t('auth.signingIn') : t('productView.sendingMagicLink'))}
+            {!demoMode && captcha.isLoading ? t('security.verifying') : (demoMode ? t('auth.signingIn') : t('productView.sendingMagicLink'))}
           </div>
         ) : (
           demoMode ? t('auth.signIn') : t('auth.sendMagicLink')
@@ -216,13 +207,13 @@ export default function LoginForm() {
         </div>
       )}
 
-      {/* Cloudflare Turnstile - not needed in demo */}
+      {/* Captcha — auto-detects Turnstile vs ALTCHA; not needed in demo */}
       {!demoMode && (
-        <TurnstileWidget
-          onVerify={(token) => { setCaptchaToken(token); setCaptchaLoading(false) }}
-          onError={() => { setCaptchaToken(null); setCaptchaLoading(false) }}
-          onTimeout={() => { setCaptchaLoading(false) }}
-          resetTrigger={captchaResetTrigger}
+        <CaptchaWidget
+          onVerify={captcha.onVerify}
+          onError={captcha.onError}
+          onTimeout={captcha.onTimeout}
+          resetTrigger={captcha.resetTrigger}
         />
       )}
 
@@ -322,7 +313,7 @@ export default function LoginForm() {
               setMessage('')
               setEmail('')
               setTermsAccepted(false)
-              setCaptchaToken(null)
+              captcha.reset()
             }}
             className="w-full py-2 px-4 bg-sf-float text-sf-body font-medium rounded-full border border-sf-border hover:border-sf-border-accent transition-[border-color] duration-200"
           >

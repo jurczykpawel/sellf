@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getCaptchaProvider, getTurnstileSiteKey } from '@/lib/captcha/config'
 
 /**
  * Runtime Configuration API
@@ -12,7 +13,8 @@ export async function GET() {
     supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-    cloudflareSiteKey: process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY!,
+    cloudflareSiteKey: getTurnstileSiteKey(),
+    captchaProvider: getCaptchaProvider(),
     siteUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL!,
     demoMode: process.env.DEMO_MODE === 'true',
     oauthProviders: (process.env.OAUTH_PROVIDERS || '')

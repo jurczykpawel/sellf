@@ -36,6 +36,8 @@
     "@tailwindcss/postcss": "^4.2.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.3",
+    "altcha": "^2.3.0",
+    "altcha-lib": "^1.4.1",
     "bir1": "^4.1.1",
     "clsx": "^2.1.1",
     "geist": "^1.7.0",

@@ -22,7 +22,8 @@ import { useTracking } from '@/hooks/useTracking';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
-import TurnstileWidget from '@/components/TurnstileWidget';
+import CaptchaWidget from '@/components/captcha/CaptchaWidget';
+import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import { createClient } from '@/lib/supabase/client';
 import { validateEmailAction } from '@/lib/actions/validate-email';
@@ -487,31 +488,23 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // PWYW Free — magic link for unauthenticated users
   const [pwywFreeEmail, setPwywFreeEmail] = useState('');
   const [pwywFreeTermsAccepted, setPwywFreeTermsAccepted] = useState(false);
-  const [pwywFreeCaptchaToken, setPwywFreeCaptchaToken] = useState<string | null>(null);
-  const [pwywFreeCaptchaResetTrigger, setPwywFreeCaptchaResetTrigger] = useState(0);
-  const [pwywFreeCaptchaLoading, setPwywFreeCaptchaLoading] = useState(false);
+  const pwywFreeCaptcha = useCaptcha();
   const [pwywFreeMessage, setPwywFreeMessage] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
-
-  const resetPwywFreeCaptcha = useCallback(() => {
-    setPwywFreeCaptchaToken(null);
-    setPwywFreeCaptchaLoading(true);
-    setPwywFreeCaptchaResetTrigger(prev => prev + 1);
-  }, []);
 
   const handlePwywFreeMagicLink = useCallback(async () => {
     if (!pwywFreeEmail) {
       setPwywFreeMessage({ type: 'error', text: t('enterEmail') });
-      resetPwywFreeCaptcha();
+      pwywFreeCaptcha.reset();
       return;
     }
 
     if (!pwywFreeTermsAccepted) {
       setPwywFreeMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-      resetPwywFreeCaptcha();
+      pwywFreeCaptcha.reset();
       return;
     }
 
-    if (!pwywFreeCaptchaToken) {
+    if (!pwywFreeCaptcha.token) {
       setPwywFreeMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
       return;
     }
@@ -520,12 +513,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       const emailValidation = await validateEmailAction(pwywFreeEmail);
       if (!emailValidation.isValid) {
         setPwywFreeMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
-        resetPwywFreeCaptcha();
+        pwywFreeCaptcha.reset();
         return;
       }
     } catch {
       setPwywFreeMessage({ type: 'error', text: t('invalidEmail') });
-      resetPwywFreeCaptcha();
+      pwywFreeCaptcha.reset();
       return;
     }
 
@@ -542,12 +535,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         options: {
           shouldCreateUser: true,
           emailRedirectTo: redirectUrl,
-          captchaToken: pwywFreeCaptchaToken || undefined,
+          captchaToken: pwywFreeCaptcha.token || undefined,
         },
       });
       if (authError) {
         setPwywFreeMessage({ type: 'error', text: authError.message });
-        resetPwywFreeCaptcha();
+        pwywFreeCaptcha.reset();
         return;
       }
       await track('generate_lead', {
@@ -562,7 +555,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [pwywFreeEmail, pwywFreeTermsAccepted, pwywFreeCaptchaToken, product, searchParams, t, tCompliance, track, resetPwywFreeCaptcha]);
+  }, [pwywFreeEmail, pwywFreeTermsAccepted, pwywFreeCaptcha, product, searchParams, t, tCompliance, track]);
 
   const renderCheckoutForm = () => (
     <div className="w-full lg:w-1/2 lg:pl-8">
@@ -707,34 +700,26 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 onClick={handlePwywFreeMagicLink}
                 disabled={
                   pwywFreeLoading ||
-                  pwywFreeCaptchaLoading ||
+                  pwywFreeCaptcha.isLoading ||
                   !pwywFreeEmail ||
                   !pwywFreeTermsAccepted ||
-                  (process.env.NODE_ENV === 'production' && !pwywFreeCaptchaToken)
+                  (process.env.NODE_ENV === 'production' && !pwywFreeCaptcha.token)
                 }
                 className="w-full py-3 px-6 bg-sf-success hover:bg-sf-success/90 disabled:opacity-50 text-sf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
               >
-                {pwywFreeLoading || pwywFreeCaptchaLoading ? (
+                {pwywFreeLoading || pwywFreeCaptcha.isLoading ? (
                   <span className="flex items-center justify-center">
                     <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2" />
-                    {pwywFreeCaptchaLoading ? tSecurity('verifying') : t('sendingMagicLink')}
+                    {pwywFreeCaptcha.isLoading ? tSecurity('verifying') : t('sendingMagicLink')}
                   </span>
                 ) : t('sendMagicLink')}
               </button>
               <div className="mt-3">
-                <TurnstileWidget
-                  onVerify={(token) => {
-                    setPwywFreeCaptchaToken(token);
-                    setPwywFreeCaptchaLoading(false);
-                  }}
-                  onError={() => {
-                    setPwywFreeCaptchaToken(null);
-                    setPwywFreeCaptchaLoading(false);
-                  }}
-                  onTimeout={() => {
-                    setPwywFreeCaptchaLoading(false);
-                  }}
-                  resetTrigger={pwywFreeCaptchaResetTrigger}
+                <CaptchaWidget
+                  onVerify={pwywFreeCaptcha.onVerify}
+                  onError={pwywFreeCaptcha.onError}
+                  onTimeout={pwywFreeCaptcha.onTimeout}
+                  resetTrigger={pwywFreeCaptcha.resetTrigger}
                   compact={true}
                 />
               </div>

@@ -7,6 +7,7 @@ interface AppConfig {
   supabaseAnonKey: string
   stripePublishableKey: string
   cloudflareSiteKey: string
+  captchaProvider: 'turnstile' | 'altcha' | 'none'
   siteUrl: string
   demoMode: boolean
   oauthProviders: string[]

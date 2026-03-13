@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import { buildOtoRedirectUrl } from '@/lib/payment/oto-redirect';
@@ -8,7 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { validateEmailAction } from '@/lib/actions/validate-email';
-import TurnstileWidget from '@/components/TurnstileWidget';
+import CaptchaWidget from '@/components/captcha/CaptchaWidget';
+import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
 import { createClient } from '@/lib/supabase/client';
@@ -37,23 +38,11 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
-  const [captchaLoading, setCaptchaLoading] = useState(false); // Will be set to true only when needed
+  const captcha = useCaptcha();
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info' | null; text: string }>({
     type: null,
     text: '',
   });
-
-  // Reset captcha function - simple and reliable
-  const resetCaptcha = useCallback(() => {
-    setCaptchaToken(null); // Clear current token
-    setCaptchaLoading(true); // Start loading immediately on reset (for invisible captcha)
-    setCaptchaResetTrigger(prev => {
-      const newValue = prev + 1;
-      return newValue;
-    });
-  }, []);
 
   // Track view_item event on mount
   useEffect(() => {
@@ -138,21 +127,21 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   const handleMagicLinkSubmit = async () => {
     if (!email) {
       setMessage({ type: 'error', text: t('enterEmailAddress') });
-      resetCaptcha(); // Reset after validation error
+      captcha.reset();
       return;
     }
 
     // Check if terms are accepted for non-logged in users
     if (!termsAccepted) {
       setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-      resetCaptcha(); // Reset after validation error
+      captcha.reset();
       return;
     }
 
-    // Check if Turnstile token is present for non-logged in users
-    if (!captchaToken) {
+    // Check if captcha token is present for non-logged in users
+    if (!captcha.token) {
       setMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
-      return; // Don't reset captcha if it's missing
+      return;
     }
 
     // Enhanced email validation with disposable domain checking
@@ -160,12 +149,12 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
       const emailValidation = await validateEmailAction(email);
       if (!emailValidation.isValid) {
         setMessage({ type: 'error', text: emailValidation.error || t('invalidEmailDisposable') });
-        resetCaptcha(); // Reset after validation error
+        captcha.reset();
         return;
       }
     } catch {
       setMessage({ type: 'error', text: t('validEmailRequired') });
-      resetCaptcha(); // Reset after validation error
+      captcha.reset();
       return;
     }
 
@@ -183,7 +172,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         options: {
           shouldCreateUser: true,
           emailRedirectTo: redirectUrl,
-          captchaToken: captchaToken || undefined,
+          captchaToken: captcha.token || undefined,
         },
       });
 
@@ -191,7 +180,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         setMessage({ type: 'error', text: error.message });
 
         // Reset captcha after ANY error (it was consumed in the failed request)
-        resetCaptcha();
+        captcha.reset();
         return;
       }
 
@@ -286,16 +275,16 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
             type="submit"
             disabled={
               loading ||
-              captchaLoading ||
+              captcha.isLoading ||
               !termsAccepted ||
-              (!user && (!email || (process.env.NODE_ENV === 'production' && !captchaToken)))
+              (!user && (!email || (process.env.NODE_ENV === 'production' && !captcha.token)))
             }
             className="w-full bg-sf-success hover:bg-sf-success/90 disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-success focus:ring-offset-2 active:scale-[0.98]"
           >
-            {loading || captchaLoading ? (
+            {loading || captcha.isLoading ? (
               <div className="flex items-center justify-center">
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                {captchaLoading ? tSecurity('verifying') : t('processing')}
+                {captcha.isLoading ? tSecurity('verifying') : t('processing')}
               </div>
             ) : (
               user ? t('getFreeAccess') : t('sendMagicLink')
@@ -320,21 +309,13 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
 
           {!user && (
             <>
-              {/* Cloudflare Turnstile - positioned after button, compact layout */}
+              {/* Captcha — auto-detects Turnstile vs ALTCHA */}
               <div className="mt-3">
-                <TurnstileWidget
-                  onVerify={(token) => {
-                    setCaptchaToken(token);
-                    setCaptchaLoading(false); // ✅ FINAL: Captcha completed successfully
-                  }}
-                  onError={() => {
-                    setCaptchaToken(null);
-                    setCaptchaLoading(false); // ✅ FINAL: Reset loading on error
-                  }}
-                  onTimeout={() => {
-                    setCaptchaLoading(false); // ✅ FINAL: Stop loading on timeout
-                  }}
-                  resetTrigger={captchaResetTrigger}
+                <CaptchaWidget
+                  onVerify={captcha.onVerify}
+                  onError={captcha.onError}
+                  onTimeout={captcha.onTimeout}
+                  resetTrigger={captcha.resetTrigger}
                   compact={true}
                 />
               </div>
