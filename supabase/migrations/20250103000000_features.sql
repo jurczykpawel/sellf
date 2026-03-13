@@ -2120,8 +2120,10 @@ CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT
 -- EXPLICIT TABLE GRANTS (Security Rule #5: never rely on blanket default privileges)
 -- =============================================================================
 -- Public catalog tables: anon + authenticated SELECT
-GRANT SELECT ON seller_main.order_bumps TO anon, authenticated;
-GRANT SELECT ON seller_main.shop_config TO anon, authenticated;
+GRANT SELECT ON seller_main.order_bumps TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.order_bumps TO authenticated;
+GRANT SELECT ON seller_main.shop_config TO anon;
+GRANT SELECT, UPDATE ON seller_main.shop_config TO authenticated;
 -- User's own data: authenticated CRUD (RLS enforced)
 GRANT SELECT, INSERT, UPDATE ON seller_main.video_progress TO authenticated;
 GRANT INSERT ON seller_main.video_events TO authenticated;

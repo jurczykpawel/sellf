@@ -329,7 +329,7 @@ test.describe('Waitlist Feature', () => {
       const response = await request.post('/api/waitlist/signup', {
         data: {
           email: TEST_EMAIL,
-          productId: 'non-existent-product-id'
+          productId: '00000000-0000-0000-0000-000000000000'
         }
       });
 

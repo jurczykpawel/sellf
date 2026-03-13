@@ -110,8 +110,11 @@ test.describe('Product Creation Wizard', () => {
     // Click Continue Setup → Step 2
     await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
 
-    // Should be on step 2 — Back button visible (not Cancel)
-    await expect(page.getByRole('button', { name: /Wstecz/i })).toBeVisible({ timeout: 5000 });
+    // Wait for step 1 form to unmount (name input only exists on step 1).
+    // On cold start, Next.js compiles StepContentDetails on first render — this can
+    // take several seconds, so waiting for unmount is more reliable than a timeout.
+    await expect(page.locator('input#name')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /Wstecz/i })).toBeVisible();
 
     // Click Continue Setup → Step 3
     await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();

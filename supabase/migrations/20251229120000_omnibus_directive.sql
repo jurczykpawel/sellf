@@ -108,7 +108,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = '';
 
 COMMENT ON FUNCTION seller_main.log_product_price_change() IS

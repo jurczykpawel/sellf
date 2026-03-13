@@ -1351,15 +1351,21 @@ GRANT ALL ON ALL TABLES IN SCHEMA seller_main TO service_role;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA seller_main TO authenticated, service_role;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA seller_main TO anon, authenticated, service_role;
 
--- Public catalog tables: anon + authenticated get SELECT (storefront browsing)
-GRANT SELECT ON seller_main.products TO anon, authenticated;
-GRANT SELECT ON seller_main.variant_groups TO anon, authenticated;
-GRANT SELECT ON seller_main.product_variant_groups TO anon, authenticated;
+-- Public catalog tables: anon gets SELECT (storefront browsing).
+-- authenticated gets SELECT + mutation grants needed by admin CRUD routes
+-- (RLS policies are the real guard — grants just allow operations to reach RLS evaluation).
+GRANT SELECT ON seller_main.products TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.products TO authenticated;
+GRANT SELECT ON seller_main.variant_groups TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.variant_groups TO authenticated;
+GRANT SELECT ON seller_main.product_variant_groups TO anon;
+GRANT SELECT, INSERT, DELETE ON seller_main.product_variant_groups TO authenticated;
 GRANT SELECT ON seller_main.categories TO anon, authenticated;
-GRANT SELECT ON seller_main.product_categories TO anon, authenticated;
+GRANT SELECT ON seller_main.product_categories TO anon;
+GRANT SELECT, INSERT, DELETE ON seller_main.product_categories TO authenticated;
 GRANT SELECT ON seller_main.tags TO anon, authenticated;
 GRANT SELECT ON seller_main.product_tags TO anon, authenticated;
-GRANT SELECT ON seller_main.user_product_access TO authenticated;
+GRANT SELECT, DELETE ON seller_main.user_product_access TO authenticated;
 
 -- Default privileges for future objects: only service_role gets automatic grants.
 -- New tables for anon/authenticated MUST be granted explicitly (see Security Rule #5).

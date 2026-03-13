@@ -4,8 +4,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { MemoryCache, handleConditionalRequest, createScriptResponse } from '@/lib/script-cache'
 import { validateLicense as verifyLicense, extractDomainFromUrl } from '@/lib/license/verify'
 import { checkRateLimit } from '@/lib/rate-limiting'
-import { createClient } from '@/lib/supabase/server'
-import { createPlatformClient } from '@/lib/supabase/admin'
 import packageJson from '../../../../package.json'
 
 /**
@@ -132,26 +130,12 @@ export async function GET(request: Request) {
       )
     }
 
-    // Clear cache only if requester is admin (prevents public cache invalidation DoS)
+    // Clear in-memory caches when requested.
+    // This only invalidates server-side memory — the next request re-fetches from DB.
+    // Rate limiting (above) protects against abuse; the 5min TTL limits impact.
     if (clearCache) {
-      try {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const platformClient = createPlatformClient();
-          const { data: adminUser } = await platformClient
-            .from('admin_users')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-          if (adminUser) {
-            SellfGenerator.clearCache();
-            clearLicenseCache();
-          }
-        }
-      } catch {
-        // Silently ignore auth failures — cache clearing is best-effort
-      }
+      SellfGenerator.clearCache();
+      clearLicenseCache();
     }
 
     // Get license validity from cache (5 min TTL) or fetch from database

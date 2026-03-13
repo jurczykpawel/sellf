@@ -585,4 +585,5 @@ CREATE OR REPLACE VIEW public.oto_offers WITH (security_invoker = on) AS SELECT 
 
 -- Explicit table grants (Security Rule #5)
 -- oto_offers: public catalog data for storefront display
-GRANT SELECT ON seller_main.oto_offers TO anon, authenticated;
+GRANT SELECT ON seller_main.oto_offers TO anon;
+GRANT SELECT, INSERT, UPDATE ON seller_main.oto_offers TO authenticated;

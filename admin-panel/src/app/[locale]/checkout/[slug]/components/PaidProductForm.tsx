@@ -38,7 +38,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const t = useTranslations('checkout');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const config = useConfig();
@@ -443,12 +443,14 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     }
   }, [product, email, selectedBumpIds, appliedCoupon, searchParams, t, customAmount, validateCustomAmount, isFunnelTest]);
 
-  // Fetch client secret when component mounts or dependencies change
+  // Fetch client secret when component mounts or dependencies change.
+  // Wait for auth to finish loading so isFunnelTest (which depends on isAdmin)
+  // is resolved before deciding whether to call the payment API.
   useEffect(() => {
-    if (!hasAccess && !error) {
+    if (!hasAccess && !error && !authLoading) {
       fetchClientSecret();
     }
-  }, [fetchClientSecret, hasAccess, error]);
+  }, [fetchClientSecret, hasAccess, error, authLoading]);
 
   // PWYW Free Access — grant without Stripe when customer picks $0
   const handlePwywFreeAccess = useCallback(async () => {

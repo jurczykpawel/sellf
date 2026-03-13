@@ -1499,7 +1499,7 @@ BEGIN
     
     RETURN COALESCE(NEW, OLD);
 END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = '';
 
 -- Add audit triggers for critical tables
@@ -2526,14 +2526,15 @@ CREATE OR REPLACE VIEW public.refund_requests WITH (security_invoker = on) AS SE
 -- =============================================================================
 -- EXPLICIT TABLE GRANTS (Security Rule #5: never rely on blanket default privileges)
 -- =============================================================================
--- payment_transactions: authenticated users can SELECT own (RLS enforced)
+-- payment_transactions: authenticated users SELECT own + admin UPDATE for refunds (RLS enforced)
 REVOKE ALL ON seller_main.payment_transactions FROM anon, authenticated;
-GRANT SELECT ON seller_main.payment_transactions TO authenticated;
--- guest_purchases: service_role only (no anon/authenticated direct access)
+GRANT SELECT, UPDATE ON seller_main.payment_transactions TO authenticated;
+-- guest_purchases: authenticated admin can DELETE for refund revocation (RLS enforced)
 REVOKE ALL ON seller_main.guest_purchases FROM anon, authenticated;
--- refund_requests: authenticated users SELECT + INSERT own (RLS enforced)
+GRANT DELETE ON seller_main.guest_purchases TO authenticated;
+-- refund_requests: authenticated users SELECT + INSERT own + admin UPDATE status (RLS enforced)
 REVOKE ALL ON seller_main.refund_requests FROM anon, authenticated;
-GRANT SELECT, INSERT ON seller_main.refund_requests TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON seller_main.refund_requests TO authenticated;
 
 COMMIT;
 

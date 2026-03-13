@@ -174,28 +174,37 @@ BEGIN
   -- Functions: all roles can execute (individual function permissions handle auth)
   EXECUTE format('GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA %I TO anon, authenticated, service_role', v_schema_name);
 
-  -- Public catalog tables: anon + authenticated SELECT
-  EXECUTE format('GRANT SELECT ON %I.products TO anon, authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.variant_groups TO anon, authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.product_variant_groups TO anon, authenticated', v_schema_name);
+  -- Public catalog tables: anon gets SELECT (storefront browsing).
+  -- authenticated gets SELECT + mutation grants for admin CRUD (RLS is the real guard).
+  EXECUTE format('GRANT SELECT ON %I.products TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I.products TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.variant_groups TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I.variant_groups TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.product_variant_groups TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, DELETE ON %I.product_variant_groups TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT ON %I.categories TO anon, authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.product_categories TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.product_categories TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, DELETE ON %I.product_categories TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT ON %I.tags TO anon, authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT ON %I.product_tags TO anon, authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.shop_config TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.shop_config TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, UPDATE ON %I.shop_config TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT ON %I.product_price_history TO anon, authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.order_bumps TO anon, authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.oto_offers TO anon, authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.order_bumps TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I.order_bumps TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT ON %I.oto_offers TO anon', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I.oto_offers TO authenticated', v_schema_name);
   -- User data tables: authenticated CRUD (RLS enforced)
-  EXECUTE format('GRANT SELECT ON %I.user_product_access TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, DELETE ON %I.user_product_access TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I.video_progress TO authenticated', v_schema_name);
   EXECUTE format('GRANT INSERT ON %I.video_events TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT, INSERT ON %I.coupon_redemptions TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT, INSERT, DELETE ON %I.coupon_reservations TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT, INSERT ON %I.consent_logs TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT, UPDATE ON %I.profiles TO authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT ON %I.payment_transactions TO authenticated', v_schema_name);
-  EXECUTE format('GRANT SELECT, INSERT ON %I.refund_requests TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, UPDATE ON %I.payment_transactions TO authenticated', v_schema_name);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I.refund_requests TO authenticated', v_schema_name);
+  EXECUTE format('GRANT DELETE ON %I.guest_purchases TO authenticated', v_schema_name);
   EXECUTE format('GRANT SELECT ON %I.payment_line_items TO authenticated', v_schema_name);
 
   -- Default privileges for future objects: only service_role gets automatic grants
