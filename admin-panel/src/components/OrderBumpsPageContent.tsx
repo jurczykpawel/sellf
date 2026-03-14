@@ -29,6 +29,7 @@ interface OrderBumpWithDetails {
   is_active: boolean;
   display_order: number;
   access_duration_days: number | null;
+  urgency_duration_minutes: number | null;
   created_at: string;
   updated_at: string;
   main_product: {

@@ -3,6 +3,8 @@ import { validateNIPChecksum, normalizeNIP } from '@/lib/validation/nip';
 import { GUSAPIClient } from '@/lib/services/gus-api-client';
 import { getDecryptedGUSAPIKey } from '@/lib/actions/gus-config';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { createClient } from '@/lib/supabase/server';
+import { requireAdminApi } from '@/lib/auth-server';
 
 /**
  * POST /api/gus/fetch-company-data
@@ -45,7 +47,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Rate Limiting - Database-backed rate limiting for production reliability
+    // 0. Rate Limiting - checked before auth to protect against brute-force
     const rateLimitOk = await checkRateLimit('gus_fetch_company_data', 5, 1); // 5 requests per 1 minute
 
     if (!rateLimitOk) {
@@ -64,12 +66,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. CORS Protection - Only allow same-origin requests
+    // 1. CORS Protection - checked before auth to reject cross-origin requests early
     const origin = request.headers.get('origin');
     const referer = request.headers.get('referer');
-    const host = request.headers.get('host');
 
-    // Check if request is from same origin
     // Use SITE_URL (server-side runtime env) — NEXT_PUBLIC_SITE_URL is baked at build time
     const allowedOrigins = [
       process.env.SITE_URL,
@@ -98,6 +98,10 @@ export async function POST(request: NextRequest) {
         }
       );
     }
+
+    // 2. Authentication - only admins can query company data
+    const supabase = await createClient();
+    await requireAdminApi(supabase);
 
     // 3. Parse and validate request
     const { nip } = await request.json();

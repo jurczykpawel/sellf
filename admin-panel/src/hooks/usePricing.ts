@@ -3,7 +3,15 @@
  * Single source of truth for all price calculations (frontend + backend)
  */
 
-export const STRIPE_MINIMUM_AMOUNT = 0.50;
+import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+
+// Re-export for backward compatibility
+export { STRIPE_MINIMUM_AMOUNT };
+
+export interface BumpPricingItem {
+  price: number;
+  selected: boolean;
+}
 
 export interface PricingInput {
   productPrice: number;
@@ -11,8 +19,12 @@ export interface PricingInput {
   productVatRate?: number;
   priceIncludesVat?: boolean;
   customAmount?: number;
+  /** @deprecated Use bumps[] instead for multi-bump support */
   bumpPrice?: number;
+  /** @deprecated Use bumps[] instead for multi-bump support */
   bumpSelected?: boolean;
+  /** Multi-bump: array of bump items with price and selection state. Takes precedence over bumpPrice/bumpSelected. */
+  bumps?: BumpPricingItem[];
   coupon?: {
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
@@ -34,6 +46,8 @@ export interface PricingResult {
   isPwyw: boolean;
   hasBump: boolean;
   hasDiscount: boolean;
+  /** True when a coupon reduces the total to zero — skip Stripe, grant free access */
+  isFreeWithCoupon: boolean;
 }
 
 /**
@@ -56,6 +70,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     customAmount,
     bumpPrice = 0,
     bumpSelected = false,
+    bumps,
     coupon,
   } = input;
 
@@ -63,8 +78,13 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const isPwyw = customAmount !== undefined && customAmount > 0;
   const basePrice = isPwyw ? customAmount : productPrice;
 
-  // Add bump if selected
-  const bumpAmount = bumpSelected ? bumpPrice : 0;
+  // Calculate bump amount: bumps[] takes precedence over legacy bumpPrice/bumpSelected
+  let bumpAmount: number;
+  if (bumps !== undefined) {
+    bumpAmount = bumps.reduce((sum, b) => sum + (b.selected ? b.price : 0), 0);
+  } else {
+    bumpAmount = bumpSelected ? bumpPrice : 0;
+  }
   const subtotal = basePrice + bumpAmount;
 
   // Apply coupon discount
@@ -80,7 +100,10 @@ export function calculatePricing(input: PricingInput): PricingResult {
   }
 
   // Calculate totals
-  const totalGross = Math.max(subtotal - discountAmount, STRIPE_MINIMUM_AMOUNT);
+  // When a coupon covers the full price, total is genuinely $0 — don't floor to Stripe minimum
+  const rawTotal = subtotal - discountAmount;
+  const isFreeWithCoupon = coupon !== null && coupon !== undefined && rawTotal <= 0;
+  const totalGross = isFreeWithCoupon ? 0 : Math.max(rawTotal, STRIPE_MINIMUM_AMOUNT);
 
   // VAT calculation
   const vatRate = productVatRate || 0;
@@ -100,8 +123,9 @@ export function calculatePricing(input: PricingInput): PricingResult {
     currency: productCurrency,
     vatRate,
     isPwyw,
-    hasBump: bumpSelected && bumpPrice > 0,
+    hasBump: bumpAmount > 0,
     hasDiscount: discountAmount > 0,
+    isFreeWithCoupon,
   };
 }
 

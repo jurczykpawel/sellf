@@ -260,7 +260,7 @@ INSERT INTO products (
   '[5, 15, 30]'
 );
 
--- Insert sample order bumps
+-- Insert sample order bumps (multi-bump: premium-course has 3, vip-masterclass has 2)
 -- Bump 1: Add Pro Toolkit to Premium Course for $29.99 (Huge discount!)
 INSERT INTO order_bumps (
   main_product_id, 
@@ -268,17 +268,61 @@ INSERT INTO order_bumps (
   bump_price, 
   bump_title, 
   bump_description, 
-  is_active
+  is_active,
+  display_order
 ) VALUES (
   (SELECT id FROM products WHERE slug = 'premium-course'),
   (SELECT id FROM products WHERE slug = 'pro-toolkit'),
   29.99,
   '🚀 Add the Pro Toolkit for just $29.99!',
   'Get professional development templates and tools worth $99.99. One-time offer!',
-  true
+  true,
+  1
 );
 
--- Bump 2: Add Enterprise Package to VIP Masterclass for $199.99
+-- Bump 2: Add VIP Masterclass to Premium Course for $149.99 (multi-bump demo, with urgency timer)
+INSERT INTO order_bumps (
+  main_product_id,
+  bump_product_id,
+  bump_price,
+  bump_title,
+  bump_description,
+  is_active,
+  display_order,
+  urgency_duration_minutes
+) VALUES (
+  (SELECT id FROM products WHERE slug = 'premium-course'),
+  (SELECT id FROM products WHERE slug = 'vip-masterclass'),
+  149.99,
+  '👨‍🏫 Add VIP Masterclass — 6 live sessions!',
+  'Get direct mentorship, code reviews, and career coaching. Normally $199.99 — save $50!',
+  true,
+  2,
+  30
+);
+
+-- Bump 3: Add Enterprise Package to Premium Course for $349.99 (multi-bump demo)
+INSERT INTO order_bumps (
+  main_product_id,
+  bump_product_id,
+  bump_price,
+  bump_title,
+  bump_description,
+  is_active,
+  display_order,
+  access_duration_days
+) VALUES (
+  (SELECT id FROM products WHERE slug = 'premium-course'),
+  (SELECT id FROM products WHERE slug = 'enterprise-package'),
+  349.99,
+  '🏢 Add Enterprise Package — unlimited team seats',
+  'White-label solution with dedicated support and custom integrations. Normally $499.99 — save $150! (30-day trial)',
+  true,
+  3,
+  30
+);
+
+-- Bump 4: Add Enterprise Package to VIP Masterclass for $199.99
 INSERT INTO order_bumps (
   main_product_id, 
   bump_product_id, 
@@ -292,9 +336,28 @@ INSERT INTO order_bumps (
   (SELECT id FROM products WHERE slug = 'enterprise-package'),
   199.99,
   '🏢 Upgrade to Enterprise Status',
-  'Add priority support and full enterprise solutions. Save $300 instanly! (Special 7-day access)',
+  'Add priority support and full enterprise solutions. Save $300 instantly! (Special 7-day access)',
   true,
   7
+);
+
+-- Bump 5: Add Pro Toolkit to VIP Masterclass for $49.99 (multi-bump demo)
+INSERT INTO order_bumps (
+  main_product_id,
+  bump_product_id,
+  bump_price,
+  bump_title,
+  bump_description,
+  is_active,
+  display_order
+) VALUES (
+  (SELECT id FROM products WHERE slug = 'vip-masterclass'),
+  (SELECT id FROM products WHERE slug = 'pro-toolkit'),
+  49.99,
+  '🛠️ Add Pro Toolkit — 50+ React components',
+  'Professional templates, UI components, and VS Code snippets. Normally $99.99 — half price!',
+  true,
+  2
 );
 
 -- Insert sample coupons

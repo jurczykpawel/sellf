@@ -4,8 +4,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
 import { getStripeServer } from '@/lib/stripe/server';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { withAdminAuth } from '@/lib/actions/admin-auth';
 import type {
   RefundRequest,
   RefundResponse
@@ -15,52 +16,41 @@ import type {
  * Process refund - Admin only Server Action
  */
 export async function processRefund(data: RefundRequest): Promise<RefundResponse> {
-  const supabase = await createClient();
+  const authResult = await withAdminAuth(async ({ user, supabase }) => {
+    // Get transaction details
+    const { data: transaction, error: transactionError } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('id', data.transactionId)
+      .eq('status', 'completed')
+      .single();
 
-  // Get authenticated user and check admin permissions
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (transactionError || !transaction) {
+      return { success: false, error: 'Transaction not found or already refunded' };
+    }
 
-  if (authError || !user) {
-    throw new Error('Authentication required');
-  }
-
-  // Check if user is admin (you should implement your admin check logic)
-  const { data: adminUser, error: adminError } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (adminError || !adminUser) {
-    throw new Error('Admin access required');
-  }
-
-  // Get transaction details
-  const { data: transaction, error: transactionError } = await supabase
-    .from('payment_transactions')
-    .select('*')
-    .eq('id', data.transactionId)
-    .eq('status', 'completed')
-    .single();
-
-  if (transactionError || !transaction) {
-    throw new Error('Transaction not found or already refunded');
-  }
-
-  const stripe = await getStripeServer();
-
-  try {
     // Calculate refund amount (amounts in DB are already in cents)
     const refundAmount = data.amount || transaction.amount;
     const alreadyRefunded = transaction.refunded_amount || 0;
 
     if (refundAmount > (transaction.amount - alreadyRefunded)) {
-      throw new Error('Refund amount exceeds available amount');
+      return { success: false, error: 'Refund amount exceeds available amount' };
+    }
+
+    if (!transaction.stripe_payment_intent_id) {
+      return { success: false, error: 'Transaction has no Stripe payment intent' };
+    }
+
+    let stripe;
+    try {
+      stripe = await getStripeServer();
+    } catch {
+      return { success: false, error: 'Payment system unavailable' };
     }
 
     // Create refund in Stripe (amount is already in cents)
     const refund = await stripe.refunds.create({
-      payment_intent: transaction.stripe_payment_intent_id!,
+      payment_intent: transaction.stripe_payment_intent_id,
       amount: refundAmount,
       reason: (data.reason as 'duplicate' | 'fraudulent' | 'requested_by_customer') || 'requested_by_customer',
       metadata: {
@@ -89,31 +79,37 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
       .select('id');
 
     if (updateError) {
-      throw new Error('Failed to update transaction status');
+      console.error('[processRefund] DB update failed after Stripe refund:', updateError);
     }
 
-    // Revoke access on full refund — do this regardless of optimistic lock result
-    // because the Stripe refund already succeeded
+    // Revoke all product access on full refund (main + bumps, user + guest)
+    // Always attempt revocation after Stripe refund succeeds — even if DB update failed
     if (isFullRefund) {
-      if (transaction.user_id && transaction.product_id) {
-        await supabase
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', transaction.user_id)
-          .eq('product_id', transaction.product_id);
-      }
+      try {
+        const revocation = await revokeTransactionAccess(supabase, {
+          transactionId: transaction.id,
+          userId: transaction.user_id,
+          productId: transaction.product_id,
+          sessionId: transaction.session_id,
+        });
 
-      if (transaction.session_id && transaction.product_id) {
-        await supabase
-          .from('guest_purchases')
-          .delete()
-          .eq('session_id', transaction.session_id)
-          .eq('product_id', transaction.product_id);
+        if (revocation.warnings.length > 0) {
+          console.error('[processRefund] Revocation warnings:', revocation.warnings);
+        }
+      } catch (revocationError) {
+        console.error('[processRefund] Access revocation failed after Stripe refund:', revocationError);
       }
     }
 
     if (!updatedRows || updatedRows.length === 0) {
-      throw new Error('Transaction was modified concurrently. Refund processed in Stripe — verify manually.');
+      return {
+        success: true,
+        data: {
+          refundId: refund.id,
+          amount: refund.amount ?? refundAmount,
+          message: 'Refund processed in Stripe but DB update failed (concurrent modification). Verify transaction status manually.',
+        },
+      };
     }
 
     // Revalidate admin pages
@@ -122,15 +118,26 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
 
     return {
       success: true,
-      refundId: refund.id,
-      amount: refund.amount ?? refundAmount,
-      message: isFullRefund ? 'Full refund processed' : 'Partial refund processed',
+      data: {
+        refundId: refund.id,
+        amount: refund.amount ?? refundAmount,
+        message: isFullRefund ? 'Full refund processed' : 'Partial refund processed',
+      },
     };
+  });
 
-  } catch (error) {
+  // Map ActionResponse to RefundResponse
+  if (!authResult.success) {
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to process refund',
+      message: authResult.error || 'Authentication failed',
     };
   }
+
+  return {
+    success: true,
+    refundId: authResult.data?.refundId,
+    amount: authResult.data?.amount,
+    message: authResult.data?.message || 'Refund processed',
+  };
 }

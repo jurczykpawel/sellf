@@ -1338,7 +1338,7 @@ test.describe('OTO Payment Completion with Coupon (bug regression)', () => {
         currency_param: 'usd',
         stripe_payment_intent_id: piId,
         user_id_param: null,
-        bump_product_id_param: null,
+        bump_product_ids_param: null,
         coupon_id_param: null,
       }
     );
@@ -1380,7 +1380,7 @@ test.describe('OTO Payment Completion with Coupon (bug regression)', () => {
         currency_param: 'usd',
         stripe_payment_intent_id: piId,
         user_id_param: null,
-        bump_product_id_param: null,
+        bump_product_ids_param: null,
         coupon_id_param: couponId, // CORRECT: coupon_id passed as it should be
       }
     );

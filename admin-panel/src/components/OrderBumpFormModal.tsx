@@ -14,6 +14,7 @@ interface OrderBumpWithDetails {
   is_active: boolean;
   display_order: number;
   access_duration_days: number | null;
+  urgency_duration_minutes: number | null;
   main_product: {
     id: string;
     name: string;
@@ -55,6 +56,8 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
   const [isActive, setIsActive] = useState(true);
   const [accessDuration, setAccessDuration] = useState<string>('');
   const [accessDurationType, setAccessDurationType] = useState<'default' | 'custom' | 'unlimited'>('default');
+  const [useUrgencyTimer, setUseUrgencyTimer] = useState(false);
+  const [urgencyMinutes, setUrgencyMinutes] = useState<string>('');
 
   // Selected products for info display
   const selectedBumpProduct = products.find(p => p.id === bumpProductId);
@@ -78,6 +81,15 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
       } else {
         setAccessDurationType('custom');
         setAccessDuration(editingBump.access_duration_days.toString());
+      }
+
+      // Initialize urgency timer
+      if (editingBump.urgency_duration_minutes != null && editingBump.urgency_duration_minutes > 0) {
+        setUseUrgencyTimer(true);
+        setUrgencyMinutes(editingBump.urgency_duration_minutes.toString());
+      } else {
+        setUseUrgencyTimer(false);
+        setUrgencyMinutes('');
       }
 
       // Check if custom price is set
@@ -136,6 +148,12 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
       formData.access_duration_days = 0;
     } else {
       formData.access_duration_days = null;
+    }
+
+    if (useUrgencyTimer && urgencyMinutes) {
+      formData.urgency_duration_minutes = parseInt(urgencyMinutes);
+    } else {
+      formData.urgency_duration_minutes = null;
     }
 
     await onSubmit(formData);
@@ -343,6 +361,51 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
                   />
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Section: Urgency Timer */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-sf-heading uppercase tracking-wider border-b border-sf-border pb-2">
+              {t('form.urgencyTimer')}
+            </h3>
+
+            <div className="bg-sf-raised border border-sf-border p-4">
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="useUrgencyTimer"
+                  checked={useUrgencyTimer}
+                  onChange={(e) => {
+                    setUseUrgencyTimer(e.target.checked);
+                    if (!e.target.checked) setUrgencyMinutes('');
+                  }}
+                  className="mt-1 w-5 h-5 rounded border-sf-border text-red-600 focus:ring-red-500"
+                />
+                <div className="flex-1">
+                  <label htmlFor="useUrgencyTimer" className="block text-sm font-medium text-sf-heading cursor-pointer">
+                    {t('form.showUrgencyTimer')}
+                  </label>
+                  <p className="text-xs text-sf-muted mt-1">
+                    {t('form.urgencyTimerHelp')}
+                  </p>
+
+                  {useUrgencyTimer && (
+                    <div className="mt-3">
+                      <input
+                        type="number"
+                        min="1"
+                        max="1440"
+                        value={urgencyMinutes}
+                        onChange={(e) => setUrgencyMinutes(e.target.value)}
+                        placeholder={t('form.urgencyMinutesPlaceholder')}
+                        required={useUrgencyTimer}
+                        className="w-full px-4 py-2 border border-sf-border focus:ring-2 focus:ring-red-500 bg-sf-input text-sf-heading"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

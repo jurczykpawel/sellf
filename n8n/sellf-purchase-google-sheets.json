@@ -1,0 +1,76 @@
+{
+  "name": "Sellf: Purchase → Google Sheets Sales Log",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sellf-sheets",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "sellf-sheets"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nif (body.event !== 'purchase.completed') return [];\n\nconst d = body.data;\nreturn [{\n  json: {\n    date: new Date(body.timestamp).toISOString().split('T')[0],\n    time: new Date(body.timestamp).toISOString().split('T')[1].split('.')[0],\n    email: d.customer.email,\n    name: [d.customer.firstName, d.customer.lastName].filter(Boolean).join(' ') || '-',\n    product: d.product.name,\n    product_id: d.product.id,\n    amount: d.order.amount / 100,\n    currency: d.order.currency.toUpperCase(),\n    bump: d.bumpProduct?.name || '-',\n    coupon: d.order.couponId || '-',\n    guest: d.order.isGuest ? 'Yes' : 'No',\n    stripe_session: d.order.sessionId,\n    payment_intent: d.order.paymentIntentId\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Format Row Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "mode": "list", "value": "" },
+        "sheetName": { "__rl": true, "mode": "list", "value": "" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "gs-1",
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [680, 300],
+      "notes": "TODO: Configure Google Sheets credentials, select spreadsheet and sheet. Columns: date, time, email, name, product, product_id, amount, currency, bump, coupon, guest, stripe_session, payment_intent"
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          { "node": "Respond OK", "type": "main", "index": 0 },
+          { "node": "Format Row Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Format Row Data": {
+      "main": [
+        [{ "node": "Append to Google Sheets", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+}

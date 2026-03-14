@@ -60,14 +60,23 @@ describe('API Middleware', () => {
       expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
     });
 
-    it('should allow localhost origins', () => {
+    it('should allow localhost origins in development', () => {
+      process.env.NODE_ENV = 'development';
       const headers = getApiCorsHeaders('http://localhost:3000');
       expect(headers['Access-Control-Allow-Origin']).toBe('http://localhost:3000');
     });
 
-    it('should allow 127.0.0.1 origins', () => {
+    it('should allow 127.0.0.1 origins in development', () => {
+      process.env.NODE_ENV = 'development';
       const headers = getApiCorsHeaders('http://127.0.0.1:8080');
       expect(headers['Access-Control-Allow-Origin']).toBe('http://127.0.0.1:8080');
+    });
+
+    it('should NOT allow 127.0.0.1 origins in production', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.SITE_URL = 'https://mysite.com';
+      const headers = getApiCorsHeaders('http://127.0.0.1:8080');
+      expect(headers['Access-Control-Allow-Origin']).toBe('https://mysite.com');
     });
 
     it('should fallback to site URL for unknown origins', () => {

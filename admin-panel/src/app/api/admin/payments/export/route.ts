@@ -2,55 +2,16 @@
 // API endpoint for exporting payment data as CSV
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-
-// Note: These must be read at runtime, not build time
-const getSupabaseUrl = () => process.env.SUPABASE_URL!;
-const getSupabaseServiceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: NextRequest) {
   try {
-    let user: { id: string } | null = null;
+    const { user } = await requireAdminApiWithRequest(request);
 
-    // Try Bearer token auth first (for API clients)
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
-      const { data: { user: tokenUser }, error: authError } = await supabase.auth.getUser(token);
-      if (!authError && tokenUser) {
-        user = tokenUser;
-      }
-    }
-
-    // Fall back to cookie auth (for browser clients)
-    if (!user) {
-      const supabase = await createServerClient();
-      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser();
-      if (!authError && cookieUser) {
-        user = cookieUser;
-      }
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Use service role client for admin operations
-    const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
-
-    // Check admin privileges
-    const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (adminError || !adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    // Use admin client for seller_main data (FK embedding requires correct schema)
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit export operations (heavy DB queries)
     const rateLimitOk = await checkRateLimit(
@@ -96,9 +57,11 @@ export async function POST(request: NextRequest) {
     // Apply date range filter
     if (filters.dateRange && filters.dateRange !== 'all') {
       const days = parseInt(filters.dateRange);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      query = query.gte('created_at', startDate.toISOString());
+      if (!isNaN(days) && days > 0) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        query = query.gte('created_at', startDate.toISOString());
+      }
     }
 
     const { data: transactions, error } = await query;
@@ -170,6 +133,12 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
     console.error('Export API error:', error);
     return NextResponse.json({ error: 'Failed to export data' }, { status: 500 });
   }

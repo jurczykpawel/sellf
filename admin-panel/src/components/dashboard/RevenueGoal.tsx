@@ -167,7 +167,11 @@ export default function RevenueGoal() {
     try {
       // Save goal in shop's default currency (or current goal currency if already set)
       const currency = goalCurrency || await getDefaultCurrency();
-      await setRevenueGoal(newGoalCents, startDate, currency, productId);
+      const result = await setRevenueGoal(newGoalCents, startDate, currency, productId);
+      if (!result.success) {
+        console.error('Failed to save goal:', result.error);
+        return;
+      }
       setGoal(newGoalCents);
       setGoalCurrency(currency);
       setGoalStartDate(startDate);
@@ -182,7 +186,11 @@ export default function RevenueGoal() {
     const now = new Date().toISOString();
 
     try {
-      await setRevenueGoal(goal, now, goalCurrency, productId);
+      const result = await setRevenueGoal(goal, now, goalCurrency, productId);
+      if (!result.success) {
+        console.error('Failed to reset goal:', result.error);
+        return;
+      }
       setGoalStartDate(now);
       setIsEditing(false);
       fetchData();

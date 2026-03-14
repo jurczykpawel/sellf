@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminApi } from '@/lib/auth-server';
 import type { OrderBumpFormData, OrderBumpAdmin } from '@/types/order-bump';
 
 /**
@@ -18,25 +20,7 @@ import type { OrderBumpFormData, OrderBumpAdmin } from '@/types/order-bump';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // Check if user is admin
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     // Get query params
     const { searchParams } = new URL(request.url);
@@ -58,8 +42,10 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(data || []);
     } else {
-      // Get all bumps
-      const { data, error } = await supabase
+      // Use adminClient (seller_main schema) for FK embedding queries —
+      // PostgREST can't resolve FK relationships through proxy views in public schema.
+      const adminClient = createAdminClient();
+      const { data, error } = await adminClient
         .from('order_bumps')
         .select(
           `
@@ -92,6 +78,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(data || []);
     }
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     console.error('Order bumps GET error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -107,25 +99,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // Check if user is admin
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     // Parse request body
     const formData: OrderBumpFormData = await request.json();
@@ -212,6 +186,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     console.error('Order bumps POST error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

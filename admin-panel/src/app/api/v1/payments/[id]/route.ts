@@ -21,6 +21,14 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+interface PaymentProductRelation {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+}
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -101,13 +109,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         currency: payment.currency,
         status: payment.status,
         stripe_payment_intent_id: payment.stripe_payment_intent_id,
-        product: {
-          id: (payment.products as any)?.id,
-          name: (payment.products as any)?.name,
-          slug: (payment.products as any)?.slug,
-          price: (payment.products as any)?.price,
-          currency: (payment.products as any)?.currency,
-        },
+        product: (() => {
+          const p = payment.products as unknown as PaymentProductRelation;
+          return { id: p.id, name: p.name, slug: p.slug, price: p.price, currency: p.currency };
+        })(),
         user: userInfo,
         session_id: payment.session_id,
         refund: payment.refund_id ? {

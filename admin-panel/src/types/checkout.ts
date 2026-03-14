@@ -24,7 +24,9 @@ export class CheckoutError extends Error {
 export interface CreateCheckoutRequest {
   productId: string;
   email?: string;
-  bumpProductId?: string; // Optional order bump product ID
+  /** @deprecated Use bumpProductIds instead */
+  bumpProductId?: string;
+  bumpProductIds?: string[]; // Multiple order bump product IDs
   couponCode?: string; // NEW: Optional discount code
   successUrl?: string; // NEW: Optional OTO redirect URL
   customAmount?: number; // Pay What You Want - customer-chosen price
@@ -66,10 +68,20 @@ export interface UserAccessData {
   access_granted_at: string;
 }
 
+// Marketplace seller info for checkout (Stripe Connect)
+export interface CheckoutSellerInfo {
+  stripeAccountId: string;
+  platformFeePercent: number;
+  sellerSlug: string;
+  schemaName: string;
+}
+
 // Checkout session options
 export interface CheckoutSessionOptions {
   product: ProductForCheckout;
-  bumpProduct?: ProductForCheckout; // Optional order bump product
+  /** @deprecated Use bumpProducts instead */
+  bumpProduct?: ProductForCheckout;
+  bumpProducts?: ProductForCheckout[]; // Multiple order bump products
   email?: string;
   userId?: string;
   returnUrl: string;
@@ -81,4 +93,5 @@ export interface CheckoutSessionOptions {
     exclude_order_bumps?: boolean;
   };
   customAmount?: number; // Pay What You Want - customer-chosen price
+  seller?: CheckoutSellerInfo; // Marketplace: seller info for Stripe Connect
 }

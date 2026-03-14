@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import {
   errorResponse,
   ErrorCodes,
@@ -84,8 +84,10 @@ export function getApiCorsHeaders(origin: string | null): Record<string, string>
 
   const isAllowed = origin && (
     origin === siteUrl ||
-    origin.startsWith('http://localhost:') ||
-    origin.startsWith('http://127.0.0.1:')
+    (process.env.NODE_ENV === 'development' && (
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:')
+    ))
   );
 
   const headers: Record<string, string> = {
@@ -221,10 +223,11 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   }
 
   const keyHash = hashApiKey(apiKey);
-  const adminClient = createAdminClient();
+  // Use platform client for public-schema operations (api_keys, admin_users, verify_api_key)
+  const platformClient = createPlatformClient();
 
   // Verify API key using database function
-  const { data: verifyResult, error: verifyError } = await adminClient
+  const { data: verifyResult, error: verifyError } = await platformClient
     .rpc('verify_api_key', { p_key_hash: keyHash });
 
   if (verifyError) {
@@ -243,7 +246,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   }
 
   // Get admin user details
-  const { data: adminUser, error: adminError } = await adminClient
+  const { data: adminUser, error: adminError } = await platformClient
     .from('admin_users')
     .select('id, user_id')
     .eq('id', keyData.admin_user_id)
@@ -254,7 +257,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   }
 
   // Get the key name for logging
-  const { data: keyInfo } = await adminClient
+  const { data: keyInfo } = await platformClient
     .from('api_keys')
     .select('name')
     .eq('id', keyData.key_id)
@@ -265,7 +268,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     request.headers.get('x-real-ip') ||
     'unknown';
 
-  await adminClient
+  await platformClient
     .from('api_keys')
     .update({ last_used_ip: clientIp })
     .eq('id', keyData.key_id);
@@ -273,9 +276,12 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   // Cast scopes from Json to string[]
   const scopes = Array.isArray(keyData.scopes) ? keyData.scopes as string[] : [];
 
+  // Return seller_main-scoped admin client for route handler queries
+  const adminClient = createAdminClient();
+
   return {
     method: 'api_key',
-    supabase: adminClient,
+    supabase: adminClient as unknown as SupabaseClient,
     admin: {
       userId: adminUser.user_id,
       adminId: adminUser.id,

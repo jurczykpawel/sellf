@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { getStripeServer } from '@/lib/stripe/server';
 import { ProductValidationService, type ValidatedProduct } from '@/lib/services/product-validation';
 import {
@@ -8,10 +8,12 @@ import {
   CheckoutSessionOptions,
   CreateCheckoutRequest
 } from '@/types/checkout';
+import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
-import { sanitizeForLog } from '@/lib/logger';
+import { normalizeBumpIds } from '@/lib/validations/product';
+
 
 // Remove the local ProductForCheckout interface since we now use ValidatedProduct
 type ProductForCheckout = ValidatedProduct;
@@ -62,8 +64,8 @@ export class CheckoutService {
    * Check rate limiting for checkout creation
    */
   async checkRateLimit(): Promise<void> {
-    const adminClient = createAdminClient();
-    const { data: rateLimitOk, error } = await adminClient.rpc('check_rate_limit', {
+    const platformClient = createPlatformClient();
+    const { data: rateLimitOk, error } = await platformClient.rpc('check_rate_limit', {
       function_name_param: STRIPE_CONFIG.rate_limit.action_type,
       max_calls: STRIPE_CONFIG.rate_limit.max_requests,
       time_window_seconds: STRIPE_CONFIG.rate_limit.window_minutes * 60,
@@ -103,9 +105,10 @@ export class CheckoutService {
         );
       }
       
+      console.error('[CheckoutService.getProduct] Error:', error)
       throw new CheckoutError(
         CheckoutErrorType.VALIDATION_ERROR,
-        message,
+        'Product validation failed',
         HTTP_STATUS.BAD_REQUEST
       );
     }
@@ -118,9 +121,10 @@ export class CheckoutService {
     try {
       ProductValidationService.validateTemporalAvailability(product);
     } catch (error) {
+      console.error('[CheckoutService.validateTemporalAvailability] Error:', error)
       throw new CheckoutError(
         CheckoutErrorType.PRODUCT_UNAVAILABLE,
-        error instanceof Error ? error.message : 'Product not available for purchase',
+        'Product is not currently available for purchase',
         HTTP_STATUS.BAD_REQUEST
       );
     }
@@ -151,7 +155,7 @@ export class CheckoutService {
       // Calculate base price - use customAmount if provided (Pay What You Want)
       let mainProductPrice = options.product.price;
       if (customAmount !== undefined && customAmount > 0) {
-        const minPrice = options.product.custom_price_min ?? 0.50;
+        const minPrice = options.product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
         if (customAmount < minPrice) {
           throw new CheckoutError(
             CheckoutErrorType.VALIDATION_ERROR,
@@ -167,9 +171,18 @@ export class CheckoutService {
         if (coupon.discount_type === 'percentage') {
           mainProductPrice = mainProductPrice * (1 - coupon.discount_value / 100);
         } else if (coupon.discount_type === 'fixed') {
-          // Subtract fixed amount from main product, minimum $0.50 (Stripe min)
-          mainProductPrice = Math.max(0.5, mainProductPrice - coupon.discount_value);
+          mainProductPrice = Math.max(0, mainProductPrice - coupon.discount_value);
         }
+      }
+
+      // If coupon reduces total to zero, this path cannot handle free access
+      // (embedded checkout requires Stripe). Enforce minimum.
+      if (mainProductPrice <= 0 && coupon) {
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'This coupon covers the full price. Please use the standard checkout for free access.',
+          HTTP_STATUS.BAD_REQUEST
+        );
       }
 
       // Resolve checkout config: DB > env var > default
@@ -180,7 +193,6 @@ export class CheckoutService {
 
       // Resolve tax rates for local mode (per-product vat_rate)
       let mainTaxRates: string[] | undefined;
-      let bumpTaxRates: string[] | undefined;
 
       if (isLocalTax) {
         if (options.product.vat_rate && options.product.vat_rate > 0) {
@@ -190,14 +202,7 @@ export class CheckoutService {
           });
           mainTaxRates = [txrId];
         }
-
-        if (options.bumpProduct?.vat_rate && options.bumpProduct.vat_rate > 0) {
-          const txrId = await getOrCreateStripeTaxRate({
-            percentage: options.bumpProduct.vat_rate,
-            inclusive: options.bumpProduct.price_includes_vat,
-          });
-          bumpTaxRates = [txrId];
-        }
+        // Bump tax rates are resolved per-bump in the loop below
       }
 
       // tax_behavior: tells Stripe how to interpret the price amount
@@ -208,6 +213,7 @@ export class CheckoutService {
         : undefined;
 
       // Build line items array (main product + optional bump)
+      // Note: Record<string, unknown>[] used due to conditional spreads; Stripe SDK validates at runtime
       const lineItems: Record<string, unknown>[] = [
         {
           price_data: {
@@ -224,29 +230,44 @@ export class CheckoutService {
         },
       ];
 
-      // Add bump product as second line item if provided
-      if (options.bumpProduct) {
-        let bumpPrice = options.bumpProduct.price;
-        // Percentage discounts apply to bump unless excluded
+      // Add bump products as additional line items (multi-bump support)
+      const bumpList = options.bumpProducts && options.bumpProducts.length > 0
+        ? options.bumpProducts
+        : options.bumpProduct ? [options.bumpProduct] : [];
+
+      for (const bp of bumpList) {
+        let bpPrice = bp.price;
+        // Percentage discounts apply to bumps unless excluded
         if (coupon && coupon.discount_type === 'percentage' && !coupon.exclude_order_bumps) {
-          bumpPrice = bumpPrice * (1 - coupon.discount_value / 100);
+          bpPrice = bpPrice * (1 - coupon.discount_value / 100);
         }
 
-        const bumpTaxBehavior = (isLocalTax && bumpTaxRates) || !isLocalTax
-          ? (options.bumpProduct.price_includes_vat ? 'inclusive' : 'exclusive')
+        // Resolve tax for each bump individually
+        let bpTaxRates: string[] | undefined;
+        if (isLocalTax && bp.vat_rate && bp.vat_rate > 0) {
+          const txrId = await getOrCreateStripeTaxRate({
+            percentage: bp.vat_rate,
+            inclusive: bp.price_includes_vat,
+          });
+          bpTaxRates = [txrId];
+        }
+
+        const bpTaxBehavior = (isLocalTax && bpTaxRates) || !isLocalTax
+          ? (bp.price_includes_vat ? 'inclusive' : 'exclusive')
           : undefined;
 
         lineItems.push({
           price_data: {
-            currency: options.bumpProduct.currency.toLowerCase(),
+            currency: bp.currency.toLowerCase(),
             product_data: {
-              name: options.bumpProduct.name,
-              description: options.bumpProduct.description || undefined,
+              name: bp.name,
+              description: bp.description || undefined,
+              metadata: { product_id: bp.id, is_bump: 'true' },
             },
-            unit_amount: Math.round(bumpPrice * 100),
-            ...(bumpTaxBehavior && { tax_behavior: bumpTaxBehavior }),
+            unit_amount: Math.round(bpPrice * 100),
+            ...(bpTaxBehavior && { tax_behavior: bpTaxBehavior }),
           },
-          ...(bumpTaxRates && { tax_rates: bumpTaxRates }),
+          ...(bpTaxRates && { tax_rates: bpTaxRates }),
           quantity: 1,
         });
       }
@@ -263,10 +284,19 @@ export class CheckoutService {
           product_id: options.product.id,
           product_slug: options.product.slug,
           user_id: options.userId || null,
-          // Add bump product metadata if present
-          ...(options.bumpProduct && {
-            bump_product_id: options.bumpProduct.id,
+          // Add bump product metadata (multi-bump support)
+          ...(bumpList.length > 0 && {
+            bump_product_ids: (() => {
+              const ids = bumpList.map(bp => bp.id).join(',');
+              if (ids.length > 500) {
+                const truncated = ids.slice(0, 500);
+                return truncated.slice(0, truncated.lastIndexOf(','));
+              }
+              return ids;
+            })(),
+            bump_product_id: bumpList[0].id, // Legacy compat
             has_bump: 'true',
+            bump_count: bumpList.length.toString(),
           }),
           // Add coupon metadata if present
           ...(coupon && {
@@ -279,12 +309,40 @@ export class CheckoutService {
             custom_amount: customAmount.toString(),
             is_pwyw: 'true'
           }),
+          // Marketplace seller metadata
+          ...(options.seller && {
+            seller_slug: options.seller.sellerSlug,
+            seller_schema: options.seller.schemaName,
+            is_marketplace: 'true',
+          }),
         },
         expires_at: Math.floor(Date.now() / 1000) + (checkoutConfig.expires_hours * 60 * 60),
         automatic_tax: checkoutConfig.automatic_tax,
         tax_id_collection: checkoutConfig.tax_id_collection,
         billing_address_collection: checkoutConfig.billing_address_collection,
       };
+
+      // Marketplace: route payment to seller's Stripe account with platform fee
+      if (options.seller) {
+        // Calculate total amount across all line items (in cents)
+        let totalCents = Math.round(mainProductPrice * 100);
+        for (const bp of bumpList) {
+          let bpPrice = bp.price;
+          if (coupon && coupon.discount_type === 'percentage' && !coupon.exclude_order_bumps) {
+            bpPrice = bpPrice * (1 - coupon.discount_value / 100);
+          }
+          totalCents += Math.round(bpPrice * 100);
+        }
+
+        const feeAmount = Math.round(totalCents * options.seller.platformFeePercent / 100);
+
+        sessionConfig.payment_intent_data = {
+          application_fee_amount: feeAmount,
+          transfer_data: {
+            destination: options.seller.stripeAccountId,
+          },
+        };
+      }
 
       // Apply payment method config based on mode
       if (checkoutConfig.paymentMethodMode === 'automatic') {
@@ -330,7 +388,7 @@ export class CheckoutService {
       
       throw new CheckoutError(
         CheckoutErrorType.STRIPE_ERROR,
-        `Failed to create checkout session: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'Failed to create checkout session. Please try again or contact support.',
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
     }
@@ -362,46 +420,93 @@ export class CheckoutService {
       await this.checkExistingAccess(userId, product.id);
     }
 
-    // Handle order bump if provided
-    let bumpProduct: ProductForCheckout | undefined;
-    if (request.bumpProductId) {
-      try {
-        bumpProduct = await this.getProduct(request.bumpProductId);
-        this.validateTemporalAvailability(bumpProduct);
+    // Handle order bumps (supports multiple)
+    // Normalize + validate bump IDs (supports legacy single bumpProductId)
+    const { validIds: validBumpIds } = normalizeBumpIds({
+      bumpProductId: request.bumpProductId,
+      bumpProductIds: request.bumpProductIds,
+    });
 
-        // Fetch special bump price from order_bumps table
-        const { data: bumpData } = await this.supabase
-          .from('order_bumps')
-          .select('bump_price')
-          .eq('main_product_id', request.productId)
-          .eq('bump_product_id', request.bumpProductId)
-          .eq('is_active', true)
-          .single();
+    // SECURITY: Cap bump IDs count at application level to prevent DoS via hundreds of
+    // validation queries. DB function also limits to 20, but this avoids the round-trips.
+    const MAX_BUMP_IDS = 20;
+    if (validBumpIds.length > MAX_BUMP_IDS) {
+      throw new CheckoutError(
+        CheckoutErrorType.VALIDATION_ERROR,
+        `Too many bump products (maximum ${MAX_BUMP_IDS})`,
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
 
-        if (bumpData && bumpData.bump_price !== null) {
-          // Override the product price with the special bump price
-          // Create a new object to avoid mutating cached data if any
-          bumpProduct = {
-            ...bumpProduct,
-            price: bumpData.bump_price
-          };
-        }
-      } catch (error) {
-        console.error('Error validating bump product:', error);
-        // Continue without bump if validation fails
-        bumpProduct = undefined;
+    const bumpProducts: ProductForCheckout[] = [];
+    if (validBumpIds.length > 0) {
+      // Batch-fetch all bump price overrides in a single query (avoids N+1)
+      const { data: allBumpData } = await this.supabase
+        .from('order_bumps')
+        .select('bump_product_id, bump_price')
+        .eq('main_product_id', request.productId)
+        .in('bump_product_id', validBumpIds)
+        .eq('is_active', true);
+
+      const bumpPriceMap = new Map(
+        (allBumpData || []).map(b => [b.bump_product_id, b.bump_price])
+      );
+
+      // Fetch + validate all bump products in parallel (avoids N+1 sequential SELECTs)
+      const bumpResults = await Promise.all(
+        validBumpIds.map(async (bumpId) => {
+          try {
+            let bp = await this.getProduct(bumpId);
+            this.validateTemporalAvailability(bp);
+
+            const overridePrice = bumpPriceMap.get(bumpId);
+            if (overridePrice !== undefined && overridePrice !== null) {
+              bp = { ...bp, price: overridePrice };
+            }
+            return bp;
+          } catch (error) {
+            // Log but don't silently skip — if user selected a bump and it fails validation,
+            // better to warn than charge without the expected bump
+            console.error(`[checkout] Bump product ${bumpId} validation failed:`, error);
+            // Skip bumps that are not found or temporally unavailable (expected cases)
+            // but log clearly so issues can be investigated
+            return null;
+          }
+        })
+      );
+      for (const bp of bumpResults) {
+        if (bp) bumpProducts.push(bp);
       }
     }
 
+    // Backward compat: first bump available as bumpProduct
+    const bumpProduct: ProductForCheckout | undefined = bumpProducts[0];
+
     // Handle coupon verification
-    let couponInfo: any = undefined;
+    let couponInfo: {
+      id: string;
+      code: string;
+      discount_type: 'percentage' | 'fixed';
+      discount_value: number;
+      exclude_order_bumps?: boolean;
+    } | undefined = undefined;
     if (request.couponCode) {
       try {
-        const { data: vResult } = await this.supabase.rpc('verify_coupon', {
+        const { data: vResult, error: couponError } = await this.supabase.rpc('verify_coupon', {
           code_param: request.couponCode.toUpperCase(),
           product_id_param: product.id,
-          customer_email_param: request.email || null
+          customer_email_param: request.email || null,
+          currency_param: product.currency,
         });
+
+        if (couponError) {
+          console.error('Coupon verification error:', couponError);
+          throw new CheckoutError(
+            CheckoutErrorType.VALIDATION_ERROR,
+            'Failed to verify coupon. Please try again.',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+          );
+        }
 
         if (vResult && vResult.valid) {
           couponInfo = {
@@ -411,9 +516,23 @@ export class CheckoutService {
             discount_value: vResult.discount_value,
             exclude_order_bumps: vResult.exclude_order_bumps
           };
+        } else {
+          // Don't silently ignore invalid coupon — user expects a discount
+          throw new CheckoutError(
+            CheckoutErrorType.VALIDATION_ERROR,
+            vResult?.error || 'Coupon code is no longer valid. Please remove it and try again.',
+            HTTP_STATUS.BAD_REQUEST
+          );
         }
       } catch (error) {
+        // Re-throw CheckoutErrors; wrap unexpected errors
+        if (error instanceof CheckoutError) throw error;
         console.error('Error verifying coupon during checkout:', error);
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'Failed to verify coupon. Please try again.',
+          HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
       }
     }
 
@@ -435,7 +554,7 @@ export class CheckoutService {
         );
       }
 
-      const minPrice = product.custom_price_min ?? 0.50;
+      const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
       if (request.customAmount < minPrice) {
         throw new CheckoutError(
           CheckoutErrorType.VALIDATION_ERROR,
@@ -449,6 +568,7 @@ export class CheckoutService {
     return await this.createStripeSession({
       product,
       bumpProduct,
+      bumpProducts: bumpProducts.length > 0 ? bumpProducts : undefined,
       email: request.email,
       userId,
       returnUrl,

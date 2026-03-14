@@ -370,10 +370,16 @@ npx supabase migration new descriptive_name
 ```
 
 Migration checklist:
-- [ ] Add RLS policies for new tables
+- [ ] RLS enabled + at least one explicit policy per table (see Security Rules #1)
+- [ ] Grants: explicit per-table REVOKE/GRANT, never blanket (see Security Rules #5)
+- [ ] Admin checks use `(select public.is_admin())` not inline EXISTS (see Security Rules #2)
+- [ ] Service role checks use `(select auth.role())` not current_setting (see Security Rules #3)
+- [ ] SECURITY DEFINER functions have `SET search_path = ''` (see Security Rules #4)
+- [ ] INSERT policies validate ownership, never `WITH CHECK (true)` (see Security Rules #6)
+- [ ] Functions defined BEFORE policies that reference them (see Security Rules #8)
+- [ ] Utility functions: REVOKE EXECUTE from anon/authenticated (see Security Rules #7)
 - [ ] Test policies with different user roles
 - [ ] Add indexes for foreign keys and frequently queried columns
-- [ ] Include rollback strategy in comments
 - [ ] Validate all constraints and checks
 - [ ] Test with `npx supabase db reset`
 - [ ] Add realistic sample data to `supabase/seed.sql`
@@ -610,13 +616,15 @@ CLOUDFLARE_TURNSTILE_SECRET_KEY=...
 
 Releases are manual. CI builds the `sellf-build.tar.gz` artifact automatically.
 
+**Versioning: CalVer `YYYY.M.patch`** (e.g. `2026.3.0`, `2026.3.1`). Year + month of release + patch counter within that month. No semver — Sellf is an end-user product, not a library.
+
 **Before creating a release, bump the version in all these files:**
 
 | File | Field | Example |
 |------|-------|---------|
-| `package.json` (root) | `"version"` | `"1.0.2"` |
-| `admin-panel/package.json` | `"version"` | `"1.0.2"` |
-| `README.md` | version badge URL | `version-1.0.2-blue` |
+| `package.json` (root) | `"version"` | `"2026.3.0"` |
+| `admin-panel/package.json` | `"version"` | `"2026.3.0"` |
+| `README.md` | version badge URL | `version-2026.3.0-blue` |
 
 **Before creating a release, always run tests:**
 
@@ -628,14 +636,14 @@ bun tt              # vitest unit tests — MUST pass before every release
 Then commit, push, and create the release:
 
 ```bash
-git add -A && git commit -m "chore: bump version to 1.0.2"
+git add -A && git commit -m "chore: bump version to 2026.3.0"
 git push
 
 # Create release → CI builds tar.gz and attaches to release
-gh release create v1.0.2 --title "Sellf v1.0.2" --notes "Changelog"
+gh release create v2026.3.0 --title "Sellf v2026.3.0" --notes "Changelog"
 
 # Or trigger build without release tag
-gh workflow run build-release.yml -f version=v1.0.2
+gh workflow run build-release.yml -f version=v2026.3.0
 ```
 
 ### CI pipeline (`.github/workflows/build-release.yml`)
@@ -721,6 +729,178 @@ When reviewing or writing code, verify:
 - [ ] CORS configured correctly for cross-domain features
 - [ ] Secrets never committed to repository
 - [ ] Audit logging for admin actions
+
+## Supabase/PostgreSQL Security Rules
+
+**These rules are mandatory.** Every SQL migration and every TypeScript file touching
+Supabase must follow them. They exist because past audits found recurring violations.
+
+### SQL Migrations
+
+#### 1. New tables: RLS + explicit policies + least-privilege grants
+
+Every new table MUST have all three. Zero-policy tables with RLS enabled are a time bomb.
+
+```sql
+-- CORRECT pattern for a new table:
+CREATE TABLE seller_main.my_table (...);
+ALTER TABLE seller_main.my_table ENABLE ROW LEVEL SECURITY;
+
+-- Explicit policies (even if service_role-only)
+CREATE POLICY "Service role full access" ON seller_main.my_table
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Admin read" ON seller_main.my_table
+  FOR SELECT TO authenticated USING ((select public.is_admin()));
+
+-- Explicit grants (NEVER rely on default privileges)
+REVOKE ALL ON seller_main.my_table FROM anon, authenticated;
+GRANT SELECT ON seller_main.my_table TO authenticated;
+GRANT ALL ON seller_main.my_table TO service_role;
+```
+
+#### 2. Admin checks in RLS policies: use `(select public.is_admin())`
+
+NEVER use inline `EXISTS (SELECT 1 FROM admin_users ...)` in CREATE POLICY.
+The `is_admin()` function is SECURITY DEFINER — it works for anon without granting
+access to `admin_users` table. The `(select ...)` wrapper enables Postgres initPlan
+caching (evaluated once per statement, not per row).
+
+```sql
+-- WRONG:
+USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
+
+-- CORRECT:
+USING ((select public.is_admin()))
+```
+
+#### 3. Service role checks in RLS: use `(select auth.role())`
+
+NEVER use `current_setting('role', true)`. It can be manipulated via `SET role` in
+direct DB connections. `auth.role()` reads from the JWT which cannot be forged.
+
+```sql
+-- WRONG:
+USING (current_setting('role', true) = 'service_role')
+
+-- CORRECT:
+USING ((select auth.role()) = 'service_role')
+```
+
+#### 4. SECURITY DEFINER functions: always SET search_path = ''
+
+Every PL/pgSQL function with SECURITY DEFINER MUST have `SET search_path = ''`
+and qualify all table references as `schema.table`.
+
+```sql
+CREATE OR REPLACE FUNCTION my_function()
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''      -- MANDATORY
+AS $$ ... $$;
+```
+
+#### 5. Grants: explicit per-table, never blanket
+
+NEVER use `GRANT ALL ON ALL TABLES IN SCHEMA ... TO anon/authenticated`.
+Grant the minimum required per table. Use `ALTER DEFAULT PRIVILEGES` sparingly
+and only for `service_role`.
+
+```sql
+-- WRONG:
+GRANT ALL ON ALL TABLES IN SCHEMA seller_main TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+
+-- CORRECT: explicit per-table
+GRANT SELECT ON seller_main.products TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.user_product_access TO authenticated;
+GRANT ALL ON seller_main.products TO service_role;
+-- Default privileges only for service_role:
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main
+  GRANT ALL ON TABLES TO service_role;
+```
+
+#### 6. INSERT policies: always validate ownership
+
+NEVER use `WITH CHECK (true)` on public/authenticated INSERT policies.
+Always validate that the inserter owns the data they're inserting.
+
+```sql
+-- WRONG:
+CREATE POLICY "Anyone can insert" ON consent_logs
+  FOR INSERT WITH CHECK (true);
+
+-- CORRECT:
+CREATE POLICY "Users insert own records" ON consent_logs
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = (select auth.uid()));
+```
+
+#### 7. Third-party functions: REVOKE from anon/authenticated
+
+Any utility function not needed by end users (clone_schema, pg_get_tabledef, etc.)
+MUST have execute privileges revoked from anon and authenticated.
+
+```sql
+REVOKE EXECUTE ON FUNCTION public.clone_schema FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.clone_schema TO service_role;
+```
+
+#### 8. Function/policy ordering in migrations
+
+If a migration defines a function AND policies that reference it, the function
+MUST be defined BEFORE the policies. PostgreSQL executes statements sequentially.
+
+### TypeScript / API Routes
+
+#### 9. Admin client: use createAdminClient(), never raw createClient with service key
+
+```typescript
+// WRONG:
+const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
+
+// CORRECT:
+import { createAdminClient } from '@/lib/supabase/admin';
+const supabase = createAdminClient();
+```
+
+#### 10. Schema validation: validate schema names before creating Supabase clients
+
+Any function that creates a Supabase client with a dynamic schema MUST validate
+the schema name with `isValidSellerSchema()`.
+
+#### 11. Rate limiting: use client IP for anonymous users, never shared bucket
+
+```typescript
+// WRONG:
+const identifier = userId || 'anonymous';
+
+// CORRECT:
+const identifier = userId || request.headers.get('x-forwarded-for') || 'unknown';
+```
+
+#### 12. External HTTP requests: block redirects for SSRF protection
+
+Any `fetch()` to user-supplied URLs MUST use `redirect: 'error'`.
+
+```typescript
+const response = await fetch(webhookUrl, {
+  method: 'POST',
+  redirect: 'error',  // MANDATORY — prevents redirect-based SSRF
+  body: JSON.stringify(payload),
+});
+```
+
+#### 13. Environment variables: throw on missing, never fallback to dummy values
+
+```typescript
+// WRONG:
+const key = process.env.SUPABASE_ANON_KEY || 'dummy-key-for-build';
+
+// CORRECT:
+const key = process.env.SUPABASE_ANON_KEY;
+if (!key) throw new Error('Missing SUPABASE_ANON_KEY');
+```
 
 ## Core Mandates
 

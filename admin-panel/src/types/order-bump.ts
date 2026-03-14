@@ -7,9 +7,9 @@
 import type { Database } from './database';
 
 // Database table types
-export type OrderBump = Database['public']['Tables']['order_bumps']['Row'];
-export type OrderBumpInsert = Database['public']['Tables']['order_bumps']['Insert'];
-export type OrderBumpUpdate = Database['public']['Tables']['order_bumps']['Update'];
+export type OrderBump = Database['seller_main']['Tables']['order_bumps']['Row'];
+export type OrderBumpInsert = Database['seller_main']['Tables']['order_bumps']['Insert'];
+export type OrderBumpUpdate = Database['seller_main']['Tables']['order_bumps']['Update'];
 
 // API Response types
 
@@ -30,6 +30,7 @@ export interface OrderBumpWithProduct {
   bump_title: string;
   bump_description: string | null;
   display_order: number;
+  urgency_duration_minutes: number | null;
 }
 
 /**
@@ -46,6 +47,7 @@ export interface OrderBumpAdmin {
   is_active: boolean;
   display_order: number;
   access_duration_days: number | null;
+  urgency_duration_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +64,7 @@ export interface OrderBumpFormData {
   is_active: boolean;
   display_order: number;
   access_duration_days: number | null;
+  urgency_duration_minutes: number | null;
 }
 
 /**
@@ -70,7 +73,9 @@ export interface OrderBumpFormData {
 export interface CheckoutWithBump {
   productId: string;
   email?: string;
-  bumpProductId?: string; // ID of selected bump product (if checkbox was checked)
+  /** @deprecated Use bumpProductIds instead */
+  bumpProductId?: string;
+  bumpProductIds?: string[]; // IDs of selected bump products
 }
 
 /**

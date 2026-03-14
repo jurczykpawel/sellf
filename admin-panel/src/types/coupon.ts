@@ -5,9 +5,9 @@
 import type { Database } from './database';
 
 // Database table types
-export type Coupon = Database['public']['Tables']['coupons']['Row'];
-export type CouponInsert = Database['public']['Tables']['coupons']['Insert'];
-export type CouponUpdate = Database['public']['Tables']['coupons']['Update'];
+export type Coupon = Database['seller_main']['Tables']['coupons']['Row'];
+export type CouponInsert = Database['seller_main']['Tables']['coupons']['Insert'];
+export type CouponUpdate = Database['seller_main']['Tables']['coupons']['Update'];
 
 export interface CouponFormData {
   code: string;
@@ -31,5 +31,13 @@ export interface CouponVerificationResult {
   code?: string;
   discount_type?: 'percentage' | 'fixed';
   discount_value?: number;
+  exclude_order_bumps?: boolean;
+}
+
+/** Shape of a successfully applied coupon used in checkout UI */
+export interface AppliedCoupon {
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
   exclude_order_bumps?: boolean;
 }

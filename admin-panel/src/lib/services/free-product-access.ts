@@ -31,8 +31,8 @@ export interface FreeProductAccessResult {
  * @param adminClient  Service role client (needed for generate_oto_coupon)
  */
 export async function grantFreeProductAccess(
-  supabase: SupabaseClient,
-  adminClient: SupabaseClient,
+  supabase: SupabaseClient<any, any>,
+  adminClient: SupabaseClient<any, any>,
   { product, user }: FreeProductInput,
 ): Promise<FreeProductAccessResult> {
   // 1. Check whether user already has valid (non-expired) access

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
+import { CURRENCIES, getCurrencySymbol, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import type { SectionProps } from '../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
@@ -34,7 +34,7 @@ export function PriceVatInline({
 
   const getDefaultMin = (price: number): number => {
     if (price <= 0) return 1;
-    return Math.max(0.50, Math.round(price * 0.5 * 10) / 10);
+    return Math.max(STRIPE_MINIMUM_AMOUNT, Math.round(price * 0.5 * 10) / 10);
   };
 
   const getDefaultPresets = (price: number): [number, number, number] => {

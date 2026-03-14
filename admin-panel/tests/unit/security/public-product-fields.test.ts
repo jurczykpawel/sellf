@@ -7,21 +7,9 @@ import { join } from 'path';
  * SECURITY TEST: Public Product API Field Exposure
  * ============================================================================
  *
- * Tests the REAL route source at src/app/api/public/products/[slug]/route.ts
- * to verify that sensitive fields are NOT exposed in the public product API.
- *
- * VULNERABILITY: Content Config Exposed on Public Endpoints (V-CRITICAL-08)
- *
- * ATTACK FLOW (before fix):
- * 1. Attacker calls GET /api/public/products/premium-course (no auth required)
- * 2. Response includes full product object with select('*')
- * 3. content_config contains download URLs, redirect URLs, etc.
- * 4. Attacker downloads paid content for FREE without purchasing
- *
- * FIX (V18): Changed to explicit field list in .select()
- *
- * Created during security audit iteration 7 (2026-01-08)
- * Rewritten to test real route source (2026-02-26)
+ * Verifies that the public product API uses explicit field selection
+ * and does not expose sensitive fields (content_config, internal IDs, etc.)
+ * to unauthenticated users. Tests real route source via static analysis.
  * ============================================================================
  */
 

@@ -14,7 +14,7 @@ BEGIN;
 -- Global payment method configuration (singleton)
 -- This table stores the global payment method configuration for the entire shop.
 -- Future: Per-product overrides via products.payment_config_override JSONB column
-CREATE TABLE IF NOT EXISTS public.payment_method_config (
+CREATE TABLE IF NOT EXISTS seller_main.payment_method_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1), -- Singleton constraint
 
   -- Configuration mode
@@ -78,100 +78,106 @@ CREATE TABLE IF NOT EXISTS public.payment_method_config (
 );
 
 -- Ensure singleton row exists with defaults
-INSERT INTO public.payment_method_config (id, config_mode)
+INSERT INTO seller_main.payment_method_config (id, config_mode)
 VALUES (1, 'automatic')
 ON CONFLICT (id) DO NOTHING;
 
 -- Index for faster lookups (though singleton, good practice)
 CREATE INDEX IF NOT EXISTS idx_payment_method_config_mode
-  ON public.payment_method_config(config_mode);
+  ON seller_main.payment_method_config(config_mode);
 
 -- GIN index for JSONB columns (improves query performance on custom_payment_methods)
 CREATE INDEX IF NOT EXISTS idx_payment_method_config_custom_methods
-  ON public.payment_method_config USING GIN (custom_payment_methods);
+  ON seller_main.payment_method_config USING GIN (custom_payment_methods);
 
 CREATE INDEX IF NOT EXISTS idx_payment_method_config_currency_overrides
-  ON public.payment_method_config USING GIN (currency_overrides);
+  ON seller_main.payment_method_config USING GIN (currency_overrides);
 
 -- =============================================================================
 -- TRIGGERS
 -- =============================================================================
 
 -- Trigger to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_payment_method_config_timestamp()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION seller_main.update_payment_method_config_timestamp()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER payment_method_config_updated_at
-  BEFORE UPDATE ON public.payment_method_config
+  BEFORE UPDATE ON seller_main.payment_method_config
   FOR EACH ROW
-  EXECUTE FUNCTION update_payment_method_config_timestamp();
+  EXECUTE FUNCTION seller_main.update_payment_method_config_timestamp();
 
 -- Trigger to protect created_at from modification
-CREATE OR REPLACE FUNCTION protect_payment_method_config_created_at()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION seller_main.protect_payment_method_config_created_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.created_at = OLD.created_at;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER payment_method_config_protect_created_at
-  BEFORE UPDATE ON public.payment_method_config
+  BEFORE UPDATE ON seller_main.payment_method_config
   FOR EACH ROW
-  EXECUTE FUNCTION protect_payment_method_config_created_at();
+  EXECUTE FUNCTION seller_main.protect_payment_method_config_created_at();
 
 -- =============================================================================
 -- COMMENTS (DOCUMENTATION)
 -- =============================================================================
 
-COMMENT ON TABLE public.payment_method_config IS
+COMMENT ON TABLE seller_main.payment_method_config IS
   'Global payment method configuration (singleton). Controls how payment methods are displayed at checkout. Future: per-product overrides via products.payment_config_override JSONB column';
 
-COMMENT ON COLUMN public.payment_method_config.id IS
+COMMENT ON COLUMN seller_main.payment_method_config.id IS
   'Singleton ID (always 1). Enforced by PRIMARY KEY and CHECK constraint';
 
-COMMENT ON COLUMN public.payment_method_config.config_mode IS
+COMMENT ON COLUMN seller_main.payment_method_config.config_mode IS
   'Configuration mode: automatic (Stripe default), stripe_preset (use specific PMC), or custom (explicit payment methods)';
 
-COMMENT ON COLUMN public.payment_method_config.stripe_pmc_id IS
+COMMENT ON COLUMN seller_main.payment_method_config.stripe_pmc_id IS
   'Stripe Payment Method Configuration ID (e.g., pmc_xxx). Required for stripe_preset mode. Must start with pmc_ prefix';
 
-COMMENT ON COLUMN public.payment_method_config.stripe_pmc_name IS
+COMMENT ON COLUMN seller_main.payment_method_config.stripe_pmc_name IS
   'Cached display name of the Stripe PMC (e.g., "Default Config", "EU Only"). Updated when PMC is selected';
 
-COMMENT ON COLUMN public.payment_method_config.stripe_pmc_last_synced IS
+COMMENT ON COLUMN seller_main.payment_method_config.stripe_pmc_last_synced IS
   'Timestamp of last successful fetch from Stripe API. Used for cache TTL (1 hour)';
 
-COMMENT ON COLUMN public.payment_method_config.custom_payment_methods IS
+COMMENT ON COLUMN seller_main.payment_method_config.custom_payment_methods IS
   'Custom payment methods array with enabled state, order, and currency restrictions (only for custom mode). Structure: [{"type": "blik", "enabled": true, "display_order": 0, "currency_restrictions": ["PLN"]}]';
 
-COMMENT ON COLUMN public.payment_method_config.payment_method_order IS
+COMMENT ON COLUMN seller_main.payment_method_config.payment_method_order IS
   'Preferred display order of payment methods. Used for paymentMethodOrder in PaymentElement options. Example: ["blik", "p24", "card"]';
 
-COMMENT ON COLUMN public.payment_method_config.currency_overrides IS
+COMMENT ON COLUMN seller_main.payment_method_config.currency_overrides IS
   'Currency-specific payment method ordering overrides for localized optimization. Example: {"PLN": ["blik", "p24", "card"], "EUR": ["sepa_debit", "ideal"]}';
 
-COMMENT ON COLUMN public.payment_method_config.enable_express_checkout IS
+COMMENT ON COLUMN seller_main.payment_method_config.enable_express_checkout IS
   'Master toggle for Express Checkout Element (Link, Apple Pay, Google Pay)';
 
-COMMENT ON COLUMN public.payment_method_config.enable_apple_pay IS
+COMMENT ON COLUMN seller_main.payment_method_config.enable_apple_pay IS
   'Enable Apple Pay in Express Checkout Element';
 
-COMMENT ON COLUMN public.payment_method_config.enable_google_pay IS
+COMMENT ON COLUMN seller_main.payment_method_config.enable_google_pay IS
   'Enable Google Pay in Express Checkout Element';
 
-COMMENT ON COLUMN public.payment_method_config.enable_link IS
+COMMENT ON COLUMN seller_main.payment_method_config.enable_link IS
   'Enable Stripe Link in Express Checkout Element for one-click checkout';
 
-COMMENT ON COLUMN public.payment_method_config.available_payment_methods IS
+COMMENT ON COLUMN seller_main.payment_method_config.available_payment_methods IS
   'Cached list of Stripe Payment Method Configurations from API. Refreshed every 1 hour. Used for admin UI dropdown';
 
-COMMENT ON COLUMN public.payment_method_config.last_modified_by IS
+COMMENT ON COLUMN seller_main.payment_method_config.last_modified_by IS
   'User ID of the admin who last modified this configuration';
 
 -- =============================================================================
@@ -179,41 +185,32 @@ COMMENT ON COLUMN public.payment_method_config.last_modified_by IS
 -- =============================================================================
 
 -- Enable RLS
-ALTER TABLE public.payment_method_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.payment_method_config ENABLE ROW LEVEL SECURITY;
 
 -- Admin users can read configuration
 CREATE POLICY "Admin users can view payment method config"
-  ON public.payment_method_config
+  ON seller_main.payment_method_config
   FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE admin_users.user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- Admin users can update configuration
 CREATE POLICY "Admin users can update payment method config"
-  ON public.payment_method_config
+  ON seller_main.payment_method_config
   FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE admin_users.user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   )
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE admin_users.user_id = auth.uid()
-    )
+    ( select public.is_admin() )
   );
 
 -- Service role can do anything (for API routes)
 CREATE POLICY "Service role full access to payment method config"
-  ON public.payment_method_config
+  ON seller_main.payment_method_config
   FOR ALL
   TO service_role
   USING (true)
@@ -226,7 +223,7 @@ CREATE POLICY "Service role full access to payment method config"
 -- Uncomment when implementing Phase 2:
 --
 -- Add column to products table for per-product payment method override
--- ALTER TABLE public.products
+-- ALTER TABLE seller_main.products
 -- ADD COLUMN IF NOT EXISTS payment_config_override JSONB DEFAULT NULL;
 --
 -- Structure matches payment_method_config but at product level:
@@ -243,7 +240,7 @@ CREATE POLICY "Service role full access to payment method config"
 --   "enable_link": true
 -- }
 --
--- COMMENT ON COLUMN public.products.payment_config_override IS
+-- COMMENT ON COLUMN seller_main.products.payment_config_override IS
 --   'Per-product payment method configuration override. If NULL, uses global config from payment_method_config table. If set with override_enabled=true, takes precedence over global config';
 
 -- =============================================================================
@@ -252,7 +249,7 @@ CREATE POLICY "Service role full access to payment method config"
 
 -- Insert default recommended configuration optimized for Polish market
 -- Order: BLIK -> Przelewy24 -> Card + Express Checkout enabled
-INSERT INTO public.payment_method_config (
+INSERT INTO seller_main.payment_method_config (
   id,
   config_mode,
   stripe_pmc_id,
@@ -291,5 +288,14 @@ INSERT INTO public.payment_method_config (
   enable_google_pay = EXCLUDED.enable_google_pay,
   enable_link = EXCLUDED.enable_link,
   updated_at = NOW();
+
+-- Proxy view for backward compatibility
+CREATE OR REPLACE VIEW public.payment_method_config WITH (security_invoker = on) AS SELECT * FROM seller_main.payment_method_config;
+
+-- Explicit table grants (Security Rule #5)
+-- payment_method_config: admin-only, RLS policies control actual access
+REVOKE ALL ON seller_main.payment_method_config FROM anon, authenticated;
+GRANT SELECT, UPDATE ON seller_main.payment_method_config TO authenticated;
+GRANT ALL ON seller_main.payment_method_config TO service_role;
 
 COMMIT;

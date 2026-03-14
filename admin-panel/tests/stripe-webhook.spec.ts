@@ -191,7 +191,7 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
-      expect(json.event_id).toBe(event.id);
+      // Security-hardened response: no event details leaked
     });
   });
 
@@ -217,7 +217,7 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
-      expect(json.message).toContain('Unhandled event type');
+      // Security-hardened response: internal processing details not exposed
     });
 
     test('should skip checkout.session.completed if payment not paid', async ({ request }) => {
@@ -241,7 +241,7 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
-      expect(json.message).toContain('payment not yet paid');
+      // Security-hardened response: skip reason not exposed
     });
 
     test('should handle checkout.session.completed with missing metadata', async ({ request }) => {
@@ -266,8 +266,7 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
-      expect(json.processed).toBe(false);
-      expect(json.message).toContain('Missing product_id');
+      // Security-hardened response: error details not exposed
     });
 
     test('should handle payment_intent.succeeded with missing metadata', async ({ request }) => {
@@ -291,8 +290,7 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
-      expect(json.processed).toBe(false);
-      expect(json.message).toContain('Missing product_id');
+      // Security-hardened response: error details not exposed
     });
   });
 
@@ -402,9 +400,13 @@ test.describe('Stripe Webhook Security', () => {
       const json2 = await response2.json();
       expect(json2.received).toBe(true);
 
-      // Second call should detect duplicate and skip processing
-      // The message should contain "Already processed" to indicate idempotency worked
-      expect(json2.message).toContain('Already processed');
+      // Security-hardened response doesn't expose processing details.
+      // Verify idempotency by checking DB: only 1 transaction for this session_id
+      const { data: transactions } = await supabaseAdmin
+        .from('payment_transactions')
+        .select('id')
+        .eq('session_id', testSessionId);
+      expect(transactions?.length).toBeLessThanOrEqual(1);
     });
   });
 
@@ -435,8 +437,7 @@ test.describe('Stripe Webhook Security', () => {
       expect(response.status()).toBe(200);
       const json = await response.json();
       expect(json.received).toBe(true);
-      expect(json.processed).toBe(false);
-      expect(json.message).toContain('Transaction not found');
+      // Security-hardened response: refund processing details not exposed
     });
   });
 

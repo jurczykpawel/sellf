@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
+import { withAdminAuth } from '@/lib/actions/admin-auth';
 import {
   fetchStripePaymentMethodConfigs,
   fetchStripePaymentMethodConfig,
@@ -144,29 +145,6 @@ export async function getPaymentMethodConfig(): Promise<PaymentMethodConfig | nu
   }
 }
 
-/**
- * Check if admin user has permission to access payment config
- *
- * @returns Whether user is admin
- */
-async function checkAdminPermission(): Promise<boolean> {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return false;
-  }
-
-  const { data: adminUser } = await supabase
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .single();
-
-  return !!adminUser;
-}
-
 // =============================================================================
 // UPDATE OPERATIONS
 // =============================================================================
@@ -181,17 +159,8 @@ export async function updatePaymentMethodConfig(
   input: UpdatePaymentConfigInput
 ): Promise<PaymentConfigActionResult<PaymentMethodConfig>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    // Check admin permission
-    const isAdmin = await checkAdminPermission();
-    if (!isAdmin) {
-      return {
-        success: false,
-        error: 'Unauthorized. Admin access required.',
-        errorCode: 'UNAUTHORIZED',
-      };
-    }
 
+  return withAdminAuth(async ({ supabase }) => {
     // Validate input
     const validation = UpdatePaymentConfigSchema.safeParse(input);
     if (!validation.success) {
@@ -203,7 +172,6 @@ export async function updatePaymentMethodConfig(
       };
     }
 
-    const supabase = await createClient();
     const validatedInput = validation.data;
 
     // If stripe_preset mode, verify PMC exists via Stripe API
@@ -300,14 +268,7 @@ export async function updatePaymentMethodConfig(
       success: true,
       data: data as PaymentMethodConfig,
     };
-  } catch (error) {
-    console.error('[updatePaymentMethodConfig] Exception:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'EXCEPTION',
-    };
-  }
+  });
 }
 
 // =============================================================================
@@ -411,17 +372,7 @@ export async function getStripePaymentMethodConfigsCached(
 export async function refreshStripePaymentMethodConfigs(): Promise<
   PaymentConfigActionResult<void>
 > {
-  try {
-    // Check admin permission
-    const isAdmin = await checkAdminPermission();
-    if (!isAdmin) {
-      return {
-        success: false,
-        error: 'Unauthorized. Admin access required.',
-        errorCode: 'UNAUTHORIZED',
-      };
-    }
-
+  return withAdminAuth(async () => {
     const result = await getStripePaymentMethodConfigsCached(true);
 
     if (!result.success) {
@@ -435,14 +386,7 @@ export async function refreshStripePaymentMethodConfigs(): Promise<
     return {
       success: true,
     };
-  } catch (error) {
-    console.error('[refreshStripePaymentMethodConfigs] Exception:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'EXCEPTION',
-    };
-  }
+  });
 }
 
 // =============================================================================
@@ -457,25 +401,10 @@ export async function refreshStripePaymentMethodConfigs(): Promise<
  *
  * @returns Promise with success status
  */
-export async function resetToRecommendedConfig(): Promise<{
-  success: boolean;
-  data?: PaymentMethodConfig;
-  error?: string;
-  errorCode?: string;
-}> {
+export async function resetToRecommendedConfig(): Promise<PaymentConfigActionResult<PaymentMethodConfig>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const isAdmin = await checkAdminPermission();
-    if (!isAdmin) {
-      return {
-        success: false,
-        error: 'Unauthorized. Admin access required.',
-        errorCode: 'UNAUTHORIZED',
-      };
-    }
 
-    const supabase = await createClient();
-
+  return withAdminAuth(async ({ supabase }) => {
     const { data, error } = await supabase
       .from('payment_method_config')
       .update({
@@ -503,14 +432,7 @@ export async function resetToRecommendedConfig(): Promise<{
       success: true,
       data: data as PaymentMethodConfig,
     };
-  } catch (error) {
-    console.error('[resetToRecommendedConfig] Exception:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'EXCEPTION',
-    };
-  }
+  });
 }
 
 // =============================================================================

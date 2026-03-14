@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPlatformClient } from '@/lib/supabase/admin';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -109,7 +109,7 @@ async function checkRateLimitDatabase(
   windowMinutes: number,
   identifier: string
 ): Promise<boolean> {
-  const supabase = createAdminClient();
+  const supabase = createPlatformClient();
 
   const { data: rateLimitOk, error } = await supabase.rpc('check_application_rate_limit', {
     identifier_param: identifier,

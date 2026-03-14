@@ -94,19 +94,35 @@ export default function MyProductsPage() {
 
       const supabase = await createClient();
 
-      // Fetch products user has access to
-      const { data: userAccessData, error: userError } = await supabase
+      // Two-step query to avoid FK embedding through proxy views (PGRST200).
+      // Step 1: Get user's access records
+      const { data: accessRecords, error: accessError } = await supabase
         .from('user_product_access')
-        .select(`
-          id,
-          created_at,
-          product:products!inner (
-            id, name, slug, description, icon, image_url, price, currency, is_active, is_featured, created_at
-          )
-        `)
+        .select('id, created_at, product_id')
         .eq('user_id', user.id);
 
-      if (userError) throw userError;
+      if (accessError) throw accessError;
+
+      // Step 2: Fetch product details for all accessed products
+      const productIds = (accessRecords || []).map((r: { product_id: string }) => r.product_id);
+      let productsMap: Record<string, UserAccessData['product']> = {};
+      if (productIds.length > 0) {
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id, name, slug, description, icon, image_url, price, currency, is_active, is_featured, created_at')
+          .in('id', productIds);
+        if (productsError) throw productsError;
+        productsMap = Object.fromEntries((productsData || []).map((p: { id: string }) => [p.id, p as UserAccessData['product']]));
+      }
+
+      // Combine into the expected shape (filter out products not found — e.g., deleted)
+      const userAccessData = (accessRecords || [])
+        .filter((r: { product_id: string }) => productsMap[r.product_id])
+        .map((r: { id: string; created_at: string; product_id: string }) => ({
+          id: r.id,
+          created_at: r.created_at,
+          product: productsMap[r.product_id],
+        }));
       
       const transformedUserProducts: UserProductAccess[] = (userAccessData as unknown as UserAccessData[] || []).map((item) => ({
         id: item.id,

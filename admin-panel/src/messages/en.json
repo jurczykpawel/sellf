@@ -9,6 +9,10 @@
     "daysAccess": "{days} Days Access",
     "lifetimeAccess": "Lifetime Access",
     "saveAmount": "Save {amount}",
+    "addToYourOrder": "Add to your order",
+    "addToOrder": "Add to order",
+    "addedToOrder": "Added",
+    "specialOfferEnds": "Special offer ends in:",
     "couponPlaceholder": "Enter code",
     "applyCoupon": "Apply",
     "verifying": "...",
@@ -538,7 +542,8 @@
     "emailPlaceholder": "your@email.com",
     "passwordPlaceholder": "demo123",
     "orContinueWith": "or sign in with",
-    "signInWith": "Sign in with {provider}"
+    "signInWith": "Sign in with {provider}",
+    "loginFailed": "Login failed. Please try again."
   },
   "products": {
     "title": "Products",
@@ -1062,6 +1067,7 @@
     "verificationExpired": "Security verification expired. Please try again.",
     "captchaVerificationFailed": "Security verification (captcha) failed.",
     "captchaTimeout": "Security verification timed out.",
+    "captchaVerified": "Verified",
     "verifying": "Verifying...",
     "captchaInteractiveWarning": "Please interact with the captcha verification.",
     "refreshAndTryLogin": "Please refresh the page and",
@@ -1870,6 +1876,8 @@
       "createSuccess": "Order bump created successfully",
       "updateSuccess": "Order bump updated successfully",
       "deleteSuccess": "Order bump deleted successfully",
+      "activated": "activated",
+      "deactivated": "deactivated",
       "toggleSuccess": "Order bump {status}",
       "noBumps": "No order bumps found. Create your first one!",
       "stats": {
@@ -1903,7 +1911,11 @@
         "creating": "Creating...",
         "saving": "Saving...",
         "accessDurationPlaceholder": "e.g. 30 days",
-        "defaultTitle": "Yes, add \"{name}\" for just {price} {currency}!"
+        "defaultTitle": "Yes, add \"{name}\" for just {price} {currency}!",
+        "urgencyTimer": "Urgency Timer",
+        "showUrgencyTimer": "Show countdown timer on this bump",
+        "urgencyTimerHelp": "Displays a countdown from page load to create urgency. Purely visual — no backend enforcement.",
+        "urgencyMinutesPlaceholder": "e.g. 30 (minutes)"
       },
       "loadError": "Failed to load order bumps",
       "createError": "Failed to create order bump",
@@ -2794,7 +2806,8 @@
     "confirmApprove": "Approve & Refund",
     "confirmReject": "Reject Request",
     "naLabel": "N/A",
-    "invalidPrice": "Invalid Price"
+    "invalidPrice": "Invalid Price",
+    "processError": "Failed to process refund request"
   },
   "demo": {
     "banner": "This is a demo instance. Data resets every hour.",

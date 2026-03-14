@@ -88,6 +88,12 @@ services:
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      # Captcha for GoTrue (only needed when using Turnstile — ALTCHA is verified app-side)
+      # If using Turnstile, set these so signInWithOtp() verifies captcha tokens:
+      #   GOTRUE_SECURITY_CAPTCHA_ENABLED: "true"
+      #   GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
+      #   GOTRUE_SECURITY_CAPTCHA_SECRET: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
+      # If using ALTCHA (default), leave these commented — ALTCHA is verified by the app, not GoTrue
     depends_on:
       db:
         condition: service_healthy
@@ -225,8 +231,12 @@ services:
       NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
       MAIN_DOMAIN: ${MAIN_DOMAIN}
-      NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY}
-      CLOUDFLARE_TURNSTILE_SECRET_KEY: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
+      # Captcha — use ALTCHA (default, self-hosted) or Turnstile (Cloudflare)
+      # ALTCHA: set ALTCHA_HMAC_KEY (generate with: openssl rand -hex 32)
+      # Turnstile: set both CLOUDFLARE_TURNSTILE_SITE_KEY + SECRET_KEY
+      ALTCHA_HMAC_KEY: ${ALTCHA_HMAC_KEY:-}
+      NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY:-}
+      CLOUDFLARE_TURNSTILE_SECRET_KEY: ${CLOUDFLARE_TURNSTILE_SECRET_KEY:-}
     depends_on:
       - db
       - auth

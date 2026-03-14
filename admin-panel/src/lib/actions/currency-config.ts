@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { encryptCurrencyKey, decryptCurrencyKey } from '@/lib/services/currency-encryption';
 import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
+import { withAdminAuth } from '@/lib/actions/admin-auth';
+import type { ActionResponse } from '@/lib/actions/admin-auth';
 
 export interface CurrencyConfig {
   enabled: boolean;
@@ -20,45 +22,13 @@ export interface SaveCurrencyConfigInput {
   enabled: boolean;
 }
 
-interface ActionResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  errorCode?: string;
-}
-
 /**
  * Saves/updates Currency API configuration in integrations_config
  */
 export async function saveCurrencyConfig(input: SaveCurrencyConfigInput): Promise<ActionResponse<void>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const supabase = await createClient();
 
-    // Verify admin permissions
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Unauthorized - no user session',
-        errorCode: 'UNAUTHORIZED'
-      };
-    }
-
-    const { data: adminCheck } = await supabase
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminCheck) {
-      return {
-        success: false,
-        error: 'Forbidden - admin access required',
-        errorCode: 'FORBIDDEN'
-      };
-    }
-
+  return withAdminAuth(async ({ supabase }) => {
     // Validation: exchangerate-api and fixer require API key
     if ((input.provider === 'exchangerate-api' || input.provider === 'fixer') && !input.apiKey) {
       return {
@@ -128,14 +98,7 @@ export async function saveCurrencyConfig(input: SaveCurrencyConfigInput): Promis
     revalidatePath('/dashboard');
 
     return { success: true };
-  } catch (error) {
-    console.error('Error saving Currency API config:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'UNKNOWN_ERROR'
-    };
-  }
+  });
 }
 
 /**
@@ -275,33 +238,8 @@ export async function getDecryptedCurrencyConfig(): Promise<{ provider: string; 
  */
 export async function deleteCurrencyConfig(): Promise<ActionResponse<void>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const supabase = await createClient();
 
-    // Verify admin permissions
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Unauthorized',
-        errorCode: 'UNAUTHORIZED'
-      };
-    }
-
-    const { data: adminCheck } = await supabase
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminCheck) {
-      return {
-        success: false,
-        error: 'Forbidden',
-        errorCode: 'FORBIDDEN'
-      };
-    }
-
+  return withAdminAuth(async ({ supabase }) => {
     // Clear Currency config from integrations_config
     const { error } = await supabase
       .from('integrations_config')
@@ -328,12 +266,5 @@ export async function deleteCurrencyConfig(): Promise<ActionResponse<void>> {
     revalidatePath('/dashboard');
 
     return { success: true };
-  } catch (error) {
-    console.error('Error deleting Currency config:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'UNKNOWN_ERROR'
-    };
-  }
+  });
 }

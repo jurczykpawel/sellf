@@ -1,7 +1,7 @@
 /**
  * Version Utilities Unit Tests
  *
- * Tests for semver comparison logic used by the update system.
+ * Tests for version comparison logic (CalVer YYYY.M.patch) used by the update system.
  *
  * @see src/lib/version.ts
  */
@@ -73,6 +73,37 @@ describe('isNewerVersion', () => {
     it('should handle large version numbers', () => {
       expect(isNewerVersion('10.20.30', '10.20.31')).toBe(true);
       expect(isNewerVersion('10.20.31', '10.20.30')).toBe(false);
+    });
+  });
+
+  describe('CalVer comparisons (YYYY.M.patch)', () => {
+    it('should detect newer month in same year', () => {
+      expect(isNewerVersion('2026.3.0', '2026.4.0')).toBe(true);
+    });
+
+    it('should detect newer patch in same month', () => {
+      expect(isNewerVersion('2026.3.0', '2026.3.1')).toBe(true);
+    });
+
+    it('should detect newer year', () => {
+      expect(isNewerVersion('2026.3.0', '2027.1.0')).toBe(true);
+    });
+
+    it('should return false for same CalVer version', () => {
+      expect(isNewerVersion('2026.3.0', '2026.3.0')).toBe(false);
+    });
+
+    it('should return false when current is newer CalVer', () => {
+      expect(isNewerVersion('2026.4.0', '2026.3.0')).toBe(false);
+      expect(isNewerVersion('2027.1.0', '2026.12.0')).toBe(false);
+    });
+
+    it('should handle v prefix with CalVer', () => {
+      expect(isNewerVersion('v2026.3.0', 'v2026.3.1')).toBe(true);
+    });
+
+    it('should handle transition from semver to CalVer', () => {
+      expect(isNewerVersion('1.3.1', '2026.3.0')).toBe(true);
     });
   });
 

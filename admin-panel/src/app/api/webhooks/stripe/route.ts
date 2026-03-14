@@ -11,36 +11,36 @@
  * - payment_intent.succeeded: Process successful direct payments
  * - charge.refunded: Revoke access when refund is processed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
+ * - account.updated: Sync Stripe Connect onboarding status (marketplace)
+ * - account.application.deauthorized: Handle seller disconnecting their Stripe account (marketplace)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
+import { handleAccountUpdated, handleAccountDeauthorized } from '@/lib/stripe/connect';
+import { isValidSellerSchema } from '@/lib/marketplace/tenant';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
 
-// Supabase service client for database operations
-const getServiceClient = () => {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase configuration');
+// Service client factory — uses createAdminClient (seller_main) by default,
+// or createSellerAdminClient for marketplace seller schemas.
+const getServiceClient = (schema?: string) => {
+  if (schema && schema !== 'seller_main') {
+    return createSellerAdminClient(schema);
   }
-
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  return createAdminClient();
 };
 
 /**
- * Process successful payment from checkout session
+ * Process successful payment from checkout session.
+ * For marketplace payments (metadata.is_marketplace='true'), uses the seller's schema.
  */
 async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
@@ -49,6 +49,17 @@ async function handleCheckoutSessionCompleted(
   const sessionId = session.id;
   const productId = session.metadata?.product_id;
   const customerEmail = session.customer_details?.email || session.customer_email;
+
+  // Marketplace: route to seller's schema if present.
+  // SECURITY: validate schema name before using it — prevents arbitrary schema access.
+  const sellerSchema = session.metadata?.seller_schema;
+  if (sellerSchema && session.metadata?.is_marketplace === 'true') {
+    if (!isValidSellerSchema(sellerSchema)) {
+      console.error(`[Stripe Webhook] Invalid seller_schema in session metadata: ${sellerSchema}`);
+      return { processed: false, message: `Invalid seller_schema: ${sellerSchema}` };
+    }
+    supabase = getServiceClient(sellerSchema);
+  }
 
   if (!productId || !customerEmail) {
     return { processed: false, message: 'Missing product_id or customer_email in session' };
@@ -66,6 +77,7 @@ async function handleCheckoutSessionCompleted(
   }
 
   // Extract metadata
+  const bumpProductIdsStr = session.metadata?.bump_product_ids || '';
   const bumpProductId = session.metadata?.bump_product_id || null;
   const hasBump = session.metadata?.has_bump === 'true';
   const couponId = session.metadata?.coupon_id || null;
@@ -73,12 +85,49 @@ async function handleCheckoutSessionCompleted(
   const discountAmount = parseFloat(session.metadata?.discount_amount || '0') || 0;
   const userId = session.metadata?.user_id || null;
 
+  // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
+  let bumpProductIds: string[] = bumpProductIdsStr
+    ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
+    : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+  // Detect metadata truncation: bump_count tells us how many bumps were selected
+  const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
+  if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+    console.warn(
+      '[stripe-webhook] BUMP_METADATA_TRUNCATED | session=%s | expected=%d | got=%d — fetching line items from Stripe',
+      sessionId, expectedBumpCount, bumpProductIds.length
+    );
+    try {
+      const stripe = await getStripeServer();
+      const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+        limit: 100,
+        expand: ['data.price.product'],
+      });
+      const recoveredIds: string[] = [];
+      for (const li of lineItems.data) {
+        const product = li.price?.product;
+        if (typeof product === 'object' && product && 'metadata' in product) {
+          const meta = (product as Stripe.Product).metadata;
+          if (meta?.is_bump === 'true' && meta?.product_id) {
+            recoveredIds.push(meta.product_id);
+          }
+        }
+      }
+      if (recoveredIds.length >= expectedBumpCount) {
+        bumpProductIds = recoveredIds;
+        console.info('[stripe-webhook] Recovered %d bump IDs from Stripe line items', recoveredIds.length);
+      }
+    } catch (lineItemErr) {
+      console.error('[stripe-webhook] Failed to recover bump IDs from Stripe line items:', lineItemErr);
+    }
+  }
+
   // Get payment intent ID
   const stripePaymentIntentId = typeof session.payment_intent === 'object'
     ? session.payment_intent?.id
     : session.payment_intent;
 
-  // Process payment using database function
+  // Process payment using database function (multi-bump aware)
   const { data: result, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
     session_id_param: sessionId,
     product_id_param: productId,
@@ -87,7 +136,7 @@ async function handleCheckoutSessionCompleted(
     currency_param: session.currency || 'usd',
     stripe_payment_intent_id: stripePaymentIntentId || null,
     user_id_param: userId && userId !== '' ? userId : null,
-    bump_product_id_param: hasBump && bumpProductId ? bumpProductId : null,
+    bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : null,
     coupon_id_param: hasCoupon && couponId ? couponId : null,
   });
 
@@ -111,36 +160,36 @@ async function handleCheckoutSessionCompleted(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
-    // Fetch detailed product info for webhook
-    const { data: productDetails } = await supabase
-      .from('products')
-      .select('id, name, slug, price, currency, icon')
-      .eq('id', productId)
-      .single();
-
-    // Fetch bump product info if exists
-    let bumpProductDetails = null;
-    if (hasBump && bumpProductId) {
-       const { data: bump } = await supabase
-        .from('products')
-        .select('id, name, slug, price, currency, icon')
-        .eq('id', bumpProductId)
-        .single();
-       bumpProductDetails = bump;
-    }
+    const webhookData = await buildPurchaseWebhookPayload({
+      supabaseClient: supabase,
+      customerEmail,
+      userId,
+      productId,
+      bumpProductIds,
+      metadata: session.metadata as Record<string, string | undefined> | null,
+      amount: session.amount_total,
+      currency: session.currency,
+      sessionId,
+      paymentIntentId: stripePaymentIntentId,
+      couponId: hasCoupon && couponId ? couponId : null,
+      isGuest: result.is_guest_purchase,
+      source: 'stripe_webhook',
+    });
 
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+    const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
+    const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
     trackServerSideConversion({
       eventName: 'Purchase',
       eventId: generatePurchaseEventId(sessionId),
-      eventSourceUrl: productDetails?.slug ? `${baseUrl}/p/${productDetails.slug}` : baseUrl,
+      eventSourceUrl: productSlug ? `${baseUrl}/p/${productSlug}` : baseUrl,
       value: (session.amount_total || 0) / 100,
       currency: (session.currency || 'usd').toUpperCase(),
       items: [{
         item_id: productId,
-        item_name: productDetails?.name || 'Unknown Product',
+        item_name: productName,
         price: (session.amount_total || 0) / 100,
         quantity: 1,
       }],
@@ -148,46 +197,16 @@ async function handleCheckoutSessionCompleted(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', {
-      customer: {
-        email: customerEmail,
-        firstName: session.metadata?.first_name || null,
-        lastName: session.metadata?.last_name || null,
-        userId: userId
-      },
-      product: productDetails ? {
-         id: productDetails.id,
-         name: productDetails.name,
-         slug: productDetails.slug,
-         price: productDetails.price,
-         currency: productDetails.currency,
-         icon: productDetails.icon
-      } : { id: productId },
-      bumpProduct: bumpProductDetails ? {
-         id: bumpProductDetails.id,
-         name: bumpProductDetails.name,
-         slug: bumpProductDetails.slug,
-         price: bumpProductDetails.price,
-         currency: bumpProductDetails.currency,
-         icon: bumpProductDetails.icon
-      } : null,
-      order: {
-        amount: session.amount_total,
-        currency: session.currency,
-        sessionId: sessionId,
-        paymentIntentId: stripePaymentIntentId,
-        couponId: hasCoupon && couponId ? couponId : null,
-        isGuest: result.is_guest_purchase
-      },
-      source: 'stripe_webhook'
-    }).catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
+    WebhookService.trigger('purchase.completed', webhookData)
+      .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
   return { processed: true, message: `Payment processed: ${result.scenario}` };
 }
 
 /**
- * Process successful payment from payment intent (direct payment flow)
+ * Process successful payment from payment intent (direct payment flow).
+ * For marketplace payments (metadata.is_marketplace='true'), uses the seller's schema.
  */
 async function handlePaymentIntentSucceeded(
   paymentIntent: Stripe.PaymentIntent,
@@ -195,6 +214,17 @@ async function handlePaymentIntentSucceeded(
 ): Promise<{ processed: boolean; message: string }> {
   const productId = paymentIntent.metadata?.product_id;
   const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.email;
+
+  // Marketplace: route to seller's schema if present.
+  // SECURITY: validate schema name before using it — prevents arbitrary schema access.
+  const sellerSchema = paymentIntent.metadata?.seller_schema;
+  if (sellerSchema && paymentIntent.metadata?.is_marketplace === 'true') {
+    if (!isValidSellerSchema(sellerSchema)) {
+      console.error(`[Stripe Webhook] Invalid seller_schema in payment intent metadata: ${sellerSchema}`);
+      return { processed: false, message: `Invalid seller_schema: ${sellerSchema}` };
+    }
+    supabase = getServiceClient(sellerSchema);
+  }
 
   if (!productId || !customerEmail) {
     return { processed: false, message: 'Missing product_id or email in payment intent' };
@@ -213,13 +243,41 @@ async function handlePaymentIntentSucceeded(
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
-  // Extract metadata
+  // Extract metadata (multi-bump aware)
+  const bumpProductIdsStr = paymentIntent.metadata?.bump_product_ids || '';
   const bumpProductId = paymentIntent.metadata?.bump_product_id || null;
   const hasBump = paymentIntent.metadata?.has_bump === 'true';
   const couponId = paymentIntent.metadata?.coupon_id || null;
   const userId = paymentIntent.metadata?.user_id || null;
 
-  // Process payment using database function
+  // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
+  let bumpProductIds: string[] = bumpProductIdsStr
+    ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
+    : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+  // Detect metadata truncation: bump_count tells us how many bumps were selected
+  const expectedBumpCount = parseInt(paymentIntent.metadata?.bump_count || '0', 10);
+  if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+    console.warn(
+      '[stripe-webhook] BUMP_METADATA_TRUNCATED | pi=%s | expected=%d | got=%d — checking pending transaction',
+      paymentIntent.id, expectedBumpCount, bumpProductIds.length
+    );
+    // Recover full bump list from pending transaction metadata (stored without Stripe's 500-char limit)
+    if (existingTransaction) {
+      const { data: pendingTx } = await supabase
+        .from('payment_transactions')
+        .select('metadata')
+        .eq('id', existingTransaction.id)
+        .single();
+      const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
+      if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
+        bumpProductIds = fullBumpIds as string[];
+        console.info('[stripe-webhook] Recovered %d bump IDs from pending transaction metadata', fullBumpIds.length);
+      }
+    }
+  }
+
+  // Process payment using database function (multi-bump aware)
   const { data: result, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
     session_id_param: paymentIntent.id,
     product_id_param: productId,
@@ -228,7 +286,7 @@ async function handlePaymentIntentSucceeded(
     currency_param: paymentIntent.currency,
     stripe_payment_intent_id: paymentIntent.id,
     user_id_param: userId && userId !== '' ? userId : null,
-    bump_product_id_param: hasBump && bumpProductId ? bumpProductId : null,
+    bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : null,
     coupon_id_param: couponId || null,
   });
 
@@ -252,35 +310,34 @@ async function handlePaymentIntentSucceeded(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
-    // Fetch detailed product info for webhook
-    const { data: productDetails } = await supabase
-      .from('products')
-      .select('id, name, slug, price, currency, icon')
-      .eq('id', productId)
-      .single();
-
-    // Fetch bump product info if exists
-    let bumpProductDetails = null;
-    if (hasBump && bumpProductId) {
-       const { data: bump } = await supabase
-        .from('products')
-        .select('id, name, slug, price, currency, icon')
-        .eq('id', bumpProductId)
-        .single();
-       bumpProductDetails = bump;
-    }
+    const webhookData = await buildPurchaseWebhookPayload({
+      supabaseClient: supabase,
+      customerEmail,
+      userId,
+      productId,
+      bumpProductIds,
+      metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      paymentIntentId: paymentIntent.id,
+      couponId: couponId || null,
+      isGuest: result.is_guest_purchase,
+      source: 'stripe_webhook',
+    });
 
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+    const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
+    const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
     trackServerSideConversion({
       eventName: 'Purchase',
       eventId: generatePurchaseEventId(paymentIntent.id),
-      eventSourceUrl: productDetails?.slug ? `${baseUrl}/p/${productDetails.slug}` : baseUrl,
+      eventSourceUrl: productSlug ? `${baseUrl}/p/${productSlug}` : baseUrl,
       value: (paymentIntent.amount || 0) / 100,
       currency: (paymentIntent.currency || 'usd').toUpperCase(),
       items: [{
         item_id: productId,
-        item_name: productDetails?.name || 'Unknown Product',
+        item_name: productName,
         price: (paymentIntent.amount || 0) / 100,
         quantity: 1,
       }],
@@ -288,38 +345,8 @@ async function handlePaymentIntentSucceeded(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', {
-      customer: {
-        email: customerEmail,
-        firstName: paymentIntent.metadata?.first_name || null,
-        lastName: paymentIntent.metadata?.last_name || null,
-        userId: userId
-      },
-      product: productDetails ? {
-         id: productDetails.id,
-         name: productDetails.name,
-         slug: productDetails.slug,
-         price: productDetails.price,
-         currency: productDetails.currency,
-         icon: productDetails.icon
-      } : { id: productId },
-      bumpProduct: bumpProductDetails ? {
-         id: bumpProductDetails.id,
-         name: bumpProductDetails.name,
-         slug: bumpProductDetails.slug,
-         price: bumpProductDetails.price,
-         currency: bumpProductDetails.currency,
-         icon: bumpProductDetails.icon
-      } : null,
-      order: {
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency,
-        paymentIntentId: paymentIntent.id,
-        couponId: couponId || null,
-        isGuest: result.is_guest_purchase
-      },
-      source: 'stripe_webhook'
-    }).catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
+    WebhookService.trigger('purchase.completed', webhookData)
+      .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
   return { processed: true, message: `Payment processed: ${result.scenario}` };
@@ -340,10 +367,10 @@ async function handleChargeRefunded(
     return { processed: false, message: 'No payment_intent in charge' };
   }
 
-  // Find transaction by payment intent ID
+  // Find transaction by payment intent ID (include session_id for guest cleanup)
   const { data: transaction, error: txError } = await supabase
     .from('payment_transactions')
-    .select('id, user_id, product_id, status')
+    .select('id, user_id, product_id, status, session_id')
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle();
 
@@ -351,7 +378,7 @@ async function handleChargeRefunded(
     // Also try finding by session_id (for payment intent flow)
     const { data: txBySession } = await supabase
       .from('payment_transactions')
-      .select('id, user_id, product_id, status')
+      .select('id, user_id, product_id, status, session_id')
       .eq('session_id', paymentIntentId)
       .maybeSingle();
 
@@ -359,7 +386,6 @@ async function handleChargeRefunded(
       return { processed: false, message: 'Transaction not found for refund' };
     }
 
-    // Use the transaction found by session_id
     return await processRefundForTransaction(txBySession, charge, supabase);
   }
 
@@ -367,7 +393,7 @@ async function handleChargeRefunded(
 }
 
 async function processRefundForTransaction(
-  transaction: { id: string; user_id: string | null; product_id: string; status: string },
+  transaction: { id: string; user_id: string | null; product_id: string; status: string; session_id: string | null },
   charge: Stripe.Charge,
   supabase: ReturnType<typeof getServiceClient>
 ): Promise<{ processed: boolean; message: string }> {
@@ -401,41 +427,20 @@ async function processRefundForTransaction(
     return { processed: true, message: `Partial refund recorded (${charge.amount_refunded}/${charge.amount} cents)` };
   }
 
-  // SECURITY: Revoke product access on full refund
-  if (transaction.user_id && transaction.product_id) {
-    const { error: revokeError } = await supabase
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', transaction.user_id)
-      .eq('product_id', transaction.product_id);
+  // SECURITY: Revoke all product access (main + bumps, user + guest)
+  // session_id already fetched in initial query — no re-fetch needed
+  const revocation = await revokeTransactionAccess(supabase, {
+    transactionId: transaction.id,
+    userId: transaction.user_id,
+    productId: transaction.product_id,
+    sessionId: transaction.session_id,
+  });
 
-    if (revokeError) {
-      console.error('[Stripe Webhook] Failed to revoke access after refund:', revokeError);
-    }
+  if (revocation.warnings.length > 0) {
+    console.error('[Stripe Webhook] Revocation warnings after refund:', revocation.warnings);
   }
 
-  // Also clean up guest purchases (session-based access)
-  if (transaction.id) {
-    const { data: txFull } = await supabase
-      .from('payment_transactions')
-      .select('session_id, product_id')
-      .eq('id', transaction.id)
-      .single();
-
-    if (txFull?.session_id && txFull?.product_id) {
-      const { error: guestRevokeError } = await supabase
-        .from('guest_purchases')
-        .delete()
-        .eq('session_id', txFull.session_id)
-        .eq('product_id', txFull.product_id);
-
-      if (guestRevokeError) {
-        console.error('[Stripe Webhook] Failed to revoke guest purchase after refund:', guestRevokeError);
-      }
-    }
-  }
-
-  return { processed: true, message: 'Full refund processed and access revoked' };
+  return { processed: true, message: 'Full refund processed and access revoked (main + bumps)' };
 }
 
 /**
@@ -455,7 +460,18 @@ async function handleChargeDisputeCreated(
 
   // Get charge details to find payment intent
   const stripe = await getStripeServer();
-  const charge = await stripe.charges.retrieve(chargeId);
+  if (!stripe) {
+    return { processed: false, message: 'Stripe not configured' };
+  }
+
+  let charge: Stripe.Charge;
+  try {
+    charge = await stripe.charges.retrieve(chargeId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[Stripe Webhook] Failed to retrieve charge ${chargeId}:`, msg);
+    return { processed: false, message: `Failed to retrieve charge: ${msg}` };
+  }
 
   const paymentIntentId = typeof charge.payment_intent === 'string'
     ? charge.payment_intent
@@ -465,10 +481,10 @@ async function handleChargeDisputeCreated(
     return { processed: false, message: 'No payment_intent in disputed charge' };
   }
 
-  // Find transaction
+  // Find transaction (include session_id for guest cleanup)
   const { data: transaction } = await supabase
     .from('payment_transactions')
-    .select('id, user_id, product_id, status')
+    .select('id, user_id, product_id, status, session_id')
     .or(`stripe_payment_intent_id.eq.${paymentIntentId},session_id.eq.${paymentIntentId}`)
     .maybeSingle();
 
@@ -495,34 +511,25 @@ async function handleChargeDisputeCreated(
     console.error('[Stripe Webhook] Failed to update dispute status:', updateError);
   }
 
-  // SECURITY: Immediately revoke product access on dispute
-  if (transaction.user_id && transaction.product_id) {
-    const { error: revokeError } = await supabase
-      .from('user_product_access')
-      .delete()
-      .eq('user_id', transaction.user_id)
-      .eq('product_id', transaction.product_id);
+  // SECURITY: Immediately revoke all product access (main + bumps, user + guest)
+  const revocation = await revokeTransactionAccess(supabase, {
+    transactionId: transaction.id,
+    userId: transaction.user_id,
+    productId: transaction.product_id,
+    sessionId: transaction.session_id,
+  });
 
-    if (revokeError) {
-      console.error('[Stripe Webhook] Failed to revoke access after dispute:', revokeError);
-    }
+  if (revocation.warnings.length > 0) {
+    console.error('[Stripe Webhook] Revocation warnings after dispute:', revocation.warnings);
   }
 
-  return { processed: true, message: 'Dispute recorded and access revoked' };
+  return { processed: true, message: 'Dispute recorded and access revoked (main + bumps)' };
 }
 
 /**
  * Main webhook handler
  */
 export async function POST(request: NextRequest) {
-  // Rate limit to prevent webhook endpoint flooding
-  const { maxRequests, windowMinutes, actionType } = RATE_LIMITS.STRIPE_WEBHOOK;
-  const allowed = await checkRateLimit(actionType, maxRequests, windowMinutes);
-  if (!allowed) {
-    // 429 tells Stripe to retry with exponential backoff
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  }
-
   let event: Stripe.Event;
 
   // SECURITY: Get raw body for signature verification
@@ -541,7 +548,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // SECURITY: Verify webhook signature
+  // SECURITY: Verify webhook signature BEFORE rate limiting.
+  // Rate limiting after signature verification ensures only legitimate Stripe requests
+  // consume rate limit quota — unauthenticated flood attempts are rejected first (400),
+  // preventing DoS that would block real Stripe webhooks from being processed.
   try {
     event = await verifyWebhookSignature(body, signature);
   } catch (err) {
@@ -551,6 +561,14 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid signature' },
       { status: 400 }
     );
+  }
+
+  // Rate limit AFTER signature verification — only legitimate Stripe events count.
+  const { maxRequests, windowMinutes, actionType } = RATE_LIMITS.STRIPE_WEBHOOK;
+  const allowed = await checkRateLimit(actionType, maxRequests, windowMinutes);
+  if (!allowed) {
+    // 429 tells Stripe to retry with exponential backoff
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 
   // Initialize Supabase client
@@ -570,6 +588,12 @@ export async function POST(request: NextRequest) {
 
   // Handle events
   let result: { processed: boolean; message: string };
+
+  // Events where failure to process means we MUST retry (access revocation is critical)
+  const RETRIABLE_EVENTS = new Set([
+    'charge.refunded',
+    'charge.dispute.created',
+  ]);
 
   try {
     switch (event.type) {
@@ -609,6 +633,25 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // ===== STRIPE CONNECT EVENTS =====
+
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account;
+        result = await handleAccountUpdated(account);
+        break;
+      }
+
+      case 'account.application.deauthorized': {
+        // event.account contains the connected account ID that deauthorized
+        const connectedAccountId = event.account;
+        if (connectedAccountId) {
+          result = await handleAccountDeauthorized(connectedAccountId);
+        } else {
+          result = { processed: true, message: 'No account ID in deauthorization event' };
+        }
+        break;
+      }
+
       default:
         // Acknowledge unhandled events without error
         result = { processed: true, message: `Unhandled event type: ${event.type}` };
@@ -617,28 +660,22 @@ export async function POST(request: NextRequest) {
     console.log(`[Stripe Webhook] ${event.type}: ${result.message}`);
 
     // Always return 200 for valid webhooks to prevent retries
-    return NextResponse.json({
-      received: true,
-      event_id: event.id,
-      event_type: event.type,
-      processed: result.processed,
-      message: result.message,
-    });
+    // SECURITY: Minimal response — don't leak event details or internal processing info
+    return NextResponse.json({ received: true });
 
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[Stripe Webhook] Error processing ${event.type}:`, message);
 
-    // Return 200 anyway to prevent infinite retries
-    // Stripe will retry on 5xx errors, but if we can't process now,
-    // retrying likely won't help
-    return NextResponse.json({
-      received: true,
-      event_id: event.id,
-      event_type: event.type,
-      processed: false,
-      error: 'Internal processing error',
-    });
+    // SECURITY: For refund/dispute events, return 500 so Stripe retries.
+    // A transient DB outage during revocation could cause permanent access retention.
+    if (RETRIABLE_EVENTS.has(event.type)) {
+      return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+    }
+
+    // For payment events, return 200 to prevent infinite retries.
+    // Payment processing failures are logged and can be reconciled manually.
+    return NextResponse.json({ received: true });
   }
 }
 

@@ -14,10 +14,11 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import Stripe from 'stripe';
 
 interface RouteParams {
@@ -178,7 +179,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const stripeRefund = await stripe.refunds.create(refundData);
 
     // Determine new status - partial or full refund
-    const totalRefunded = alreadyRefunded + stripeRefund.amount!;
+    const totalRefunded = alreadyRefunded + (stripeRefund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= payment.amount;
 
     // Update transaction in database with optimistic lock to prevent concurrent refunds
@@ -206,36 +207,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Revoke access on full refund — do this regardless of optimistic lock result
-    // because the Stripe refund already succeeded
+    // Revoke all product access on full refund (main + bumps, user + guest)
+    // Do this regardless of optimistic lock result because the Stripe refund already succeeded
     let accessRevocationFailed = false;
 
     if (isFullRefund) {
-      if (payment.user_id && payment.product_id) {
-        const { error: revokeError } = await adminClient
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', payment.user_id)
-          .eq('product_id', payment.product_id);
+      const revocation = await revokeTransactionAccess(adminClient, {
+        transactionId: id,
+        userId: payment.user_id,
+        productId: payment.product_id,
+        sessionId: payment.session_id,
+      });
 
-        if (revokeError) {
-          console.error('[refund] Failed to revoke product access:', revokeError);
-          accessRevocationFailed = true;
-        }
-      }
-
-      // Revoke guest purchases after full refund
-      if (payment.session_id && payment.product_id) {
-        const { error: guestRevokeError } = await adminClient
-          .from('guest_purchases')
-          .delete()
-          .eq('session_id', payment.session_id)
-          .eq('product_id', payment.product_id);
-
-        if (guestRevokeError) {
-          console.error('[refund] Failed to revoke guest purchase:', guestRevokeError);
-          accessRevocationFailed = true;
-        }
+      if (!revocation.success) {
+        accessRevocationFailed = true;
+        console.error('[refund] Revocation warnings:', revocation.warnings);
       }
     }
 
@@ -248,8 +234,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Log the refund action
-    await adminClient.from('admin_actions').insert({
+    // Log the refund action (admin_actions is in public schema)
+    const platformClient = createPlatformClient();
+    await platformClient.from('admin_actions').insert({
       admin_id: authResult.admin.userId,
       action: 'refund_processed',
       target_type: 'payment_transaction',

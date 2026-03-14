@@ -7,6 +7,7 @@ interface AppConfig {
   supabaseAnonKey: string
   stripePublishableKey: string
   cloudflareSiteKey: string
+  captchaProvider: 'turnstile' | 'altcha' | 'none'
   siteUrl: string
   demoMode: boolean
   oauthProviders: string[]
@@ -49,6 +50,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const controller = new AbortController()
+
     // Check cache first on client side
     const cached = getCachedConfig()
     if (cached) {
@@ -57,7 +60,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Always fetch fresh config
-    fetch('/api/runtime-config')
+    fetch('/api/runtime-config', { signal: controller.signal })
       .then(res => {
         if (!res.ok) {
           throw new Error(`Failed to load config: ${res.status}`)
@@ -65,17 +68,21 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         return res.json()
       })
       .then(data => {
+        if (controller.signal.aborted) return
         setConfig(data)
         setCachedConfig(data)
         setLoading(false)
       })
       .catch(err => {
+        if (controller.signal.aborted) return
         // Only show error if we don't have cached config
         if (!cached) {
           setError(err.message)
         }
         setLoading(false)
       })
+
+    return () => controller.abort()
   }, [])
 
   if (loading) {

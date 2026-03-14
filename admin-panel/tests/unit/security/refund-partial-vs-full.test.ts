@@ -7,22 +7,9 @@ import { describe, it, expect } from 'vitest';
  * SECURITY TEST: Partial vs Full Refund — Access Revocation Logic
  * ============================================================================
  *
- * VULNERABILITY: All refund endpoints blindly revoked access on ANY refund
- * (V-CRITICAL-07), including partial refunds. This meant a $1 partial refund
- * on a $100 product would revoke the customer's access entirely.
- *
- * Additionally, the webhook handler always set status='refunded' regardless
- * of partial/full, and the v1 API used 'partially_refunded' status which
- * violates the DB constraint CHECK (status IN ('completed','refunded','disputed')).
- *
- * FIX:
- * - All endpoints now check isFullRefund before revoking access
- * - Partial refunds keep status='completed' with refunded_amount tracking
- * - Only full refunds set status='refunded' and revoke access
- * - Server Action fixed: removed erroneous amount * 100 (DB stores cents)
- *
- * SOURCE_TEXT_VERIFY: These tests read production source to verify the
- * partial-vs-full refund logic is present in all refund code paths.
+ * Verifies that partial refunds preserve product access while full refunds
+ * correctly revoke it. Tests all refund code paths (webhook, server action,
+ * API route) via static analysis of production source.
  * ============================================================================
  */
 
@@ -55,12 +42,9 @@ describe('Partial vs Full Refund Security', () => {
       expect(webhookSource).toMatch(/if \(!isFullRefund\)\s*\{[\s\S]*?return/);
     });
 
-    it('still revokes user_product_access on full refund', () => {
-      expect(webhookSource).toMatch(/from\(\s*['"]user_product_access['"]\s*\)[\s\S]*?\.delete\(\)/);
-    });
-
-    it('still revokes guest_purchases on full refund', () => {
-      expect(webhookSource).toMatch(/from\(\s*['"]guest_purchases['"]\s*\)[\s\S]*?\.delete\(\)/);
+    it('delegates access revocation to shared revokeTransactionAccess()', () => {
+      expect(webhookSource).toContain('revokeTransactionAccess');
+      expect(webhookSource).toContain("from '@/lib/services/access-revocation'");
     });
   });
 
@@ -80,8 +64,9 @@ describe('Partial vs Full Refund Security', () => {
       expect(serverActionSource).toContain("isFullRefund ? 'refunded' : 'completed'");
     });
 
-    it('only revokes access on full refund', () => {
-      expect(serverActionSource).toMatch(/if \(isFullRefund\)\s*\{[\s\S]*?user_product_access/);
+    it('only revokes access on full refund via shared function', () => {
+      expect(serverActionSource).toContain('isFullRefund');
+      expect(serverActionSource).toContain('revokeTransactionAccess');
     });
   });
 

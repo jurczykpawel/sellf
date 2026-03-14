@@ -12,7 +12,7 @@ interface CreateEmbeddedCheckoutOptions {
   email?: string;
 }
 
-export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions): Promise<string> {
+export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions): Promise<{ clientSecret?: string; error?: string }> {
   const origin = (await headers()).get('origin');
   const supabase = await createClient();
   
@@ -21,14 +21,14 @@ export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions):
 
     // Input validation
     if (!productId) {
-      throw new Error('Product ID is required');
+      return { error: 'Product ID is required' };
     }
 
     // Email validation if provided - enhanced with disposable domain checking
     if (email) {
       const emailValidation = await ProductValidationService.validateEmail(email);
       if (!emailValidation) {
-        throw new Error('Invalid or disposable email address not allowed');
+        return { error: 'Invalid or disposable email address not allowed' };
       }
     }
 
@@ -48,7 +48,7 @@ export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions):
     );
 
     if (!isAllowed) {
-      throw new Error('Too many checkout attempts. Please try again later.');
+      return { error: 'Too many checkout attempts. Please try again later.' };
     }
 
     // Validate product and check user access
@@ -103,13 +103,14 @@ export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions):
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
     if (!session.client_secret) {
-      throw new Error('Failed to create checkout session');
+      return { error: 'Failed to create checkout session' };
     }
 
-    return session.client_secret;
+    return { clientSecret: session.client_secret };
     
   } catch (error) {
-    throw error instanceof Error ? error : new Error('Failed to create checkout session');
+    console.error('[fetchClientSecret] Error:', error);
+    return { error: 'Failed to create checkout session' };
   }
 }
 

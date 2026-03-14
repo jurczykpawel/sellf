@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimitOk = await checkRateLimit('profile_get', 30, 1);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     const supabase = await createClient();
 
     // Get authenticated user

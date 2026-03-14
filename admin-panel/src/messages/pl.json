@@ -9,6 +9,10 @@
     "daysAccess": "Dostęp na {days} dni",
     "lifetimeAccess": "Dostęp Dożywotni",
     "saveAmount": "Oszczędzasz {amount}",
+    "addToYourOrder": "Dodaj do zamówienia",
+    "addToOrder": "Dodaj",
+    "addedToOrder": "Dodano",
+    "specialOfferEnds": "Oferta specjalna konczy sie za:",
     "couponPlaceholder": "Wpisz kod",
     "applyCoupon": "Zastosuj",
     "verifying": "...",
@@ -553,7 +557,8 @@
     "emailPlaceholder": "twoj@email.com",
     "passwordPlaceholder": "demo123",
     "orContinueWith": "lub zaloguj przez konto",
-    "signInWith": "Zaloguj przez {provider}"
+    "signInWith": "Zaloguj przez {provider}",
+    "loginFailed": "Logowanie nie powiodło się. Spróbuj ponownie."
   },
   "products": {
     "title": "Produkty",
@@ -1077,6 +1082,7 @@
     "verificationExpired": "Weryfikacja bezpieczeństwa wygasła. Spróbuj ponownie.",
     "captchaVerificationFailed": "Weryfikacja bezpieczeństwa (captcha) nie powiodła się.",
     "captchaTimeout": "Weryfikacja bezpieczeństwa przekroczyła limit czasu.",
+    "captchaVerified": "Zweryfikowano",
     "verifying": "Weryfikacja...",
     "captchaInteractiveWarning": "Proszę zweryfikować zabezpieczenie captcha.",
     "refreshAndTryLogin": "Proszę odświeżyć stronę i",
@@ -1885,6 +1891,8 @@
       "createSuccess": "Order bump utworzony pomyślnie",
       "updateSuccess": "Order bump zaktualizowany pomyślnie",
       "deleteSuccess": "Order bump usunięty pomyślnie",
+      "activated": "aktywowany",
+      "deactivated": "dezaktywowany",
       "toggleSuccess": "Order bump {status}",
       "noBumps": "Brak order bumps. Utwórz pierwszy!",
       "stats": {
@@ -1918,7 +1926,11 @@
         "creating": "Tworzenie...",
         "saving": "Zapisywanie...",
         "accessDurationPlaceholder": "np. 30 dni",
-        "defaultTitle": "Tak, dodaj \"{name}\" za jedyne {price} {currency}!"
+        "defaultTitle": "Tak, dodaj \"{name}\" za jedyne {price} {currency}!",
+        "urgencyTimer": "Timer Pilnosci",
+        "showUrgencyTimer": "Pokaz odliczanie na tym bumpie",
+        "urgencyTimerHelp": "Wyswietla odliczanie od momentu wejscia na strone. Element wizualny — bez wymuszania po stronie serwera.",
+        "urgencyMinutesPlaceholder": "np. 30 (minuty)"
       },
       "loadError": "Nie udało się załadować order bumpów",
       "createError": "Nie udało się utworzyć order bumpa",
@@ -2809,7 +2821,8 @@
     "confirmApprove": "Zatwierdź i zwróć",
     "confirmReject": "Odrzuć prośbę",
     "naLabel": "N/D",
-    "invalidPrice": "Nieprawidłowa cena"
+    "invalidPrice": "Nieprawidłowa cena",
+    "processError": "Nie udało się przetworzyć prośby o zwrot"
   },
   "demo": {
     "banner": "To jest instancja demo. Dane resetują się co godzinę.",

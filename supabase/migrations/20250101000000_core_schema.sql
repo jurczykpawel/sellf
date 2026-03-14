@@ -11,8 +11,13 @@ BEGIN;
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create products table 
-CREATE TABLE IF NOT EXISTS products (
+-- Create seller_main schema for shop/seller data (marketplace: schema-per-tenant)
+-- seller_main is the owner's (platform operator's) seller schema
+-- New sellers get a copy of this schema during provisioning
+CREATE SCHEMA IF NOT EXISTS seller_main;
+
+-- Create products table (seller schema — shop data)
+CREATE TABLE IF NOT EXISTS seller_main.products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL CHECK (length(name) <= 255), -- Product name limited to 255 characters
   slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-zA-Z0-9_-]+$' AND length(slug) BETWEEN 1 AND 100), -- URL-safe slug: alphanumeric, hyphens, underscores only
@@ -52,7 +57,6 @@ CREATE TABLE IF NOT EXISTS products (
   -- Content delivery fields (clean implementation)
   content_delivery_type TEXT DEFAULT 'content' NOT NULL CHECK (content_delivery_type IN ('redirect', 'content')),
   content_config JSONB DEFAULT '{}' NOT NULL, -- Flexible content configuration
-  tenant_id TEXT CHECK (tenant_id IS NULL OR (tenant_id ~ '^[a-zA-Z0-9_-]+$' AND length(tenant_id) BETWEEN 1 AND 50)), -- Multi-tenant ID: alphanumeric, hyphens, underscores
 
   -- Funnel / OTO settings
   success_redirect_url TEXT, -- URL to redirect after successful purchase/signup
@@ -78,31 +82,29 @@ CREATE TABLE IF NOT EXISTS products (
   CONSTRAINT check_availability_dates CHECK (available_from IS NULL OR available_until IS NULL OR available_from < available_until) -- Available from must be before available until
 );
 
-COMMENT ON TABLE products IS 'Products catalog with sellf integration support';
-COMMENT ON COLUMN products.slug IS 'URL-safe unique identifier for sellf system';
-COMMENT ON COLUMN products.content_config IS 'JSON configuration for content delivery and sellf integration';
-COMMENT ON COLUMN products.tenant_id IS 'Multi-tenant support - allows product isolation by tenant';
+COMMENT ON TABLE seller_main.products IS 'Products catalog with sellf integration support';
+COMMENT ON COLUMN seller_main.products.slug IS 'URL-safe unique identifier for sellf system';
+COMMENT ON COLUMN seller_main.products.content_config IS 'JSON configuration for content delivery and sellf integration';
 
--- Create variant_groups table to store variant group metadata
-CREATE TABLE IF NOT EXISTS variant_groups (
+-- Create variant_groups table to store variant group metadata (seller schema)
+CREATE TABLE IF NOT EXISTS seller_main.variant_groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT CHECK (length(name) <= 200), -- Optional display name for the group (e.g., "Subscription Plans", "Size Options")
   slug TEXT UNIQUE CHECK (slug IS NULL OR (slug ~ '^[a-z0-9_-]+$' AND length(slug) BETWEEN 1 AND 100)), -- URL-friendly identifier
-  tenant_id TEXT CHECK (tenant_id IS NULL OR (tenant_id ~ '^[a-zA-Z0-9_-]+$' AND length(tenant_id) BETWEEN 1 AND 50)),
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-COMMENT ON TABLE variant_groups IS 'Variant groups for organizing products as selectable options';
-COMMENT ON COLUMN variant_groups.name IS 'Optional human-readable name for the variant group';
-COMMENT ON COLUMN variant_groups.slug IS 'URL-friendly identifier for the variant group (alternative to UUID)';
+COMMENT ON TABLE seller_main.variant_groups IS 'Variant groups for organizing products as selectable options';
+COMMENT ON COLUMN seller_main.variant_groups.name IS 'Optional human-readable name for the variant group';
+COMMENT ON COLUMN seller_main.variant_groups.slug IS 'URL-friendly identifier for the variant group (alternative to UUID)';
 
--- Create junction table for Product <-> Variant Group (Many-to-Many)
+-- Create junction table for Product <-> Variant Group (Many-to-Many) (seller schema)
 -- A product can belong to multiple variant groups
-CREATE TABLE IF NOT EXISTS product_variant_groups (
+CREATE TABLE IF NOT EXISTS seller_main.product_variant_groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
-  group_id UUID REFERENCES variant_groups(id) ON DELETE CASCADE NOT NULL,
+  product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL,
+  group_id UUID REFERENCES seller_main.variant_groups(id) ON DELETE CASCADE NOT NULL,
   variant_name VARCHAR(100), -- Display name in selector (e.g., "1 Year", "Lifetime", "Small", "Large")
   display_order INTEGER DEFAULT 0 NOT NULL, -- Order in variant selector (lower = first)
   is_featured BOOLEAN DEFAULT false NOT NULL, -- Featured/highlighted product in this group
@@ -110,56 +112,55 @@ CREATE TABLE IF NOT EXISTS product_variant_groups (
   UNIQUE (product_id, group_id) -- A product can only be in a group once
 );
 
-COMMENT ON TABLE product_variant_groups IS 'Junction table linking products to variant groups with display metadata';
-COMMENT ON COLUMN product_variant_groups.variant_name IS 'Display name for this product in the variant selector';
-COMMENT ON COLUMN product_variant_groups.display_order IS 'Order in variant selector (lower numbers appear first)';
-COMMENT ON COLUMN product_variant_groups.is_featured IS 'Whether this product is the featured/highlighted option in the group';
+COMMENT ON TABLE seller_main.product_variant_groups IS 'Junction table linking products to variant groups with display metadata';
+COMMENT ON COLUMN seller_main.product_variant_groups.variant_name IS 'Display name for this product in the variant selector';
+COMMENT ON COLUMN seller_main.product_variant_groups.display_order IS 'Order in variant selector (lower numbers appear first)';
+COMMENT ON COLUMN seller_main.product_variant_groups.is_featured IS 'Whether this product is the featured/highlighted option in the group';
 
--- Create categories table for product organization
-CREATE TABLE IF NOT EXISTS categories (
+-- Create categories table for product organization (seller schema)
+CREATE TABLE IF NOT EXISTS seller_main.categories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL CHECK (length(name) <= 100),
   slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-zA-Z0-9_-]+$' AND length(slug) BETWEEN 1 AND 100),
   description TEXT CHECK (length(description) <= 500),
-  parent_id UUID REFERENCES categories(id) ON DELETE SET NULL, -- Hierarchy support
+  parent_id UUID REFERENCES seller_main.categories(id) ON DELETE SET NULL, -- Hierarchy support
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Create junction table for Product <-> Category (Many-to-Many)
-CREATE TABLE IF NOT EXISTS product_categories (
-  product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
-  category_id UUID REFERENCES categories(id) ON DELETE CASCADE NOT NULL,
+-- Create junction table for Product <-> Category (Many-to-Many) (seller schema)
+CREATE TABLE IF NOT EXISTS seller_main.product_categories (
+  product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL,
+  category_id UUID REFERENCES seller_main.categories(id) ON DELETE CASCADE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   PRIMARY KEY (product_id, category_id)
 );
 
--- Create tags table for flexible product filtering
-CREATE TABLE IF NOT EXISTS tags (
+-- Create tags table for flexible product filtering (seller schema)
+CREATE TABLE IF NOT EXISTS seller_main.tags (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL CHECK (length(name) <= 50),
   slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-zA-Z0-9_-]+$' AND length(slug) BETWEEN 1 AND 50),
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Create junction table for Product <-> Tag (Many-to-Many)
-CREATE TABLE IF NOT EXISTS product_tags (
-  product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL,
-  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE NOT NULL,
+-- Create junction table for Product <-> Tag (Many-to-Many) (seller schema)
+CREATE TABLE IF NOT EXISTS seller_main.product_tags (
+  product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES seller_main.tags(id) ON DELETE CASCADE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   PRIMARY KEY (product_id, tag_id)
 );
 
--- Create user_product_access table with product_id reference for better data integrity
-CREATE TABLE IF NOT EXISTS user_product_access (
+-- Create user_product_access table with product_id reference for better data integrity (seller schema)
+CREATE TABLE IF NOT EXISTS seller_main.user_product_access (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  product_id UUID REFERENCES products(id) ON DELETE CASCADE NOT NULL, -- Improved data integrity
+  product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL, -- Improved data integrity
   -- Temporal access fields
   access_granted_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   access_expires_at TIMESTAMPTZ, -- NULL means permanent access
   access_duration_days INTEGER CHECK (access_duration_days IS NULL OR (access_duration_days > 0 AND access_duration_days <= 3650)), -- For tracking access duration in days
-  tenant_id TEXT CHECK (tenant_id IS NULL OR (tenant_id ~ '^[a-zA-Z0-9_-]+$' AND length(tenant_id) BETWEEN 1 AND 50)), -- Support for multi-tenancy
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   
   UNIQUE (user_id, product_id), -- Ensure a user can only have one access entry per product
@@ -168,8 +169,8 @@ CREATE TABLE IF NOT EXISTS user_product_access (
   CONSTRAINT check_access_expiration CHECK (access_expires_at IS NULL OR access_expires_at > access_granted_at)
 );
 
--- Create a view for user access statistics
-CREATE OR REPLACE VIEW user_access_stats AS
+-- Create a view for user access statistics (seller schema)
+CREATE OR REPLACE VIEW seller_main.user_access_stats WITH (security_invoker = on) AS
 SELECT 
     u.id as user_id,
     u.email,
@@ -182,12 +183,12 @@ SELECT
     MAX(upa.created_at) as last_access_granted_at,
     MIN(upa.created_at) as first_access_granted_at
 FROM auth.users u
-LEFT JOIN public.user_product_access upa ON u.id = upa.user_id
-LEFT JOIN public.products p ON upa.product_id = p.id
+LEFT JOIN seller_main.user_product_access upa ON u.id = upa.user_id
+LEFT JOIN seller_main.products p ON upa.product_id = p.id
 GROUP BY u.id, u.email, u.created_at, u.email_confirmed_at, u.last_sign_in_at, u.raw_user_meta_data;
 
--- Create a more detailed user product access view for admin panels
-CREATE OR REPLACE VIEW user_product_access_detailed AS
+-- Create a more detailed user product access view for admin panels (seller schema)
+CREATE OR REPLACE VIEW seller_main.user_product_access_detailed WITH (security_invoker = on) AS
 SELECT 
     upa.id,
     upa.user_id,
@@ -204,10 +205,9 @@ SELECT
     upa.access_duration_days,
     upa.created_at as access_created_at,
     p.created_at as product_created_at,
-    p.updated_at as product_updated_at,
-    upa.tenant_id
-FROM public.user_product_access upa
-JOIN public.products p ON upa.product_id = p.id;
+    p.updated_at as product_updated_at
+FROM seller_main.user_product_access upa
+JOIN seller_main.products p ON upa.product_id = p.id;
 
 -- Create rate limiting function to prevent abuse
 -- CRITICAL SECURITY: Multi-layer protection against spoofing and bypass attempts
@@ -332,8 +332,8 @@ ALTER TABLE application_rate_limits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role has full access to rate limits"
   ON application_rate_limits
   FOR ALL
-  USING (auth.role() = 'service_role')
-  WITH CHECK (auth.role() = 'service_role');
+  USING ((select auth.role()) = 'service_role')
+  WITH CHECK ((select auth.role()) = 'service_role');
 
 CREATE INDEX IF NOT EXISTS idx_application_rate_limits_lookup
   ON application_rate_limits(identifier, action_type, window_start DESC);
@@ -375,15 +375,15 @@ BEGIN
   VALUES (identifier_param, action_type_param, window_start_param, 1)
   ON CONFLICT (identifier, action_type, window_start)
   DO UPDATE SET
-    call_count = application_rate_limits.call_count + 1,
+    call_count = public.application_rate_limits.call_count + 1,
     updated_at = NOW()
-  RETURNING application_rate_limits.call_count INTO current_count;
+  RETURNING public.application_rate_limits.call_count INTO current_count;
 
   -- Check if we're over the limit
   RETURN current_count <= max_requests;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public;
+SET search_path = '';
 
 COMMENT ON FUNCTION check_application_rate_limit IS
   'Application-level rate limiting for Next.js API routes. Use this from /lib/rate-limiting.ts';
@@ -401,7 +401,8 @@ BEGIN
   GET DIAGNOSTICS deleted_count = ROW_COUNT;
   RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 COMMENT ON FUNCTION cleanup_application_rate_limits IS
   'Cleanup old application rate limit entries (run via cron job)';
@@ -496,9 +497,9 @@ SELECT cron.schedule(
 
 COMMENT ON EXTENSION pg_cron IS 'Used for automated cleanup of rate limiting data and optional audit log retention';
 
--- Create secure function to check user access for a single product
+-- Create secure function to check user access for a single product (seller schema)
 -- Uses auth.uid() to get the current authenticated user (SECURITY FIX)
-CREATE OR REPLACE FUNCTION check_user_product_access(
+CREATE OR REPLACE FUNCTION seller_main.check_user_product_access(
     product_slug_param TEXT
 ) RETURNS BOOLEAN AS $$
 DECLARE
@@ -532,8 +533,8 @@ BEGIN
     -- Access is revoked only when: product is deleted OR access_expires_at passes
     RETURN EXISTS (
         SELECT 1
-        FROM public.user_product_access upa
-        JOIN public.products p ON upa.product_id = p.id
+        FROM seller_main.user_product_access upa
+        JOIN seller_main.products p ON upa.product_id = p.id
         WHERE upa.user_id = auth.uid()  -- Use authenticated user ID
           AND p.slug = clean_slug       -- Use sanitized slug
           -- Check temporal access for user (only condition that revokes access)
@@ -544,11 +545,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '2s';
 
-COMMENT ON FUNCTION check_user_product_access IS 'Check if authenticated user has access to a specific product by slug. Includes rate limiting and input sanitization.';
+COMMENT ON FUNCTION seller_main.check_user_product_access IS 'Check if authenticated user has access to a specific product by slug. Includes rate limiting and input sanitization.';
 
--- Create secure function to batch check user access for multiple products
+-- Create secure function to batch check user access for multiple products (seller schema)
 -- Uses auth.uid() to get the current authenticated user (SECURITY FIX)
-CREATE OR REPLACE FUNCTION batch_check_user_product_access(
+CREATE OR REPLACE FUNCTION seller_main.batch_check_user_product_access(
     product_slugs_param TEXT[]
 ) RETURNS JSONB AS $$
 DECLARE
@@ -604,8 +605,8 @@ BEGIN
         -- Users who already have access keep it regardless of is_active status
         SELECT EXISTS (
             SELECT 1
-            FROM public.user_product_access upa
-            JOIN public.products p ON upa.product_id = p.id
+            FROM seller_main.user_product_access upa
+            JOIN seller_main.products p ON upa.product_id = p.id
             WHERE upa.user_id = current_user_id
               AND p.slug = clean_slug
               -- Check temporal access for user (only condition that revokes access)
@@ -622,11 +623,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '2s'; -- Reduced timeout to prevent DoS
 
-COMMENT ON FUNCTION batch_check_user_product_access IS 'Batch check user access for multiple products. Limited to 20 products per call with rate limiting.';
+COMMENT ON FUNCTION seller_main.batch_check_user_product_access IS 'Batch check user access for multiple products. Limited to 20 products per call with rate limiting.';
 
--- Create secure function to grant product access
+-- Create secure function to grant product access (seller schema)
 -- Uses auth.uid() to get the current authenticated user (SECURITY FIX)
-CREATE OR REPLACE FUNCTION grant_free_product_access(
+CREATE OR REPLACE FUNCTION seller_main.grant_free_product_access(
     product_slug_param TEXT,
     access_duration_days_param INTEGER DEFAULT NULL
 ) RETURNS BOOLEAN AS $$
@@ -660,7 +661,7 @@ BEGIN
     
     -- Get product by slug (use sanitized slug)
     SELECT id, auto_grant_duration_days INTO product_record
-    FROM public.products 
+    FROM seller_main.products 
     WHERE slug = clean_slug AND is_active = true AND price = 0; -- Only allow free products
     
     IF NOT FOUND THEN
@@ -677,7 +678,7 @@ BEGIN
     END IF;
     
     -- Insert or update user access
-    INSERT INTO public.user_product_access (user_id, product_id, access_expires_at, access_duration_days)
+    INSERT INTO seller_main.user_product_access (user_id, product_id, access_expires_at, access_duration_days)
     VALUES (current_user_id, product_record.id, access_expires_at, COALESCE(access_duration_days_param, product_record.auto_grant_duration_days))
     ON CONFLICT (user_id, product_id) 
     DO UPDATE SET 
@@ -691,10 +692,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '2s';
 
-COMMENT ON FUNCTION grant_free_product_access IS 'Grant access to free products for authenticated users. Includes input validation and sanitization.';
+COMMENT ON FUNCTION seller_main.grant_free_product_access IS 'Grant access to free products for authenticated users. Includes input validation and sanitization.';
 
--- Create function to get complete user profile with statistics
-CREATE OR REPLACE FUNCTION get_user_profile(user_id_param UUID)
+-- Create function to get complete user profile with statistics (seller schema)
+CREATE OR REPLACE FUNCTION seller_main.get_user_profile(user_id_param UUID)
 RETURNS JSONB AS $$
 DECLARE
     user_info JSONB;
@@ -715,7 +716,7 @@ BEGIN
     
     -- Security check: only allow users to view their own profile or admins to view any profile
     IF user_id_param != current_user_id THEN
-        IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = current_user_id) THEN
+        IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = current_user_id) THEN -- admin_users is in public (platform)
             RAISE EXCEPTION 'Unauthorized: Can only view your own profile';
         END IF;
     END IF;
@@ -744,7 +745,7 @@ BEGIN
         'last_access_granted_at', last_access_granted_at,
         'first_access_granted_at', first_access_granted_at
     ) INTO user_stats
-    FROM public.user_access_stats
+    FROM seller_main.user_access_stats
     WHERE user_id = user_id_param;
     
     -- Get user access details
@@ -761,7 +762,7 @@ BEGIN
             'granted_at', access_created_at
         )
     ) INTO user_access
-    FROM public.user_product_access_detailed
+    FROM seller_main.user_product_access_detailed
     WHERE user_id = user_id_param;
     
     -- Return the combined user profile
@@ -775,7 +776,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '5s';
 
-COMMENT ON FUNCTION get_user_profile IS 'Get complete user profile with access statistics. Users can only view their own profile, admins can view any profile.';
+COMMENT ON FUNCTION seller_main.get_user_profile IS 'Get complete user profile with access statistics. Users can only view their own profile, admins can view any profile.';
 
 -- Create admin_users table to track who is an admin
 CREATE TABLE IF NOT EXISTS admin_users (
@@ -809,37 +810,34 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   PRIMARY KEY (user_id, function_name, window_start)
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
-CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active);
-CREATE INDEX IF NOT EXISTS idx_products_is_featured ON products(is_featured);
-CREATE INDEX IF NOT EXISTS idx_products_is_listed ON products(is_listed);
-CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
-CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at);
-CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
-CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
-CREATE INDEX IF NOT EXISTS idx_product_categories_product_id ON product_categories(product_id);
-CREATE INDEX IF NOT EXISTS idx_product_categories_category_id ON product_categories(category_id);
-CREATE INDEX IF NOT EXISTS idx_tags_slug ON tags(slug);
-CREATE INDEX IF NOT EXISTS idx_product_tags_product_id ON product_tags(product_id);
-CREATE INDEX IF NOT EXISTS idx_product_tags_tag_id ON product_tags(tag_id);
-CREATE INDEX IF NOT EXISTS idx_user_product_access_user_id ON user_product_access(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_product_access_product_id ON user_product_access(product_id);
-CREATE INDEX IF NOT EXISTS idx_user_product_access_unique ON user_product_access(user_id, product_id);
+-- Create indexes for better performance (seller schema tables)
+CREATE INDEX IF NOT EXISTS idx_products_slug ON seller_main.products(slug);
+CREATE INDEX IF NOT EXISTS idx_products_is_active ON seller_main.products(is_active);
+CREATE INDEX IF NOT EXISTS idx_products_is_featured ON seller_main.products(is_featured);
+CREATE INDEX IF NOT EXISTS idx_products_is_listed ON seller_main.products(is_listed);
+CREATE INDEX IF NOT EXISTS idx_products_price ON seller_main.products(price);
+CREATE INDEX IF NOT EXISTS idx_products_created_at ON seller_main.products(created_at);
+CREATE INDEX IF NOT EXISTS idx_categories_slug ON seller_main.categories(slug);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON seller_main.categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_product_categories_product_id ON seller_main.product_categories(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_categories_category_id ON seller_main.product_categories(category_id);
+CREATE INDEX IF NOT EXISTS idx_tags_slug ON seller_main.tags(slug);
+CREATE INDEX IF NOT EXISTS idx_product_tags_product_id ON seller_main.product_tags(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_tags_tag_id ON seller_main.product_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_user_product_access_user_id ON seller_main.user_product_access(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_product_access_product_id ON seller_main.user_product_access(product_id);
+CREATE INDEX IF NOT EXISTS idx_user_product_access_unique ON seller_main.user_product_access(user_id, product_id);
+-- Platform table indexes (public)
 CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON admin_users(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_products_tenant_id ON products(tenant_id) WHERE tenant_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_user_product_access_tenant_id ON user_product_access(tenant_id) WHERE tenant_id IS NOT NULL;
+-- Variant groups indexes (M:N relationship, seller schema)
+CREATE INDEX IF NOT EXISTS idx_product_variant_groups_product_id ON seller_main.product_variant_groups(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_variant_groups_group_id ON seller_main.product_variant_groups(group_id);
+CREATE INDEX IF NOT EXISTS idx_product_variant_groups_display_order ON seller_main.product_variant_groups(group_id, display_order);
+CREATE INDEX IF NOT EXISTS idx_product_variant_groups_featured ON seller_main.product_variant_groups(group_id, is_featured) WHERE is_featured = true;
 
--- Variant groups indexes (M:N relationship)
-CREATE INDEX IF NOT EXISTS idx_variant_groups_tenant_id ON variant_groups(tenant_id) WHERE tenant_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_product_variant_groups_product_id ON product_variant_groups(product_id);
-CREATE INDEX IF NOT EXISTS idx_product_variant_groups_group_id ON product_variant_groups(group_id);
-CREATE INDEX IF NOT EXISTS idx_product_variant_groups_display_order ON product_variant_groups(group_id, display_order);
-CREATE INDEX IF NOT EXISTS idx_product_variant_groups_featured ON product_variant_groups(group_id, is_featured) WHERE is_featured = true;
-
--- Optimization indexes for user access
-CREATE INDEX IF NOT EXISTS idx_user_product_access_expires_at ON user_product_access(access_expires_at) WHERE access_expires_at IS NOT NULL;
+-- Optimization indexes for user access (seller schema)
+CREATE INDEX IF NOT EXISTS idx_user_product_access_expires_at ON seller_main.user_product_access(access_expires_at) WHERE access_expires_at IS NOT NULL;
 
 -- Rate limiting indexes
 CREATE INDEX IF NOT EXISTS idx_rate_limits_user_function ON rate_limits(user_id, function_name);
@@ -849,246 +847,9 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_window_start ON rate_limits(window_st
 CREATE INDEX IF NOT EXISTS idx_audit_log_performed_at ON audit_log(performed_at DESC);
 
 
--- Enable Row Level Security
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE variant_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_variant_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_product_access ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for products table
-CREATE POLICY "SELECT policy for products" ON products
-  FOR SELECT
-  USING (
-    -- Admin users see everything
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE user_id = (SELECT auth.uid())
-    ) OR
-    -- Public users see active products
-    is_active = true OR
-    -- Public users see inactive products with waitlist enabled (for waitlist form)
-    (is_active = false AND enable_waitlist = true)
-  );
-
--- Polityki dla adminów - osobno dla każdej akcji
-CREATE POLICY "Allow admin users to insert products" ON products
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
-CREATE POLICY "Allow admin users to update products" ON products
-  FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
-CREATE POLICY "Allow admin users to delete products" ON products
-  FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
--- RLS Policies for categories
-CREATE POLICY "Public read access for categories" ON categories
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for categories" ON categories
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for product_categories
-CREATE POLICY "Public read access for product_categories" ON product_categories
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for product_categories" ON product_categories
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for tags
-CREATE POLICY "Public read access for tags" ON tags
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for tags" ON tags
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for product_tags
-CREATE POLICY "Public read access for product_tags" ON product_tags
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for product_tags" ON product_tags
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for variant_groups
-CREATE POLICY "Public read access for variant_groups" ON variant_groups
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for variant_groups" ON variant_groups
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
--- RLS Policies for product_variant_groups
-CREATE POLICY "Public read access for product_variant_groups" ON product_variant_groups
-  FOR SELECT USING (true);
-
-CREATE POLICY "Admins full access for product_variant_groups" ON product_variant_groups
-  FOR ALL
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
-
-
--- RLS Policies for user_product_access table
--- Allow users to read their own access records
-CREATE POLICY "Allow users to read their own product access" ON user_product_access
-  FOR SELECT
-  USING (
-    (SELECT auth.uid()) = user_id OR
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
--- Allow service role to insert access records
-CREATE POLICY "Allow service role to insert product access" ON user_product_access
-  FOR INSERT
-  TO service_role
-  WITH CHECK (true);
-
--- Combined INSERT policy for authenticated users
-CREATE POLICY "Combined INSERT policy for user_product_access" ON user_product_access
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    -- Admin users can insert anything
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    ) OR
-    -- Regular users can insert access for FREE products for themselves
-    ((SELECT auth.uid()) = user_id AND
-     EXISTS (SELECT 1 FROM public.products WHERE id = product_id AND price = 0))
-  );
-
--- Admin UPDATE policy
-CREATE POLICY "Allow admin users to update access" ON user_product_access
-  FOR UPDATE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
--- Admin DELETE policy
-CREATE POLICY "Allow admin users to delete access" ON user_product_access
-  FOR DELETE
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (SELECT auth.uid())
-    )
-  );
-
-
--- RLS Policies for admin_users table
--- Allow users to check only their own admin status
-CREATE POLICY "Allow users to read their own admin status" ON admin_users
-  FOR SELECT
-  TO authenticated
-  USING ((select auth.uid()) = user_id);
-
--- RLS Policies for audit_log table
--- Only allow admin users to read audit logs
-CREATE POLICY "Allow admin users to read audit logs" ON audit_log
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users 
-      WHERE user_id = (select auth.uid())
-    )
-  );
-
--- Allow system to insert audit logs (for triggers and functions)
--- SECURITY FIX (V-CRITICAL-09): Restricted to service_role only to prevent audit log forgery
--- The log_audit_entry() function uses SECURITY DEFINER which bypasses RLS,
--- so legitimate audit logging from triggers and functions still works.
-CREATE POLICY "Allow system to insert audit logs" ON audit_log
-  FOR INSERT
-  TO service_role
-  WITH CHECK (true);
-
--- Combined SELECT policy for rate limits
-CREATE POLICY "Combined SELECT policy for rate limits" ON rate_limits
-    FOR SELECT 
-    USING (
-        -- Admins can view all rate limits
-        EXISTS (
-            SELECT 1 FROM public.admin_users 
-            WHERE admin_users.user_id = (SELECT auth.uid())
-        ) OR
-        -- Users can read their own rate limits
-        (SELECT auth.uid()) = user_id
-    );
-
--- System policies for modifications
-CREATE POLICY "Allow system to insert rate limits" ON rate_limits
-    FOR INSERT 
-    TO service_role
-    WITH CHECK (true);
-
-CREATE POLICY "Allow system to update rate limits" ON rate_limits
-    FOR UPDATE 
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
-CREATE POLICY "Allow system to delete rate limits" ON rate_limits
-    FOR DELETE 
-    TO service_role
-    USING (true);
-
+-- =============================================================================
+-- ADMIN CHECK FUNCTIONS (must be defined before RLS policies that reference them)
+-- =============================================================================
 
 -- Check if user is admin (optimized)
 CREATE OR REPLACE FUNCTION is_admin(user_id_param UUID DEFAULT NULL)
@@ -1166,6 +927,212 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = '';
 
+-- Enable Row Level Security (seller schema tables)
+ALTER TABLE seller_main.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.product_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.product_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.variant_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.product_variant_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.user_product_access ENABLE ROW LEVEL SECURITY;
+-- Platform tables (public)
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for products table (seller schema)
+CREATE POLICY "SELECT policy for products" ON seller_main.products
+  FOR SELECT
+  USING (
+    -- Admin users see everything
+    ( select public.is_admin() ) OR
+    -- Public users see active products
+    is_active = true OR
+    -- Public users see inactive products with waitlist enabled (for waitlist form)
+    (is_active = false AND enable_waitlist = true)
+  );
+
+-- Polityki dla adminów - osobno dla każdej akcji
+CREATE POLICY "Allow admin users to insert products" ON seller_main.products
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    ( select public.is_admin() )
+  );
+
+CREATE POLICY "Allow admin users to update products" ON seller_main.products
+  FOR UPDATE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  )
+  WITH CHECK (
+    ( select public.is_admin() )
+  );
+
+CREATE POLICY "Allow admin users to delete products" ON seller_main.products
+  FOR DELETE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  );
+
+-- RLS Policies for categories (seller schema)
+CREATE POLICY "Public read access for categories" ON seller_main.categories
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for categories" ON seller_main.categories
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for product_categories (seller schema)
+CREATE POLICY "Public read access for product_categories" ON seller_main.product_categories
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for product_categories" ON seller_main.product_categories
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for tags (seller schema)
+CREATE POLICY "Public read access for tags" ON seller_main.tags
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for tags" ON seller_main.tags
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for product_tags (seller schema)
+CREATE POLICY "Public read access for product_tags" ON seller_main.product_tags
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for product_tags" ON seller_main.product_tags
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for variant_groups (seller schema)
+CREATE POLICY "Public read access for variant_groups" ON seller_main.variant_groups
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for variant_groups" ON seller_main.variant_groups
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+-- RLS Policies for product_variant_groups (seller schema)
+CREATE POLICY "Public read access for product_variant_groups" ON seller_main.product_variant_groups
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins full access for product_variant_groups" ON seller_main.product_variant_groups
+  FOR ALL
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
+
+
+-- RLS Policies for user_product_access table (seller schema)
+-- Allow users to read their own access records
+CREATE POLICY "Allow users to read their own product access" ON seller_main.user_product_access
+  FOR SELECT
+  USING (
+    (SELECT auth.uid()) = user_id OR
+    ( select public.is_admin() )
+  );
+
+-- Allow service role to insert access records
+CREATE POLICY "Allow service role to insert product access" ON seller_main.user_product_access
+  FOR INSERT
+  TO service_role
+  WITH CHECK (true);
+
+-- Combined INSERT policy for authenticated users
+CREATE POLICY "Combined INSERT policy for user_product_access" ON seller_main.user_product_access
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    -- Admin users can insert anything
+    ( select public.is_admin() ) OR
+    -- Regular users can insert access for FREE products for themselves
+    ((SELECT auth.uid()) = user_id AND
+     EXISTS (SELECT 1 FROM seller_main.products WHERE id = product_id AND price = 0))
+  );
+
+-- Admin UPDATE policy
+CREATE POLICY "Allow admin users to update access" ON seller_main.user_product_access
+  FOR UPDATE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  )
+  WITH CHECK (
+    ( select public.is_admin() )
+  );
+
+-- Admin DELETE policy
+CREATE POLICY "Allow admin users to delete access" ON seller_main.user_product_access
+  FOR DELETE
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  );
+
+
+-- RLS Policies for admin_users table
+-- Allow users to check only their own admin status
+CREATE POLICY "Allow users to read their own admin status" ON admin_users
+  FOR SELECT
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+-- RLS Policies for audit_log table
+-- Only allow admin users to read audit logs
+CREATE POLICY "Allow admin users to read audit logs" ON audit_log
+  FOR SELECT
+  TO authenticated
+  USING (
+    ( select public.is_admin() )
+  );
+
+-- Allow system to insert audit logs (for triggers and functions)
+-- SECURITY FIX (V-CRITICAL-09): Restricted to service_role only to prevent audit log forgery
+-- The log_audit_entry() function uses SECURITY DEFINER which bypasses RLS,
+-- so legitimate audit logging from triggers and functions still works.
+CREATE POLICY "Allow system to insert audit logs" ON audit_log
+  FOR INSERT
+  TO service_role
+  WITH CHECK (true);
+
+-- Combined SELECT policy for rate limits
+CREATE POLICY "Combined SELECT policy for rate limits" ON rate_limits
+    FOR SELECT 
+    USING (
+        -- Admins can view all rate limits
+        ( select public.is_admin() ) OR
+        -- Users can read their own rate limits
+        (SELECT auth.uid()) = user_id
+    );
+
+-- System policies for modifications
+CREATE POLICY "Allow system to insert rate limits" ON rate_limits
+    FOR INSERT 
+    TO service_role
+    WITH CHECK (true);
+
+CREATE POLICY "Allow system to update rate limits" ON rate_limits
+    FOR UPDATE 
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Allow system to delete rate limits" ON rate_limits
+    FOR DELETE 
+    TO service_role
+    USING (true);
+
+
 -- Create function to clear admin cache (useful for logout)
 CREATE OR REPLACE FUNCTION clear_admin_cache()
 RETURNS VOID AS $$
@@ -1209,9 +1176,9 @@ BEGIN
     ON CONFLICT (user_id) DO NOTHING;
     
     -- 2. Guest Purchase Claims: Claim guest purchases for this user (if function exists)
-    -- This will be available after the payment system migration
-    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'claim_guest_purchases_for_user') THEN
-      SELECT public.claim_guest_purchases_for_user(NEW.id) INTO claim_result;
+    -- This will be available after the payment system migration (lives in seller_main)
+    IF EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid WHERE p.proname = 'claim_guest_purchases_for_user' AND n.nspname = 'seller_main') THEN
+      SELECT seller_main.claim_guest_purchases_for_user(NEW.id) INTO claim_result;
       
       -- Log the guest purchase claim result
       IF claim_result->>'success' = 'true' AND (claim_result->>'claimed_count')::INTEGER > 0 THEN
@@ -1343,19 +1310,19 @@ SET statement_timeout = '2s';
 -- Grant execute permissions to the service role and authenticated users
 GRANT EXECUTE ON FUNCTION log_audit_entry TO service_role, authenticated;
 
--- Create trigger for products table
+-- Create trigger for products table (seller schema)
 CREATE TRIGGER update_products_updated_at
-  BEFORE UPDATE ON products
+  BEFORE UPDATE ON seller_main.products
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_categories_updated_at
-  BEFORE UPDATE ON categories
+  BEFORE UPDATE ON seller_main.categories
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_variant_groups_updated_at
-  BEFORE UPDATE ON variant_groups
+  BEFORE UPDATE ON seller_main.variant_groups
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
@@ -1366,9 +1333,60 @@ CREATE TRIGGER audit_admin_users
   EXECUTE FUNCTION audit_trigger_function();
 
 CREATE TRIGGER audit_user_product_access
-  AFTER INSERT OR UPDATE OR DELETE ON user_product_access
+  AFTER INSERT OR UPDATE OR DELETE ON seller_main.user_product_access
   FOR EACH ROW
   EXECUTE FUNCTION audit_trigger_function();
+
+-- 
+-- SCHEMA PERMISSIONS
+--
+-- Grant usage on seller_main to Supabase roles so PostgREST can access tables/functions
+GRANT USAGE ON SCHEMA seller_main TO anon, authenticated, service_role;
+
+-- Principle of least privilege: explicit per-table grants instead of blanket access.
+-- service_role gets ALL on everything; anon/authenticated get minimum required per table.
+-- RLS is the primary guard, but defence-in-depth requires minimal grants
+-- (if RLS is accidentally disabled, damage is limited).
+GRANT ALL ON ALL TABLES IN SCHEMA seller_main TO service_role;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA seller_main TO authenticated, service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA seller_main TO service_role;
+
+-- Public catalog tables: anon gets SELECT (storefront browsing).
+-- authenticated gets SELECT + mutation grants needed by admin CRUD routes
+-- (RLS policies are the real guard — grants just allow operations to reach RLS evaluation).
+GRANT SELECT ON seller_main.products TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.products TO authenticated;
+GRANT SELECT ON seller_main.variant_groups TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.variant_groups TO authenticated;
+GRANT SELECT ON seller_main.product_variant_groups TO anon;
+GRANT SELECT, INSERT, DELETE ON seller_main.product_variant_groups TO authenticated;
+GRANT SELECT ON seller_main.categories TO anon, authenticated;
+GRANT SELECT ON seller_main.product_categories TO anon;
+GRANT SELECT, INSERT, DELETE ON seller_main.product_categories TO authenticated;
+GRANT SELECT ON seller_main.tags TO anon, authenticated;
+GRANT SELECT ON seller_main.product_tags TO anon, authenticated;
+GRANT SELECT, DELETE ON seller_main.user_product_access TO authenticated;
+
+-- Default privileges for future objects: only service_role gets automatic grants.
+-- New tables for anon/authenticated MUST be granted explicitly (see Security Rule #5).
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT USAGE ON SEQUENCES TO authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main GRANT EXECUTE ON FUNCTIONS TO service_role;
+
+--
+-- PROXY VIEWS: public -> seller_main (backward compatibility for standalone mode)
+-- These allow existing code and PostgREST to access seller_main tables via public schema
+--
+CREATE OR REPLACE VIEW public.products WITH (security_invoker = on) AS SELECT * FROM seller_main.products;
+CREATE OR REPLACE VIEW public.variant_groups WITH (security_invoker = on) AS SELECT * FROM seller_main.variant_groups;
+CREATE OR REPLACE VIEW public.product_variant_groups WITH (security_invoker = on) AS SELECT * FROM seller_main.product_variant_groups;
+CREATE OR REPLACE VIEW public.categories WITH (security_invoker = on) AS SELECT * FROM seller_main.categories;
+CREATE OR REPLACE VIEW public.product_categories WITH (security_invoker = on) AS SELECT * FROM seller_main.product_categories;
+CREATE OR REPLACE VIEW public.tags WITH (security_invoker = on) AS SELECT * FROM seller_main.tags;
+CREATE OR REPLACE VIEW public.product_tags WITH (security_invoker = on) AS SELECT * FROM seller_main.product_tags;
+CREATE OR REPLACE VIEW public.user_product_access WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access;
+CREATE OR REPLACE VIEW public.user_access_stats WITH (security_invoker = on) AS SELECT * FROM seller_main.user_access_stats;
+CREATE OR REPLACE VIEW public.user_product_access_detailed WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access_detailed;
 
 -- 
 -- CRON JOB MANAGEMENT
@@ -1384,6 +1402,30 @@ CREATE TRIGGER audit_user_product_access
 -- To enable: SELECT cron.schedule('cleanup-audit-logs', '0 2 * * 0', 'SELECT cleanup_audit_logs(90);');
 -- To manually run: SELECT cleanup_audit_logs(90);
 --
+
+-- =====================================================
+-- PUBLIC SCHEMA TABLE GRANTS (SECURITY HARDENING)
+-- =====================================================
+-- Supabase grants ALL privileges to anon/authenticated by default.
+-- Explicitly revoke and re-grant with principle of least privilege.
+
+-- admin_users: only service_role manages, authenticated can SELECT own row (for admin checks)
+REVOKE ALL ON public.admin_users FROM anon, authenticated;
+GRANT SELECT ON public.admin_users TO authenticated;
+GRANT ALL ON public.admin_users TO service_role;
+
+-- audit_log: service_role only (written via SECURITY DEFINER functions)
+-- Note: admin_actions grants are in 20250102000000_payment_system.sql (table defined there)
+REVOKE ALL ON public.audit_log FROM anon, authenticated;
+GRANT ALL ON public.audit_log TO service_role;
+
+-- rate_limits / application_rate_limits: SECURITY DEFINER functions write to these;
+-- authenticated needs INSERT/UPDATE via those functions, but not direct table access
+REVOKE ALL ON public.rate_limits FROM anon, authenticated;
+GRANT ALL ON public.rate_limits TO service_role;
+
+REVOKE ALL ON public.application_rate_limits FROM anon, authenticated;
+GRANT ALL ON public.application_rate_limits TO service_role;
 
 COMMIT;
 

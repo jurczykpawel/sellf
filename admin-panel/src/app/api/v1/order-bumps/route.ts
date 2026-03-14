@@ -22,6 +22,7 @@ import {
 } from '@/lib/api';
 import { validateProductId, validateUUID } from '@/lib/validations/product';
 import { ORDER_BUMP_SELECT } from './constants';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -58,7 +59,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let query = supabase
+    const adminClient = createAdminClient();
+    let query = adminClient
       .from('order_bumps')
       .select(ORDER_BUMP_SELECT);
 
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
       is_active = true,
       display_order = 0,
       access_duration_days,
+      urgency_duration_minutes,
     } = body;
 
     // Validate required fields
@@ -227,8 +230,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create order bump
-    const { data, error } = await supabase
+    // Validate urgency_duration_minutes
+    if (urgency_duration_minutes !== null && urgency_duration_minutes !== undefined) {
+      if (typeof urgency_duration_minutes !== 'number' || !Number.isInteger(urgency_duration_minutes) || urgency_duration_minutes < 1 || urgency_duration_minutes > 1440) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid urgency duration', {
+          urgency_duration_minutes: ['Urgency duration must be an integer between 1 and 1440 minutes']
+        });
+      }
+    }
+
+    // Create order bump (use adminClient for FK embedding in ORDER_BUMP_SELECT)
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
       .from('order_bumps')
       .insert({
         main_product_id: String(main_product_id),
@@ -239,6 +252,7 @@ export async function POST(request: NextRequest) {
         is_active,
         display_order,
         access_duration_days: access_duration_days ?? null,
+        urgency_duration_minutes: urgency_duration_minutes ?? null,
       })
       .select(ORDER_BUMP_SELECT)
       .single();

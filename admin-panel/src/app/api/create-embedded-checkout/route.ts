@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { CheckoutService } from '@/lib/services/checkout';
 import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import type { CreateCheckoutRequest, CreateCheckoutResponse, CheckoutErrorResponse } from '@/types/checkout';
 
 export async function POST(request: NextRequest): Promise<NextResponse<CreateCheckoutResponse | CheckoutErrorResponse>> {
@@ -32,8 +33,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateChe
 
     const requestData: CreateCheckoutRequest = await request.json();
     
-    // Get origin for return URL
-    const origin = request.headers.get('origin') || process.env.SITE_URL;
+    // Get origin for return URL — prefer server-side config over client-supplied Origin header
+    // SECURITY: Origin header is client-supplied and could be manipulated
+    const origin = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || request.headers.get('origin');
     
     // Use user's email from session if not provided in request
     const finalEmail = requestData.email || user?.email;
@@ -47,7 +49,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateChe
     // Create checkout service and process request
     const checkoutService = new CheckoutService();
     await checkoutService.initialize();
-    
+
+    // Validate request before any DB calls
+    await checkoutService.validateRequest(finalRequestData);
+
     // Get product for return URL
     const product = await checkoutService.getProduct(finalRequestData.productId);
     
@@ -55,8 +60,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateChe
     // The payment-status page will handle both scenarios intelligently
     let returnUrl = `${origin}/p/${product.slug}/payment-status?session_id={CHECKOUT_SESSION_ID}`;
     
-    // Append success_url if provided (for OTO/Funnels)
+    // Append success_url if provided (for OTO/Funnels) — validate to prevent open redirects
     if (finalRequestData.successUrl) {
+      if (!isSafeRedirectUrl(finalRequestData.successUrl)) {
+        return NextResponse.json(
+          { error: 'Invalid success URL', type: CheckoutErrorType.UNKNOWN_ERROR },
+          { status: 400 }
+        );
+      }
       returnUrl += `&success_url=${encodeURIComponent(finalRequestData.successUrl)}`;
     }
     

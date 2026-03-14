@@ -13,9 +13,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  */
 
 // Mock Supabase client before importing the module
+// withAdminAuth calls: supabase.auth.getUser() → supabase.from('admin_users').select().eq().single()
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockResolvedValue({
-    rpc: vi.fn().mockResolvedValue({ data: true }),
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'test-admin-user-id' } },
+        error: null,
+      }),
+    },
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { user_id: 'test-admin-user-id' },
+            error: null,
+          }),
+        }),
+      }),
+    }),
   }),
 }));
 
@@ -185,10 +201,15 @@ describe('Security Audit', () => {
     });
 
     it('all pass when properly configured', async () => {
-      // Set env vars for app-level checks
+      // Set ALL env vars needed for every security check to pass
       process.env.SITE_URL = 'https://myapp.example.com';
       process.env.NEXT_PUBLIC_APP_URL = 'https://myapp.example.com';
       process.env.ALLOWED_ORIGINS = 'https://customer.com';
+      process.env.ALTCHA_HMAC_KEY = 'test-hmac-key-for-captcha';
+      // base64-encoded 32 bytes (openssl rand -base64 32 output format)
+      process.env.APP_ENCRYPTION_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+      process.env.CRON_SECRET = 'test-cron-secret';
+      process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret';
 
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/graphql/v1')) {
@@ -266,13 +287,28 @@ describe('Security Audit', () => {
     it('rejects non-admin users', async () => {
       const { createClient } = await import('@/lib/supabase/server');
       vi.mocked(createClient).mockResolvedValueOnce({
-        rpc: vi.fn().mockResolvedValue({ data: false }),
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: { id: 'non-admin-user-id' } },
+            error: null,
+          }),
+        },
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: null,
+              }),
+            }),
+          }),
+        }),
       } as never);
 
       const result = await runSecurityAudit();
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Unauthorized');
+      expect(result.error).toContain('Forbidden');
       expect(result.checks).toHaveLength(0);
     });
   });

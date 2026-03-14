@@ -299,6 +299,40 @@ export function validateUUID(uuid: string): ValidationResult {
   return { isValid: errors.length === 0, errors };
 }
 
+/**
+ * Normalize and validate bump product IDs from checkout requests.
+ * Supports backward compatibility: legacy single `bumpProductId` is promoted to array.
+ * When `bumpProductIds[]` is non-empty it takes precedence over the legacy field.
+ *
+ * Returns valid UUIDs (deduplicated) and any invalid IDs separately,
+ * allowing callers to decide error handling (strict 400 vs. silent filter).
+ */
+export function normalizeBumpIds(input: {
+  bumpProductId?: string;
+  bumpProductIds?: string[];
+}): { validIds: string[]; invalidIds: string[] } {
+  const raw: string[] = input.bumpProductIds && input.bumpProductIds.length > 0
+    ? input.bumpProductIds
+    : input.bumpProductId ? [input.bumpProductId] : [];
+
+  const validIds: string[] = [];
+  const invalidIds: string[] = [];
+
+  const seen = new Set<string>();
+  for (const id of raw) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+
+    if (validateUUID(id).isValid) {
+      validIds.push(id);
+    } else {
+      invalidIds.push(id);
+    }
+  }
+
+  return { validIds, invalidIds };
+}
+
 function validateContentConfig(contentConfig: unknown): ValidationResult {
   const errors: string[] = [];
 

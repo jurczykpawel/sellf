@@ -371,9 +371,9 @@ describe('Stripe Integration Security', () => {
         expect(REFUND_ROUTE_SOURCE).toContain('refundAmount > maxRefundable');
       });
 
-      it('should verify production refund route revokes product access', () => {
-        expect(REFUND_ROUTE_SOURCE).toContain("'user_product_access'");
-        expect(REFUND_ROUTE_SOURCE).toContain('.delete()');
+      it('should verify production refund route delegates access revocation to shared service', () => {
+        expect(REFUND_ROUTE_SOURCE).toContain('revokeTransactionAccess');
+        expect(REFUND_ROUTE_SOURCE).toContain("from '@/lib/services/access-revocation'");
       });
 
       it('should verify production refund route requires admin auth', () => {
@@ -439,6 +439,63 @@ describe('Stripe Integration Security', () => {
         expect(result.valid).toBe(false);
         expect(result.error).toContain('exceeds');
       });
+    });
+  });
+
+  describe('Stripe metadata overflow guard (bump_product_ids)', () => {
+    // Mirror of the truncation logic in create-payment-intent/route.ts.
+    // Stripe enforces a 500-char limit per metadata value — exceeding it causes
+    // the payment intent creation to fail with a 400 error.
+    function truncateBumpIds(ids: string[]): string {
+      const joined = ids.join(',');
+      if (joined.length > 500) {
+        const truncated = joined.slice(0, 500);
+        return truncated.slice(0, truncated.lastIndexOf(','));
+      }
+      return joined;
+    }
+
+    const UUID = '00000000-0000-0000-0000-000000000000'; // 36 chars
+
+    it('passes through short list unchanged', () => {
+      const ids = [UUID, UUID, UUID];
+      const result = truncateBumpIds(ids);
+      expect(result).toBe(ids.join(','));
+      expect(result.length).toBeLessThanOrEqual(500);
+    });
+
+    it('truncates long list to under 500 chars', () => {
+      // 13 UUIDs × 36 chars + 12 commas = 480 chars → fits
+      // 14 UUIDs × 36 chars + 13 commas = 517 chars → must truncate
+      const ids = Array(14).fill(UUID);
+      const result = truncateBumpIds(ids);
+      expect(result.length).toBeLessThanOrEqual(500);
+    });
+
+    it('never leaves a trailing comma after truncation', () => {
+      const ids = Array(20).fill(UUID);
+      const result = truncateBumpIds(ids);
+      expect(result.endsWith(',')).toBe(false);
+    });
+
+    it('result contains only complete UUIDs after truncation', () => {
+      const ids = Array(20).fill(UUID);
+      const result = truncateBumpIds(ids);
+      const parts = result.split(',');
+      for (const part of parts) {
+        expect(part).toMatch(/^[0-9a-f-]{36}$/);
+      }
+    });
+
+    it('production route source contains the 500-char guard', () => {
+      const CREATE_PI_SOURCE = readFileSync(
+        resolve(__dirname, '../../../src/app/api/create-payment-intent/route.ts'),
+        'utf-8'
+      );
+      expect(CREATE_PI_SOURCE).toContain('ids.length > 500');
+      expect(CREATE_PI_SOURCE).toContain('lastIndexOf(\',\')');
+      // Fallback comment — webhook uses payment_line_items when metadata is truncated
+      expect(CREATE_PI_SOURCE).toContain('payment_line_items');
     });
   });
 });

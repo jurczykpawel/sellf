@@ -217,7 +217,7 @@ klaroConfig.callback = function(consent, service) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ anonymous_id: anonId, consents: window.__gfConsents, consent_version: '1' })
-        }).catch(function() {});
+        }).catch(function(err) { console.warn('[TrackingProvider] Non-critical error:', err); });
       } catch (e) {}
     }, 100);
   }

@@ -155,6 +155,7 @@ export class WebhookService {
         },
         body: payloadString,
         signal: controller.signal,
+        redirect: 'error',  // SECURITY: block redirect-based SSRF
       });
 
       clearTimeout(timeoutId);

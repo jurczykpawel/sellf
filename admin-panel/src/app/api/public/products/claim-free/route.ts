@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { validateEmailAction } from '@/lib/actions/validate-email';
+import { verifyCaptchaToken } from '@/lib/captcha/verify';
 
 /**
  * Helper to create CORS-enabled responses
@@ -69,30 +70,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify Turnstile token (in production)
+    // Verify captcha token (in production)
     if (process.env.NODE_ENV === 'production') {
-      if (!turnstileToken) {
-        return corsResponse({ error: 'Security verification required' }, 400, origin);
-      }
-
-      const turnstileSecret = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
-      if (!turnstileSecret) {
-        console.error('[claim-free] CLOUDFLARE_TURNSTILE_SECRET_KEY is not set — rejecting request to prevent unverified captcha bypass');
-        return corsResponse({ error: 'Service misconfiguration. Please contact support.' }, 500, origin);
-      }
-
-      const turnstileResponse = await fetch(
-        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret: turnstileSecret, response: turnstileToken }),
-        }
-      );
-
-      const turnstileData = await turnstileResponse.json();
-      if (!turnstileData.success) {
-        return corsResponse({ error: 'Security verification failed. Please try again.' }, 400, origin);
+      const captchaResult = await verifyCaptchaToken(turnstileToken);
+      if (!captchaResult.success) {
+        return corsResponse(
+          { error: captchaResult.error || 'Security verification failed. Please try again.' },
+          400,
+          origin,
+        );
       }
     }
 

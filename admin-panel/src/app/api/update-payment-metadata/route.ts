@@ -27,6 +27,15 @@ export async function POST(request: NextRequest) {
       process.env.SITE_URL,
     ].filter(Boolean);
 
+    // Reject if no allowed origins configured — empty SITE_URL means origin check is meaningless
+    if (allowedOrigins.length === 0) {
+      console.error('[update-payment-metadata] SITE_URL not configured — rejecting request');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     const isValidOrigin = origin && allowedOrigins.some(allowed =>
       origin === allowed || (allowed ? origin.startsWith(allowed) : false)
     );
@@ -112,6 +121,16 @@ export async function POST(request: NextRequest) {
     }
 
     const stripe = await getStripeServer();
+
+    // Verify the PaymentIntent exists and is still in a modifiable state
+    // This prevents metadata updates on already-completed or cancelled payments
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
+      return NextResponse.json(
+        { success: false, error: 'Payment intent is not in a modifiable state' },
+        { status: 400 }
+      );
+    }
 
     // Update Payment Intent with customer and invoice metadata
     await stripe.paymentIntents.update(paymentIntentId, {

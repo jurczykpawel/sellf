@@ -40,15 +40,23 @@ CREATE INDEX idx_tracking_logs_order_id ON public.tracking_logs(order_id);
 -- RLS: service_role only (admin data, no public access)
 ALTER TABLE public.tracking_logs ENABLE ROW LEVEL SECURITY;
 
+-- Explicit policies (Security Rule #1: zero-policy tables are a time bomb)
+CREATE POLICY "Service role full access to tracking_logs"
+  ON public.tracking_logs FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
 REVOKE ALL ON public.tracking_logs FROM anon, authenticated;
 GRANT ALL ON public.tracking_logs TO service_role;
 
 -- GTM Server-Side tracking: toggle for server-to-server event sending
 -- (gtm_server_container_url already exists for client-side GTM script URL)
-ALTER TABLE public.integrations_config
+ALTER TABLE seller_main.integrations_config
   ADD COLUMN IF NOT EXISTS gtm_ss_enabled BOOLEAN DEFAULT FALSE;
 
-COMMENT ON COLUMN public.integrations_config.gtm_ss_enabled
+-- Refresh proxy view to include new column
+CREATE OR REPLACE VIEW public.integrations_config WITH (security_invoker = on) AS SELECT * FROM seller_main.integrations_config;
+
+COMMENT ON COLUMN seller_main.integrations_config.gtm_ss_enabled
   IS 'Enable sending server-side conversion events to GTM SS container';
 
 -- ============================================================================
@@ -58,17 +66,17 @@ COMMENT ON COLUMN public.integrations_config.gtm_ss_enabled
 -- Add 'partially_refunded' to payment_transactions CHECK constraint.
 -- Without this, partial refunds via API v1 fail at DB level while Stripe
 -- has already processed the refund — causing data inconsistency.
-ALTER TABLE public.payment_transactions
+ALTER TABLE seller_main.payment_transactions
   DROP CONSTRAINT IF EXISTS payment_transactions_status_check;
 
-ALTER TABLE public.payment_transactions
+ALTER TABLE seller_main.payment_transactions
   ADD CONSTRAINT payment_transactions_status_check
   CHECK (status IN ('pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned'));
 
 -- Restrict process_stripe_payment_completion_with_bump to service_role only.
 -- Previously callable by any authenticated user, which allows bypassing
 -- Stripe payment verification for PWYW products with price=NULL.
-REVOKE EXECUTE ON FUNCTION public.process_stripe_payment_completion_with_bump FROM authenticated;
+REVOKE EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump FROM authenticated;
 
 -- Restrict verify_api_key to service_role only.
 -- Prevents anon/authenticated users from probing API key hashes via RPC.
@@ -83,15 +91,15 @@ GRANT EXECUTE ON FUNCTION public.check_application_rate_limit TO service_role;
 -- Fix product_price_history INSERT policy.
 -- Old policy allowed auth.uid() IS NULL which means anon callers could
 -- insert arbitrary price history records.
-DROP POLICY IF EXISTS "Only system or admins can insert price history" ON public.product_price_history;
+DROP POLICY IF EXISTS "Only system or admins can insert price history" ON seller_main.product_price_history;
 
 CREATE POLICY "Only system or admins can insert price history"
-  ON public.product_price_history FOR INSERT
+  ON seller_main.product_price_history FOR INSERT
   WITH CHECK (
-    current_setting('role', true) = 'service_role'
-    OR EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid())
+    (select auth.role()) = 'service_role'
+    OR ( select public.is_admin() )
   );
 
 -- Fix SECURITY DEFINER functions missing SET search_path.
 ALTER FUNCTION public.handle_new_user_registration() SET search_path = '';
-ALTER FUNCTION public.migrate_guest_payment_data_to_profile(UUID) SET search_path = '';
+ALTER FUNCTION seller_main.migrate_guest_payment_data_to_profile(UUID) SET search_path = '';

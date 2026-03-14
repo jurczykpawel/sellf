@@ -3,9 +3,19 @@ import { createClient } from '@/lib/supabase/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { sanitizeForLog } from '@/lib/logger';
+import { verifyCaptchaToken } from '@/lib/captcha/verify';
 
 export async function POST(request: Request) {
   try {
+    // SECURITY: Reject non-JSON Content-Type to prevent blind CSRF via text/plain forms
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 415 }
+      );
+    }
+
     // Rate limiting: 5 requests per 5 minutes (prevents webhook spam)
     const rateLimitOk = await checkRateLimit('waitlist_signup', 5, 300);
     if (!rateLimitOk) {
@@ -35,27 +45,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate productId is a UUID
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof productId !== 'string' || !UUID_REGEX.test(productId)) {
+      return NextResponse.json(
+        { error: 'Invalid product ID format' },
+        { status: 400 }
+      );
+    }
+
     // Verify captcha in production
     if (process.env.NODE_ENV === 'production') {
-      if (!captchaToken) {
-        return NextResponse.json({ error: 'Security verification required' }, { status: 400 });
-      }
-
-      const turnstileSecret = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
-      if (!turnstileSecret) {
-        console.error('[waitlist/signup] CLOUDFLARE_TURNSTILE_SECRET_KEY is not set — rejecting request to prevent unverified captcha bypass');
-        return NextResponse.json({ error: 'Service misconfiguration. Please contact support.' }, { status: 500 });
-      }
-
-      const verifyResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ secret: turnstileSecret, response: captchaToken }),
-      });
-
-      const verifyResult = await verifyResponse.json();
-      if (!verifyResult.success) {
-        return NextResponse.json({ error: 'Security verification failed' }, { status: 400 });
+      const captchaResult = await verifyCaptchaToken(captchaToken);
+      if (!captchaResult.success) {
+        return NextResponse.json(
+          { error: captchaResult.error || 'Security verification failed' },
+          { status: 400 },
+        );
       }
     }
 

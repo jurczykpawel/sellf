@@ -49,6 +49,20 @@ export const formatPrice = (price: number, currencyCode: string): string => {
 };
 
 /**
+ * Stripe minimum charge amount in currency units (e.g., $0.50).
+ * Used as default fallback for custom_price_min across checkout flows.
+ * @see https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
+ */
+export const STRIPE_MINIMUM_AMOUNT = 0.50;
+
+/**
+ * Stripe maximum charge amount in currency units.
+ * Applied as upper bound for Pay What You Want custom pricing.
+ * @see https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
+ */
+export const STRIPE_MAX_AMOUNT = 999999.99;
+
+/**
  * Stripe API version used across all Stripe SDK calls.
  * When updating, also update the webhook endpoint version in the Stripe Dashboard.
  * @see https://stripe.com/docs/upgrades
@@ -66,3 +80,25 @@ export const STRIPE_WEBHOOK_EVENTS = [
   'charge.refunded',
   'charge.dispute.created',
 ] as const;
+
+/**
+ * Product fields for public-facing product page queries.
+ * Shared between /p/[slug] and /s/[seller]/[product] pages.
+ * @see supabase/migrations/20250101000000_core_schema.sql — products table
+ */
+export const PRODUCT_PAGE_FIELDS = [
+  'id', 'name', 'slug', 'description', 'long_description',
+  'icon', 'image_url', 'thumbnail_url', 'preview_video_url',
+  'price', 'currency', 'vat_rate', 'price_includes_vat',
+  'features', 'layout_template',
+  'is_active', 'is_featured', 'is_listed',
+  'omnibus_exempt',
+  'sale_price', 'sale_price_until', 'sale_quantity_limit', 'sale_quantity_sold',
+  'available_from', 'available_until', 'auto_grant_duration_days',
+  'content_delivery_type', 'content_config',
+  'success_redirect_url', 'pass_params_to_redirect',
+  'is_refundable', 'refund_period_days',
+  'enable_waitlist',
+  'allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets',
+  'created_at', 'updated_at',
+].join(', ');

@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAdminApi, requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
-// Note: These must be read at runtime, not build time
-const getSupabaseUrl = () => process.env.SUPABASE_URL!;
-const getSupabaseServiceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    // Verify admin
-    const { data: admin } = await supabase.from('admin_users').select('id').eq('user_id', user.id).single();
-    if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    await requireAdminApi(supabase);
 
     const { data, error } = await supabase
       .from('coupons')
@@ -29,43 +20,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Coupons GET error:', error);
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    let user: { id: string } | null = null;
+    const { user } = await requireAdminApiWithRequest(request);
 
-    // Try Bearer token auth first (for API clients)
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const supabase = createServiceClient(getSupabaseUrl(), getSupabaseServiceKey());
-      const { data: { user: tokenUser }, error: authError } = await supabase.auth.getUser(token);
-      if (!authError && tokenUser) {
-        user = tokenUser;
-      }
-    }
-
-    // Fall back to cookie auth (for browser clients)
-    if (!user) {
-      const supabase = await createClient();
-      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser();
-      if (!authError && cookieUser) {
-        user = cookieUser;
-      }
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Use service role client for admin operations
-    const supabase = createServiceClient(getSupabaseUrl(), getSupabaseServiceKey());
-
-    const { data: admin } = await supabase.from('admin_users').select('id').eq('user_id', user.id).single();
-    if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Use admin client for seller_main operations (coupons table)
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit coupon creation
     const rateLimitOk = await checkRateLimit(
@@ -138,6 +108,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     console.error('Coupons POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

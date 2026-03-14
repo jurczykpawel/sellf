@@ -32,10 +32,10 @@ SET client_min_messages = warning;
 -- -----------------------------------------------------------------------------
 
 -- Tracks individual user progress for each video/product
-CREATE TABLE IF NOT EXISTS public.video_progress (
+CREATE TABLE IF NOT EXISTS seller_main.video_progress (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE NOT NULL,
+  product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL,
   video_id TEXT NOT NULL,
 
   -- Progress tracking
@@ -53,9 +53,9 @@ CREATE TABLE IF NOT EXISTS public.video_progress (
 );
 
 -- Stores raw interaction events for deep analytics (heatmaps, drop-off points)
-CREATE TABLE IF NOT EXISTS public.video_events (
+CREATE TABLE IF NOT EXISTS seller_main.video_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  progress_id UUID REFERENCES public.video_progress(id) ON DELETE CASCADE NOT NULL,
+  progress_id UUID REFERENCES seller_main.video_progress(id) ON DELETE CASCADE NOT NULL,
   event_type TEXT NOT NULL CHECK (event_type IN ('play', 'pause', 'seek', 'heartbeat', 'complete')),
   position_seconds INTEGER NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
@@ -66,10 +66,10 @@ CREATE TABLE IF NOT EXISTS public.video_events (
 -- -----------------------------------------------------------------------------
 
 -- Order bumps: complementary products offered during checkout
-CREATE TABLE IF NOT EXISTS public.order_bumps (
+CREATE TABLE IF NOT EXISTS seller_main.order_bumps (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  main_product_id UUID REFERENCES public.products(id) ON DELETE CASCADE NOT NULL,
-  bump_product_id UUID REFERENCES public.products(id) ON DELETE CASCADE NOT NULL,
+  main_product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL,
+  bump_product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE NOT NULL,
 
   -- Pricing
   bump_price NUMERIC CHECK (bump_price IS NULL OR bump_price >= 0),
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.order_bumps (
 -- E-COMMERCE DOMAIN: Coupons & Discounts
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.coupons (
+CREATE TABLE IF NOT EXISTS seller_main.coupons (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   code TEXT NOT NULL CHECK (length(code) >= 3),
   name TEXT, -- Internal name for admin
@@ -139,20 +139,20 @@ CREATE TABLE IF NOT EXISTS public.coupons (
   )
 );
 
-CREATE TABLE IF NOT EXISTS public.coupon_redemptions (
+CREATE TABLE IF NOT EXISTS seller_main.coupon_redemptions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  coupon_id UUID REFERENCES public.coupons(id) ON DELETE RESTRICT NOT NULL,
+  coupon_id UUID REFERENCES seller_main.coupons(id) ON DELETE RESTRICT NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   customer_email TEXT NOT NULL,
-  transaction_id UUID REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
+  transaction_id UUID REFERENCES seller_main.payment_transactions(id) ON DELETE CASCADE,
   discount_amount NUMERIC NOT NULL,
   redeemed_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 -- Coupon reservations - prevent race conditions by reserving slots
-CREATE TABLE IF NOT EXISTS public.coupon_reservations (
+CREATE TABLE IF NOT EXISTS seller_main.coupon_reservations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  coupon_id UUID REFERENCES public.coupons(id) ON DELETE CASCADE NOT NULL,
+  coupon_id UUID REFERENCES seller_main.coupons(id) ON DELETE CASCADE NOT NULL,
   customer_email TEXT NOT NULL,
   reserved_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS public.coupon_reservations (
 -- WEBHOOKS DOMAIN
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.webhook_endpoints (
+CREATE TABLE IF NOT EXISTS seller_main.webhook_endpoints (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   url TEXT NOT NULL,
   events TEXT[] NOT NULL DEFAULT '{}',
@@ -176,9 +176,9 @@ CREATE TABLE IF NOT EXISTS public.webhook_endpoints (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.webhook_logs (
+CREATE TABLE IF NOT EXISTS seller_main.webhook_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  endpoint_id UUID REFERENCES public.webhook_endpoints(id) ON DELETE CASCADE,
+  endpoint_id UUID REFERENCES seller_main.webhook_endpoints(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL,
   payload JSONB,
   status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'retried', 'archived')),
@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS public.webhook_logs (
 
 -- Check waitlist configuration for admin warnings
 -- Returns whether any webhook has waitlist.signup event and count of products with waitlist enabled
-CREATE OR REPLACE FUNCTION check_waitlist_config()
+CREATE OR REPLACE FUNCTION seller_main.check_waitlist_config()
 RETURNS JSON
 LANGUAGE sql
 SECURITY DEFINER
@@ -199,25 +199,25 @@ SET search_path = ''
 AS $$
   SELECT json_build_object(
     'has_webhook', EXISTS(
-      SELECT 1 FROM public.webhook_endpoints
+      SELECT 1 FROM seller_main.webhook_endpoints
       WHERE 'waitlist.signup' = ANY(events)
         AND is_active = true
     ),
     'products_count', (
       SELECT COUNT(*)::integer
-      FROM public.products
+      FROM seller_main.products
       WHERE enable_waitlist = true
     )
   );
 $$;
 
-COMMENT ON FUNCTION check_waitlist_config IS 'Check if waitlist.signup webhook exists and count products with waitlist enabled. Used for admin warnings.';
+COMMENT ON FUNCTION seller_main.check_waitlist_config IS 'Check if waitlist.signup webhook exists and count products with waitlist enabled. Used for admin warnings.';
 
 -- -----------------------------------------------------------------------------
 -- INTEGRATIONS DOMAIN
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.integrations_config (
+CREATE TABLE IF NOT EXISTS seller_main.integrations_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1), -- Singleton
 
   -- Analytics integrations
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS public.integrations_config (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.custom_scripts (
+CREATE TABLE IF NOT EXISTS seller_main.custom_scripts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   script_location TEXT NOT NULL CHECK (script_location IN ('head', 'body')),
@@ -262,7 +262,7 @@ CREATE TABLE IF NOT EXISTS public.custom_scripts (
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.consent_logs (
+CREATE TABLE IF NOT EXISTS seller_main.consent_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID,
   anonymous_id TEXT,
@@ -273,23 +273,27 @@ CREATE TABLE IF NOT EXISTS public.consent_logs (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- Indexes for consent_logs lookups
+CREATE INDEX IF NOT EXISTS idx_consent_logs_user_id ON seller_main.consent_logs(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_consent_logs_anonymous_id ON seller_main.consent_logs(anonymous_id) WHERE anonymous_id IS NOT NULL;
+
 -- Comments for integrations_config
-COMMENT ON COLUMN public.integrations_config.currency_api_provider IS 'Currency exchange rate provider: ecb (free EU, default), exchangerate-api (free 1500/mo), or fixer (paid)';
-COMMENT ON COLUMN public.integrations_config.currency_api_key_encrypted IS 'AES-256-GCM encrypted Currency API key (base64 encoded) - for ExchangeRate-API or Fixer.io';
-COMMENT ON COLUMN public.integrations_config.currency_api_key_iv IS 'Initialization vector for Currency API key decryption (base64 encoded)';
-COMMENT ON COLUMN public.integrations_config.currency_api_key_tag IS 'Authentication tag for Currency API key decryption (base64 encoded)';
-COMMENT ON COLUMN public.integrations_config.currency_api_enabled IS 'Whether Currency API integration is enabled for exchange rate fetching';
+COMMENT ON COLUMN seller_main.integrations_config.currency_api_provider IS 'Currency exchange rate provider: ecb (free EU, default), exchangerate-api (free 1500/mo), or fixer (paid)';
+COMMENT ON COLUMN seller_main.integrations_config.currency_api_key_encrypted IS 'AES-256-GCM encrypted Currency API key (base64 encoded) - for ExchangeRate-API or Fixer.io';
+COMMENT ON COLUMN seller_main.integrations_config.currency_api_key_iv IS 'Initialization vector for Currency API key decryption (base64 encoded)';
+COMMENT ON COLUMN seller_main.integrations_config.currency_api_key_tag IS 'Authentication tag for Currency API key decryption (base64 encoded)';
+COMMENT ON COLUMN seller_main.integrations_config.currency_api_enabled IS 'Whether Currency API integration is enabled for exchange rate fetching';
 
 -- Index for currency API queries
 CREATE INDEX IF NOT EXISTS idx_integrations_config_currency_api_enabled
-  ON public.integrations_config (currency_api_enabled)
+  ON seller_main.integrations_config (currency_api_enabled)
   WHERE currency_api_enabled = true;
 
 -- -----------------------------------------------------------------------------
 -- USER PROFILES DOMAIN
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.profiles (
+CREATE TABLE IF NOT EXISTS seller_main.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   first_name TEXT,
   last_name TEXT,
@@ -319,9 +323,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- ANALYTICS DOMAIN
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.revenue_goals (
+CREATE TABLE IF NOT EXISTS seller_main.revenue_goals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES seller_main.products(id) ON DELETE CASCADE,
   goal_amount BIGINT NOT NULL, -- in cents
   start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -333,7 +337,7 @@ CREATE TABLE IF NOT EXISTS public.revenue_goals (
 -- -----------------------------------------------------------------------------
 
 -- Stripe API Keys (encrypted storage)
-CREATE TABLE IF NOT EXISTS public.stripe_configurations (
+CREATE TABLE IF NOT EXISTS seller_main.stripe_configurations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   mode TEXT NOT NULL CHECK (mode IN ('test', 'live')),
 
@@ -359,7 +363,7 @@ CREATE TABLE IF NOT EXISTS public.stripe_configurations (
 );
 
 -- Global shop configuration (singleton)
-CREATE TABLE IF NOT EXISTS public.shop_config (
+CREATE TABLE IF NOT EXISTS seller_main.shop_config (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   shop_name TEXT NOT NULL DEFAULT 'My Shop',
   contact_email TEXT,
@@ -400,43 +404,45 @@ CREATE TABLE IF NOT EXISTS public.shop_config (
 -- Grouped by table for maintainability
 
 -- Video tracking
-CREATE INDEX IF NOT EXISTS idx_video_progress_user ON public.video_progress(user_id);
-CREATE INDEX IF NOT EXISTS idx_video_progress_product ON public.video_progress(product_id);
-CREATE INDEX IF NOT EXISTS idx_video_events_progress ON public.video_events(progress_id);
+CREATE INDEX IF NOT EXISTS idx_video_progress_user ON seller_main.video_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_video_progress_product ON seller_main.video_progress(product_id);
+CREATE INDEX IF NOT EXISTS idx_video_events_progress ON seller_main.video_events(progress_id);
 
 -- Order bumps
-CREATE INDEX IF NOT EXISTS idx_order_bumps_main_product ON public.order_bumps(main_product_id, is_active, display_order);
-CREATE INDEX IF NOT EXISTS idx_order_bumps_bump_product ON public.order_bumps(bump_product_id);
-CREATE INDEX IF NOT EXISTS idx_order_bumps_created_at ON public.order_bumps USING BRIN (created_at);
+CREATE INDEX IF NOT EXISTS idx_order_bumps_main_product ON seller_main.order_bumps(main_product_id, is_active, display_order);
+CREATE INDEX IF NOT EXISTS idx_order_bumps_bump_product ON seller_main.order_bumps(bump_product_id);
+CREATE INDEX IF NOT EXISTS idx_order_bumps_created_at ON seller_main.order_bumps USING BRIN (created_at);
 
 -- Coupons
-CREATE INDEX IF NOT EXISTS idx_coupons_code ON public.coupons(code);
-CREATE INDEX IF NOT EXISTS idx_coupons_active ON public.coupons(is_active) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_email ON public.coupon_redemptions(customer_email);
-CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user ON public.coupon_redemptions(user_id);
-CREATE INDEX IF NOT EXISTS idx_coupon_reservations_expires ON public.coupon_reservations(expires_at);
-CREATE INDEX IF NOT EXISTS idx_coupon_reservations_email ON public.coupon_reservations(customer_email);
-CREATE INDEX IF NOT EXISTS idx_coupon_reservations_coupon ON public.coupon_reservations(coupon_id);
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON seller_main.coupons(code);
+CREATE INDEX IF NOT EXISTS idx_coupons_active ON seller_main.coupons(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_coupon ON seller_main.coupon_redemptions(coupon_id);
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_email ON seller_main.coupon_redemptions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user ON seller_main.coupon_redemptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_transaction ON seller_main.coupon_redemptions(transaction_id) WHERE transaction_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_coupon_reservations_expires ON seller_main.coupon_reservations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_coupon_reservations_email ON seller_main.coupon_reservations(customer_email);
+CREATE INDEX IF NOT EXISTS idx_coupon_reservations_coupon ON seller_main.coupon_reservations(coupon_id);
 
 -- Webhooks
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_endpoint_id ON public.webhook_logs(endpoint_id);
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON public.webhook_logs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_status ON public.webhook_logs(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_endpoint_id ON seller_main.webhook_logs(endpoint_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON seller_main.webhook_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_status ON seller_main.webhook_logs(status);
 
 -- Revenue goals
-CREATE UNIQUE INDEX IF NOT EXISTS revenue_goals_global_idx ON public.revenue_goals ((1)) WHERE product_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS revenue_goals_product_idx ON public.revenue_goals (product_id) WHERE product_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS revenue_goals_global_idx ON seller_main.revenue_goals ((1)) WHERE product_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS revenue_goals_product_idx ON seller_main.revenue_goals (product_id) WHERE product_id IS NOT NULL;
 
 -- Stripe configurations
 CREATE UNIQUE INDEX IF NOT EXISTS unique_active_mode_per_stripe_config
-  ON public.stripe_configurations (mode, is_active) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_stripe_config_mode ON public.stripe_configurations(mode);
-CREATE INDEX IF NOT EXISTS idx_stripe_config_active ON public.stripe_configurations(is_active) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_stripe_config_expires_at ON public.stripe_configurations(expires_at)
+  ON seller_main.stripe_configurations (mode, is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_stripe_config_mode ON seller_main.stripe_configurations(mode);
+CREATE INDEX IF NOT EXISTS idx_stripe_config_active ON seller_main.stripe_configurations(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_stripe_config_expires_at ON seller_main.stripe_configurations(expires_at)
   WHERE is_active = true AND expires_at IS NOT NULL;
 
 -- Shop config (singleton constraint)
-CREATE UNIQUE INDEX IF NOT EXISTS shop_config_singleton_idx ON public.shop_config ((true));
+CREATE UNIQUE INDEX IF NOT EXISTS shop_config_singleton_idx ON seller_main.shop_config ((true));
 
 -- =============================================================================
 -- FUNCTIONS
@@ -447,7 +453,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS shop_config_singleton_idx ON public.shop_confi
 -- VIDEO TRACKING FUNCTIONS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.update_video_progress(
+CREATE OR REPLACE FUNCTION seller_main.update_video_progress(
   product_id_param UUID,
   video_id_param TEXT,
   position_param INTEGER,
@@ -462,7 +468,7 @@ BEGIN
     RAISE EXCEPTION 'Authentication required';
   END IF;
 
-  INSERT INTO public.video_progress (
+  INSERT INTO seller_main.video_progress (
     user_id, product_id, video_id, last_position_seconds,
     max_position_seconds, video_duration_seconds, is_completed
   ) VALUES (
@@ -485,13 +491,13 @@ BEGIN
     'is_completed', progress_record.is_completed
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- -----------------------------------------------------------------------------
 -- ORDER BUMPS FUNCTIONS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.get_product_order_bumps(
+CREATE OR REPLACE FUNCTION seller_main.get_product_order_bumps(
   product_id_param UUID
 ) RETURNS TABLE (
   bump_id UUID,
@@ -522,19 +528,19 @@ BEGIN
     ob.bump_title,
     ob.bump_description,
     ob.display_order
-  FROM public.order_bumps ob
-  INNER JOIN public.products p ON p.id = ob.bump_product_id
+  FROM seller_main.order_bumps ob
+  INNER JOIN seller_main.products p ON p.id = ob.bump_product_id
   WHERE ob.main_product_id = product_id_param
     AND ob.is_active = true
     AND p.is_active = true
   ORDER BY ob.display_order ASC, ob.created_at ASC
   LIMIT 1;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
-GRANT EXECUTE ON FUNCTION public.get_product_order_bumps TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION seller_main.get_product_order_bumps TO authenticated, anon;
 
-CREATE OR REPLACE FUNCTION public.admin_get_product_order_bumps(
+CREATE OR REPLACE FUNCTION seller_main.admin_get_product_order_bumps(
   product_id_param UUID
 ) RETURNS TABLE (
   bump_id UUID,
@@ -550,9 +556,7 @@ CREATE OR REPLACE FUNCTION public.admin_get_product_order_bumps(
   updated_at TIMESTAMPTZ
 ) AS $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()
-  ) THEN
+  IF NOT (SELECT public.is_admin()) THEN
     RAISE EXCEPTION 'Access denied: Admin privileges required';
   END IF;
 
@@ -569,20 +573,20 @@ BEGIN
     ob.access_duration_days,
     ob.created_at,
     ob.updated_at
-  FROM public.order_bumps ob
-  INNER JOIN public.products p ON p.id = ob.bump_product_id
+  FROM seller_main.order_bumps ob
+  INNER JOIN seller_main.products p ON p.id = ob.bump_product_id
   WHERE ob.main_product_id = product_id_param
   ORDER BY ob.display_order ASC, ob.created_at DESC;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
 
-GRANT EXECUTE ON FUNCTION public.admin_get_product_order_bumps TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.admin_get_product_order_bumps TO authenticated;
 
 -- -----------------------------------------------------------------------------
 -- PAYMENT PROCESSING WITH ORDER BUMPS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.process_stripe_payment_completion_with_bump(
+CREATE OR REPLACE FUNCTION seller_main.process_stripe_payment_completion_with_bump(
   session_id_param TEXT,
   product_id_param UUID,
   customer_email_param TEXT,
@@ -648,9 +652,9 @@ BEGIN
   END IF;
 
   -- Idempotency check (skip pending transactions — they need to be completed)
-  IF EXISTS (SELECT 1 FROM public.payment_transactions WHERE session_id = session_id_param AND status != 'pending') THEN
+  IF EXISTS (SELECT 1 FROM seller_main.payment_transactions WHERE session_id = session_id_param AND status != 'pending') THEN
     -- Check if this was a guest purchase to return consistent values
-    IF EXISTS (SELECT 1 FROM public.guest_purchases WHERE session_id = session_id_param) THEN
+    IF EXISTS (SELECT 1 FROM seller_main.guest_purchases WHERE session_id = session_id_param) THEN
       -- Guest purchase - return same values as original guest purchase scenario
       RETURN jsonb_build_object(
         'success', true,
@@ -675,7 +679,7 @@ BEGIN
 
   -- Get product with price and currency for validation
   SELECT id, auto_grant_duration_days, price, currency INTO product_record
-  FROM public.products
+  FROM seller_main.products
   WHERE id = product_id_param AND is_active = true;
 
   IF NOT FOUND THEN
@@ -698,8 +702,8 @@ BEGIN
       COALESCE(ob.bump_price, p.price) as price,
       p.currency
     INTO bump_product_record
-    FROM public.products p
-    JOIN public.order_bumps ob ON ob.bump_product_id = p.id AND ob.main_product_id = product_id_param
+    FROM seller_main.products p
+    JOIN seller_main.order_bumps ob ON ob.bump_product_id = p.id AND ob.main_product_id = product_id_param
     WHERE p.id = bump_product_id_param AND p.is_active = true;
 
     IF FOUND THEN
@@ -790,14 +794,14 @@ BEGIN
   BEGIN
     -- Check for existing pending transaction and update it (abandoned cart recovery)
     SELECT pt.id INTO pending_transaction_id
-    FROM public.payment_transactions pt
+    FROM seller_main.payment_transactions pt
     WHERE pt.stripe_payment_intent_id = process_stripe_payment_completion_with_bump.stripe_payment_intent_id
       AND pt.status = 'pending'
     LIMIT 1;
 
     IF pending_transaction_id IS NOT NULL THEN
       -- Update existing pending transaction to completed
-      UPDATE public.payment_transactions
+      UPDATE seller_main.payment_transactions
       SET
         status = 'completed',
         user_id = current_user_id,
@@ -814,7 +818,7 @@ BEGIN
       RETURNING id INTO transaction_id_var;
     ELSE
       -- No pending transaction found - insert new record
-      INSERT INTO public.payment_transactions (
+      INSERT INTO seller_main.payment_transactions (
       session_id, user_id, product_id, customer_email, amount, currency,
       stripe_payment_intent_id, status, metadata
     ) VALUES (
@@ -831,12 +835,12 @@ BEGIN
 
     -- Increment sale quantity sold if sale price is active
     -- This is done atomically to prevent race conditions
-    PERFORM public.increment_sale_quantity_sold(product_id_param);
+    PERFORM seller_main.increment_sale_quantity_sold(product_id_param);
 
     -- SECURITY FIX: Handle coupon redemption with reservation system
     IF coupon_id_param IS NOT NULL THEN
       -- STEP 1: Verify and consume reservation
-      DELETE FROM public.coupon_reservations
+      DELETE FROM seller_main.coupon_reservations
       WHERE coupon_id = coupon_id_param
         AND customer_email = customer_email_param
         AND expires_at > NOW();
@@ -849,7 +853,7 @@ BEGIN
 
       -- STEP 2: Atomic increment (reservation guarantees this will succeed)
       -- We still do atomic check as defense-in-depth
-      UPDATE public.coupons
+      UPDATE seller_main.coupons
       SET current_usage_count = COALESCE(current_usage_count, 0) + 1
       WHERE id = coupon_id_param
         AND is_active = true
@@ -862,7 +866,7 @@ BEGIN
       END IF;
 
       -- STEP 3: Record redemption
-      INSERT INTO public.coupon_redemptions (
+      INSERT INTO seller_main.coupon_redemptions (
         coupon_id, user_id, customer_email, transaction_id, discount_amount
       ) VALUES (
         coupon_id_param,
@@ -875,9 +879,9 @@ BEGIN
 
     -- SCENARIO 1: Logged-in user
     IF current_user_id IS NOT NULL THEN
-      PERFORM public.grant_product_access_service_role(current_user_id, product_id_param);
+      PERFORM seller_main.grant_product_access_service_role(current_user_id, product_id_param);
       IF bump_found THEN
-        PERFORM public.grant_product_access_service_role(current_user_id, bump_product_id_param);
+        PERFORM seller_main.grant_product_access_service_role(current_user_id, bump_product_id_param);
       END IF;
 
       RETURN jsonb_build_object(
@@ -890,11 +894,11 @@ BEGIN
 
     -- SCENARIO 2: Guest purchase, user exists
     ELSIF existing_user_id IS NOT NULL THEN
-      INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id)
+      INSERT INTO seller_main.guest_purchases (customer_email, product_id, transaction_amount, session_id)
       VALUES (customer_email_param, product_id_param, amount_total, session_id_param);
 
       IF bump_found THEN
-        INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id)
+        INSERT INTO seller_main.guest_purchases (customer_email, product_id, transaction_amount, session_id)
         VALUES (customer_email_param, bump_product_id_param, 0, session_id_param || '_bump');
       END IF;
 
@@ -909,11 +913,11 @@ BEGIN
 
     -- SCENARIO 3: Guest purchase, new user
     ELSE
-      INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id)
+      INSERT INTO seller_main.guest_purchases (customer_email, product_id, transaction_amount, session_id)
       VALUES (customer_email_param, product_id_param, amount_total, session_id_param);
 
       IF bump_found THEN
-        INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id)
+        INSERT INTO seller_main.guest_purchases (customer_email, product_id, transaction_amount, session_id)
         VALUES (customer_email_param, bump_product_id_param, 0, session_id_param || '_bump');
       END IF;
 
@@ -936,16 +940,16 @@ BEGIN
   END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 SET statement_timeout = '30s';
 
-GRANT EXECUTE ON FUNCTION public.process_stripe_payment_completion_with_bump TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump TO service_role, authenticated;
 
 -- -----------------------------------------------------------------------------
 -- COUPON FUNCTIONS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.verify_coupon(
+CREATE OR REPLACE FUNCTION seller_main.verify_coupon(
   code_param TEXT,
   product_id_param UUID,
   customer_email_param TEXT DEFAULT NULL,
@@ -960,11 +964,11 @@ DECLARE
 BEGIN
   -- STEP 1: Self-cleaning - remove expired reservations
   -- This happens automatically on every verify call (no cron needed!)
-  DELETE FROM public.coupon_reservations WHERE expires_at < NOW();
+  DELETE FROM seller_main.coupon_reservations WHERE expires_at < NOW();
 
   -- STEP 2: Lock coupon row (must use FOR UPDATE to ensure atomicity)
   SELECT * INTO coupon_record
-  FROM public.coupons
+  FROM seller_main.coupons
   WHERE code = code_param AND is_active = true
   FOR UPDATE;
 
@@ -999,7 +1003,7 @@ BEGIN
   -- STEP 3: Check per-user limit (actual redemptions)
   IF customer_email_param IS NOT NULL THEN
     SELECT COUNT(*) INTO user_usage_count
-    FROM public.coupon_redemptions
+    FROM seller_main.coupon_redemptions
     WHERE coupon_id = coupon_record.id AND customer_email = customer_email_param;
 
     IF user_usage_count >= coupon_record.usage_limit_per_user THEN
@@ -1010,7 +1014,7 @@ BEGIN
   -- STEP 4: Check if user already has an active reservation
   IF customer_email_param IS NOT NULL THEN
     SELECT id INTO existing_reservation_id
-    FROM public.coupon_reservations
+    FROM seller_main.coupon_reservations
     WHERE coupon_id = coupon_record.id
       AND customer_email = customer_email_param
       AND expires_at > NOW();
@@ -1034,7 +1038,7 @@ BEGIN
   IF coupon_record.usage_limit_global IS NOT NULL THEN
     -- Count active reservations
     SELECT COUNT(*) INTO reserved_count
-    FROM public.coupon_reservations
+    FROM seller_main.coupon_reservations
     WHERE coupon_id = coupon_record.id AND expires_at > NOW();
 
     -- Available = limit - redemptions - reservations
@@ -1049,7 +1053,7 @@ BEGIN
 
   -- STEP 6: CREATE RESERVATION (15 minute expiry)
   IF customer_email_param IS NOT NULL THEN
-    INSERT INTO public.coupon_reservations (
+    INSERT INTO seller_main.coupon_reservations (
       coupon_id,
       customer_email,
       expires_at
@@ -1074,9 +1078,9 @@ BEGIN
     'expires_in_minutes', 15
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
-CREATE OR REPLACE FUNCTION public.find_auto_apply_coupon(
+CREATE OR REPLACE FUNCTION seller_main.find_auto_apply_coupon(
   customer_email_param TEXT,
   product_id_param UUID
 ) RETURNS JSONB AS $$
@@ -1085,7 +1089,7 @@ DECLARE
 BEGIN
   -- SECURITY FIX: Add FOR UPDATE SKIP LOCKED to prevent race conditions
   SELECT * INTO coupon_record
-  FROM public.coupons
+  FROM seller_main.coupons
   WHERE is_active = true
     AND (allowed_emails @> to_jsonb(customer_email_param))
     AND (
@@ -1111,31 +1115,31 @@ BEGIN
     'exclude_order_bumps', coupon_record.exclude_order_bumps
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
-GRANT EXECUTE ON FUNCTION public.find_auto_apply_coupon TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION seller_main.find_auto_apply_coupon TO anon, authenticated, service_role;
 
 -- -----------------------------------------------------------------------------
 -- INTEGRATIONS FUNCTIONS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.get_public_integrations_config()
+CREATE OR REPLACE FUNCTION seller_main.get_public_integrations_config()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   config_record RECORD;
   scripts_json JSONB;
 BEGIN
-  SELECT * INTO config_record FROM public.integrations_config WHERE id = 1;
+  SELECT * INTO config_record FROM seller_main.integrations_config WHERE id = 1;
 
   SELECT jsonb_agg(jsonb_build_object(
     'id', id, 'name', name, 'location', script_location,
     'content', script_content, 'category', category
   )) INTO scripts_json
-  FROM public.custom_scripts WHERE is_active = true;
+  FROM seller_main.custom_scripts WHERE is_active = true;
 
   RETURN jsonb_build_object(
     'gtm_container_id', config_record.gtm_container_id,
@@ -1152,7 +1156,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_public_integrations_config() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION seller_main.get_public_integrations_config() TO anon, authenticated, service_role;
 
 -- -----------------------------------------------------------------------------
 -- GUEST PAYMENT DATA MIGRATION
@@ -1170,7 +1174,7 @@ GRANT EXECUTE ON FUNCTION public.get_public_integrations_config() TO anon, authe
  * This function is called automatically by handle_new_user_registration() trigger
  * when a user registers/signs in for the first time.
  */
-CREATE OR REPLACE FUNCTION public.migrate_guest_payment_data_to_profile(
+CREATE OR REPLACE FUNCTION seller_main.migrate_guest_payment_data_to_profile(
   p_user_id UUID
 ) RETURNS json AS $$
 DECLARE
@@ -1194,7 +1198,7 @@ BEGIN
   -- Find LATEST guest payment (completed, with metadata)
   SELECT metadata, created_at
   INTO latest_payment
-  FROM public.payment_transactions
+  FROM seller_main.payment_transactions
   WHERE customer_email = user_email_var
     AND user_id IS NULL  -- Guest purchases only
     AND status = 'completed'
@@ -1204,7 +1208,7 @@ BEGIN
 
   -- If found, update profile with latest payment data
   IF latest_payment IS NOT NULL THEN
-    UPDATE public.profiles
+    UPDATE seller_main.profiles
     SET
       -- ALWAYS update customer name (if provided in payment)
       full_name = CASE
@@ -1286,7 +1290,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION public.migrate_guest_payment_data_to_profile(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION seller_main.migrate_guest_payment_data_to_profile(UUID) TO service_role;
 
 -- -----------------------------------------------------------------------------
 -- USER REGISTRATION HANDLER
@@ -1299,7 +1303,7 @@ DECLARE
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtext('handle_new_user_registration'));
 
-  INSERT INTO public.profiles (id, full_name, avatar_url)
+  INSERT INTO seller_main.profiles (id, full_name, avatar_url)
   VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url')
   ON CONFLICT (id) DO NOTHING;
 
@@ -1307,13 +1311,13 @@ BEGIN
   SELECT NEW.id WHERE NOT EXISTS (SELECT 1 FROM public.admin_users LIMIT 1)
   ON CONFLICT (user_id) DO NOTHING;
 
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'claim_guest_purchases_for_user') THEN
-    SELECT public.claim_guest_purchases_for_user(NEW.id) INTO claim_result;
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'claim_guest_purchases_for_user' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'seller_main')) THEN
+    SELECT seller_main.claim_guest_purchases_for_user(NEW.id) INTO claim_result;
   END IF;
 
   -- Migrate payment data from guest purchases to profile
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'migrate_guest_payment_data_to_profile') THEN
-    PERFORM public.migrate_guest_payment_data_to_profile(NEW.id);
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'migrate_guest_payment_data_to_profile' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'seller_main')) THEN
+    PERFORM seller_main.migrate_guest_payment_data_to_profile(NEW.id);
   END IF;
 
   PERFORM public.log_audit_entry('auth.users', 'INSERT', NULL, jsonb_build_object('email', NEW.email), NEW.id);
@@ -1325,11 +1329,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ANALYTICS & DASHBOARD FUNCTIONS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.get_dashboard_stats()
+CREATE OR REPLACE FUNCTION seller_main.get_dashboard_stats()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
 DECLARE
   total_users INTEGER;
@@ -1337,39 +1341,39 @@ DECLARE
   total_revenue NUMERIC;
   active_users_7d INTEGER;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
   SELECT COUNT(*) INTO total_users FROM auth.users;
-  SELECT COUNT(*) INTO total_products FROM public.products WHERE is_active = true;
+  SELECT COUNT(*) INTO total_products FROM seller_main.products WHERE is_active = true;
   SELECT COALESCE(SUM(amount), 0) INTO total_revenue
-  FROM public.payment_transactions WHERE status = 'completed';
+  FROM seller_main.payment_transactions WHERE status = 'completed';
 
   SELECT COUNT(DISTINCT user_id) INTO active_users_7d
-  FROM public.user_product_access
+  FROM seller_main.user_product_access
   WHERE created_at > NOW() - INTERVAL '7 days';
 
   RETURN jsonb_build_object(
     'totalProducts', total_products,
     'totalUsers', total_users,
-    'totalAccess', (SELECT COUNT(*) FROM public.user_product_access),
+    'totalAccess', (SELECT COUNT(*) FROM seller_main.user_product_access),
     'activeUsers', active_users_7d,
     'totalRevenue', total_revenue
   );
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_dashboard_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.get_dashboard_stats() TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.get_detailed_revenue_stats(
+CREATE OR REPLACE FUNCTION seller_main.get_detailed_revenue_stats(
   p_product_id UUID DEFAULT NULL,
   p_goal_start_date TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
 DECLARE
   v_total_revenue_by_currency JSONB;
@@ -1377,7 +1381,7 @@ DECLARE
   v_today_orders INTEGER;
   v_last_order_at TIMESTAMPTZ;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1385,7 +1389,7 @@ BEGIN
   INTO v_total_revenue_by_currency
   FROM (
     SELECT pt.currency, SUM(pt.amount) as total
-    FROM public.payment_transactions pt
+    FROM seller_main.payment_transactions pt
     WHERE pt.status = 'completed'
       AND (p_product_id IS NULL OR pt.product_id = p_product_id)
       AND (p_goal_start_date IS NULL OR pt.created_at >= p_goal_start_date)
@@ -1398,7 +1402,7 @@ BEGIN
   INTO v_today_revenue_by_currency, v_today_orders
   FROM (
     SELECT pt.currency, SUM(pt.amount) as total, COUNT(*) as order_count
-    FROM public.payment_transactions pt
+    FROM seller_main.payment_transactions pt
     WHERE pt.status = 'completed'
       AND pt.created_at >= CURRENT_DATE
       AND (p_product_id IS NULL OR pt.product_id = p_product_id)
@@ -1406,7 +1410,7 @@ BEGIN
   ) sub;
 
   SELECT pt.created_at INTO v_last_order_at
-  FROM public.payment_transactions pt
+  FROM seller_main.payment_transactions pt
   WHERE pt.status = 'completed'
     AND (p_product_id IS NULL OR pt.product_id = p_product_id)
   ORDER BY pt.created_at DESC
@@ -1421,9 +1425,9 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_detailed_revenue_stats(UUID, TIMESTAMPTZ) TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.get_detailed_revenue_stats(UUID, TIMESTAMPTZ) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.get_sales_chart_data(
+CREATE OR REPLACE FUNCTION seller_main.get_sales_chart_data(
   p_start_date TIMESTAMPTZ,
   p_end_date TIMESTAMPTZ,
   p_product_id UUID DEFAULT NULL
@@ -1435,10 +1439,10 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1453,7 +1457,7 @@ BEGIN
       pt.currency,
       SUM(pt.amount) as currency_total,
       COUNT(*) as currency_orders
-    FROM public.payment_transactions pt
+    FROM seller_main.payment_transactions pt
     WHERE pt.status = 'completed'
       AND pt.created_at >= p_start_date
       AND pt.created_at <= p_end_date
@@ -1465,9 +1469,9 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_sales_chart_data(TIMESTAMPTZ, TIMESTAMPTZ, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.get_sales_chart_data(TIMESTAMPTZ, TIMESTAMPTZ, UUID) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.get_hourly_revenue_stats(
+CREATE OR REPLACE FUNCTION seller_main.get_hourly_revenue_stats(
   p_target_date DATE DEFAULT CURRENT_DATE,
   p_product_id UUID DEFAULT NULL
 )
@@ -1478,10 +1482,10 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
@@ -1495,7 +1499,7 @@ BEGIN
       pt.currency,
       SUM(pt.amount) as total_amount,
       COUNT(*) as total_orders
-    FROM public.payment_transactions pt
+    FROM seller_main.payment_transactions pt
     WHERE pt.status = 'completed'
       AND pt.created_at::DATE = p_target_date
       AND (p_product_id IS NULL OR pt.product_id = p_product_id)
@@ -1519,37 +1523,37 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_hourly_revenue_stats(DATE, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.get_hourly_revenue_stats(DATE, UUID) TO authenticated;
 
 -- -----------------------------------------------------------------------------
 -- REVENUE GOALS FUNCTIONS
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.get_revenue_goal(p_product_id UUID DEFAULT NULL)
+CREATE OR REPLACE FUNCTION seller_main.get_revenue_goal(p_product_id UUID DEFAULT NULL)
 RETURNS TABLE (
   goal_amount BIGINT,
   start_date TIMESTAMPTZ
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
   RETURN QUERY
   SELECT rg.goal_amount, rg.start_date
-  FROM public.revenue_goals rg
+  FROM seller_main.revenue_goals rg
   WHERE (p_product_id IS NULL AND rg.product_id IS NULL)
      OR (p_product_id IS NOT NULL AND rg.product_id = p_product_id);
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_revenue_goal(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.get_revenue_goal(UUID) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.set_revenue_goal(
+CREATE OR REPLACE FUNCTION seller_main.set_revenue_goal(
   p_goal_amount BIGINT,
   p_start_date TIMESTAMPTZ,
   p_product_id UUID DEFAULT NULL
@@ -1557,15 +1561,15 @@ CREATE OR REPLACE FUNCTION public.set_revenue_goal(
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, auth
+SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) THEN
+  IF NOT ( select public.is_admin() ) THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
   IF p_product_id IS NULL THEN
-    INSERT INTO public.revenue_goals (product_id, goal_amount, start_date, updated_at)
+    INSERT INTO seller_main.revenue_goals (product_id, goal_amount, start_date, updated_at)
     VALUES (NULL, p_goal_amount, p_start_date, NOW())
     ON CONFLICT ((1)) WHERE product_id IS NULL
     DO UPDATE SET
@@ -1573,7 +1577,7 @@ BEGIN
       start_date = EXCLUDED.start_date,
       updated_at = NOW();
   ELSE
-    INSERT INTO public.revenue_goals (product_id, goal_amount, start_date, updated_at)
+    INSERT INTO seller_main.revenue_goals (product_id, goal_amount, start_date, updated_at)
     VALUES (p_product_id, p_goal_amount, p_start_date, NOW())
     ON CONFLICT (product_id) WHERE product_id IS NOT NULL
     DO UPDATE SET
@@ -1584,7 +1588,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.set_revenue_goal(BIGINT, TIMESTAMPTZ, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.set_revenue_goal(BIGINT, TIMESTAMPTZ, UUID) TO authenticated;
 
 -- =============================================================================
 -- TRIGGERS
@@ -1593,43 +1597,43 @@ GRANT EXECUTE ON FUNCTION public.set_revenue_goal(BIGINT, TIMESTAMPTZ, UUID) TO 
 -- We reuse it here via triggers instead of redefining it
 
 CREATE TRIGGER trigger_update_video_progress_updated_at
-  BEFORE UPDATE ON public.video_progress
+  BEFORE UPDATE ON seller_main.video_progress
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_order_bumps_updated_at
-  BEFORE UPDATE ON public.order_bumps
+  BEFORE UPDATE ON seller_main.order_bumps
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_coupons_updated_at
-  BEFORE UPDATE ON public.coupons
+  BEFORE UPDATE ON seller_main.coupons
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_webhook_endpoints_updated_at
-  BEFORE UPDATE ON public.webhook_endpoints
+  BEFORE UPDATE ON seller_main.webhook_endpoints
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_integrations_config_updated_at
-  BEFORE UPDATE ON public.integrations_config
+  BEFORE UPDATE ON seller_main.integrations_config
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_custom_scripts_updated_at
-  BEFORE UPDATE ON public.custom_scripts
+  BEFORE UPDATE ON seller_main.custom_scripts
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_profiles_updated_at
-  BEFORE UPDATE ON public.profiles
+  BEFORE UPDATE ON seller_main.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_revenue_goals_updated_at
-  BEFORE UPDATE ON public.revenue_goals
+  BEFORE UPDATE ON seller_main.revenue_goals
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_stripe_configurations_updated_at
-  BEFORE UPDATE ON public.stripe_configurations
+  BEFORE UPDATE ON seller_main.stripe_configurations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TRIGGER trigger_update_shop_config_updated_at
-  BEFORE UPDATE ON public.shop_config
+  BEFORE UPDATE ON seller_main.shop_config
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- User registration trigger
@@ -1643,204 +1647,224 @@ CREATE TRIGGER on_auth_user_created
 -- =============================================================================
 
 -- Enable RLS on all tables
-ALTER TABLE public.video_progress ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.video_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.order_bumps ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.coupon_redemptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.coupon_reservations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.webhook_endpoints ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.integrations_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.custom_scripts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.consent_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.revenue_goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.stripe_configurations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.shop_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.video_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.video_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.order_bumps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.coupon_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.coupon_reservations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.webhook_endpoints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.webhook_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.integrations_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.custom_scripts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.consent_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.revenue_goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.stripe_configurations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seller_main.shop_config ENABLE ROW LEVEL SECURITY;
 
 -- -----------------------------------------------------------------------------
 -- VIDEO TRACKING POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Users can view own video progress" ON public.video_progress
-  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own video progress" ON seller_main.video_progress
+  FOR SELECT USING ((select auth.uid()) = user_id);
 
-CREATE POLICY "Users can insert own video progress" ON public.video_progress
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert own video progress" ON seller_main.video_progress
+  FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 
-CREATE POLICY "Users can update own video progress" ON public.video_progress
-  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own video progress" ON seller_main.video_progress
+  FOR UPDATE USING ((select auth.uid()) = user_id);
 
-CREATE POLICY "Admins can view all video progress" ON public.video_progress
+CREATE POLICY "Admins can view all video progress" ON seller_main.video_progress
   FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
-CREATE POLICY "Users can view own video events" ON public.video_events
+CREATE POLICY "Users can view own video events" ON seller_main.video_events
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.video_progress
+      SELECT 1 FROM seller_main.video_progress
       WHERE video_progress.id = video_events.progress_id
       AND video_progress.user_id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can insert own video events" ON public.video_events
+CREATE POLICY "Users can insert own video events" ON seller_main.video_events
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.video_progress
+      SELECT 1 FROM seller_main.video_progress
       WHERE video_progress.id = video_events.progress_id
       AND video_progress.user_id = auth.uid()
     )
   );
 
-CREATE POLICY "Admins can view all video events" ON public.video_events
+CREATE POLICY "Admins can view all video events" ON seller_main.video_events
   FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
 -- -----------------------------------------------------------------------------
 -- ORDER BUMPS POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Admins can view order bumps" ON public.order_bumps
+CREATE POLICY "Admins can view order bumps" ON seller_main.order_bumps
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
-CREATE POLICY "Admins can insert order bumps" ON public.order_bumps
+CREATE POLICY "Admins can insert order bumps" ON seller_main.order_bumps
   FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
-CREATE POLICY "Admins can update order bumps" ON public.order_bumps
+CREATE POLICY "Admins can update order bumps" ON seller_main.order_bumps
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
-CREATE POLICY "Admins can delete order bumps" ON public.order_bumps
+CREATE POLICY "Admins can delete order bumps" ON seller_main.order_bumps
   FOR DELETE USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE admin_users.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
-CREATE POLICY "Public can view active order bumps" ON public.order_bumps
+CREATE POLICY "Public can view active order bumps" ON seller_main.order_bumps
   FOR SELECT TO public USING (is_active = true);
 
-CREATE POLICY "Service role can manage order bumps" ON public.order_bumps
+CREATE POLICY "Service role can manage order bumps" ON seller_main.order_bumps
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- -----------------------------------------------------------------------------
 -- COUPONS POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Admins full access coupons" ON public.coupons
+CREATE POLICY "Admins full access coupons" ON seller_main.coupons
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
-CREATE POLICY "Service role full access coupons" ON public.coupons
+CREATE POLICY "Service role full access coupons" ON seller_main.coupons
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-CREATE POLICY "Admins full access redemptions" ON public.coupon_redemptions
+CREATE POLICY "Admins full access redemptions" ON seller_main.coupon_redemptions
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
-CREATE POLICY "Service role full access redemptions" ON public.coupon_redemptions
+CREATE POLICY "Service role full access redemptions" ON seller_main.coupon_redemptions
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-CREATE POLICY "Users view own redemptions" ON public.coupon_redemptions
-  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users view own redemptions" ON seller_main.coupon_redemptions
+  FOR SELECT USING ((select auth.uid()) = user_id);
 
-CREATE POLICY "Admins full access reservations" ON public.coupon_reservations
+CREATE POLICY "Admins full access reservations" ON seller_main.coupon_reservations
   FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+  USING (( select public.is_admin() ));
 
-CREATE POLICY "Service role full access reservations" ON public.coupon_reservations
+CREATE POLICY "Service role full access reservations" ON seller_main.coupon_reservations
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- -----------------------------------------------------------------------------
 -- WEBHOOKS POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Admins can manage webhook endpoints" ON public.webhook_endpoints
+CREATE POLICY "Admins can manage webhook endpoints" ON seller_main.webhook_endpoints
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
-CREATE POLICY "Admins can view webhook logs" ON public.webhook_logs
+CREATE POLICY "Admins can view webhook logs" ON seller_main.webhook_logs
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
-CREATE POLICY "Admins can update webhook logs" ON public.webhook_logs
+CREATE POLICY "Admins can update webhook logs" ON seller_main.webhook_logs
   FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.admin_users au WHERE au.user_id = auth.uid())
+    ( select public.is_admin() )
   );
+
+-- INSERT and DELETE go through service_role (webhook delivery system), not direct user access
+CREATE POLICY "Service role can insert webhook logs" ON seller_main.webhook_logs
+  FOR INSERT WITH CHECK ((select auth.role()) = 'service_role');
+
+CREATE POLICY "Service role can delete webhook logs" ON seller_main.webhook_logs
+  FOR DELETE USING ((select auth.role()) = 'service_role');
 
 -- -----------------------------------------------------------------------------
 -- INTEGRATIONS POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Admins manage config" ON public.integrations_config
+CREATE POLICY "Admins manage config" ON seller_main.integrations_config
   USING (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   )
   WITH CHECK (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
-CREATE POLICY "Admins manage scripts" ON public.custom_scripts
+CREATE POLICY "Admins manage scripts" ON seller_main.custom_scripts
   USING (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   )
   WITH CHECK (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
-CREATE POLICY "Admins view logs" ON public.consent_logs
+CREATE POLICY "Admins view logs" ON seller_main.consent_logs
   FOR SELECT USING (
-    auth.uid() IN (SELECT user_id FROM public.admin_users) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
-CREATE POLICY "Public log consent" ON public.consent_logs
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users log own consent" ON seller_main.consent_logs
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = (select auth.uid()));
+
+CREATE POLICY "Service role insert consent" ON seller_main.consent_logs
+  FOR INSERT TO service_role
+  WITH CHECK (true);
 
 -- -----------------------------------------------------------------------------
 -- PROFILES POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Self view" ON public.profiles
-  FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Self view" ON seller_main.profiles
+  FOR SELECT USING ((select auth.uid()) = id);
 
-CREATE POLICY "Self update" ON public.profiles
-  FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Self update" ON seller_main.profiles
+  FOR UPDATE USING ((select auth.uid()) = id);
 
-CREATE POLICY "Admin view" ON public.profiles
-  FOR SELECT USING (auth.uid() IN (SELECT user_id FROM public.admin_users));
+CREATE POLICY "Admin view" ON seller_main.profiles
+  FOR SELECT USING (( select public.is_admin() ));
+
+CREATE POLICY "Service role insert profiles" ON seller_main.profiles
+  FOR INSERT TO service_role
+  WITH CHECK (true);
+
+CREATE POLICY "Admin delete profiles" ON seller_main.profiles
+  FOR DELETE TO service_role
+  USING (true);
 
 -- -----------------------------------------------------------------------------
 -- REVENUE GOALS POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Admins can manage revenue goals" ON public.revenue_goals
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
-  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+CREATE POLICY "Admins can manage revenue goals" ON seller_main.revenue_goals
+  USING (( select public.is_admin() ))
+  WITH CHECK (( select public.is_admin() ));
 
 -- -----------------------------------------------------------------------------
 -- STRIPE CONFIGURATIONS POLICIES
 -- -----------------------------------------------------------------------------
 
-CREATE POLICY "Admins full access to stripe_configurations" ON public.stripe_configurations
+CREATE POLICY "Admins full access to stripe_configurations" ON seller_main.stripe_configurations
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) OR
-    (SELECT current_setting('role', true) = 'service_role')
+    ( select public.is_admin() ) OR
+    ((select auth.role()) = 'service_role')
   );
 
 -- -----------------------------------------------------------------------------
@@ -1848,39 +1872,39 @@ CREATE POLICY "Admins full access to stripe_configurations" ON public.stripe_con
 -- -----------------------------------------------------------------------------
 
 -- Admin write access (INSERT, UPDATE, DELETE)
-CREATE POLICY "Admins full access to shop_config" ON public.shop_config
+CREATE POLICY "Admins full access to shop_config" ON seller_main.shop_config
   FOR ALL TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid())
+    ( select public.is_admin() )
   )
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid())
+    ( select public.is_admin() )
   );
 
 -- Public read access (shop configuration needs to be visible to all users including guests)
-CREATE POLICY "Public read access to shop_config" ON public.shop_config
+CREATE POLICY "Public read access to shop_config" ON seller_main.shop_config
   FOR SELECT TO public USING (true);
 
 -- =============================================================================
 -- INITIAL DATA
 -- =============================================================================
 
-INSERT INTO public.integrations_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+INSERT INTO seller_main.integrations_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================
 -- REALTIME SETUP
 -- =============================================================================
 
-ALTER TABLE public.payment_transactions REPLICA IDENTITY FULL;
+ALTER TABLE seller_main.payment_transactions REPLICA IDENTITY FULL;
 
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime'
-    AND schemaname = 'public'
+    AND schemaname = 'seller_main'
     AND tablename = 'payment_transactions'
   ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.payment_transactions;
+    ALTER PUBLICATION supabase_realtime ADD TABLE seller_main.payment_transactions;
   END IF;
 END $$;
 
@@ -1888,7 +1912,7 @@ END $$;
 -- SECURITY VIEWS (Enterprise)
 -- =============================================================================
 
-CREATE OR REPLACE VIEW public.user_access_stats WITH (security_invoker = on) AS
+CREATE OR REPLACE VIEW seller_main.user_access_stats WITH (security_invoker = on) AS
 SELECT
   u.id as user_id,
   u.email,
@@ -1901,11 +1925,11 @@ SELECT
   MAX(upa.created_at) as last_access_granted_at,
   MIN(upa.created_at) as first_access_granted_at
 FROM auth.users u
-LEFT JOIN public.user_product_access upa ON u.id = upa.user_id
-LEFT JOIN public.products p ON upa.product_id = p.id
+LEFT JOIN seller_main.user_product_access upa ON u.id = upa.user_id
+LEFT JOIN seller_main.products p ON upa.product_id = p.id
 GROUP BY u.id, u.email, u.created_at, u.email_confirmed_at, u.last_sign_in_at, u.raw_user_meta_data;
 
-CREATE OR REPLACE VIEW public.user_product_access_detailed WITH (security_invoker = on) AS
+CREATE OR REPLACE VIEW seller_main.user_product_access_detailed WITH (security_invoker = on) AS
 SELECT
   upa.id,
   upa.user_id,
@@ -1922,10 +1946,9 @@ SELECT
   upa.access_duration_days,
   upa.created_at as access_created_at,
   p.created_at as product_created_at,
-  p.updated_at as product_updated_at,
-  upa.tenant_id
-FROM public.user_product_access upa
-JOIN public.products p ON upa.product_id = p.id;
+  p.updated_at as product_updated_at
+FROM seller_main.user_product_access upa
+JOIN seller_main.products p ON upa.product_id = p.id;
 
 DROP VIEW IF EXISTS public.rate_limit_summary;
 CREATE VIEW public.rate_limit_summary WITH (security_invoker = on) AS
@@ -1950,15 +1973,15 @@ SELECT
   AVG(amount) as avg_transaction_amount,
   COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as records_last_24h,
   NOW() as snapshot_time
-FROM public.payment_transactions;
+FROM seller_main.payment_transactions;
 
-REVOKE ALL ON public.user_access_stats FROM anon, authenticated;
-REVOKE ALL ON public.user_product_access_detailed FROM anon, authenticated;
+REVOKE ALL ON seller_main.user_access_stats FROM anon, authenticated;
+REVOKE ALL ON seller_main.user_product_access_detailed FROM anon, authenticated;
 REVOKE ALL ON public.rate_limit_summary FROM anon, authenticated;
 REVOKE ALL ON public.payment_system_health FROM anon, authenticated;
 
-GRANT SELECT ON public.user_access_stats TO service_role;
-GRANT SELECT ON public.user_product_access_detailed TO service_role;
+GRANT SELECT ON seller_main.user_access_stats TO service_role;
+GRANT SELECT ON seller_main.user_product_access_detailed TO service_role;
 GRANT SELECT ON public.rate_limit_summary TO service_role;
 GRANT SELECT ON public.payment_system_health TO service_role;
 
@@ -1968,13 +1991,13 @@ GRANT SELECT ON auth.users TO service_role;
 -- COMMENTS (Documentation)
 -- =============================================================================
 
-COMMENT ON TABLE public.video_progress IS 'Tracks user progress for video content';
-COMMENT ON TABLE public.order_bumps IS 'Order bump configurations for one-click upsells';
-COMMENT ON TABLE public.coupons IS 'Smart discount codes with auto-apply and targeting';
-COMMENT ON TABLE public.webhook_endpoints IS 'Webhook endpoint configurations';
-COMMENT ON TABLE public.integrations_config IS 'Global integrations configuration (singleton)';
-COMMENT ON TABLE public.stripe_configurations IS 'Encrypted Stripe API keys with rotation support';
-COMMENT ON TABLE public.shop_config IS 'Global shop configuration settings (singleton)';
+COMMENT ON TABLE seller_main.video_progress IS 'Tracks user progress for video content';
+COMMENT ON TABLE seller_main.order_bumps IS 'Order bump configurations for one-click upsells';
+COMMENT ON TABLE seller_main.coupons IS 'Smart discount codes with auto-apply and targeting';
+COMMENT ON TABLE seller_main.webhook_endpoints IS 'Webhook endpoint configurations';
+COMMENT ON TABLE seller_main.integrations_config IS 'Global integrations configuration (singleton)';
+COMMENT ON TABLE seller_main.stripe_configurations IS 'Encrypted Stripe API keys with rotation support';
+COMMENT ON TABLE seller_main.shop_config IS 'Global shop configuration settings (singleton)';
 
 -- =============================================================================
 -- PRODUCT VARIANTS FUNCTIONS
@@ -1982,7 +2005,7 @@ COMMENT ON TABLE public.shop_config IS 'Global shop configuration settings (sing
 
 -- Get all active variants in a group by UUID (for variant selector page)
 -- Uses M:N relationship via product_variant_groups junction table
-CREATE OR REPLACE FUNCTION public.get_variant_group(p_group_id UUID)
+CREATE OR REPLACE FUNCTION seller_main.get_variant_group(p_group_id UUID)
 RETURNS TABLE (
   id UUID,
   name TEXT,
@@ -1999,7 +2022,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT
     p.id,
@@ -2013,18 +2036,18 @@ AS $$
     p.description,
     p.image_url,
     p.is_active
-  FROM products p
-  INNER JOIN product_variant_groups pvg ON pvg.product_id = p.id
+  FROM seller_main.products p
+  INNER JOIN seller_main.product_variant_groups pvg ON pvg.product_id = p.id
   WHERE pvg.group_id = p_group_id
     AND p.is_active = true
   ORDER BY pvg.display_order ASC, p.price ASC;
 $$;
 
-COMMENT ON FUNCTION public.get_variant_group(UUID) IS 'Get all active variants in a group by UUID (M:N schema)';
-GRANT EXECUTE ON FUNCTION public.get_variant_group(UUID) TO anon, authenticated, service_role;
+COMMENT ON FUNCTION seller_main.get_variant_group(UUID) IS 'Get all active variants in a group by UUID (M:N schema)';
+GRANT EXECUTE ON FUNCTION seller_main.get_variant_group(UUID) TO anon, authenticated, service_role;
 
 -- Get all active variants in a group by slug (for variant selector page)
-CREATE OR REPLACE FUNCTION public.get_variant_group_by_slug(p_slug TEXT)
+CREATE OR REPLACE FUNCTION seller_main.get_variant_group_by_slug(p_slug TEXT)
 RETURNS TABLE (
   id UUID,
   name TEXT,
@@ -2041,7 +2064,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT
     p.id,
@@ -2055,19 +2078,90 @@ AS $$
     p.description,
     p.image_url,
     p.is_active
-  FROM products p
-  INNER JOIN product_variant_groups pvg ON pvg.product_id = p.id
-  INNER JOIN variant_groups vg ON vg.id = pvg.group_id
+  FROM seller_main.products p
+  INNER JOIN seller_main.product_variant_groups pvg ON pvg.product_id = p.id
+  INNER JOIN seller_main.variant_groups vg ON vg.id = pvg.group_id
   WHERE vg.slug = p_slug
     AND p.is_active = true
   ORDER BY pvg.display_order ASC, p.price ASC;
 $$;
 
-COMMENT ON FUNCTION public.get_variant_group_by_slug(TEXT) IS 'Get all active variants in a group by slug (M:N schema)';
-GRANT EXECUTE ON FUNCTION public.get_variant_group_by_slug(TEXT) TO anon, authenticated, service_role;
+COMMENT ON FUNCTION seller_main.get_variant_group_by_slug(TEXT) IS 'Get all active variants in a group by slug (M:N schema)';
+GRANT EXECUTE ON FUNCTION seller_main.get_variant_group_by_slug(TEXT) TO anon, authenticated, service_role;
 
-COMMENT ON COLUMN public.order_bumps.bump_price IS 'Special discounted price for bump (NULL = use product default price)';
-COMMENT ON COLUMN public.stripe_configurations.encrypted_key IS 'AES-256-GCM encrypted Stripe API key (base64 encoded)';
-COMMENT ON COLUMN public.shop_config.custom_settings IS 'Flexible JSONB field for additional custom settings';
-COMMENT ON COLUMN public.shop_config.terms_of_service_url IS 'URL to Terms of Service document (PDF, webpage, etc.)';
-COMMENT ON COLUMN public.shop_config.privacy_policy_url IS 'URL to Privacy Policy document (PDF, webpage, etc.)';
+COMMENT ON COLUMN seller_main.order_bumps.bump_price IS 'Special discounted price for bump (NULL = use product default price)';
+COMMENT ON COLUMN seller_main.stripe_configurations.encrypted_key IS 'AES-256-GCM encrypted Stripe API key (base64 encoded)';
+COMMENT ON COLUMN seller_main.shop_config.custom_settings IS 'Flexible JSONB field for additional custom settings';
+COMMENT ON COLUMN seller_main.shop_config.terms_of_service_url IS 'URL to Terms of Service document (PDF, webpage, etc.)';
+COMMENT ON COLUMN seller_main.shop_config.privacy_policy_url IS 'URL to Privacy Policy document (PDF, webpage, etc.)';
+
+-- =============================================================================
+-- PROXY VIEWS (backward compatibility for shop tables moved to seller_main)
+-- =============================================================================
+
+CREATE OR REPLACE VIEW public.video_progress WITH (security_invoker = on) AS SELECT * FROM seller_main.video_progress;
+CREATE OR REPLACE VIEW public.video_events WITH (security_invoker = on) AS SELECT * FROM seller_main.video_events;
+CREATE OR REPLACE VIEW public.order_bumps WITH (security_invoker = on) AS SELECT * FROM seller_main.order_bumps;
+CREATE OR REPLACE VIEW public.coupons WITH (security_invoker = on) AS SELECT * FROM seller_main.coupons;
+CREATE OR REPLACE VIEW public.coupon_redemptions WITH (security_invoker = on) AS SELECT * FROM seller_main.coupon_redemptions;
+CREATE OR REPLACE VIEW public.coupon_reservations WITH (security_invoker = on) AS SELECT * FROM seller_main.coupon_reservations;
+CREATE OR REPLACE VIEW public.webhook_endpoints WITH (security_invoker = on) AS SELECT * FROM seller_main.webhook_endpoints;
+CREATE OR REPLACE VIEW public.webhook_logs WITH (security_invoker = on) AS SELECT * FROM seller_main.webhook_logs;
+CREATE OR REPLACE VIEW public.integrations_config WITH (security_invoker = on) AS SELECT * FROM seller_main.integrations_config;
+CREATE OR REPLACE VIEW public.custom_scripts WITH (security_invoker = on) AS SELECT * FROM seller_main.custom_scripts;
+CREATE OR REPLACE VIEW public.consent_logs WITH (security_invoker = on) AS SELECT * FROM seller_main.consent_logs;
+CREATE OR REPLACE VIEW public.profiles WITH (security_invoker = on) AS SELECT * FROM seller_main.profiles;
+CREATE OR REPLACE VIEW public.revenue_goals WITH (security_invoker = on) AS SELECT * FROM seller_main.revenue_goals;
+CREATE OR REPLACE VIEW public.stripe_configurations WITH (security_invoker = on) AS SELECT * FROM seller_main.stripe_configurations;
+CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;
+
+-- =============================================================================
+-- EXPLICIT TABLE GRANTS (Security Rule #5: never rely on blanket default privileges)
+-- =============================================================================
+-- Public catalog tables: anon + authenticated SELECT
+GRANT SELECT ON seller_main.order_bumps TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.order_bumps TO authenticated;
+GRANT SELECT ON seller_main.shop_config TO anon;
+GRANT SELECT, UPDATE ON seller_main.shop_config TO authenticated;
+-- User's own data: authenticated CRUD (RLS enforced)
+GRANT SELECT, INSERT, UPDATE ON seller_main.video_progress TO authenticated;
+GRANT INSERT ON seller_main.video_events TO authenticated;
+GRANT SELECT, INSERT ON seller_main.coupon_redemptions TO authenticated;
+GRANT SELECT, INSERT, DELETE ON seller_main.coupon_reservations TO authenticated;
+GRANT SELECT, INSERT ON seller_main.consent_logs TO authenticated;
+GRANT SELECT, UPDATE ON seller_main.profiles TO authenticated;
+-- Admin-only tables: REVOKE blanket access, then GRANT only what RLS policies need
+REVOKE ALL ON seller_main.coupons FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.coupons TO authenticated;
+REVOKE ALL ON seller_main.webhook_endpoints FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.webhook_endpoints TO authenticated;
+REVOKE ALL ON seller_main.webhook_logs FROM anon, authenticated;
+GRANT SELECT, UPDATE ON seller_main.webhook_logs TO authenticated;
+REVOKE ALL ON seller_main.integrations_config FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.integrations_config TO authenticated;
+REVOKE ALL ON seller_main.custom_scripts FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.custom_scripts TO authenticated;
+REVOKE ALL ON seller_main.revenue_goals FROM anon, authenticated;
+-- revenue_goals: no application code uses this table via authenticated role.
+-- Only service_role (via ALTER DEFAULT PRIVILEGES) has access. If future code
+-- needs authenticated access, add minimal grants here.
+REVOKE ALL ON seller_main.stripe_configurations FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.stripe_configurations TO authenticated;
+
+-- ===== ATOMIC COUPON USAGE INCREMENT =====
+-- Used by 100% coupon flow (create-payment-intent) to prevent race conditions
+-- where concurrent requests could both read the same usage count and exceed the limit.
+CREATE OR REPLACE FUNCTION seller_main.increment_coupon_usage(coupon_id_param uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE seller_main.coupons
+  SET current_usage_count = COALESCE(current_usage_count, 0) + 1
+  WHERE id = coupon_id_param;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION seller_main.increment_coupon_usage FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION seller_main.increment_coupon_usage TO service_role;

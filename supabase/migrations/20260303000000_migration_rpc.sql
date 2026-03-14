@@ -37,9 +37,13 @@ CREATE TABLE IF NOT EXISTS public._migration_history (
   execution_ms  INTEGER                                -- NULL for seed entries
 );
 
--- RLS enabled but no policies = no access via PostgREST tables endpoint.
--- Only accessible through SECURITY DEFINER functions or service_role direct grants.
+-- RLS enabled with explicit service_role-only policies (Security Rule #1).
 ALTER TABLE public._migration_history ENABLE ROW LEVEL SECURITY;
+
+-- Explicit policies (zero-policy tables are a time bomb even with REVOKE)
+CREATE POLICY "Service role full access to _migration_history"
+  ON public._migration_history FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
 
 REVOKE ALL ON TABLE public._migration_history FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT ON TABLE public._migration_history TO service_role;
@@ -62,7 +66,7 @@ DECLARE
   v_elapsed_ms INTEGER;
 BEGIN
   -- LAYER 1: Role check (defense-in-depth, primary protection is GRANT/REVOKE below)
-  IF current_setting('role', true) IS DISTINCT FROM 'service_role' THEN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Forbidden: only service_role can apply migrations'
       USING ERRCODE = '42501';  -- insufficient_privilege
   END IF;

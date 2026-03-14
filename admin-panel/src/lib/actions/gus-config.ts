@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { encryptGUSKey, decryptGUSKey } from '@/lib/services/gus-encryption';
 import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
+import { withAdminAuth } from '@/lib/actions/admin-auth';
+import type { ActionResponse } from '@/lib/actions/admin-auth';
 
 export interface GUSConfig {
   enabled: boolean;
@@ -15,45 +17,13 @@ export interface SaveGUSKeyInput {
   enabled: boolean;
 }
 
-interface ActionResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  errorCode?: string;
-}
-
 /**
  * Saves/updates GUS API key in shop_config.custom_settings
  */
 export async function saveGUSAPIKey(input: SaveGUSKeyInput): Promise<ActionResponse<void>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const supabase = await createClient();
 
-    // Verify admin permissions
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Unauthorized - no user session',
-        errorCode: 'UNAUTHORIZED'
-      };
-    }
-
-    const { data: adminCheck } = await supabase
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminCheck) {
-      return {
-        success: false,
-        error: 'Forbidden - admin access required',
-        errorCode: 'FORBIDDEN'
-      };
-    }
-
+  return withAdminAuth(async ({ supabase }) => {
     // Basic validation
     const trimmedKey = input.apiKey.trim();
 
@@ -124,14 +94,7 @@ export async function saveGUSAPIKey(input: SaveGUSKeyInput): Promise<ActionRespo
     revalidatePath('/dashboard/integrations');
 
     return { success: true };
-  } catch (error) {
-    console.error('Error saving GUS API key:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'UNKNOWN_ERROR'
-    };
-  }
+  });
 }
 
 /**
@@ -224,33 +187,8 @@ export async function getDecryptedGUSAPIKey(): Promise<string | null> {
  */
 export async function deleteGUSAPIKey(): Promise<ActionResponse<void>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const supabase = await createClient();
 
-    // Verify admin permissions
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return {
-        success: false,
-        error: 'Unauthorized',
-        errorCode: 'UNAUTHORIZED'
-      };
-    }
-
-    const { data: adminCheck } = await supabase
-      .from('admin_users')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminCheck) {
-      return {
-        success: false,
-        error: 'Forbidden',
-        errorCode: 'FORBIDDEN'
-      };
-    }
-
+  return withAdminAuth(async ({ supabase }) => {
     // Clear GUS keys from integrations_config
     const { error } = await supabase
       .from('integrations_config')
@@ -275,12 +213,5 @@ export async function deleteGUSAPIKey(): Promise<ActionResponse<void>> {
     revalidatePath('/dashboard/integrations');
 
     return { success: true };
-  } catch (error) {
-    console.error('Error deleting GUS API key:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'UNKNOWN_ERROR'
-    };
-  }
+  });
 }

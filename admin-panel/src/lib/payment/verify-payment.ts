@@ -6,10 +6,28 @@
  * Only use in Server Components and API Routes.
  */
 
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/** Shape returned by process_stripe_payment_completion_with_bump RPC (JSONB) */
+interface PaymentRpcResult {
+  success: boolean;
+  error?: string;
+  access_granted?: boolean;
+  already_had_access?: boolean;
+  requires_login?: boolean;
+  is_guest_purchase?: boolean;
+  scenario?: string;
+  access_expires_at?: string | null;
+  send_magic_link?: boolean;
+  customer_email?: string;
+}
 
 /**
  * Helper function to update user profile with customer data from payment
@@ -24,12 +42,12 @@ import { WebhookService } from '@/lib/services/webhook-service';
  * migrate_guest_payment_data_to_profile() database function.
  */
 async function updateProfileWithCompanyData(
-  serviceClient: any,
+  serviceClient: AdminClient,
   userId: string,
-  metadata: Record<string, any>
+  metadata: Record<string, string | undefined>
 ): Promise<void> {
   try {
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, string> = {
       updated_at: new Date().toISOString()
     };
 
@@ -130,7 +148,7 @@ export interface PaymentVerificationResult {
  */
 async function getProcessedPaymentFromDatabase(
   sessionId: string,
-  serviceClient: any,
+  serviceClient: AdminClient,
   user?: User | null
 ): Promise<PaymentVerificationResult | null> {
   // Look up existing completed transaction
@@ -172,12 +190,15 @@ async function getProcessedPaymentFromDatabase(
   }
 
   // Check if user has access to the product
-  const { data: accessRecord } = await serviceClient
-    .from('user_product_access')
-    .select('id, access_expires_at')
-    .eq('product_id', transaction.product_id)
-    .eq('user_id', transaction.user_id || user?.id)
-    .maybeSingle();
+  const effectiveUserId = transaction.user_id || user?.id;
+  const { data: accessRecord } = effectiveUserId
+    ? await serviceClient
+        .from('user_product_access')
+        .select('id, access_expires_at')
+        .eq('product_id', transaction.product_id)
+        .eq('user_id', effectiveUserId)
+        .maybeSingle()
+    : { data: null };
 
   const hasAccess = !!accessRecord;
   const isGuestPurchase = !transaction.user_id;
@@ -185,15 +206,16 @@ async function getProcessedPaymentFromDatabase(
   // Generate OTO info if applicable
   let otoInfo: OtoInfo = { has_oto: false };
   try {
-    const { data: otoResult } = await serviceClient
+    const { data: otoResultRaw } = await serviceClient
       .rpc('generate_oto_coupon', {
         source_product_id_param: transaction.product_id,
         customer_email_param: transaction.customer_email,
         transaction_id_param: transaction.id
       });
+    const otoResult = otoResultRaw as OtoInfo | null;
 
     if (otoResult?.has_oto || otoResult?.reason) {
-      otoInfo = otoResult as OtoInfo;
+      otoInfo = otoResult;
     }
   } catch (otoErr) {
     console.error('OTO generation exception (cached):', otoErr);
@@ -240,27 +262,8 @@ export async function verifyPaymentSession(
     };
   }
 
-  // Check environment variables
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return {
-      session_id: sessionId,
-      status: 'error',
-      payment_status: null,
-      error: 'Server configuration error'
-    };
-  }
-
-  // Create Service Role client for secure operations
-  const serviceClient = createServiceClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
+  // Create admin client (service_role, seller_main schema)
+  const serviceClient = createAdminClient();
 
   try {
     // First, check if payment was already processed (database cache)
@@ -337,29 +340,64 @@ export async function verifyPaymentSession(
             ? session.payment_intent?.id
             : session.payment_intent;
 
-          // Extract bump product ID from metadata if present
+          // Extract bump product IDs from metadata (multi-bump support)
+          const bumpProductIdsStr = session.metadata?.bump_product_ids || '';
           const bumpProductId = session.metadata?.bump_product_id || null;
           const hasBump = session.metadata?.has_bump === 'true';
+          
+          // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
+          let bumpProductIds: string[] = bumpProductIdsStr
+            ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
+            : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+          // Detect metadata truncation and recover from Stripe line items
+          const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
+          if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+            console.warn('[verify-payment] BUMP_METADATA_TRUNCATED | session=%s | expected=%d | got=%d', session.id, expectedBumpCount, bumpProductIds.length);
+            try {
+              const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+                limit: 100,
+                expand: ['data.price.product'],
+              });
+              const recoveredIds: string[] = [];
+              for (const li of lineItems.data) {
+                const product = li.price?.product;
+                if (typeof product === 'object' && product && 'metadata' in product) {
+                  const meta = (product as Stripe.Product).metadata;
+                  if (meta?.is_bump === 'true' && meta?.product_id) {
+                    recoveredIds.push(meta.product_id);
+                  }
+                }
+              }
+              if (recoveredIds.length >= expectedBumpCount) {
+                bumpProductIds = recoveredIds;
+              }
+            } catch (lineItemErr) {
+              console.error('[verify-payment] Failed to recover bump IDs from Stripe:', lineItemErr);
+            }
+          }
           
           // Extract coupon ID from metadata if present
           const couponId = session.metadata?.coupon_id || null;
           const hasCoupon = session.metadata?.has_coupon === 'true';
 
-          // Use new function that supports order bumps
+          // Use function that supports multiple order bumps (UUID array)
           const rpcParams = {
             session_id_param: session.id,
             product_id_param: productId,
             customer_email_param: customerEmail,
             amount_total: session.amount_total || 0,
             currency_param: session.currency || 'usd',
-            stripe_payment_intent_id: stripePaymentIntentId || null,
-            user_id_param: user?.id || null,
-            bump_product_id_param: hasBump && bumpProductId ? bumpProductId : null,
-            coupon_id_param: hasCoupon && couponId ? couponId : null
+            stripe_payment_intent_id: stripePaymentIntentId || undefined,
+            user_id_param: user?.id || undefined,
+            bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
+            coupon_id_param: hasCoupon && couponId ? couponId : undefined
           };
           
-          const { data: paymentResult, error: paymentError } = await serviceClient
+          const { data: paymentResultRaw, error: paymentError } = await serviceClient
             .rpc('process_stripe_payment_completion_with_bump', rpcParams);
+
+          const paymentResult = paymentResultRaw as PaymentRpcResult | null;
 
           if (paymentError) {
             console.error(
@@ -389,69 +427,20 @@ export async function verifyPaymentSession(
 
           // Trigger webhook for new successful purchases
           if (!paymentResult.already_had_access) {
-            // Fetch detailed product info for webhook
-            const { data: productDetails } = await serviceClient
-              .from('products')
-              .select('id, name, slug, price, currency, icon')
-              .eq('id', productId)
-              .single();
-
-            // Fetch bump product info if exists
-            let bumpProductDetails = null;
-            if (hasBump && bumpProductId) {
-               const { data: bump } = await serviceClient
-                .from('products')
-                .select('id, name, slug, price, currency, icon')
-                .eq('id', bumpProductId)
-                .single();
-               bumpProductDetails = bump;
-            }
-
-            const webhookData: any = {
-              customer: {
-                email: customerEmail,
-                firstName: session.metadata?.first_name || null,
-                lastName: session.metadata?.last_name || null,
-                userId: user?.id || null
-              },
-              product: productDetails ? {
-                 id: productDetails.id,
-                 name: productDetails.name,
-                 slug: productDetails.slug,
-                 price: productDetails.price,
-                 currency: productDetails.currency,
-                 icon: productDetails.icon
-              } : { id: productId },
-              bumpProduct: bumpProductDetails ? {
-                 id: bumpProductDetails.id,
-                 name: bumpProductDetails.name,
-                 slug: bumpProductDetails.slug,
-                 price: bumpProductDetails.price,
-                 currency: bumpProductDetails.currency,
-                 icon: bumpProductDetails.icon
-              } : null,
-              order: {
-                amount: session.amount_total,
-                currency: session.currency,
-                sessionId: session.id,
-                paymentIntentId: stripePaymentIntentId,
-                couponId: hasCoupon && couponId ? couponId : null,
-                isGuest: paymentResult.is_guest_purchase
-              }
-            };
-
-            // Add invoice data if requested
-            if (session.metadata?.needs_invoice === 'true') {
-              webhookData.invoice = {
-                needsInvoice: true,
-                nip: session.metadata.nip || null,
-                companyName: session.metadata.company_name || null,
-                address: session.metadata.address || null,
-                city: session.metadata.city || null,
-                postalCode: session.metadata.postal_code || null,
-                country: session.metadata.country || null,
-              };
-            }
+            const webhookData = await buildPurchaseWebhookPayload({
+              supabaseClient: serviceClient,
+              customerEmail,
+              userId: user?.id || null,
+              productId,
+              bumpProductIds,
+              metadata: session.metadata as Record<string, string | undefined> | null,
+              amount: session.amount_total,
+              currency: session.currency,
+              sessionId: session.id,
+              paymentIntentId: stripePaymentIntentId,
+              couponId: hasCoupon && couponId ? couponId : null,
+              isGuest: paymentResult?.is_guest_purchase,
+            });
 
             WebhookService.trigger('purchase.completed', webhookData)
               .catch(err => console.error('Webhook trigger error:', err));
@@ -474,20 +463,21 @@ export async function verifyPaymentSession(
                 .single();
 
               if (transaction?.id) {
-                const { data: otoResult, error: otoError } = await serviceClient
+                const { data: otoResultRaw, error: otoError } = await serviceClient
                   .rpc('generate_oto_coupon', {
                     source_product_id_param: productId,
                     customer_email_param: customerEmail,
                     transaction_id_param: transaction.id
                   });
+                const otoResult = otoResultRaw as OtoInfo | null;
 
                 if (otoError) {
                   console.error('OTO generation error:', otoError);
                 } else if (otoResult?.has_oto) {
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 } else if (otoResult?.reason) {
                   // Pass through skipped OTO info (e.g., user already owns the product)
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 }
               }
             } catch (otoErr) {
@@ -498,15 +488,15 @@ export async function verifyPaymentSession(
           // Convert database response to our interface
           return {
             ...baseResponse,
-            access_granted: paymentResult.access_granted || false,
-            already_had_access: paymentResult.already_had_access || false,
-            requires_login: paymentResult.requires_login || false,
-            is_guest_purchase: paymentResult.is_guest_purchase || false,
-            scenario: paymentResult.scenario,
-            access_expires_at: paymentResult.access_expires_at,
-            send_magic_link: paymentResult.send_magic_link || false,
+            access_granted: paymentResult?.access_granted || false,
+            already_had_access: paymentResult?.already_had_access || false,
+            requires_login: paymentResult?.requires_login || false,
+            is_guest_purchase: paymentResult?.is_guest_purchase || false,
+            scenario: paymentResult?.scenario,
+            access_expires_at: paymentResult?.access_expires_at,
+            send_magic_link: paymentResult?.send_magic_link || false,
             // Use customer email from DB result, fallback to Stripe session, fallback to what we passed in
-            customer_email: paymentResult.customer_email || baseResponse.customer_email || customerEmail,
+            customer_email: paymentResult?.customer_email || baseResponse.customer_email || customerEmail,
             oto_info: otoInfo
           };
 
@@ -576,26 +566,8 @@ export async function verifyPaymentIntent(
     };
   }
 
-  // Check environment variables
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return {
-      payment_intent_id: paymentIntentId,
-      status: 'error',
-      error: 'Server configuration error'
-    };
-  }
-
-  // Create Service Role client for secure operations
-  const serviceClient = createServiceClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
+  // Create admin client (service_role, seller_main schema)
+  const serviceClient = createAdminClient();
 
   try {
     // Get Stripe instance
@@ -642,26 +614,49 @@ export async function verifyPaymentIntent(
             };
           }
 
-          // Extract metadata
-          const bumpProductId = paymentIntent.metadata?.bump_product_id || null;
+          // Extract metadata (multi-bump support)
+          const bumpProductIdsStr = paymentIntent.metadata?.bump_product_ids || '';
+          const bumpProductIdLegacy = paymentIntent.metadata?.bump_product_id || null;
           const couponId = paymentIntent.metadata?.coupon_id || null;
 
-          // Process payment using database function
-          // For Payment Intent flow, use payment_intent_id as session_id for uniqueness tracking
+          // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single
+          let bumpProductIds: string[] = bumpProductIdsStr
+            ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
+            : (bumpProductIdLegacy ? [bumpProductIdLegacy] : []);
+
+          // Detect metadata truncation and recover from pending transaction
+          const expectedBumpCount = parseInt(paymentIntent.metadata?.bump_count || '0', 10);
+          if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+            console.warn('[verify-payment] BUMP_METADATA_TRUNCATED | pi=%s | expected=%d | got=%d', paymentIntent.id, expectedBumpCount, bumpProductIds.length);
+            const { data: pendingTx } = await serviceClient
+              .from('payment_transactions')
+              .select('metadata')
+              .eq('stripe_payment_intent_id', paymentIntent.id)
+              .maybeSingle();
+            const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
+            if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
+              bumpProductIds = fullBumpIds as string[];
+              console.info('[verify-payment] Recovered %d bump IDs from pending transaction', fullBumpIds.length);
+            }
+          }
+
+          // Process payment using database function (multi-bump UUID array)
           const rpcParams = {
-            session_id_param: paymentIntent.id, // Use payment_intent_id as session_id for Payment Intent flow
+            session_id_param: paymentIntent.id,
             product_id_param: productId,
             customer_email_param: customerEmail,
             amount_total: paymentIntent.amount,
             currency_param: paymentIntent.currency,
             stripe_payment_intent_id: paymentIntent.id,
-            user_id_param: user?.id || null,
-            bump_product_id_param: bumpProductId || null,
-            coupon_id_param: couponId || null
+            user_id_param: user?.id || undefined,
+            bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
+            coupon_id_param: couponId || undefined
           };
 
-          const { data: paymentResult, error: paymentError } = await serviceClient
+          const { data: paymentResultRaw2, error: paymentError } = await serviceClient
             .rpc('process_stripe_payment_completion_with_bump', rpcParams);
+
+          const paymentResult = paymentResultRaw2 as PaymentRpcResult | null;
 
           if (paymentError) {
             console.error(
@@ -691,68 +686,19 @@ export async function verifyPaymentIntent(
 
           // Trigger webhook for new successful purchases
           if (!paymentResult.already_had_access) {
-            // Fetch detailed product info for webhook
-            const { data: productDetails } = await serviceClient
-              .from('products')
-              .select('id, name, slug, price, currency, icon')
-              .eq('id', productId)
-              .single();
-
-            // Fetch bump product info if exists
-            let bumpProductDetails = null;
-            if (bumpProductId) {
-               const { data: bump } = await serviceClient
-                .from('products')
-                .select('id, name, slug, price, currency, icon')
-                .eq('id', bumpProductId)
-                .single();
-               bumpProductDetails = bump;
-            }
-
-            const webhookData: any = {
-              customer: {
-                email: customerEmail,
-                firstName: paymentIntent.metadata?.first_name || null,
-                lastName: paymentIntent.metadata?.last_name || null,
-                userId: user?.id || null
-              },
-              product: productDetails ? {
-                 id: productDetails.id,
-                 name: productDetails.name,
-                 slug: productDetails.slug,
-                 price: productDetails.price,
-                 currency: productDetails.currency,
-                 icon: productDetails.icon
-              } : { id: productId },
-              bumpProduct: bumpProductDetails ? {
-                 id: bumpProductDetails.id,
-                 name: bumpProductDetails.name,
-                 slug: bumpProductDetails.slug,
-                 price: bumpProductDetails.price,
-                 currency: bumpProductDetails.currency,
-                 icon: bumpProductDetails.icon
-              } : null,
-              order: {
-                amount: paymentIntent.amount,
-                currency: paymentIntent.currency,
-                paymentIntentId: paymentIntent.id,
-                couponId: couponId || null,
-                isGuest: paymentResult.is_guest_purchase
-              }
-            };
-
-            // Add invoice data if requested
-            if (paymentIntent.metadata?.needs_invoice === 'true') {
-              webhookData.invoice = {
-                needsInvoice: true,
-                nip: paymentIntent.metadata.nip || null,
-                companyName: paymentIntent.metadata.company_name || null,
-                address: paymentIntent.metadata.address || null,
-                city: paymentIntent.metadata.city || null,
-                postalCode: paymentIntent.metadata.postal_code || null,
-                country: paymentIntent.metadata.country || null,
-              };
-            }
+            const webhookData = await buildPurchaseWebhookPayload({
+              supabaseClient: serviceClient,
+              customerEmail,
+              userId: user?.id || null,
+              productId,
+              bumpProductIds,
+              metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
+              amount: paymentIntent.amount,
+              currency: paymentIntent.currency,
+              paymentIntentId: paymentIntent.id,
+              couponId: couponId || null,
+              isGuest: paymentResult?.is_guest_purchase,
+            });
 
             WebhookService.trigger('purchase.completed', webhookData)
               .catch(err => console.error('Webhook trigger error:', err));
@@ -782,20 +728,21 @@ export async function verifyPaymentIntent(
                 .single();
 
               if (transaction?.id) {
-                const { data: otoResult, error: otoError } = await serviceClient
+                const { data: otoResultRaw, error: otoError } = await serviceClient
                   .rpc('generate_oto_coupon', {
                     source_product_id_param: productId,
                     customer_email_param: customerEmail,
                     transaction_id_param: transaction.id
                   });
+                const otoResult = otoResultRaw as OtoInfo | null;
 
                 if (otoError) {
                   console.error('OTO generation error:', otoError);
                 } else if (otoResult?.has_oto) {
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 } else if (otoResult?.reason) {
                   // Pass through skipped OTO info (e.g., user already owns the product)
-                  otoInfo = otoResult as OtoInfo;
+                  otoInfo = otoResult;
                 }
               }
             } catch (otoErr) {
@@ -806,13 +753,13 @@ export async function verifyPaymentIntent(
           // Convert database response to our interface
           return {
             ...baseResponse,
-            access_granted: paymentResult.access_granted || false,
-            requires_login: paymentResult.requires_login || false,
-            is_guest_purchase: paymentResult.is_guest_purchase || false,
-            scenario: paymentResult.scenario,
-            send_magic_link: paymentResult.send_magic_link || false,
+            access_granted: paymentResult?.access_granted || false,
+            requires_login: paymentResult?.requires_login || false,
+            is_guest_purchase: paymentResult?.is_guest_purchase || false,
+            scenario: paymentResult?.scenario,
+            send_magic_link: paymentResult?.send_magic_link || false,
             // Use customer email from DB result, fallback to Stripe, fallback to what we passed in
-            customer_email: paymentResult.customer_email || baseResponse.customer_email || customerEmail,
+            customer_email: paymentResult?.customer_email || baseResponse.customer_email || customerEmail,
             oto_info: otoInfo
           };
 

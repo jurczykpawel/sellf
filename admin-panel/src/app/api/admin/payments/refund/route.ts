@@ -2,45 +2,44 @@
 // API endpoint for processing payment refunds
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-
-// Note: These must be read at runtime, not build time
-const getSupabaseUrl = () => process.env.SUPABASE_URL!;
-const getSupabaseServiceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 
 export async function POST(request: NextRequest) {
   try {
-    const stripe = await getStripeServer();
-
-    // Initialize Supabase client with service role for admin operations
-    const supabase = createClient(getSupabaseUrl(), getSupabaseServiceKey());
-
-    // Get authorization header
+    // SECURITY: Authenticate before initializing service client
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract and verify JWT token
     const token = authHeader.substring(7);
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    // Initialize service client only after auth header validation
+    const stripe = await getStripeServer();
+    const platformClient = createPlatformClient();
+
+    const { data: { user }, error: authError } = await platformClient.auth.getUser(token);
     if (authError || !user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin (using admin_users table, consistent with other admin routes)
-    const { data: adminUser } = await supabase
+    const { data: adminUser } = await platformClient
       .from('admin_users')
       .select('id')
       .eq('user_id', user.id)
       .single();
 
     if (!adminUser) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    // Use admin client for seller_main data operations
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit refund operations (prevents abuse of compromised admin accounts)
     const rateLimitOk = await checkRateLimit(
@@ -52,16 +51,16 @@ export async function POST(request: NextRequest) {
 
     if (!rateLimitOk) {
       return NextResponse.json(
-        { message: 'Rate limit exceeded. Maximum 10 refunds per hour.' },
+        { error: 'Rate limit exceeded. Maximum 10 refunds per hour.' },
         { status: 429 }
       );
     }
 
-    const { transactionId, paymentIntentId, amount, reason } = await request.json();
+    const { transactionId, amount, reason } = await request.json();
 
-    if (!transactionId || !paymentIntentId) {
+    if (!transactionId) {
       return NextResponse.json(
-        { message: 'Transaction ID and Payment Intent ID are required' },
+        { error: 'Transaction ID is required' },
         { status: 400 }
       );
     }
@@ -74,12 +73,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (transactionError || !transaction) {
-      return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
     if (transaction.status !== 'completed') {
       return NextResponse.json(
-        { message: 'Only completed transactions can be refunded' },
+        { error: 'Only completed transactions can be refunded' },
         { status: 400 }
       );
     }
@@ -90,14 +89,14 @@ export async function POST(request: NextRequest) {
 
     if (!Number.isInteger(refundAmount) || refundAmount <= 0) {
       return NextResponse.json(
-        { message: 'Refund amount must be a positive integer (in cents)' },
+        { error: 'Refund amount must be a positive integer (in cents)' },
         { status: 400 }
       );
     }
 
     if (refundAmount > MAX_REFUND_AMOUNT) {
       return NextResponse.json(
-        { message: `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents` },
+        { error: `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents` },
         { status: 400 }
       );
     }
@@ -107,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     if (refundAmount > maxRefundable) {
       return NextResponse.json(
-        { message: `Refund amount (${refundAmount}) exceeds refundable amount (${maxRefundable})` },
+        { error: `Refund amount (${refundAmount}) exceeds refundable amount (${maxRefundable})` },
         { status: 400 }
       );
     }
@@ -115,15 +114,24 @@ export async function POST(request: NextRequest) {
     // Process refund through Stripe
     // SECURITY: Use payment intent from DB, not client-supplied value
     const refundData: Stripe.RefundCreateParams = {
-      payment_intent: transaction.stripe_payment_intent_id,
+      payment_intent: transaction.stripe_payment_intent_id ?? undefined,
     };
 
     if (amount) {
       refundData.amount = refundAmount;
     }
 
+    const VALID_REFUND_REASONS: Stripe.RefundCreateParams.Reason[] = [
+      'duplicate', 'fraudulent', 'requested_by_customer',
+    ];
     if (reason) {
-      refundData.reason = reason as Stripe.RefundCreateParams.Reason;
+      if (!VALID_REFUND_REASONS.includes(reason)) {
+        return NextResponse.json(
+          { error: `Invalid refund reason. Must be one of: ${VALID_REFUND_REASONS.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      refundData.reason = reason;
     }
 
     const refund = await stripe.refunds.create(refundData);
@@ -148,55 +156,42 @@ export async function POST(request: NextRequest) {
       .eq('refunded_amount', alreadyRefunded)
       .select('id');
 
-    if (updateError || !updated || updated.length === 0) {
+    const dbUpdateFailed = updateError || !updated || updated.length === 0;
+    if (dbUpdateFailed) {
       console.error('Error updating transaction (concurrent refund?):', updateError);
-      return NextResponse.json(
-        { message: 'Refund processed but failed to update database — possible concurrent refund' },
-        { status: 409 }
-      );
     }
 
-    // Only revoke access on full refund
+    // Revoke all product access on full refund (main + bumps, user + guest).
+    // Always attempt even if DB update failed — Stripe refund already issued.
+    let accessRevocationFailed = false;
+
     if (isFullRefund) {
-      if (transaction.user_id && transaction.product_id) {
-        const { error: revokeError } = await supabase
-          .from('user_product_access')
-          .delete()
-          .eq('user_id', transaction.user_id)
-          .eq('product_id', transaction.product_id);
+      const revocation = await revokeTransactionAccess(supabase, {
+        transactionId: transaction.id,
+        userId: transaction.user_id,
+        productId: transaction.product_id,
+        sessionId: transaction.session_id,
+      });
 
-        if (revokeError) {
-          console.error('Warning: Failed to revoke product access after refund:', revokeError);
-        }
-      }
-
-      // Also revoke guest purchases after full refund
-      if (transaction.session_id && transaction.product_id) {
-        const { error: guestRevokeError } = await supabase
-          .from('guest_purchases')
-          .delete()
-          .eq('session_id', transaction.session_id)
-          .eq('product_id', transaction.product_id);
-
-        if (guestRevokeError) {
-          console.error('Warning: Failed to revoke guest purchase after refund:', guestRevokeError);
-        }
+      if (!revocation.success) {
+        accessRevocationFailed = true;
+        console.error('[admin-refund] Revocation warnings:', revocation.warnings);
       }
     }
 
-    // Log the refund action
-    await supabase.from('admin_actions').insert({
-      admin_id: user.id,
-      action: 'refund_processed',
-      target_type: 'payment_transaction',
-      target_id: transactionId,
-      details: {
-        refund_id: refund.id,
-        amount: refund.amount,
-        reason: reason || null,
-      },
-      created_at: new Date().toISOString(),
-    });
+    console.log(`[admin-refund] Refund processed by ${user.id}: txn=${transactionId} refund=${refund.id} amount=${refund.amount}`);
+
+    if (dbUpdateFailed) {
+      return NextResponse.json({
+        success: true,
+        refund: {
+          id: refund.id,
+          amount: refund.amount,
+          status: refund.status,
+        },
+        warning: 'Refund processed but database update failed (concurrent modification). Verify transaction status manually.',
+      }, { status: 409 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -205,12 +200,15 @@ export async function POST(request: NextRequest) {
         amount: refund.amount,
         status: refund.status,
       },
+      ...(accessRevocationFailed && {
+        warning: 'Refund processed but access revocation failed. Remove user access manually.',
+      }),
     });
 
   } catch (error) {
     console.error('Refund processing error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

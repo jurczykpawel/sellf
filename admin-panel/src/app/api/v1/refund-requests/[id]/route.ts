@@ -19,9 +19,28 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+interface RefundProductRelation {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+}
+
+interface RefundTransactionRelation {
+  id: string;
+  customer_email: string;
+  amount: number;
+  currency: string;
+  status: string;
+  stripe_payment_intent_id: string | null;
+  created_at: string;
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -107,22 +126,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       processed_at: refundRequest.processed_at,
       created_at: refundRequest.created_at,
       updated_at: refundRequest.updated_at,
-      product: refundRequest.product ? {
-        id: (refundRequest.product as any).id,
-        name: (refundRequest.product as any).name,
-        slug: (refundRequest.product as any).slug,
-        price: (refundRequest.product as any).price,
-        currency: (refundRequest.product as any).currency,
-      } : null,
-      transaction: refundRequest.transaction ? {
-        id: (refundRequest.transaction as any).id,
-        customer_email: (refundRequest.transaction as any).customer_email,
-        amount: (refundRequest.transaction as any).amount,
-        currency: (refundRequest.transaction as any).currency,
-        status: (refundRequest.transaction as any).status,
-        stripe_payment_intent_id: (refundRequest.transaction as any).stripe_payment_intent_id,
-        created_at: (refundRequest.transaction as any).created_at,
-      } : null,
+      product: refundRequest.product ? (() => {
+        const p = refundRequest.product as unknown as RefundProductRelation;
+        return { id: p.id, name: p.name, slug: p.slug, price: p.price, currency: p.currency };
+      })() : null,
+      transaction: refundRequest.transaction ? (() => {
+        const t = refundRequest.transaction as unknown as RefundTransactionRelation;
+        return { id: t.id, customer_email: t.customer_email, amount: t.amount, currency: t.currency, status: t.status, stripe_payment_intent_id: t.stripe_payment_intent_id, created_at: t.created_at };
+      })() : null,
     };
 
     return jsonResponse(successResponse(response), request);
@@ -262,23 +273,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           .eq('refunded_amount', transaction.refunded_amount || 0)
           .select('id');
 
-        // Revoke access on full refund — do this regardless of optimistic lock result
-        // because the Stripe refund already succeeded
+        // Revoke all product access on full refund (main + bumps, user + guest)
         if (isFullRefund) {
-          if (transaction.user_id) {
-            await adminClient
-              .from('user_product_access')
-              .delete()
-              .eq('user_id', transaction.user_id)
-              .eq('product_id', transaction.product_id);
-          }
+          const revocation = await revokeTransactionAccess(adminClient, {
+            transactionId: transaction.id,
+            userId: transaction.user_id,
+            productId: transaction.product_id,
+            sessionId: transaction.session_id,
+          });
 
-          if (transaction.session_id && transaction.product_id) {
-            await adminClient
-              .from('guest_purchases')
-              .delete()
-              .eq('session_id', transaction.session_id)
-              .eq('product_id', transaction.product_id);
+          if (revocation.warnings.length > 0) {
+            console.error('[refund-request] Revocation warnings:', revocation.warnings);
           }
         }
 

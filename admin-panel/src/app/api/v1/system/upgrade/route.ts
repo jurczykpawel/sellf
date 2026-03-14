@@ -22,7 +22,7 @@ import {
   handleApiError,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createPlatformClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
 
     // Audit log
     try {
-      const adminClient = createAdminClient();
-      await adminClient.from('audit_log').insert({
+      const platformClient = createPlatformClient();
+      await platformClient.from('audit_log').insert({
         user_id: auth.admin.userId,
         operation: 'system_upgrade_triggered',
         table_name: 'system',

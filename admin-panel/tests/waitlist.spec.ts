@@ -329,7 +329,7 @@ test.describe('Waitlist Feature', () => {
       const response = await request.post('/api/waitlist/signup', {
         data: {
           email: TEST_EMAIL,
-          productId: 'non-existent-product-id'
+          productId: '00000000-0000-0000-0000-000000000000'
         }
       });
 
@@ -471,6 +471,10 @@ test.describe('Waitlist Feature', () => {
 
       // Step 2 → Step 3
       await nextButton.click();
+      // Wait for step 3 content to be present before returning
+      await expect(
+        page.locator('[role="dialog"]').locator('button').filter({ hasText: /Dostępność|Availability/i }).first()
+      ).toBeVisible({ timeout: 10000 });
     }
 
     /**

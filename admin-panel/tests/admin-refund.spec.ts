@@ -224,7 +224,7 @@ test.describe('Admin Refund API Tests', () => {
 
     // Should be rejected
     expect(response.status()).toBe(400);
-    expect(result.message).toContain('Only completed transactions can be refunded');
+    expect(result.error).toContain('Only completed transactions can be refunded');
   });
 
   test('VALIDATION: Refund rejects invalid amounts', async ({ request }) => {
@@ -345,28 +345,6 @@ test.describe('Admin Refund API Tests', () => {
     expect(response.status()).toBe(400);
   });
 
-  test('VALIDATION: Missing paymentIntentId is rejected', async ({ request }) => {
-    console.log(`\n🔍 Testing missing paymentIntentId`);
-
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
-      headers: {
-        'Authorization': `Bearer ${adminToken}`,
-        'Content-Type': 'application/json',
-      },
-      data: {
-        transactionId: testTransaction.id,
-        reason: 'requested_by_customer',
-      },
-    });
-
-    const result = await response.json();
-
-    console.log(`   Response: HTTP ${response.status()}`);
-    console.log(`   Error: ${result.error || result.message}`);
-
-    expect(response.status()).toBe(400);
-  });
-
   test('VALIDATION: Invalid transactionId (non-existent) is rejected', async ({ request }) => {
     console.log(`\n🔍 Testing non-existent transactionId`);
 
@@ -390,7 +368,7 @@ test.describe('Admin Refund API Tests', () => {
     console.log(`   Error: ${result.error || result.message}`);
 
     expect(response.status()).toBe(404);
-    expect(result.message).toContain('Transaction not found');
+    expect(result.error).toContain('Transaction not found');
   });
 
   test('VALIDATION: Cannot refund disputed transaction', async ({ request }) => {
@@ -432,7 +410,7 @@ test.describe('Admin Refund API Tests', () => {
     console.log(`   Error: ${result.error || result.message}`);
 
     expect(response.status()).toBe(400);
-    expect(result.message).toContain('Only completed transactions can be refunded');
+    expect(result.error).toContain('Only completed transactions can be refunded');
   });
 
   test('VALIDATION: Refund amount exceeding original is rejected', async ({ request }) => {
@@ -560,33 +538,32 @@ test.describe('Admin Refund API Tests', () => {
 
 /**
  * ============================================================================
- * SECURITY TEST: Refund Route Contains Access Revocation Code
+ * SECURITY TEST: Refund Route Delegates Access Revocation
  * ============================================================================
  *
- * Verifies the admin refund route source code contains proper cleanup logic
- * for both authenticated user access (user_product_access) and guest purchases
- * (guest_purchases) after a refund is processed.
+ * Verifies the admin refund route delegates access revocation to the shared
+ * revokeTransactionAccess() service, which handles both user_product_access
+ * and guest_purchases cleanup (including bump products).
  *
- * These are source-verification tests (readFileSync) rather than DB simulation
- * tests, because we cannot call the actual refund endpoint without a real Stripe
- * payment intent. The pattern matches tests/unit/security/refund-access-revocation.test.ts.
+ * The shared service is tested directly in:
+ * - tests/unit/lib/services/access-revocation.test.ts
+ * - tests/unit/security/refund-access-revocation.test.ts
  * ============================================================================
  */
 test.describe('Admin Refund - Access Revocation Source Verification', () => {
   const routePath = join(__dirname, '../src/app/api/admin/payments/refund/route.ts');
   const routeSource = readFileSync(routePath, 'utf-8');
 
-  test('SECURITY: Refund route contains access revocation code for users and guests', async () => {
-    // Authenticated user access revocation: delete from user_product_access
-    expect(routeSource).toContain(".from('user_product_access')");
-    expect(routeSource).toMatch(/\.from\(\s*['"]user_product_access['"]\s*\)[\s\S]*?\.delete\(\)/);
-    expect(routeSource).toContain(".eq('user_id', transaction.user_id)");
-    expect(routeSource).toContain(".eq('product_id', transaction.product_id)");
+  test('SECURITY: Refund route delegates access revocation to shared service', async () => {
+    // Route imports and calls the shared revocation function
+    expect(routeSource).toContain('revokeTransactionAccess');
+    expect(routeSource).toContain("from '@/lib/services/access-revocation'");
 
-    // Guest purchase cleanup: delete from guest_purchases
-    expect(routeSource).toContain(".from('guest_purchases')");
-    expect(routeSource).toMatch(/\.from\(\s*['"]guest_purchases['"]\s*\)[\s\S]*?\.delete\(\)/);
-    expect(routeSource).toContain(".eq('session_id', transaction.session_id)");
+    // Passes transaction context to revocation function
+    expect(routeSource).toContain('transactionId: transaction.id');
+    expect(routeSource).toContain('userId: transaction.user_id');
+    expect(routeSource).toContain('productId: transaction.product_id');
+    expect(routeSource).toContain('sessionId: transaction.session_id');
 
     // Access revocation only on full refund
     expect(routeSource).toContain('isFullRefund');

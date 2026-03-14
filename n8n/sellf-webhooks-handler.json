@@ -1,0 +1,239 @@
+{
+  "name": "Sellf Webhooks Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sellf",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "sellf-webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', event: $json.body?.event }) }}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "purchase.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purchase.completed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "lead.captured",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "lead.captured"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "waitlist.signup",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "waitlist.signup"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "access.expired",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "access.expired"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "test.event",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "test.event"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unknown"
+        }
+      },
+      "id": "sw-1",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {},
+      "id": "pc-1",
+      "name": "Purchase Completed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [780, -100],
+      "notes": "customer: { email, firstName, lastName, userId }\nproduct: { id, name, slug, price, currency, icon }\nbumpProduct: { id, name, slug, price, currency, icon } | null\norder: { amount, currency, sessionId, paymentIntentId, couponId, isGuest }\ninvoice?: { needsInvoice, nip, companyName, address, city, postalCode, country }"
+    },
+    {
+      "parameters": {},
+      "id": "lc-1",
+      "name": "Lead Captured",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [780, 60],
+      "notes": "Free product claimed.\ncustomer: { email, userId }\nproduct: { id, name, slug, price (0), currency, icon }"
+    },
+    {
+      "parameters": {},
+      "id": "ws-1",
+      "name": "Waitlist Signup",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [780, 220],
+      "notes": "Visitor signed up for waitlist.\ncustomer: { email }\nproduct: { id, name, slug, price, currency, icon }"
+    },
+    {
+      "parameters": {},
+      "id": "ae-1",
+      "name": "Access Expired",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [780, 380],
+      "notes": "Time-limited access expired (cron job).\ncustomer: { email (nullable), userId }\nproduct: { id, name, slug, price, currency, icon (some nullable) }\naccess: { grantedAt, expiredAt }"
+    },
+    {
+      "parameters": {},
+      "id": "te-1",
+      "name": "Test Event",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [780, 540],
+      "notes": "Admin panel webhook test.\ndata: { message, system: { version, environment } }"
+    },
+    {
+      "parameters": {},
+      "id": "ue-1",
+      "name": "Unknown Event",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [780, 700],
+      "notes": "Fallback for unrecognized events.\nFuture: payment.refunded, user.access_granted, user.access_revoked, product.created/updated/deleted"
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          { "node": "Respond OK", "type": "main", "index": 0 },
+          { "node": "Route by Event", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Route by Event": {
+      "main": [
+        [{ "node": "Purchase Completed", "type": "main", "index": 0 }],
+        [{ "node": "Lead Captured", "type": "main", "index": 0 }],
+        [{ "node": "Waitlist Signup", "type": "main", "index": 0 }],
+        [{ "node": "Access Expired", "type": "main", "index": 0 }],
+        [{ "node": "Test Event", "type": "main", "index": 0 }],
+        [{ "node": "Unknown Event", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  }
+}

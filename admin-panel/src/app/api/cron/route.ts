@@ -86,7 +86,7 @@ async function handleAccessExpired(): Promise<CronJobResult> {
 
   // Batch fetch user emails (auth.users is in a separate schema, can't join via PostgREST)
   // Limited to 10 concurrent requests to avoid hitting Supabase Auth rate limits
-  const userIds = [...new Set(expiredRows.map(r => r.user_id))];
+  const userIds = [...new Set(expiredRows.map(r => r.user_id).filter((id): id is string => id !== null))];
   const emailMap: Record<string, string | null> = {};
   const EMAIL_BATCH_SIZE = 10;
   for (let i = 0; i < userIds.length; i += EMAIL_BATCH_SIZE) {
@@ -107,15 +107,19 @@ async function handleAccessExpired(): Promise<CronJobResult> {
 
   for (const row of expiredRows) {
     try {
+      // Proxy views lose NOT NULL constraints; assert known non-null columns
+      const rowId = row.id!;
+      const userId = row.user_id!;
+      const productId = row.product_id!;
       const product = row.products as { id: string; name: string; slug: string; price: number; currency: string; icon: string } | null;
 
       await WebhookService.trigger('access.expired', {
         customer: {
-          email: emailMap[row.user_id] ?? null,
-          userId: row.user_id,
+          email: emailMap[userId] ?? null,
+          userId,
         },
         product: {
-          id: product?.id ?? row.product_id,
+          id: product?.id ?? productId,
           name: product?.name ?? null,
           slug: product?.slug ?? null,
           price: product?.price ?? null,
@@ -132,10 +136,10 @@ async function handleAccessExpired(): Promise<CronJobResult> {
       const { error: updateError } = await supabase
         .from('user_product_access')
         .update({ expiry_notified_at: new Date().toISOString() })
-        .eq('id', row.id);
+        .eq('id', rowId);
 
       if (updateError) {
-        console.error('[cron/access-expired] Failed to mark notified:', row.id, updateError);
+        console.error('[cron/access-expired] Failed to mark notified:', rowId, updateError);
         errors++;
       } else {
         processed++;

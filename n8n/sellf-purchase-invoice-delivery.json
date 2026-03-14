@@ -1,0 +1,168 @@
+{
+  "name": "Sellf: Purchase → Invoice + Delivery Email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sellf-purchase",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "sellf-purchase"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "purchase.completed",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purchase.completed"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "none" }
+      },
+      "id": "sw-1",
+      "name": "Is Purchase?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    lastName: data.customer.lastName || '',\n    userId: data.customer.userId,\n    productName: data.product.name,\n    productSlug: data.product.slug,\n    productIcon: data.product.icon,\n    amount: data.order.amount / 100,\n    currency: data.order.currency.toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    isGuest: data.order.isGuest,\n    couponId: data.order.couponId,\n    hasBump: !!data.bumpProduct,\n    bumpProductName: data.bumpProduct?.name || null,\n    bumpPrice: data.bumpProduct ? data.bumpProduct.price / 100 : null,\n    needsInvoice: data.invoice?.needsInvoice || false,\n    invoiceNip: data.invoice?.nip || null,\n    invoiceCompany: data.invoice?.companyName || null,\n    invoiceAddress: data.invoice?.address || null,\n    invoiceCity: data.invoice?.city || null,\n    invoicePostalCode: data.invoice?.postalCode || null,\n    invoiceCountry: data.invoice?.country || null\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Extract Purchase Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.needsInvoice }}",
+                    "rightValue": true,
+                    "operator": { "type": "boolean", "operation": "true" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Needs Invoice"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra", "renameFallbackOutput": "No Invoice" }
+      },
+      "id": "sw-2",
+      "name": "Needs Invoice?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.fakturownia.pl/invoices.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"api_token\": \"YOUR_FAKTUROWNIA_TOKEN\",\n  \"invoice\": {\n    \"kind\": \"vat\",\n    \"number\": null,\n    \"sell_date\": \"{{ $now.format('yyyy-MM-dd') }}\",\n    \"issue_date\": \"{{ $now.format('yyyy-MM-dd') }}\",\n    \"payment_to\": \"{{ $now.format('yyyy-MM-dd') }}\",\n    \"payment_type\": \"card\",\n    \"status\": \"paid\",\n    \"buyer_name\": \"{{ $json.invoiceCompany }}\",\n    \"buyer_tax_no\": \"{{ $json.invoiceNip }}\",\n    \"buyer_street\": \"{{ $json.invoiceAddress }}\",\n    \"buyer_city\": \"{{ $json.invoiceCity }}\",\n    \"buyer_post_code\": \"{{ $json.invoicePostalCode }}\",\n    \"buyer_country\": \"{{ $json.invoiceCountry }}\",\n    \"buyer_email\": \"{{ $json.email }}\",\n    \"positions\": [\n      {\n        \"name\": \"{{ $json.productName }}\",\n        \"quantity\": 1,\n        \"total_price_gross\": {{ $json.amount }},\n        \"tax\": 23\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "http-1",
+      "name": "Create Invoice (Fakturownia)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 100],
+      "notes": "TODO: Replace YOUR_FAKTUROWNIA_TOKEN with actual API token. Adjust tax rate and invoice kind as needed."
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@yourdomain.com",
+        "toEmail": "={{ $('Extract Purchase Data').item.json.email }}",
+        "subject": "=Potwierdzenie zakupu: {{ $('Extract Purchase Data').item.json.productName }}",
+        "emailType": "html",
+        "html": "=<h2>Dziękujemy za zakup! {{ $('Extract Purchase Data').item.json.productIcon }}</h2>\n<p>Cześć{{ $('Extract Purchase Data').item.json.firstName ? ' ' + $('Extract Purchase Data').item.json.firstName : '' }},</p>\n<p>Twój zakup <strong>{{ $('Extract Purchase Data').item.json.productName }}</strong> został potwierdzony.</p>\n<table style=\"border-collapse:collapse;width:100%;max-width:400px;margin:16px 0\">\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee\">Produkt</td><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>{{ $('Extract Purchase Data').item.json.productName }}</strong></td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee\">Kwota</td><td style=\"padding:8px;border-bottom:1px solid #eee\"><strong>{{ $('Extract Purchase Data').item.json.amount }} {{ $('Extract Purchase Data').item.json.currency }}</strong></td></tr>\n{{ $('Extract Purchase Data').item.json.hasBump ? '<tr><td style=\"padding:8px;border-bottom:1px solid #eee\">Bonus</td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + $('Extract Purchase Data').item.json.bumpProductName + '</td></tr>' : '' }}\n</table>\n<p><a href=\"https://yourdomain.com/my-products\" style=\"display:inline-block;padding:12px 24px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px\">Przejdź do produktu →</a></p>\n<p style=\"color:#888;font-size:12px;margin-top:24px\">ID transakcji: {{ $('Extract Purchase Data').item.json.paymentIntentId }}</p>",
+        "options": {}
+      },
+      "id": "email-1",
+      "name": "Send Delivery Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [920, 440],
+      "notes": "TODO: Configure SMTP credentials. Update fromEmail, domain URLs, and email content."
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          { "node": "Respond OK", "type": "main", "index": 0 },
+          { "node": "Is Purchase?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Is Purchase?": {
+      "main": [
+        [{ "node": "Extract Purchase Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Purchase Data": {
+      "main": [
+        [
+          { "node": "Needs Invoice?", "type": "main", "index": 0 },
+          { "node": "Send Delivery Email", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Needs Invoice?": {
+      "main": [
+        [{ "node": "Create Invoice (Fakturownia)", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+}

@@ -30,7 +30,7 @@ export class DisposableEmailService {
 
     try {
       // Fetch from the raw GitHub URL
-      const response = await fetch(this.RAW_URL);
+      const response = await fetch(this.RAW_URL, { redirect: 'error' });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch domains: ${response.status}`);

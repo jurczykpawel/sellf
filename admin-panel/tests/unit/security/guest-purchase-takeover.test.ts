@@ -4,22 +4,13 @@ import { describe, it, expect } from 'vitest';
 
 /**
  * ============================================================================
- * SECURITY TEST: Guest Purchase Session Takeover (CVE-SELLF-001)
+ * SECURITY TEST: Payment Session Ownership Verification
  * ============================================================================
  *
- * VULNERABILITY: A logged-in attacker can steal access to products purchased
- * by guests if they obtain the session_id (via Referer leak, logs, etc.)
- *
- * ATTACK FLOW:
- * 1. Victim makes guest purchase -> session_id in URL /success?session_id=cs_xxx
- * 2. Session_id leaks via HTTP Referer when victim clicks external link
- * 3. Attacker logs in and calls /api/verify-payment with stolen session_id
- * 4. Previous vulnerable code would grant access to attacker's account
- *
- * FIX:
- * - verify-payment route validates session_id before processing
- * - Ownership check: if logged-in user tries to verify, require user_id match
- * - Guest purchase query uses session_id for lookup (not email alone)
+ * Validates that the verify-payment route and verifyPaymentSession library
+ * enforce proper ownership checks on payment sessions, preventing
+ * cross-user session claiming and ensuring correct guest/authenticated
+ * purchase flow separation.
  *
  * This file tests the REAL production code to ensure security fixes remain intact.
  * ============================================================================
@@ -42,7 +33,8 @@ const verifyPaymentLibSource = readFileSync(verifyPaymentLibPath, 'utf-8');
 describe('Guest Purchase Session Takeover Prevention', () => {
   describe('verify-payment route security guards', () => {
     it('validates session_id and delegates to verifyPaymentSession with user context', () => {
-      expect(verifyPaymentRouteSource).toContain("if (!session_id)");
+      expect(verifyPaymentRouteSource).toContain("!session_id");
+      expect(verifyPaymentRouteSource).toContain("typeof session_id !== 'string'");
       expect(verifyPaymentRouteSource).toContain("'Session ID is required'");
       expect(verifyPaymentRouteSource).toContain('verifyPaymentSession(session_id, user)');
     });
@@ -64,21 +56,18 @@ describe('Guest Purchase Session Takeover Prevention', () => {
   });
 
   describe('verifyPaymentSession security checks', () => {
-    it('is server-only and validates environment variables', () => {
+    it('is server-only and uses admin client (service_role)', () => {
+      // verify-payment.ts uses createAdminClient (which internally uses service_role)
+      expect(verifyPaymentLibSource).toContain('createAdminClient');
       expect(verifyPaymentLibSource).toContain("typeof window !== 'undefined'");
       expect(verifyPaymentLibSource).toContain(
         'verifyPaymentSession can only be called on the server'
       );
-      expect(verifyPaymentLibSource).toContain('!process.env.SUPABASE_URL');
-      expect(verifyPaymentLibSource).toContain('!process.env.SUPABASE_SERVICE_ROLE_KEY');
-      expect(verifyPaymentLibSource).toContain("'Server configuration error'");
     });
 
-    it('validates session_id input and uses service role client', () => {
+    it('validates session_id input', () => {
       expect(verifyPaymentLibSource).toContain("!sessionId || typeof sessionId !== 'string'");
       expect(verifyPaymentLibSource).toContain("'Invalid session ID'");
-      expect(verifyPaymentLibSource).toContain('SUPABASE_SERVICE_ROLE_KEY');
-      expect(verifyPaymentLibSource).toContain('createServiceClient');
     });
 
     it('uses session_id (not email alone) for payment lookup', () => {

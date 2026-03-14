@@ -268,7 +268,7 @@ test.describe('Webhook Dispatch System', () => {
 
     const responseBody = await response.json();
     expect(response.status()).toBe(200);
-    expect(responseBody.processed).toBe(true);
+    expect(responseBody.received).toBe(true);
 
     // Verify Log
     const logs = await getRecentLogs(webhook.id);

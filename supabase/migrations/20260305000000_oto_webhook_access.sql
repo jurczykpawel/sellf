@@ -19,14 +19,14 @@
 -- (oto_offer_id, allowed_emails) — one coupon per offer per email.
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_coupons_oto_free_unique
-  ON public.coupons(oto_offer_id, allowed_emails)
+  ON seller_main.coupons(oto_offer_id, allowed_emails)
   WHERE source_transaction_id IS NULL AND is_oto_coupon = true;
 
 -- -----------------------------------------------------------------------------
 -- 2. UPDATED generate_oto_coupon — accepts optional transaction_id
 -- -----------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.generate_oto_coupon(
+CREATE OR REPLACE FUNCTION seller_main.generate_oto_coupon(
   source_product_id_param UUID,
   customer_email_param TEXT,
   transaction_id_param UUID DEFAULT NULL
@@ -50,9 +50,9 @@ BEGIN
            p.price AS oto_product_price, p.currency AS oto_product_currency,
            o.duration_minutes
     INTO existing_coupon
-    FROM public.coupons c
-    INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
-    INNER JOIN public.products p ON o.oto_product_id = p.id
+    FROM seller_main.coupons c
+    INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
+    INNER JOIN seller_main.products p ON o.oto_product_id = p.id
     WHERE c.source_transaction_id = transaction_id_param
       AND c.is_oto_coupon = true
     LIMIT 1;
@@ -63,9 +63,9 @@ BEGIN
            p.price AS oto_product_price, p.currency AS oto_product_currency,
            o.duration_minutes
     INTO existing_coupon
-    FROM public.coupons c
-    INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
-    INNER JOIN public.products p ON o.oto_product_id = p.id
+    FROM seller_main.coupons c
+    INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
+    INNER JOIN seller_main.products p ON o.oto_product_id = p.id
     WHERE o.source_product_id = source_product_id_param
       AND c.is_oto_coupon = true
       AND c.source_transaction_id IS NULL
@@ -96,8 +96,8 @@ BEGIN
   SELECT o.*, p.slug AS oto_product_slug, p.name AS oto_product_name,
          p.price AS oto_product_price, p.currency AS oto_product_currency
   INTO oto_config
-  FROM public.oto_offers o
-  INNER JOIN public.products p ON p.id = o.oto_product_id AND p.is_active = true
+  FROM seller_main.oto_offers o
+  INNER JOIN seller_main.products p ON p.id = o.oto_product_id AND p.is_active = true
   WHERE o.source_product_id = source_product_id_param
     AND o.is_active = true
   ORDER BY o.display_order ASC, o.created_at ASC
@@ -112,7 +112,7 @@ BEGIN
   -- Check 1: user_product_access (logged-in users, by email via auth.users)
   IF EXISTS (
     SELECT 1
-    FROM public.user_product_access upa
+    FROM seller_main.user_product_access upa
     INNER JOIN auth.users au ON au.id = upa.user_id
     WHERE au.email = customer_email_param
       AND upa.product_id = oto_config.oto_product_id
@@ -129,7 +129,7 @@ BEGIN
   -- Check 2: guest_purchases (guest users, by email directly)
   IF EXISTS (
     SELECT 1
-    FROM public.guest_purchases gp
+    FROM seller_main.guest_purchases gp
     WHERE gp.customer_email = customer_email_param
       AND gp.product_id = oto_config.oto_product_id
   ) THEN
@@ -147,7 +147,7 @@ BEGIN
 
   -- Create the OTO coupon with race condition protection
   BEGIN
-    INSERT INTO public.coupons (
+    INSERT INTO seller_main.coupons (
       code,
       name,
       discount_type,
@@ -189,9 +189,9 @@ BEGIN
                p.price AS oto_product_price, p.currency AS oto_product_currency,
                o.duration_minutes
         INTO existing_coupon
-        FROM public.coupons c
-        INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
-        INNER JOIN public.products p ON o.oto_product_id = p.id
+        FROM seller_main.coupons c
+        INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
+        INNER JOIN seller_main.products p ON o.oto_product_id = p.id
         WHERE c.source_transaction_id = transaction_id_param
           AND c.is_oto_coupon = true
         LIMIT 1;
@@ -201,9 +201,9 @@ BEGIN
                p.price AS oto_product_price, p.currency AS oto_product_currency,
                o.duration_minutes
         INTO existing_coupon
-        FROM public.coupons c
-        INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
-        INNER JOIN public.products p ON o.oto_product_id = p.id
+        FROM seller_main.coupons c
+        INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
+        INNER JOIN seller_main.products p ON o.oto_product_id = p.id
         WHERE o.source_product_id = source_product_id_param
           AND c.is_oto_coupon = true
           AND c.source_transaction_id IS NULL
@@ -246,29 +246,38 @@ BEGIN
     'duration_minutes', oto_config.duration_minutes
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
-GRANT EXECUTE ON FUNCTION public.generate_oto_coupon TO service_role;
+GRANT EXECUTE ON FUNCTION seller_main.generate_oto_coupon TO service_role;
 
 -- Drop legacy color columns from shop_config.
 -- These were never exposed in the settings UI and are superseded
 -- by the JSON-based theme system in BrandingSettings.
-ALTER TABLE public.shop_config
+-- NOTE: Must DROP proxy view first because SELECT * binds to column list at creation time.
+DROP VIEW IF EXISTS public.shop_config CASCADE;
+
+ALTER TABLE seller_main.shop_config
   DROP COLUMN IF EXISTS primary_color,
   DROP COLUMN IF EXISTS secondary_color,
   DROP COLUMN IF EXISTS accent_color;
+
+-- Recreate proxy view after DROP COLUMN
+CREATE OR REPLACE VIEW public.shop_config WITH (security_invoker = on) AS SELECT * FROM seller_main.shop_config;
 
 -- Add expiry_notified_at to user_product_access
 -- Used by the /api/cron?job=access-expired endpoint to prevent duplicate webhook dispatch.
 -- When the cron fires, it queries: access_expires_at < NOW() AND expiry_notified_at IS NULL
 -- After dispatching the access.expired webhook, it sets expiry_notified_at = NOW().
 
-ALTER TABLE public.user_product_access
+ALTER TABLE seller_main.user_product_access
   ADD COLUMN IF NOT EXISTS expiry_notified_at TIMESTAMPTZ;
+
+-- Refresh proxy view to include new column
+CREATE OR REPLACE VIEW public.user_product_access WITH (security_invoker = on) AS SELECT * FROM seller_main.user_product_access;
 
 -- Index: cron job queries this column frequently
 CREATE INDEX IF NOT EXISTS idx_user_product_access_expiry_notified
-  ON public.user_product_access (expiry_notified_at)
+  ON seller_main.user_product_access (expiry_notified_at)
   WHERE expiry_notified_at IS NULL;
 
 -- ── Stripe webhook endpoint registration ─────────────────────────────────
@@ -277,24 +286,30 @@ CREATE INDEX IF NOT EXISTS idx_user_product_access_expiry_notified
 -- Enables DB-based Stripe config to be fully self-contained —
 -- no STRIPE_WEBHOOK_SECRET env var required when using DB config.
 
-ALTER TABLE public.stripe_configurations
+ALTER TABLE seller_main.stripe_configurations
   ADD COLUMN IF NOT EXISTS webhook_endpoint_id TEXT,
   ADD COLUMN IF NOT EXISTS webhook_signing_secret_enc TEXT,
   ADD COLUMN IF NOT EXISTS webhook_signing_iv TEXT,
   ADD COLUMN IF NOT EXISTS webhook_signing_tag TEXT;
 
-COMMENT ON COLUMN public.stripe_configurations.webhook_endpoint_id
+-- Refresh proxy view to include new columns
+CREATE OR REPLACE VIEW public.stripe_configurations WITH (security_invoker = on) AS SELECT * FROM seller_main.stripe_configurations;
+
+COMMENT ON COLUMN seller_main.stripe_configurations.webhook_endpoint_id
   IS 'Stripe webhook endpoint ID (we_xxx). NULL = not registered via Sellf.';
-COMMENT ON COLUMN public.stripe_configurations.webhook_signing_secret_enc
+COMMENT ON COLUMN seller_main.stripe_configurations.webhook_signing_secret_enc
   IS 'AES-256-GCM encrypted webhook signing secret (whsec_xxx). Base64 encoded.';
-COMMENT ON COLUMN public.stripe_configurations.webhook_signing_iv
+COMMENT ON COLUMN seller_main.stripe_configurations.webhook_signing_iv
   IS 'AES-256-GCM IV for webhook signing secret. Base64 encoded.';
-COMMENT ON COLUMN public.stripe_configurations.webhook_signing_tag
+COMMENT ON COLUMN seller_main.stripe_configurations.webhook_signing_tag
   IS 'AES-256-GCM auth tag for webhook signing secret. Base64 encoded.';
 
 -- ── Product preview video ──────────────────────────────────────────────
 -- Optional video URL shown on checkout/product pages (YouTube, Vimeo, etc.).
 -- Parsed client-side by videoUtils.parseVideoUrl() and rendered by VideoPlayer.
 
-ALTER TABLE public.products
+ALTER TABLE seller_main.products
   ADD COLUMN IF NOT EXISTS preview_video_url TEXT;
+
+-- Refresh proxy view to include new column
+CREATE OR REPLACE VIEW public.products WITH (security_invoker = on) AS SELECT * FROM seller_main.products;

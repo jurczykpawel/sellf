@@ -6,6 +6,9 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { calculatePricing, toStripeCents, STRIPE_MINIMUM_AMOUNT } from '@/hooks/usePricing';
 import { getStripeServer } from '@/lib/stripe/server';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
+import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
+import { ProductValidationService } from '@/lib/services/product-validation';
 import type { PaymentMethodConfig } from '@/types/payment-config';
 
 /**
@@ -39,13 +42,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Reject non-JSON Content-Type to prevent blind CSRF via text/plain simple requests
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 415 }
+      );
+    }
+
+    const body = await request.json();
     const {
       productId,
       email,
       firstName,
       lastName,
       termsAccepted,
-      bumpProductId,
+      bumpProductId,     // Legacy: single bump ID
+      bumpProductIds,    // New: array of bump IDs
       couponCode,
       needsInvoice,
       nip,
@@ -56,7 +70,10 @@ export async function POST(request: NextRequest) {
       country,
       successUrl,
       customAmount  // Pay What You Want
-    } = await request.json();
+    } = body;
+
+    // Normalize + validate bump IDs (supports legacy single bumpProductId)
+    const { validIds: requestedBumpIds, invalidIds } = normalizeBumpIds({ bumpProductId, bumpProductIds });
 
     if (!productId) {
       return NextResponse.json(
@@ -65,9 +82,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate productId is a valid UUID
+    if (!validateUUID(productId).isValid) {
+      return NextResponse.json(
+        { error: 'Invalid product ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate successUrl to prevent open redirects
+    if (successUrl && !isSafeRedirectUrl(successUrl)) {
+      return NextResponse.json(
+        { error: 'Invalid success URL' },
+        { status: 400 }
+      );
+    }
+
+    // Reject request if any bump IDs have invalid UUID format
+    if (invalidIds.length > 0) {
+      return NextResponse.json(
+        { error: 'Invalid bump product ID format' },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Cap bump IDs count at application level to prevent DoS via hundreds of
+    // validation queries. DB function also limits to 20, but this avoids the round-trips.
+    const MAX_BUMP_IDS = 20;
+    if (requestedBumpIds.length > MAX_BUMP_IDS) {
+      return NextResponse.json(
+        { error: `Too many bump products (maximum ${MAX_BUMP_IDS})` },
+        { status: 400 }
+      );
+    }
+
     // Use email from request if provided, otherwise from user session
     // For guests without email, we'll let Stripe collect it via billing details
     const finalEmail = email || user?.email || null;
+
+    // Validate email format + disposable domain check (consistent with checkout.ts)
+    if (finalEmail) {
+      const isValidEmail = await ProductValidationService.validateEmail(finalEmail);
+      if (!isValidEmail) {
+        return NextResponse.json(
+          { error: 'Invalid or disposable email address not allowed' },
+          { status: 400 }
+        );
+      }
+    }
 
     // 1. Fetch product
     const { data: product, error: productError } = await supabase
@@ -87,7 +149,7 @@ export async function POST(request: NextRequest) {
     // 2. Check if user already has access
     if (user) {
       const { data: existingAccess } = await supabase
-        .from('user_products')
+        .from('user_product_access')
         .select('id')
         .eq('user_id', user.id)
         .eq('product_id', productId)
@@ -104,6 +166,14 @@ export async function POST(request: NextRequest) {
     // 3. Validate PWYW (Pay What You Want) custom pricing
     const STRIPE_MAX_AMOUNT = 999999.99; // Stripe's maximum amount limit
     if (customAmount !== undefined) {
+      // SECURITY: Reject non-numeric, NaN, or Infinity values (consistent with checkout.ts)
+      if (typeof customAmount !== 'number' || !Number.isFinite(customAmount)) {
+        return NextResponse.json(
+          { error: 'Custom amount must be a valid number' },
+          { status: 400 }
+        );
+      }
+
       // SECURITY: Explicitly reject zero or negative amounts
       if (customAmount <= 0) {
         return NextResponse.json(
@@ -138,36 +208,50 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Fetch and validate bump product if selected
-    // SECURITY: Must validate that bumpProductId is a valid order bump for this product
-    let bumpProduct = null;
-    let bumpPrice = 0;
-    if (bumpProductId) {
+    // 4. Fetch and validate bump products (supports multiple)
+    // SECURITY: Must validate that each bumpProductId is a valid order bump for this product
+    type ProductRow = typeof product;
+    interface ValidatedBump { product: ProductRow; bumpPrice: number }
+    const validatedBumps: ValidatedBump[] = [];
+    let totalBumpPrice = 0;
+
+    if (requestedBumpIds.length > 0) {
       // Use the same RPC function that frontend uses to get valid bumps
       const { data: validBumps } = await supabase.rpc('get_product_order_bumps', {
         product_id_param: productId,
       });
 
-      // Find if the requested bump is in the valid bumps list
-      const validBump = validBumps?.find((b: any) => b.bump_product_id === bumpProductId);
+      // Build map of valid bump IDs → prices (batch-friendly, avoids N+1 SELECTs)
+      const validBumpMap = new Map<string, number>();
+      for (const reqBumpId of requestedBumpIds) {
+        const validBump = validBumps?.find((b: { bump_product_id: string; bump_currency: string; bump_price: number }) => b.bump_product_id === reqBumpId);
+        if (validBump && validBump.bump_currency === product.currency) {
+          // SECURITY: Use the bump_price from order_bumps, not the product's regular price
+          validBumpMap.set(reqBumpId, validBump.bump_price);
+        }
+        // Invalid bump IDs are silently ignored
+      }
 
-      if (validBump && validBump.bump_currency === product.currency) {
-        // Fetch full product data for metadata
-        const { data: bump } = await supabase
+      if (validBumpMap.size > 0) {
+        const validBumpIds = Array.from(validBumpMap.keys());
+        const { data: bumpProducts } = await supabase
           .from('products')
           .select('*')
-          .eq('id', bumpProductId)
-          .single();
+          .in('id', validBumpIds);
 
-        if (bump) {
-          bumpProduct = bump;
-          // SECURITY: Use the bump_price from order_bumps, not the product's regular price
-          bumpPrice = validBump.bump_price;
+        if (bumpProducts) {
+          for (const bump of bumpProducts) {
+            const price = validBumpMap.get(bump.id)!;
+            validatedBumps.push({ product: bump, bumpPrice: price });
+            totalBumpPrice += price;
+          }
         }
       }
-      // If bumpProductId is not a valid bump for this product, silently ignore it
-      // (could also return 400 error, but ignoring is more user-friendly)
     }
+
+    // Backward compat: expose first bump as bumpProduct for downstream code
+    const bumpProduct = validatedBumps.length > 0 ? validatedBumps[0].product : null;
+    const bumpPrice = validatedBumps.length > 0 ? validatedBumps[0].bumpPrice : 0;
 
     // 5. Fetch and validate coupon using secure DB function
     // SECURITY: Must use verify_coupon RPC which checks all constraints:
@@ -208,13 +292,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 6. Calculate pricing using centralized function
+    // 6. Calculate pricing using centralized function (multi-bump aware)
     const pricing = calculatePricing({
       productPrice: product.price,
       productCurrency: product.currency,
       customAmount,
-      bumpPrice: bumpPrice, // SECURITY: Use validated bump_price from order_bumps, not product.price
-      bumpSelected: !!bumpProduct,
+      bumps: validatedBumps.map(vb => ({ price: vb.bumpPrice, selected: true })),
       coupon: appliedCoupon ? {
         discount_type: appliedCoupon.discount_type,
         discount_value: appliedCoupon.discount_value,
@@ -225,7 +308,83 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = toStripeCents(pricing.totalGross);
 
-    // 7. Create PaymentIntent
+    // 7a. Handle 100% coupon — skip Stripe, grant access directly
+    if (pricing.isFreeWithCoupon && user) {
+      // Grant access for main product
+      const { error: grantError } = await supabase.rpc('grant_free_product_access', {
+        product_slug_param: product.slug,
+      });
+
+      if (grantError) {
+        console.error('[create-payment-intent] Free coupon grant error:', grantError);
+        return NextResponse.json(
+          { error: 'Failed to grant access' },
+          { status: 500 }
+        );
+      }
+
+      // Grant access for bump products (parallel — independent operations)
+      if (validatedBumps.length > 0) {
+        const bumpGrantResults = await Promise.all(
+          validatedBumps.map(vb =>
+            supabase.rpc('grant_free_product_access', {
+              product_slug_param: vb.product.slug,
+            })
+          )
+        );
+        for (let i = 0; i < bumpGrantResults.length; i++) {
+          if (bumpGrantResults[i].error) {
+            console.error(`[create-payment-intent] Free coupon bump grant error for ${validatedBumps[i].product.slug}:`, bumpGrantResults[i].error);
+          }
+        }
+      }
+
+      // Record coupon usage (normally done by webhook, but no Stripe payment here).
+      // Best-effort — access is already granted, failures are logged not fatal.
+      if (appliedCoupon && finalEmail) {
+        const adminClient = createAdminClient();
+
+        try {
+          // Record redemption (per-user usage tracking + prevents re-use)
+          await adminClient
+            .from('coupon_redemptions')
+            .insert({
+              coupon_id: appliedCoupon.id,
+              customer_email: finalEmail,
+              user_id: user.id,
+              discount_amount: pricing.discountAmount,
+              transaction_id: null,
+            });
+
+          // Atomic increment of global usage counter (prevents race condition
+          // where two concurrent 100% coupon redemptions both read the same count)
+          await adminClient.rpc('increment_coupon_usage', {
+            coupon_id_param: appliedCoupon.id,
+          });
+
+          // Cleanup reservation
+          await adminClient
+            .from('coupon_reservations')
+            .delete()
+            .eq('coupon_id', appliedCoupon.id)
+            .eq('customer_email', finalEmail);
+        } catch (couponErr) {
+          console.error('[create-payment-intent] Coupon usage recording error:', couponErr);
+        }
+      }
+
+      return NextResponse.json({ freeAccess: true });
+    }
+
+    // 7a. Handle 100% coupon for guests — require login first
+    if (pricing.isFreeWithCoupon && !user) {
+      return NextResponse.json(
+        { error: 'Please log in to use this coupon for free access' },
+        { status: 401 }
+      );
+    }
+
+    // 7b. Create PaymentIntent
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: totalAmount,
       currency: product.currency.toLowerCase(),
@@ -240,8 +399,20 @@ export async function POST(request: NextRequest) {
         first_name: firstName || '',
         last_name: lastName || '',
         terms_accepted: termsAccepted ? 'true' : '',
-        bump_product_id: bumpProduct?.id || '',  // Only set if bump was validated and applied
+        // Multi-bump: comma-separated IDs (truncated to stay within Stripe 500-char metadata limit)
+        bump_product_ids: (() => {
+          const ids = validatedBumps.map(vb => vb.product.id).join(',');
+          if (ids.length > 500) {
+            // Truncate to fit — webhook will fall back to payment_line_items for full list
+            const truncated = ids.slice(0, 500);
+            return truncated.slice(0, truncated.lastIndexOf(','));
+          }
+          return ids;
+        })(),
+        bump_product_id: bumpProduct?.id || '',  // Legacy: first bump for backward compat
         bump_product_name: bumpProduct?.name || '',
+        has_bump: validatedBumps.length > 0 ? 'true' : '',
+        bump_count: validatedBumps.length.toString(),
         coupon_code: appliedCoupon?.code || '',
         coupon_id: appliedCoupon?.id || '',
         coupon_discount: appliedCoupon ? `${appliedCoupon.discount_value}${appliedCoupon.discount_type === 'percentage' ? '%' : product.currency}` : '',
@@ -261,8 +432,7 @@ export async function POST(request: NextRequest) {
     // Fetch payment method configuration using admin client (service_role)
     // because RLS only allows admin users to SELECT from payment_method_config,
     // but checkout users can be anonymous or non-admin authenticated users.
-    // createAdminClient() is typed with Database which may not include payment_method_config yet
-    const adminSupabase: any = createAdminClient();
+    const adminSupabase = createAdminClient();
     const { data: paymentConfig } = await adminSupabase
       .from('payment_method_config')
       .select('*')
@@ -380,7 +550,11 @@ export async function POST(request: NextRequest) {
           stripe_payment_intent_id: paymentIntent.id,
           status: 'pending',
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-          metadata: paymentIntentParams.metadata
+          metadata: {
+            ...paymentIntentParams.metadata,
+            // Full bump list (not subject to Stripe's 500-char metadata limit)
+            bump_product_ids_full: validatedBumps.map(vb => vb.product.id),
+          }
         });
 
       if (insertError) {
@@ -396,7 +570,7 @@ export async function POST(request: NextRequest) {
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating payment intent:', error);
     return NextResponse.json(
       { error: 'Failed to create payment intent' },

@@ -670,21 +670,20 @@ test.describe('Protection Code (Generate Protection Code)', () => {
     test('Page mode code contains valid script syntax', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState('networkidle');
 
       // Open code generator from ⋯ dropdown
       const productRow = page.locator('tr, [data-testid="product-row"]').filter({ hasText: paidProduct.name }).first();
+      await productRow.waitFor({ state: 'visible', timeout: 10000 });
       await openCodeGenerator(productRow, page);
-
-      await page.waitForTimeout(1000);
 
       // Select Page mode
       const pageModeButton = page.locator('button').filter({ hasText: /Page|Strona/i }).first();
+      await pageModeButton.waitFor({ state: 'visible', timeout: 5000 });
       await pageModeButton.click();
-      await page.waitForTimeout(500);
 
       const codeBlock = page.locator('pre').first();
+      await codeBlock.waitFor({ state: 'visible', timeout: 10000 });
       const generatedCode = await codeBlock.textContent() || '';
 
       // Validate code structure
@@ -700,21 +699,20 @@ test.describe('Protection Code (Generate Protection Code)', () => {
     test('Element mode code contains proper HTML structure', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState('networkidle');
 
       // Open code generator from ⋯ dropdown
       const productRow = page.locator('tr, [data-testid="product-row"]').filter({ hasText: paidProduct.name }).first();
+      await productRow.waitFor({ state: 'visible', timeout: 10000 });
       await openCodeGenerator(productRow, page);
-
-      await page.waitForTimeout(1000);
 
       // Select Element mode
       const elementModeButton = page.locator('button').filter({ hasText: /Element/i }).first();
+      await elementModeButton.waitFor({ state: 'visible', timeout: 5000 });
       await elementModeButton.click();
-      await page.waitForTimeout(500);
 
       const codeBlock = page.locator('pre').first();
+      await codeBlock.waitFor({ state: 'visible', timeout: 10000 });
       const generatedCode = await codeBlock.textContent() || '';
 
       // Validate structure
@@ -728,17 +726,16 @@ test.describe('Protection Code (Generate Protection Code)', () => {
     test('Product slug in generated code matches actual product', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState('networkidle');
 
       // Test with both products
       for (const product of [paidProduct, freeProduct]) {
         const productRow = page.locator('tr, [data-testid="product-row"]').filter({ hasText: product.name }).first();
+        await productRow.waitFor({ state: 'visible', timeout: 10000 });
         await openCodeGenerator(productRow, page);
 
-        await page.waitForTimeout(1000);
-
         const codeBlock = page.locator('pre').first();
+        await codeBlock.waitFor({ state: 'visible', timeout: 10000 });
         const generatedCode = await codeBlock.textContent() || '';
 
         // Verify correct slug is used
@@ -747,7 +744,7 @@ test.describe('Protection Code (Generate Protection Code)', () => {
         // Close modal
         const closeButton = page.locator('button').filter({ hasText: /Close|Zamknij|×/i }).first();
         await closeButton.click();
-        await page.waitForTimeout(500);
+        await closeButton.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
       }
     });
   });

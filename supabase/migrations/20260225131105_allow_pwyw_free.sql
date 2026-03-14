@@ -3,12 +3,12 @@
 -- Now we allow 0 to support "Pay What You Want" with free option
 
 -- Relax the CHECK constraint on custom_price_min
-ALTER TABLE products DROP CONSTRAINT IF EXISTS products_custom_price_min_check;
-ALTER TABLE products ADD CONSTRAINT products_custom_price_min_check CHECK (custom_price_min >= 0);
+ALTER TABLE seller_main.products DROP CONSTRAINT IF EXISTS products_custom_price_min_check;
+ALTER TABLE seller_main.products ADD CONSTRAINT products_custom_price_min_check CHECK (custom_price_min >= 0);
 
 -- Create function to grant free access for PWYW products with min=0
 -- Separate from grant_free_product_access which only handles price=0 products
-CREATE OR REPLACE FUNCTION grant_pwyw_free_access(
+CREATE OR REPLACE FUNCTION seller_main.grant_pwyw_free_access(
     product_slug_param TEXT,
     access_duration_days_param INTEGER DEFAULT NULL
 ) RETURNS BOOLEAN AS $$
@@ -42,7 +42,7 @@ BEGIN
 
     -- Get product by slug — only PWYW products with min=0 allowed
     SELECT id, auto_grant_duration_days INTO product_record
-    FROM public.products
+    FROM seller_main.products
     WHERE slug = clean_slug
       AND is_active = true
       AND allow_custom_price = true
@@ -62,7 +62,7 @@ BEGIN
     END IF;
 
     -- Insert or update user access
-    INSERT INTO public.user_product_access (user_id, product_id, access_expires_at, access_duration_days)
+    INSERT INTO seller_main.user_product_access (user_id, product_id, access_expires_at, access_duration_days)
     VALUES (current_user_id, product_record.id, access_expires_at, COALESCE(access_duration_days_param, product_record.auto_grant_duration_days))
     ON CONFLICT (user_id, product_id)
     DO UPDATE SET
@@ -76,4 +76,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '2s';
 
-COMMENT ON FUNCTION grant_pwyw_free_access IS 'Grant free access to PWYW products with custom_price_min=0. Separate from grant_free_product_access which only handles price=0 products.';
+COMMENT ON FUNCTION seller_main.grant_pwyw_free_access IS 'Grant free access to PWYW products with custom_price_min=0. Separate from grant_free_product_access which only handles price=0 products.';

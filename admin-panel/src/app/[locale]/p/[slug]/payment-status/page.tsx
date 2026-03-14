@@ -173,7 +173,8 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         errorMessage = 'Failed to grant access to free product';
       }
     }
-  } catch {
+  } catch (err) {
+    console.error('[payment-status] Verification error:', err);
     paymentStatus = 'failed';
     errorMessage = 'An error occurred while verifying payment status';
   }

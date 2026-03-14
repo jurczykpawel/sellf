@@ -42,7 +42,6 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
     // Use productSlug if available (it's in URL as 'product' param from CustomPaymentForm)
     // Otherwise fetch product by ID
     if (productSlug) {
-      const locale = 'pl'; // TODO: get from Accept-Language header or cookie
       let redirectUrl = `/${locale}/p/${productSlug}/payment-status?payment_intent=${paymentIntent}`;
       if (successUrl) {
         redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
@@ -53,7 +52,6 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
         const response = await fetch(`${process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/products/${productId}`);
         const data = await response.json();
         if (data.product?.slug) {
-          const locale = 'pl'; // TODO: get from Accept-Language header or cookie
           let redirectUrl = `/${locale}/p/${data.product.slug}/payment-status?payment_intent=${paymentIntent}`;
           if (successUrl) {
             redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;

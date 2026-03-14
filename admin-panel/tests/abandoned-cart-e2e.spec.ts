@@ -167,7 +167,7 @@ test.describe('Abandoned Cart Recovery - E2E', () => {
         currency_param: 'PLN',
         stripe_payment_intent_id: paymentIntentId,
         user_id_param: null,
-        bump_product_id_param: null,
+        bump_product_ids_param: null,
         coupon_id_param: null
       }
     );

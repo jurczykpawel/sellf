@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getStripeServer } from '@/lib/stripe/server';
+import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { requireAdminApi } from '@/lib/auth-server';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -10,23 +12,14 @@ interface RouteParams {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: requestId } = await params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(requestId)) {
+      return NextResponse.json({ error: 'Invalid request ID format' }, { status: 400 });
+    }
+
     const supabase = await createClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Check admin permission
-    const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (adminError || !adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    const { user } = await requireAdminApi(supabase);
 
     const body = await request.json();
     const { action, admin_response } = body;
@@ -94,23 +87,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           .eq('refunded_amount', transaction?.refunded_amount || 0)
           .select('id');
 
-        // Revoke access on full refund — do this regardless of optimistic lock result
-        // because the Stripe refund already succeeded
-        if (isFullRefund) {
-          if (transaction?.user_id) {
-            await supabase
-              .from('user_product_access')
-              .delete()
-              .eq('user_id', transaction.user_id)
-              .eq('product_id', transaction.product_id);
-          }
+        // Revoke all product access on full refund (main + bumps, user + guest)
+        if (isFullRefund && transaction) {
+          const revocation = await revokeTransactionAccess(supabase, {
+            transactionId: processResult.transaction_id,
+            userId: transaction.user_id,
+            productId: transaction.product_id,
+            sessionId: transaction.session_id,
+          });
 
-          if (transaction?.session_id && transaction?.product_id) {
-            await supabase
-              .from('guest_purchases')
-              .delete()
-              .eq('session_id', transaction.session_id)
-              .eq('product_id', transaction.product_id);
+          if (revocation.warnings.length > 0) {
+            console.error('[refund-request] Revocation warnings:', revocation.warnings);
           }
         }
 
