@@ -121,7 +121,7 @@ export async function requireAdminApiWithRequest(request: NextRequest) {
  * Throws on auth failure, returns { user, admin } on success.
  */
 export async function requireMarketplaceAdmin(supabase: SupabaseClient) {
-  const access = checkMarketplaceAccess();
+  const access = await checkMarketplaceAccess();
   if (!access.accessible) {
     throw new Error('Marketplace is not enabled');
   }

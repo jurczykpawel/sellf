@@ -59,7 +59,7 @@ interface ActionResult<T = void> {
  */
 export async function listSellers(): Promise<ActionResult<SellerListItem[]>> {
   return withAdminAuth(async () => {
-    const access = checkMarketplaceAccess();
+    const access = await checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
     }
@@ -85,7 +85,7 @@ export async function listSellers(): Promise<ActionResult<SellerListItem[]>> {
  */
 export async function createSeller(input: CreateSellerInput): Promise<ActionResult<{ sellerId: string }>> {
   return withAdminAuth(async () => {
-    const access = checkMarketplaceAccess();
+    const access = await checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
     }
@@ -143,7 +143,7 @@ export async function createSeller(input: CreateSellerInput): Promise<ActionResu
  */
 export async function updateSeller(sellerId: string, input: UpdateSellerInput): Promise<ActionResult> {
   return withAdminAuth(async () => {
-    const access = checkMarketplaceAccess();
+    const access = await checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
     }
@@ -201,7 +201,7 @@ export async function updateSeller(sellerId: string, input: UpdateSellerInput): 
  */
 export async function deprovisionSeller(sellerId: string): Promise<ActionResult> {
   return withAdminAuth(async () => {
-    const access = checkMarketplaceAccess();
+    const access = await checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
     }

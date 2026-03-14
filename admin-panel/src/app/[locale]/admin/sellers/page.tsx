@@ -110,7 +110,7 @@ export default async function AdminSellersPage() {
   if (!admin) redirect('/');
 
   // Marketplace gate
-  const access = checkMarketplaceAccess();
+  const access = await checkMarketplaceAccess();
   if (!access.accessible) {
     return (
       <div className="min-h-screen bg-sf-deep flex items-center justify-center">

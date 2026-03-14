@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function SellerStorefrontPage({ params }: PageProps) {
   // Gate: marketplace must be enabled
-  const access = checkMarketplaceAccess();
+  const access = await checkMarketplaceAccess();
   if (!access.accessible) {
     return notFound();
   }

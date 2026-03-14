@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 // ===== PAGE =====
 
 export default async function SellerProductPage({ params, searchParams }: PageProps) {
-  const access = checkMarketplaceAccess();
+  const access = await checkMarketplaceAccess();
   if (!access.accessible) {
     return notFound();
   }
