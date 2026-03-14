@@ -81,8 +81,10 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       const fetchCats = async () => {
         setLoadingCategories(true);
         try {
-          const cats = await getCategories();
-          setAllCategories(cats);
+          const result = await getCategories();
+          if (result.success && result.data) {
+            setAllCategories(result.data);
+          }
         } catch (err) {
           console.error('Failed to fetch categories', err);
         } finally {
@@ -172,8 +174,10 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       });
 
       // Fetch assigned categories
-      getProductCategories(product.id).then(catIds => {
-        setFormData(prev => ({ ...prev, categories: catIds }));
+      getProductCategories(product.id).then(result => {
+        if (result.success && result.data) {
+          setFormData(prev => ({ ...prev, categories: result.data! }));
+        }
       }).catch(err => console.error(err));
 
       // Fetch OTO configuration for this product using v1 API

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
 import { 
   validateGrantAccess, 
@@ -70,8 +70,10 @@ export async function POST(
     const supabase = await createClient();
     
     // Verify admin access
+    let adminUser: { id: string; email?: string | undefined };
     try {
-      await requireAdminApi(supabase);
+      const { user } = await requireAdminApi(supabase);
+      adminUser = user;
     } catch (authError: any) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -156,6 +158,16 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to grant access' }, { status: 500 });
     }
 
+    // Audit log: admin granted access (audit_log is in public schema)
+    const platformClient = createPlatformClient();
+    await platformClient.from('audit_log').insert({
+      table_name: 'user_product_access',
+      operation: 'INSERT',
+      performed_by: adminUser.id,
+      user_id: userId,
+      new_values: { product_id: productId, product_name: product.name, action: 'admin_grant_access' },
+    }).then(() => {}, (err: unknown) => console.error('[audit] Failed to log grant:', err));
+
     return NextResponse.json({
       message: 'Access granted successfully',
       access: newAccess
@@ -176,8 +188,10 @@ export async function DELETE(
     const supabase = await createClient();
     
     // Verify admin access
+    let adminUser: { id: string; email?: string | undefined };
     try {
-      await requireAdminApi(supabase);
+      const { user } = await requireAdminApi(supabase);
+      adminUser = user;
     } catch (authError: any) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -212,6 +226,16 @@ export async function DELETE(
       console.error('Error removing access:', deleteError);
       return NextResponse.json({ error: 'Failed to remove access' }, { status: 500 });
     }
+
+    // Audit log: admin revoked access (audit_log is in public schema)
+    const platformClient = createPlatformClient();
+    await platformClient.from('audit_log').insert({
+      table_name: 'user_product_access',
+      operation: 'DELETE',
+      performed_by: adminUser.id,
+      user_id: userId,
+      old_values: { product_id: productId, action: 'admin_revoke_access' },
+    }).then(() => {}, (err: unknown) => console.error('[audit] Failed to log revoke:', err));
 
     return NextResponse.json({
       message: 'Access removed successfully'

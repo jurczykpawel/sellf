@@ -12,9 +12,8 @@
  */
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
-import { requireAdminApi } from '@/lib/auth-server';
+import { withAdminAuth } from '@/lib/actions/admin-auth';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { clearSellerCache } from '@/lib/marketplace/seller-client';
 
@@ -59,10 +58,7 @@ interface ActionResult<T = void> {
  * List all sellers with their current status.
  */
 export async function listSellers(): Promise<ActionResult<SellerListItem[]>> {
-  try {
-    const supabase = await createClient();
-    await requireAdminApi(supabase);
-
+  return withAdminAuth(async () => {
     const access = checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
@@ -80,14 +76,7 @@ export async function listSellers(): Promise<ActionResult<SellerListItem[]>> {
     }
 
     return { success: true, data: data ?? [] };
-  } catch (error) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      return { success: false, error: error.message };
-    }
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[sellers] listSellers error:', msg);
-    return { success: false, error: msg };
-  }
+  });
 }
 
 /**
@@ -95,10 +84,7 @@ export async function listSellers(): Promise<ActionResult<SellerListItem[]>> {
  * Calls the DB function provision_seller_schema() which clones seller_main.
  */
 export async function createSeller(input: CreateSellerInput): Promise<ActionResult<{ sellerId: string }>> {
-  try {
-    const supabase = await createClient();
-    await requireAdminApi(supabase);
-
+  return withAdminAuth(async () => {
     const access = checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
@@ -149,24 +135,14 @@ export async function createSeller(input: CreateSellerInput): Promise<ActionResu
     revalidatePath('/admin/sellers');
 
     return { success: true, data: { sellerId: data } };
-  } catch (error) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      return { success: false, error: error.message };
-    }
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[sellers] createSeller error:', msg);
-    return { success: false, error: msg };
-  }
+  });
 }
 
 /**
  * Update seller details (display name, fee, status).
  */
 export async function updateSeller(sellerId: string, input: UpdateSellerInput): Promise<ActionResult> {
-  try {
-    const supabase = await createClient();
-    await requireAdminApi(supabase);
-
+  return withAdminAuth(async () => {
     const access = checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
@@ -216,14 +192,7 @@ export async function updateSeller(sellerId: string, input: UpdateSellerInput): 
     revalidatePath('/admin/sellers');
 
     return { success: true };
-  } catch (error) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      return { success: false, error: error.message };
-    }
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[sellers] updateSeller error:', msg);
-    return { success: false, error: msg };
-  }
+  });
 }
 
 /**
@@ -231,10 +200,7 @@ export async function updateSeller(sellerId: string, input: UpdateSellerInput): 
  * DESTRUCTIVE: This permanently deletes all seller data.
  */
 export async function deprovisionSeller(sellerId: string): Promise<ActionResult> {
-  try {
-    const supabase = await createClient();
-    await requireAdminApi(supabase);
-
+  return withAdminAuth(async () => {
     const access = checkMarketplaceAccess();
     if (!access.accessible) {
       return { success: false, error: 'Marketplace is not enabled' };
@@ -275,12 +241,5 @@ export async function deprovisionSeller(sellerId: string): Promise<ActionResult>
     revalidatePath('/admin/sellers');
 
     return { success: true };
-  } catch (error) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      return { success: false, error: error.message };
-    }
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[sellers] deprovisionSeller error:', msg);
-    return { success: false, error: msg };
-  }
+  });
 }

@@ -123,18 +123,18 @@ export async function revokeTransactionAccess(
       mainProductRevoked = true;
     }
 
-    // Bump products
-    for (const bumpProductId of bumpProductIds) {
+    // Bump products (batch DELETE to avoid N+1)
+    if (bumpProductIds.length > 0) {
       const { error: bumpRevokeError } = await supabase
         .from('user_product_access')
         .delete()
         .eq('user_id', target.userId)
-        .eq('product_id', bumpProductId);
+        .in('product_id', bumpProductIds);
 
       if (bumpRevokeError) {
-        warnings.push(`Failed to revoke bump product ${bumpProductId} access: ${bumpRevokeError.message}`);
+        warnings.push(`Failed to revoke bump product access: ${bumpRevokeError.message}`);
       } else {
-        bumpProductsRevoked++;
+        bumpProductsRevoked = bumpProductIds.length;
       }
     }
   }

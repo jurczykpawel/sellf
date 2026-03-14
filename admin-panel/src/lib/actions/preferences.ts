@@ -14,7 +14,7 @@ export async function updateUserPreferences(preferences: {
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
-    throw new Error('Unauthorized');
+    return { success: false, error: 'Unauthorized' };
   }
 
   // Merge with existing metadata
@@ -32,8 +32,8 @@ export async function updateUserPreferences(preferences: {
   });
 
   if (error) {
-    console.error('Error updating user preferences:', error);
-    throw new Error('Failed to update preferences');
+    console.error('[updateUserPreferences] Error:', error);
+    return { success: false, error: 'Failed to update preferences' };
   }
 
   revalidatePath('/dashboard');

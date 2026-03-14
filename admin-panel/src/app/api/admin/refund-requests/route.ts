@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireAdminApi } from '@/lib/auth-server';
 
 // GET /api/admin/refund-requests - Get all refund requests (admin only)
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Check admin permission
-    const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (adminError || !adminUser) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    await requireAdminApi(supabase);
 
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || null;

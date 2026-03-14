@@ -67,7 +67,6 @@ function loadStripeEnvConfig(): Record<string, string> {
     NEXT_PUBLIC_STRIPE_RATE_LIMIT_MAX_REQUESTS: getConfig('STRIPE_RATE_LIMIT_MAX_REQUESTS', 'STRIPE_RATE_LIMIT_MAX_REQUESTS', '10'),
     NEXT_PUBLIC_STRIPE_RATE_LIMIT_WINDOW_MINUTES: getConfig('STRIPE_RATE_LIMIT_WINDOW_MINUTES', 'STRIPE_RATE_LIMIT_WINDOW_MINUTES', '1'),
     NEXT_PUBLIC_STRIPE_RATE_LIMIT_ACTION_TYPE: getConfig('STRIPE_RATE_LIMIT_ACTION_TYPE', 'STRIPE_RATE_LIMIT_ACTION_TYPE', 'checkout_creation'),
-    NEXT_PUBLIC_STRIPE_VALIDATION_MIN_PRICE: getConfig('STRIPE_VALIDATION_MIN_PRICE', 'STRIPE_VALIDATION_MIN_PRICE', '0.01'),
     NEXT_PUBLIC_STRIPE_ERROR_PRODUCT_ID_REQUIRED: getConfig('STRIPE_ERROR_PRODUCT_ID_REQUIRED', 'STRIPE_ERROR_PRODUCT_ID_REQUIRED', 'Product ID is required'),
     NEXT_PUBLIC_STRIPE_ERROR_INVALID_EMAIL: getConfig('STRIPE_ERROR_INVALID_EMAIL', 'STRIPE_ERROR_INVALID_EMAIL', 'Invalid email format'),
     NEXT_PUBLIC_STRIPE_ERROR_PRODUCT_NOT_FOUND: getConfig('STRIPE_ERROR_PRODUCT_NOT_FOUND', 'STRIPE_ERROR_PRODUCT_NOT_FOUND', 'Product not found or inactive'),
@@ -170,7 +169,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.stripe.com challenges.cloudflare.com cdn.kiprotect.com www.youtube.com s.ytimg.com",
+              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} js.stripe.com challenges.cloudflare.com cdn.kiprotect.com www.youtube.com s.ytimg.com`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https: i.ibb.co *.stripe.com img.youtube.com vumbnail.com embed-ssl.wistia.com fast.wistia.com placehold.co",
               "font-src 'self' data:",

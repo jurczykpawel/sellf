@@ -35,14 +35,19 @@ export default function OmnibusPrice({
   const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchLowestPrice() {
       try {
-        const response = await fetch(`/api/products/${productId}/lowest-price`);
+        const response = await fetch(`/api/products/${productId}/lowest-price`, {
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data = await response.json();
           setLowestPriceData(data);
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
         console.error('Failed to fetch Omnibus price:', error);
       } finally {
         setLoading(false);
@@ -50,6 +55,7 @@ export default function OmnibusPrice({
     }
 
     fetchLowestPrice();
+    return () => controller.abort();
   }, [productId]);
 
   // Don't show anything while loading

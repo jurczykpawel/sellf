@@ -111,7 +111,8 @@ export default function LoginForm() {
       })
 
       if (error) {
-        setMessage(error.message)
+        console.error('[LoginForm] OTP error:', error.message)
+        setMessage(t('auth.loginFailed'))
         setSentEmail(false)
 
         // Reset captcha after ANY error (it was consumed in the failed request)

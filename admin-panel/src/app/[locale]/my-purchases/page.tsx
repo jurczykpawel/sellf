@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { UserPurchase } from '@/types';
 
@@ -102,8 +103,8 @@ export default function MyPurchasesPage() {
       setSelectedPurchase(null);
       await fetchPurchases();
     } catch (err) {
-      const error = err as Error;
-      alert(error.message || t('refundSubmitError'));
+      console.error('[handleRefundRequest] Error:', err);
+      toast.error(t('refundSubmitError'));
     } finally {
       setSubmitting(false);
     }

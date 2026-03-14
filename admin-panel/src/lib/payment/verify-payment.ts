@@ -6,10 +6,12 @@
  * Only use in Server Components and API Routes.
  */
 
+import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -25,44 +27,6 @@ interface PaymentRpcResult {
   access_expires_at?: string | null;
   send_magic_link?: boolean;
   customer_email?: string;
-}
-
-interface ProductDetail {
-  id: string;
-  name: string;
-  slug: string;
-  price: number;
-  currency: string;
-  icon: string | null;
-}
-
-interface PurchaseWebhookData {
-  customer: {
-    email: string;
-    firstName: string | null;
-    lastName: string | null;
-    userId: string | null;
-  };
-  product: ProductDetail | { id: string };
-  bumpProduct: ProductDetail | null;
-  bumpProducts: ProductDetail[];
-  order: {
-    amount: number | null;
-    currency: string | null;
-    sessionId?: string;
-    paymentIntentId: string | null | undefined;
-    couponId: string | null;
-    isGuest: boolean | undefined;
-  };
-  invoice?: {
-    needsInvoice: boolean;
-    nip: string | null;
-    companyName: string | null;
-    address: string | null;
-    city: string | null;
-    postalCode: string | null;
-    country: string | null;
-  };
 }
 
 /**
@@ -382,9 +346,36 @@ export async function verifyPaymentSession(
           const hasBump = session.metadata?.has_bump === 'true';
           
           // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
-          const bumpProductIds: string[] = bumpProductIdsStr
+          let bumpProductIds: string[] = bumpProductIdsStr
             ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
             : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+          // Detect metadata truncation and recover from Stripe line items
+          const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
+          if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+            console.warn('[verify-payment] BUMP_METADATA_TRUNCATED | session=%s | expected=%d | got=%d', session.id, expectedBumpCount, bumpProductIds.length);
+            try {
+              const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+                limit: 100,
+                expand: ['data.price.product'],
+              });
+              const recoveredIds: string[] = [];
+              for (const li of lineItems.data) {
+                const product = li.price?.product;
+                if (typeof product === 'object' && product && 'metadata' in product) {
+                  const meta = (product as Stripe.Product).metadata;
+                  if (meta?.is_bump === 'true' && meta?.product_id) {
+                    recoveredIds.push(meta.product_id);
+                  }
+                }
+              }
+              if (recoveredIds.length >= expectedBumpCount) {
+                bumpProductIds = recoveredIds;
+              }
+            } catch (lineItemErr) {
+              console.error('[verify-payment] Failed to recover bump IDs from Stripe:', lineItemErr);
+            }
+          }
           
           // Extract coupon ID from metadata if present
           const couponId = session.metadata?.coupon_id || null;
@@ -436,74 +427,20 @@ export async function verifyPaymentSession(
 
           // Trigger webhook for new successful purchases
           if (!paymentResult.already_had_access) {
-            // Fetch detailed product info for webhook
-            const { data: productDetails } = await serviceClient
-              .from('products')
-              .select('id, name, slug, price, currency, icon')
-              .eq('id', productId)
-              .single();
-
-            // Fetch bump product info for all bumps
-            let bumpProductDetailsList: ProductDetail[] = [];
-            if (bumpProductIds.length > 0) {
-              const { data: bumps } = await serviceClient
-                .from('products')
-                .select('id, name, slug, price, currency, icon')
-                .in('id', bumpProductIds);
-              if (bumps) bumpProductDetailsList = bumps;
-            }
-
-            const webhookData: PurchaseWebhookData = {
-              customer: {
-                email: customerEmail,
-                firstName: session.metadata?.first_name || null,
-                lastName: session.metadata?.last_name || null,
-                userId: user?.id || null
-              },
-              product: productDetails ? {
-                 id: productDetails.id,
-                 name: productDetails.name,
-                 slug: productDetails.slug,
-                 price: productDetails.price,
-                 currency: productDetails.currency,
-                 icon: productDetails.icon
-              } : { id: productId },
-              // Backward compat: first bump as bumpProduct
-              bumpProduct: bumpProductDetailsList.length > 0 ? {
-                 id: bumpProductDetailsList[0].id,
-                 name: bumpProductDetailsList[0].name,
-                 slug: bumpProductDetailsList[0].slug,
-                 price: bumpProductDetailsList[0].price,
-                 currency: bumpProductDetailsList[0].currency,
-                 icon: bumpProductDetailsList[0].icon
-              } : null,
-              // New: all bumps
-              bumpProducts: bumpProductDetailsList.map(b => ({
-                 id: b.id, name: b.name, slug: b.slug,
-                 price: b.price, currency: b.currency, icon: b.icon
-              })),
-              order: {
-                amount: session.amount_total,
-                currency: session.currency,
-                sessionId: session.id,
-                paymentIntentId: stripePaymentIntentId,
-                couponId: hasCoupon && couponId ? couponId : null,
-                isGuest: paymentResult?.is_guest_purchase
-              }
-            };
-
-            // Add invoice data if requested
-            if (session.metadata?.needs_invoice === 'true') {
-              webhookData.invoice = {
-                needsInvoice: true,
-                nip: session.metadata.nip || null,
-                companyName: session.metadata.company_name || null,
-                address: session.metadata.address || null,
-                city: session.metadata.city || null,
-                postalCode: session.metadata.postal_code || null,
-                country: session.metadata.country || null,
-              };
-            }
+            const webhookData = await buildPurchaseWebhookPayload({
+              supabaseClient: serviceClient,
+              customerEmail,
+              userId: user?.id || null,
+              productId,
+              bumpProductIds,
+              metadata: session.metadata as Record<string, string | undefined> | null,
+              amount: session.amount_total,
+              currency: session.currency,
+              sessionId: session.id,
+              paymentIntentId: stripePaymentIntentId,
+              couponId: hasCoupon && couponId ? couponId : null,
+              isGuest: paymentResult?.is_guest_purchase,
+            });
 
             WebhookService.trigger('purchase.completed', webhookData)
               .catch(err => console.error('Webhook trigger error:', err));
@@ -683,9 +620,25 @@ export async function verifyPaymentIntent(
           const couponId = paymentIntent.metadata?.coupon_id || null;
 
           // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single
-          const bumpProductIds: string[] = bumpProductIdsStr
+          let bumpProductIds: string[] = bumpProductIdsStr
             ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
             : (bumpProductIdLegacy ? [bumpProductIdLegacy] : []);
+
+          // Detect metadata truncation and recover from pending transaction
+          const expectedBumpCount = parseInt(paymentIntent.metadata?.bump_count || '0', 10);
+          if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+            console.warn('[verify-payment] BUMP_METADATA_TRUNCATED | pi=%s | expected=%d | got=%d', paymentIntent.id, expectedBumpCount, bumpProductIds.length);
+            const { data: pendingTx } = await serviceClient
+              .from('payment_transactions')
+              .select('metadata')
+              .eq('stripe_payment_intent_id', paymentIntent.id)
+              .maybeSingle();
+            const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
+            if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
+              bumpProductIds = fullBumpIds as string[];
+              console.info('[verify-payment] Recovered %d bump IDs from pending transaction', fullBumpIds.length);
+            }
+          }
 
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {
@@ -733,71 +686,19 @@ export async function verifyPaymentIntent(
 
           // Trigger webhook for new successful purchases
           if (!paymentResult.already_had_access) {
-            // Fetch detailed product info for webhook
-            const { data: productDetails } = await serviceClient
-              .from('products')
-              .select('id, name, slug, price, currency, icon')
-              .eq('id', productId)
-              .single();
-
-            // Fetch bump product info for all bumps
-            let bumpProductDetailsList: ProductDetail[] = [];
-            if (bumpProductIds.length > 0) {
-              const { data: bumps } = await serviceClient
-                .from('products')
-                .select('id, name, slug, price, currency, icon')
-                .in('id', bumpProductIds);
-              if (bumps) bumpProductDetailsList = bumps;
-            }
-
-            const webhookData: PurchaseWebhookData = {
-              customer: {
-                email: customerEmail,
-                firstName: paymentIntent.metadata?.first_name || null,
-                lastName: paymentIntent.metadata?.last_name || null,
-                userId: user?.id || null
-              },
-              product: productDetails ? {
-                 id: productDetails.id,
-                 name: productDetails.name,
-                 slug: productDetails.slug,
-                 price: productDetails.price,
-                 currency: productDetails.currency,
-                 icon: productDetails.icon
-              } : { id: productId },
-              bumpProduct: bumpProductDetailsList.length > 0 ? {
-                 id: bumpProductDetailsList[0].id,
-                 name: bumpProductDetailsList[0].name,
-                 slug: bumpProductDetailsList[0].slug,
-                 price: bumpProductDetailsList[0].price,
-                 currency: bumpProductDetailsList[0].currency,
-                 icon: bumpProductDetailsList[0].icon
-              } : null,
-              bumpProducts: bumpProductDetailsList.map(b => ({
-                 id: b.id, name: b.name, slug: b.slug,
-                 price: b.price, currency: b.currency, icon: b.icon
-              })),
-              order: {
-                amount: paymentIntent.amount,
-                currency: paymentIntent.currency,
-                paymentIntentId: paymentIntent.id,
-                couponId: couponId || null,
-                isGuest: paymentResult?.is_guest_purchase
-              }
-            };
-
-            // Add invoice data if requested
-            if (paymentIntent.metadata?.needs_invoice === 'true') {
-              webhookData.invoice = {
-                needsInvoice: true,
-                nip: paymentIntent.metadata.nip || null,
-                companyName: paymentIntent.metadata.company_name || null,
-                address: paymentIntent.metadata.address || null,
-                city: paymentIntent.metadata.city || null,
-                postalCode: paymentIntent.metadata.postal_code || null,
-                country: paymentIntent.metadata.country || null,
-              };
-            }
+            const webhookData = await buildPurchaseWebhookPayload({
+              supabaseClient: serviceClient,
+              customerEmail,
+              userId: user?.id || null,
+              productId,
+              bumpProductIds,
+              metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
+              amount: paymentIntent.amount,
+              currency: paymentIntent.currency,
+              paymentIntentId: paymentIntent.id,
+              couponId: couponId || null,
+              isGuest: paymentResult?.is_guest_purchase,
+            });
 
             WebhookService.trigger('purchase.completed', webhookData)
               .catch(err => console.error('Webhook trigger error:', err));

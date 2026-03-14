@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const { data: { user }, error: authError } = await platformClient.auth.getUser(token);
     if (authError || !user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user is admin (using admin_users table, consistent with other admin routes)
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!adminUser) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Use admin client for seller_main data operations
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     if (!rateLimitOk) {
       return NextResponse.json(
-        { message: 'Rate limit exceeded. Maximum 10 refunds per hour.' },
+        { error: 'Rate limit exceeded. Maximum 10 refunds per hour.' },
         { status: 429 }
       );
     }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     if (!transactionId) {
       return NextResponse.json(
-        { message: 'Transaction ID is required' },
+        { error: 'Transaction ID is required' },
         { status: 400 }
       );
     }
@@ -73,12 +73,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (transactionError || !transaction) {
-      return NextResponse.json({ message: 'Transaction not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
     if (transaction.status !== 'completed') {
       return NextResponse.json(
-        { message: 'Only completed transactions can be refunded' },
+        { error: 'Only completed transactions can be refunded' },
         { status: 400 }
       );
     }
@@ -89,14 +89,14 @@ export async function POST(request: NextRequest) {
 
     if (!Number.isInteger(refundAmount) || refundAmount <= 0) {
       return NextResponse.json(
-        { message: 'Refund amount must be a positive integer (in cents)' },
+        { error: 'Refund amount must be a positive integer (in cents)' },
         { status: 400 }
       );
     }
 
     if (refundAmount > MAX_REFUND_AMOUNT) {
       return NextResponse.json(
-        { message: `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents` },
+        { error: `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents` },
         { status: 400 }
       );
     }
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     if (refundAmount > maxRefundable) {
       return NextResponse.json(
-        { message: `Refund amount (${refundAmount}) exceeds refundable amount (${maxRefundable})` },
+        { error: `Refund amount (${refundAmount}) exceeds refundable amount (${maxRefundable})` },
         { status: 400 }
       );
     }
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     if (reason) {
       if (!VALID_REFUND_REASONS.includes(reason)) {
         return NextResponse.json(
-          { message: `Invalid refund reason. Must be one of: ${VALID_REFUND_REASONS.join(', ')}` },
+          { error: `Invalid refund reason. Must be one of: ${VALID_REFUND_REASONS.join(', ')}` },
           { status: 400 }
         );
       }
@@ -156,15 +156,13 @@ export async function POST(request: NextRequest) {
       .eq('refunded_amount', alreadyRefunded)
       .select('id');
 
-    if (updateError || !updated || updated.length === 0) {
+    const dbUpdateFailed = updateError || !updated || updated.length === 0;
+    if (dbUpdateFailed) {
       console.error('Error updating transaction (concurrent refund?):', updateError);
-      return NextResponse.json(
-        { message: 'Refund processed but failed to update database — possible concurrent refund' },
-        { status: 409 }
-      );
     }
 
-    // Revoke all product access on full refund (main + bumps, user + guest)
+    // Revoke all product access on full refund (main + bumps, user + guest).
+    // Always attempt even if DB update failed — Stripe refund already issued.
     let accessRevocationFailed = false;
 
     if (isFullRefund) {
@@ -183,6 +181,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`[admin-refund] Refund processed by ${user.id}: txn=${transactionId} refund=${refund.id} amount=${refund.amount}`);
 
+    if (dbUpdateFailed) {
+      return NextResponse.json({
+        success: true,
+        refund: {
+          id: refund.id,
+          amount: refund.amount,
+          status: refund.status,
+        },
+        warning: 'Refund processed but database update failed (concurrent modification). Verify transaction status manually.',
+      }, { status: 409 });
+    }
+
     return NextResponse.json({
       success: true,
       refund: {
@@ -198,7 +208,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Refund processing error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

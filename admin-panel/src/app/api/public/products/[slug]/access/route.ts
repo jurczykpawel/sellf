@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const rateLimitOk = await checkRateLimit('public_product_access', 60, 1);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     const { slug } = await context.params;
     const supabase = await createClient();
     

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import type { RefundRequest } from '@/types';
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
@@ -94,8 +95,8 @@ export default function RefundRequestsPage() {
       setSelectedRequest(null);
       await fetchRequests();
     } catch (err) {
-      const error = err as Error;
-      alert(error.message);
+      console.error('[handleAction] Error:', err);
+      toast.error(t('processError'));
     } finally {
       setProcessingId(null);
     }

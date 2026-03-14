@@ -13,6 +13,8 @@
  * @see /api/admin/payments/refund/route.ts - uses refund validation
  */
 
+import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+
 // ===== CLIENT SECRET PARSING =====
 
 /**
@@ -92,7 +94,7 @@ export function validatePaymentAmount(
   expectedPrice: number,
   currency: string,
   allowCustomPrice: boolean = false,
-  minCustomPrice: number = 0.50
+  minCustomPrice: number = STRIPE_MINIMUM_AMOUNT
 ): AmountValidation {
   if (receivedAmount === undefined || receivedAmount === null) {
     return { valid: false, error: 'Amount is required' };

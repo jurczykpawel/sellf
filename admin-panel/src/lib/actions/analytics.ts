@@ -113,7 +113,7 @@ export async function getRevenueGoal(productId?: string): Promise<{ amount: numb
   return null
 }
 
-export async function setRevenueGoal(amount: number, startDate: string, currency: string, productId?: string): Promise<void> {
+export async function setRevenueGoal(amount: number, startDate: string, currency: string, productId?: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
 
   const { error } = await supabase.rpc('set_revenue_goal', {
@@ -124,7 +124,9 @@ export async function setRevenueGoal(amount: number, startDate: string, currency
   })
 
   if (error) {
-    console.error('Error setting revenue goal:', error)
-    throw new Error('Failed to set revenue goal')
+    console.error('[setRevenueGoal] Error:', error)
+    return { success: false, error: 'Failed to set revenue goal' }
   }
+
+  return { success: true }
 }

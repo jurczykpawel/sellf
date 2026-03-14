@@ -25,6 +25,24 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+interface RefundProductRelation {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+}
+
+interface RefundTransactionRelation {
+  id: string;
+  customer_email: string;
+  amount: number;
+  currency: string;
+  status: string;
+  stripe_payment_intent_id: string | null;
+  created_at: string;
+}
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -108,22 +126,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       processed_at: refundRequest.processed_at,
       created_at: refundRequest.created_at,
       updated_at: refundRequest.updated_at,
-      product: refundRequest.product ? {
-        id: (refundRequest.product as any).id,
-        name: (refundRequest.product as any).name,
-        slug: (refundRequest.product as any).slug,
-        price: (refundRequest.product as any).price,
-        currency: (refundRequest.product as any).currency,
-      } : null,
-      transaction: refundRequest.transaction ? {
-        id: (refundRequest.transaction as any).id,
-        customer_email: (refundRequest.transaction as any).customer_email,
-        amount: (refundRequest.transaction as any).amount,
-        currency: (refundRequest.transaction as any).currency,
-        status: (refundRequest.transaction as any).status,
-        stripe_payment_intent_id: (refundRequest.transaction as any).stripe_payment_intent_id,
-        created_at: (refundRequest.transaction as any).created_at,
-      } : null,
+      product: refundRequest.product ? (() => {
+        const p = refundRequest.product as unknown as RefundProductRelation;
+        return { id: p.id, name: p.name, slug: p.slug, price: p.price, currency: p.currency };
+      })() : null,
+      transaction: refundRequest.transaction ? (() => {
+        const t = refundRequest.transaction as unknown as RefundTransactionRelation;
+        return { id: t.id, customer_email: t.customer_email, amount: t.amount, currency: t.currency, status: t.status, stripe_payment_intent_id: t.stripe_payment_intent_id, created_at: t.created_at };
+      })() : null,
     };
 
     return jsonResponse(successResponse(response), request);

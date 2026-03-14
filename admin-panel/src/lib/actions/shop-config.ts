@@ -1,10 +1,11 @@
 'use server'
 
-import { createClient, createPublicClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
+import { withAdminAuth } from '@/lib/actions/admin-auth'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -98,50 +99,38 @@ export async function getDefaultCurrency(): Promise<string> {
  */
 export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
   if (isDemoMode()) return false
-  const supabase = await createClient()
 
-  // Verify caller is admin
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
+  const result = await withAdminAuth(async ({ supabase }) => {
+    // Get current config first
+    const config = await getShopConfig()
+    if (!config) {
+      console.error('No shop config found to update')
+      return { success: false, error: 'No shop config found' }
+    }
 
-  const { data: adminUser } = await supabase
-    .from('admin_users')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .single()
+    const { error } = await supabase
+      .from('shop_config')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', config.id)
 
-  if (!adminUser) {
-    console.error('[updateShopConfig] Non-admin attempted to update shop config')
-    return false
-  }
+    if (error) {
+      console.error('Error updating shop config:', error)
+      return { success: false, error: error.message }
+    }
 
-  // Get current config first
-  const config = await getShopConfig()
-  if (!config) {
-    console.error('No shop config found to update')
-    return false
-  }
+    // Invalidate Redis cache (if configured)
+    await cacheDel(CacheKeys.SHOP_CONFIG)
 
-  const { error } = await supabase
-    .from('shop_config')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', config.id)
+    // Revalidate all dashboard pages that might use shop config
+    revalidatePath('/dashboard', 'layout')
 
-  if (error) {
-    console.error('Error updating shop config:', error)
-    return false
-  }
+    return { success: true }
+  })
 
-  // Invalidate Redis cache (if configured)
-  await cacheDel(CacheKeys.SHOP_CONFIG)
-
-  // Revalidate all dashboard pages that might use shop config
-  revalidatePath('/dashboard', 'layout')
-
-  return true
+  return result.success
 }
 
 /**

@@ -28,16 +28,44 @@ function buildCacheKey(percentage: number, inclusive: boolean): string {
   return `${percentage.toFixed(2)}_${inclusive ? 'inclusive' : 'exclusive'}`;
 }
 
+// ===== IN-FLIGHT DEDUPLICATION =====
+
+// Prevents duplicate Stripe API calls when multiple line items share the same tax rate
+// within a single checkout request. Map is keyed by cacheKey, value is the pending promise.
+const inFlightRequests = new Map<string, Promise<string>>();
+
 // ===== GET OR CREATE =====
 
 /**
  * Get or create a Stripe Tax Rate for the given parameters.
  * Checks cache first; creates new if not found or if cached ID is invalid.
+ * Uses in-flight deduplication to avoid N+1 calls for the same rate within a request.
  */
 export async function getOrCreateStripeTaxRate(params: TaxRateParams): Promise<string> {
   const { percentage, inclusive, displayName = 'VAT', country } = params;
   const cacheKey = buildCacheKey(percentage, inclusive);
 
+  // Deduplicate concurrent requests for the same tax rate
+  const existing = inFlightRequests.get(cacheKey);
+  if (existing) return existing;
+
+  const promise = _resolveStripeTaxRate(cacheKey, percentage, inclusive, displayName, country);
+  inFlightRequests.set(cacheKey, promise);
+
+  try {
+    return await promise;
+  } finally {
+    inFlightRequests.delete(cacheKey);
+  }
+}
+
+async function _resolveStripeTaxRate(
+  cacheKey: string,
+  percentage: number,
+  inclusive: boolean,
+  displayName: string,
+  country?: string,
+): Promise<string> {
   const shopConfig = await getShopConfig();
   const cache: Record<string, string> = (shopConfig?.stripe_tax_rate_cache as Record<string, string>) || {};
 

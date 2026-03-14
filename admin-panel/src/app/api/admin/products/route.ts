@@ -41,8 +41,10 @@ function getAdminCorsOrigin(requestOrigin: string | null): string {
 
   if (requestOrigin && (
     requestOrigin === siteUrl ||
-    requestOrigin.startsWith('http://localhost:') ||
-    requestOrigin.startsWith('http://127.0.0.1:')
+    (process.env.NODE_ENV === 'development' && (
+      requestOrigin.startsWith('http://localhost:') ||
+      requestOrigin.startsWith('http://127.0.0.1:')
+    ))
   )) {
     return requestOrigin;
   }

@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         source: 'client_proxy',
         status: 'failed',
         errorMessage: 'Rate limited',
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
       return NextResponse.json(
         { error: 'Too many tracking requests. Please try again later.' },
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         source: 'client_proxy',
         status: 'failed',
         errorMessage: 'Missing required fields: event_name, event_id',
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
       return NextResponse.json(
         { error: 'Missing required fields: event_name, event_id' },
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         customerEmail: userEmail,
         value,
         currency,
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
       return NextResponse.json(
         { error: 'Failed to fetch configuration' },
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         customerEmail: userEmail,
         value,
         currency,
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
       return NextResponse.json(
         { error: 'No tracking destination configured' },
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
         customerEmail: userEmail,
         value,
         currency,
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
       return NextResponse.json({
         success: false,
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
         value,
         currency,
         eventSourceUrl,
-      }).catch(() => {});
+      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
       if (!result.success) {
         console.error(`[Tracking Proxy] ${result.destination} error:`, result.error);
@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
       source: 'client_proxy',
       status: 'failed',
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
-    }).catch(() => {});
+    }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
 
     return NextResponse.json(
       { error: 'Internal server error' },

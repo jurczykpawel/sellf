@@ -557,7 +557,8 @@
     "emailPlaceholder": "twoj@email.com",
     "passwordPlaceholder": "demo123",
     "orContinueWith": "lub zaloguj przez konto",
-    "signInWith": "Zaloguj przez {provider}"
+    "signInWith": "Zaloguj przez {provider}",
+    "loginFailed": "Logowanie nie powiodło się. Spróbuj ponownie."
   },
   "products": {
     "title": "Produkty",
@@ -2820,7 +2821,8 @@
     "confirmApprove": "Zatwierdź i zwróć",
     "confirmReject": "Odrzuć prośbę",
     "naLabel": "N/D",
-    "invalidPrice": "Nieprawidłowa cena"
+    "invalidPrice": "Nieprawidłowa cena",
+    "processError": "Nie udało się przetworzyć prośby o zwrot"
   },
   "demo": {
     "banner": "To jest instancja demo. Dane resetują się co godzinę.",

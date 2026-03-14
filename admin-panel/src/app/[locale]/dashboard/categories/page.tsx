@@ -4,7 +4,7 @@ import { verifyAdminAccess } from '@/lib/auth-server'
 
 export default async function CategoriesPage() {
   await verifyAdminAccess()
-  const categories = await getCategories()
+  const result = await getCategories()
 
-  return <CategoriesPageContent initialCategories={categories} />
+  return <CategoriesPageContent initialCategories={result.data ?? []} />
 }

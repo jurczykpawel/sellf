@@ -20,6 +20,7 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
@@ -85,9 +86,41 @@ async function handleCheckoutSessionCompleted(
   const userId = session.metadata?.user_id || null;
 
   // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
-  const bumpProductIds: string[] = bumpProductIdsStr
+  let bumpProductIds: string[] = bumpProductIdsStr
     ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
     : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+  // Detect metadata truncation: bump_count tells us how many bumps were selected
+  const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
+  if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+    console.warn(
+      '[stripe-webhook] BUMP_METADATA_TRUNCATED | session=%s | expected=%d | got=%d — fetching line items from Stripe',
+      sessionId, expectedBumpCount, bumpProductIds.length
+    );
+    try {
+      const stripe = await getStripeServer();
+      const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
+        limit: 100,
+        expand: ['data.price.product'],
+      });
+      const recoveredIds: string[] = [];
+      for (const li of lineItems.data) {
+        const product = li.price?.product;
+        if (typeof product === 'object' && product && 'metadata' in product) {
+          const meta = (product as Stripe.Product).metadata;
+          if (meta?.is_bump === 'true' && meta?.product_id) {
+            recoveredIds.push(meta.product_id);
+          }
+        }
+      }
+      if (recoveredIds.length >= expectedBumpCount) {
+        bumpProductIds = recoveredIds;
+        console.info('[stripe-webhook] Recovered %d bump IDs from Stripe line items', recoveredIds.length);
+      }
+    } catch (lineItemErr) {
+      console.error('[stripe-webhook] Failed to recover bump IDs from Stripe line items:', lineItemErr);
+    }
+  }
 
   // Get payment intent ID
   const stripePaymentIntentId = typeof session.payment_intent === 'object'
@@ -127,37 +160,36 @@ async function handleCheckoutSessionCompleted(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
-    // Fetch detailed product info for webhook
-    const { data: productDetails } = await supabase
-      .from('products')
-      .select('id, name, slug, price, currency, icon')
-      .eq('id', productId)
-      .single();
-
-    // Fetch bump product info for all purchased bumps (batch query)
-    let bumpProductDetailsList: Array<{ id: string; name: string; slug: string; price: number; currency: string; icon: string | null }> = [];
-    if (bumpProductIds.length > 0) {
-      const { data: bumps } = await supabase
-        .from('products')
-        .select('id, name, slug, price, currency, icon')
-        .in('id', bumpProductIds);
-      if (bumps) bumpProductDetailsList = bumps;
-    }
-    // Legacy compat: first bump for webhook payload
-    const bumpProductDetails = bumpProductDetailsList[0] || null;
+    const webhookData = await buildPurchaseWebhookPayload({
+      supabaseClient: supabase,
+      customerEmail,
+      userId,
+      productId,
+      bumpProductIds,
+      metadata: session.metadata as Record<string, string | undefined> | null,
+      amount: session.amount_total,
+      currency: session.currency,
+      sessionId,
+      paymentIntentId: stripePaymentIntentId,
+      couponId: hasCoupon && couponId ? couponId : null,
+      isGuest: result.is_guest_purchase,
+      source: 'stripe_webhook',
+    });
 
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+    const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
+    const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
     trackServerSideConversion({
       eventName: 'Purchase',
       eventId: generatePurchaseEventId(sessionId),
-      eventSourceUrl: productDetails?.slug ? `${baseUrl}/p/${productDetails.slug}` : baseUrl,
+      eventSourceUrl: productSlug ? `${baseUrl}/p/${productSlug}` : baseUrl,
       value: (session.amount_total || 0) / 100,
       currency: (session.currency || 'usd').toUpperCase(),
       items: [{
         item_id: productId,
-        item_name: productDetails?.name || 'Unknown Product',
+        item_name: productName,
         price: (session.amount_total || 0) / 100,
         quantity: 1,
       }],
@@ -165,40 +197,8 @@ async function handleCheckoutSessionCompleted(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', {
-      customer: {
-        email: customerEmail,
-        firstName: session.metadata?.first_name || null,
-        lastName: session.metadata?.last_name || null,
-        userId: userId
-      },
-      product: productDetails ? {
-         id: productDetails.id,
-         name: productDetails.name,
-         slug: productDetails.slug,
-         price: productDetails.price,
-         currency: productDetails.currency,
-         icon: productDetails.icon
-      } : { id: productId },
-      bumpProduct: bumpProductDetails ? {
-         id: bumpProductDetails.id,
-         name: bumpProductDetails.name,
-         slug: bumpProductDetails.slug,
-         price: bumpProductDetails.price,
-         currency: bumpProductDetails.currency,
-         icon: bumpProductDetails.icon
-      } : null,
-      bumpProducts: bumpProductDetailsList.length > 0 ? bumpProductDetailsList : null,
-      order: {
-        amount: session.amount_total,
-        currency: session.currency,
-        sessionId: sessionId,
-        paymentIntentId: stripePaymentIntentId,
-        couponId: hasCoupon && couponId ? couponId : null,
-        isGuest: result.is_guest_purchase
-      },
-      source: 'stripe_webhook'
-    }).catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
+    WebhookService.trigger('purchase.completed', webhookData)
+      .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
   return { processed: true, message: `Payment processed: ${result.scenario}` };
@@ -251,9 +251,31 @@ async function handlePaymentIntentSucceeded(
   const userId = paymentIntent.metadata?.user_id || null;
 
   // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
-  const bumpProductIds: string[] = bumpProductIdsStr
+  let bumpProductIds: string[] = bumpProductIdsStr
     ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
     : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+  // Detect metadata truncation: bump_count tells us how many bumps were selected
+  const expectedBumpCount = parseInt(paymentIntent.metadata?.bump_count || '0', 10);
+  if (expectedBumpCount > 0 && bumpProductIds.length < expectedBumpCount) {
+    console.warn(
+      '[stripe-webhook] BUMP_METADATA_TRUNCATED | pi=%s | expected=%d | got=%d — checking pending transaction',
+      paymentIntent.id, expectedBumpCount, bumpProductIds.length
+    );
+    // Recover full bump list from pending transaction metadata (stored without Stripe's 500-char limit)
+    if (existingTransaction) {
+      const { data: pendingTx } = await supabase
+        .from('payment_transactions')
+        .select('metadata')
+        .eq('id', existingTransaction.id)
+        .single();
+      const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
+      if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
+        bumpProductIds = fullBumpIds as string[];
+        console.info('[stripe-webhook] Recovered %d bump IDs from pending transaction metadata', fullBumpIds.length);
+      }
+    }
+  }
 
   // Process payment using database function (multi-bump aware)
   const { data: result, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
@@ -288,35 +310,34 @@ async function handlePaymentIntentSucceeded(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
-    // Fetch detailed product info for webhook
-    const { data: productDetails } = await supabase
-      .from('products')
-      .select('id, name, slug, price, currency, icon')
-      .eq('id', productId)
-      .single();
-
-    // Fetch bump product info for all purchased bumps (batch query)
-    let bumpProductDetailsList: Array<{ id: string; name: string; slug: string; price: number; currency: string; icon: string | null }> = [];
-    if (bumpProductIds.length > 0) {
-      const { data: bumps } = await supabase
-        .from('products')
-        .select('id, name, slug, price, currency, icon')
-        .in('id', bumpProductIds);
-      if (bumps) bumpProductDetailsList = bumps;
-    }
-    const bumpProductDetails = bumpProductDetailsList[0] || null;
+    const webhookData = await buildPurchaseWebhookPayload({
+      supabaseClient: supabase,
+      customerEmail,
+      userId,
+      productId,
+      bumpProductIds,
+      metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      paymentIntentId: paymentIntent.id,
+      couponId: couponId || null,
+      isGuest: result.is_guest_purchase,
+      source: 'stripe_webhook',
+    });
 
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+    const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
+    const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
     trackServerSideConversion({
       eventName: 'Purchase',
       eventId: generatePurchaseEventId(paymentIntent.id),
-      eventSourceUrl: productDetails?.slug ? `${baseUrl}/p/${productDetails.slug}` : baseUrl,
+      eventSourceUrl: productSlug ? `${baseUrl}/p/${productSlug}` : baseUrl,
       value: (paymentIntent.amount || 0) / 100,
       currency: (paymentIntent.currency || 'usd').toUpperCase(),
       items: [{
         item_id: productId,
-        item_name: productDetails?.name || 'Unknown Product',
+        item_name: productName,
         price: (paymentIntent.amount || 0) / 100,
         quantity: 1,
       }],
@@ -324,39 +345,8 @@ async function handlePaymentIntentSucceeded(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', {
-      customer: {
-        email: customerEmail,
-        firstName: paymentIntent.metadata?.first_name || null,
-        lastName: paymentIntent.metadata?.last_name || null,
-        userId: userId
-      },
-      product: productDetails ? {
-         id: productDetails.id,
-         name: productDetails.name,
-         slug: productDetails.slug,
-         price: productDetails.price,
-         currency: productDetails.currency,
-         icon: productDetails.icon
-      } : { id: productId },
-      bumpProduct: bumpProductDetails ? {
-         id: bumpProductDetails.id,
-         name: bumpProductDetails.name,
-         slug: bumpProductDetails.slug,
-         price: bumpProductDetails.price,
-         currency: bumpProductDetails.currency,
-         icon: bumpProductDetails.icon
-      } : null,
-      bumpProducts: bumpProductDetailsList.length > 0 ? bumpProductDetailsList : null,
-      order: {
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency,
-        paymentIntentId: paymentIntent.id,
-        couponId: couponId || null,
-        isGuest: result.is_guest_purchase
-      },
-      source: 'stripe_webhook'
-    }).catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
+    WebhookService.trigger('purchase.completed', webhookData)
+      .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
   return { processed: true, message: `Payment processed: ${result.scenario}` };

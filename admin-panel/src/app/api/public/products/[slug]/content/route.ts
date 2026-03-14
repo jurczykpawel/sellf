@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
 
 export async function GET(
@@ -7,6 +8,14 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const rateLimitOk = await checkRateLimit('public_product_content', 30, 1);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     const { slug } = await context.params;
     const supabase = await createClient();
     

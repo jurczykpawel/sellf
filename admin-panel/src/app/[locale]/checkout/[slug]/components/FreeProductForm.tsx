@@ -177,7 +177,8 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
       });
 
       if (error) {
-        setMessage({ type: 'error', text: error.message });
+        console.error('[FreeProductForm] Auth error:', error.message);
+        setMessage({ type: 'error', text: t('unexpectedError') });
 
         // Reset captcha after ANY error (it was consumed in the failed request)
         captcha.reset();

@@ -94,6 +94,14 @@ export async function validateStripeKeyFormat(apiKey: string): Promise<KeyFormat
  */
 export async function testStripeKeyConnection(apiKey: string): Promise<TestConnectionResponse> {
   try {
+    // Admin-only: prevent using this server as a proxy to validate stolen Stripe keys
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: 'Unauthorized', errorCode: 'UNAUTHORIZED' }
+    }
+    await requireAdminApi(supabase)
+
     // Validate format first
     const formatValidation = await validateStripeKeyFormat(apiKey)
     if (!formatValidation.isValid) {
@@ -139,16 +147,18 @@ export async function testStripeKeyConnection(apiKey: string): Promise<TestConne
     }
 
     if (error instanceof Stripe.errors.StripeAPIError) {
+      console.error('[testStripeKeyConnection] Stripe API error:', error)
       return {
         success: false,
-        error: `Stripe API error: ${error.message}`,
+        error: 'Stripe API error occurred. Please try again later.',
         errorCode: error.code || 'API_ERROR',
       }
     }
 
+    console.error('[testStripeKeyConnection] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: 'Failed to test Stripe connection',
       errorCode: 'UNKNOWN_ERROR',
     }
   }
@@ -159,6 +169,14 @@ export async function testStripeKeyConnection(apiKey: string): Promise<TestConne
  */
 export async function verifyStripeKeyPermissions(apiKey: string): Promise<VerifyPermissionsResponse> {
   try {
+    // Admin-only: prevent using this server as a proxy to validate stolen Stripe keys
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    await requireAdminApi(supabase)
+
     const stripe = new Stripe(apiKey.trim(), {
       apiVersion: '2026-02-25.clover',
       typescript: true,
@@ -313,9 +331,10 @@ export async function verifyStripeKeyPermissions(apiKey: string): Promise<Verify
       },
     }
   } catch (error) {
+    console.error('[verifyStripeKeyPermissions] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during permission verification',
+      error: 'Failed to verify Stripe key permissions',
       errorCode: 'PERMISSION_CHECK_FAILED',
     }
   }
@@ -478,10 +497,10 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
       },
     }
   } catch (error) {
-    console.error('Error saving Stripe configuration:', error)
+    console.error('[saveStripeConfig] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: 'Failed to save Stripe configuration',
       errorCode: 'UNKNOWN_ERROR',
     }
   }
@@ -516,10 +535,10 @@ export async function getActiveStripeConfig(mode: StripeMode): Promise<GetActive
 
     return { success: true, data: data as StripeConfiguration }
   } catch (error) {
-    console.error('Error retrieving Stripe configuration:', error)
+    console.error('[getActiveStripeConfig] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: 'Failed to retrieve Stripe configuration',
       errorCode: 'UNKNOWN_ERROR',
     }
   }
@@ -572,10 +591,10 @@ export async function deleteStripeConfig(id: string): Promise<DeleteConfigRespon
 
     return { success: true }
   } catch (error) {
-    console.error('Error deleting Stripe configuration:', error)
+    console.error('[deleteStripeConfig] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: 'Failed to delete Stripe configuration',
       errorCode: 'UNKNOWN_ERROR',
     }
   }
@@ -657,10 +676,10 @@ export async function listStripeConfigs(): Promise<ActionResponse<StripeConfigur
 
     return { success: true, data: data as StripeConfiguration[] }
   } catch (error) {
-    console.error('Error listing Stripe configurations:', error)
+    console.error('[listStripeConfigs] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: 'Failed to list Stripe configurations',
       errorCode: 'UNKNOWN_ERROR',
     }
   }
@@ -796,7 +815,7 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
     console.error('[createStripeWebhookEndpoint] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Failed to register Stripe webhook endpoint',
       errorCode: 'UNKNOWN_ERROR',
     }
   }

@@ -179,7 +179,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const stripeRefund = await stripe.refunds.create(refundData);
 
     // Determine new status - partial or full refund
-    const totalRefunded = alreadyRefunded + stripeRefund.amount!;
+    const totalRefunded = alreadyRefunded + (stripeRefund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= payment.amount;
 
     // Update transaction in database with optimistic lock to prevent concurrent refunds

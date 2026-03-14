@@ -542,7 +542,8 @@
     "emailPlaceholder": "your@email.com",
     "passwordPlaceholder": "demo123",
     "orContinueWith": "or sign in with",
-    "signInWith": "Sign in with {provider}"
+    "signInWith": "Sign in with {provider}",
+    "loginFailed": "Login failed. Please try again."
   },
   "products": {
     "title": "Products",
@@ -2805,7 +2806,8 @@
     "confirmApprove": "Approve & Refund",
     "confirmReject": "Reject Request",
     "naLabel": "N/A",
-    "invalidPrice": "Invalid Price"
+    "invalidPrice": "Invalid Price",
+    "processError": "Failed to process refund request"
   },
   "demo": {
     "banner": "This is a demo instance. Data resets every hour.",

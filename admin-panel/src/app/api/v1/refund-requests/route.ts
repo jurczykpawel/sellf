@@ -18,6 +18,20 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { validateProductId, validateUUID } from '@/lib/validations/product';
 
+interface RefundListProductRelation {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface RefundListTransactionRelation {
+  id: string;
+  customer_email: string;
+  amount: number;
+  currency: string;
+  created_at: string;
+}
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -144,18 +158,14 @@ export async function GET(request: NextRequest) {
       processed_at: req.processed_at,
       created_at: req.created_at,
       updated_at: req.updated_at,
-      product: req.product ? {
-        id: (req.product as any).id,
-        name: (req.product as any).name,
-        slug: (req.product as any).slug,
-      } : null,
-      transaction: req.transaction ? {
-        id: (req.transaction as any).id,
-        customer_email: (req.transaction as any).customer_email,
-        amount: (req.transaction as any).amount,
-        currency: (req.transaction as any).currency,
-        created_at: (req.transaction as any).created_at,
-      } : null,
+      product: req.product ? (() => {
+        const p = req.product as unknown as RefundListProductRelation;
+        return { id: p.id, name: p.name, slug: p.slug };
+      })() : null,
+      transaction: req.transaction ? (() => {
+        const t = req.transaction as unknown as RefundListTransactionRelation;
+        return { id: t.id, customer_email: t.customer_email, amount: t.amount, currency: t.currency, created_at: t.created_at };
+      })() : null,
     }));
 
     const { items, pagination } = createPaginationResponse(

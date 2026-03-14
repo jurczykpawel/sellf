@@ -122,6 +122,16 @@ export async function POST(request: NextRequest) {
 
     const stripe = await getStripeServer();
 
+    // Verify the PaymentIntent exists and is still in a modifiable state
+    // This prevents metadata updates on already-completed or cancelled payments
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
+      return NextResponse.json(
+        { success: false, error: 'Payment intent is not in a modifiable state' },
+        { status: 400 }
+      );
+    }
+
     // Update Payment Intent with customer and invoice metadata
     await stripe.paymentIntents.update(paymentIntentId, {
       metadata: {

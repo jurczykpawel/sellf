@@ -221,24 +221,31 @@ export async function POST(request: NextRequest) {
         product_id_param: productId,
       });
 
+      // Build map of valid bump IDs → prices (batch-friendly, avoids N+1 SELECTs)
+      const validBumpMap = new Map<string, number>();
       for (const reqBumpId of requestedBumpIds) {
         const validBump = validBumps?.find((b: { bump_product_id: string; bump_currency: string; bump_price: number }) => b.bump_product_id === reqBumpId);
-
         if (validBump && validBump.bump_currency === product.currency) {
-          const { data: bump } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', reqBumpId)
-            .single();
+          // SECURITY: Use the bump_price from order_bumps, not the product's regular price
+          validBumpMap.set(reqBumpId, validBump.bump_price);
+        }
+        // Invalid bump IDs are silently ignored
+      }
 
-          if (bump) {
-            // SECURITY: Use the bump_price from order_bumps, not the product's regular price
-            const price = validBump.bump_price;
+      if (validBumpMap.size > 0) {
+        const validBumpIds = Array.from(validBumpMap.keys());
+        const { data: bumpProducts } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', validBumpIds);
+
+        if (bumpProducts) {
+          for (const bump of bumpProducts) {
+            const price = validBumpMap.get(bump.id)!;
             validatedBumps.push({ product: bump, bumpPrice: price });
             totalBumpPrice += price;
           }
         }
-        // Invalid bump IDs are silently ignored
       }
     }
 
@@ -301,7 +308,83 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = toStripeCents(pricing.totalGross);
 
-    // 7. Create PaymentIntent
+    // 7a. Handle 100% coupon — skip Stripe, grant access directly
+    if (pricing.isFreeWithCoupon && user) {
+      // Grant access for main product
+      const { error: grantError } = await supabase.rpc('grant_free_product_access', {
+        product_slug_param: product.slug,
+      });
+
+      if (grantError) {
+        console.error('[create-payment-intent] Free coupon grant error:', grantError);
+        return NextResponse.json(
+          { error: 'Failed to grant access' },
+          { status: 500 }
+        );
+      }
+
+      // Grant access for bump products (parallel — independent operations)
+      if (validatedBumps.length > 0) {
+        const bumpGrantResults = await Promise.all(
+          validatedBumps.map(vb =>
+            supabase.rpc('grant_free_product_access', {
+              product_slug_param: vb.product.slug,
+            })
+          )
+        );
+        for (let i = 0; i < bumpGrantResults.length; i++) {
+          if (bumpGrantResults[i].error) {
+            console.error(`[create-payment-intent] Free coupon bump grant error for ${validatedBumps[i].product.slug}:`, bumpGrantResults[i].error);
+          }
+        }
+      }
+
+      // Record coupon usage (normally done by webhook, but no Stripe payment here).
+      // Best-effort — access is already granted, failures are logged not fatal.
+      if (appliedCoupon && finalEmail) {
+        const adminClient = createAdminClient();
+
+        try {
+          // Record redemption (per-user usage tracking + prevents re-use)
+          await adminClient
+            .from('coupon_redemptions')
+            .insert({
+              coupon_id: appliedCoupon.id,
+              customer_email: finalEmail,
+              user_id: user.id,
+              discount_amount: pricing.discountAmount,
+              transaction_id: null,
+            });
+
+          // Atomic increment of global usage counter (prevents race condition
+          // where two concurrent 100% coupon redemptions both read the same count)
+          await adminClient.rpc('increment_coupon_usage', {
+            coupon_id_param: appliedCoupon.id,
+          });
+
+          // Cleanup reservation
+          await adminClient
+            .from('coupon_reservations')
+            .delete()
+            .eq('coupon_id', appliedCoupon.id)
+            .eq('customer_email', finalEmail);
+        } catch (couponErr) {
+          console.error('[create-payment-intent] Coupon usage recording error:', couponErr);
+        }
+      }
+
+      return NextResponse.json({ freeAccess: true });
+    }
+
+    // 7a. Handle 100% coupon for guests — require login first
+    if (pricing.isFreeWithCoupon && !user) {
+      return NextResponse.json(
+        { error: 'Please log in to use this coupon for free access' },
+        { status: 401 }
+      );
+    }
+
+    // 7b. Create PaymentIntent
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: totalAmount,
       currency: product.currency.toLowerCase(),
@@ -316,8 +399,16 @@ export async function POST(request: NextRequest) {
         first_name: firstName || '',
         last_name: lastName || '',
         terms_accepted: termsAccepted ? 'true' : '',
-        // Multi-bump: comma-separated IDs for all validated bumps
-        bump_product_ids: validatedBumps.map(vb => vb.product.id).join(','),
+        // Multi-bump: comma-separated IDs (truncated to stay within Stripe 500-char metadata limit)
+        bump_product_ids: (() => {
+          const ids = validatedBumps.map(vb => vb.product.id).join(',');
+          if (ids.length > 500) {
+            // Truncate to fit — webhook will fall back to payment_line_items for full list
+            const truncated = ids.slice(0, 500);
+            return truncated.slice(0, truncated.lastIndexOf(','));
+          }
+          return ids;
+        })(),
         bump_product_id: bumpProduct?.id || '',  // Legacy: first bump for backward compat
         bump_product_name: bumpProduct?.name || '',
         has_bump: validatedBumps.length > 0 ? 'true' : '',
@@ -459,7 +550,11 @@ export async function POST(request: NextRequest) {
           stripe_payment_intent_id: paymentIntent.id,
           status: 'pending',
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-          metadata: paymentIntentParams.metadata
+          metadata: {
+            ...paymentIntentParams.metadata,
+            // Full bump list (not subject to Stripe's 500-char metadata limit)
+            bump_product_ids_full: validatedBumps.map(vb => vb.product.id),
+          }
         });
 
       if (insertError) {

@@ -129,7 +129,7 @@ export default function SecurityAuditSettings() {
     setRunning(true);
     getSecurityAudit()
       .then(data => { if (mounted) setResult(data); })
-      .catch(() => {})
+      .catch((err) => { console.warn('[SecurityAuditSettings] Non-critical error:', err); })
       .finally(() => { if (mounted) setRunning(false); });
     return () => { mounted = false; };
   }, []);

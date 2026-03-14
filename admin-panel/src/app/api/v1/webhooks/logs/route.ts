@@ -19,6 +19,13 @@ import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCurso
 import { validateUUID } from '@/lib/validations/product';
 import { isValidEventType } from '@/lib/validations/webhook';
 
+interface WebhookEndpointRelation {
+  id: string;
+  url: string;
+  description: string | null;
+  is_active: boolean;
+}
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -124,12 +131,10 @@ export async function GET(request: NextRequest) {
     const transformedItems = logs.map(log => ({
       id: log.id,
       endpoint_id: log.endpoint_id,
-      endpoint: log.endpoint ? {
-        id: (log.endpoint as any).id,
-        url: (log.endpoint as any).url,
-        description: (log.endpoint as any).description,
-        is_active: (log.endpoint as any).is_active,
-      } : null,
+      endpoint: log.endpoint ? (() => {
+        const e = log.endpoint as unknown as WebhookEndpointRelation;
+        return { id: e.id, url: e.url, description: e.description, is_active: e.is_active };
+      })() : null,
       event_type: log.event_type,
       payload: log.payload,
       http_status: log.http_status,

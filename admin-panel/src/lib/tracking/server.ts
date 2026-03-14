@@ -218,6 +218,7 @@ export async function sendToGtmSS(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      redirect: 'error',
     });
 
     if (!response.ok) {
@@ -265,6 +266,7 @@ export async function sendToFacebookCAPI(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fbPayload),
+        redirect: 'error',
       }
     );
 
@@ -348,7 +350,7 @@ export async function trackServerSideConversion(
       customerEmail: data.userEmail,
       value: data.value,
       currency: data.currency,
-    }).catch(() => {});
+    }).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
 
     return {
       success: false,
@@ -387,7 +389,7 @@ export async function trackServerSideConversion(
       customerEmail: data.userEmail,
       value: data.value,
       currency: data.currency,
-    }, supabase).catch(() => {});
+    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
 
     return {
       success: false,
@@ -409,7 +411,7 @@ export async function trackServerSideConversion(
       customerEmail: data.userEmail,
       value: data.value,
       currency: data.currency,
-    }, supabase).catch(() => {});
+    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
 
     return {
       success: false,
@@ -430,7 +432,7 @@ export async function trackServerSideConversion(
       customerEmail: data.userEmail,
       value: data.value,
       currency: data.currency,
-    }, supabase).catch(() => {});
+    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
 
     return {
       success: false,
@@ -479,7 +481,7 @@ export async function trackServerSideConversion(
       value: data.value,
       currency: data.currency,
       eventSourceUrl: data.eventSourceUrl,
-    }, supabase).catch(() => {});
+    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
 
     if (!result.success) {
       console.error(`[Tracking Server] ${result.destination} error:`, result.error);

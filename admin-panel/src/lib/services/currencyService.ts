@@ -38,7 +38,8 @@ class ExchangeRateApiProvider implements ExchangeRateProvider {
 
     // Next.js will automatically cache this for CACHE_DURATION
     const response = await fetch(url, {
-      next: { revalidate: CACHE_DURATION }
+      next: { revalidate: CACHE_DURATION },
+      redirect: 'error',
     });
 
     if (!response.ok) {
@@ -78,7 +79,8 @@ class FixerIoProvider implements ExchangeRateProvider {
 
     // Next.js will automatically cache this for CACHE_DURATION
     const response = await fetch(url, {
-      next: { revalidate: CACHE_DURATION }
+      next: { revalidate: CACHE_DURATION },
+      redirect: 'error',
     });
 
     if (!response.ok) {
@@ -114,7 +116,8 @@ class ECBProvider implements ExchangeRateProvider {
 
     // Next.js will automatically cache this for CACHE_DURATION
     const response = await fetch(url, {
-      next: { revalidate: CACHE_DURATION }
+      next: { revalidate: CACHE_DURATION },
+      redirect: 'error',
     });
 
     if (!response.ok) {

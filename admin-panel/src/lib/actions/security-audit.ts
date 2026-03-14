@@ -8,7 +8,7 @@
  * @see priv/pentest-2026-03-06.md — Supabase Production Configuration Checklist
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { withAdminAuth } from '@/lib/actions/admin-auth';
 
 export interface SecurityCheckResult {
   id: string;
@@ -38,37 +38,41 @@ function getCacheTtl(result: SecurityAuditResult): number {
   return hasIssues ? CACHE_TTL_ISSUES_MS : CACHE_TTL_CLEAN_MS;
 }
 
-async function isAdmin(): Promise<boolean> {
-  const supabase = await createClient();
-  const { data } = await supabase.rpc('is_admin');
-  return data === true;
-}
-
 /**
  * Returns cached audit result if fresh, otherwise runs a fresh audit.
  * TTL: 1h when issues exist (re-check after fix), 24h when all pass.
  */
 export async function getSecurityAudit(): Promise<SecurityAuditResult> {
-  if (!(await isAdmin())) {
-    return { success: false, checks: [], timestamp: new Date().toISOString(), error: 'Unauthorized' };
+  const result = await withAdminAuth(async () => {
+    if (cachedResult && (Date.now() - cachedAt) < getCacheTtl(cachedResult)) {
+      return { success: true as const, data: cachedResult };
+    }
+
+    const audit = await executeAudit();
+    return { success: true as const, data: audit };
+  });
+
+  if (!result.success) {
+    return { success: false, checks: [], timestamp: new Date().toISOString(), error: result.error || 'Unauthorized' };
   }
 
-  if (cachedResult && (Date.now() - cachedAt) < getCacheTtl(cachedResult)) {
-    return cachedResult;
-  }
-
-  return executeAudit();
+  return result.data!;
 }
 
 /**
  * Forces a fresh audit run, bypassing cache. Called via "Run again" button.
  */
 export async function runSecurityAudit(): Promise<SecurityAuditResult> {
-  if (!(await isAdmin())) {
-    return { success: false, checks: [], timestamp: new Date().toISOString(), error: 'Unauthorized' };
+  const result = await withAdminAuth(async () => {
+    const audit = await executeAudit();
+    return { success: true as const, data: audit };
+  });
+
+  if (!result.success) {
+    return { success: false, checks: [], timestamp: new Date().toISOString(), error: result.error || 'Unauthorized' };
   }
 
-  return executeAudit();
+  return result.data!;
 }
 
 async function executeAudit(): Promise<SecurityAuditResult> {

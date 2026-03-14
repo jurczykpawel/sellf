@@ -60,6 +60,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
         stripe = new Stripe(dbKey, {
           apiVersion: STRIPE_API_VERSION,
           typescript: true,
+          timeout: 15_000,
         });
         stripeInitTimestamp = Date.now();
         return stripe;
@@ -76,6 +77,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
       stripe = new Stripe(envKey, {
         apiVersion: STRIPE_API_VERSION,
         typescript: true,
+        timeout: 15_000,
       });
       stripeInitTimestamp = Date.now();
       return stripe;

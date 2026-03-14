@@ -39,11 +39,6 @@ const toNumber = (value: string): number => {
   return isNaN(num) ? 0 : num;
 };
 
-const toFloat = (value: string): number => {
-  const num = parseFloat(value);
-  return isNaN(num) ? 0.01 : num;
-};
-
 // Core Stripe configuration (loaded from server-side environment variables)
 export const STRIPE_CONFIG = {
   // UI Theme
@@ -77,12 +72,6 @@ export const STRIPE_CONFIG = {
     max_requests: toNumber(getEnv('STRIPE_RATE_LIMIT_MAX_REQUESTS', '10')),
     window_minutes: toNumber(getEnv('STRIPE_RATE_LIMIT_WINDOW_MINUTES', '1')),
     action_type: getEnv('STRIPE_RATE_LIMIT_ACTION_TYPE', 'checkout_creation'),
-  },
-  
-  // Validation
-  validation: {
-    email_regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    min_price: toFloat(getEnv('STRIPE_VALIDATION_MIN_PRICE', '0.01'))
   },
   
   // Layout options

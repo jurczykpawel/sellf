@@ -8,6 +8,7 @@ import {
   CheckoutSessionOptions,
   CreateCheckoutRequest
 } from '@/types/checkout';
+import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
@@ -104,9 +105,10 @@ export class CheckoutService {
         );
       }
       
+      console.error('[CheckoutService.getProduct] Error:', error)
       throw new CheckoutError(
         CheckoutErrorType.VALIDATION_ERROR,
-        message,
+        'Product validation failed',
         HTTP_STATUS.BAD_REQUEST
       );
     }
@@ -119,9 +121,10 @@ export class CheckoutService {
     try {
       ProductValidationService.validateTemporalAvailability(product);
     } catch (error) {
+      console.error('[CheckoutService.validateTemporalAvailability] Error:', error)
       throw new CheckoutError(
         CheckoutErrorType.PRODUCT_UNAVAILABLE,
-        error instanceof Error ? error.message : 'Product not available for purchase',
+        'Product is not currently available for purchase',
         HTTP_STATUS.BAD_REQUEST
       );
     }
@@ -152,7 +155,7 @@ export class CheckoutService {
       // Calculate base price - use customAmount if provided (Pay What You Want)
       let mainProductPrice = options.product.price;
       if (customAmount !== undefined && customAmount > 0) {
-        const minPrice = options.product.custom_price_min ?? 0.50;
+        const minPrice = options.product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
         if (customAmount < minPrice) {
           throw new CheckoutError(
             CheckoutErrorType.VALIDATION_ERROR,
@@ -168,9 +171,18 @@ export class CheckoutService {
         if (coupon.discount_type === 'percentage') {
           mainProductPrice = mainProductPrice * (1 - coupon.discount_value / 100);
         } else if (coupon.discount_type === 'fixed') {
-          // Subtract fixed amount from main product, minimum $0.50 (Stripe min)
-          mainProductPrice = Math.max(0.5, mainProductPrice - coupon.discount_value);
+          mainProductPrice = Math.max(0, mainProductPrice - coupon.discount_value);
         }
+      }
+
+      // If coupon reduces total to zero, this path cannot handle free access
+      // (embedded checkout requires Stripe). Enforce minimum.
+      if (mainProductPrice <= 0 && coupon) {
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'This coupon covers the full price. Please use the standard checkout for free access.',
+          HTTP_STATUS.BAD_REQUEST
+        );
       }
 
       // Resolve checkout config: DB > env var > default
@@ -250,6 +262,7 @@ export class CheckoutService {
             product_data: {
               name: bp.name,
               description: bp.description || undefined,
+              metadata: { product_id: bp.id, is_bump: 'true' },
             },
             unit_amount: Math.round(bpPrice * 100),
             ...(bpTaxBehavior && { tax_behavior: bpTaxBehavior }),
@@ -273,7 +286,14 @@ export class CheckoutService {
           user_id: options.userId || null,
           // Add bump product metadata (multi-bump support)
           ...(bumpList.length > 0 && {
-            bump_product_ids: bumpList.map(bp => bp.id).join(','),
+            bump_product_ids: (() => {
+              const ids = bumpList.map(bp => bp.id).join(',');
+              if (ids.length > 500) {
+                const truncated = ids.slice(0, 500);
+                return truncated.slice(0, truncated.lastIndexOf(','));
+              }
+              return ids;
+            })(),
             bump_product_id: bumpList[0].id, // Legacy compat
             has_bump: 'true',
             bump_count: bumpList.length.toString(),
@@ -419,29 +439,43 @@ export class CheckoutService {
     }
 
     const bumpProducts: ProductForCheckout[] = [];
-    for (const bumpId of validBumpIds) {
-      try {
-        let bp = await this.getProduct(bumpId);
-        this.validateTemporalAvailability(bp);
+    if (validBumpIds.length > 0) {
+      // Batch-fetch all bump price overrides in a single query (avoids N+1)
+      const { data: allBumpData } = await this.supabase
+        .from('order_bumps')
+        .select('bump_product_id, bump_price')
+        .eq('main_product_id', request.productId)
+        .in('bump_product_id', validBumpIds)
+        .eq('is_active', true);
 
-        const { data: bumpData } = await this.supabase
-          .from('order_bumps')
-          .select('bump_price')
-          .eq('main_product_id', request.productId)
-          .eq('bump_product_id', bumpId)
-          .eq('is_active', true)
-          .single();
+      const bumpPriceMap = new Map(
+        (allBumpData || []).map(b => [b.bump_product_id, b.bump_price])
+      );
 
-        if (bumpData && bumpData.bump_price !== null) {
-          bp = { ...bp, price: bumpData.bump_price };
-        }
-        bumpProducts.push(bp);
-      } catch (error) {
-        // Log but don't silently skip — if user selected a bump and it fails validation,
-        // better to warn than charge without the expected bump
-        console.error(`[checkout] Bump product ${bumpId} validation failed:`, error);
-        // Skip bumps that are not found or temporally unavailable (expected cases)
-        // but log clearly so issues can be investigated
+      // Fetch + validate all bump products in parallel (avoids N+1 sequential SELECTs)
+      const bumpResults = await Promise.all(
+        validBumpIds.map(async (bumpId) => {
+          try {
+            let bp = await this.getProduct(bumpId);
+            this.validateTemporalAvailability(bp);
+
+            const overridePrice = bumpPriceMap.get(bumpId);
+            if (overridePrice !== undefined && overridePrice !== null) {
+              bp = { ...bp, price: overridePrice };
+            }
+            return bp;
+          } catch (error) {
+            // Log but don't silently skip — if user selected a bump and it fails validation,
+            // better to warn than charge without the expected bump
+            console.error(`[checkout] Bump product ${bumpId} validation failed:`, error);
+            // Skip bumps that are not found or temporally unavailable (expected cases)
+            // but log clearly so issues can be investigated
+            return null;
+          }
+        })
+      );
+      for (const bp of bumpResults) {
+        if (bp) bumpProducts.push(bp);
       }
     }
 
@@ -520,7 +554,7 @@ export class CheckoutService {
         );
       }
 
-      const minPrice = product.custom_price_min ?? 0.50;
+      const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
       if (request.customAmount < minPrice) {
         throw new CheckoutError(
           CheckoutErrorType.VALIDATION_ERROR,
