@@ -31,7 +31,7 @@ jobs:
     # Skip for Dependabot PRs (they touch deps only, not src)
     if: github.actor != 'dependabot[bot]'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 2
