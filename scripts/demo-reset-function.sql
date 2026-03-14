@@ -50,11 +50,38 @@ BEGIN
     EXECUTE 'TRUNCATE TABLE public.' || quote_ident(r.tablename) || ' CASCADE';
   END LOOP;
 
+  -- Explicitly truncate all seller_main tables (they are not in the public schema loop)
+  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'seller_main'
+            AND tablename != 'payment_method_config') LOOP
+    EXECUTE 'TRUNCATE TABLE seller_main.' || quote_ident(r.tablename) || ' CASCADE';
+  END LOOP;
+
   TRUNCATE auth.sessions CASCADE;
   TRUNCATE auth.refresh_tokens CASCADE;
   TRUNCATE auth.mfa_factors CASCADE;
   TRUNCATE auth.identities CASCADE;
   TRUNCATE auth.users CASCADE;
+
+  -- =========================================================
+  -- STEP 1b: RESTORE seller_main singletons
+  -- =========================================================
+  -- payment_method_config is a singleton in seller_main (not in public schema loop).
+  -- TRUNCATE CASCADE from auth.users wipes it via last_modified_by FK (SET NULL cascade
+  -- clears the row indirectly if triggered). Restore it unconditionally.
+  INSERT INTO seller_main.payment_method_config (id, config_mode)
+  VALUES (1, 'automatic')
+  ON CONFLICT (id) DO UPDATE SET
+    config_mode             = 'automatic',
+    stripe_pmc_id           = NULL,
+    stripe_pmc_name         = NULL,
+    custom_payment_methods  = '[]'::jsonb,
+    payment_method_order    = '[]'::jsonb,
+    enable_express_checkout = true,
+    enable_apple_pay        = true,
+    enable_google_pay       = true,
+    enable_link             = true,
+    currency_overrides      = '{}'::jsonb,
+    last_modified_by        = NULL;
 
   -- =========================================================
   -- STEP 2: SEED — DEMO ADMIN USER
@@ -91,13 +118,21 @@ BEGIN
   -- STEP 3: SEED — SHOP CONFIG
   -- =========================================================
 
-  INSERT INTO shop_config (
+  INSERT INTO seller_main.shop_config (
     default_currency, shop_name, logo_url,
-    font_family, custom_settings
+    font_family, custom_settings, tax_mode, stripe_tax_rate_cache
   ) VALUES (
     'USD', 'Growth Academy', NULL,
-    'inter', '{}'::jsonb
-  );
+    'inter', '{}'::jsonb, 'local', '{}'::jsonb
+  )
+  ON CONFLICT ((true)) DO UPDATE SET
+    default_currency      = EXCLUDED.default_currency,
+    shop_name             = EXCLUDED.shop_name,
+    logo_url              = EXCLUDED.logo_url,
+    font_family           = EXCLUDED.font_family,
+    custom_settings       = EXCLUDED.custom_settings,
+    tax_mode              = EXCLUDED.tax_mode,
+    stripe_tax_rate_cache = EXCLUDED.stripe_tax_rate_cache;
 
   -- =========================================================
   -- STEP 4: SEED — PRODUCTS
