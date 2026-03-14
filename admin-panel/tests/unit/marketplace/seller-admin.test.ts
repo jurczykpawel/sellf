@@ -47,7 +47,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 // Mock feature flag
 vi.mock('@/lib/marketplace/feature-flag', () => ({
-  checkMarketplaceAccess: vi.fn().mockReturnValue({ accessible: true }),
+  checkMarketplaceAccess: vi.fn().mockResolvedValue({ accessible: true }),
 }));
 
 // Mock seller cache

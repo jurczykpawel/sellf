@@ -10,7 +10,7 @@
  * @see src/app/[locale]/s/[seller]/[product]/page.tsx — product page
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   isSellerRoute,
   extractSellerSlug,
@@ -18,6 +18,17 @@ import {
   buildSellerPath,
 } from '@/lib/marketplace/tenant';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
+
+// next/headers must be mocked because checkMarketplaceAccess() is now async and
+// reads the Host header to verify the license domain.
+const { mockHeaders } = vi.hoisted(() => {
+  const mockHeaders = vi.fn();
+  return { mockHeaders };
+});
+
+vi.mock('next/headers', () => ({
+  headers: mockHeaders,
+}));
 
 // =====================================================
 // Seller Routing Integration (tenant + feature flag)
@@ -27,31 +38,34 @@ describe('Seller Routing — Gate + Resolution', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     process.env = { ...originalEnv };
+    // Default: no active request (headers() throws)
+    mockHeaders.mockRejectedValue(new Error('no request context'));
   });
 
   afterEach(() => {
     process.env = originalEnv;
   });
 
-  it('should gate seller routes when marketplace is disabled', () => {
+  it('should gate seller routes when marketplace is disabled', async () => {
     delete process.env.MARKETPLACE_ENABLED;
     const path = '/s/nick';
     const isSeller = isSellerRoute(path);
-    const access = checkMarketplaceAccess();
+    const access = await checkMarketplaceAccess();
 
     expect(isSeller).toBe(true);
     expect(access.accessible).toBe(false);
   });
 
-  it('should allow seller routes when marketplace is enabled + demo mode', () => {
+  it('should allow seller routes when marketplace is enabled + demo mode', async () => {
     process.env.MARKETPLACE_ENABLED = 'true';
     process.env.DEMO_MODE = 'true';
     const path = '/s/nick/my-product';
     const isSeller = isSellerRoute(path);
     const slug = extractSellerSlug(path);
     const subpath = extractSellerSubpath(path);
-    const access = checkMarketplaceAccess();
+    const access = await checkMarketplaceAccess();
 
     expect(isSeller).toBe(true);
     expect(slug).toBe('nick');
