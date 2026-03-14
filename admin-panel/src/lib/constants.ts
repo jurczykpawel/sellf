@@ -49,6 +49,20 @@ export const formatPrice = (price: number, currencyCode: string): string => {
 };
 
 /**
+ * Stripe minimum charge amount in currency units (e.g., $0.50).
+ * Used as default fallback for custom_price_min across checkout flows.
+ * @see https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
+ */
+export const STRIPE_MINIMUM_AMOUNT = 0.50;
+
+/**
+ * Stripe maximum charge amount in currency units.
+ * Applied as upper bound for Pay What You Want custom pricing.
+ * @see https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
+ */
+export const STRIPE_MAX_AMOUNT = 999999.99;
+
+/**
  * Stripe API version used across all Stripe SDK calls.
  * When updating, also update the webhook endpoint version in the Stripe Dashboard.
  * @see https://stripe.com/docs/upgrades

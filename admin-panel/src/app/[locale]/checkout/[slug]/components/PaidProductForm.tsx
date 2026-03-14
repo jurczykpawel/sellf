@@ -5,28 +5,26 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
-import type { AppliedCoupon } from '@/types/coupon';
 import type { TaxMode } from '@/lib/actions/shop-config';
-import { formatPrice } from '@/lib/constants';
+import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
-import { isSafeRedirectUrl } from '@/lib/validations/redirect';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTheme } from '@/components/providers/theme-provider';
 import { useOrderBumps } from '@/hooks/useOrderBumps';
-import { useSearchParams } from 'next/navigation';
-import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useTracking } from '@/hooks/useTracking';
+import { useCoupon } from '@/hooks/useCoupon';
+import { useOto } from '@/hooks/useOto';
+import { usePwywFreeAccess } from '@/hooks/usePwywFreeAccess';
+import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
-import CaptchaWidget from '@/components/captcha/CaptchaWidget';
-import { useCaptcha } from '@/hooks/useCaptcha';
-import TermsCheckbox from '@/components/TermsCheckbox';
-import { createClient } from '@/lib/supabase/client';
-import { validateEmailAction } from '@/lib/actions/validate-email';
+import OrderBumpList from './OrderBumpList';
+import CouponField from './CouponField';
+import PwywSection from './PwywSection';
 
 interface PaidProductFormProps {
   product: Product;
@@ -37,10 +35,7 @@ interface PaidProductFormProps {
 
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode }: PaidProductFormProps) {
   const t = useTranslations('checkout');
-  const tSecurity = useTranslations('security');
-  const tCompliance = useTranslations('compliance');
   const { user, isAdmin, loading: authLoading } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const config = useConfig();
   const { resolvedTheme } = useTheme();
@@ -51,20 +46,27 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
 
   // Safe loading of Stripe to prevent crashes if key is missing
-  const stripePromise = config.stripePublishableKey 
-    ? loadStripe(config.stripePublishableKey) 
+  const stripePromise = config.stripePublishableKey
+    ? loadStripe(config.stripePublishableKey)
     : null;
-  
+
   const [error, setError] = useState<string | null>(null);
-  const [hasAccess, setHasAccess] = useState(false);
-  const [countdown, setCountdown] = useState(5);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+  // Email state - from logged in user or from URL param (for OTO redirects)
+  const urlEmail = searchParams.get('email');
+  const [email, setEmail] = useState<string | undefined>(user?.email || urlEmail || undefined);
+
+  // Sync email with user when they log in
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+  }, [user?.email, email]);
 
   // Custom price state (Pay What You Want)
-  // customAmount = numeric value for API/logic
-  // customAmountInput = string value for input display (allows typing "5.", "5.00", etc.)
   const getInitialAmount = () => {
     if (product.allow_custom_price) {
-      // Product price is the suggested amount; fall back to first preset or minimum
       if (product.price > 0) return product.price;
       const presets = product.custom_price_presets;
       const firstValidPreset = presets?.find(p => p > 0);
@@ -77,73 +79,32 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [customAmountInput, setCustomAmountInput] = useState<string>(getInitialAmount().toString());
   const [customAmountError, setCustomAmountError] = useState<string | null>(null);
 
-  // Email state - from logged in user, or from URL param (for OTO redirects)
-  const urlEmail = searchParams.get('email');
-  const [email, setEmail] = useState<string | undefined>(user?.email || urlEmail || undefined);
-
-  // Sync email with user when they log in
-  useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
+  // Validate custom amount
+  const validateCustomAmount = useCallback((amount: number): boolean => {
+    if (!product.allow_custom_price) return true;
+    const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
+    if (amount < minPrice) {
+      setCustomAmountError(t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency) }));
+      return false;
     }
-  }, [user?.email, email]);
+    if (amount > STRIPE_MAX_AMOUNT) {
+      setCustomAmountError(t('customPrice.aboveMaximum', { maximum: formatPrice(STRIPE_MAX_AMOUNT, product.currency) }));
+      return false;
+    }
+    setCustomAmountError(null);
+    return true;
+  }, [product, t]);
 
-  // Coupon state
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
-  const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
-  const [showCouponInput, setShowCouponInput] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
-  const [couponManuallyRemoved, setCouponManuallyRemoved] = useState(false);
-  const [lastCheckedUrlCoupon, setLastCheckedUrlCoupon] = useState<string | null>(null);
+  // Compute isPwywFree once — shared with PwywSection
+  const isPwywFree =
+    product.allow_custom_price &&
+    customAmount === 0 &&
+    (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0;
 
-  // OTO (One-Time Offer) state
-  const [isOtoMode, setIsOtoMode] = useState(false);
-  const [otoInfo, setOtoInfo] = useState<{
-    valid: boolean;
-    expires_at?: string;
-    discount_type?: 'percentage' | 'fixed';
-    discount_value?: number;
-    seconds_remaining?: number;
-  } | null>(null);
-  const [otoExpired, setOtoExpired] = useState(false);
-
-  // Funnel test: pre-fetch OTO target slug so handleRedirectToProduct can use it
-  const [funnelTestOtoSlug, setFunnelTestOtoSlug] = useState<string | null>(null);
-  useEffect(() => {
-    if (!isFunnelTest) return;
-    const checkOto = async () => {
-      const supabase = await createClient();
-      // Two-step query to avoid FK embedding through proxy views (PGRST200).
-      const { data: offer } = await supabase
-        .from('oto_offers')
-        .select('oto_product_id')
-        .eq('source_product_id', product.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-      if (offer?.oto_product_id) {
-        const { data: otoProduct } = await supabase
-          .from('products')
-          .select('slug')
-          .eq('id', offer.oto_product_id)
-          .single();
-        if (otoProduct?.slug) setFunnelTestOtoSlug(otoProduct.slug);
-      }
-    };
-    checkOto();
-  }, [isFunnelTest, product.id]);
-
-  // Reset manual removal flag when email changes to allow auto-apply for new email
-  useEffect(() => {
-    setCouponManuallyRemoved(false);
-  }, [email]);
-
-  // Order bumps state (multi-bump support)
+  // Order bumps
   const { orderBumps } = useOrderBumps(product.id);
   const [selectedBumpIds, setSelectedBumpIds] = useState<Set<string>>(new Set());
 
-  // Filter bumps to only those with matching currency
   const availableBumps = orderBumps.filter(
     ob => product.currency.toLowerCase() === ob.bump_currency.toLowerCase()
   );
@@ -160,20 +121,42 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     });
   };
 
-  // Urgency timer: tick every second to update countdowns
-  const pageLoadTime = useRef(Date.now());
-  const [, setTimerTick] = useState(0);
-  const hasUrgencyBumps = availableBumps.some(b => b.urgency_duration_minutes != null && b.urgency_duration_minutes > 0);
-  useEffect(() => {
-    if (!hasUrgencyBumps) return;
-    const interval = setInterval(() => setTimerTick(t => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [hasUrgencyBumps]);
-
-  // Backward compat helpers
   const bumpSelected = selectedBumpIds.size > 0;
 
-  // Track view_item and begin_checkout events on mount
+  // Coupon logic — URL coupon handling is absorbed inside the hook
+  const coupon = useCoupon({
+    productId: product.id,
+    email,
+    isOtoMode: searchParams.get('oto') === '1',
+  });
+
+  // OTO logic — funnel test OTO slug fetch is absorbed inside the hook
+  const oto = useOto({
+    urlCoupon: searchParams.get('coupon'),
+    urlEmail,
+    otoParam: searchParams.get('oto'),
+    productId: product.id,
+    isFunnelTest,
+    onCouponReady: coupon.applyOtoCoupon,
+  });
+
+  // Checkout redirect
+  const { hasAccess, grantAccess, countdown, handleRedirectToProduct } = useCheckoutRedirect({
+    product,
+    bumpSelected,
+    isFunnelTest,
+    funnelTestOtoSlug: oto.funnelTestOtoSlug,
+  });
+
+  // PWYW free access
+  const pwyw = usePwywFreeAccess({
+    user,
+    product,
+    onAccessGranted: grantAccess,
+    onError: setError,
+  });
+
+  // Track view_item and begin_checkout on mount
   useEffect(() => {
     if (trackingFired.current) return;
     trackingFired.current = true;
@@ -189,225 +172,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       }],
     };
 
-    // Fire view_item first, then begin_checkout
     track('view_item', trackingData);
     track('begin_checkout', trackingData);
   }, [product, track]);
 
-  // Handle coupon verification
-  const handleVerifyCoupon = useCallback(async (code: string, currentEmail?: string) => {
-    if (!code) return;
-    setIsVerifyingCoupon(true);
-    setCouponError(null);
-    setCouponManuallyRemoved(false); 
-    try {
-      const res = await fetch('/api/coupons/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          code, 
-          productId: product.id, 
-          email: currentEmail || email 
-        }),
-      });
-      const data = await res.json();
-      if (data.valid) {
-        setAppliedCoupon(data);
-        setCouponCode(data.code);
-        setShowCouponInput(true);
-      } else {
-        setCouponError(data.error || t('invalidCoupon'));
-        setAppliedCoupon(null);
-      }
-    } catch (err) {
-      setCouponError(t('verifyError'));
-    } finally {
-      setIsVerifyingCoupon(false);
-    }
-  }, [product.id, email, t]);
-
-  // Auto-apply logic for email change
-  useEffect(() => {
-    const checkAutoApply = async () => {
-      if (!email || appliedCoupon || couponManuallyRemoved) return;
-      try {
-        const res = await fetch('/api/coupons/auto-apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, productId: product.id }),
-        });
-        const data = await res.json();
-        if (data.found) {
-          setAppliedCoupon(data);
-          setCouponCode(data.code);
-          toast.success(t('discountApplied', { discount: '' }).replace('  ', ' '));
-        }
-      } catch (err) {
-        // Silent fail
-      }
-    };
-
-    const timer = setTimeout(checkAutoApply, 500);
-    return () => clearTimeout(timer);
-  }, [email, product.id, appliedCoupon, couponManuallyRemoved, t]);
-
-  // Handle URL coupon param and OTO mode
-  useEffect(() => {
-    const urlCoupon = searchParams.get('coupon');
-    const showPromo = searchParams.get('show_promo');
-    const otoParam = searchParams.get('oto');
-
-    if (showPromo === 'true') {
-      setShowCouponInput(true);
-    }
-
-    // Check if this is an OTO redirect (urlEmail is already extracted at component level)
-    if (otoParam === '1' && urlCoupon && urlEmail) {
-      setIsOtoMode(true);
-
-      // Fetch OTO coupon info for timer
-      const fetchOtoInfo = async () => {
-        try {
-          const res = await fetch(`/api/oto/info?code=${encodeURIComponent(urlCoupon)}&email=${encodeURIComponent(urlEmail)}`);
-          const data = await res.json();
-
-          if (data.valid) {
-            setOtoInfo(data);
-            // Also apply the coupon
-            setAppliedCoupon({
-              code: urlCoupon,
-              discount_type: data.discount_type,
-              discount_value: data.discount_value,
-            });
-            setCouponCode(urlCoupon);
-            setShowCouponInput(true);
-            setLastCheckedUrlCoupon(urlCoupon);
-          } else {
-            // OTO expired or invalid
-            setOtoExpired(true);
-            setIsOtoMode(false);
-          }
-        } catch (err) {
-          console.error('Failed to fetch OTO info:', err);
-          setOtoExpired(true);
-          setIsOtoMode(false);
-        }
-      };
-
-      fetchOtoInfo();
-    } else if (urlCoupon && urlCoupon !== lastCheckedUrlCoupon) {
-      // Regular coupon handling (non-OTO)
-      setLastCheckedUrlCoupon(urlCoupon);
-      setCouponCode(urlCoupon); // Populate input immediately
-      setShowCouponInput(true); // Always show input if coupon is in URL
-      handleVerifyCoupon(urlCoupon);
-    }
-  }, [searchParams, handleVerifyCoupon, lastCheckedUrlCoupon, urlEmail]);
-
-  // Handle OTO expiry
-  const handleOtoExpire = useCallback(() => {
-    setOtoExpired(true);
-    setAppliedCoupon(null);
-    setCouponCode('');
-    setIsOtoMode(false);
-    toast.warning(t('otoExpired'));
-  }, [ t]);
-
-  const handleSignOutAndCheckout = async () => {
-    try {
-      await signOutAndRedirectToCheckout();
-      window.location.reload();
-    } catch {
-      // Silent error
-    }
-  };
-
-  const handleRedirectToProduct = useCallback(() => {
-    // Priority 1: ?success_url param override (from URL) — validated to prevent open redirect
-    const successUrl = searchParams.get('success_url');
-    if (successUrl && isSafeRedirectUrl(successUrl)) {
-      router.push(successUrl);
-      return;
-    }
-
-    // Priority 2: product.success_redirect_url (configured on product)
-    // Allow absolute URLs here since they're admin-configured, but validate protocol
-    if (product.success_redirect_url) {
-      const redirectUrl = product.success_redirect_url;
-      if (isSafeRedirectUrl(redirectUrl) || redirectUrl.startsWith('https://')) {
-        router.push(redirectUrl);
-        return;
-      }
-    }
-
-    // Priority 3: OTO — funnel test mode simulates post-purchase OTO flow
-    if (isFunnelTest && funnelTestOtoSlug) {
-      router.push(`/checkout/${funnelTestOtoSlug}?funnel_test=1`);
-      return;
-    }
-
-    // Priority 4: bump selected → my-products
-    if (bumpSelected) {
-      router.push('/my-products');
-      return;
-    }
-
-    // Priority 5: funnel test fallback — no redirect configured, end of chain
-    if (isFunnelTest) {
-      toast.info(t('funnelTest.endToast'));
-      router.push('/dashboard/products');
-      return;
-    }
-
-    // Priority 6: default — product page
-    router.push(`/p/${product.slug}`);
-  }, [product.slug, product.success_redirect_url, router, bumpSelected, searchParams, isFunnelTest, funnelTestOtoSlug, t]);
-
-  useEffect(() => {
-    if (hasAccess && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (hasAccess && countdown === 0) {
-      handleRedirectToProduct();
-    }
-  }, [hasAccess, countdown, handleRedirectToProduct]);
-
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [pwywFreeLoading, setPwywFreeLoading] = useState(false);
-
-  // Determine if current amount is $0 on a PWYW-free product
-  const isPwywFree = product.allow_custom_price && customAmount === 0 && (product.custom_price_min ?? 0.50) === 0;
-
-  // Validate custom amount
-  const STRIPE_MAX_AMOUNT = 999999.99; // Stripe's maximum amount limit
-  const validateCustomAmount = useCallback((amount: number): boolean => {
-    if (!product.allow_custom_price) return true;
-    const minPrice = product.custom_price_min ?? 0.50;
-    if (amount < minPrice) {
-      setCustomAmountError(t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency) }));
-      return false;
-    }
-    if (amount > STRIPE_MAX_AMOUNT) {
-      setCustomAmountError(t('customPrice.aboveMaximum', { maximum: formatPrice(STRIPE_MAX_AMOUNT, product.currency) }));
-      return false;
-    }
-    setCustomAmountError(null);
-    return true;
-  }, [product, t]);
-
+  // Fetch Stripe client secret
   const fetchClientSecret = useCallback(async () => {
-    // Skip Stripe in funnel test mode — admin visual preview only
     if (isFunnelTest) return;
 
-    // Skip Stripe for PWYW-free ($0) — access granted via grant-access API instead
-    if (product.allow_custom_price && customAmount === 0 && (product.custom_price_min ?? 0.50) === 0) {
+    if (product.allow_custom_price && customAmount === 0 && (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0) {
       setClientSecret(null);
       return;
     }
 
-    // Validate custom amount before fetching
     if (product.allow_custom_price && !validateCustomAmount(customAmount)) {
       return;
     }
@@ -420,7 +197,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           productId: product.id,
           email: email || undefined,
           bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
-          couponCode: appliedCoupon?.code,
+          couponCode: coupon.appliedCoupon?.code,
           successUrl: searchParams.get('success_url') || undefined,
           customAmount: product.allow_custom_price ? customAmount : undefined,
         }),
@@ -429,7 +206,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       if (!response.ok) {
         const errorData = await response.json();
         if (errorData.error === 'You already have access to this product') {
-          setHasAccess(true);
+          grantAccess();
           return;
         }
         setError(errorData.error || t('createSessionError'));
@@ -437,125 +214,33 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       }
 
       const data = await response.json();
-      setClientSecret(data.clientSecret);
-    } catch (err) {
-      setError(t('loadError'));
-      throw err;
-    }
-  }, [product, email, selectedBumpIds, appliedCoupon, searchParams, t, customAmount, validateCustomAmount, isFunnelTest]);
 
-  // Fetch client secret when component mounts or dependencies change.
-  // Wait for auth to finish loading so isFunnelTest (which depends on isAdmin)
-  // is resolved before deciding whether to call the payment API.
+      // 100% coupon: server granted free access
+      if (data.freeAccess) {
+        grantAccess();
+        return;
+      }
+
+      setClientSecret(data.clientSecret);
+    } catch {
+      setError(t('loadError'));
+    }
+  }, [product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t, customAmount, validateCustomAmount, isFunnelTest, grantAccess]);
+
   useEffect(() => {
     if (!hasAccess && !error && !authLoading) {
       fetchClientSecret();
     }
   }, [fetchClientSecret, hasAccess, error, authLoading]);
 
-  // PWYW Free Access — grant without Stripe when customer picks $0
-  const handlePwywFreeAccess = useCallback(async () => {
-    if (!user) return;
-    setPwywFreeLoading(true);
+  const handleSignOutAndCheckout = async () => {
     try {
-      const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        if (data.error === 'You already have access to this product' || data.alreadyHadAccess) {
-          setHasAccess(true);
-          return;
-        }
-        setError(data.error || t('failedToGetAccess'));
-        return;
-      }
-      await track('generate_lead', {
-        value: 0,
-        currency: product.currency,
-        items: [{ item_id: product.id, item_name: product.name, price: 0, quantity: 1 }],
-        userEmail: user.email || undefined,
-      });
-      setHasAccess(true);
-    } catch {
-      setError(t('unexpectedError'));
-    } finally {
-      setPwywFreeLoading(false);
+      await signOutAndRedirectToCheckout();
+      window.location.reload();
+    } catch (err) {
+      console.error('[PaidProductForm] Sign out error:', err);
     }
-  }, [user, product, track]);
-
-  // PWYW Free — magic link for unauthenticated users
-  const [pwywFreeEmail, setPwywFreeEmail] = useState('');
-  const [pwywFreeTermsAccepted, setPwywFreeTermsAccepted] = useState(false);
-  const pwywFreeCaptcha = useCaptcha();
-  const [pwywFreeMessage, setPwywFreeMessage] = useState<{ type: 'info' | 'success' | 'error'; text: string } | null>(null);
-
-  const handlePwywFreeMagicLink = useCallback(async () => {
-    if (!pwywFreeEmail) {
-      setPwywFreeMessage({ type: 'error', text: t('enterEmail') });
-      pwywFreeCaptcha.reset();
-      return;
-    }
-
-    if (!pwywFreeTermsAccepted) {
-      setPwywFreeMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-      pwywFreeCaptcha.reset();
-      return;
-    }
-
-    if (!pwywFreeCaptcha.token) {
-      setPwywFreeMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
-      return;
-    }
-
-    try {
-      const emailValidation = await validateEmailAction(pwywFreeEmail);
-      if (!emailValidation.isValid) {
-        setPwywFreeMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
-        pwywFreeCaptcha.reset();
-        return;
-      }
-    } catch {
-      setPwywFreeMessage({ type: 'error', text: t('invalidEmail') });
-      pwywFreeCaptcha.reset();
-      return;
-    }
-
-    setPwywFreeLoading(true);
-    setPwywFreeMessage({ type: 'info', text: t('sendingMagicLink') });
-    try {
-      const supabase = await createClient();
-      const successUrl = searchParams.get('success_url');
-      const authRedirectPath = `/auth/product-access?product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
-      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
-
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email: pwywFreeEmail,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: redirectUrl,
-          captchaToken: pwywFreeCaptcha.token || undefined,
-        },
-      });
-      if (authError) {
-        setPwywFreeMessage({ type: 'error', text: authError.message });
-        pwywFreeCaptcha.reset();
-        return;
-      }
-      await track('generate_lead', {
-        value: 0,
-        currency: product.currency,
-        items: [{ item_id: product.id, item_name: product.name, price: 0, quantity: 1 }],
-        userEmail: pwywFreeEmail,
-      });
-      setPwywFreeMessage({ type: 'success', text: t('checkEmailForMagicLink') });
-    } catch {
-      setPwywFreeMessage({ type: 'error', text: t('unexpectedError') });
-    } finally {
-      setPwywFreeLoading(false);
-    }
-  }, [pwywFreeEmail, pwywFreeTermsAccepted, pwywFreeCaptcha, product, searchParams, t, tCompliance, track]);
+  };
 
   const renderCheckoutForm = () => (
     <div className="w-full lg:w-1/2 lg:pl-8">
@@ -575,481 +260,187 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       )}
 
       {/* OTO Countdown Banner */}
-      {isOtoMode && otoInfo?.valid && otoInfo.expires_at && !otoExpired && (
+      {oto.isOtoMode && oto.otoInfo?.valid && oto.otoInfo.expires_at && !oto.otoExpired && (
         <OtoCountdownBanner
-          expiresAt={otoInfo.expires_at}
-          discountType={otoInfo.discount_type || 'percentage'}
-          discountValue={otoInfo.discount_value || 0}
+          expiresAt={oto.otoInfo.expires_at}
+          discountType={oto.otoInfo.discount_type || 'percentage'}
+          discountValue={oto.otoInfo.discount_value || 0}
           currency={product.currency}
-          onExpire={handleOtoExpire}
+          onExpire={oto.handleOtoExpire}
         />
       )}
 
-      {/* Pay What You Want - Custom Price Selection */}
-      {product.allow_custom_price && !hasAccess && !error && (
-        <div className="mb-6 p-5 bg-sf-raised backdrop-blur-sm rounded-2xl border border-sf-border">
-          <h3 className="text-lg font-semibold text-sf-heading mb-3">{t('customPrice.title')}</h3>
+      {/* PWYW Section (price picker + free access) */}
+      <PwywSection
+        product={product}
+        user={user}
+        customAmount={customAmount}
+        customAmountInput={customAmountInput}
+        customAmountError={customAmountError}
+        isPwywFree={isPwywFree}
+        hasAccess={hasAccess}
+        error={error}
+        pwyw={pwyw}
+        onAmountInputChange={(raw) => setCustomAmountInput(raw)}
+        onAmountBlur={() => {
+          const value = parseFloat(customAmountInput) || 0;
+          setCustomAmount(value);
+          if (value > 0) setCustomAmountInput(value.toString());
+          validateCustomAmount(value);
+        }}
+        onPresetClick={(preset) => {
+          setCustomAmount(preset);
+          setCustomAmountInput(preset.toString());
+          setCustomAmountError(null);
+          setError(null);
+        }}
+      />
 
-          {/* Preset Buttons — preset=0 shows as "Free" */}
-          {product.show_price_presets && product.custom_price_presets && product.custom_price_presets.filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? 0.50) === 0)).length > 0 && (
-            <div className="flex gap-2 mb-3">
-              {product.custom_price_presets.filter(p => p >= 0 && (p > 0 || (product.custom_price_min ?? 0.50) === 0)).map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => {
-                    setCustomAmount(preset);
-                    setCustomAmountInput(preset.toString());
-                    setCustomAmountError(null);
-                    setError(null);
-                  }}
-                  className={`
-                    px-4 py-2 rounded-lg border text-sm font-medium transition-all
-                    ${customAmount === preset
-                      ? 'bg-sf-accent-bg border-sf-accent text-white'
-                      : 'bg-sf-raised border-sf-border text-sf-heading hover:bg-sf-hover'}
-                  `}
-                >
-                  {preset === 0 ? t('customPrice.freePreset') : formatPrice(preset, product.currency)}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Custom Amount Input */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={customAmountInput}
-                onChange={(e) => {
-                  // Allow typing freely - only validate on blur
-                  // Replace comma with dot for locales that use comma as decimal separator
-                  const rawValue = e.target.value.replace(',', '.');
-                  // Only allow numbers, dots, and empty string
-                  if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
-                    setCustomAmountInput(rawValue);
-                  }
-                }}
-                onBlur={() => {
-                  // Parse and validate on blur
-                  const value = parseFloat(customAmountInput) || 0;
-                  setCustomAmount(value);
-                  // Clean up display (remove trailing dots, etc.) only if valid
-                  if (value > 0) {
-                    setCustomAmountInput(value.toString());
-                  }
-                  validateCustomAmount(value);
-                }}
-                placeholder={`${product.custom_price_min ?? 0.50}`}
-                className={`
-                  w-full px-4 py-3 bg-sf-input border rounded-lg text-lg font-semibold text-sf-heading
-                  focus:outline-none focus:ring-2 focus:ring-sf-accent transition-all
-                  ${customAmountError ? 'border-sf-danger' : 'border-sf-border'}
-                `}
-              />
-            </div>
-            <span className="text-lg font-medium text-sf-muted min-w-[50px]">
-              {product.currency}
-            </span>
-          </div>
-
-          {/* Error Message */}
-          {customAmountError && (
-            <p className="text-sm text-sf-danger mt-2">{customAmountError}</p>
-          )}
-
-          {/* Minimum Price Info */}
-          <p className="text-xs text-sf-muted mt-2">
-            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? 0.50, product.currency)} {product.currency}
-          </p>
-        </div>
+      {/* Order Bumps */}
+      {!hasAccess && !error && !isPwywFree && searchParams.get('hide_bump') !== 'true' && (
+        <OrderBumpList
+          bumps={availableBumps}
+          selectedBumpIds={selectedBumpIds}
+          onToggle={toggleBump}
+        />
       )}
 
-      {/* PWYW Free Access — shown when customer picks $0 */}
-      {isPwywFree && !hasAccess && !error && (
-        <div className="mb-6 p-5 bg-sf-success-soft rounded-2xl border border-sf-success/20">
-          {user ? (
-            <button
-              type="button"
-              onClick={handlePwywFreeAccess}
-              disabled={pwywFreeLoading}
-              className="w-full py-3 px-6 bg-sf-success hover:bg-sf-success/90 disabled:opacity-50 text-sf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
-            >
-              {pwywFreeLoading ? '...' : t('customPrice.getForFree')}
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-sf-heading">{t('customPrice.getForFree')}</p>
-              <input
-                type="email"
-                value={pwywFreeEmail}
-                onChange={(e) => setPwywFreeEmail(e.target.value)}
-                placeholder={t('emailAddress')}
-                className="w-full px-4 py-3 border border-sf-border rounded-lg bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
-              />
-              <TermsCheckbox
-                checked={pwywFreeTermsAccepted}
-                onChange={setPwywFreeTermsAccepted}
-                termsUrl="/terms"
-                privacyUrl="/privacy"
-              />
-              <button
-                type="button"
-                onClick={handlePwywFreeMagicLink}
-                disabled={
-                  pwywFreeLoading ||
-                  pwywFreeCaptcha.isLoading ||
-                  !pwywFreeEmail ||
-                  !pwywFreeTermsAccepted ||
-                  (process.env.NODE_ENV === 'production' && !pwywFreeCaptcha.token)
-                }
-                className="w-full py-3 px-6 bg-sf-success hover:bg-sf-success/90 disabled:opacity-50 text-sf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
-              >
-                {pwywFreeLoading || pwywFreeCaptcha.isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2" />
-                    {pwywFreeCaptcha.isLoading ? tSecurity('verifying') : t('sendingMagicLink')}
-                  </span>
-                ) : t('sendMagicLink')}
-              </button>
-              <div className="mt-3">
-                <CaptchaWidget
-                  onVerify={pwywFreeCaptcha.onVerify}
-                  onError={pwywFreeCaptcha.onError}
-                  onTimeout={pwywFreeCaptcha.onTimeout}
-                  resetTrigger={pwywFreeCaptcha.resetTrigger}
-                  compact={true}
-                />
-              </div>
-              {pwywFreeMessage && (
-                <p className={`text-sm ${pwywFreeMessage.type === 'error' ? 'text-sf-danger' : pwywFreeMessage.type === 'success' ? 'text-sf-success' : 'text-sf-muted'}`}>
-                  {pwywFreeMessage.text}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Order Bumps - Add to your order (hidden when PWYW free) */}
-      {availableBumps.length > 0 && !hasAccess && !error && !isPwywFree && searchParams.get('hide_bump') !== 'true' && (
-        <div className="mb-6 space-y-3">
-          <h3 className="text-sm font-semibold text-sf-muted uppercase tracking-wider">{t('addToYourOrder')}</h3>
-          {availableBumps.map((bump) => {
-            const isSelected = selectedBumpIds.has(bump.bump_product_id);
-            return (
-              <div
-                key={bump.bump_id}
-                className={`
-                  relative group overflow-hidden rounded-2xl border transition-all duration-300 ease-out
-                  ${isSelected 
-                    ? 'border-amber-400/50 bg-sf-warning-soft shadow-[0_0_40px_-10px_rgba(251,191,36,0.15)]'
-                    : 'border-sf-border bg-sf-raised hover:border-amber-400/30 hover:bg-sf-hover'}
-                `}
-              >
-                <div className={`absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl transition-opacity duration-500 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`} />
-                
-                <div className="relative p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3 flex-1">
-                      {bump.bump_product_icon && (
-                        <span className="text-2xl flex-shrink-0">{bump.bump_product_icon}</span>
-                      )}
-                      <div className="min-w-0">
-                        <h4 className={`text-base font-bold transition-colors ${isSelected ? 'text-sf-warning' : 'text-sf-heading'}`}>
-                          {bump.bump_title}
-                        </h4>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className={`
-                            inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border
-                            ${isSelected 
-                              ? 'bg-amber-400/10 text-amber-300 border-amber-400/20' 
-                              : 'bg-sf-raised text-sf-muted border-sf-border'}
-                          `}>
-                            {bump.bump_access_duration && bump.bump_access_duration > 0 ? (
-                              <>
-                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {t('daysAccess', { days: bump.bump_access_duration })}
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                                {t('lifetimeAccess')}
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 sm:flex-shrink-0">
-                      <div className="text-left sm:text-right">
-                        {bump.original_price > bump.bump_price && (
-                          <div className="text-xs text-sf-muted line-through decoration-sf-muted mb-0.5">
-                            {formatPrice(bump.original_price, bump.bump_currency)} {bump.bump_currency}
-                          </div>
-                        )}
-                        <div className={`text-lg font-bold leading-none tracking-tight ${isSelected ? 'text-sf-warning' : 'text-sf-heading'}`}>
-                          {formatPrice(bump.bump_price, bump.bump_currency)} {bump.bump_currency}
-                        </div>
-                        {bump.original_price > bump.bump_price && (
-                          <div className="text-[10px] font-bold text-sf-success mt-1 uppercase tracking-wide">
-                            {t('saveAmount', { amount: formatPrice(bump.original_price - bump.bump_price, bump.bump_currency) })}
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => toggleBump(bump.bump_product_id)}
-                        className={`
-                          flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-200 active:scale-[0.97]
-                          ${isSelected
-                            ? 'bg-amber-400 text-slate-900 border-amber-400 hover:bg-amber-300'
-                            : 'bg-sf-raised text-sf-heading border-sf-border hover:border-amber-400/50 hover:text-sf-warning'}
-                        `}
-                      >
-                        {isSelected ? (
-                          <span className="flex items-center gap-1.5">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                            {t('addedToOrder')}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                            {t('addToOrder')}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Urgency countdown timer */}
-                  {bump.urgency_duration_minutes != null && bump.urgency_duration_minutes > 0 && (() => {
-                    const elapsedSec = Math.floor((Date.now() - pageLoadTime.current) / 1000);
-                    const totalSec = bump.urgency_duration_minutes * 60;
-                    const remainingSec = Math.max(totalSec - elapsedSec, 0);
-                    if (remainingSec <= 0) return null;
-                    const mins = Math.floor(remainingSec / 60);
-                    const secs = remainingSec % 60;
-                    return (
-                      <div className="flex items-center justify-between px-3 py-2 mb-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                        <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-                          {t('specialOfferEnds')}
-                        </span>
-                        <span className="text-sm font-bold text-red-400 tabular-nums">
-                          {mins}m {secs.toString().padStart(2, '0')}s
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-                  {bump.bump_description && (
-                    <p className={`text-sm leading-relaxed transition-colors ${isSelected ? 'text-sf-warning/80' : 'text-sf-muted'}`}>
-                      {bump.bump_description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
+      {/* Coupon Field */}
       {!hasAccess && !error && !isPwywFree && (
-        <div className="mb-4">
-          {(showCouponInput || appliedCoupon) && (
-            <div className="animate-in fade-in slide-in-from-top-1 duration-300">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    placeholder={t('couponPlaceholder')}
-                    disabled={!!appliedCoupon || isVerifyingCoupon}
-                    className={`
-                      w-full px-3 py-2 bg-sf-input border rounded-lg text-sm transition-all outline-none
-                      ${appliedCoupon ? 'border-sf-success/50 text-sf-success bg-sf-success-soft' : 'border-sf-border focus:border-sf-accent/50'}
-                    `}
-                  />
-                  {appliedCoupon && (
-                    <div className="absolute right-3 inset-y-0 flex items-center">
-                      <svg className="w-4 h-4 text-sf-success" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                {!appliedCoupon ? (
-                  <button
-                    onClick={() => handleVerifyCoupon(couponCode)}
-                    disabled={!couponCode || isVerifyingCoupon}
-                    className="px-4 py-2 bg-sf-raised hover:bg-sf-hover text-sf-heading text-sm rounded-lg transition-all disabled:opacity-50"
-                  >
-                    {isVerifyingCoupon ? t('verifying') : t('applyCoupon')}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { 
-                      setAppliedCoupon(null); 
-                      setCouponCode('');
-                      setCouponManuallyRemoved(true); 
-                    }}
-                    className="px-2 py-2 text-sf-muted hover:text-sf-danger transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              {couponError && !appliedCoupon && (
-                <p className="text-[10px] text-sf-danger mt-1 ml-1">{couponError}</p>
-              )}
-              {appliedCoupon && (
-                <p className="text-[10px] text-sf-success mt-1 ml-1 font-medium uppercase tracking-wider">
-                  🎉 {t('discountApplied', { discount: appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : `${appliedCoupon.discount_value} ${product.currency}` })}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        <CouponField
+          couponCode={coupon.couponCode}
+          appliedCoupon={coupon.appliedCoupon}
+          isVerifying={coupon.isVerifyingCoupon}
+          couponError={coupon.couponError}
+          currency={product.currency}
+          showCouponInput={coupon.showCouponInput}
+          onCodeChange={coupon.setCouponCode}
+          onApply={() => coupon.handleVerifyCoupon(coupon.couponCode)}
+          onRemove={coupon.removeCoupon}
+        />
       )}
 
-      {/* Hide checkout card when PWYW-free — "Odbierz za darmo" replaces it; keep for error/access states */}
+      {/* Checkout Card */}
       {!(isPwywFree && !error && !hasAccess) && (
-      <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border relative overflow-hidden">
-        {isVerifyingCoupon && (
-          <div className="absolute top-0 left-0 h-0.5 bg-sf-accent-bg animate-pulse w-full" />
-        )}
+        <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border relative overflow-hidden">
+          {coupon.isVerifyingCoupon && (
+            <div className="absolute top-0 left-0 h-0.5 bg-sf-accent-bg animate-pulse w-full" />
+          )}
 
-        <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('title')}</h2>
-        
-        {/* Missing Config Alert */}
-        {!config.stripePublishableKey && (
-          <div className="mb-4 p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
-            <div className="flex items-start">
-              <svg className="w-5 h-5 text-sf-danger mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <div>
-                <h3 className="text-sm font-bold text-sf-danger">Configuration Error</h3>
-                <p className="text-xs text-sf-danger mt-1">
-                  Stripe API key is missing. Please check your environment variables (STRIPE_PUBLISHABLE_KEY).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+          <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('title')}</h2>
 
-        {error && (
-          <div className="mb-4 p-6 bg-sf-danger-soft border border-sf-danger/20 rounded-xl backdrop-blur-sm">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 w-10 h-10 bg-sf-danger-soft rounded-full flex items-center justify-center mr-4">
-                <svg className="w-5 h-5 text-sf-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          {/* Missing Config Alert */}
+          {!config.stripePublishableKey && (
+            <div className="mb-4 p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-sf-danger mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 15.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-sf-danger mb-1">{t('paymentError')}</h3>
-                <p className="text-sf-danger text-sm">{error}</p>
+                <div>
+                  <h3 className="text-sm font-bold text-sf-danger">Configuration Error</h3>
+                  <p className="text-xs text-sf-danger mt-1">
+                    Stripe API key is missing. Please check your environment variables (STRIPE_PUBLISHABLE_KEY).
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        
-        {hasAccess && (
-          <div className="mb-4 p-6 bg-sf-success-soft border border-sf-success/20 rounded-xl backdrop-blur-sm">
-            <div className="flex items-center justify-between">
+          )}
+
+          {error && (
+            <div className="mb-4 p-6 bg-sf-danger-soft border border-sf-danger/20 rounded-xl backdrop-blur-sm">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 bg-sf-success-soft rounded-full flex items-center justify-center mr-4">
-                  <svg className="w-5 h-5 text-sf-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <div className="flex-shrink-0 w-10 h-10 bg-sf-danger-soft rounded-full flex items-center justify-center mr-4">
+                  <svg className="w-5 h-5 text-sf-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-sf-success mb-1">{t('accessGranted')}</h3>
-                  <p className="text-sf-success text-sm">
-                    {t('alreadyHasAccess')}
-                  </p>
-                  <p className="text-sf-success/70 text-xs mt-1 flex items-center">
-                    <svg className="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    {t('autoRedirect', { seconds: countdown })}
-                  </p>
+                  <h3 className="text-lg font-semibold text-sf-danger mb-1">{t('paymentError')}</h3>
+                  <p className="text-sf-danger text-sm">{error}</p>
                 </div>
               </div>
-              <button
-                onClick={handleRedirectToProduct}
-                className="bg-sf-success hover:bg-sf-success/90 text-sf-inverse px-6 py-3 rounded-full transition-all duration-200 font-medium text-sm active:scale-[0.98]"
-              >
-                {t('goToProduct')}
-              </button>
             </div>
-          </div>
-        )}
-        
-        {/* Funnel test: show Complete Test button instead of Stripe */}
-        {isFunnelTest && !error && !hasAccess && (
-          <button
-            onClick={() => setHasAccess(true)}
-            className="w-full py-4 px-6 bg-sf-warning hover:bg-sf-warning/90 text-sf-inverse font-bold rounded-xl transition-all active:scale-[0.98] text-lg"
-          >
-            {t('funnelTest.completeButton')}
-          </button>
-        )}
+          )}
 
-        {!isFunnelTest && !error && !hasAccess && !isPwywFree && stripePromise && clientSecret && (
-          <Elements
-            key={`${product.id}-${clientSecret}-${resolvedTheme}`}
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: resolvedTheme === 'dark' ? 'night' : 'stripe',
-                variables: {
-                  colorPrimary: '#3b82f6',
-                  ...(resolvedTheme === 'dark' ? {
-                    colorBackground: '#1e293b',
-                    colorText: '#ffffff',
-                  } : {}),
-                  colorDanger: '#ef4444',
-                  fontFamily: 'system-ui, sans-serif',
-                  borderRadius: '8px',
+          {hasAccess && (
+            <div className="mb-4 p-6 bg-sf-success-soft border border-sf-success/20 rounded-xl backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0 w-10 h-10 bg-sf-success-soft rounded-full flex items-center justify-center mr-4">
+                    <svg className="w-5 h-5 text-sf-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-sf-success mb-1">{t('accessGranted')}</h3>
+                    <p className="text-sf-success text-sm">{t('alreadyHasAccess')}</p>
+                    <p className="text-sf-success/70 text-xs mt-1 flex items-center">
+                      <svg className="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      {t('autoRedirect', { seconds: countdown })}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleRedirectToProduct}
+                  className="bg-sf-success hover:bg-sf-success/90 text-sf-inverse px-6 py-3 rounded-full transition-all duration-200 font-medium text-sm active:scale-[0.98]"
+                >
+                  {t('goToProduct')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Funnel test: Complete Test button instead of Stripe */}
+          {isFunnelTest && !error && !hasAccess && (
+            <button
+              onClick={grantAccess}
+              className="w-full py-4 px-6 bg-sf-warning hover:bg-sf-warning/90 text-sf-inverse font-bold rounded-xl transition-all active:scale-[0.98] text-lg"
+            >
+              {t('funnelTest.completeButton')}
+            </button>
+          )}
+
+          {!isFunnelTest && !error && !hasAccess && !isPwywFree && stripePromise && clientSecret && (
+            <Elements
+              key={`${product.id}-${clientSecret}-${resolvedTheme}`}
+              stripe={stripePromise}
+              options={{
+                clientSecret,
+                appearance: {
+                  theme: resolvedTheme === 'dark' ? 'night' : 'stripe',
+                  variables: {
+                    colorPrimary: '#3b82f6',
+                    ...(resolvedTheme === 'dark' ? {
+                      colorBackground: '#1e293b',
+                      colorText: '#ffffff',
+                    } : {}),
+                    colorDanger: '#ef4444',
+                    fontFamily: 'system-ui, sans-serif',
+                    borderRadius: '8px',
+                  },
                 },
-              },
-            } as StripeElementsOptions}
-          >
-            <CustomPaymentForm
-              product={product}
-              email={email}
-              bumpProducts={availableBumps}
-              selectedBumpIds={selectedBumpIds}
-              appliedCoupon={appliedCoupon ?? undefined}
-              successUrl={searchParams.get('success_url') || undefined}
-              onChangeAccount={handleSignOutAndCheckout}
-              customAmount={product.allow_custom_price ? customAmount : undefined}
-              customAmountError={product.allow_custom_price ? customAmountError : null}
-              clientSecret={clientSecret || undefined}
-              paymentMethodOrder={paymentMethodOrder}
-              expressCheckoutConfig={expressCheckoutConfig}
-              taxMode={taxMode}
-            />
-          </Elements>
-        )}
-      </div>
+              } as StripeElementsOptions}
+            >
+              <CustomPaymentForm
+                product={product}
+                email={email}
+                bumpProducts={availableBumps}
+                selectedBumpIds={selectedBumpIds}
+                appliedCoupon={coupon.appliedCoupon ?? undefined}
+                successUrl={searchParams.get('success_url') || undefined}
+                onChangeAccount={handleSignOutAndCheckout}
+                customAmount={product.allow_custom_price ? customAmount : undefined}
+                customAmountError={product.allow_custom_price ? customAmountError : null}
+                clientSecret={clientSecret || undefined}
+                paymentMethodOrder={paymentMethodOrder}
+                expressCheckoutConfig={expressCheckoutConfig}
+                taxMode={taxMode}
+              />
+            </Elements>
+          )}
+        </div>
       )}
     </div>
   );

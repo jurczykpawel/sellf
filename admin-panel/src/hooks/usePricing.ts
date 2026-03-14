@@ -3,7 +3,10 @@
  * Single source of truth for all price calculations (frontend + backend)
  */
 
-export const STRIPE_MINIMUM_AMOUNT = 0.50;
+import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+
+// Re-export for backward compatibility
+export { STRIPE_MINIMUM_AMOUNT };
 
 export interface BumpPricingItem {
   price: number;
@@ -43,6 +46,8 @@ export interface PricingResult {
   isPwyw: boolean;
   hasBump: boolean;
   hasDiscount: boolean;
+  /** True when a coupon reduces the total to zero — skip Stripe, grant free access */
+  isFreeWithCoupon: boolean;
 }
 
 /**
@@ -95,7 +100,10 @@ export function calculatePricing(input: PricingInput): PricingResult {
   }
 
   // Calculate totals
-  const totalGross = Math.max(subtotal - discountAmount, STRIPE_MINIMUM_AMOUNT);
+  // When a coupon covers the full price, total is genuinely $0 — don't floor to Stripe minimum
+  const rawTotal = subtotal - discountAmount;
+  const isFreeWithCoupon = coupon !== null && coupon !== undefined && rawTotal <= 0;
+  const totalGross = isFreeWithCoupon ? 0 : Math.max(rawTotal, STRIPE_MINIMUM_AMOUNT);
 
   // VAT calculation
   const vatRate = productVatRate || 0;
@@ -117,6 +125,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     isPwyw,
     hasBump: bumpAmount > 0,
     hasDiscount: discountAmount > 0,
+    isFreeWithCoupon,
   };
 }
 
