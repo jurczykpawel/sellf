@@ -85,8 +85,11 @@ function setCacheEntry(key: string, seller: SellerInfo | null): void {
 export async function getSellerBySlug(slug: string): Promise<SellerInfo | null> {
   if (!slug) return null;
 
+  // Normalize slug: URL may use hyphens (kowalski-store) but DB stores underscores (kowalski_store)
+  const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+
   // Check cache
-  const cached = sellerCache.get(slug);
+  const cached = sellerCache.get(normalizedSlug);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.seller;
   }
@@ -95,18 +98,18 @@ export async function getSellerBySlug(slug: string): Promise<SellerInfo | null> 
   const { data, error } = await platform
     .from('sellers')
     .select(SELLER_COLUMNS)
-    .eq('slug', slug)
+    .eq('slug', normalizedSlug)
     .eq('status', 'active')
     .single();
 
   if (error || !data) {
     // Cache negative result too (prevents repeated DB queries for non-existent sellers)
-    setCacheEntry(slug, null);
+    setCacheEntry(normalizedSlug, null);
     return null;
   }
 
   const seller = toSellerInfo(data);
-  setCacheEntry(slug, seller);
+  setCacheEntry(normalizedSlug, seller);
   return seller;
 }
 
