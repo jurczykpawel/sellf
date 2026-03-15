@@ -1922,8 +1922,7 @@ SELECT
   upa.access_duration_days,
   upa.created_at as access_created_at,
   p.created_at as product_created_at,
-  p.updated_at as product_updated_at,
-  upa.tenant_id
+  p.updated_at as product_updated_at
 FROM public.user_product_access upa
 JOIN public.products p ON upa.product_id = p.id;
 

@@ -52,8 +52,6 @@ CREATE TABLE IF NOT EXISTS products (
   -- Content delivery fields (clean implementation)
   content_delivery_type TEXT DEFAULT 'content' NOT NULL CHECK (content_delivery_type IN ('redirect', 'content')),
   content_config JSONB DEFAULT '{}' NOT NULL, -- Flexible content configuration
-  tenant_id TEXT CHECK (tenant_id IS NULL OR (tenant_id ~ '^[a-zA-Z0-9_-]+$' AND length(tenant_id) BETWEEN 1 AND 50)), -- Multi-tenant ID: alphanumeric, hyphens, underscores
-
   -- Funnel / OTO settings
   success_redirect_url TEXT, -- URL to redirect after successful purchase/signup
   pass_params_to_redirect BOOLEAN DEFAULT false NOT NULL, -- Whether to pass email and other params to the redirect URL
@@ -81,14 +79,11 @@ CREATE TABLE IF NOT EXISTS products (
 COMMENT ON TABLE products IS 'Products catalog with sellf integration support';
 COMMENT ON COLUMN products.slug IS 'URL-safe unique identifier for sellf system';
 COMMENT ON COLUMN products.content_config IS 'JSON configuration for content delivery and sellf integration';
-COMMENT ON COLUMN products.tenant_id IS 'Multi-tenant support - allows product isolation by tenant';
-
 -- Create variant_groups table to store variant group metadata
 CREATE TABLE IF NOT EXISTS variant_groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT CHECK (length(name) <= 200), -- Optional display name for the group (e.g., "Subscription Plans", "Size Options")
   slug TEXT UNIQUE CHECK (slug IS NULL OR (slug ~ '^[a-z0-9_-]+$' AND length(slug) BETWEEN 1 AND 100)), -- URL-friendly identifier
-  tenant_id TEXT CHECK (tenant_id IS NULL OR (tenant_id ~ '^[a-zA-Z0-9_-]+$' AND length(tenant_id) BETWEEN 1 AND 50)),
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -159,7 +154,6 @@ CREATE TABLE IF NOT EXISTS user_product_access (
   access_granted_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   access_expires_at TIMESTAMPTZ, -- NULL means permanent access
   access_duration_days INTEGER CHECK (access_duration_days IS NULL OR (access_duration_days > 0 AND access_duration_days <= 3650)), -- For tracking access duration in days
-  tenant_id TEXT CHECK (tenant_id IS NULL OR (tenant_id ~ '^[a-zA-Z0-9_-]+$' AND length(tenant_id) BETWEEN 1 AND 50)), -- Support for multi-tenancy
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   
   UNIQUE (user_id, product_id), -- Ensure a user can only have one access entry per product
@@ -204,8 +198,7 @@ SELECT
     upa.access_duration_days,
     upa.created_at as access_created_at,
     p.created_at as product_created_at,
-    p.updated_at as product_updated_at,
-    upa.tenant_id
+    p.updated_at as product_updated_at
 FROM public.user_product_access upa
 JOIN public.products p ON upa.product_id = p.id;
 
@@ -828,11 +821,8 @@ CREATE INDEX IF NOT EXISTS idx_user_product_access_product_id ON user_product_ac
 CREATE INDEX IF NOT EXISTS idx_user_product_access_unique ON user_product_access(user_id, product_id);
 CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON admin_users(user_id);
 
-CREATE INDEX IF NOT EXISTS idx_products_tenant_id ON products(tenant_id) WHERE tenant_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_user_product_access_tenant_id ON user_product_access(tenant_id) WHERE tenant_id IS NOT NULL;
 
 -- Variant groups indexes (M:N relationship)
-CREATE INDEX IF NOT EXISTS idx_variant_groups_tenant_id ON variant_groups(tenant_id) WHERE tenant_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_product_variant_groups_product_id ON product_variant_groups(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_variant_groups_group_id ON product_variant_groups(group_id);
 CREATE INDEX IF NOT EXISTS idx_product_variant_groups_display_order ON product_variant_groups(group_id, display_order);
