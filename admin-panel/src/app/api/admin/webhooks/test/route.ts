@@ -7,7 +7,7 @@ import { requireAdminOrSellerApi } from '@/lib/auth-server';
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     const body = await request.json();
     const { endpointId, eventType } = body;
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Verify endpoint belongs to the seller's schema before testing
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
     const { data: endpoint } = await dataClient
       .from('webhook_endpoints')
       .select('id')

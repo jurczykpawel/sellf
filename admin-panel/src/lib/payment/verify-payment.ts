@@ -463,7 +463,7 @@ export async function verifyPaymentSession(
               isGuest: paymentResult?.is_guest_purchase,
             });
 
-            WebhookService.trigger('purchase.completed', webhookData)
+            WebhookService.trigger('purchase.completed', webhookData, serviceClient)
               .catch(err => console.error('Webhook trigger error:', err));
 
             // NOTE: Server-side CAPI tracking for Purchase is handled in the
@@ -721,7 +721,7 @@ export async function verifyPaymentIntent(
               isGuest: paymentResult?.is_guest_purchase,
             });
 
-            WebhookService.trigger('purchase.completed', webhookData)
+            WebhookService.trigger('purchase.completed', webhookData, serviceClient)
               .catch(err => console.error('Webhook trigger error:', err));
 
             // NOTE: Server-side CAPI tracking for Purchase is handled in the

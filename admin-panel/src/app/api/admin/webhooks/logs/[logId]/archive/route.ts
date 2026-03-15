@@ -10,8 +10,8 @@ export async function POST(
   try {
     const { logId } = await context.params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { error } = await (dataClient as any)
       .from('webhook_logs')

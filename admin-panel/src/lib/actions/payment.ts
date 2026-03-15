@@ -6,7 +6,7 @@
 import { revalidatePath } from 'next/cache';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
-import { withAdminAuth } from '@/lib/actions/admin-auth';
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
 import type {
   RefundRequest,
   RefundResponse
@@ -16,9 +16,9 @@ import type {
  * Process refund - Admin only Server Action
  */
 export async function processRefund(data: RefundRequest): Promise<RefundResponse> {
-  const authResult = await withAdminAuth(async ({ user, supabase }) => {
-    // Get transaction details
-    const { data: transaction, error: transactionError } = await supabase
+  const authResult = await withAdminOrSellerAuth(async ({ user, dataClient }) => {
+    // Get transaction details (schema-scoped — seller admins see their own transactions)
+    const { data: transaction, error: transactionError } = await dataClient
       .from('payment_transactions')
       .select('*')
       .eq('id', data.transactionId)
@@ -63,7 +63,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
     const totalRefunded = alreadyRefunded + (refund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= transaction.amount;
 
-    const { data: updatedRows, error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await dataClient
       .from('payment_transactions')
       .update({
         refunded_amount: totalRefunded,
@@ -86,7 +86,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
     // Always attempt revocation after Stripe refund succeeds — even if DB update failed
     if (isFullRefund) {
       try {
-        const revocation = await revokeTransactionAccess(supabase, {
+        const revocation = await revokeTransactionAccess(dataClient, {
           transactionId: transaction.id,
           userId: transaction.user_id,
           productId: transaction.product_id,

@@ -12,13 +12,13 @@ import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Authenticate before initializing service client
-    const { user } = await requireAdminOrSellerApiWithRequest(request);
+    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
 
     // Initialize service client only after auth validation
     const stripe = await getStripeServer();
 
     // Use admin client for seller_main data operations
-    const supabase = await createSchemaAwareAdminClient();
+    const supabase = await createSchemaAwareAdminClient(sellerSchema);
 
     // SECURITY: Rate limit refund operations (prevents abuse of compromised admin accounts)
     const rateLimitOk = await checkRateLimit(

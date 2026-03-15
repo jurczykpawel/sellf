@@ -23,8 +23,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Parse request body
     const updates: Partial<OrderBumpFormData> = await request.json();
@@ -118,8 +118,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Delete order bump
     const { error } = await (dataClient as any)

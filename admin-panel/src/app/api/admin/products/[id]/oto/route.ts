@@ -18,14 +18,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const supabase = await createClient();
 
     // Check admin access
+    let authResult;
     try {
-      await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status });
     }
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Fetch OTO configuration via RPC
     const { data, error } = await (dataClient as any).rpc('admin_get_product_oto_offer', {
@@ -82,14 +83,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const supabase = await createClient();
 
     // Check admin access
+    let authResult;
     try {
-      await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status });
     }
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     if (oto_enabled && oto_product_id) {
       // Save OTO configuration

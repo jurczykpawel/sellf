@@ -11,10 +11,10 @@ export async function POST(
   try {
     const { logId } = await context.params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // SECURITY: Verify log belongs to the seller's schema before retrying
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
     const { data: log } = await dataClient
       .from('webhook_logs')
       .select('id')

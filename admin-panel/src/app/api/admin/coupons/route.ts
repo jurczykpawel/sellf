@@ -7,10 +7,10 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 export async function GET() {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // SECURITY: Use schema-aware admin client for data query (not cookie-based client)
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
     const { data, error } = await dataClient
       .from('coupons')
       .select('*')
@@ -34,10 +34,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdminOrSellerApiWithRequest(request);
+    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
 
     // Use admin client for seller_main operations (coupons table)
-    const supabase = await createSchemaAwareAdminClient();
+    const supabase = await createSchemaAwareAdminClient(sellerSchema);
 
     // SECURITY: Rate limit coupon creation
     const rateLimitOk = await checkRateLimit(

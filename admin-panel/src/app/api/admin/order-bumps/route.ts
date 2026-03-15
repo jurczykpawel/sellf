@@ -20,13 +20,13 @@ import type { OrderBumpFormData, OrderBumpAdmin } from '@/types/order-bump';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // Get query params
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
 
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     if (productId) {
       // Get bumps for specific product using database function
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Use adminClient (seller_main schema) for FK embedding queries —
       // PostgREST can't resolve FK relationships through proxy views in public schema.
-      const adminClient = await createSchemaAwareAdminClient();
+      const adminClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
       const { data, error } = await adminClient
         .from('order_bumps')
         .select(
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // Parse request body
     const formData: OrderBumpFormData = await request.json();
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Validate that products exist and are active
     const { data: mainProduct } = await dataClient

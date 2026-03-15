@@ -20,8 +20,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const supabase = await createClient();
-    const { user } = await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const { user, sellerSchema } = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(sellerSchema);
 
     const body = await request.json();
     const { action, admin_response } = body;

@@ -11,8 +11,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const body = await request.json();
 
@@ -78,8 +78,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { error } = await (dataClient as any)
       .from('coupons')

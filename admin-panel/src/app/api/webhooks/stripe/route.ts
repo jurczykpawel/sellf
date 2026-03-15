@@ -197,7 +197,7 @@ async function handleCheckoutSessionCompleted(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData)
+    WebhookService.trigger('purchase.completed', webhookData, supabase)
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
@@ -345,7 +345,7 @@ async function handlePaymentIntentSucceeded(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData)
+    WebhookService.trigger('purchase.completed', webhookData, supabase)
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 

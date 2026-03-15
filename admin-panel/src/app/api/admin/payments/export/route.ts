@@ -8,10 +8,10 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdminOrSellerApiWithRequest(request);
+    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
 
     // Use admin client for seller_main data (FK embedding requires correct schema)
-    const supabase = await createSchemaAwareAdminClient();
+    const supabase = await createSchemaAwareAdminClient(sellerSchema);
 
     // SECURITY: Rate limit export operations (heavy DB queries)
     const rateLimitOk = await checkRateLimit(

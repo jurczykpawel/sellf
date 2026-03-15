@@ -1,8 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createSchemaAwareAdminClient } from '@/lib/supabase/admin'
-import { withAdminAuth } from '@/lib/actions/admin-auth'
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
 
 export async function getDashboardStats() {
   const supabase = await createClient()
@@ -19,11 +18,9 @@ export async function getDashboardStats() {
 }
 
 export async function getRecentActivity() {
-  const result = await withAdminAuth(async () => {
-    const adminClient = await createSchemaAwareAdminClient()
-
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
     // 1. Get recent access grants
-    const { data: accessGrants } = await adminClient
+    const { data: accessGrants } = await dataClient
       .from('user_product_access')
       .select(`
         id,
@@ -37,7 +34,7 @@ export async function getRecentActivity() {
 
     // 2. Get user emails from restricted view using adminClient
     const userIds = [...new Set((accessGrants || []).map((g: any) => g.user_id))]
-    const { data: users } = await adminClient
+    const { data: users } = await dataClient
       .from('user_access_stats')
       .select('user_id, email')
       .in('user_id', userIds)
@@ -45,7 +42,7 @@ export async function getRecentActivity() {
     const userEmailMap = new Map((users || []).map((u: any) => [u.user_id, u.email]))
 
     // 3. Get recent products
-    const { data: recentProducts } = await adminClient
+    const { data: recentProducts } = await dataClient
       .from('products')
       .select('id, name, created_at')
       .order('created_at', { ascending: false })

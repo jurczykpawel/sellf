@@ -89,8 +89,8 @@ function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { data: endpoints, error } = await (dataClient as any)
       .from('webhook_endpoints')
@@ -112,8 +112,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const body = await request.json();
     const { url, events, description } = body;

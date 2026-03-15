@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase); // Enforce Admin Access
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase); // Enforce Admin Access
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Get search params
     const searchParams = request.nextUrl.searchParams;
@@ -146,8 +146,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase); // Enforce Admin Access
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase); // Enforce Admin Access
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Parse and validate request body
     let body;

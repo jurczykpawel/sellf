@@ -6,8 +6,8 @@ import { requireAdminOrSellerApi } from '@/lib/auth-server';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const endpointId = searchParams.get('endpointId');

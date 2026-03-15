@@ -1,6 +1,14 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { isValidSellerSchema } from '@/lib/marketplace/tenant'
+
+/**
+ * Type alias for any Supabase client that can query seller schema tables.
+ * All seller schemas are clones of seller_main, so they share the same table structure.
+ * TypeScript can't express this via Supabase generics (schema name is part of the type),
+ * so we use the seller_main-typed client as the common interface.
+ */
+export type SellerDataClient = SupabaseClient<Database, 'seller_main'>
 
 /**
  * Creates a Supabase client with the Service Role key targeting seller_main schema.
@@ -56,10 +64,30 @@ export function createAdminClient() {
  * For non-dashboard contexts (webhooks, verify-payment), use createAdminClient() directly.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createSchemaAwareAdminClient(): Promise<any> {
+export async function createSchemaAwareAdminClient(knownSellerSchema?: string): Promise<any> {
   if (typeof window !== 'undefined') {
     throw new Error('createSchemaAwareAdminClient can only be called on the server')
   }
+
+  // Fast path: if schema already known (e.g. from withAdminOrSellerAuth / requireAdminOrSellerApi),
+  // skip the auth + sellers lookup entirely. This eliminates the N+1 problem when multiple
+  // components on the same page each need a schema-scoped client.
+  if (knownSellerSchema) {
+    if (!isValidSellerSchema(knownSellerSchema)) {
+      throw new Error(`createSchemaAwareAdminClient: Invalid seller schema: ${knownSellerSchema}`)
+    }
+    const supabaseUrl = process.env.SUPABASE_URL!
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+    }
+    return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+      db: { schema: knownSellerSchema },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  }
+
+  // Slow path: resolve schema from auth session (original behavior)
   // Lazy import to avoid circular dependencies
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()

@@ -46,10 +46,10 @@ interface VariantGroupWithProducts {
 export async function GET() {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // Use admin client (seller_main schema) for FK embedding support
-    const adminClient = await createSchemaAwareAdminClient();
+    const adminClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Get all variant groups
     const { data: groups, error: groupsError } = await adminClient
@@ -138,8 +138,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient: any = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient: any = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const body = await request.json();
     const { name, slug, products } = body as {
@@ -241,8 +241,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient: any = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient: any = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -358,8 +358,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient: any = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient: any = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');

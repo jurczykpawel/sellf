@@ -66,14 +66,15 @@ export async function GET(
     const supabase = await createClient();
 
     // SECURITY: Verify admin access
+    let authResult;
     try {
-      await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Validate product ID
     const idValidation = validateProductId(id);
@@ -119,14 +120,15 @@ export async function PUT(
     const supabase = await createClient();
 
     // SECURITY: Verify admin access
+    let authResult;
     try {
-      await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Validate product ID
     const idValidation = validateProductId(id);
@@ -239,14 +241,15 @@ export async function DELETE(
     const supabase = await createClient();
 
     // SECURITY: Verify admin access
+    let authResult;
     try {
-      await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
-    const dataClient = await createSchemaAwareAdminClient();
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     // Validate product ID
     const idValidation = validateProductId(id);

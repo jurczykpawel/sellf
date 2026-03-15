@@ -85,8 +85,8 @@ export async function DELETE(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const { error } = await (dataClient as any)
       .from('webhook_endpoints')
@@ -112,8 +112,8 @@ export async function PUT(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    await requireAdminOrSellerApi(supabase);
-    const dataClient = await createSchemaAwareAdminClient();
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient(authResult.sellerSchema);
 
     const body = await request.json();
 
