@@ -76,6 +76,19 @@ export const SCOPE_PRESETS = {
 
   // MCP Server (typically needs full access)
   mcp: [API_SCOPES.FULL_ACCESS],
+
+  // Seller admin: access to own products, coupons, analytics, webhooks, refunds - but NOT system or full access
+  sellerDefault: [
+    API_SCOPES.PRODUCTS_READ,
+    API_SCOPES.PRODUCTS_WRITE,
+    API_SCOPES.COUPONS_READ,
+    API_SCOPES.COUPONS_WRITE,
+    API_SCOPES.ANALYTICS_READ,
+    API_SCOPES.WEBHOOKS_READ,
+    API_SCOPES.WEBHOOKS_WRITE,
+    API_SCOPES.REFUND_REQUESTS_READ,
+    API_SCOPES.REFUND_REQUESTS_WRITE,
+  ],
 } as const;
 
 export type ScopePreset = keyof typeof SCOPE_PRESETS;

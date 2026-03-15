@@ -827,6 +827,9 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
  */
 export async function getDecryptedWebhookSecret(): Promise<string | null> {
   try {
+    // Webhook secret is platform-level config (not seller-scoped).
+    // Must use createAdminClient (seller_main) — NOT createSchemaAwareAdminClient
+    // which throws in webhook context (no user session).
     const supabase = createAdminClient()
 
     const { data } = await supabase

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createSchemaAwareAdminClient } from '@/lib/supabase/admin';
 import {
   validateCreateProduct,
   sanitizeProductData,
   escapeIlikePattern,
   validateProductSortColumn
 } from '@/lib/validations/product';
-import { requireAdminApi } from '@/lib/auth-server';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 /**
  * Handle CORS preflight requests
@@ -66,7 +67,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase); // Enforce Admin Access
+    await requireAdminOrSellerApi(supabase); // Enforce Admin Access
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Get search params
     const searchParams = request.nextUrl.searchParams;
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
     const sortBy = validateProductSortColumn(sortByRaw);
 
     // Build query
-    let query = supabase
+    let query = (dataClient as any)
       .from('products')
       .select('*', { count: 'exact' });
 
@@ -144,7 +146,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase); // Enforce Admin Access
+    await requireAdminOrSellerApi(supabase); // Enforce Admin Access
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Parse and validate request body
     let body;
@@ -177,7 +180,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug already exists
-    const { data: existingProduct, error: slugCheckError } = await supabase
+    const { data: existingProduct, error: slugCheckError } = await (dataClient as any)
       .from('products')
       .select('id')
       .eq('slug', sanitizedData.slug)
@@ -199,7 +202,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert product with sanitized data
-    const { data: product, error } = await supabase
+    const { data: product, error } = await (dataClient as any)
       .from('products')
       .insert([sanitizedData])
       .select()
@@ -220,7 +223,7 @@ export async function POST(request: NextRequest) {
         category_id: catId
       }));
       
-      const { error: catError } = await supabase
+      const { error: catError } = await (dataClient as any)
         .from('product_categories')
         .insert(categoryInserts);
       

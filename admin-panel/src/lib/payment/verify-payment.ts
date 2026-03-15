@@ -9,11 +9,29 @@
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { isValidSellerSchema } from '@/lib/marketplace/tenant';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
+
+/**
+ * Resolve the correct admin client based on Stripe metadata.
+ * Source of truth is the metadata set during create-payment-intent — never trust client input.
+ */
+function resolveServiceClient(metadata?: Stripe.Metadata | null): AdminClient {
+  if (metadata?.is_marketplace === 'true' && metadata.seller_schema) {
+    if (!isValidSellerSchema(metadata.seller_schema)) {
+      console.error('[verify-payment] SECURITY: Invalid seller_schema in metadata: %s — refusing to process under seller scope, falling back to default', metadata.seller_schema);
+      return createAdminClient();
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return createSellerAdminClient(metadata.seller_schema) as any;
+  }
+  return createAdminClient();
+}
 
 /** Shape returned by process_stripe_payment_completion_with_bump RPC (JSONB) */
 interface PaymentRpcResult {
@@ -262,8 +280,8 @@ export async function verifyPaymentSession(
     };
   }
 
-  // Create admin client (service_role, seller_main schema)
-  const serviceClient = createAdminClient();
+  // Default admin client for initial cache check (platform schema)
+  let serviceClient = createAdminClient();
 
   try {
     // First, check if payment was already processed (database cache)
@@ -289,6 +307,9 @@ export async function verifyPaymentSession(
         error: 'Session not found'
       };
     }
+
+    // Marketplace: resolve seller-scoped client from session metadata (source of truth)
+    serviceClient = resolveServiceClient(session.metadata);
 
     // Check if session belongs to current user (only if user is logged in and session has valid user_id)
     if (user && session.metadata?.user_id && 
@@ -566,15 +587,15 @@ export async function verifyPaymentIntent(
     };
   }
 
-  // Create admin client (service_role, seller_main schema)
-  const serviceClient = createAdminClient();
-
   try {
     // Get Stripe instance
     const stripe = await getStripeServer();
 
     // Retrieve payment intent from Stripe
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Resolve service client from Stripe metadata (seller schema if marketplace)
+    const serviceClient = resolveServiceClient(paymentIntent?.metadata);
 
     if (!paymentIntent) {
       return {

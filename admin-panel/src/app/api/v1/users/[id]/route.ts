@@ -9,7 +9,7 @@ import {
   handleCorsPreFlight,
   jsonResponse,
   apiError,
-  authenticate,
+  authenticatePlatformAdmin,
   handleApiError,
   successResponse,
   API_SCOPES,
@@ -32,7 +32,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_READ]);
     const { id } = await params;
 
     // Validate ID format (reuse UUID validation)

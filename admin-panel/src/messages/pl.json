@@ -2548,7 +2548,14 @@
       "shop": "Sklep",
       "payments": "Płatności",
       "legal": "Prawne",
-      "system": "System"
+      "system": "System",
+      "marketplace": "Marketplace"
+    },
+    "marketplace": {
+      "title": "Marketplace",
+      "description": "Ustawienia marketplace multi-tenant. Zarządzaj sklepami sellerów, Stripe Connect i prowizjami platformy.",
+      "sellersLink": "Zarządzaj Sellerami",
+      "sellersDescription": "Przeglądaj i zarządzaj sklepami sellerów, ich statusem, onboardingiem Stripe Connect i konfiguracją prowizji."
     }
   },
   "stripe": {

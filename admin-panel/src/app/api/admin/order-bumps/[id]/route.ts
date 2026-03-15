@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createSchemaAwareAdminClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 import type { OrderBumpFormData } from '@/types/order-bump';
 
 interface RouteParams {
@@ -22,7 +23,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Parse request body
     const updates: Partial<OrderBumpFormData> = await request.json();
@@ -37,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Validate bump_product_id if changed
     if (updates.bump_product_id) {
-      const { data: bumpProduct } = await supabase
+      const { data: bumpProduct } = await (dataClient as any)
         .from('products')
         .select('id, is_active')
         .eq('id', updates.bump_product_id)
@@ -52,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update order bump
-    const { data, error } = await supabase
+    const { data, error } = await (dataClient as any)
       .from('order_bumps')
       .update({
         ...(updates.bump_product_id && { bump_product_id: updates.bump_product_id }),
@@ -116,10 +118,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Delete order bump
-    const { error } = await supabase
+    const { error } = await (dataClient as any)
       .from('order_bumps')
       .delete()
       .eq('id', id);

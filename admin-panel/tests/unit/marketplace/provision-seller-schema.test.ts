@@ -36,6 +36,38 @@ const anonClient = createClient(SUPABASE_URL, ANON_KEY, {
 const TEST_ID = Date.now();
 
 /**
+ * Wait for PostgREST schema cache to stabilize after provision/deprovision.
+ * These operations trigger NOTIFY pgrst 'reload config' which causes
+ * postgrest.pre_config() to rebuild the schema list. During this reload,
+ * API calls may fail with PGRST002.
+ */
+async function waitForPostgrest(ms = 500) {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry an async operation on PostgREST PGRST002 (schema cache reload) errors.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  { retries = 3, delay = 500 }: { retries?: number; delay?: number } = {}
+): Promise<T> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt < retries && msg.includes('schema cache')) {
+        await waitForPostgrest(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('withRetry: unreachable');
+}
+
+/**
  * Helper: provision a seller and return { seller_id, slug, schema_name }
  * Cleans up in afterAll.
  */
@@ -44,27 +76,36 @@ async function provisionTestSeller(
   displayName: string,
   ownerUserId?: string
 ) {
-  const { data, error } = await serviceClient.rpc('provision_seller_schema', {
-    p_slug: slug,
-    p_display_name: displayName,
-    p_owner_user_id: ownerUserId ?? null,
+  return withRetry(async () => {
+    const { data, error } = await serviceClient.rpc('provision_seller_schema', {
+      p_slug: slug,
+      p_display_name: displayName,
+      p_owner_user_id: ownerUserId ?? null,
+    });
+    if (error) throw new Error(`Provision failed: ${error.message}`);
+    await waitForPostgrest();
+    return {
+      seller_id: data as string,
+      slug,
+      schema_name: `seller_${slug.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`,
+    };
   });
-  if (error) throw new Error(`Provision failed: ${error.message}`);
-  return {
-    seller_id: data as string,
-    slug,
-    schema_name: `seller_${slug.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`,
-  };
 }
 
 /**
  * Helper: hard-delete a seller (cleanup)
  */
 async function hardDeleteSeller(sellerId: string) {
-  await serviceClient.rpc('deprovision_seller_schema', {
-    p_seller_id: sellerId,
-    p_hard_delete: true,
+  await withRetry(async () => {
+    const { data, error } = await serviceClient.rpc('deprovision_seller_schema', {
+      p_seller_id: sellerId,
+      p_hard_delete: true,
+    });
+    if (error && !error.message.includes('not found')) {
+      throw new Error(`Hard delete failed: ${error.message}`);
+    }
   });
+  await waitForPostgrest();
 }
 
 /**
@@ -346,20 +387,29 @@ describe('Marketplace: Seller Schema Provisioning', () => {
       const seller = await provisionTestSeller(slug, 'Soft Delete Test');
       createdSellerIds.push(seller.seller_id);
 
-      const { data, error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: false,
+      const { data, error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
+      await waitForPostgrest();
 
       expect(error).toBeNull();
       expect(data).toBe(true);
 
       // Verify status changed
-      const { data: sellerRecord } = await serviceClient
-        .from('sellers')
-        .select('status, updated_at')
-        .eq('id', seller.seller_id)
-        .single();
+      const { data: sellerRecord } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('status, updated_at')
+          .eq('id', seller.seller_id)
+          .single();
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(sellerRecord!.status).toBe('deprovisioned');
     });
@@ -370,15 +420,23 @@ describe('Marketplace: Seller Schema Provisioning', () => {
       createdSellerIds.push(seller.seller_id);
 
       // First deprovision
-      await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: false,
+      await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
       });
+      await waitForPostgrest();
 
       // Second deprovision should fail
-      const { error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: false,
+      const { error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
 
       expect(error).toBeTruthy();
@@ -396,20 +454,29 @@ describe('Marketplace: Seller Schema Provisioning', () => {
       const seller = await provisionTestSeller(slug, 'Hard Delete Test');
       // Don't push to createdSellerIds — hard delete removes it
 
-      const { data, error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: true,
+      const { data, error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: true,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
+      await waitForPostgrest();
 
       expect(error).toBeNull();
       expect(data).toBe(true);
 
       // Verify seller record is gone
-      const { data: sellerRecord, error: selectError } = await serviceClient
-        .from('sellers')
-        .select('id')
-        .eq('id', seller.seller_id)
-        .single();
+      const { data: sellerRecord, error: selectError } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('id')
+          .eq('id', seller.seller_id)
+          .single();
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(sellerRecord).toBeNull();
     });
@@ -419,26 +486,39 @@ describe('Marketplace: Seller Schema Provisioning', () => {
       const seller = await provisionTestSeller(slug, 'Soft Then Hard');
 
       // Soft deprovision first
-      await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: false,
+      await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
       });
+      await waitForPostgrest();
 
       // Hard delete should succeed
-      const { data, error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: true,
+      const { data, error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: true,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
+      await waitForPostgrest();
 
       expect(error).toBeNull();
       expect(data).toBe(true);
 
       // Verify record is gone
-      const { data: sellerRecord } = await serviceClient
-        .from('sellers')
-        .select('id')
-        .eq('id', seller.seller_id)
-        .single();
+      const { data: sellerRecord } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('id')
+          .eq('id', seller.seller_id)
+          .single();
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(sellerRecord).toBeNull();
     });
@@ -451,9 +531,13 @@ describe('Marketplace: Seller Schema Provisioning', () => {
   describe('deprovision_seller_schema() — edge cases', () => {
     it('should reject deprovisioning non-existent seller', async () => {
       const fakeId = '00000000-0000-4000-a000-000000000000';
-      const { error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: fakeId,
-        p_hard_delete: false,
+      const { error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: fakeId,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
 
       expect(error).toBeTruthy();
@@ -462,17 +546,25 @@ describe('Marketplace: Seller Schema Provisioning', () => {
 
     it('should reject deprovisioning the owner schema (seller_main)', async () => {
       // Get owner seller ID
-      const { data: owner } = await serviceClient
-        .from('sellers')
-        .select('id')
-        .eq('slug', 'main')
-        .single();
+      const { data: owner } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('id')
+          .eq('slug', 'main')
+          .single();
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(owner).toBeTruthy();
 
-      const { error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: owner!.id,
-        p_hard_delete: false,
+      const { error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: owner!.id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
 
       expect(error).toBeTruthy();
@@ -480,15 +572,23 @@ describe('Marketplace: Seller Schema Provisioning', () => {
     });
 
     it('should reject hard-deleting the owner schema (seller_main)', async () => {
-      const { data: owner } = await serviceClient
-        .from('sellers')
-        .select('id')
-        .eq('slug', 'main')
-        .single();
+      const { data: owner } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('id')
+          .eq('slug', 'main')
+          .single();
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
-      const { error } = await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: owner!.id,
-        p_hard_delete: true,
+      const { error } = await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: owner!.id,
+          p_hard_delete: true,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
 
       expect(error).toBeTruthy();
@@ -501,9 +601,13 @@ describe('Marketplace: Seller Schema Provisioning', () => {
       const seller = await provisionTestSeller(slug, 'Anon Deprovision Test');
       createdSellerIds.push(seller.seller_id);
 
-      const { error } = await anonClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: false,
+      const { error } = await withRetry(async () => {
+        const result = await anonClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
       });
 
       expect(error).toBeTruthy();
@@ -517,10 +621,14 @@ describe('Marketplace: Seller Schema Provisioning', () => {
 
   describe('sellers table — RLS policies', () => {
     it('should allow anon to read active sellers', async () => {
-      const { data, error } = await anonClient
-        .from('sellers')
-        .select('id, slug, display_name, status')
-        .eq('status', 'active');
+      const { data, error } = await withRetry(async () => {
+        const result = await anonClient
+          .from('sellers')
+          .select('id, slug, display_name, status')
+          .eq('status', 'active');
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(error).toBeNull();
       expect(data).toBeTruthy();
@@ -537,53 +645,76 @@ describe('Marketplace: Seller Schema Provisioning', () => {
       const seller = await provisionTestSeller(slug, 'Inactive RLS Test');
       createdSellerIds.push(seller.seller_id);
 
-      await serviceClient.rpc('deprovision_seller_schema', {
-        p_seller_id: seller.seller_id,
-        p_hard_delete: false,
+      await withRetry(async () => {
+        const result = await serviceClient.rpc('deprovision_seller_schema', {
+          p_seller_id: seller.seller_id,
+          p_hard_delete: false,
+        });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
       });
+      await waitForPostgrest();
 
       // Anon should not see deprovisioned sellers
-      const { data } = await anonClient
-        .from('sellers')
-        .select('id')
-        .eq('id', seller.seller_id);
+      const { data } = await withRetry(async () => {
+        const result = await anonClient
+          .from('sellers')
+          .select('id')
+          .eq('id', seller.seller_id);
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(data).toEqual([]);
     });
 
     it('should NOT allow anon to insert into sellers', async () => {
-      const { error } = await anonClient
-        .from('sellers')
-        .insert({
-          slug: `anon-insert-${TEST_ID}`,
-          schema_name: 'seller_anon_insert',
-          display_name: 'Anon Insert',
-        });
+      const { error } = await withRetry(async () => {
+        const result = await anonClient
+          .from('sellers')
+          .insert({
+            slug: `anon-insert-${TEST_ID}`,
+            schema_name: 'seller_anon_insert',
+            display_name: 'Anon Insert',
+          });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(error).toBeTruthy();
     });
 
     it('should NOT allow anon to delete sellers', async () => {
-      const { error } = await anonClient
-        .from('sellers')
-        .delete()
-        .eq('slug', 'main');
+      await withRetry(async () => {
+        const result = await anonClient
+          .from('sellers')
+          .delete()
+          .eq('slug', 'main');
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+      });
 
       // Even if no RLS error, no rows should be deleted
       // (RLS blocks the operation or returns 0 rows)
-      const { data: owner } = await serviceClient
-        .from('sellers')
-        .select('id')
-        .eq('slug', 'main')
-        .single();
+      const { data: owner } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('id')
+          .eq('slug', 'main')
+          .single();
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(owner).toBeTruthy(); // Owner still exists
     });
 
     it('should allow service_role full access to sellers', async () => {
-      const { data, error } = await serviceClient
-        .from('sellers')
-        .select('*');
+      const { data, error } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .select('*');
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(error).toBeNull();
       expect(data!.length).toBeGreaterThan(0);
@@ -602,27 +733,35 @@ describe('Marketplace: Seller Schema Provisioning', () => {
 
       // Direct insert with same slug should fail
       const sanitizedSlug = slug.replace(/-/g, '_');
-      const { error } = await serviceClient
-        .from('sellers')
-        .insert({
-          slug: sanitizedSlug,
-          schema_name: `seller_${sanitizedSlug}_dup`,
-          display_name: 'Duplicate',
-        });
+      const { error } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .insert({
+            slug: sanitizedSlug,
+            schema_name: `seller_${sanitizedSlug}_dup`,
+            display_name: 'Duplicate',
+          });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(error).toBeTruthy();
       expect(error!.message).toContain('duplicate');
     });
 
     it('should enforce status check constraint (valid values only)', async () => {
-      const { error } = await serviceClient
-        .from('sellers')
-        .insert({
-          slug: `bad-status-${TEST_ID}`,
-          schema_name: `seller_bad_status_${TEST_ID}`,
-          display_name: 'Bad Status',
-          status: 'invalid_status',
-        });
+      const { error } = await withRetry(async () => {
+        const result = await serviceClient
+          .from('sellers')
+          .insert({
+            slug: `bad-status-${TEST_ID}`,
+            schema_name: `seller_bad_status_${TEST_ID}`,
+            display_name: 'Bad Status',
+            status: 'invalid_status',
+          });
+        if (result.error?.message?.includes('schema cache')) throw new Error(result.error.message);
+        return result;
+      });
 
       expect(error).toBeTruthy();
       expect(error!.message).toContain('check');

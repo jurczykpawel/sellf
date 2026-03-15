@@ -2,16 +2,16 @@
 // API endpoint for exporting payment data as CSV
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminApiWithRequest } from '@/lib/auth-server';
+import { createSchemaAwareAdminClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdminApiWithRequest(request);
+    const { user } = await requireAdminOrSellerApiWithRequest(request);
 
     // Use admin client for seller_main data (FK embedding requires correct schema)
-    const supabase = createAdminClient();
+    const supabase = await createSchemaAwareAdminClient();
 
     // SECURITY: Rate limit export operations (heavy DB queries)
     const rateLimitOk = await checkRateLimit(
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     // Create CSV content
     const csvContent = [
       csvHeaders.join(','),
-      ...csvRows.map(row =>
+      ...csvRows.map((row: any[]) =>
         row.map(sanitizeCsvField).join(',')
       )
     ].join('\n');

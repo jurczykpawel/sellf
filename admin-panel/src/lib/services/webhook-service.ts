@@ -8,12 +8,18 @@ interface WebhookPayload {
   data: any;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClientLike = any;
+
 export class WebhookService {
   /**
    * Triggers webhooks for a specific event to all subscribers.
+   * @param event - event type (e.g. 'purchase.completed')
+   * @param data - event payload data
+   * @param client - optional schema-scoped Supabase client (defaults to seller_main)
    */
-  static async trigger(event: string, data: any) {
-    const supabase = createAdminClient();
+  static async trigger(event: string, data: any, client?: SupabaseClientLike) {
+    const supabase = client || createAdminClient();
 
     try {
       const { data: endpoints, error } = await supabase
@@ -35,8 +41,8 @@ export class WebhookService {
       const payload: WebhookPayload = { event, timestamp, data };
 
       // Execute in parallel
-      const promises = endpoints.map(endpoint => 
-        this.dispatchWebhook(endpoint, event, payload)
+      const promises = endpoints.map((endpoint: { id: string; url: string; secret: string }) =>
+        this.dispatchWebhook(endpoint, event, payload, {}, supabase)
       );
 
       await Promise.allSettled(promises);
@@ -48,10 +54,11 @@ export class WebhookService {
 
   /**
    * Sends a test event to a specific endpoint
+   * @param client - optional schema-scoped Supabase client (defaults to seller_main)
    */
-  static async testEndpoint(endpointId: string, eventType: string = 'test.event') {
-    const supabase = createAdminClient();
-    
+  static async testEndpoint(endpointId: string, eventType: string = 'test.event', client?: SupabaseClientLike) {
+    const supabase = client || createAdminClient();
+
     const { data: endpoint, error } = await supabase
       .from('webhook_endpoints')
       .select('*')
@@ -70,15 +77,16 @@ export class WebhookService {
       data: mockData,
     };
 
-    return this.dispatchWebhook(endpoint, eventType, payload);
+    return this.dispatchWebhook(endpoint, eventType, payload, {}, supabase);
   }
 
   /**
    * Retries a specific webhook log entry.
    * Marks the old log as 'retried' if the retry request is dispatched successfully.
+   * @param client - optional schema-scoped Supabase client (defaults to seller_main)
    */
-  static async retry(logId: string) {
-    const supabase = createAdminClient();
+  static async retry(logId: string, client?: SupabaseClientLike) {
+    const supabase = client || createAdminClient();
 
     const { data: log, error: logError } = await supabase
       .from('webhook_logs')
@@ -105,7 +113,7 @@ export class WebhookService {
     }
 
     const options = { headers: { 'X-Sellf-Retry': 'true' } };
-    const result = await this.dispatchWebhook(endpoint, log.event_type, log.payload, options);
+    const result = await this.dispatchWebhook(endpoint, log.event_type, log.payload, options, supabase);
 
     // If dispatch executed (even if it failed HTTP-wise, we logged a new attempt),
     // mark the OLD log as retried to clean up the queue.
@@ -124,16 +132,17 @@ export class WebhookService {
    * Handles signing, sending, and logging.
    */
   private static async dispatchWebhook(
-    endpoint: { id: string; url: string; secret: string }, 
-    event: string, 
+    endpoint: { id: string; url: string; secret: string },
+    event: string,
     payload: any,
-    extraOptions: { headers?: Record<string, string> } = {}
+    extraOptions: { headers?: Record<string, string> } = {},
+    client?: SupabaseClientLike
   ) {
-    const supabase = createAdminClient();
+    const supabase = client || createAdminClient();
     const payloadString = JSON.stringify(payload);
     const signature = this.signPayload(payloadString, endpoint.secret);
     const timestamp = payload.timestamp || new Date().toISOString();
-    
+
     let responseStatus = 0;
     let responseBody = '';
     let errorMessage = null;
@@ -162,7 +171,7 @@ export class WebhookService {
 
       responseStatus = response.status;
       responseBody = await response.text();
-      
+
       if (response.ok) {
         status = 'success';
       } else {
@@ -181,7 +190,7 @@ export class WebhookService {
       }
     } finally {
       const duration = Date.now() - startTime;
-      
+
       // Log result
       await supabase.from('webhook_logs').insert({
         endpoint_id: endpoint.id,

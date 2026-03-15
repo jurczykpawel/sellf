@@ -377,7 +377,7 @@ describe('TS-A01: API routes must require authentication', () => {
 
   it('gus route calls an auth helper before processing', () => {
     const hasAuthCheck = (
-      /requireAdminApi\s*\(/.test(source) ||
+      /require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(source) ||
       /requireMarketplaceAdmin\s*\(/.test(source) ||
       /\bauthenticate\s*\(/.test(source) ||
       /\.auth\.getUser\s*\(/.test(source)
@@ -444,9 +444,9 @@ describe('TS-C01: admin routes must use createAdminClient()', () => {
     });
   }
 
-  it('admin/coupons uses createAdminClient', () => {
+  it('admin/coupons uses createAdminClient or createSchemaAwareAdminClient', () => {
     const source = src('app/api/admin/coupons/route.ts');
-    expect(source).toContain('createAdminClient');
+    expect(source).toMatch(/createAdminClient|createSchemaAwareAdminClient/);
   });
 });
 

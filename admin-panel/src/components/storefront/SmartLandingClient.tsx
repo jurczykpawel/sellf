@@ -12,12 +12,15 @@ interface SmartLandingClientProps {
   hasProducts: boolean;
   products: Product[];
   shopConfig: ShopConfig | null;
+  /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
+  productLinkPrefix?: string;
 }
 
 export default function SmartLandingClient({
   hasProducts,
   products,
   shopConfig,
+  productLinkPrefix,
 }: SmartLandingClientProps) {
   const { user, isAdmin, loading } = useAuth();
 
@@ -68,6 +71,7 @@ export default function SmartLandingClient({
         featuredProducts={featuredProducts}
         freeProducts={freeProducts}
         paidProducts={paidProducts}
+        productLinkPrefix={productLinkPrefix}
       />
     </DashboardLayout>
   );

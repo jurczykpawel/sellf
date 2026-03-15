@@ -193,6 +193,19 @@ describe('License Verification', () => {
     it('should not match subdomain to base domain license', () => {
       expect(doesDomainMatch('example.com', 'app.example.com')).toBe(false);
     });
+
+    it('should match seller slug exactly', () => {
+      expect(doesDomainMatch('kowalski-digital', 'kowalski-digital')).toBe(true);
+    });
+
+    it('should not match different seller slugs', () => {
+      expect(doesDomainMatch('kowalski-digital', 'creative-studio')).toBe(false);
+    });
+
+    it('should not match slug to domain with same name', () => {
+      // slug "kowalski-digital" does not match domain "kowalski-digital.com"
+      expect(doesDomainMatch('kowalski-digital', 'kowalski-digital.com')).toBe(false);
+    });
   });
 
   describe('extractDomainFromUrl', () => {

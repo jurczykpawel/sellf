@@ -12,10 +12,14 @@ interface AccessResponse {
 
 export async function checkProductAccess(
   productSlug: string,
-  options?: { signal?: AbortSignal }
+  options?: { signal?: AbortSignal; sellerSlug?: string }
 ): Promise<AccessResponse> {
+  const url = options?.sellerSlug
+    ? `/api/public/products/${productSlug}/access?seller=${encodeURIComponent(options.sellerSlug)}`
+    : `/api/public/products/${productSlug}/access`;
+
   const response = await fetchWithTimeout(
-    `/api/public/products/${productSlug}/access`,
+    url,
     { signal: options?.signal }
   );
 

@@ -12,7 +12,7 @@ import {
   jsonResponse,
   noContentResponse,
   apiError,
-  authenticate,
+  authenticatePlatformAdmin,
   handleApiError,
   parseJsonBody,
   successResponse,
@@ -36,7 +36,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_READ]);
     const { id: userId, accessId } = await params;
 
     // Validate IDs
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_WRITE]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_WRITE]);
     const { id: userId, accessId } = await params;
 
     // Validate IDs
@@ -240,7 +240,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_WRITE]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_WRITE]);
     const { id: userId, accessId } = await params;
 
     // Validate IDs

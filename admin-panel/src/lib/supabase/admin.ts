@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
+import { isValidSellerSchema } from '@/lib/marketplace/tenant'
 
 /**
  * Creates a Supabase client with the Service Role key targeting seller_main schema.
@@ -35,6 +36,61 @@ export function createAdminClient() {
       },
     }
   )
+}
+
+/**
+ * Creates a schema-aware admin client for the dashboard.
+ * Checks if the current user is a seller owner and scopes to their schema.
+ *
+ * - Platform admin: returns seller_main client (default)
+ * - Seller admin: returns client scoped to their seller schema
+ *
+ * Uses Supabase auth (via cookies) to identify the user, then checks
+ * public.sellers for ownership. This is server-side only.
+ *
+ * WARNING: Returns a service_role client that bypasses RLS.
+ * Callers MUST verify admin/seller auth before calling this function.
+ * Use requireAdminOrSellerApi() or verifyAdminOrSellerAccess() first.
+ *
+ * Use this in server actions and API routes that serve the admin dashboard.
+ * For non-dashboard contexts (webhooks, verify-payment), use createAdminClient() directly.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function createSchemaAwareAdminClient(): Promise<any> {
+  if (typeof window !== 'undefined') {
+    throw new Error('createSchemaAwareAdminClient can only be called on the server')
+  }
+  // Lazy import to avoid circular dependencies
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('createSchemaAwareAdminClient: No authenticated user. Call requireAdminOrSellerApi first.')
+  }
+
+  // Check if user owns a seller
+  const platform = createPlatformClient()
+  const { data: seller } = await platform
+    .from('sellers')
+    .select('schema_name')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (seller?.schema_name && isValidSellerSchema(seller.schema_name)) {
+    const supabaseUrl = process.env.SUPABASE_URL!
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+    }
+    return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+      db: { schema: seller.schema_name },
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  }
+
+  return createAdminClient()
 }
 
 /**

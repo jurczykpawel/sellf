@@ -31,6 +31,7 @@ export {
   apiError,
   authenticate,
   authenticateAdmin, // deprecated, use authenticate
+  authenticatePlatformAdmin,
   requireScope,
   ApiAuthError,
   ApiValidationError,

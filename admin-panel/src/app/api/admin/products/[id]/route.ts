@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createSchemaAwareAdminClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 import {
   validateProductId,
   validateUpdateProduct,
@@ -63,15 +64,16 @@ export async function GET(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    
+
     // SECURITY: Verify admin access
     try {
-      await requireAdminApi(supabase);
+      await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Validate product ID
     const idValidation = validateProductId(id);
@@ -80,7 +82,7 @@ export async function GET(
     }
 
     // Get product by ID
-    const { data: product, error } = await supabase
+    const { data: product, error } = await (dataClient as any)
       .from('products')
       .select('*')
       .eq('id', id)
@@ -115,15 +117,16 @@ export async function PUT(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    
+
     // SECURITY: Verify admin access
     try {
-      await requireAdminApi(supabase);
+      await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Validate product ID
     const idValidation = validateProductId(id);
@@ -155,7 +158,7 @@ export async function PUT(
 
     // Check if slug is unique (if being updated)
     if (sanitizedData.slug) {
-      const { data: existingProduct, error: slugCheckError } = await supabase
+      const { data: existingProduct, error: slugCheckError } = await (dataClient as any)
         .from('products')
         .select('id')
         .eq('slug', sanitizedData.slug)
@@ -173,7 +176,7 @@ export async function PUT(
     }
 
     // Update product
-    const { data: updatedProduct, error } = await supabase
+    const { data: updatedProduct, error } = await (dataClient as any)
       .from('products')
       .update(sanitizedData)
       .eq('id', id)
@@ -190,7 +193,7 @@ export async function PUT(
 
     // Update categories if present in request
     if (categories && Array.isArray(categories)) {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await (dataClient as any)
         .from('product_categories')
         .delete()
         .eq('product_id', id);
@@ -203,7 +206,7 @@ export async function PUT(
           category_id: catId
         }));
         
-        const { error: insertError } = await supabase
+        const { error: insertError } = await (dataClient as any)
           .from('product_categories')
           .insert(categoryInserts);
           
@@ -234,15 +237,16 @@ export async function DELETE(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    
+
     // SECURITY: Verify admin access
     try {
-      await requireAdminApi(supabase);
+      await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Validate product ID
     const idValidation = validateProductId(id);
@@ -251,7 +255,7 @@ export async function DELETE(
     }
 
     // Check if product exists and has no active user accesses
-    const { data: userAccesses, error: accessCheckError } = await supabase
+    const { data: userAccesses, error: accessCheckError } = await (dataClient as any)
       .from('user_product_access')
       .select('id')
       .eq('product_id', id)
@@ -267,7 +271,7 @@ export async function DELETE(
     }
 
     // Delete product
-    const { error } = await supabase
+    const { error } = await (dataClient as any)
       .from('products')
       .delete()
       .eq('id', id);

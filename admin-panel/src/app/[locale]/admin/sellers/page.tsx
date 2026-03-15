@@ -58,19 +58,33 @@ function StripeStatusBadge({ connected, onboardingComplete }: { connected: boole
 
 function SellerRow({ seller }: { seller: SellerListItem }) {
   const isOwner = seller.schema_name === 'seller_main';
+  const storefrontUrl = isOwner ? '/' : `/s/${seller.slug.replace(/_/g, '-')}`;
 
   return (
     <tr className="border-b border-sf-border hover:bg-sf-surface/50 transition-colors">
       <td className="px-4 py-3">
-        <div>
-          <span className="text-sf-heading font-medium">{seller.display_name}</span>
+        <div className="flex items-center gap-2">
+          <a
+            href={storefrontUrl}
+            className="text-sf-heading font-medium hover:text-sf-accent transition-colors"
+            title={`Open ${seller.display_name} storefront`}
+          >
+            {seller.display_name}
+          </a>
           {isOwner && (
-            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
               Owner
             </span>
           )}
         </div>
-        <div className="text-xs text-sf-muted mt-0.5">{seller.slug}</div>
+        <div className="text-xs text-sf-muted mt-0.5">
+          <a
+            href={storefrontUrl}
+            className="hover:text-sf-accent transition-colors"
+          >
+            {seller.slug} →
+          </a>
+        </div>
       </td>
       <td className="px-4 py-3">
         <SellerStatusBadge status={seller.status} />

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Store, CreditCard, FileText, Wrench } from 'lucide-react'
+import { Store, CreditCard, FileText, Wrench, ShoppingBag } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ShopSettings from './ShopSettings'
 import BrandingSettings from './BrandingSettings'
@@ -14,28 +14,39 @@ import OmnibusSettings from './OmnibusSettings'
 import LicenseSettings from './LicenseSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
+import MarketplaceSettings from './MarketplaceSettings'
 import { useConfig } from '@/components/providers/config-provider'
 
-type TabId = 'shop' | 'payments' | 'legal' | 'system'
+type TabId = 'shop' | 'payments' | 'legal' | 'system' | 'marketplace'
 
-const TABS = [
-  { id: 'shop' as TabId,     icon: Store,      labelKey: 'tabs.shop' },
-  { id: 'payments' as TabId, icon: CreditCard, labelKey: 'tabs.payments' },
-  { id: 'legal' as TabId,    icon: FileText,   labelKey: 'tabs.legal' },
-  { id: 'system' as TabId,   icon: Wrench,     labelKey: 'tabs.system' },
+const BASE_TABS = [
+  { id: 'shop' as TabId,        icon: Store,       labelKey: 'tabs.shop' },
+  { id: 'payments' as TabId,    icon: CreditCard,  labelKey: 'tabs.payments' },
+  { id: 'legal' as TabId,       icon: FileText,    labelKey: 'tabs.legal' },
+  { id: 'marketplace' as TabId, icon: ShoppingBag, labelKey: 'tabs.marketplace' },
+  { id: 'system' as TabId,      icon: Wrench,      labelKey: 'tabs.system' },
 ]
 
-export default function SettingsTabs({ siteUrl }: { siteUrl: string }) {
+interface SettingsTabsProps {
+  siteUrl: string
+  marketplaceEnabled?: boolean
+}
+
+export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: SettingsTabsProps) {
   const t = useTranslations('settings')
   const [active, setActive] = useState<TabId>('shop')
   const { demoMode } = useConfig()
+
+  const tabs = marketplaceEnabled
+    ? BASE_TABS
+    : BASE_TABS.filter(tab => tab.id !== 'marketplace')
 
   return (
     <div>
       {/* Tab bar */}
       <div className="border-b-2 border-sf-border-medium mb-8">
         <nav className="flex -mb-[2px] overflow-x-auto">
-          {TABS.map(({ id, icon: Icon, labelKey }) => (
+          {tabs.map(({ id, icon: Icon, labelKey }) => (
             <button
               key={id}
               onClick={() => setActive(id)}
@@ -75,6 +86,10 @@ export default function SettingsTabs({ siteUrl }: { siteUrl: string }) {
             <LegalDocumentsSettings />
             <OmnibusSettings />
           </>
+        )}
+
+        {active === 'marketplace' && (
+          <MarketplaceSettings />
         )}
 
         {active === 'system' && (

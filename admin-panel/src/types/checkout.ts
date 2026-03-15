@@ -30,6 +30,7 @@ export interface CreateCheckoutRequest {
   couponCode?: string; // NEW: Optional discount code
   successUrl?: string; // NEW: Optional OTO redirect URL
   customAmount?: number; // Pay What You Want - customer-chosen price
+  sellerSlug?: string; // Marketplace: seller slug for schema resolution
 }
 
 export interface CreateCheckoutResponse {

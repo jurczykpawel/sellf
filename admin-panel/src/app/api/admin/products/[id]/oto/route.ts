@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createSchemaAwareAdminClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,15 +19,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     // Check admin access
     try {
-      await requireAdminApi(supabase);
+      await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status });
     }
+    const dataClient = await createSchemaAwareAdminClient();
 
     // Fetch OTO configuration via RPC
-    const { data, error } = await supabase.rpc('admin_get_product_oto_offer', {
+    const { data, error } = await (dataClient as any).rpc('admin_get_product_oto_offer', {
       product_id_param: productId
     });
 
@@ -81,16 +83,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Check admin access
     try {
-      await requireAdminApi(supabase);
+      await requireAdminOrSellerApi(supabase);
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : 'Unauthorized';
       const status = errorMessage === 'Forbidden' ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status });
     }
+    const dataClient = await createSchemaAwareAdminClient();
 
     if (oto_enabled && oto_product_id) {
       // Save OTO configuration
-      const { data, error } = await supabase.rpc('admin_save_oto_offer', {
+      const { data, error } = await (dataClient as any).rpc('admin_save_oto_offer', {
         source_product_id_param: productId,
         oto_product_id_param: oto_product_id,
         discount_type_param: oto_discount_type || 'percentage',
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(data);
     } else {
       // Delete OTO configuration
-      const { data, error } = await supabase.rpc('admin_delete_oto_offer', {
+      const { data, error } = await (dataClient as any).rpc('admin_delete_oto_offer', {
         source_product_id_param: productId
       });
 

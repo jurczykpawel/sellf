@@ -9,7 +9,7 @@ import {
   handleCorsPreFlight,
   jsonResponse,
   apiError,
-  authenticate,
+  authenticatePlatformAdmin,
   handleApiError,
   successResponse,
   parseLimit,
@@ -56,7 +56,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate with users:read scope
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_READ]);
 
     // Use admin client to access user views
     const adminClient = createAdminClient();

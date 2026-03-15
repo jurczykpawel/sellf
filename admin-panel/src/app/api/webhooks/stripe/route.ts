@@ -367,6 +367,21 @@ async function handleChargeRefunded(
     return { processed: false, message: 'No payment_intent in charge' };
   }
 
+  // Marketplace: resolve seller schema from PaymentIntent metadata
+  try {
+    const stripe = await getStripeServer();
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (pi.metadata?.is_marketplace === 'true' && pi.metadata.seller_schema) {
+      if (isValidSellerSchema(pi.metadata.seller_schema)) {
+        supabase = getServiceClient(pi.metadata.seller_schema);
+      } else {
+        console.error('[Stripe Webhook] Invalid seller_schema in refund PI metadata: %s', pi.metadata.seller_schema);
+      }
+    }
+  } catch (piErr) {
+    console.error('[Stripe Webhook] Failed to retrieve PI for refund seller routing:', piErr);
+  }
+
   // Find transaction by payment intent ID (include session_id for guest cleanup)
   const { data: transaction, error: txError } = await supabase
     .from('payment_transactions')
@@ -479,6 +494,20 @@ async function handleChargeDisputeCreated(
 
   if (!paymentIntentId) {
     return { processed: false, message: 'No payment_intent in disputed charge' };
+  }
+
+  // Marketplace: resolve seller schema from PaymentIntent metadata
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (pi.metadata?.is_marketplace === 'true' && pi.metadata.seller_schema) {
+      if (isValidSellerSchema(pi.metadata.seller_schema)) {
+        supabase = getServiceClient(pi.metadata.seller_schema);
+      } else {
+        console.error('[Stripe Webhook] Invalid seller_schema in dispute PI metadata: %s', pi.metadata.seller_schema);
+      }
+    }
+  } catch (piErr) {
+    console.error('[Stripe Webhook] Failed to retrieve PI for dispute seller routing:', piErr);
   }
 
   // Find transaction (include session_id for guest cleanup)

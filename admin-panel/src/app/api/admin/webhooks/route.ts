@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createSchemaAwareAdminClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 /**
  * SECURITY FIX (V8): Validate webhook URL to prevent SSRF attacks.
@@ -88,9 +89,10 @@ function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient();
 
-    const { data: endpoints, error } = await supabase
+    const { data: endpoints, error } = await (dataClient as any)
       .from('webhook_endpoints')
       .select('id, url, events, description, is_active, created_at, updated_at')
       .order('created_at', { ascending: false });
@@ -110,7 +112,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    await requireAdminOrSellerApi(supabase);
+    const dataClient = await createSchemaAwareAdminClient();
 
     const body = await request.json();
     const { url, events, description } = body;
@@ -125,7 +128,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Invalid webhook URL: ${urlValidation.error}` }, { status: 400 });
     }
 
-    const { data: endpoint, error } = await supabase
+    const { data: endpoint, error } = await (dataClient as any)
       .from('webhook_endpoints')
       .insert({
         url,

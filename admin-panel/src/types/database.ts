@@ -159,7 +159,7 @@ export type Database = {
       }
       api_keys: {
         Row: {
-          admin_user_id: string
+          admin_user_id: string | null
           created_at: string
           expires_at: string | null
           id: string
@@ -175,10 +175,11 @@ export type Database = {
           rotated_from_id: string | null
           rotation_grace_until: string | null
           scopes: Json
+          seller_id: string | null
           usage_count: number
         }
         Insert: {
-          admin_user_id: string
+          admin_user_id?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -194,10 +195,11 @@ export type Database = {
           rotated_from_id?: string | null
           rotation_grace_until?: string | null
           scopes?: Json
+          seller_id?: string | null
           usage_count?: number
         }
         Update: {
-          admin_user_id?: string
+          admin_user_id?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -213,6 +215,7 @@ export type Database = {
           rotated_from_id?: string | null
           rotation_grace_until?: string | null
           scopes?: Json
+          seller_id?: string | null
           usage_count?: number
         }
         Relationships: [
@@ -228,6 +231,13 @@ export type Database = {
             columns: ["rotated_from_id"]
             isOneToOne: false
             referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
             referencedColumns: ["id"]
           },
         ]
@@ -2421,6 +2431,16 @@ export type Database = {
           orders: number
         }[]
       }
+      get_seller_for_user: {
+        Args: { p_user_id?: string }
+        Returns: {
+          display_name: string
+          schema_name: string
+          seller_id: string
+          seller_slug: string
+          status: string
+        }[]
+      }
       get_user_payment_history: {
         Args: { user_id_param: string }
         Returns: {
@@ -2432,6 +2452,28 @@ export type Database = {
           refunded_amount: number
           status: string
           transaction_id: string
+        }[]
+      }
+      get_user_products_all_sellers: {
+        Args: never
+        Returns: {
+          access_expires_at: string
+          access_granted_at: string
+          product_currency: string
+          product_icon: string
+          product_id: string
+          product_name: string
+          product_price: number
+          product_slug: string
+          refund_request_status: string
+          refunded_amount: number
+          seller_display_name: string
+          seller_slug: string
+          transaction_amount: number
+          transaction_currency: string
+          transaction_date: string
+          transaction_id: string
+          transaction_status: string
         }[]
       }
       get_user_profile: { Args: { user_id_param: string }; Returns: Json }
@@ -2563,6 +2605,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      migrate_guest_purchases_all_schemas: {
+        Args: { p_email: string; p_user_id: string }
+        Returns: number
+      }
       pg_get_coldef: {
         Args: {
           in_column: string
@@ -2659,6 +2705,7 @@ export type Database = {
           rate_limit_per_minute: number
           rejection_reason: string
           scopes: Json
+          seller_id: string
         }[]
       }
       verify_coupon: {

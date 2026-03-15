@@ -14,6 +14,8 @@ interface StorefrontProps {
   featuredProducts: Product[];
   freeProducts: Product[];
   paidProducts: Product[];
+  /** Override product link prefix. Default: '/p'. For seller storefronts: '/s/seller-slug' */
+  productLinkPrefix?: string;
 }
 
 type FilterType = 'all' | 'featured' | 'free' | 'premium';
@@ -24,6 +26,7 @@ export default function Storefront({
   featuredProducts,
   freeProducts,
   paidProducts,
+  productLinkPrefix = '/p',
 }: StorefrontProps) {
   const t = useTranslations('storefront');
   const [mounted, setMounted] = useState(false);
@@ -178,6 +181,7 @@ export default function Storefront({
                     key={product.id}
                     product={product}
                     t={t}
+                    productLinkPrefix={productLinkPrefix}
                     isHero={index === 0 && featuredProducts.length > 1}
                     showFeaturedBadge
                   />
@@ -201,6 +205,7 @@ export default function Storefront({
                     key={product.id}
                     product={product}
                     t={t}
+                    productLinkPrefix={productLinkPrefix}
                     showFreeBadge
                   />
                 ))}
@@ -236,6 +241,7 @@ export default function Storefront({
                     key={product.id}
                     product={product}
                     t={t}
+                    productLinkPrefix={productLinkPrefix}
                   />
                 ))}
               </RevealGroup>
@@ -305,19 +311,21 @@ function ProductRow({
   isHero = false,
   showFeaturedBadge = false,
   showFreeBadge = false,
+  productLinkPrefix = '/p',
 }: {
   product: Product;
   t: ReturnType<typeof useTranslations<'storefront'>>;
   isHero?: boolean;
   showFeaturedBadge?: boolean;
   showFreeBadge?: boolean;
+  productLinkPrefix?: string;
 }) {
   const isFree = product.price === 0;
   const hasAccessDuration = product.auto_grant_duration_days && product.auto_grant_duration_days > 0;
 
   return (
     <Link
-      href={`/p/${product.slug}`}
+      href={`${productLinkPrefix}/${product.slug}`}
       className={`group flex items-stretch border rounded-xl overflow-hidden mb-2.5 transition-all duration-250 bg-sf-raised cursor-pointer ${
         isHero
           ? 'border-sf-border-accent relative'

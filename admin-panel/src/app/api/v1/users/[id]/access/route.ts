@@ -10,7 +10,7 @@ import {
   handleCorsPreFlight,
   jsonResponse,
   apiError,
-  authenticate,
+  authenticatePlatformAdmin,
   handleApiError,
   parseJsonBody,
   ApiValidationError,
@@ -44,7 +44,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_READ]);
     const { id: userId } = await params;
 
     // Validate user ID format
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_WRITE]);
+    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_WRITE]);
     const { id: userId } = await params;
 
     // Validate user ID format

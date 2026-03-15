@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function GET(
@@ -16,7 +17,27 @@ export async function GET(
     }
 
     const { slug } = await context.params;
+    const sellerSlug = request.nextUrl.searchParams.get('seller');
+
+    // Resolve seller slug → schema (server-side, never trust client with schema names)
+    let dataClient: ReturnType<typeof createSellerAdminClient> | Awaited<ReturnType<typeof createClient>> | null = null;
+    if (sellerSlug) {
+      const seller = await getSellerBySlug(sellerSlug);
+      if (!seller) {
+        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
+      }
+      // Service role client scoped to seller schema — bypasses RLS
+      // Safe because we authenticate the user separately via cookie-based client
+      dataClient = createSellerAdminClient(seller.schema_name);
+    }
+
+    // Auth client — always uses default schema with cookie-based session
     const supabase = await createClient();
+    
+    // If no seller, use the default auth client for data too
+    if (!dataClient) {
+      dataClient = supabase;
+    }
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -25,8 +46,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get product by slug
-    const { data: product, error: productError } = await supabase
+    // Get product by slug (from seller schema if applicable)
+    const { data: product, error: productError } = await dataClient
       .from('products')
       .select('id, name, slug, price, is_active, available_from, available_until')
       .eq('slug', slug)
@@ -51,8 +72,8 @@ export async function GET(
       });
     }
 
-    // Check user access with RLS
-    const { data: userAccess, error: accessError } = await supabase
+    // Check user access with RLS (from seller schema if applicable)
+    const { data: userAccess, error: accessError } = await dataClient
       .from('user_product_access')
       .select('access_expires_at, access_duration_days, created_at')
       .eq('user_id', user.id)
