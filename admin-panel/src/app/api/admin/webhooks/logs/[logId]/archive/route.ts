@@ -14,7 +14,7 @@ export async function POST(
     const authResult = await requireAdminOrSellerApi(supabase);
     const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { error } = await (dataClient as any)
+    const { error } = await dataClient
       .from('webhook_logs')
       .update({ status: 'archived' })
       .eq('id', logId);

@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     const authResult = await requireAdminOrSellerApi(supabase);
     const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { data: endpoints, error } = await (dataClient as any)
+    const { data: endpoints, error } = await dataClient
       .from('webhook_endpoints')
       .select('id, url, events, description, is_active, created_at, updated_at')
       .order('created_at', { ascending: false });
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Invalid webhook URL: ${urlValidation.error}` }, { status: 400 });
     }
 
-    const { data: endpoint, error } = await (dataClient as any)
+    const { data: endpoint, error } = await dataClient
       .from('webhook_endpoints')
       .insert({
         url,

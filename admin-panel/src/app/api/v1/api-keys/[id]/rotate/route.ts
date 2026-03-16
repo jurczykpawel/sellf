@@ -25,6 +25,9 @@ import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
 import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
 import { validateUUID } from '@/lib/validations/product';
+import type { Database } from '@/types/database';
+
+type ApiKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       : null;
 
     // Build insert payload preserving ownership from old key
-    const insertData: Record<string, unknown> = {
+    const baseInsert = {
       name: `${oldKey.name} (rotated)`,
       key_prefix: newKeyData.prefix,
       key_hash: newKeyData.hash,
@@ -117,15 +120,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       rotated_from_id: oldKey.id,
     };
 
-    if (owner.role === 'seller_admin') {
-      insertData.seller_id = oldKey.seller_id;
-    } else {
-      insertData.admin_user_id = owner.adminId;
-    }
+    const insertData: ApiKeyInsert = owner.role === 'seller_admin'
+      ? { ...baseInsert, seller_id: oldKey.seller_id }
+      : { ...baseInsert, admin_user_id: owner.adminId };
 
     // Create new key (api_keys in public schema — use platform client)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: newKey, error: insertError } = await (platformClient as any)
+    const { data: newKey, error: insertError } = await platformClient
       .from('api_keys')
       .insert(insertData)
       .select('id, name, key_prefix, scopes, rate_limit_per_minute, expires_at, created_at')

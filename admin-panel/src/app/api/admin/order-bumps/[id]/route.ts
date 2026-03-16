@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Validate bump_product_id if changed
     if (updates.bump_product_id) {
-      const { data: bumpProduct } = await (dataClient as any)
+      const { data: bumpProduct } = await dataClient
         .from('products')
         .select('id, is_active')
         .eq('id', updates.bump_product_id)
@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update order bump
-    const { data, error } = await (dataClient as any)
+    const { data, error } = await dataClient
       .from('order_bumps')
       .update({
         ...(updates.bump_product_id && { bump_product_id: updates.bump_product_id }),
@@ -123,7 +123,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     // Delete order bump
-    const { error } = await (dataClient as any)
+    const { error } = await dataClient
       .from('order_bumps')
       .delete()
       .eq('id', id);

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     // Fetch OTO configuration via RPC
-    const { data, error } = await (dataClient as any).rpc('admin_get_product_oto_offer', {
+    const { data, error } = await dataClient.rpc('admin_get_product_oto_offer', {
       product_id_param: productId
     });
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (oto_enabled && oto_product_id) {
       // Save OTO configuration
-      const { data, error } = await (dataClient as any).rpc('admin_save_oto_offer', {
+      const { data, error } = await dataClient.rpc('admin_save_oto_offer', {
         source_product_id_param: productId,
         oto_product_id_param: oto_product_id,
         discount_type_param: oto_discount_type || 'percentage',
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(data);
     } else {
       // Delete OTO configuration
-      const { data, error } = await (dataClient as any).rpc('admin_delete_oto_offer', {
+      const { data, error } = await dataClient.rpc('admin_delete_oto_offer', {
         source_product_id_param: productId
       });
 

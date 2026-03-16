@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const countOnly = searchParams.get('count') === 'true';
 
     // Base query
-    let query = (dataClient as any)
+    let query = dataClient
       .from('webhook_logs')
       .select(
         countOnly 

@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    const { data, error } = await (dataClient as any)
+    const { data, error } = await dataClient
       .from('coupons')
       .update(updateData)
       .eq('id', id)
@@ -82,7 +82,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAdminOrSellerApi(supabase);
     const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { error } = await (dataClient as any)
+    const { error } = await dataClient
       .from('coupons')
       .delete()
       .eq('id', id);

@@ -30,6 +30,9 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import type { Database } from '@/types/database';
+
+type ApiKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -189,7 +192,7 @@ export async function POST(request: NextRequest) {
     const generatedKey = generateApiKey(false); // Live key
 
     // Build insert payload based on role
-    const insertData: Record<string, unknown> = {
+    const baseInsert = {
       name: body.name.trim(),
       key_prefix: generatedKey.prefix,
       key_hash: generatedKey.hash,
@@ -198,12 +201,14 @@ export async function POST(request: NextRequest) {
       expires_at: expiresAt,
     };
 
+    let insertData: ApiKeyInsert;
+
     if (role === 'seller_admin') {
       const sellerId = await getSellerIdForUser(user.id);
       if (!sellerId) {
         return apiError(request, 'FORBIDDEN', 'Seller account not found');
       }
-      insertData.seller_id = sellerId;
+      insertData = { ...baseInsert, seller_id: sellerId };
       // admin_user_id stays NULL for seller keys
     } else {
       // Platform admin
@@ -216,14 +221,13 @@ export async function POST(request: NextRequest) {
       if (!admin) {
         return apiError(request, 'FORBIDDEN', 'Admin account not found');
       }
-      insertData.admin_user_id = admin.id;
+      insertData = { ...baseInsert, admin_user_id: admin.id };
       // seller_id stays NULL for platform keys
     }
 
     // Insert into database using platform client (api_keys is in public schema, needs service_role)
     const platformForInsert = createPlatformClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: newKey, error: insertError } = await (platformForInsert as any)
+    const { data: newKey, error: insertError } = await platformForInsert
       .from('api_keys')
       .insert(insertData)
       .select('id, name, key_prefix, scopes, rate_limit_per_minute, expires_at, created_at')

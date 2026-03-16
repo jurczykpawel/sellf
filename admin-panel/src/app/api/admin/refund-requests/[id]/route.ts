@@ -6,6 +6,15 @@ import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
+interface RefundProcessResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+  stripe_payment_intent_id?: string;
+  amount?: number;
+  transaction_id?: string;
+}
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -35,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Process the refund request using database function
-    const { data: processResult, error: processError } = await (dataClient as any)
+    const { data: rawResult, error: processError } = await dataClient
       .rpc('process_refund_request', {
         request_id_param: requestId,
         action_param: action,
@@ -44,7 +53,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (processError) throw processError;
 
-    if (!processResult.success) {
+    const processResult = rawResult as unknown as RefundProcessResult;
+
+    if (!processResult?.success) {
       return NextResponse.json(
         { error: processResult.error || processResult.message },
         { status: 400 }
@@ -58,7 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
         await stripe.refunds.create({
           payment_intent: processResult.stripe_payment_intent_id,
-          amount: Math.round(processResult.amount), // Amount is already in cents from DB
+          amount: Math.round(processResult.amount!), // Amount is already in cents from DB
           reason: 'requested_by_customer',
           metadata: {
             refund_request_id: requestId,
@@ -67,16 +78,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         });
 
         // Get current transaction to check existing refunded amount
-        const { data: transaction } = await (dataClient as any)
+        const { data: transaction } = await dataClient
           .from('payment_transactions')
           .select('user_id, product_id, amount, refunded_amount, session_id')
-          .eq('id', processResult.transaction_id)
+          .eq('id', processResult.transaction_id!)
           .single();
 
-        const totalRefunded = (transaction?.refunded_amount || 0) + processResult.amount;
+        const totalRefunded = (transaction?.refunded_amount || 0) + processResult.amount!;
         const isFullRefund = transaction ? totalRefunded >= transaction.amount : true;
 
-        const { data: updatedRows } = await (dataClient as any)
+        const { data: updatedRows } = await dataClient
           .from('payment_transactions')
           .update({
             refunded_amount: totalRefunded,
@@ -86,14 +97,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             refund_reason: admin_response || 'Customer request approved',
             updated_at: new Date().toISOString(),
           })
-          .eq('id', processResult.transaction_id)
+          .eq('id', processResult.transaction_id!)
           .eq('refunded_amount', transaction?.refunded_amount || 0)
           .select('id');
 
         // Revoke all product access on full refund (main + bumps, user + guest)
         if (isFullRefund && transaction) {
           const revocation = await revokeTransactionAccess(dataClient, {
-            transactionId: processResult.transaction_id,
+            transactionId: processResult.transaction_id!,
             userId: transaction.user_id,
             productId: transaction.product_id,
             sessionId: transaction.session_id,
@@ -124,7 +135,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       } catch (stripeError) {
         console.error('Stripe refund error:', stripeError);
         // Revert the request status since Stripe failed
-        await (dataClient as any)
+        await dataClient
           .from('refund_requests')
           .update({
             status: 'pending',

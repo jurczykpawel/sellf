@@ -24,6 +24,9 @@ import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
 import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
 import { validateUUID } from '@/lib/validations/product';
+import type { Database } from '@/types/database';
+
+type ApiKeyUpdate = Database['public']['Tables']['api_keys']['Update'];
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -154,7 +157,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       is_active?: boolean;
     }>(request);
 
-    const updateData: Record<string, unknown> = {};
+    const updateData: ApiKeyUpdate = {};
 
     // Validate and add name
     if (body.name !== undefined) {
@@ -180,7 +183,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update the key
-    const { data: updatedKey, error: updateError } = await (platformClient as any)
+    const { data: updatedKey, error: updateError } = await platformClient
       .from('api_keys')
       .update(updateData)
       .eq('id', id)
@@ -262,7 +265,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const reason = request.nextUrl.searchParams.get('reason') || null;
 
     // Revoke the key
-    const { error: revokeError } = await (platformClient as any)
+    const { error: revokeError } = await platformClient
       .from('api_keys')
       .update({
         is_active: false,

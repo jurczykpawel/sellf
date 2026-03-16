@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createDataClientFromAuth } from '@/lib/supabase/admin';
 
+import type { Database } from '@/types/database';
+
+type ProductUpdate = Database['seller_main']['Tables']['products']['Update'];
+
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
 import {
   validateProductId,
@@ -84,7 +88,7 @@ export async function GET(
     }
 
     // Get product by ID
-    const { data: product, error } = await (dataClient as any)
+    const { data: product, error } = await dataClient
       .from('products')
       .select('*')
       .eq('id', id)
@@ -161,10 +165,10 @@ export async function PUT(
 
     // Check if slug is unique (if being updated)
     if (sanitizedData.slug) {
-      const { data: existingProduct, error: slugCheckError } = await (dataClient as any)
+      const { data: existingProduct, error: slugCheckError } = await dataClient
         .from('products')
         .select('id')
-        .eq('slug', sanitizedData.slug)
+        .eq('slug', sanitizedData.slug as string)
         .neq('id', id)
         .maybeSingle();
       
@@ -179,9 +183,9 @@ export async function PUT(
     }
 
     // Update product
-    const { data: updatedProduct, error } = await (dataClient as any)
+    const { data: updatedProduct, error } = await dataClient
       .from('products')
-      .update(sanitizedData)
+      .update(sanitizedData as ProductUpdate)
       .eq('id', id)
       .select()
       .single();
@@ -196,7 +200,7 @@ export async function PUT(
 
     // Update categories if present in request
     if (categories && Array.isArray(categories)) {
-      const { error: deleteError } = await (dataClient as any)
+      const { error: deleteError } = await dataClient
         .from('product_categories')
         .delete()
         .eq('product_id', id);
@@ -209,7 +213,7 @@ export async function PUT(
           category_id: catId
         }));
         
-        const { error: insertError } = await (dataClient as any)
+        const { error: insertError } = await dataClient
           .from('product_categories')
           .insert(categoryInserts);
           
@@ -259,7 +263,7 @@ export async function DELETE(
     }
 
     // Check if product exists and has no active user accesses
-    const { data: userAccesses, error: accessCheckError } = await (dataClient as any)
+    const { data: userAccesses, error: accessCheckError } = await dataClient
       .from('user_product_access')
       .select('id')
       .eq('product_id', id)
@@ -275,7 +279,7 @@ export async function DELETE(
     }
 
     // Delete product
-    const { error } = await (dataClient as any)
+    const { error } = await dataClient
       .from('products')
       .delete()
       .eq('id', id);

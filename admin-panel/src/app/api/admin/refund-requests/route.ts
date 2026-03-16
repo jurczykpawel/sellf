@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Use the database function
-    const { data, error } = await (dataClient as any)
+    const { data, error } = await dataClient
       .rpc('get_admin_refund_requests', {
-        status_filter: status,
+        status_filter: status ?? undefined,
         limit_param: limit,
         offset_param: offset,
       });

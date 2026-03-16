@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createDataClientFromAuth } from '@/lib/supabase/admin';
 
+import type { Database } from '@/types/database';
+
+type ProductInsert = Database['seller_main']['Tables']['products']['Insert'];
+
 import {
   validateCreateProduct,
   sanitizeProductData,
@@ -83,7 +87,7 @@ export async function GET(request: NextRequest) {
     const sortBy = validateProductSortColumn(sortByRaw);
 
     // Build query
-    let query = (dataClient as any)
+    let query = dataClient
       .from('products')
       .select('*', { count: 'exact' });
 
@@ -181,10 +185,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug already exists
-    const { data: existingProduct, error: slugCheckError } = await (dataClient as any)
+    const { data: existingProduct, error: slugCheckError } = await dataClient
       .from('products')
       .select('id')
-      .eq('slug', sanitizedData.slug)
+      .eq('slug', sanitizedData.slug as string)
       .maybeSingle();
     
     if (slugCheckError) {
@@ -203,9 +207,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert product with sanitized data
-    const { data: product, error } = await (dataClient as any)
+    const { data: product, error } = await dataClient
       .from('products')
-      .insert([sanitizedData])
+      .insert([sanitizedData as ProductInsert])
       .select()
       .single();
 
@@ -224,7 +228,7 @@ export async function POST(request: NextRequest) {
         category_id: catId
       }));
       
-      const { error: catError } = await (dataClient as any)
+      const { error: catError } = await dataClient
         .from('product_categories')
         .insert(categoryInserts);
       

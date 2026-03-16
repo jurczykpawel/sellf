@@ -89,7 +89,7 @@ export async function DELETE(
     const authResult = await requireAdminOrSellerApi(supabase);
     const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { error } = await (dataClient as any)
+    const { error } = await dataClient
       .from('webhook_endpoints')
       .delete()
       .eq('id', id);
@@ -139,7 +139,7 @@ export async function PUT(
     if (body.events) updates.events = body.events;
     if (body.description !== undefined) updates.description = body.description;
 
-    const { data, error } = await (dataClient as any)
+    const { data, error } = await dataClient
       .from('webhook_endpoints')
       .update(updates)
       .eq('id', id)
