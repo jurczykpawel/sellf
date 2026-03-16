@@ -85,7 +85,7 @@ test.afterAll(async () => {
   // 1. Clear seller ownership
   await supabaseAdmin
     .from('sellers')
-    .update({ user_id: null })
+    .update({ user_id: 'eeeeeeee-1111-4000-a000-000000000001' })
     .eq('slug', 'kowalski_digital');
 
   // 2. Delete test webhooks (logs first due to FK)

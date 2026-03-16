@@ -144,7 +144,7 @@ test.describe('Marketplace E2E: Seller Admin Panel', () => {
     // Clear seller ownership
     await supabaseAdmin
       .from('sellers')
-      .update({ user_id: null })
+      .update({ user_id: 'eeeeeeee-1111-4000-a000-000000000001' })
       .eq('slug', 'kowalski_digital');
 
     await sellerOwner?.cleanup();
@@ -261,7 +261,7 @@ test.describe('Marketplace E2E: Cross-Schema Functions', () => {
     } finally {
       await supabaseAdmin
         .from('sellers')
-        .update({ user_id: null })
+        .update({ user_id: 'eeeeeeee-1111-4000-a000-000000000001' })
         .eq('slug', 'kowalski_digital');
       await user.cleanup();
     }
@@ -430,7 +430,7 @@ test.describe('Marketplace E2E: Seller Admin Products', () => {
   test.afterAll(async () => {
     await supabaseAdmin
       .from('sellers')
-      .update({ user_id: null })
+      .update({ user_id: 'eeeeeeee-1111-4000-a000-000000000001' })
       .eq('slug', 'kowalski_digital');
     await sellerOwner?.cleanup();
   });

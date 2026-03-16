@@ -68,10 +68,10 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  // Clear seller ownership
+  // Restore original seller ownership (seed user)
   await supabaseAdmin
     .from('sellers')
-    .update({ user_id: null })
+    .update({ user_id: 'eeeeeeee-1111-4000-a000-000000000001' })
     .eq('slug', 'kowalski_digital');
 
   // Cleanup seller API keys
