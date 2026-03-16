@@ -63,8 +63,7 @@ export function createAdminClient() {
  * Use this in server actions and API routes that serve the admin dashboard.
  * For non-dashboard contexts (webhooks, verify-payment), use createAdminClient() directly.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createSchemaAwareAdminClient(knownSellerSchema?: string): Promise<any> {
+export async function createSchemaAwareAdminClient(knownSellerSchema?: string): Promise<SellerDataClient> {
   if (typeof window !== 'undefined') {
     throw new Error('createSchemaAwareAdminClient can only be called on the server')
   }
@@ -80,7 +79,7 @@ export async function createSchemaAwareAdminClient(knownSellerSchema?: string): 
     return createSupabaseClient(url, key, {
       db: { schema: knownSellerSchema },
       auth: { persistSession: false, autoRefreshToken: false },
-    })
+    }) as unknown as SellerDataClient
   }
 
   // Slow path: resolve schema from auth session (original behavior)
@@ -107,7 +106,7 @@ export async function createSchemaAwareAdminClient(knownSellerSchema?: string): 
     return createSupabaseClient(url, key, {
       db: { schema: seller.schema_name },
       auth: { persistSession: false, autoRefreshToken: false },
-    })
+    }) as unknown as SellerDataClient
   }
 
   return createAdminClient()
@@ -123,17 +122,18 @@ export async function createSchemaAwareAdminClient(knownSellerSchema?: string): 
  * This avoids the slow path in createSchemaAwareAdminClient which requires
  * cookie-based auth (unavailable in API routes using Bearer token auth).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createDataClientFromAuth(sellerSchema?: string): any {
+export function createDataClientFromAuth(sellerSchema?: string): SellerDataClient {
   if (sellerSchema) {
     if (!isValidSellerSchema(sellerSchema)) {
       throw new Error(`createDataClientFromAuth: Invalid seller schema: ${sellerSchema}`)
     }
     const { url, key } = getSupabaseEnv()
+    // Cast: seller schemas are clones of seller_main — identical tables at runtime.
+    // The schema name differs in the type param but .from()/.rpc() behave identically.
     return createSupabaseClient(url, key, {
       db: { schema: sellerSchema },
       auth: { persistSession: false, autoRefreshToken: false },
-    })
+    }) as unknown as SellerDataClient
   }
   return createAdminClient()
 }

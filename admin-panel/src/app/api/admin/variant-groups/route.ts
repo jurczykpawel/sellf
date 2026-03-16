@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const authResult = await requireAdminOrSellerApi(supabase);
-    const dataClient: any = await createDataClientFromAuth(authResult.sellerSchema);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const body = await request.json();
     const { name, slug, products } = body as {
@@ -243,7 +243,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
     const authResult = await requireAdminOrSellerApi(supabase);
-    const dataClient: any = await createDataClientFromAuth(authResult.sellerSchema);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -360,7 +360,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
     const authResult = await requireAdminOrSellerApi(supabase);
-    const dataClient: any = await createDataClientFromAuth(authResult.sellerSchema);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
