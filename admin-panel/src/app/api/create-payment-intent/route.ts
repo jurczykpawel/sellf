@@ -13,10 +13,7 @@ import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import type { PaymentMethodConfig } from '@/types/payment-config';
 
-// Seller admin clients have different generic schema params than platform admin client.
-// We use `any` for the union type since both expose the same PostgREST API surface.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnySupabaseClient = any;
+import type { SellerDataClient } from '@/lib/supabase/admin';
 
 /**
  * Resolve the data client for product/payment queries.
@@ -24,7 +21,7 @@ type AnySupabaseClient = any;
  * For platform owner: default admin client (seller_main).
  */
 async function resolveDataClient(sellerSlug?: string): Promise<{
-  dataClient: AnySupabaseClient;
+  dataClient: SellerDataClient;
   seller: SellerInfo | null;
   error?: string;
 }> {
@@ -45,7 +42,7 @@ async function resolveDataClient(sellerSlug?: string): Promise<{
     return { dataClient: createAdminClient(), seller, error: 'Seller Stripe onboarding incomplete' };
   }
 
-  return { dataClient: createSellerAdminClient(seller.schema_name), seller };
+  return { dataClient: createSellerAdminClient(seller.schema_name) as unknown as SellerDataClient, seller };
 }
 
 /**
@@ -305,12 +302,13 @@ export async function POST(request: NextRequest) {
     // - Race condition prevention with reservations
     let appliedCoupon = null;
     if (couponCode) {
-      const { data: couponResult, error: couponError } = await dataClient.rpc('verify_coupon', {
+      const { data: couponRaw, error: couponError } = await dataClient.rpc('verify_coupon', {
         code_param: couponCode.toUpperCase(),
         product_id_param: productId,
         customer_email_param: finalEmail || null,
         currency_param: product.currency,
       });
+      const couponResult = couponRaw as { valid: boolean; id: string; code: string; discount_type: 'percentage' | 'fixed'; discount_value: number; exclude_order_bumps: boolean; error?: string } | null;
 
       if (couponError) {
         console.error('Coupon verification error:', couponError);
