@@ -93,6 +93,10 @@ BEGIN
 END;
 $$;
 
+-- Restore permissions after DROP+CREATE (DROP resets to PUBLIC default)
+REVOKE EXECUTE ON FUNCTION public.verify_api_key(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_api_key(TEXT) TO service_role;
+
 -- Ensure every API key has at least one owner and never both
 ALTER TABLE public.api_keys ADD CONSTRAINT chk_api_keys_single_owner
   CHECK (admin_user_id IS NOT NULL OR seller_id IS NOT NULL);

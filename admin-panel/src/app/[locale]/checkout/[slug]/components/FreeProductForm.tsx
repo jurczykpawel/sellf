@@ -114,7 +114,11 @@ export default function FreeProductForm({ product, sellerSlug }: FreeProductForm
         }
 
         // No OTO — redirect to success page (no session_id needed for free products)
-        const redirectPath = `/p/${product.slug}/payment-status${successUrl ? `?success_url=${encodeURIComponent(successUrl)}` : ''}`;
+        const params = new URLSearchParams();
+        if (successUrl) params.set('success_url', successUrl);
+        if (sellerSlug) params.set('seller', sellerSlug);
+        const qs = params.toString();
+        const redirectPath = `/p/${product.slug}/payment-status${qs ? `?${qs}` : ''}`;
         router.push(redirectPath);
       } catch {
         toast.error(t('unexpectedError'));
