@@ -464,24 +464,13 @@ test.describe('Seller Admin: Stripe Connect', () => {
   test('connect status endpoint returns no-account for seller without Stripe', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
 
-    // Get the seller ID for Kowalski Digital
-    const { data: seller } = await supabaseAdmin
-      .from('sellers')
-      .select('id')
-      .eq('slug', 'kowalski_digital')
-      .single();
-    expect(seller).not.toBeNull();
+    // Seller admin CAN check their own Stripe status (self-service)
+    const response = await page.request.get('/api/stripe/connect/status?context=seller');
+    expect(response.status()).toBe(200);
 
-    const response = await page.request.get(
-      `/api/stripe/connect/status?seller_id=${seller!.id}`
-    );
-
-    // Stripe Connect status requires platform admin (requireMarketplaceAdmin).
-    // A seller admin is NOT a platform admin, so this should be 401 or 403.
-    // This verifies the auth boundary is correctly enforced.
-    expect([401, 403]).toContain(response.status());
     const body = await response.json();
-    expect(body.error).toBeTruthy();
+    // Kowalski doesn't have stripe_account_id → not connected
+    expect(body.onboardingComplete).toBe(false);
   });
 
   test('connect status without seller_id returns 400', async ({ page }) => {
@@ -509,8 +498,11 @@ test.describe('Seller Admin: Stripe Connect', () => {
       },
     });
 
-    // Seller admin should NOT be able to trigger onboarding (platform admin only)
-    expect([401, 403]).toContain(response.status());
+    // Seller admin CAN trigger onboarding for their OWN account.
+    // Without real Stripe keys, it will fail at Stripe API level (not auth level).
+    // So we expect either 200 (success) or 500 (Stripe API error) — NOT 401/403.
+    expect(response.status()).not.toBe(401);
+    expect(response.status()).not.toBe(403);
   });
 });
 
