@@ -34,7 +34,8 @@ import {
 
 // Valid test license key — generated with the real private key for domain "test.example.com"
 // Verified: verifyLicenseSignature returns true for this key.
-const VALID_LICENSE = 'SF-test.example.com-PRO-UNLIMITED-MEQCIFJvfvcakzjXutavoqSX9d-NnKPfVit5lb2kSezgO0YZAiAyVYnHJOa9A5WSav0YYVB9LWFQJyR_cM2EL9NfJZAq5Q';
+// Marketplace requires MKT tier license (not PRO)
+const VALID_LICENSE = 'SF-test.example.com-MKT-UNLIMITED-MEYCIQDWhIm4U1DKdgtpaxX1hRQR5ebOgUxn9EoAXPs16wotsQIhAJYLsXqnn8nAbM-C0QVlSqT_sfbgK6o6woZzwE5ZyYAA';
 
 // ===== HELPERS =====
 

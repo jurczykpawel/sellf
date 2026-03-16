@@ -72,7 +72,7 @@ function getPrivateKey() {
 // LICENSE GENERATION
 // =============================================================================
 
-const VALID_TIERS = ['REG', 'PRO', 'BIZ'];
+const VALID_TIERS = ['REG', 'PRO', 'BIZ', 'MKT'];
 
 function generateLicense(domain, tier, expiry, privateKeyPem) {
     // Validate domain

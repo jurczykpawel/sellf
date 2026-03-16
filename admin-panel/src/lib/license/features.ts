@@ -21,7 +21,8 @@ const FEATURE_TIERS = {
   // Pro
   'watermark-removal': 'pro',          // /api/sellf route → LICENSE_VALID in sellf.js
   'theme-customization': 'pro',        // theme.ts actions, theme-loader.ts
-  'marketplace': 'pro',                // marketplace/feature-flag.ts
+  // Marketplace (separate product, highest tier)
+  'marketplace': 'marketplace',        // marketplace/feature-flag.ts
   'api-key-scopes': 'pro',             // POST /api/v1/api-keys → enforceApiKeyScopeGate
 } as const satisfies Record<string, LicenseTier>;
 
@@ -39,6 +40,7 @@ const TIER_RANK: Record<LicenseTier, number> = {
   registered: 1,
   pro: 2,
   business: 3,
+  marketplace: 4,
 };
 
 // ===== PUBLIC API =====

@@ -30,9 +30,9 @@ import {
 
 // ===== FIXTURES =====
 
-// Valid license for domain "test.example.com" — real ECDSA P-256 signature
+// Valid MKT license for domain "test.example.com" — marketplace requires MKT tier
 const VALID_LICENSE_UNLIMITED =
-  'SF-test.example.com-PRO-UNLIMITED-MEQCIFJvfvcakzjXutavoqSX9d-NnKPfVit5lb2kSezgO0YZAiAyVYnHJOa9A5WSav0YYVB9LWFQJyR_cM2EL9NfJZAq5Q';
+  'SF-test.example.com-MKT-UNLIMITED-MEYCIQDWhIm4U1DKdgtpaxX1hRQR5ebOgUxn9EoAXPs16wotsQIhAJYLsXqnn8nAbM-C0QVlSqT_sfbgK6o6woZzwE5ZyYAA';
 
 // ===== SOURCE FILES FOR STATIC ANALYSIS =====
 

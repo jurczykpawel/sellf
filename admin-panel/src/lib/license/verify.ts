@@ -21,15 +21,16 @@ LeS3pFS7JyEEyi9Kew8TADDYBKh7mVLJSxqfXfy4H0qsCwy2S+zMdoCiIg==
 
 // ===== TIER TYPES =====
 
-export type LicenseTier = 'free' | 'registered' | 'pro' | 'business';
+export type LicenseTier = 'free' | 'registered' | 'pro' | 'business' | 'marketplace';
 
-const VALID_TIER_CODES = ['REG', 'PRO', 'BIZ'] as const;
+const VALID_TIER_CODES = ['REG', 'PRO', 'BIZ', 'MKT'] as const;
 type TierCode = typeof VALID_TIER_CODES[number];
 
 const TIER_CODE_MAP: Record<TierCode, LicenseTier> = {
   REG: 'registered',
   PRO: 'pro',
   BIZ: 'business',
+  MKT: 'marketplace',
 };
 
 function isTierCode(value: string): value is TierCode {
@@ -317,5 +318,5 @@ export function validateLicense(licenseKey: string, currentDomain?: string): Lic
 export function isValidLicenseFormat(licenseKey: string): boolean {
   // Current format: SF-{domain}-{TIER}-{expiry}-{signature}
   // Legacy format:  SF-{domain}-{expiry}-{signature}
-  return /^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(licenseKey);
+  return /^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ|MKT)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(licenseKey);
 }

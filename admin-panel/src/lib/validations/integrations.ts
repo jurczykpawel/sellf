@@ -72,7 +72,7 @@ export function validateIntegrations(data: IntegrationsInput): ValidationResult 
   }
 
   // Sellf License format: SF-{domain}-{TIER}-{expiry}-{signature} or legacy SF-{domain}-{expiry}-{signature}
-  if (data.sellf_license && !/^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(data.sellf_license)) {
+  if (data.sellf_license && !/^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ|MKT)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(data.sellf_license)) {
     addError('sellf_license', 'Invalid license format (expected: SF-domain-TIER-expiry-signature)');
   }
 
