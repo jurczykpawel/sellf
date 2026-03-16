@@ -33,25 +33,34 @@ test.describe('Mass Assignment - Coupon PATCH', () => {
   test.beforeAll(async () => {
     const suffix = Date.now().toString();
 
-    // Only create the test coupon (fast DB operation, no auth overhead)
-    const { data: coupon, error: couponError } = await supabaseAdmin
-      .from('coupons')
-      .insert({
-        code: `MASS-TEST-${suffix}`,
-        name: 'Mass Assignment Test Coupon',
-        discount_type: 'percentage',
-        discount_value: 10,
-        is_active: true,
-        current_usage_count: initialUsageCount,
-        usage_limit_global: 100,
-      })
-      .select()
-      .single();
+    // Create test coupon with retry (PostgREST may return PGRST002 during schema cache rebuild)
+    let lastError: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: coupon, error: couponError } = await supabaseAdmin
+        .from('coupons')
+        .insert({
+          code: `MASS-TEST-${suffix}-${attempt}`,
+          name: 'Mass Assignment Test Coupon',
+          discount_type: 'percentage',
+          discount_value: 10,
+          is_active: true,
+          current_usage_count: initialUsageCount,
+          usage_limit_global: 100,
+        })
+        .select()
+        .single();
 
-    if (couponError) throw couponError;
-    testCouponId = coupon.id;
+      if (!couponError) {
+        testCouponId = coupon.id;
+        console.log(`Created test coupon: ${testCouponId} with usage count: ${initialUsageCount}`);
+        return;
+      }
 
-    console.log(`Created test coupon: ${testCouponId} with usage count: ${initialUsageCount}`);
+      lastError = couponError;
+      console.warn(`Coupon insert attempt ${attempt + 1} failed: ${couponError.message}`);
+      await new Promise(r => setTimeout(r, 2000)); // Wait for PostgREST cache rebuild
+    }
+    throw lastError;
   });
 
   test.afterAll(async () => {
