@@ -481,7 +481,7 @@ test.describe('Seller Admin: Stripe Connect', () => {
     expect([400, 401, 403]).toContain(response.status());
   });
 
-  test('connect onboard endpoint rejects seller admin (not platform admin)', async ({ page }) => {
+  test('seller admin can onboard OWN account (not blocked by auth)', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
 
     const { data: seller } = await supabaseAdmin
@@ -503,6 +503,57 @@ test.describe('Seller Admin: Stripe Connect', () => {
     // So we expect either 200 (success) or 500 (Stripe API error) — NOT 401/403.
     expect(response.status()).not.toBe(401);
     expect(response.status()).not.toBe(403);
+  });
+
+  test('SECURITY: seller admin CANNOT onboard another seller', async ({ page }) => {
+    await loginAsSeller(page, sellerEmail, sellerPassword);
+
+    // Get Creative Studio seller ID (different seller)
+    const { data: otherSeller } = await supabaseAdmin
+      .from('sellers')
+      .select('id')
+      .eq('slug', 'creative_studio')
+      .single();
+    expect(otherSeller).not.toBeNull();
+
+    const response = await page.request.post('/api/stripe/connect/onboard', {
+      data: {
+        sellerId: otherSeller!.id,
+        email: 'attacker@evil.com',
+      },
+    });
+
+    // Should be 403 — seller can only onboard their own account
+    expect(response.status()).toBe(403);
+    const body = await response.json();
+    expect(body.error).toContain('own seller');
+  });
+
+  test('SECURITY: buyer (non-admin, non-seller) cannot access connect endpoints', async ({ page }) => {
+    // Create a regular buyer user
+    const buyerEmail = `buyer-connect-test-${Date.now()}@example.com`;
+    const { data: { user: buyerUser } } = await supabaseAdmin.auth.admin.createUser({
+      email: buyerEmail,
+      password: 'BuyerPass123!',
+      email_confirm: true,
+    });
+
+    await loginAsSeller(page, buyerEmail, 'BuyerPass123!');
+
+    // Try status
+    const statusRes = await page.request.get('/api/stripe/connect/status?context=seller');
+    expect([401, 403]).toContain(statusRes.status());
+
+    // Try onboard
+    const onboardRes = await page.request.post('/api/stripe/connect/onboard', {
+      data: { sellerId: 'fake-id', email: buyerEmail },
+    });
+    expect([401, 403]).toContain(onboardRes.status());
+
+    // Cleanup
+    if (buyerUser) {
+      await supabaseAdmin.auth.admin.deleteUser(buyerUser.id).catch(() => {});
+    }
   });
 });
 
