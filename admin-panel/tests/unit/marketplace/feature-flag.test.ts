@@ -186,4 +186,28 @@ describe('checkMarketplaceAccess()', () => {
     const result = await checkMarketplaceAccess();
     expect(result.accessible).toBe(true);
   });
+
+  it('NOT accessible with PRO license (marketplace requires MKT tier)', async () => {
+    mockHost('test.example.com');
+    process.env.MARKETPLACE_ENABLED = 'true';
+    delete process.env.DEMO_MODE;
+    // PRO license — valid signature but wrong tier for marketplace
+    process.env.SELLF_LICENSE_KEY = 'SF-test.example.com-PRO-UNLIMITED-MEQCIFJvfvcakzjXutavoqSX9d-NnKPfVit5lb2kSezgO0YZAiAyVYnHJOa9A5WSav0YYVB9LWFQJyR_cM2EL9NfJZAq5Q';
+    const result = await checkMarketplaceAccess();
+    expect(result.enabled).toBe(true);
+    expect(result.licensed).toBe(false);
+    expect(result.accessible).toBe(false);
+  });
+
+  it('NOT accessible with BIZ license (marketplace requires MKT tier)', async () => {
+    mockHost('test.example.com');
+    process.env.MARKETPLACE_ENABLED = 'true';
+    delete process.env.DEMO_MODE;
+    // BIZ license — valid signature but wrong tier for marketplace
+    process.env.SELLF_LICENSE_KEY = 'SF-test.example.com-BIZ-UNLIMITED-MEYCIQDVctECqyu3T94QuJML7fBTVGRJRR8h7VxibrHeKotiIgIhAKQ8WFOD5cCgc2aBchajxe2qH0YXjSrUzUHP8LufYwM-';
+    const result = await checkMarketplaceAccess();
+    expect(result.enabled).toBe(true);
+    expect(result.licensed).toBe(false);
+    expect(result.accessible).toBe(false);
+  });
 });

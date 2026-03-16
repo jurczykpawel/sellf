@@ -128,7 +128,7 @@ export async function checkMarketplaceAccess(): Promise<{
       enabled: true,
       licensed: false,
       accessible: false,
-      reason: 'Valid Sellf Pro license required for marketplace features',
+      reason: 'Sellf Marketplace license required for marketplace features',
     };
   }
 
