@@ -983,6 +983,34 @@ BEGIN
     'Kowalski Digital'
   ) INTO v_kowalski_id;
 
+  -- Assign seller owner (inside DO block to guarantee atomicity)
+  INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, confirmation_token, recovery_token,
+    email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    'eeeeeeee-1111-4000-a000-000000000001',
+    'authenticated', 'authenticated',
+    'kowalski@demo.sellf.app',
+    extensions.crypt('demo1234', extensions.gen_salt('bf')),
+    NOW(), '', '', '', '', '', '',
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"Jan Kowalski"}'::jsonb,
+    NOW(), NOW()
+  ) ON CONFLICT DO NOTHING;
+
+  INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+  VALUES (
+    'eeeeeeee-1111-4000-a000-000000000001',
+    'eeeeeeee-1111-4000-a000-000000000001',
+    jsonb_build_object('sub', 'eeeeeeee-1111-4000-a000-000000000001', 'email', 'kowalski@demo.sellf.app'),
+    'email', NOW(), NOW(), NOW()
+  ) ON CONFLICT DO NOTHING;
+
+  UPDATE public.sellers SET user_id = 'eeeeeeee-1111-4000-a000-000000000001' WHERE id = v_kowalski_id;
+
   -- Products in seller_kowalski_digital schema
   INSERT INTO seller_kowalski_digital.products (
     name, slug, description, long_description, icon, price, currency,
@@ -1110,6 +1138,34 @@ BEGIN
     'creative-studio',
     'Creative Studio'
   ) INTO v_creative_id;
+
+  -- Assign seller owner (inside DO block to guarantee atomicity)
+  INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, confirmation_token, recovery_token,
+    email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    'eeeeeeee-2222-4000-a000-000000000002',
+    'authenticated', 'authenticated',
+    'creative@demo.sellf.app',
+    extensions.crypt('demo1234', extensions.gen_salt('bf')),
+    NOW(), '', '', '', '', '', '',
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"Anna Nowak"}'::jsonb,
+    NOW(), NOW()
+  ) ON CONFLICT DO NOTHING;
+
+  INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+  VALUES (
+    'eeeeeeee-2222-4000-a000-000000000002',
+    'eeeeeeee-2222-4000-a000-000000000002',
+    jsonb_build_object('sub', 'eeeeeeee-2222-4000-a000-000000000002', 'email', 'creative@demo.sellf.app'),
+    'email', NOW(), NOW(), NOW()
+  ) ON CONFLICT DO NOTHING;
+
+  UPDATE public.sellers SET user_id = 'eeeeeeee-2222-4000-a000-000000000002' WHERE id = v_creative_id;
 
   -- Products in seller_creative_studio schema
   INSERT INTO seller_creative_studio.products (
@@ -1314,66 +1370,8 @@ END $$;
 -- MARKETPLACE: Demo users for manual testing
 -- =====================================================
 -- Platform admin: demo@sellf.app / demo123 (created above, first user)
---
--- Seller admin: kowalski@demo.sellf.app / demo1234
--- Seller admin: creative@demo.sellf.app / demo1234
+-- Seller admins: created inside DO block above (kowalski + creative)
 -- Buyer: buyer@demo.sellf.app / demo1234 (has purchases from both sellers)
-
--- Kowalski seller owner
-INSERT INTO auth.users (
-  instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, confirmation_token, recovery_token,
-  email_change_token_new, email_change, email_change_token_current, reauthentication_token,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
-) VALUES (
-  '00000000-0000-0000-0000-000000000000',
-  'eeeeeeee-1111-4000-a000-000000000001',
-  'authenticated', 'authenticated',
-  'kowalski@demo.sellf.app',
-  extensions.crypt('demo1234', extensions.gen_salt('bf')),
-  NOW(), '', '', '', '', '', '',
-  '{"provider":"email","providers":["email"]}'::jsonb,
-  '{"full_name":"Jan Kowalski"}'::jsonb,
-  NOW(), NOW()
-) ON CONFLICT DO NOTHING;
-
-INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-VALUES (
-  'eeeeeeee-1111-4000-a000-000000000001',
-  'eeeeeeee-1111-4000-a000-000000000001',
-  jsonb_build_object('sub', 'eeeeeeee-1111-4000-a000-000000000001', 'email', 'kowalski@demo.sellf.app'),
-  'email', NOW(), NOW(), NOW()
-) ON CONFLICT DO NOTHING;
-
-UPDATE public.sellers SET user_id = 'eeeeeeee-1111-4000-a000-000000000001' WHERE slug = 'kowalski_digital';
-
--- Creative Studio seller owner
-INSERT INTO auth.users (
-  instance_id, id, aud, role, email, encrypted_password,
-  email_confirmed_at, confirmation_token, recovery_token,
-  email_change_token_new, email_change, email_change_token_current, reauthentication_token,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
-) VALUES (
-  '00000000-0000-0000-0000-000000000000',
-  'eeeeeeee-2222-4000-a000-000000000002',
-  'authenticated', 'authenticated',
-  'creative@demo.sellf.app',
-  extensions.crypt('demo1234', extensions.gen_salt('bf')),
-  NOW(), '', '', '', '', '', '',
-  '{"provider":"email","providers":["email"]}'::jsonb,
-  '{"full_name":"Anna Creative"}'::jsonb,
-  NOW(), NOW()
-) ON CONFLICT DO NOTHING;
-
-INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-VALUES (
-  'eeeeeeee-2222-4000-a000-000000000002',
-  'eeeeeeee-2222-4000-a000-000000000002',
-  jsonb_build_object('sub', 'eeeeeeee-2222-4000-a000-000000000002', 'email', 'creative@demo.sellf.app'),
-  'email', NOW(), NOW(), NOW()
-) ON CONFLICT DO NOTHING;
-
-UPDATE public.sellers SET user_id = 'eeeeeeee-2222-4000-a000-000000000002' WHERE slug = 'creative_studio';
 
 -- Buyer with purchases from both sellers
 INSERT INTO auth.users (
