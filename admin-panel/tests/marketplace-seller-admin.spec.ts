@@ -583,6 +583,11 @@ test.describe('Seller Admin: OTO Offers', () => {
 
     // Ensure OTO exists (re-create if previous test didn't run)
     if (createdOtoProductIds.length === 0) {
+      if (!sourceProductId || !otoTargetProductId) {
+        console.warn('OTO test: sourceProductId or otoTargetProductId not set — skipping');
+        test.skip();
+        return;
+      }
       const createRes = await page.request.put(`/api/v1/products/${sourceProductId}/oto`, {
         data: {
           oto_product_id: otoTargetProductId,
@@ -591,10 +596,11 @@ test.describe('Seller Admin: OTO Offers', () => {
           duration_minutes: 30,
         },
       });
-      if (createRes.status() === 200 || createRes.status() === 409) {
-        // 200 = created, 409 = already exists (from previous test in batch)
+      const status = createRes.status();
+      if (status === 200 || status === 409) {
         createdOtoProductIds.push(sourceProductId);
       } else {
+        console.warn(`OTO create returned ${status} — skipping verification`);
         test.skip();
         return;
       }
