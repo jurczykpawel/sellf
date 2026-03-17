@@ -159,16 +159,14 @@ test.describe('Seller Settings: Stripe Connect', () => {
   test('seller admin sees Stripe Connect section in Settings', async ({ page }) => {
     await loginAs(page, sellerEmail, sellerPassword);
     await page.goto('/en/dashboard/settings');
-    await page.waitForLoadState('networkidle');
 
-    // Click Marketplace tab
+    // Wait for Marketplace tab to render (don't use instant isVisible — React hydration may not be done)
     const marketplaceTab = page.locator('button', { hasText: /Marketplace/i });
-    if (await marketplaceTab.isVisible().catch(() => false)) {
-      await marketplaceTab.click();
-    }
+    await expect(marketplaceTab).toBeVisible();
+    await marketplaceTab.click();
 
     // Should see Stripe Connect card (not the "Manage Sellers" link)
-    await expect(page.locator('text=/Stripe Connect|Connect Stripe|Stripe/i').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=/Stripe Connect|Connect Stripe|Stripe/i').first()).toBeVisible();
   });
 
   test('seller admin sees "not connected" status and Connect button', async ({ page }) => {
@@ -192,15 +190,13 @@ test.describe('Seller Settings: Stripe Connect', () => {
   test('platform admin sees "Manage Sellers" link, not Stripe Connect card', async ({ page }) => {
     await loginAs(page, adminEmail, adminPassword);
     await page.goto('/en/dashboard/settings');
-    await page.waitForLoadState('networkidle');
 
     const marketplaceTab = page.locator('button', { hasText: /Marketplace/i });
-    if (await marketplaceTab.isVisible().catch(() => false)) {
-      await marketplaceTab.click();
-    }
+    await expect(marketplaceTab).toBeVisible();
+    await marketplaceTab.click();
 
     // Platform admin should see link to manage sellers, not Connect button
-    await expect(page.locator('text=/Manage Sellers|Zarządzaj/i').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=/Manage Sellers|Zarządzaj/i').first()).toBeVisible();
   });
 });
 

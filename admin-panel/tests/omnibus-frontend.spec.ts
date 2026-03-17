@@ -230,11 +230,13 @@ test.describe('Omnibus Frontend - Admin Side', () => {
   const adminPassword = 'password123';
   let testProductId: string;
   let testProductSlug: string;
+  let testProductName: string;
 
   test.beforeAll(async () => {
-    // Create admin user
+    // Create admin user — unique per worker to avoid cross-worker collisions
     const randomStr = Math.random().toString(36).substring(7);
-    adminEmail = `omnibus-admin-${Date.now()}-${randomStr}@example.com`;
+    const uniqueSuffix = `${Date.now()}-${randomStr}`;
+    adminEmail = `omnibus-admin-${uniqueSuffix}@example.com`;
 
     const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
@@ -247,12 +249,14 @@ test.describe('Omnibus Frontend - Admin Side', () => {
       .from('admin_users')
       .insert({ user_id: user!.id });
 
-    // Create a test product
-    testProductSlug = `omnibus-admin-test-${Date.now()}`;
+    // Create a test product — unique name per worker to prevent parallel workers
+    // from clicking each other's products in the table
+    testProductSlug = `omnibus-admin-test-${uniqueSuffix}`;
+    testProductName = `Omnibus Admin Test ${uniqueSuffix}`;
     const { data: product, error } = await supabaseAdmin
       .from('products')
       .insert({
-        name: 'Omnibus Admin Test Product',
+        name: testProductName,
         slug: testProductSlug,
         price: 50,
         currency: 'USD',
@@ -266,8 +270,6 @@ test.describe('Omnibus Frontend - Admin Side', () => {
 
     if (error) throw error;
     testProductId = product.id;
-
-    await new Promise(resolve => setTimeout(resolve, 500));
   });
 
   test.afterAll(async () => {
@@ -285,7 +287,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     await page.goto('/dashboard/products');
 
     // Find and edit the product — wait for table to fully render first
-    const row = page.locator('tr', { hasText: 'Omnibus Admin Test Product' }).first();
+    const row = page.locator('tr', { hasText: testProductName }).first();
     await expect(row).toBeVisible({ timeout: 15000 });
     await row.locator('button[title*="Edit"], button[title*="Edytuj"]').first().click();
 
@@ -321,8 +323,11 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     await omnibusCheckbox.check();
     await expect(omnibusCheckbox).toBeChecked();
 
-    // Save
-    await page.getByRole('button', { name: /Aktualizuj produkt|Update product/i }).click();
+    // Save — click Update button inside the modal to avoid ambiguity
+    await modal.getByRole('button', { name: /Aktualizuj produkt|Update product/i }).click();
+
+    // Wait for success toast (confirms API response completed)
+    await expect(page.locator('[data-sonner-toast]')).toBeVisible();
     await expect(modal).not.toBeVisible({ timeout: 5000 });
 
     // Verify in database
@@ -354,16 +359,24 @@ test.describe('Omnibus Frontend - Admin Side', () => {
 
     // Advanced Settings may already be expanded (defaultExpanded=true when omnibus_exempt=true)
     const omnibusCheckbox2 = modal.locator('input[name="omnibus_exempt"]');
-    if (!(await omnibusCheckbox2.isVisible())) {
-      await modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i }).click();
-    }
-    await expect(omnibusCheckbox2).toBeVisible({ timeout: 3000 });
+    // Use expect().toBeVisible with retry instead of instant isVisible()
+    const advSettingsExpander = modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i });
+    await expect(async () => {
+      if (!(await omnibusCheckbox2.isVisible().catch(() => false))) {
+        await advSettingsExpander.click();
+      }
+      await expect(omnibusCheckbox2).toBeVisible();
+    }).toPass({ timeout: 5000 });
+
     await omnibusCheckbox2.scrollIntoViewIfNeeded();
     await expect(omnibusCheckbox2).toBeChecked();
 
     // Uncheck and save
     await omnibusCheckbox2.uncheck();
-    await page.getByRole('button', { name: /Aktualizuj produkt|Update product/i }).click();
+    await modal.getByRole('button', { name: /Aktualizuj produkt|Update product/i }).click();
+
+    // Wait for success toast (confirms API response completed)
+    await expect(page.locator('[data-sonner-toast]')).toBeVisible();
     await expect(modal).not.toBeVisible({ timeout: 5000 });
 
     // Verify unchecked in database
@@ -446,7 +459,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     const initialCount = initialHistory?.length || 0;
 
     // Edit product and change price
-    const row = page.locator('tr', { hasText: 'Omnibus Admin Test Product' }).first();
+    const row = page.locator('tr', { hasText: testProductName }).first();
     await row.locator('button[title*="Edit"], button[title*="Edytuj"]').first().click();
 
     const modal = page.locator('[role="dialog"]').first();
