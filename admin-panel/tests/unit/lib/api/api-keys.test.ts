@@ -326,6 +326,46 @@ describe('API Keys', () => {
       expect(support).toContain(API_SCOPES.USERS_READ);
       expect(support).not.toContain(API_SCOPES.PRODUCTS_WRITE);
     });
+
+    it('should have readOnly preset with payments:read', () => {
+      expect(SCOPE_PRESETS.readOnly).toContain(API_SCOPES.PAYMENTS_READ);
+      expect(SCOPE_PRESETS.readOnly).not.toContain(API_SCOPES.PAYMENTS_WRITE);
+    });
+
+    it('should have sellerDefault preset with payments:read and payments:write', () => {
+      expect(SCOPE_PRESETS.sellerDefault).toContain(API_SCOPES.PAYMENTS_READ);
+      expect(SCOPE_PRESETS.sellerDefault).toContain(API_SCOPES.PAYMENTS_WRITE);
+    });
+  });
+
+  // ===== PAYMENTS SCOPES =====
+
+  describe('payments scopes', () => {
+    it('should define PAYMENTS_READ and PAYMENTS_WRITE', () => {
+      expect(API_SCOPES.PAYMENTS_READ).toBe('payments:read');
+      expect(API_SCOPES.PAYMENTS_WRITE).toBe('payments:write');
+    });
+
+    it('hasScope should grant payments:write with full access', () => {
+      expect(hasScope(['*'], API_SCOPES.PAYMENTS_WRITE)).toBe(true);
+    });
+
+    it('hasScope should grant payments:write with explicit scope', () => {
+      expect(hasScope(['payments:write'], API_SCOPES.PAYMENTS_WRITE)).toBe(true);
+    });
+
+    it('hasScope should NOT grant payments:write with only payments:read', () => {
+      expect(hasScope(['payments:read'], API_SCOPES.PAYMENTS_WRITE)).toBe(false);
+    });
+
+    it('hasScope should NOT grant payments:write with only analytics:read', () => {
+      expect(hasScope(['analytics:read'], API_SCOPES.PAYMENTS_WRITE)).toBe(false);
+    });
+
+    it('getScopeDescription should return descriptions for payment scopes', () => {
+      expect(getScopeDescription(API_SCOPES.PAYMENTS_READ)).toBe('View payment transactions');
+      expect(getScopeDescription(API_SCOPES.PAYMENTS_WRITE)).toBe('Update payment metadata');
+    });
   });
 
   // ===== API KEY SCOPE GATING (LICENSE TIER) =====
