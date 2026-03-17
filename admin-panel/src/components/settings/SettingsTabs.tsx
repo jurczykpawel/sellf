@@ -16,6 +16,7 @@ import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
 import MarketplaceSettings from './MarketplaceSettings'
 import { useConfig } from '@/components/providers/config-provider'
+import { useAdminSchema } from '@/contexts/AdminSchemaContext'
 
 type TabId = 'shop' | 'payments' | 'legal' | 'system' | 'marketplace'
 
@@ -36,8 +37,12 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
   const t = useTranslations('settings')
   const [active, setActive] = useState<TabId>('shop')
   const { demoMode } = useConfig()
+  const { isPlatformAdmin } = useAdminSchema()
 
-  const tabs = marketplaceEnabled
+  // Marketplace tab only for platform admins (seller admins manage their store, not the marketplace)
+  const showMarketplace = marketplaceEnabled && isPlatformAdmin
+
+  const tabs = showMarketplace
     ? BASE_TABS
     : BASE_TABS.filter(tab => tab.id !== 'marketplace')
 

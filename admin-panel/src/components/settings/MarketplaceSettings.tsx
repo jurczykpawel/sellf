@@ -191,11 +191,6 @@ function SellerConnectCard() {
 }
 
 export default function MarketplaceSettings() {
-  const { isPlatformAdmin } = useAdminSchema();
-
-  if (isPlatformAdmin) {
-    return <PlatformAdminView />;
-  }
-
-  return <SellerConnectCard />;
+  // Marketplace tab is only shown to platform admins (filtered in SettingsTabs)
+  return <PlatformAdminView />;
 }
