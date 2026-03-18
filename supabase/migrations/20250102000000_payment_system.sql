@@ -1335,10 +1335,14 @@ CREATE OR REPLACE FUNCTION log_admin_action(
     action_details JSONB DEFAULT '{}'::JSONB
 ) RETURNS VOID AS $$
 BEGIN
-    -- SECURITY: Rate limiting to prevent log spam attacks by authenticated users
-    -- Admins get higher limits since they need to perform legitimate admin actions
-    IF ( select public.is_admin() ) THEN
-        -- Admin users: 200 log entries per hour (higher limit for legitimate admin work)
+    -- Service role (backend/cron/webhooks): higher limit since all admin actions
+    -- route through the same service_role client on the server
+    IF (select auth.role()) = 'service_role' THEN
+        IF NOT public.check_rate_limit('log_admin_action_service', 2000, 3600) THEN
+            RAISE EXCEPTION 'Rate limit exceeded: Too many admin actions logged. Please wait before performing more actions.';
+        END IF;
+    ELSIF ( select public.is_admin() ) THEN
+        -- Admin users (direct DB access): 200 log entries per hour
         IF NOT public.check_rate_limit('log_admin_action_admin', 200, 3600) THEN
             RAISE EXCEPTION 'Rate limit exceeded: Too many admin actions logged. Please wait before performing more actions.';
         END IF;
