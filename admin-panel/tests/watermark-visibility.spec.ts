@@ -96,17 +96,17 @@ test.describe('Watermark Visibility Based on License', () => {
     expect(scriptContent).toContain('LICENSE_VALID: true');
   });
 
-  test('Generated script contains LICENSE_VALID: false for invalid license format', async ({ page }) => {
-    // Set invalid license
+  test('Generated script contains LICENSE_VALID: true for invalid DB license (env fallback)', async ({ page }) => {
+    // Set invalid license in DB — but SELLF_LICENSE_KEY env var is still valid
+    // New behavior: invalid DB license → env fallback → valid platform license
     await setLicense(TEST_LICENSES.invalid);
 
-    // Clear cache and get the script directly
     const response = await page.goto('/api/sellf?clearCache=true');
     expect(response).not.toBeNull();
     const scriptContent = await response!.text();
 
-    // Should contain LICENSE_VALID: false (invalid format)
-    expect(scriptContent).toContain('LICENSE_VALID: false');
+    // ENV fallback provides valid license
+    expect(scriptContent).toContain('LICENSE_VALID: true');
   });
 
   test('Watermark is HIDDEN when valid license is set (visual test)', async ({ page }) => {

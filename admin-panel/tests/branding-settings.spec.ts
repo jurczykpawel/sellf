@@ -260,7 +260,7 @@ test.describe('Theme Editor (Branding Settings)', () => {
     expect(parsed.colors.accent).toBe('#FF6B35');
   });
 
-  test('Save button is disabled without license', async ({ page }) => {
+  test('Save button is enabled with valid license (env var)', async ({ page }) => {
     await navigateToSettings(page);
 
     // Select a preset to create "unsaved changes"
@@ -268,9 +268,9 @@ test.describe('Theme Editor (Branding Settings)', () => {
     await sunsetPreset.click();
     await page.waitForTimeout(500);
 
-    // Save button should be disabled (no license in test env)
+    // Save button should be enabled (SELLF_LICENSE_KEY env var provides valid MKT license)
     const saveButton = page.locator('button', { hasText: /Save Theme|Zapisz motyw/i });
-    await expect(saveButton).toBeDisabled();
+    await expect(saveButton).toBeEnabled();
   });
 
   test('Non-admin users cannot access settings', async ({ page }) => {
