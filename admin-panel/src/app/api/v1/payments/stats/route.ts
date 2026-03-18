@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
 export async function OPTIONS(request: NextRequest) {
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = authResult.supabase;
 
     // Calculate date ranges
     const today = new Date();

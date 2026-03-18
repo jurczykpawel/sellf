@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 
 interface RouteParams {
@@ -40,7 +39,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.COUPONS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.COUPONS_READ]);
     const { id } = await params;
 
     // Validate ID format
@@ -49,10 +48,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid coupon ID format');
     }
 
-    const adminClient = createAdminClient();
-
     // Check coupon exists and get basic info
-    const { data: coupon, error: couponError } = await adminClient
+    const { data: coupon, error: couponError } = await auth.supabase
       .from('coupons')
       .select('id, code, current_usage_count, usage_limit_global, usage_limit_per_user, currency')
       .eq('id', id)
@@ -63,7 +60,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get redemptions with stats
-    const { data: redemptions, error: redemptionsError } = await adminClient
+    const { data: redemptions, error: redemptionsError } = await auth.supabase
       .from('coupon_redemptions')
       .select('id, customer_email, discount_amount, redeemed_at, transaction_id')
       .eq('coupon_id', id)
@@ -127,7 +124,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     let usageByProduct: { product_id: string; product_name: string; count: number; amount: number }[] = [];
 
     if (transactionIds.length > 0) {
-      const { data: transactions } = await adminClient
+      const { data: transactions } = await auth.supabase
         .from('payment_transactions')
         .select('id, product_id, products!inner(name)')
         .in('id', transactionIds);
@@ -137,7 +134,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         for (const t of transactions) {
           const redemption = allRedemptions.find(r => r.transaction_id === t.id);
-          const productName = (t.products as { name: string })?.name || 'Unknown';
+          const products = t.products as unknown as { name: string } | { name: string }[];
+          const productName = (Array.isArray(products) ? products[0]?.name : products?.name) || 'Unknown';
 
           const existing = productUsageMap.get(t.product_id) || { name: productName, count: 0, amount: 0 };
           existing.count++;

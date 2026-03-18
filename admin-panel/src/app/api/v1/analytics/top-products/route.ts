@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -35,9 +34,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
-
-    const adminClient = createAdminClient();
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
     const { searchParams } = request.nextUrl;
 
     const period = searchParams.get('period') || 'month';
@@ -78,7 +75,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get transactions with product info
-    const { data: transactions, error: txError } = await adminClient
+    const { data: transactions, error: txError } = await auth.supabase
       .from('payment_transactions')
       .select('product_id, amount, currency')
       .eq('status', 'completed')
@@ -133,7 +130,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: products, error: prodError } = await adminClient
+    const { data: products, error: prodError } = await auth.supabase
       .from('products')
       .select('id, name, slug, price, currency, is_active')
       .in('id', productIds);

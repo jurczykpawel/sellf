@@ -14,7 +14,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
-import { withAdminAuth } from '@/lib/actions/admin-auth';
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
 import {
   fetchStripePaymentMethodConfigs,
   fetchStripePaymentMethodConfig,
@@ -160,7 +160,7 @@ export async function updatePaymentMethodConfig(
 ): Promise<PaymentConfigActionResult<PaymentMethodConfig>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
 
-  return withAdminAuth(async ({ supabase }) => {
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
     // Validate input
     const validation = UpdatePaymentConfigSchema.safeParse(input);
     if (!validation.success) {
@@ -242,7 +242,7 @@ export async function updatePaymentMethodConfig(
     }
 
     // Update database
-    const { data, error } = await supabase
+    const { data, error } = await dataClient
       .from('payment_method_config')
       .update(updateData)
       .eq('id', 1)
@@ -266,7 +266,7 @@ export async function updatePaymentMethodConfig(
 
     return {
       success: true,
-      data: data as PaymentMethodConfig,
+      data: data as unknown as PaymentMethodConfig,
     };
   });
 }
@@ -372,7 +372,7 @@ export async function getStripePaymentMethodConfigsCached(
 export async function refreshStripePaymentMethodConfigs(): Promise<
   PaymentConfigActionResult<void>
 > {
-  return withAdminAuth(async () => {
+  return withAdminOrSellerAuth(async () => {
     const result = await getStripePaymentMethodConfigsCached(true);
 
     if (!result.success) {
@@ -404,8 +404,8 @@ export async function refreshStripePaymentMethodConfigs(): Promise<
 export async function resetToRecommendedConfig(): Promise<PaymentConfigActionResult<PaymentMethodConfig>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
 
-  return withAdminAuth(async ({ supabase }) => {
-    const { data, error } = await supabase
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data, error } = await dataClient
       .from('payment_method_config')
       .update({
         ...RECOMMENDED_CONFIG,
@@ -430,7 +430,7 @@ export async function resetToRecommendedConfig(): Promise<PaymentConfigActionRes
 
     return {
       success: true,
-      data: data as PaymentMethodConfig,
+      data: data as unknown as PaymentMethodConfig,
     };
   });
 }

@@ -288,25 +288,25 @@ describe('Server action demo guards', () => {
     it('updateIntegrationsConfig returns error in demo mode', async () => {
       const { updateIntegrationsConfig } = await import('@/lib/actions/integrations');
       const result = await updateIntegrationsConfig({} as any);
-      expect(result).toEqual({ error: 'This action is disabled in demo mode' });
+      expect(result).toMatchObject({ success: false, error: 'This action is disabled in demo mode' });
     });
 
     it('addScript returns error in demo mode', async () => {
       const { addScript } = await import('@/lib/actions/integrations');
       const result = await addScript({} as any);
-      expect(result).toEqual({ error: 'This action is disabled in demo mode' });
+      expect(result).toMatchObject({ success: false, error: 'This action is disabled in demo mode' });
     });
 
     it('deleteScript returns error in demo mode', async () => {
       const { deleteScript } = await import('@/lib/actions/integrations');
       const result = await deleteScript('123');
-      expect(result).toEqual({ error: 'This action is disabled in demo mode' });
+      expect(result).toMatchObject({ success: false, error: 'This action is disabled in demo mode' });
     });
 
     it('toggleScript returns error in demo mode', async () => {
       const { toggleScript } = await import('@/lib/actions/integrations');
       const result = await toggleScript('123', true);
-      expect(result).toEqual({ error: 'This action is disabled in demo mode' });
+      expect(result).toMatchObject({ success: false, error: 'This action is disabled in demo mode' });
     });
   });
 

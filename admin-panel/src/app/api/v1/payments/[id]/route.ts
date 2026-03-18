@@ -16,7 +16,6 @@ import {
   parseJsonBody,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 
 interface RouteParams {
@@ -42,7 +41,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
     const { id } = await params;
 
     // Validate ID format
@@ -51,7 +50,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid payment ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     const { data: payment, error } = await adminClient
       .from('payment_transactions')
@@ -145,7 +144,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.PAYMENTS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.PAYMENTS_WRITE]);
     const { id } = await params;
 
     const idValidation = validateUUID(id);
@@ -167,7 +166,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'VALIDATION_ERROR', `Only metadata can be modified. Unexpected fields: ${extraKeys.join(', ')}`);
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Verify payment exists
     const { data: existing, error: fetchError } = await adminClient

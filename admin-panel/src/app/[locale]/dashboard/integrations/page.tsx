@@ -1,14 +1,16 @@
 import { getIntegrationsConfig, getScripts } from '@/lib/actions/integrations'
 import IntegrationsForm from '@/components/IntegrationsForm'
-import { verifyAdminAccess } from '@/lib/auth-server'
+import { verifyAdminOrSellerAccess } from '@/lib/auth-server'
 
 export default async function IntegrationsPage() {
-  await verifyAdminAccess()
+  await verifyAdminOrSellerAccess()
 
-  const [config, scripts] = await Promise.all([
+  const [configResult, scriptsResult] = await Promise.all([
     getIntegrationsConfig(),
     getScripts()
   ])
+  const config = configResult.success ? configResult.data as any : null
+  const scripts = (scriptsResult.success ? scriptsResult.data : []) as any[]
 
   return (
     <div className="space-y-6">

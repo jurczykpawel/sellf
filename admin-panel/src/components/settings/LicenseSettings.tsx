@@ -14,9 +14,10 @@ export default function LicenseSettings() {
  useEffect(() => {
  async function loadLicense() {
  try {
- const config = await getIntegrationsConfig();
- if (config?.sellf_license) {
- setLicense(config.sellf_license);
+ const result = await getIntegrationsConfig();
+ const data = result?.success ? result.data as Record<string, unknown> : null;
+ if (data?.sellf_license) {
+ setLicense(data.sellf_license as string);
  }
  } catch (error) {
  console.error('Failed to load license:', error);
@@ -35,16 +36,16 @@ export default function LicenseSettings() {
  setValidationError(null);
 
  try {
- const result = await updateIntegrationsConfig({ sellf_license: license || null });
+ const result = await updateIntegrationsConfig({ sellf_license: license || null }) as { success: boolean; error?: string; details?: Record<string, string[]> };
 
- if (result.error) {
+ if (!result.success || result.error) {
  // Extract specific error message for license
  const licenseError = result.details?.sellf_license?.[0];
  if (licenseError) {
  setValidationError(licenseError);
  toast.error(licenseError);
  } else {
- toast.error(result.error);
+ toast.error(result.error || 'Unknown error');
  }
  } else {
  setValidationError(null);

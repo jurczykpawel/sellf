@@ -16,7 +16,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { isValidWebhookUrl, validateEventTypes } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 
@@ -36,9 +35,9 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_READ]);
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
     const { searchParams } = request.nextUrl;
 
     // Parse params
@@ -115,9 +114,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     const body = await parseJsonBody<{
       url?: string;

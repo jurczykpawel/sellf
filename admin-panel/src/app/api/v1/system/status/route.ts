@@ -13,7 +13,7 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { createPlatformClient } from '@/lib/supabase/admin';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -27,14 +27,27 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.SYSTEM_READ]);
+    const auth = await authenticate(request, [API_SCOPES.SYSTEM_READ]);
 
-    const adminClient = createAdminClient();
+    const shopClient = auth.supabase;
     const now = new Date();
 
-    // Run all count queries in parallel (N3: was sequential — 7 round trips)
+    // Determine API key filter — seller sees only their keys, platform sees all
+    const sellerSchema = auth.method === 'session'
+      ? (auth as { sellerSchema?: string }).sellerSchema
+      : (auth as { sellerSchema?: string }).sellerSchema;
     const platformClient = createPlatformClient();
+    let apiKeysQuery = platformClient.from('api_keys').select('*', { count: 'exact', head: true }).eq('is_active', true);
+    if (sellerSchema) {
+      // Seller admin: count only their own API keys
+      const { data: seller } = await platformClient.from('sellers').select('id').eq('schema_name', sellerSchema).single();
+      if (seller) {
+        apiKeysQuery = apiKeysQuery.eq('seller_id', seller.id);
+      }
+    }
 
+    // Run all count queries in parallel
+    // shopClient = auth.supabase (schema-scoped: seller_main for platform, seller_xyz for seller)
     const [
       totalProductsResult,
       activeProductsResult,
@@ -46,15 +59,15 @@ export async function GET(request: NextRequest) {
       activeCouponsResult,
       activeApiKeysResult,
     ] = await Promise.all([
-      adminClient.from('products').select('*', { count: 'exact', head: true }),
-      adminClient.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      adminClient.from('profiles').select('*', { count: 'exact', head: true }),
-      adminClient.from('payment_transactions').select('*', { count: 'exact', head: true }),
-      adminClient.from('payment_transactions').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
-      adminClient.from('refund_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      adminClient.from('webhook_endpoints').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      adminClient.from('coupons').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      platformClient.from('api_keys').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      shopClient.from('products').select('*', { count: 'exact', head: true }),
+      shopClient.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      shopClient.from('profiles').select('*', { count: 'exact', head: true }),
+      shopClient.from('payment_transactions').select('*', { count: 'exact', head: true }),
+      shopClient.from('payment_transactions').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+      shopClient.from('refund_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      shopClient.from('webhook_endpoints').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      shopClient.from('coupons').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      apiKeysQuery,
     ]);
 
     const databaseHealthy = !totalProductsResult.error;

@@ -14,7 +14,7 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { createPlatformClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
@@ -44,7 +44,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     // Refunds require full access - it's a sensitive financial operation
-    const authResult = await authenticate(request, [API_SCOPES.FULL_ACCESS]);
+    const auth = await authenticate(request, [API_SCOPES.FULL_ACCESS]);
     const { id } = await params;
 
     // Validate ID format
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       RATE_LIMITS.ADMIN_REFUND.actionType,
       RATE_LIMITS.ADMIN_REFUND.maxRequests,
       RATE_LIMITS.ADMIN_REFUND.windowMinutes,
-      authResult.admin.userId
+      auth.admin.userId
     );
 
     if (!rateLimitOk) {
@@ -96,10 +96,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const adminClient = createAdminClient();
-
     // Get payment transaction
-    const { data: payment, error } = await adminClient
+    const { data: payment, error } = await auth.supabase
       .from('payment_transactions')
       .select('*')
       .eq('id', id)
@@ -183,14 +181,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const isFullRefund = totalRefunded >= payment.amount;
 
     // Update transaction in database with optimistic lock to prevent concurrent refunds
-    const { data: updatedRows, error: updateError } = await adminClient
+    const { data: updatedRows, error: updateError } = await auth.supabase
       .from('payment_transactions')
       .update({
         status: isFullRefund ? 'refunded' : 'completed',
         refund_id: stripeRefund.id,
         refunded_amount: totalRefunded,
         refunded_at: new Date().toISOString(),
-        refunded_by: authResult.admin.userId,
+        refunded_by: auth.admin.userId,
         refund_reason: reason || null,
         updated_at: new Date().toISOString(),
       })
@@ -212,7 +210,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     let accessRevocationFailed = false;
 
     if (isFullRefund) {
-      const revocation = await revokeTransactionAccess(adminClient, {
+      const revocation = await revokeTransactionAccess(auth.supabase, {
         transactionId: id,
         userId: payment.user_id,
         productId: payment.product_id,
@@ -237,7 +235,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Log the refund action (admin_actions is in public schema)
     const platformClient = createPlatformClient();
     await platformClient.from('admin_actions').insert({
-      admin_id: authResult.admin.userId,
+      admin_id: auth.admin.userId,
       action: 'refund_processed',
       target_type: 'payment_transaction',
       target_id: id,

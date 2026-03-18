@@ -22,7 +22,6 @@ import {
 } from '@/lib/api';
 import { validateProductId, validateUUID } from '@/lib/validations/product';
 import { ORDER_BUMP_SELECT } from './constants';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -59,8 +58,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const adminClient = createAdminClient();
-    let query = adminClient
+    let query = supabase
       .from('order_bumps')
       .select(ORDER_BUMP_SELECT);
 
@@ -239,9 +237,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create order bump (use adminClient for FK embedding in ORDER_BUMP_SELECT)
-    const adminClient = createAdminClient();
-    const { data, error } = await adminClient
+    // Create order bump
+    const { data, error } = await supabase
       .from('order_bumps')
       .insert({
         main_product_id: String(main_product_id),

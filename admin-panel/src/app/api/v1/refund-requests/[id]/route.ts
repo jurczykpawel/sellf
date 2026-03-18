@@ -16,7 +16,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
@@ -54,7 +53,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.REFUND_REQUESTS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.REFUND_REQUESTS_READ]);
     const { id } = await params;
 
     // Validate ID format
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid refund request ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     const { data: refundRequest, error } = await adminClient
       .from('refund_requests')
@@ -162,7 +161,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid refund request ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = authResult.supabase;
 
     const body = await parseJsonBody<{
       action?: string;

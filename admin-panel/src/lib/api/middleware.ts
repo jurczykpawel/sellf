@@ -199,7 +199,7 @@ async function authenticateViaSession(request: NextRequest): Promise<SessionAuth
     if (adminRecord) {
       return {
         method: 'session',
-        supabase,
+        supabase: createAdminClient() as unknown as SupabaseClient,
         admin: {
           userId: user.id,
           adminId: adminRecord.id,
@@ -283,15 +283,37 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     throw new ApiAuthError('INVALID_TOKEN', keyData.rejection_reason || 'Invalid API key');
   }
 
-  // Get admin user details
-  const { data: adminUser, error: adminError } = await platformClient
-    .from('admin_users')
-    .select('id, user_id')
-    .eq('id', keyData.admin_user_id)
-    .single();
+  // Get key owner details — platform admin or seller
+  let ownerId: string;
+  let ownerUserId: string;
 
-  if (adminError || !adminUser) {
-    throw new ApiAuthError('FORBIDDEN', 'API key owner not found');
+  if (keyData.seller_id) {
+    // Seller API key — get seller owner info
+    const { data: seller, error: sellerError } = await platformClient
+      .from('sellers')
+      .select('id, user_id')
+      .eq('id', keyData.seller_id)
+      .eq('status', 'active')
+      .single();
+
+    if (sellerError || !seller || !seller.user_id) {
+      throw new ApiAuthError('FORBIDDEN', 'Seller account not found or inactive');
+    }
+    ownerId = seller.id;
+    ownerUserId = seller.user_id;
+  } else {
+    // Platform admin API key
+    const { data: adminUser, error: adminError } = await platformClient
+      .from('admin_users')
+      .select('id, user_id')
+      .eq('id', keyData.admin_user_id)
+      .single();
+
+    if (adminError || !adminUser) {
+      throw new ApiAuthError('FORBIDDEN', 'API key owner not found');
+    }
+    ownerId = adminUser.id;
+    ownerUserId = adminUser.user_id;
   }
 
   // Get the key name for logging
@@ -349,8 +371,8 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     method: 'api_key',
     supabase: dataClient,
     admin: {
-      userId: adminUser.user_id,
-      adminId: adminUser.id,
+      userId: ownerUserId,
+      adminId: ownerId,
       email: null,
     },
     apiKey: {

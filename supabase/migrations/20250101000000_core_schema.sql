@@ -714,9 +714,11 @@ BEGIN
         RAISE EXCEPTION 'Authentication required';
     END IF;
     
-    -- Security check: only allow users to view their own profile or admins to view any profile
+    -- Security check: only allow users to view their own profile, or admins/seller owners to view any profile
     IF user_id_param != current_user_id THEN
-        IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = current_user_id) THEN -- admin_users is in public (platform)
+        IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = current_user_id)
+           AND NOT EXISTS (SELECT 1 FROM public.sellers WHERE user_id = current_user_id AND status = 'active')
+        THEN
             RAISE EXCEPTION 'Unauthorized: Can only view your own profile';
         END IF;
     END IF;

@@ -12,13 +12,12 @@ import {
   jsonResponse,
   noContentResponse,
   apiError,
-  authenticatePlatformAdmin,
+  authenticate,
   handleApiError,
   parseJsonBody,
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 
 interface RouteParams {
@@ -36,7 +35,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_READ]);
     const { id: userId, accessId } = await params;
 
     // Validate IDs
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid access ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Get access details
     const { data: access, error } = await adminClient
@@ -102,7 +101,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_WRITE]);
     const { id: userId, accessId } = await params;
 
     // Validate IDs
@@ -116,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid access ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Check access exists
     const { data: existingAccess, error: checkError } = await adminClient
@@ -240,7 +239,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticatePlatformAdmin(request, [API_SCOPES.USERS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_WRITE]);
     const { id: userId, accessId } = await params;
 
     // Validate IDs
@@ -254,7 +253,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid access ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Check access exists
     const { data: existingAccess, error: checkError } = await adminClient

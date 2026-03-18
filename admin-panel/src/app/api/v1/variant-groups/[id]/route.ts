@@ -19,7 +19,6 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -56,10 +55,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return apiError(request, 'NOT_FOUND', 'Variant group not found');
     }
 
-    // Use adminClient (seller_main schema) for FK embedding queries —
-    // PostgREST can't resolve FK relationships through proxy views in public schema.
-    const adminClient = createAdminClient();
-    const { data: productGroups, error: pgError } = await adminClient
+    const { data: productGroups, error: pgError } = await supabase
       .from('product_variant_groups')
       .select(`
         id,
@@ -270,8 +266,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch updated group');
     }
 
-    const adminClientRefetch = createAdminClient();
-    const { data: productGroups } = await adminClientRefetch
+    const { data: productGroups } = await supabase
       .from('product_variant_groups')
       .select(`
         id,

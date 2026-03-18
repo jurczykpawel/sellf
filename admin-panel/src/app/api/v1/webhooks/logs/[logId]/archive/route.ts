@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 
 interface RouteContext {
@@ -32,7 +31,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
 
     const { logId } = await context.params;
 
@@ -41,10 +40,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return apiError(request, 'INVALID_INPUT', 'Invalid log ID format');
     }
 
-    const adminClient = createAdminClient();
-
     // Check if log exists
-    const { data: existingLog, error: fetchError } = await adminClient
+    const { data: existingLog, error: fetchError } = await auth.supabase
       .from('webhook_logs')
       .select('id, status')
       .eq('id', logId)
@@ -55,7 +52,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Update status to archived
-    const { error } = await adminClient
+    const { error } = await auth.supabase
       .from('webhook_logs')
       .update({ status: 'archived' })
       .eq('id', logId);

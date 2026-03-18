@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -37,9 +36,9 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
     const { searchParams } = request.nextUrl;
     const productId = searchParams.get('product_id');
 

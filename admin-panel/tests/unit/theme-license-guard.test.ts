@@ -19,6 +19,15 @@ vi.mock('@/lib/supabase/server', () => ({
   createPublicClient: mockCreatePublicClient,
 }));
 
+// Mock withAdminOrSellerAuth to bypass real auth and call the callback directly
+// with a fake dataClient that delegates to the same mock as createPublicClient
+vi.mock('@/lib/actions/admin-auth', () => ({
+  withAdminOrSellerAuth: vi.fn(async (fn: any) => {
+    const fakeDataClient = mockCreatePublicClient();
+    return fn({ user: { id: 'test-user' }, supabase: {}, role: 'platform_admin', dataClient: fakeDataClient });
+  }),
+}));
+
 const mockValidateLicense = vi.fn();
 vi.mock('@/lib/license/verify', () => ({
   validateLicense: mockValidateLicense,
@@ -75,8 +84,8 @@ const VALID_THEME = {
 // Helpers
 // =============================================================================
 
-function setupSupabaseMock(license: string | null) {
-  mockCreatePublicClient.mockResolvedValue({
+function createMockClient(license: string | null) {
+  return {
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -84,7 +93,11 @@ function setupSupabaseMock(license: string | null) {
         }),
       }),
     }),
-  });
+  };
+}
+
+function setupSupabaseMock(license: string | null) {
+  mockCreatePublicClient.mockReturnValue(createMockClient(license));
 }
 
 // =============================================================================
@@ -116,8 +129,9 @@ describe('Theme license guard', () => {
 
       const result = await checkThemeLicense();
 
-      expect(result).toBe(true);
-      expect(mockCreatePublicClient).not.toHaveBeenCalled();
+      // Now returns ActionResponse<boolean>
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(true);
     });
 
     it('returns false without license (non-demo)', async () => {
@@ -127,7 +141,8 @@ describe('Theme license guard', () => {
       const { checkThemeLicense } = await import('@/lib/actions/theme');
       const result = await checkThemeLicense();
 
-      expect(result).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(false);
     });
 
     it('returns false with invalid license (non-demo)', async () => {
@@ -138,7 +153,8 @@ describe('Theme license guard', () => {
       const { checkThemeLicense } = await import('@/lib/actions/theme');
       const result = await checkThemeLicense();
 
-      expect(result).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(false);
     });
 
     it('returns true with valid license (non-demo)', async () => {
@@ -149,7 +165,8 @@ describe('Theme license guard', () => {
       const { checkThemeLicense } = await import('@/lib/actions/theme');
       const result = await checkThemeLicense();
 
-      expect(result).toBe(true);
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(true);
     });
   });
 

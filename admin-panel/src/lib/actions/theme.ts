@@ -10,10 +10,12 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { themeConfigSchema, THEME_PRESETS, getPresetById } from '@/lib/themes';
-import { createPublicClient } from '@/lib/supabase/server';
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
 import { validateLicense } from '@/lib/license/verify';
 import { hasFeature } from '@/lib/license/features';
 import { isDemoMode } from '@/lib/demo-guard';
+import type { ActionResponse } from '@/lib/actions/admin-auth';
+import type { SellerDataClient } from '@/lib/supabase/admin';
 import type { ThemeConfig, ThemePreset } from '@/lib/themes';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -39,14 +41,13 @@ export async function getActiveTheme(): Promise<ThemeConfig | null> {
 
 // ===== WRITE =====
 
-export async function saveActiveTheme(theme: ThemeConfig): Promise<{ success: boolean; error?: string }> {
-  // Server-side license gate (demo mode bypasses)
-  const licensed = await checkThemeLicense();
-  if (!licensed) {
-    return { success: false, error: 'Valid Sellf Pro license required to save themes' };
-  }
+export async function saveActiveTheme(theme: ThemeConfig): Promise<ActionResponse<void>> {
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const licenseCheck = await checkThemeLicenseWithClient(dataClient);
+    if (!licenseCheck) {
+      return { success: false, error: 'Valid Sellf Pro license required to save themes' };
+    }
 
-  try {
     const result = themeConfigSchema.safeParse(theme);
     if (!result.success) {
       return { success: false, error: `Invalid theme: ${result.error.message}` };
@@ -57,15 +58,12 @@ export async function saveActiveTheme(theme: ThemeConfig): Promise<{ success: bo
 
     revalidatePath('/', 'layout');
     return { success: true };
-  } catch (error) {
-    console.error('[saveActiveTheme] Error:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
+  });
 }
 
 // ===== APPLY PRESET =====
 
-export async function applyPreset(presetId: string): Promise<{ success: boolean; error?: string }> {
+export async function applyPreset(presetId: string): Promise<ActionResponse<void>> {
   const theme = getPresetById(presetId);
   if (!theme) {
     return { success: false, error: `Preset "${presetId}" not found` };
@@ -75,24 +73,26 @@ export async function applyPreset(presetId: string): Promise<{ success: boolean;
 
 // ===== DELETE =====
 
-export async function removeActiveTheme(): Promise<{ success: boolean; error?: string }> {
-  const licensed = await checkThemeLicense();
-  if (!licensed) {
-    return { success: false, error: 'Valid Sellf Pro license required' };
-  }
+export async function removeActiveTheme(): Promise<ActionResponse<void>> {
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const licenseCheck = await checkThemeLicenseWithClient(dataClient);
+    if (!licenseCheck) {
+      return { success: false, error: 'Valid Sellf Pro license required' };
+    }
 
-  try {
-    await fs.unlink(ACTIVE_THEME_PATH);
+    try {
+      await fs.unlink(ACTIVE_THEME_PATH);
+    } catch (error) {
+      // ENOENT is OK — file already doesn't exist
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { success: true };
+      }
+      throw error;
+    }
+
     revalidatePath('/', 'layout');
     return { success: true };
-  } catch (error) {
-    // ENOENT is OK — file already doesn't exist
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { success: true };
-    }
-    console.error('[removeActiveTheme] Error:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
+  });
 }
 
 // ===== LIST PRESETS =====
@@ -103,13 +103,15 @@ export async function getThemePresets(): Promise<ThemePreset[]> {
 
 // ===== LICENSE CHECK =====
 
-export async function checkThemeLicense(): Promise<boolean> {
-  // In demo mode, unlock PRO features so visitors can test theme editing
+/**
+ * Internal license check using an already-authenticated data client.
+ * Used by saveActiveTheme, removeActiveTheme, etc. inside withAdminOrSellerAuth.
+ */
+async function checkThemeLicenseWithClient(dataClient: SellerDataClient): Promise<boolean> {
   if (isDemoMode()) return true;
 
   try {
-    const supabase = await createPublicClient();
-    const { data } = await supabase
+    const { data } = await dataClient
       .from('integrations_config')
       .select('sellf_license')
       .eq('id', 1)
@@ -127,16 +129,25 @@ export async function checkThemeLicense(): Promise<boolean> {
   }
 }
 
+/**
+ * Public server action for license check — requires admin/seller auth.
+ * Returns ActionResponse<boolean> with the license validity in `data`.
+ */
+export async function checkThemeLicense(): Promise<ActionResponse<boolean>> {
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const valid = await checkThemeLicenseWithClient(dataClient);
+    return { success: true, data: valid };
+  });
+}
+
 // ===== EXPORT =====
 
-export async function exportActiveTheme(): Promise<{ success: boolean; data?: string; error?: string }> {
-  try {
+export async function exportActiveTheme(): Promise<ActionResponse<string>> {
+  return withAdminOrSellerAuth(async () => {
     const theme = await getActiveTheme();
     if (!theme) {
       return { success: false, error: 'No active theme to export' };
     }
     return { success: true, data: JSON.stringify(theme, null, 2) };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
+  });
 }

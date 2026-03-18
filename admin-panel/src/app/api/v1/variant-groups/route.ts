@@ -21,7 +21,6 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 interface ProductInGroup {
   id: string;
@@ -109,11 +108,7 @@ export async function GET(request: NextRequest) {
     let groupsWithProducts: VariantGroupWithProducts[] = [];
 
     if (groupIds.length > 0) {
-      // Use adminClient (seller_main schema) for FK embedding queries —
-      // PostgREST can't resolve FK relationships through proxy views in public schema.
-      // Auth is already verified by authenticate() above.
-      const adminClient = createAdminClient();
-      const { data: productGroups, error: pgError } = await adminClient
+      const { data: productGroups, error: pgError } = await supabase
         .from('product_variant_groups')
         .select(`
           id,
