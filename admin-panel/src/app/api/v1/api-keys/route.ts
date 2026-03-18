@@ -173,14 +173,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Seller admins cannot self-assign scopes beyond their allowed set
+    // Seller admins: use sellerDefault preset (never FULL_ACCESS)
     if (role === 'seller_admin') {
       const allowedScopes: readonly string[] = SCOPE_PRESETS.sellerDefault;
-      scopes = scopes.filter((s: string) => allowedScopes.includes(s));
-      if (scopes.length === 0) {
-        throw new ApiValidationError(
-          'No valid scopes for seller. Allowed scopes: ' + allowedScopes.join(', ')
-        );
+      if (scopeGate.gated || scopes.includes(API_SCOPES.FULL_ACCESS)) {
+        // Free tier or wildcard requested — give seller default scopes
+        scopes = [...allowedScopes];
+      } else {
+        // Custom scopes — filter to allowed set
+        scopes = scopes.filter((s: string) => allowedScopes.includes(s));
+        if (scopes.length === 0) {
+          throw new ApiValidationError(
+            'No valid scopes for seller. Allowed scopes: ' + allowedScopes.join(', ')
+          );
+        }
       }
     }
 
