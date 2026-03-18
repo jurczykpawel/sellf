@@ -29,6 +29,8 @@ import {
   SCOPE_PRESETS,
 } from '@/lib/api';
 import { resolveCurrentTier } from '@/lib/license/resolve';
+import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import type { LicenseResolveOptions } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
@@ -133,7 +135,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminOrSellerApi(supabase);
+    const { user, role, sellerSlug, sellerSchema } = await requireAdminOrSellerApi(supabase);
 
     const body = await parseJsonBody<{
       name?: string;
@@ -152,7 +154,12 @@ export async function POST(request: NextRequest) {
     }
 
     // License-based scope gating: free tier = locked to ['*']
-    const tier = await resolveCurrentTier();
+    // Seller admin: check THEIR license (not platform's)
+    let tierOptions: LicenseResolveOptions | undefined;
+    if (sellerSlug && sellerSchema) {
+      tierOptions = { dataClient: createSellerAdminClient(sellerSchema), sellerSlug };
+    }
+    const tier = await resolveCurrentTier(tierOptions);
     const scopeGate = enforceApiKeyScopeGate(tier, body.scopes);
     let scopes = scopeGate.scopes;
 
