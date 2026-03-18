@@ -3,8 +3,7 @@
 import { ExternalLink, ShoppingBag } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 
-/** Platform admin view: link to sellers management page. */
-function PlatformAdminView() {
+export default function MarketplaceSettings() {
   const t = useTranslations('settings.marketplace');
   const locale = useLocale();
 
@@ -32,9 +31,4 @@ function PlatformAdminView() {
       </a>
     </div>
   );
-}
-
-export default function MarketplaceSettings() {
-  // Marketplace tab is only shown to platform admins (filtered in SettingsTabs)
-  return <PlatformAdminView />;
 }

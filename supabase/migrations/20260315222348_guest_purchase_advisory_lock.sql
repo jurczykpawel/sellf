@@ -64,3 +64,10 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.migrate_guest_purchases_all_schemas(UUID, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.migrate_guest_purchases_all_schemas(UUID, TEXT) TO service_role;
+
+
+-- Drop duplicate registration trigger.
+-- Both `user_registration_trigger` (core_schema) and `on_auth_user_created` (features)
+-- fire on auth.users INSERT and call handle_new_user_registration() — unnecessary overhead.
+-- Keep `on_auth_user_created`, drop the older one.
+DROP TRIGGER IF EXISTS user_registration_trigger ON auth.users;

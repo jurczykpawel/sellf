@@ -78,7 +78,8 @@ export function getAllFeatures(): Record<Feature, LicenseTier> {
 }
 
 /**
- * Resolve the current license tier from SELLF_LICENSE_KEY env var.
+ * Resolve the current license tier from SELLF_LICENSE_KEY env var (sync, no DB).
+ * Use resolveCurrentTier() in async contexts for full env + DB resolution.
  * Returns 'free' if no license, invalid license, or demo mode returns 'business'.
  */
 export function getCurrentTier(): LicenseTier {
@@ -93,3 +94,4 @@ export function getCurrentTier(): LicenseTier {
 
   return result.valid ? result.info.tier : 'free';
 }
+

@@ -276,10 +276,10 @@ describe('Area 4: API Route Authentication & Authorization', () => {
       'cron route must authenticate with CRON_SECRET environment variable'
     ).toBe(true);
 
-    // Cron must use createAdminClient (legitimate service-role usage after secret check)
+    // Cron must use service-role client (createPlatformClient or createAdminClient) after secret check
     expect(
-      /createAdminClient/.test(cron.source),
-      'cron route should use createAdminClient for DB operations'
+      /createPlatformClient|createAdminClient/.test(cron.source),
+      'cron route should use service-role client for DB operations'
     ).toBe(true);
   });
 

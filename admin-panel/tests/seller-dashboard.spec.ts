@@ -82,8 +82,6 @@ test.describe('Seller Admin Dashboard', () => {
 
   test('seller sees full admin navigation including Users, API Keys, Integrations', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/pl/dashboard');
-    await page.waitForLoadState('networkidle');
 
     // Seller admin sees ALL admin nav items (same as platform admin)
     await expect(page.getByTestId('stat-card-total-revenue')).toBeVisible({ timeout: 15000 });
@@ -92,7 +90,7 @@ test.describe('Seller Admin Dashboard', () => {
   test('seller CAN navigate to products page', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should see products page content (table or heading)
     await expect(page.locator('text=/Produkt|Product/i').first()).toBeVisible({ timeout: 15000 });
@@ -175,7 +173,7 @@ test.describe('Seller Dashboard Products Page', () => {
   test('seller sees only their own products', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Get Kowalski's product names from DB
     const { data: sellerProducts } = await kowalskiClient
@@ -210,7 +208,7 @@ test.describe('Seller Dashboard Coupons Page', () => {
   test('seller sees only their own coupons', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
     await page.goto('/pl/dashboard/coupons');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Kowalski has KOWALSKI20 and ECOMMERCE50 coupons
     await expect(page.locator('text=KOWALSKI20').first()).toBeVisible({ timeout: 15000 });
@@ -226,7 +224,7 @@ test.describe('Seller Dashboard Settings Page', () => {
   test('seller can access settings page', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
     await page.goto('/pl/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should see settings page content (any form element or heading)
     await expect(page.locator('text=/Settings|Ustawienia|Theme|Motyw|Shop|Sklep/i').first()).toBeVisible({ timeout: 15000 });
@@ -238,7 +236,7 @@ test.describe('Seller Dashboard Full Navigation', () => {
   test('seller admin sees all admin navigation items', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Seller admin sees FULL admin menu (same as platform admin)
     await expect(page.locator('text=/Produkt|Product/i').first()).toBeVisible({ timeout: 15000 });
@@ -250,7 +248,7 @@ test.describe('Seller Dashboard Data Isolation — Cross-tenant', () => {
   test('Creative Studio seller sees different products than Kowalski', async ({ page }) => {
     await loginAsSeller(page, creativeEmail, creativePassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Creative Studio should see their products
     const { data: creativeProducts } = await creativeClient
@@ -279,7 +277,7 @@ test.describe('Seller Dashboard Data Isolation — Cross-tenant', () => {
   test('Creative Studio sees their own coupons, not Kowalski\'s', async ({ page }) => {
     await loginAsSeller(page, creativeEmail, creativePassword);
     await page.goto('/pl/dashboard/coupons');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Creative Studio has DESIGN10
     await expect(page.locator('text=DESIGN10').first()).toBeVisible({ timeout: 15000 });

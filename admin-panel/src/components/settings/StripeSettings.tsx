@@ -8,12 +8,14 @@ import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants'
 import type { StripeConfiguration, WebhookRegistrationInfo } from '@/types/stripe-config'
 import { useTranslations } from 'next-intl'
 import SourceBadge from '@/components/ui/SourceBadge'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Session-level cache for Stripe account info — cleared on config change
 let _accountInfoCache: { accountId: string | null; accountName: string | null } | null | undefined = undefined
 
 export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  const t = useTranslations('settings.stripe')
+ const { role } = useAuth()
  const [isWizardOpen, setIsWizardOpen] = useState(false)
  const [configs, setConfigs] = useState<StripeConfiguration[]>([])
  const [keySource, setKeySource] = useState<{ activeSource: 'db' | 'env' | 'none'; dbConfigured: boolean; envConfigured: boolean }>({ activeSource: 'none', dbConfigured: false, envConfigured: false })
@@ -260,7 +262,8 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  )}
  </div>
 
-{/* Webhook Endpoint */}
+{/* Webhook Endpoint — platform admin only (marketplace uses Connect destination charges) */}
+{role === 'platform_admin' && (
 <div className="bg-sf-base border-2 border-sf-border-medium p-6">
    <div className="flex items-center justify-between mb-2">
      <div className="flex items-center gap-2">
@@ -391,6 +394,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
      </div>
    )}
  </div>
+)}
 
  {/* Wizard Modal */}
  {isWizardOpen && (

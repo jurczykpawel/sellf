@@ -62,7 +62,7 @@ test.describe('Admin: Add Seller Form', () => {
   test('admin sees Add Seller form on /admin/sellers', async ({ page }) => {
     await loginAs(page, adminEmail, adminPassword);
     await page.goto('/en/admin/sellers');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Form should be visible (inputs have specific IDs)
     await expect(page.locator('#seller-name')).toBeVisible({ timeout: 15000 });
@@ -73,7 +73,7 @@ test.describe('Admin: Add Seller Form', () => {
   test('admin can fill and submit Add Seller form', async ({ page }) => {
     await loginAs(page, adminEmail, adminPassword);
     await page.goto('/en/admin/sellers');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Fill display name — type slowly to trigger onChange
     const nameInput = page.locator('#seller-name');
@@ -124,7 +124,7 @@ test.describe('Admin: Add Seller Form', () => {
     }
     await loginAs(page, adminEmail, adminPassword);
     await page.goto('/en/admin/sellers');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.locator('text=Test Seller Store')).toBeVisible({ timeout: 15000 });
   });
@@ -132,7 +132,7 @@ test.describe('Admin: Add Seller Form', () => {
   test('duplicate slug is rejected', async ({ page }) => {
     await loginAs(page, adminEmail, adminPassword);
     await page.goto('/en/admin/sellers');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const nameInput = page.locator('#seller-name');
     await expect(nameInput).toBeVisible({ timeout: 15000 });
@@ -156,35 +156,40 @@ test.describe('Admin: Add Seller Form', () => {
 
 test.describe('Seller Settings: Stripe Connect', () => {
 
-  test('seller admin sees Stripe Connect section in Settings', async ({ page }) => {
+  test('seller admin sees Stripe section in Payments tab', async ({ page }) => {
     await loginAs(page, sellerEmail, sellerPassword);
     await page.goto('/en/dashboard/settings');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Wait for Marketplace tab to render (don't use instant isVisible — React hydration may not be done)
+    // Seller does NOT see Marketplace tab (platform admin only)
     const marketplaceTab = page.locator('button', { hasText: /Marketplace/i });
-    await expect(marketplaceTab).toBeVisible();
-    await marketplaceTab.click();
+    await expect(marketplaceTab).not.toBeVisible();
 
-    // Should see Stripe Connect card (not the "Manage Sellers" link)
-    await expect(page.locator('text=/Stripe Connect|Connect Stripe|Stripe/i').first()).toBeVisible();
+    // Click Payments tab — Stripe config is here
+    const paymentsTab = page.locator('button', { hasText: /Payments|Płatności/i });
+    await expect(paymentsTab).toBeVisible({ timeout: 15000 });
+    await paymentsTab.click();
+
+    // Should see Stripe configuration section
+    await expect(page.locator('text=/Stripe/i').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('seller admin sees "not connected" status and Connect button', async ({ page }) => {
+  test('seller admin does not see system updates or security audit', async ({ page }) => {
     await loginAs(page, sellerEmail, sellerPassword);
     await page.goto('/en/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    // Click Marketplace tab
-    const marketplaceTab = page.locator('button', { hasText: /Marketplace/i });
-    await expect(marketplaceTab).toBeVisible({ timeout: 15000 });
-    await marketplaceTab.click();
+    // Click System tab
+    const systemTab = page.locator('button', { hasText: /System/i });
+    await expect(systemTab).toBeVisible({ timeout: 15000 });
+    await systemTab.click();
 
-    // Wait for Stripe status to load (async fetch)
-    await expect(page.locator('text=/Not connected|Connect Stripe Account/i').first()).toBeVisible({ timeout: 15000 });
+    // Seller sees License settings
+    await expect(page.locator('text=/License|Licencja/i').first()).toBeVisible({ timeout: 15000 });
 
-    // Connect button should be visible
-    const connectBtn = page.locator('button', { hasText: /Connect Stripe Account/i }).first();
-    await expect(connectBtn).toBeVisible({ timeout: 5000 });
+    // Seller does NOT see system updates or security audit
+    await expect(page.locator('text=/Check for Updates|Sprawdź aktualizacje/i').first()).not.toBeVisible();
+    await expect(page.locator('text=/Security Audit|Audyt bezpieczeństwa/i').first()).not.toBeVisible();
   });
 
   test('platform admin sees "Manage Sellers" link, not Stripe Connect card', async ({ page }) => {

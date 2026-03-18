@@ -1,20 +1,21 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
 
 export async function getDashboardStats() {
-  // Uses cookie-based session client because get_dashboard_stats RPC
-  // checks is_admin() internally which reads from JWT, not service_role.
-  const supabase = await createClient()
-  const { data, error } = await supabase.rpc('get_dashboard_stats')
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data, error } = await dataClient.rpc('get_dashboard_stats')
 
-  if (error) {
-    console.error('Error fetching dashboard stats:', error)
-    return null
-  }
+    if (error) {
+      console.error('Error fetching dashboard stats:', error)
+      return { success: true as const, data: null }
+    }
 
-  return data
+    return { success: true as const, data }
+  })
+
+  if (!result.success) return null
+  return result.data
 }
 
 export async function getRecentActivity() {

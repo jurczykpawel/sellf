@@ -2,9 +2,9 @@
  * V1 API Seller Permissions Tests
  *
  * Verifies that seller admin (via session auth) can:
- * - Access their own products, coupons, order bumps, payments
+ * - Access their own products, coupons, order bumps, payments, users
  * - NOT see platform owner (seller_main) data
- * - NOT access platform-only endpoints (users, API keys)
+ * - Manage users within their own schema
  *
  * Uses seed data: Kowalski Digital seller with products.
  * REQUIRES: Supabase running + db reset + dev server running
@@ -159,15 +159,183 @@ test.describe('Seller admin V1 API - own data access', () => {
   });
 });
 
-// ===== SELLER ADMIN: BLOCKED FROM PLATFORM-ONLY =====
+// ===== SELLER ADMIN: USER MANAGEMENT (OWN SCHEMA) =====
 
-test.describe('Seller admin V1 API - platform-only endpoints blocked', () => {
-  test('seller CANNOT list users (platform-only)', async ({ page }) => {
+test.describe('Seller admin V1 API - user management', () => {
+  // Test users created per-describe for deterministic data
+  let sellerBuyerUserId: string;
+  let platformBuyerUserId: string;
+  let sellerProductId: string;
+
+  test.beforeAll(async () => {
+    const rnd = Math.random().toString(36).substring(7);
+
+    // Create a buyer and grant access in SELLER schema (seller_kowalski_digital)
+    const { data: { user: sellerBuyer } } = await supabaseAdmin.auth.admin.createUser({
+      email: `seller-buyer-${Date.now()}-${rnd}@example.com`,
+      password: 'password123',
+      email_confirm: true,
+    });
+    sellerBuyerUserId = sellerBuyer!.id;
+
+    // Get a product from seller's schema
+    const sellerSchema = 'seller_kowalski_digital';
+    const { data: products } = await supabaseAdmin
+      .schema(sellerSchema)
+      .from('products')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1);
+    sellerProductId = products![0].id;
+
+    // Grant access in seller schema
+    await supabaseAdmin
+      .schema(sellerSchema)
+      .from('user_product_access')
+      .insert({ user_id: sellerBuyerUserId, product_id: sellerProductId });
+
+    // Create a buyer and grant access in PLATFORM schema (seller_main)
+    const { data: { user: platformBuyer } } = await supabaseAdmin.auth.admin.createUser({
+      email: `platform-buyer-${Date.now()}-${rnd}@example.com`,
+      password: 'password123',
+      email_confirm: true,
+    });
+    platformBuyerUserId = platformBuyer!.id;
+
+    const { data: mainProducts } = await supabaseAdmin
+      .schema('seller_main')
+      .from('products')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1);
+    if (mainProducts && mainProducts.length > 0) {
+      await supabaseAdmin
+        .schema('seller_main')
+        .from('user_product_access')
+        .insert({ user_id: platformBuyerUserId, product_id: mainProducts[0].id });
+    }
+  });
+
+  test.afterAll(async () => {
+    // Cleanup access + users (ignore errors from already-deleted records)
+    try {
+      await supabaseAdmin
+        .schema('seller_kowalski_digital')
+        .from('user_product_access')
+        .delete()
+        .eq('user_id', sellerBuyerUserId);
+    } catch { /* ignore */ }
+    try {
+      await supabaseAdmin
+        .schema('seller_main')
+        .from('user_product_access')
+        .delete()
+        .eq('user_id', platformBuyerUserId);
+    } catch { /* ignore */ }
+    try { await supabaseAdmin.auth.admin.deleteUser(sellerBuyerUserId); } catch { /* ignore */ }
+    try { await supabaseAdmin.auth.admin.deleteUser(platformBuyerUserId); } catch { /* ignore */ }
+  });
+
+  test('seller CAN list users from their schema', async ({ page }) => {
     await setAuthSession(page, sellerOwnerEmail, sellerOwnerPassword);
 
     const response = await page.request.get('/api/v1/users');
-    // Should be 403 Forbidden (seller is not platform admin)
-    expect(response.status()).toBe(403);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body.data).toBeDefined();
+    expect(Array.isArray(body.data)).toBe(true);
+    // Must have at least the buyer we created in beforeAll
+    expect(body.data.length).toBeGreaterThan(0);
+  });
+
+  test('seller can view a specific user by ID', async ({ page }) => {
+    await setAuthSession(page, sellerOwnerEmail, sellerOwnerPassword);
+
+    // Use the known buyer we created
+    const response = await page.request.get(`/api/v1/users/${sellerBuyerUserId}`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body.data.id).toBe(sellerBuyerUserId);
+  });
+
+  test('seller sees ONLY their schema users, NOT seller_main users', async ({ page }) => {
+    // Seller's list
+    await setAuthSession(page, sellerOwnerEmail, sellerOwnerPassword);
+    const sellerResponse = await page.request.get('/api/v1/users');
+    const sellerBody = await sellerResponse.json();
+    const sellerUserIds = sellerBody.data.map((u: { id: string }) => u.id);
+
+    // Seller MUST see the buyer we added to their schema
+    expect(sellerUserIds, 'Seller must see buyer from their schema').toContain(sellerBuyerUserId);
+
+    // Seller must NOT see the buyer we added to seller_main
+    expect(sellerUserIds, 'Seller must NOT see buyer from seller_main').not.toContain(platformBuyerUserId);
+  });
+
+  test('platform admin sees ONLY seller_main users, NOT seller schema users', async ({ page }) => {
+    await setAuthSession(page, platformAdminEmail, platformAdminPassword);
+    const adminResponse = await page.request.get('/api/v1/users');
+    const adminBody = await adminResponse.json();
+    const adminUserIds = adminBody.data.map((u: { id: string }) => u.id);
+
+    // Platform admin MUST see the buyer we added to seller_main
+    expect(adminUserIds, 'Platform admin must see buyer from seller_main').toContain(platformBuyerUserId);
+
+    // Platform admin must NOT see the buyer from seller schema
+    expect(adminUserIds, 'Platform admin must NOT see buyer from seller schema').not.toContain(sellerBuyerUserId);
+  });
+
+  test('seller can grant access to their product for a user', async ({ page }) => {
+    await setAuthSession(page, sellerOwnerEmail, sellerOwnerPassword);
+
+    // Create a fresh test user
+    const rnd = Math.random().toString(36).substring(7);
+    const testBuyerEmail = `buyer-grant-${Date.now()}-${rnd}@example.com`;
+    const { data: { user: buyerUser }, error: buyerErr } = await supabaseAdmin.auth.admin.createUser({
+      email: testBuyerEmail,
+      password: 'password123',
+      email_confirm: true,
+    });
+    expect(buyerErr).toBeNull();
+
+    try {
+      // Grant access via seller's API
+      const grantResponse = await page.request.post(`/api/v1/users/${buyerUser!.id}/access`, {
+        headers: { 'Content-Type': 'application/json' },
+        data: { product_id: sellerProductId },
+      });
+      expect(grantResponse.status()).toBe(201);
+
+      const grantBody = await grantResponse.json();
+      expect(grantBody.data.product_id).toBe(sellerProductId);
+      expect(grantBody.data.user_id).toBe(buyerUser!.id);
+
+      // Verify the user now appears in seller's user list
+      const listResponse = await page.request.get('/api/v1/users');
+      const listBody = await listResponse.json();
+      const userIds = listBody.data.map((u: { id: string }) => u.id);
+      expect(userIds, 'Newly granted user must appear in seller user list').toContain(buyerUser!.id);
+    } finally {
+      // Cleanup
+      try {
+        await supabaseAdmin
+          .schema('seller_kowalski_digital')
+          .from('user_product_access')
+          .delete()
+          .eq('user_id', buyerUser!.id);
+      } catch { /* ignore */ }
+      try { await supabaseAdmin.auth.admin.deleteUser(buyerUser!.id); } catch { /* ignore */ }
+    }
+  });
+
+  test('seller cannot see user from another seller schema via direct ID', async ({ page }) => {
+    await setAuthSession(page, sellerOwnerEmail, sellerOwnerPassword);
+
+    // Try to view the platform buyer directly — should 404 (not in seller's schema)
+    const response = await page.request.get(`/api/v1/users/${platformBuyerUserId}`);
+    expect(response.status()).toBe(404);
   });
 });
 

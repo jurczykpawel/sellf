@@ -39,7 +39,7 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
   const { demoMode } = useConfig()
   const { role } = useAuth()
 
-  // Marketplace tab only for platform admins
+  // Marketplace tab: platform admins only (seller management, not per-seller config)
   const showMarketplace = marketplaceEnabled && role === 'platform_admin'
 
   const tabs = showMarketplace
@@ -73,7 +73,7 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
         {active === 'shop' && (
           <>
             <ShopSettings />
-            <BrandingSettings />
+            {role === 'platform_admin' && <BrandingSettings />}
             <CheckoutThemeSettings />
           </>
         )}
@@ -100,8 +100,8 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
         {active === 'system' && (
           <>
             <LicenseSettings />
-            <SystemUpdateSettings />
-            {!demoMode && <SecurityAuditSettings />}
+            {role === 'platform_admin' && <SystemUpdateSettings />}
+            {role === 'platform_admin' && !demoMode && <SecurityAuditSettings />}
           </>
         )}
       </div>
