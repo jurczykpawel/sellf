@@ -229,7 +229,7 @@ BEGIN
   END IF;
 
   -- Get product (include name for line item snapshot)
-  SELECT id, name, auto_grant_duration_days, price, currency INTO product_record
+  SELECT id, name, auto_grant_duration_days, price, currency, allow_custom_price, custom_price_min INTO product_record
   FROM seller_main.products
   WHERE id = product_id_param AND is_active = true;
 
@@ -283,7 +283,13 @@ BEGIN
     BEGIN
       expected_total := product_record.price + total_bump_price;
 
-      IF coupon_id_param IS NULL THEN
+      IF product_record.allow_custom_price = true THEN
+        -- PWYW: validate minimum price (custom_price_min) + bumps
+        IF amount_total < ((COALESCE(product_record.custom_price_min, 0) + total_bump_price) * 100) THEN
+          RAISE EXCEPTION 'Amount below minimum: got % cents, minimum is % cents',
+            amount_total, ((COALESCE(product_record.custom_price_min, 0) + total_bump_price) * 100);
+        END IF;
+      ELSIF coupon_id_param IS NULL THEN
         -- No coupon: validate exact amount
         IF amount_total != (expected_total * 100) THEN
           RAISE EXCEPTION 'Amount mismatch: expected % cents (product % + bumps %), got % cents',

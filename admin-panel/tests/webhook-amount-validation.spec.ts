@@ -154,49 +154,191 @@ test.describe('Webhook Amount Validation Security', () => {
     expect(error?.message).toContain('Currency mismatch');
   });
 
-  test('SECURITY: Accept PWYW with any positive amount', async ({ request }) => {
-    // Pay What You Want products (price = NULL) should accept any positive amount
+});
 
-    const { data: products } = await supabaseAdmin
+test.describe('PWYW Amount Validation', () => {
+  let pwywProduct: { id: string; price: number; currency: string; custom_price_min: number };
+  let pwywFreeProduct: { id: string; price: number; currency: string; custom_price_min: number };
+  const suffix = Date.now().toString();
+
+  test.beforeAll(async () => {
+    // PWYW product with minimum $5
+    const { data: p1, error: e1 } = await supabaseAdmin
       .from('products')
-      .select('id, name, price, currency')
-      .eq('is_active', true)
-      .is('price', null) // PWYW product
-      .limit(1);
+      .insert({
+        name: `PWYW Min5 ${suffix}`,
+        slug: `pwyw-min5-${suffix}`,
+        price: 29.99,
+        currency: 'USD',
+        is_active: true,
+        allow_custom_price: true,
+        custom_price_min: 5.00,
+      })
+      .select()
+      .single();
+    if (e1) throw e1;
+    pwywProduct = { id: p1.id, price: p1.price, currency: p1.currency, custom_price_min: p1.custom_price_min };
 
-    if (!products || products.length === 0) {
-      console.log('Skipping: No PWYW products found');
-      return;
+    // PWYW product with minimum $0 (free option)
+    const { data: p2, error: e2 } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `PWYW Free ${suffix}`,
+        slug: `pwyw-free-${suffix}`,
+        price: 19.99,
+        currency: 'USD',
+        is_active: true,
+        allow_custom_price: true,
+        custom_price_min: 0,
+      })
+      .select()
+      .single();
+    if (e2) throw e2;
+    pwywFreeProduct = { id: p2.id, price: p2.price, currency: p2.currency, custom_price_min: p2.custom_price_min };
+  });
+
+  test.afterAll(async () => {
+    for (const p of [pwywProduct, pwywFreeProduct]) {
+      if (p?.id) {
+        await supabaseAdmin.from('payment_transactions').delete().eq('product_id', p.id);
+        await supabaseAdmin.from('products').delete().eq('id', p.id);
+      }
     }
+  });
 
-    const product = products[0];
-
-    // Call with custom amount (PWYW allows any amount)
+  test('PWYW: accept amount below listed price but above minimum', async () => {
+    // Product price $29.99, min $5.00 — pay $10.00
     const { data: result, error } = await supabaseAdmin.rpc(
       'process_stripe_payment_completion_with_bump',
       {
-        session_id_param: 'cs_test_pwyw_' + Date.now(),
-        product_id_param: product.id,
-        customer_email_param: 'pwyw@example.com',
-        amount_total: 1500, // $15.00 custom amount
-        currency_param: product.currency || 'usd',
+        session_id_param: `cs_test_pwyw_below_${suffix}`,
+        product_id_param: pwywProduct.id,
+        customer_email_param: `pwyw-below-${suffix}@example.com`,
+        amount_total: 1000, // $10.00 — below $29.99 but above $5.00 min
+        currency_param: 'usd',
       }
     );
 
-    console.log('\n🔍 PWYW (Pay What You Want) test:');
-    console.log(`   Product has fixed price: ${product.price !== null ? 'YES' : 'NO'}`);
-    console.log(`   Custom amount: $15.00`);
-    console.log(`   Result: ${error ? 'REJECTED ❌' : 'ACCEPTED ✅'}`);
-
-    // EXPECTED: Should succeed (PWYW skips amount validation)
-    expect(error).toBeFalsy();
+    expect(error, 'PWYW should accept amount above minimum').toBeFalsy();
     expect(result?.success).toBe(true);
   });
-});
 
-// Note: Amount validation was already implemented in
-// supabase/migrations/20250103000000_features.sql (lines 718-729)
-// The process_stripe_payment_completion_with_bump function validates:
-// - Amount matches product price (with bump if applicable)
-// - Currency matches product currency
-// - PWYW products allow flexible amounts within limits
+  test('PWYW: accept amount above listed price', async () => {
+    // Product price $29.99, min $5.00 — pay $50.00
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: `cs_test_pwyw_above_${suffix}`,
+        product_id_param: pwywProduct.id,
+        customer_email_param: `pwyw-above-${suffix}@example.com`,
+        amount_total: 5000, // $50.00 — above listed price
+        currency_param: 'usd',
+      }
+    );
+
+    expect(error, 'PWYW should accept amount above listed price').toBeFalsy();
+    expect(result?.success).toBe(true);
+  });
+
+  test('PWYW: accept exact minimum price', async () => {
+    // Product price $29.99, min $5.00 — pay exactly $5.00
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: `cs_test_pwyw_exact_min_${suffix}`,
+        product_id_param: pwywProduct.id,
+        customer_email_param: `pwyw-exact-min-${suffix}@example.com`,
+        amount_total: 500, // $5.00 — exact minimum
+        currency_param: 'usd',
+      }
+    );
+
+    expect(error, 'PWYW should accept exact minimum').toBeFalsy();
+    expect(result?.success).toBe(true);
+  });
+
+  test('SECURITY: PWYW reject amount below minimum', async () => {
+    // Product price $29.99, min $5.00 — try $2.00
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: `cs_test_pwyw_below_min_${suffix}`,
+        product_id_param: pwywProduct.id,
+        customer_email_param: `pwyw-reject-${suffix}@example.com`,
+        amount_total: 200, // $2.00 — below $5.00 minimum
+        currency_param: 'usd',
+      }
+    );
+
+    expect(error, 'PWYW should reject amount below minimum').toBeTruthy();
+    expect(error?.message).toContain('Amount below minimum');
+  });
+
+  test('PWYW free: accept $0 minimum (any positive amount)', async () => {
+    // Product price $19.99, min $0 — pay $1.00
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: `cs_test_pwyw_free_pos_${suffix}`,
+        product_id_param: pwywFreeProduct.id,
+        customer_email_param: `pwyw-free-pos-${suffix}@example.com`,
+        amount_total: 100, // $1.00 — min is $0
+        currency_param: 'usd',
+      }
+    );
+
+    expect(error, 'PWYW free should accept any positive amount').toBeFalsy();
+    expect(result?.success).toBe(true);
+  });
+
+  test('PWYW: accept exact listed price (normal flow)', async () => {
+    // Product price $29.99, min $5.00 — pay full $29.99
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: `cs_test_pwyw_full_${suffix}`,
+        product_id_param: pwywProduct.id,
+        customer_email_param: `pwyw-full-${suffix}@example.com`,
+        amount_total: 2999, // $29.99 — exact listed price
+        currency_param: 'usd',
+      }
+    );
+
+    expect(error, 'PWYW should accept exact listed price').toBeFalsy();
+    expect(result?.success).toBe(true);
+  });
+
+  test('SECURITY: fixed-price product still rejects wrong amount', async () => {
+    // Ensure PWYW fix didn't break fixed-price validation
+    const { data: fixedProduct, error: createErr } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `Fixed Price ${suffix}`,
+        slug: `fixed-price-${suffix}`,
+        price: 49.99,
+        currency: 'USD',
+        is_active: true,
+        allow_custom_price: false,
+      })
+      .select()
+      .single();
+    if (createErr) throw createErr;
+
+    const { data: result, error } = await supabaseAdmin.rpc(
+      'process_stripe_payment_completion_with_bump',
+      {
+        session_id_param: `cs_test_fixed_wrong_${suffix}`,
+        product_id_param: fixedProduct.id,
+        customer_email_param: `fixed-wrong-${suffix}@example.com`,
+        amount_total: 1000, // $10.00 — wrong for $49.99 product
+        currency_param: 'usd',
+      }
+    );
+
+    expect(error, 'Fixed-price should reject wrong amount').toBeTruthy();
+    expect(error?.message).toContain('Amount mismatch');
+
+    // Cleanup
+    await supabaseAdmin.from('products').delete().eq('id', fixedProduct.id);
+  });
+});
