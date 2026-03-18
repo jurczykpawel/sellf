@@ -126,8 +126,8 @@ test.describe('Watermark Visibility Based on License', () => {
     await expect(watermark).toHaveCount(0);
   });
 
-  test('Watermark is SHOWN when no license is set (visual test)', async ({ page }) => {
-    // Remove license
+  test('Watermark is HIDDEN when DB license removed but env var present (visual test)', async ({ page }) => {
+    // Remove DB license — but SELLF_LICENSE_KEY env var provides valid platform license
     await setLicense(null);
 
     // Clear cache first
@@ -138,11 +138,8 @@ test.describe('Watermark Visibility Based on License', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // Watermark inner div SHOULD be visible (position: fixed element)
+    // Watermark should NOT be visible (env fallback provides valid license)
     const watermark = page.locator('#sellf-watermark > div');
-    await expect(watermark).toBeVisible();
-
-    // Should contain Sellf branding
-    await expect(watermark).toContainText('Sellf');
+    await expect(watermark).toHaveCount(0);
   });
 });

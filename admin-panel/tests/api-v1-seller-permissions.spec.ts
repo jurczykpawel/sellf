@@ -357,11 +357,11 @@ test.describe('Seller admin V1 API - API keys management', () => {
   test('seller can create an API key scoped to their schema', async ({ page }) => {
     await setAuthSession(page, sellerOwnerEmail, sellerOwnerPassword);
 
+    // Seller without PRO license gets default scopes (custom scopes require license)
     const response = await page.request.post('/api/v1/api-keys', {
       headers: { 'Content-Type': 'application/json' },
       data: {
         name: 'Kowalski Test Key',
-        scopes: ['products:read', 'analytics:read'],
       },
     });
 
@@ -370,7 +370,6 @@ test.describe('Seller admin V1 API - API keys management', () => {
     const body = await response.json();
     expect(body.data).toBeDefined();
     expect(body.data.name).toBe('Kowalski Test Key');
-    // Key should have been created — key_prefix starts with sf_
     expect(body.data.key_prefix).toBeTruthy();
   });
 
