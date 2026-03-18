@@ -1,29 +1,27 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { withAdminAuth } from '@/lib/actions/admin-auth'
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
 
 export async function getDashboardStats() {
-  const supabase = await createClient()
-  
-  // Use the secure RPC call which checks for admin status internally
-  const { data, error } = await supabase.rpc('get_dashboard_stats')
-  
-  if (error) {
-    console.error('Error fetching dashboard stats:', error)
-    return null
-  }
-  
-  return data
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data, error } = await dataClient.rpc('get_dashboard_stats')
+
+    if (error) {
+      console.error('Error fetching dashboard stats:', error)
+      return { success: true as const, data: null }
+    }
+
+    return { success: true as const, data }
+  })
+
+  if (!result.success) return null
+  return result.data
 }
 
 export async function getRecentActivity() {
-  const result = await withAdminAuth(async () => {
-    const adminClient = createAdminClient()
-
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
     // 1. Get recent access grants
-    const { data: accessGrants } = await adminClient
+    const { data: accessGrants } = await dataClient
       .from('user_product_access')
       .select(`
         id,
@@ -36,16 +34,16 @@ export async function getRecentActivity() {
       .limit(10)
 
     // 2. Get user emails from restricted view using adminClient
-    const userIds = [...new Set((accessGrants || []).map(g => g.user_id))]
-    const { data: users } = await adminClient
+    const userIds = [...new Set((accessGrants || []).map((g: any) => g.user_id))]
+    const { data: users } = await dataClient
       .from('user_access_stats')
       .select('user_id, email')
       .in('user_id', userIds)
 
-    const userEmailMap = new Map((users || []).map(u => [u.user_id, u.email]))
+    const userEmailMap = new Map((users || []).map((u: any) => [u.user_id, u.email]))
 
     // 3. Get recent products
-    const { data: recentProducts } = await adminClient
+    const { data: recentProducts } = await dataClient
       .from('products')
       .select('id, name, created_at')
       .order('created_at', { ascending: false })
@@ -54,7 +52,7 @@ export async function getRecentActivity() {
     return {
       success: true as const,
       data: {
-        accessGrants: (accessGrants || []).map(g => ({
+        accessGrants: (accessGrants || []).map((g: any) => ({
           ...g,
           user_email: userEmailMap.get(g.user_id) || g.user_id
         })),

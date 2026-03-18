@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
-import { withAdminAuth } from '@/lib/actions/admin-auth'
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -100,7 +100,7 @@ export async function getDefaultCurrency(): Promise<string> {
 export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
   if (isDemoMode()) return false
 
-  const result = await withAdminAuth(async ({ supabase }) => {
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
     // Get current config first
     const config = await getShopConfig()
     if (!config) {
@@ -108,7 +108,7 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
       return { success: false, error: 'No shop config found' }
     }
 
-    const { error } = await supabase
+    const { error } = await dataClient
       .from('shop_config')
       .update({
         ...updates,

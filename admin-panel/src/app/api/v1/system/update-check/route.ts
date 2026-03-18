@@ -8,7 +8,7 @@
  * @see /admin-panel/scripts/upgrade.sh
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -20,7 +20,7 @@ import { isNewerVersion, APP_VERSION } from '@/lib/version';
 import { successResponse } from '@/lib/api/types';
 
 /** Prevent proxy/CDN caching of version info */
-function withNoStore(res: import('next/server').NextResponse) {
+function withNoStore(res: NextResponse) {
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   return res;
 }
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       {
         headers: { 'Accept': 'application/vnd.github.v3+json' },
         cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
+        redirect: 'error',
       }
     );
 

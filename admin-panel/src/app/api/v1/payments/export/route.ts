@@ -14,9 +14,10 @@ import {
   API_SCOPES,
   getApiCorsHeaders,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { validateUUID } from '@/lib/validations/product';
+import { resolveCurrentTier } from '@/lib/license/resolve';
+import { hasFeature } from '@/lib/license/features';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -35,10 +36,16 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    // CSV export requires at least Registered Free license
+    const tier = await resolveCurrentTier();
+    if (!hasFeature(tier, 'csv-export')) {
+      return apiError(request, 'FORBIDDEN', 'CSV export requires a Sellf license. Register at sellf.app to get a free key.');
+    }
+
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
 
     // Rate limit export operations (heavy DB queries)
-    const userId = authResult.method === 'session' ? authResult.admin.userId : authResult.apiKey?.id;
+    const userId = auth.method === 'session' ? auth.admin.userId : auth.apiKey?.id;
 
     if (userId) {
       const rateLimitOk = await checkRateLimit(
@@ -53,7 +60,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const adminClient = createAdminClient();
     const filters = await parseJsonBody<{
       status?: string;
       date_from?: string;
@@ -63,7 +69,7 @@ export async function POST(request: NextRequest) {
     }>(request);
 
     // Build query for transactions
-    let query = adminClient
+    let query = auth.supabase
       .from('payment_transactions')
       .select(`
         id,

@@ -95,6 +95,7 @@ const PUBLIC_ROUTES = new Set([
   'public/products/[slug]/content/route.ts',
   'public/products/[slug]/grant-access/route.ts',
   'public/products/claim-free/route.ts',
+  'public/refund-request/route.ts',
   'order-bumps/route.ts',
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
@@ -109,7 +110,6 @@ const SPECIAL_AUTH_ROUTES = new Set([
   'webhooks/stripe/route.ts',                  // Stripe signature verification
   'update-payment-metadata/route.ts',          // CORS + PaymentIntent ID (pre-auth payment flow)
   'verify-payment/route.ts',                   // session_id + ownership check
-  'v1/docs/openapi.json/route.ts',             // OpenAPI spec — intentionally public (schema only, no data)
 ]);
 
 /** Auth-required routes: must verify user session */
@@ -148,10 +148,10 @@ function isKnownRoute(rel: string): boolean {
 /** Returns true if source has a convincing admin auth check */
 function hasAdminAuthCheck(source: string): boolean {
   return (
-    /requireAdminApi\s*\(/.test(source) ||
+    /require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(source) ||
     /requireAdminApiWithRequest\s*\(/.test(source) ||
     /requireMarketplaceAdmin\s*\(/.test(source) ||
-    /\bauthenticate\s*\(/.test(source) ||
+    /\bauthenticate(?:PlatformAdmin)?\s*\(/.test(source) ||
     // Inline pattern: getUser(token) or getUser() followed by admin_users check
     (/auth\.getUser/.test(source) && /from\(['"`]admin_users['"`]\)/.test(source))
   );
@@ -163,7 +163,7 @@ function hasUserAuthCheck(source: string): boolean {
     /\.auth\.getUser\(\)/.test(source) ||
     /\.auth\.getSession\(\)/.test(source) ||
     /\.auth\.signOut\(\)/.test(source) ||   // logout: signOut is the auth action
-    /requireAdminApi\s*\(/.test(source) ||
+    /require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(source) ||
     /requireAdminApiWithRequest\s*\(/.test(source) ||
     /\bauthenticate\s*\(/.test(source)
   );
@@ -217,7 +217,7 @@ describe('Area 4: API Route Authentication & Authorization', () => {
         // authenticate() from @/lib/api throws 401 on failure
         /\bauthenticate\s*\(/.test(route.source) ||
         // requireAdminApi from auth-server throws 401
-        /requireAdminApi\s*\(/.test(route.source) ||
+        /require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(route.source) ||
         /requireMarketplaceAdmin\s*\(/.test(route.source);
 
       if (!has401) {
@@ -275,10 +275,10 @@ describe('Area 4: API Route Authentication & Authorization', () => {
       'cron route must authenticate with CRON_SECRET environment variable'
     ).toBe(true);
 
-    // Cron must use createAdminClient (legitimate service-role usage after secret check)
+    // Cron must use service-role client (createPlatformClient or createAdminClient) after secret check
     expect(
-      /createAdminClient/.test(cron.source),
-      'cron route should use createAdminClient for DB operations'
+      /createPlatformClient|createAdminClient/.test(cron.source),
+      'cron route should use service-role client for DB operations'
     ).toBe(true);
   });
 
@@ -304,7 +304,7 @@ describe('Area 4: API Route Authentication & Authorization', () => {
 
     for (const route of routesToCheck) {
       // Skip if it uses requireAdminApi (which does its own auth via server client)
-      if (/requireAdminApi\s*\(/.test(route.source)) continue;
+      if (/require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(route.source)) continue;
       if (/requireMarketplaceAdmin\s*\(/.test(route.source)) continue;
       // V1 routes use authenticate() from lib/api
       if (/\bauthenticate\s*\(/.test(route.source)) continue;

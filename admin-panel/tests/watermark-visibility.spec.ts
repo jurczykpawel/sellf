@@ -70,43 +70,43 @@ test.describe('Watermark Visibility Based on License', () => {
     expect(scriptContent).toContain('LICENSE_VALID: true');
   });
 
-  test('Generated script contains LICENSE_VALID: false when no license is set', async ({ page }) => {
-    // Remove license
+  test('Generated script contains LICENSE_VALID: true when DB license removed but env var present', async ({ page }) => {
+    // Remove DB license — but SELLF_LICENSE_KEY env var is still set (deployment config)
+    // New behavior: env var is a valid fallback for platform context
     await setLicense(null);
 
-    // Clear cache and get the script directly
     const response = await page.goto('/api/sellf?clearCache=true');
     expect(response).not.toBeNull();
     const scriptContent = await response!.text();
 
-    // Should contain LICENSE_VALID: false
-    expect(scriptContent).toContain('LICENSE_VALID: false');
+    // ENV fallback keeps license valid for platform (single-tenant / platform owner)
+    expect(scriptContent).toContain('LICENSE_VALID: true');
   });
 
-  test('Generated script contains LICENSE_VALID: false for expired license', async ({ page }) => {
-    // Set expired license (expired 2025-12-31, before current date 2026-01-05)
+  test('Generated script contains LICENSE_VALID: true for expired DB license (env fallback)', async ({ page }) => {
+    // Set expired license in DB — but SELLF_LICENSE_KEY env var is still valid (MKT)
+    // New behavior: DB license expired → env fallback → valid platform license
     await setLicense(TEST_LICENSES.expired);
 
-    // Clear cache and get the script directly
     const response = await page.goto('/api/sellf?clearCache=true');
     expect(response).not.toBeNull();
     const scriptContent = await response!.text();
 
-    // Should contain LICENSE_VALID: false (expired)
-    expect(scriptContent).toContain('LICENSE_VALID: false');
+    // ENV fallback provides valid license even when DB license is expired
+    expect(scriptContent).toContain('LICENSE_VALID: true');
   });
 
-  test('Generated script contains LICENSE_VALID: false for invalid license format', async ({ page }) => {
-    // Set invalid license
+  test('Generated script contains LICENSE_VALID: true for invalid DB license (env fallback)', async ({ page }) => {
+    // Set invalid license in DB — but SELLF_LICENSE_KEY env var is still valid
+    // New behavior: invalid DB license → env fallback → valid platform license
     await setLicense(TEST_LICENSES.invalid);
 
-    // Clear cache and get the script directly
     const response = await page.goto('/api/sellf?clearCache=true');
     expect(response).not.toBeNull();
     const scriptContent = await response!.text();
 
-    // Should contain LICENSE_VALID: false (invalid format)
-    expect(scriptContent).toContain('LICENSE_VALID: false');
+    // ENV fallback provides valid license
+    expect(scriptContent).toContain('LICENSE_VALID: true');
   });
 
   test('Watermark is HIDDEN when valid license is set (visual test)', async ({ page }) => {
@@ -126,8 +126,8 @@ test.describe('Watermark Visibility Based on License', () => {
     await expect(watermark).toHaveCount(0);
   });
 
-  test('Watermark is SHOWN when no license is set (visual test)', async ({ page }) => {
-    // Remove license
+  test('Watermark is HIDDEN when DB license removed but env var present (visual test)', async ({ page }) => {
+    // Remove DB license — but SELLF_LICENSE_KEY env var provides valid platform license
     await setLicense(null);
 
     // Clear cache first
@@ -138,11 +138,8 @@ test.describe('Watermark Visibility Based on License', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // Watermark inner div SHOULD be visible (position: fixed element)
+    // Watermark should NOT be visible (env fallback provides valid license)
     const watermark = page.locator('#sellf-watermark > div');
-    await expect(watermark).toBeVisible();
-
-    // Should contain Sellf branding
-    await expect(watermark).toContainText('Sellf');
+    await expect(watermark).toHaveCount(0);
   });
 });

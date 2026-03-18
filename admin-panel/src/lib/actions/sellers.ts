@@ -13,9 +13,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { createPlatformClient } from '@/lib/supabase/admin';
-import { withAdminAuth } from '@/lib/actions/admin-auth';
+import { withAdminAuth, withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { clearSellerCache } from '@/lib/marketplace/seller-client';
+import { createConnectedAccount, createOnboardingLink, buildOnboardingUrls } from '@/lib/stripe/connect';
 
 // ===== TYPES =====
 
@@ -196,6 +197,94 @@ export async function updateSeller(sellerId: string, input: UpdateSellerInput): 
 }
 
 /**
+ * Invite a seller by creating an auth user and linking them to the seller record.
+ * The seller can then log in via magic link.
+ */
+export async function inviteSeller(email: string, sellerId: string): Promise<ActionResult> {
+  return withAdminAuth(async () => {
+    if (!email || !email.includes('@')) {
+      return { success: false, error: 'Valid email is required' };
+    }
+
+    if (!sellerId) {
+      return { success: false, error: 'Seller ID is required' };
+    }
+
+    const platform = createPlatformClient();
+
+    // Verify seller exists and has no user_id yet
+    const { data: seller, error: fetchError } = await platform
+      .from('sellers')
+      .select('id, user_id')
+      .eq('id', sellerId)
+      .single();
+
+    if (fetchError || !seller) {
+      return { success: false, error: 'Seller not found' };
+    }
+
+    if (seller.user_id) {
+      return { success: false, error: 'Seller already has a linked user' };
+    }
+
+    // Create auth user (or find existing) using service role client
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      return { success: false, error: 'Missing Supabase configuration' };
+    }
+
+    const adminAuth = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    // Try to create user; if email already exists, look them up
+    const { data: newUser, error: createError } = await adminAuth.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+
+    let userId: string;
+
+    if (createError) {
+      // User might already exist — try to find by email
+      const { data: existingUsers, error: listError } = await adminAuth.auth.admin.listUsers();
+      if (listError) {
+        console.error('[inviteSeller] Failed to list users:', listError);
+        return { success: false, error: 'Failed to create or find user' };
+      }
+
+      const existing = existingUsers.users.find((u) => u.email === email);
+      if (!existing) {
+        console.error('[inviteSeller] Create user error:', createError);
+        return { success: false, error: `Failed to create user: ${createError.message}` };
+      }
+
+      userId = existing.id;
+    } else {
+      userId = newUser.user.id;
+    }
+
+    // Link user to seller
+    const { error: updateError } = await platform
+      .from('sellers')
+      .update({ user_id: userId, updated_at: new Date().toISOString() })
+      .eq('id', sellerId);
+
+    if (updateError) {
+      console.error('[inviteSeller] Failed to link user to seller:', updateError);
+      return { success: false, error: 'User created but failed to link to seller' };
+    }
+
+    clearSellerCache();
+    revalidatePath('/admin/sellers');
+
+    return { success: true };
+  });
+}
+
+/**
  * Deprovision a seller — drops their schema and removes the seller record.
  * DESTRUCTIVE: This permanently deletes all seller data.
  */
@@ -241,5 +330,73 @@ export async function deprovisionSeller(sellerId: string): Promise<ActionResult>
     revalidatePath('/admin/sellers');
 
     return { success: true };
+  });
+}
+
+// ===== SELLER SELF-SERVICE =====
+
+/**
+ * Initiate Stripe Connect onboarding for the currently authenticated seller admin.
+ * Seller admins can only connect their OWN Stripe account.
+ *
+ * Flow: creates Stripe Connect Standard account -> generates onboarding link -> returns URL.
+ * The seller is then redirected to Stripe to complete onboarding.
+ */
+export async function initSellerStripeConnect(): Promise<ActionResult<{ onboardingUrl: string }>> {
+  return withAdminOrSellerAuth(async ({ user, role }) => {
+    const access = await checkMarketplaceAccess();
+    if (!access.accessible) {
+      return { success: false, error: 'Marketplace is not enabled' };
+    }
+
+    if (role !== 'seller_admin') {
+      return { success: false, error: 'This action is for seller admins only' };
+    }
+
+    // Look up the seller record for this user
+    const platform = createPlatformClient();
+    const { data: seller, error: fetchError } = await platform
+      .from('sellers')
+      .select('id, slug, display_name, stripe_account_id, stripe_onboarding_complete')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .single();
+
+    if (fetchError || !seller) {
+      return { success: false, error: 'Seller record not found' };
+    }
+
+    // If already has account but onboarding incomplete, generate a new link
+    if (seller.stripe_account_id && !seller.stripe_onboarding_complete) {
+      const { refreshUrl, returnUrl } = buildOnboardingUrls(seller.id, 'seller');
+      const linkResult = await createOnboardingLink(seller.stripe_account_id, refreshUrl, returnUrl);
+      if (!linkResult.success || !linkResult.url) {
+        return { success: false, error: linkResult.error || 'Failed to create onboarding link' };
+      }
+      return { success: true, data: { onboardingUrl: linkResult.url } };
+    }
+
+    // If already fully connected
+    if (seller.stripe_account_id && seller.stripe_onboarding_complete) {
+      return { success: false, error: 'Stripe account is already connected' };
+    }
+
+    // Create new connected account
+    const accountResult = await createConnectedAccount(
+      { id: seller.id, slug: seller.slug, display_name: seller.display_name },
+      user.email || ''
+    );
+    if (!accountResult.success || !accountResult.accountId) {
+      return { success: false, error: accountResult.error || 'Failed to create connected account' };
+    }
+
+    // Generate onboarding link with seller-specific return URL
+    const { refreshUrl, returnUrl } = buildOnboardingUrls(seller.id, 'seller');
+    const linkResult = await createOnboardingLink(accountResult.accountId, refreshUrl, returnUrl);
+    if (!linkResult.success || !linkResult.url) {
+      return { success: false, error: linkResult.error || 'Failed to create onboarding link' };
+    }
+
+    return { success: true, data: { onboardingUrl: linkResult.url } };
   });
 }

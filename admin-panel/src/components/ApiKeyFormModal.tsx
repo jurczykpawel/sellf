@@ -24,6 +24,7 @@ interface ApiKeyFormModalProps {
   onSubmit: (data: ApiKeyFormData) => Promise<void>;
   isSubmitting: boolean;
   initialData?: ApiKeyInitialData;
+  scopesLocked?: boolean;
 }
 
 export default function ApiKeyFormModal({
@@ -32,6 +33,7 @@ export default function ApiKeyFormModal({
   onSubmit,
   isSubmitting,
   initialData,
+  scopesLocked = false,
 }: ApiKeyFormModalProps) {
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
@@ -152,57 +154,88 @@ export default function ApiKeyFormModal({
             />
           </div>
 
-          {/* Scope Presets — create only */}
+          {/* Scope Presets & Scopes — create only */}
           {!isEditMode && (
-            <div>
-              <label className="block text-sm font-medium text-sf-body mb-2">
-                {t('quickPresets')}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {SCOPE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => applyPreset(preset.scopes)}
-                    className={`px-3 py-1.5 text-sm border transition-colors ${
-                      JSON.stringify(formData.scopes.sort()) === JSON.stringify(preset.scopes.sort())
-                        ? 'bg-sf-accent-bg text-white border-sf-accent'
-                        : 'bg-sf-base text-sf-body border-sf-border hover:bg-sf-hover'
-                    }`}
-                  >
-                    {preset.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Scopes — create only */}
-          {!isEditMode && (
-            <div>
-              <label className="block text-sm font-medium text-sf-body mb-2">
-                {t('permissions')}
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium">
-                {AVAILABLE_SCOPES.map((scope) => (
-                  <label key={scope.value} className="flex items-start space-x-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={formData.scopes.includes(scope.value)}
-                      onChange={() => toggleScope(scope.value)}
-                      disabled={scope.value !== '*' && formData.scopes.includes('*')}
-                      className="mt-1 h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors disabled:opacity-50"
-                    />
-                    <div className="flex flex-col">
-                      <span className={`text-sm font-medium ${formData.scopes.includes('*') && scope.value !== '*' ? 'text-sf-muted' : 'text-sf-heading group-hover:text-sf-accent'} transition-colors`}>
-                        {scope.label}
-                      </span>
-                      <span className="text-xs text-sf-muted">{scope.description}</span>
+            scopesLocked ? (
+              <div>
+                <label className="block text-sm font-medium text-sf-body mb-2">
+                  {t('permissions')}
+                </label>
+                <div className="relative">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium opacity-50 pointer-events-none select-none" aria-hidden="true">
+                    {AVAILABLE_SCOPES.map((scope) => (
+                      <label key={scope.value} className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={scope.value === '*'}
+                          disabled
+                          className="mt-1 h-4 w-4 rounded border-sf-border text-sf-accent disabled:opacity-50"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-sf-muted">{scope.label}</span>
+                          <span className="text-xs text-sf-muted">{scope.description}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-sf-base border-2 border-sf-border-medium px-4 py-2 shadow-lg">
+                      <p className="text-sm font-medium text-sf-heading">{t('scopesLockedTitle')}</p>
+                      <p className="text-xs text-sf-muted">{t('scopesLockedDescription')}</p>
                     </div>
-                  </label>
-                ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-sf-body mb-2">
+                    {t('quickPresets')}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {SCOPE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyPreset(preset.scopes)}
+                        className={`px-3 py-1.5 text-sm border transition-colors ${
+                          JSON.stringify(formData.scopes.sort()) === JSON.stringify(preset.scopes.sort())
+                            ? 'bg-sf-accent-bg text-white border-sf-accent'
+                            : 'bg-sf-base text-sf-body border-sf-border hover:bg-sf-hover'
+                        }`}
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-sf-body mb-2">
+                    {t('permissions')}
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium">
+                    {AVAILABLE_SCOPES.map((scope) => (
+                      <label key={scope.value} className="flex items-start space-x-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={formData.scopes.includes(scope.value)}
+                          onChange={() => toggleScope(scope.value)}
+                          disabled={scope.value !== '*' && formData.scopes.includes('*')}
+                          className="mt-1 h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors disabled:opacity-50"
+                        />
+                        <div className="flex flex-col">
+                          <span className={`text-sm font-medium ${formData.scopes.includes('*') && scope.value !== '*' ? 'text-sf-muted' : 'text-sf-heading group-hover:text-sf-accent'} transition-colors`}>
+                            {scope.label}
+                          </span>
+                          <span className="text-xs text-sf-muted">{scope.description}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )
           )}
 
           {/* Advanced Options — create only */}

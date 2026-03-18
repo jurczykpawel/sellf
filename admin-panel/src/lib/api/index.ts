@@ -31,6 +31,7 @@ export {
   apiError,
   authenticate,
   authenticateAdmin, // deprecated, use authenticate
+  authenticatePlatformAdmin,
   requireScope,
   ApiAuthError,
   ApiValidationError,
@@ -70,4 +71,5 @@ export {
   validateScopes,
   getScopeDescription,
   isValidScope,
+  enforceApiKeyScopeGate,
 } from './api-keys';

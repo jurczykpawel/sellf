@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
 
@@ -39,9 +38,9 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
     const { searchParams } = request.nextUrl;
 
     // Parse params
@@ -158,8 +157,8 @@ export async function GET(request: NextRequest) {
       stripe_payment_intent_id: p.stripe_payment_intent_id,
       product: {
         id: p.product_id,
-        name: (p.products as { name: string; slug: string })?.name,
-        slug: (p.products as { name: string; slug: string })?.slug,
+        name: (p.products as unknown as { name: string; slug: string })?.name,
+        slug: (p.products as unknown as { name: string; slug: string })?.slug,
       },
       user_id: p.user_id,
       session_id: p.session_id,

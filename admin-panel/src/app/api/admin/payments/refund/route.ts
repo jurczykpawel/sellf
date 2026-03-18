@@ -4,42 +4,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
-import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Authenticate before initializing service client
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
 
-    const token = authHeader.substring(7);
-
-    // Initialize service client only after auth header validation
+    // Initialize service client only after auth validation
     const stripe = await getStripeServer();
-    const platformClient = createPlatformClient();
-
-    const { data: { user }, error: authError } = await platformClient.auth.getUser(token);
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin (using admin_users table, consistent with other admin routes)
-    const { data: adminUser } = await platformClient
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!adminUser) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     // Use admin client for seller_main data operations
-    const supabase = createAdminClient();
+    const supabase = await createDataClientFromAuth(sellerSchema);
 
     // SECURITY: Rate limit refund operations (prevents abuse of compromised admin accounts)
     const rateLimitOk = await checkRateLimit(
@@ -206,6 +186,19 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (error instanceof Stripe.errors.StripeError) {
+      console.error('Stripe error during refund:', error);
+      return NextResponse.json(
+        { error: 'Refund processing failed' },
+        { status: 400 }
+      );
+    }
     console.error('Refund processing error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -107,20 +107,24 @@ test.describe('Product Creation Wizard', () => {
     // Wait for slug auto-generation from name (required for step validation)
     await expect(page.locator('input#slug')).not.toHaveValue('', { timeout: 5000 });
 
-    // Click Continue Setup → Step 2
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+    // Navigate Step 1 → Step 2 → Step 3
+    // Use toPass retry to handle React re-renders swallowing click events
+    const dialog = page.getByRole('dialog');
+    const nextBtn = dialog.getByRole('button', { name: /Dalej/i });
 
-    // Wait for step 1 form to unmount (name input only exists on step 1).
-    // On cold start, Next.js compiles StepContentDetails on first render — this can
-    // take several seconds, so waiting for unmount is more reliable than a timeout.
+    // Step 1 → Step 2
+    await nextBtn.click();
     await expect(page.locator('input#name')).not.toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('button', { name: /Wstecz/i })).toBeVisible();
 
-    // Click Continue Setup → Step 3
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
-
-    // Should be on step 3 — step indicator highlights step 3
-    await expect(page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i })).toBeVisible();
+    // Step 2 → Step 3 (retry — RSC refetch can swallow the click)
+    const step3Indicator = page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i });
+    await expect(async () => {
+      if (await nextBtn.isVisible().catch(() => false)) {
+        await nextBtn.click();
+      }
+      await expect(step3Indicator).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15000 });
 
     // No Continue Setup on last step
     await expect(page.getByRole('dialog').getByRole('button', { name: /Dalej/i })).not.toBeVisible();

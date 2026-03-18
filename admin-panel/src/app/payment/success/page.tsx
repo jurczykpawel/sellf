@@ -14,6 +14,7 @@ interface PaymentSuccessPageProps {
     product_id?: string;
     redirect_status?: string;
     success_url?: string;
+    seller?: string;
   }>;
 }
 
@@ -27,6 +28,7 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
   const productId = params.product_id;
   const redirectStatus = params.redirect_status;
   const successUrl = params.success_url;
+  const sellerSlug = params.seller;
 
   // Handle old Embedded Checkout flow
   const sessionId = params.session_id;
@@ -46,6 +48,9 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
       if (successUrl) {
         redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
       }
+      if (sellerSlug) {
+        redirectUrl += `&seller=${encodeURIComponent(sellerSlug)}`;
+      }
       redirect(redirectUrl);
     } else if (productId) {
       try {
@@ -55,6 +60,9 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
           let redirectUrl = `/${locale}/p/${data.product.slug}/payment-status?payment_intent=${paymentIntent}`;
           if (successUrl) {
             redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
+          }
+          if (sellerSlug) {
+            redirectUrl += `&seller=${encodeURIComponent(sellerSlug)}`;
           }
           redirect(redirectUrl);
         }

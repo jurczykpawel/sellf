@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateIntegrations, validateScript } from '@/lib/validations/integrations';
-import type { IntegrationsInput, CustomScriptInput } from '@/lib/validations/integrations';
+import { validateIntegrations } from '@/lib/validations/integrations';
+import type { IntegrationsInput } from '@/lib/validations/integrations';
 
 describe('Integrations Validation', () => {
   describe('validateIntegrations', () => {
@@ -187,59 +187,4 @@ describe('Integrations Validation', () => {
     });
   });
 
-  describe('validateScript', () => {
-    const validScript: CustomScriptInput = {
-      name: 'My Script',
-      script_location: 'head',
-      script_content: '<script>console.log("test")</script>',
-      category: 'analytics',
-      is_active: true,
-    };
-
-    it('should validate valid script', () => {
-      const result = validateScript(validScript);
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should reject short name', () => {
-      const result = validateScript({ ...validScript, name: 'a' });
-      expect(result.isValid).toBe(false);
-      expect(result.errors.name).toContain('Name is too short');
-    });
-
-    it('should reject empty name', () => {
-      const result = validateScript({ ...validScript, name: '' });
-      expect(result.isValid).toBe(false);
-    });
-
-    it('should reject short script content', () => {
-      const result = validateScript({ ...validScript, script_content: 'abc' });
-      expect(result.isValid).toBe(false);
-      expect(result.errors.script_content).toContain('Script content is too short');
-    });
-
-    it('should reject empty script content', () => {
-      const result = validateScript({ ...validScript, script_content: '' });
-      expect(result.isValid).toBe(false);
-    });
-
-    it('should validate minimum valid lengths', () => {
-      const result = validateScript({
-        ...validScript,
-        name: 'AB',
-        script_content: '12345',
-      });
-      expect(result.isValid).toBe(true);
-    });
-
-    it('should accumulate multiple errors', () => {
-      const result = validateScript({
-        ...validScript,
-        name: 'a',
-        script_content: 'b',
-      });
-      expect(result.isValid).toBe(false);
-      expect(Object.keys(result.errors).length).toBe(2);
-    });
-  });
 });

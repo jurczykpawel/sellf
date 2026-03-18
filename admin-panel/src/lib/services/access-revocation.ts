@@ -59,7 +59,7 @@ export async function revokeTransactionAccess(
   let mainProductRevoked = false;
   let mainGuestRevoked = false;
   let bumpProductsRevoked = 0;
-  let bumpGuestPurchasesRevoked = 0;
+  const bumpGuestPurchasesRevoked = 0;
 
   // --- 0. Defense-in-depth input validation ---
   if (!target.transactionId || !UUID_PATTERN.test(target.transactionId)) {

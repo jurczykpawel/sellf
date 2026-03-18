@@ -377,7 +377,7 @@ describe('TS-A01: API routes must require authentication', () => {
 
   it('gus route calls an auth helper before processing', () => {
     const hasAuthCheck = (
-      /requireAdminApi\s*\(/.test(source) ||
+      /require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(source) ||
       /requireMarketplaceAdmin\s*\(/.test(source) ||
       /\bauthenticate\s*\(/.test(source) ||
       /\.auth\.getUser\s*\(/.test(source)
@@ -444,9 +444,9 @@ describe('TS-C01: admin routes must use createAdminClient()', () => {
     });
   }
 
-  it('admin/coupons uses createAdminClient', () => {
+  it('admin/coupons uses createAdminClient, createSchemaAwareAdminClient, or createDataClientFromAuth', () => {
     const source = src('app/api/admin/coupons/route.ts');
-    expect(source).toContain('createAdminClient');
+    expect(source).toMatch(/createAdminClient|createSchemaAwareAdminClient|createDataClientFromAuth/);
   });
 });
 
@@ -476,11 +476,7 @@ describe('TS-E01: rate limiting must use unique identifiers', () => {
     expect(usesSharedBucket, 'verify-payment: shared rate limit bucket for anonymous users').toBe(false);
   });
 
-  it('openapi.json route has rate limiting', () => {
-    const source = src('app/api/v1/docs/openapi.json/route.ts');
-    const hasRateLimit = /checkRateLimit|rateLimit|rate.limit/i.test(source);
-    expect(hasRateLimit, 'openapi.json: no rate limiting').toBe(true);
-  });
+  // openapi.json route removed — swagger-ui-react and /api/v1/docs page deleted
 });
 
 // ============================================================================
@@ -501,7 +497,8 @@ describe('TS-F01: external fetch must block redirects', () => {
 
 describe('TS-G01: URL validation completeness', () => {
   it('webhook URL validation covers mapped address formats', () => {
-    const source = src('app/api/admin/webhooks/route.ts');
+    // Validation lives in the shared lib — admin route imports from there
+    const source = src('lib/validations/webhook.ts');
     const coversAllFormats = /ffff/i.test(source);
     expect(coversAllFormats, 'webhook URL validation: incomplete address format coverage').toBe(true);
   });
@@ -661,12 +658,12 @@ describe('TS-M01: sellf.js endpoint hardening', () => {
     expect(source).toMatch(/clearCache.*admin|clearCache.*auth|admin.*clearCache|requireAdmin.*clearCache/is);
   });
 
-  it('sellf/route.ts uses createAdminClient instead of raw createClient', () => {
+  it('sellf/route.ts uses checkFeature (which uses createAdminClient internally) instead of raw createClient', () => {
     const source = src('app/api/sellf/route.ts');
     // Should NOT import createClient from @supabase/supabase-js
     expect(source).not.toMatch(/from\s+['"]@supabase\/supabase-js['"]/);
-    // Should use createAdminClient or createPlatformClient
-    expect(source).toMatch(/createAdminClient|createPlatformClient/);
+    // Should use checkFeature from license/resolve (which internally uses createAdminClient)
+    expect(source).toMatch(/checkFeature/);
   });
 });
 

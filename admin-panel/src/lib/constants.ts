@@ -79,6 +79,9 @@ export const STRIPE_WEBHOOK_EVENTS = [
   'payment_intent.succeeded',
   'charge.refunded',
   'charge.dispute.created',
+  // Stripe Connect: seller account lifecycle
+  'account.updated',
+  'account.application.deauthorized',
 ] as const;
 
 /**

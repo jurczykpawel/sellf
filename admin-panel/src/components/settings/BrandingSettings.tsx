@@ -95,7 +95,7 @@ export default function BrandingSettings() {
  let cancelled = false;
  async function load() {
  try {
- const [theme, presetsData, licensed] = await Promise.all([
+ const [theme, presetsData, licenseResult] = await Promise.all([
  getActiveTheme(),
  getThemePresets(),
  checkThemeLicense(),
@@ -105,7 +105,7 @@ export default function BrandingSettings() {
 
  setActiveTheme(theme);
  setPresets(presetsData);
- setLicenseValid(licensed);
+ setLicenseValid(licenseResult.success && licenseResult.data === true);
 
  if (theme) {
  setEditTheme(theme);

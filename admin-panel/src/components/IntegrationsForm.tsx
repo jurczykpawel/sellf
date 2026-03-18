@@ -2,45 +2,23 @@
 
 import React, { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { updateIntegrationsConfig, addScript, deleteScript, toggleScript } from '@/lib/actions/integrations'
-import { IntegrationsInput, CustomScriptInput } from '@/lib/validations/integrations'
+import { updateIntegrationsConfig } from '@/lib/actions/integrations'
+import { IntegrationsInput } from '@/lib/validations/integrations'
 import CurrencySettings from '@/components/settings/CurrencySettings'
 import GUSSettings from '@/components/settings/GUSSettings'
+import Link from 'next/link'
 import { toast } from 'sonner'
 
-interface Script {
-  id: string
-  name: string
-  script_location: 'head' | 'body'
-  script_content: string
-  category: 'essential' | 'analytics' | 'marketing'
-  is_active: boolean
-  created_at: string
-}
-
 interface IntegrationsFormProps {
-  initialData: IntegrationsInput
-  initialScripts: Script[]
+  initialData: IntegrationsInput | null | undefined
 }
 
-export default function IntegrationsForm({ initialData, initialScripts }: IntegrationsFormProps) {
+export default function IntegrationsForm({ initialData }: IntegrationsFormProps) {
   const t = useTranslations('integrations')
-  const tCommon = useTranslations('common')
-  const [formData, setFormData] = useState<IntegrationsInput>(initialData)
-  const [scripts, setScripts] = useState<Script[]>(initialScripts)
+  const [formData, setFormData] = useState<IntegrationsInput>(initialData ?? {} as IntegrationsInput)
 
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'analytics' | 'marketing' | 'consents' | 'scripts' | 'currency' | 'gus'>('analytics')
-
-  // Script Modal State
-  const [isScriptModalOpen, setIsScriptModalOpen] = useState(false)
-  const [newScript, setNewScript] = useState<CustomScriptInput>({
-    name: '',
-    script_location: 'head',
-    script_content: '',
-    category: 'marketing',
-    is_active: true
-  })
+  const [activeTab, setActiveTab] = useState<'analytics' | 'marketing' | 'consents' | 'currency' | 'gus'>('analytics')
 
   // --- CONFIG HANDLERS ---
   const handleConfigSubmit = async (e: React.FormEvent) => {
@@ -53,40 +31,15 @@ export default function IntegrationsForm({ initialData, initialScripts }: Integr
       } else {
         toast.success(t('messages.saveSuccess'))
       }
-    } catch (err) {
+    } catch {
       toast.error(t('messages.saveError', { error: 'Unknown' }))
     } finally {
       setLoading(false)
     }
   }
 
-  const handleChange = (field: keyof IntegrationsInput, value: any) => {
+  const handleChange = (field: keyof IntegrationsInput, value: IntegrationsInput[keyof IntegrationsInput]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  // --- SCRIPT HANDLERS ---
-  const handleAddScript = async () => {
-    setLoading(true)
-    const result = await addScript(newScript)
-    if (result.success) {
-      toast.success(t('messages.saveSuccess'))
-      setIsScriptModalOpen(false)
-      window.location.reload()
-    } else {
-      toast.error(result.error || tCommon('error'))
-    }
-    setLoading(false)
-  }
-
-  const handleDeleteScript = async (id: string) => {
-    if(!confirm(t('scripts.deleteConfirm'))) return
-    await deleteScript(id)
-    setScripts(prev => prev.filter(s => s.id !== id))
-  }
-
-  const handleToggleScript = async (id: string, current: boolean) => {
-    await toggleScript(id, !current)
-    setScripts(prev => prev.map(s => s.id === id ? { ...s, is_active: !current } : s))
   }
 
   // --- UI COMPONENTS ---
@@ -175,7 +128,6 @@ export default function IntegrationsForm({ initialData, initialScripts }: Integr
           <TabButton id="analytics" label={t('tabs.analytics')} />
           <TabButton id="marketing" label={t('tabs.marketing')} />
           <TabButton id="consents" label={t('tabs.consents')} />
-          <TabButton id="scripts" label={t('tabs.code')} />
           <TabButton id="currency" label={t('tabs.currency')} />
           <TabButton id="gus" label={t('tabs.gus')} />
         </div>
@@ -598,9 +550,9 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                        </div>
                        <div className="mt-2 p-2 bg-sf-raised rounded text-xs text-sf-body">
                          <span>📄 {t('consent.documentsWarning')}</span>
-                         <a href="/dashboard/settings" className="ml-1 underline hover:no-underline font-medium text-sf-heading">
+                         <Link href="/dashboard/settings" className="ml-1 underline hover:no-underline font-medium text-sf-heading">
                            {t('consent.documentsLink')} →
-                         </a>
+                         </Link>
                        </div>
                      </div>
                    </div>
@@ -608,65 +560,12 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
               </div>
             )}
 
-            {!['scripts', 'currency', 'gus'].includes(activeTab) && (
+            {!['currency', 'gus'].includes(activeTab) && (
                 <div className="mt-6 border-t pt-4 flex justify-end">
                     <button type="submit" disabled={loading} className="px-4 py-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white">{loading ? t('messages.saving') : t('saveConfig')}</button>
                 </div>
             )}
           </form>
-
-          {/* SCRIPT MANAGER TAB */}
-          {activeTab === 'scripts' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
-                <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium text-sf-heading">{t('scripts.title')}</h3>
-                    <button onClick={() => setIsScriptModalOpen(true)} className="px-3 py-1.5 bg-sf-success hover:opacity-90 text-sf-inverse text-sm">+ {t('scripts.addScript')}</button>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-sf-muted">
-                        <thead className="text-xs text-sf-body uppercase bg-sf-raised">
-                            <tr>
-                                <th className="px-4 py-3">{t('scripts.table.name')}</th>
-                                <th className="px-4 py-3">{t('scripts.table.location')}</th>
-                                <th className="px-4 py-3">{t('scripts.table.category')}</th>
-                                <th className="px-4 py-3">{t('scripts.table.status')}</th>
-                                <th className="px-4 py-3">{t('scripts.table.actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {scripts.length === 0 ? (
-                                <tr><td colSpan={5} className="px-4 py-4 text-center">{t('scripts.noScripts')}</td></tr>
-                            ) : (
-                                scripts.map(script => (
-                                    <tr key={script.id} className="bg-sf-base border-b border-sf-border">
-                                        <td className="px-4 py-3 font-medium text-sf-heading">{script.name}</td>
-                                        <td className="px-4 py-3 uppercase">{script.script_location}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-1 rounded text-xs ${
-                                                script.category === 'essential' ? 'bg-sf-raised text-sf-heading' :
-                                                script.category === 'marketing' ? 'bg-sf-accent-soft text-sf-accent' :
-                                                'bg-sf-accent-soft text-sf-accent'
-                                            }`}>
-                                                {t(`scripts.categories.${script.category}`)}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <button onClick={() => handleToggleScript(script.id, script.is_active)} className={`px-2 py-1 rounded text-xs font-bold ${script.is_active ? 'bg-sf-success-soft text-sf-success' : 'bg-sf-danger-soft text-sf-danger'}`}>
-                                                {script.is_active ? tCommon('active') : tCommon('inactive')}
-                                            </button>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <button onClick={() => handleDeleteScript(script.id)} className="text-sf-danger hover:underline">{tCommon('delete')}</button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-          )}
 
           {/* Currency Tab */}
           {activeTab === 'currency' && (
@@ -685,47 +584,6 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
         </div>
       </div>
 
-      {/* ADD SCRIPT MODAL */}
-      {isScriptModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-sf-base w-full max-w-lg p-6 space-y-4">
-                <h3 className="text-xl font-bold text-sf-heading">{t('scripts.modal.title')}</h3>
-                
-                <div>
-                    <label className="block text-sm font-medium mb-1 text-sf-body">{t('scripts.modal.name')}</label>
-                    <input type="text" className="w-full border-2 border-sf-border-medium rounded p-2 bg-sf-input text-sf-heading" value={newScript.name} onChange={e => setNewScript({...newScript, name: e.target.value})} placeholder={t('scripts.modal.namePlaceholder')} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-sf-body">{t('scripts.modal.location')}</label>
-                        <select className="w-full border-2 border-sf-border-medium rounded p-2 bg-sf-input text-sf-heading" value={newScript.script_location} onChange={e => setNewScript({...newScript, script_location: e.target.value as any})}>
-                            <option value="head">{t('scripts.location.head')}</option>
-                            <option value="body">{t('scripts.location.body')}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1 text-sf-body">{t('scripts.modal.category')}</label>
-                        <select className="w-full border-2 border-sf-border-medium rounded p-2 bg-sf-input text-sf-heading" value={newScript.category} onChange={e => setNewScript({...newScript, category: e.target.value as any})}>
-                            <option value="marketing">{t('scripts.categories.marketing')}</option>
-                            <option value="analytics">{t('scripts.categories.analytics')}</option>
-                            <option value="essential">{t('scripts.categories.essential')}</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium mb-1 text-sf-body">{t('scripts.modal.code')}</label>
-                    <textarea rows={5} className="w-full border-2 border-sf-border-medium rounded p-2 font-mono text-sm bg-sf-input text-sf-heading" value={newScript.script_content} onChange={e => setNewScript({...newScript, script_content: e.target.value})} placeholder={t('scripts.modal.codePlaceholder')}></textarea>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                    <button onClick={() => setIsScriptModalOpen(false)} className="px-4 py-2 text-sf-body hover:bg-sf-hover rounded">{t('scripts.modal.cancel')}</button>
-                    <button onClick={handleAddScript} disabled={loading} className="px-4 py-2 bg-sf-accent-bg text-white rounded hover:bg-sf-accent-hover">{t('scripts.modal.add')}</button>
-                </div>
-            </div>
-        </div>
-      )}
     </div>
   )
 }

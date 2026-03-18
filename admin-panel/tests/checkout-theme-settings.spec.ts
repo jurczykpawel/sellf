@@ -189,10 +189,12 @@ test.describe('Checkout Theme Settings', () => {
     expect(buttonClass).toContain('border-sf-border-accent');
 
     // Now switch to dark
-    await themeSection.locator('button', { hasText: '🌙' }).click();
-    await page.waitForTimeout(2000);
+    const darkBtn = themeSection.locator('button', { hasText: '🌙' });
+    await darkBtn.click();
+    // Wait for the dark button to get the selected class (server action saves + revalidates)
+    await expect(darkBtn).toHaveClass(/border-sf-border-accent/, { timeout: 10000 });
 
-    // Reload
+    // Reload and verify persistence
     await page.reload();
     await page.waitForLoadState('networkidle');
 
@@ -201,8 +203,8 @@ test.describe('Checkout Theme Settings', () => {
 
     const reloadedSection = reloadedHeading.locator('..');
     const darkButton = reloadedSection.locator('button', { hasText: '🌙' });
-    const darkClass = await darkButton.getAttribute('class');
-    expect(darkClass).toContain('border-sf-border-accent');
+    await expect(darkButton).toBeVisible({ timeout: 5000 });
+    await expect(darkButton).toHaveClass(/border-sf-border-accent/, { timeout: 5000 });
   });
 
   test('should apply dark theme on checkout page', async ({ page }) => {

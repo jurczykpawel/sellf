@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 /**
  * SECURITY FIX (V17): Validate webhook URL to prevent SSRF attacks.
@@ -84,9 +86,10 @@ export async function DELETE(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { error } = await supabase
+    const { error } = await dataClient
       .from('webhook_endpoints')
       .delete()
       .eq('id', id);
@@ -110,7 +113,8 @@ export async function PUT(
   try {
     const { id } = await context.params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const body = await request.json();
 
@@ -135,7 +139,7 @@ export async function PUT(
     if (body.events) updates.events = body.events;
     if (body.description !== undefined) updates.description = body.description;
 
-    const { data, error } = await supabase
+    const { data, error } = await dataClient
       .from('webhook_endpoints')
       .update(updates)
       .eq('id', id)

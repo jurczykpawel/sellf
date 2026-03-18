@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import type { SellerInfo } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { calculatePricing, toStripeCents, STRIPE_MINIMUM_AMOUNT } from '@/hooks/usePricing';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -10,6 +12,38 @@ import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import type { PaymentMethodConfig } from '@/types/payment-config';
+
+import type { SellerDataClient } from '@/lib/supabase/admin';
+
+/**
+ * Resolve the data client for product/payment queries.
+ * For marketplace sellers: service_role client scoped to seller schema.
+ * For platform owner: default admin client (seller_main).
+ */
+async function resolveDataClient(sellerSlug?: string): Promise<{
+  dataClient: SellerDataClient;
+  seller: SellerInfo | null;
+  error?: string;
+}> {
+  if (!sellerSlug) {
+    return { dataClient: createAdminClient(), seller: null };
+  }
+
+  const seller = await getSellerBySlug(sellerSlug);
+  if (!seller) {
+    return { dataClient: createAdminClient(), seller: null, error: 'Seller not found' };
+  }
+
+  if (!seller.stripe_account_id) {
+    return { dataClient: createAdminClient(), seller, error: 'Seller not configured for payments' };
+  }
+
+  if (!seller.stripe_onboarding_complete) {
+    return { dataClient: createAdminClient(), seller, error: 'Seller Stripe onboarding incomplete' };
+  }
+
+  return { dataClient: createSellerAdminClient(seller.schema_name) as unknown as SellerDataClient, seller };
+}
 
 /**
  * Apply automatic payment methods configuration to PaymentIntent params.
@@ -69,7 +103,8 @@ export async function POST(request: NextRequest) {
       postalCode,
       country,
       successUrl,
-      customAmount  // Pay What You Want
+      customAmount,  // Pay What You Want
+      sellerSlug,    // Marketplace: seller slug for schema routing
     } = body;
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
@@ -131,8 +166,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 1. Fetch product
-    const { data: product, error: productError } = await supabase
+    // 0. Resolve marketplace seller → data client (schema-scoped)
+    const { dataClient, seller, error: sellerError } = await resolveDataClient(sellerSlug);
+    if (sellerError) {
+      return NextResponse.json({ error: sellerError }, { status: 404 });
+    }
+
+    // 1. Fetch product (from seller schema if marketplace, otherwise seller_main)
+    const { data: product, error: productError } = await dataClient
       .from('products')
       .select('*')
       .eq('id', productId)
@@ -146,9 +187,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Check if user already has access
+    // 2. Check if user already has access (in the correct seller schema)
     if (user) {
-      const { data: existingAccess } = await supabase
+      const { data: existingAccess } = await dataClient
         .from('user_product_access')
         .select('id')
         .eq('user_id', user.id)
@@ -217,7 +258,7 @@ export async function POST(request: NextRequest) {
 
     if (requestedBumpIds.length > 0) {
       // Use the same RPC function that frontend uses to get valid bumps
-      const { data: validBumps } = await supabase.rpc('get_product_order_bumps', {
+      const { data: validBumps } = await dataClient.rpc('get_product_order_bumps', {
         product_id_param: productId,
       });
 
@@ -234,7 +275,7 @@ export async function POST(request: NextRequest) {
 
       if (validBumpMap.size > 0) {
         const validBumpIds = Array.from(validBumpMap.keys());
-        const { data: bumpProducts } = await supabase
+        const { data: bumpProducts } = await dataClient
           .from('products')
           .select('*')
           .in('id', validBumpIds);
@@ -261,12 +302,13 @@ export async function POST(request: NextRequest) {
     // - Race condition prevention with reservations
     let appliedCoupon = null;
     if (couponCode) {
-      const { data: couponResult, error: couponError } = await supabase.rpc('verify_coupon', {
+      const { data: couponRaw, error: couponError } = await dataClient.rpc('verify_coupon', {
         code_param: couponCode.toUpperCase(),
         product_id_param: productId,
         customer_email_param: finalEmail || null,
         currency_param: product.currency,
       });
+      const couponResult = couponRaw as { valid: boolean; id: string; code: string; discount_type: 'percentage' | 'fixed'; discount_value: number; exclude_order_bumps: boolean; error?: string } | null;
 
       if (couponError) {
         console.error('Coupon verification error:', couponError);
@@ -310,8 +352,8 @@ export async function POST(request: NextRequest) {
 
     // 7a. Handle 100% coupon — skip Stripe, grant access directly
     if (pricing.isFreeWithCoupon && user) {
-      // Grant access for main product
-      const { error: grantError } = await supabase.rpc('grant_free_product_access', {
+      // Grant access for main product (in seller schema if marketplace)
+      const { error: grantError } = await dataClient.rpc('grant_free_product_access', {
         product_slug_param: product.slug,
       });
 
@@ -327,7 +369,7 @@ export async function POST(request: NextRequest) {
       if (validatedBumps.length > 0) {
         const bumpGrantResults = await Promise.all(
           validatedBumps.map(vb =>
-            supabase.rpc('grant_free_product_access', {
+            dataClient.rpc('grant_free_product_access', {
               product_slug_param: vb.product.slug,
             })
           )
@@ -342,7 +384,7 @@ export async function POST(request: NextRequest) {
       // Record coupon usage (normally done by webhook, but no Stripe payment here).
       // Best-effort — access is already granted, failures are logged not fatal.
       if (appliedCoupon && finalEmail) {
-        const adminClient = createAdminClient();
+        const adminClient = seller ? dataClient : createAdminClient();
 
         try {
           // Record redemption (per-user usage tracking + prevents re-use)
@@ -426,14 +468,27 @@ export async function POST(request: NextRequest) {
         success_url: successUrl || '',
         custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
         is_pwyw: pricing.isPwyw ? 'true' : 'false',
+        // Marketplace: seller routing metadata for webhook
+        ...(seller ? {
+          is_marketplace: 'true',
+          seller_schema: seller.schema_name,
+          seller_slug: seller.slug,
+        } : {}),
       },
     };
 
-    // Fetch payment method configuration using admin client (service_role)
-    // because RLS only allows admin users to SELECT from payment_method_config,
-    // but checkout users can be anonymous or non-admin authenticated users.
-    const adminSupabase = createAdminClient();
-    const { data: paymentConfig } = await adminSupabase
+    // Stripe Connect: route payment to seller's Stripe account
+    if (seller?.stripe_account_id) {
+      // SECURITY: Clamp fee percent to [0, 100] to prevent negative fees or overflow
+      const feePercent = Math.max(0, Math.min(100, seller.platform_fee_percent));
+      paymentIntentParams.application_fee_amount = Math.round(totalAmount * feePercent / 100);
+      paymentIntentParams.transfer_data = {
+        destination: seller.stripe_account_id,
+      };
+    }
+
+    // Fetch payment method configuration from the correct schema (seller or platform)
+    const { data: paymentConfig } = await dataClient
       .from('payment_method_config')
       .select('*')
       .eq('id', 1)
@@ -536,9 +591,9 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
     // Save pending payment transaction for abandoned cart recovery
-    // Uses admin client because payment_transactions INSERT requires service_role
+    // Uses dataClient (seller-scoped if marketplace) because payment_transactions INSERT requires service_role
     try {
-      const { error: insertError } = await adminSupabase
+      const { error: insertError } = await dataClient
         .from('payment_transactions')
         .insert({
           session_id: paymentIntent.id, // Use Payment Intent ID as session_id

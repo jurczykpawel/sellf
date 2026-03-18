@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
 import { locales, defaultLocale } from './lib/locales'
+import { isMarketplaceEnabled } from './lib/marketplace/feature-flag'
 
 // Create next-intl middleware
 const intlMiddleware = createMiddleware({
@@ -163,13 +164,14 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           const isProduction = process.env.NODE_ENV === 'production'
+          const needsCrossDomain = isProduction && !isMarketplaceEnabled()
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set({
               name,
               value,
               ...options,
               httpOnly: true,
-              sameSite: isProduction ? 'none' : ((options?.sameSite as 'lax' | 'strict' | 'none' | undefined) ?? 'lax'),
+              sameSite: needsCrossDomain ? 'none' : ((options?.sameSite as 'lax' | 'strict' | 'none' | undefined) ?? 'lax'),
               secure: isProduction ? true : ((options?.secure as boolean | undefined) ?? false),
             })
           })

@@ -197,7 +197,7 @@ async function handleCheckoutSessionCompleted(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData)
+    WebhookService.trigger('purchase.completed', webhookData, supabase)
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
@@ -345,7 +345,7 @@ async function handlePaymentIntentSucceeded(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData)
+    WebhookService.trigger('purchase.completed', webhookData, supabase)
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
@@ -365,6 +365,21 @@ async function handleChargeRefunded(
 
   if (!paymentIntentId) {
     return { processed: false, message: 'No payment_intent in charge' };
+  }
+
+  // Marketplace: resolve seller schema from PaymentIntent metadata
+  try {
+    const stripe = await getStripeServer();
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (pi.metadata?.is_marketplace === 'true' && pi.metadata.seller_schema) {
+      if (isValidSellerSchema(pi.metadata.seller_schema)) {
+        supabase = getServiceClient(pi.metadata.seller_schema);
+      } else {
+        console.error('[Stripe Webhook] Invalid seller_schema in refund PI metadata: %s', pi.metadata.seller_schema);
+      }
+    }
+  } catch (piErr) {
+    console.error('[Stripe Webhook] Failed to retrieve PI for refund seller routing:', piErr);
   }
 
   // Find transaction by payment intent ID (include session_id for guest cleanup)
@@ -479,6 +494,20 @@ async function handleChargeDisputeCreated(
 
   if (!paymentIntentId) {
     return { processed: false, message: 'No payment_intent in disputed charge' };
+  }
+
+  // Marketplace: resolve seller schema from PaymentIntent metadata
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (pi.metadata?.is_marketplace === 'true' && pi.metadata.seller_schema) {
+      if (isValidSellerSchema(pi.metadata.seller_schema)) {
+        supabase = getServiceClient(pi.metadata.seller_schema);
+      } else {
+        console.error('[Stripe Webhook] Invalid seller_schema in dispute PI metadata: %s', pi.metadata.seller_schema);
+      }
+    }
+  } catch (piErr) {
+    console.error('[Stripe Webhook] Failed to retrieve PI for dispute seller routing:', piErr);
   }
 
   // Find transaction (include session_id for guest cleanup)

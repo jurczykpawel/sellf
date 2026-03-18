@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -39,9 +38,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
-
-    const adminClient = createAdminClient();
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
     const { searchParams } = request.nextUrl;
 
     const period = searchParams.get('period') || 'month';
@@ -53,7 +50,7 @@ export async function GET(request: NextRequest) {
     // Calculate date range based on period
     const now = new Date();
     let startDate: Date;
-    let endDate = endDateParam ? new Date(endDateParam) : now;
+    const endDate = endDateParam ? new Date(endDateParam) : now;
 
     if (startDateParam) {
       startDate = new Date(startDateParam);
@@ -100,7 +97,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch transactions for the period
-    let query = adminClient
+    let query = auth.supabase
       .from('payment_transactions')
       .select('amount, currency, created_at, refunded_amount, product_id')
       .eq('status', 'completed')
@@ -210,7 +207,7 @@ export async function GET(request: NextRequest) {
     const prevEndDate = new Date(startDate.getTime() - 1);
     const prevStartDate = new Date(prevEndDate.getTime() - periodDuration);
 
-    let prevQuery = adminClient
+    let prevQuery = auth.supabase
       .from('payment_transactions')
       .select('amount')
       .eq('status', 'completed')

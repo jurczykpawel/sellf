@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import type { Database } from '@/types/database';
+
+type ProductInsert = Database['seller_main']['Tables']['products']['Insert'];
+
 import {
   validateCreateProduct,
   sanitizeProductData,
   escapeIlikePattern,
   validateProductSortColumn
 } from '@/lib/validations/product';
-import { requireAdminApi } from '@/lib/auth-server';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 /**
  * Handle CORS preflight requests
@@ -66,7 +72,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase); // Enforce Admin Access
+    const authResult = await requireAdminOrSellerApi(supabase); // Enforce Admin Access
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     // Get search params
     const searchParams = request.nextUrl.searchParams;
@@ -80,7 +87,7 @@ export async function GET(request: NextRequest) {
     const sortBy = validateProductSortColumn(sortByRaw);
 
     // Build query
-    let query = supabase
+    let query = dataClient
       .from('products')
       .select('*', { count: 'exact' });
 
@@ -144,7 +151,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase); // Enforce Admin Access
+    const authResult = await requireAdminOrSellerApi(supabase); // Enforce Admin Access
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     // Parse and validate request body
     let body;
@@ -177,10 +185,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug already exists
-    const { data: existingProduct, error: slugCheckError } = await supabase
+    const { data: existingProduct, error: slugCheckError } = await dataClient
       .from('products')
       .select('id')
-      .eq('slug', sanitizedData.slug)
+      .eq('slug', sanitizedData.slug as string)
       .maybeSingle();
     
     if (slugCheckError) {
@@ -199,9 +207,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert product with sanitized data
-    const { data: product, error } = await supabase
+    const { data: product, error } = await dataClient
       .from('products')
-      .insert([sanitizedData])
+      .insert([sanitizedData as ProductInsert])
       .select()
       .single();
 
@@ -220,7 +228,7 @@ export async function POST(request: NextRequest) {
         category_id: catId
       }));
       
-      const { error: catError } = await supabase
+      const { error: catError } = await dataClient
         .from('product_categories')
         .insert(categoryInserts);
       

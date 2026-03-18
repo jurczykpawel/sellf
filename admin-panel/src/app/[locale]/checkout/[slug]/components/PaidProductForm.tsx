@@ -31,9 +31,11 @@ interface PaidProductFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
+  /** Seller slug for marketplace products (undefined = platform owner / seller_main) */
+  sellerSlug?: string;
 }
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, sellerSlug }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const { user, isAdmin, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
@@ -102,7 +104,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0;
 
   // Order bumps
-  const { orderBumps } = useOrderBumps(product.id);
+  const { orderBumps } = useOrderBumps(product.id, sellerSlug);
   const [selectedBumpIds, setSelectedBumpIds] = useState<Set<string>>(new Set());
 
   const availableBumps = orderBumps.filter(
@@ -128,6 +130,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     productId: product.id,
     email,
     isOtoMode: searchParams.get('oto') === '1',
+    sellerSlug,
   });
 
   // OTO logic — funnel test OTO slug fetch is absorbed inside the hook
@@ -200,6 +203,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           couponCode: coupon.appliedCoupon?.code,
           successUrl: searchParams.get('success_url') || undefined,
           customAmount: product.allow_custom_price ? customAmount : undefined,
+          sellerSlug: sellerSlug || undefined,
         }),
       });
 
@@ -437,6 +441,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}
                 taxMode={taxMode}
+                sellerSlug={sellerSlug}
               />
             </Elements>
           )}

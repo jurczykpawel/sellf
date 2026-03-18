@@ -2,16 +2,17 @@
 // API endpoint for payment statistics
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminApiWithRequest } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAdminApiWithRequest(request);
+    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
 
     // Use admin client for seller_main data operations
-    const supabase = createAdminClient();
+    const supabase = await createDataClientFromAuth(sellerSchema);
 
     // SECURITY: Rate limit analytics operations (aggregation queries can be expensive)
     const rateLimitOk = await checkRateLimit(
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       .select('amount')
       .eq('status', 'completed');
 
-    const totalRevenue = revenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+    const totalRevenue = revenueData?.reduce((sum: number, transaction: any) => sum + transaction.amount, 0) || 0;
 
     // Get pending sessions count - not applicable in embedded checkout
     const pendingSessions = 0; // Embedded checkout doesn't use payment_sessions
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
       .select('refunded_amount')
       .gt('refunded_amount', 0);
 
-    const refundedAmount = refundData?.reduce((sum, transaction) => sum + (transaction.refunded_amount ?? 0), 0) || 0;
+    const refundedAmount = refundData?.reduce((sum: number, transaction: any) => sum + (transaction.refunded_amount ?? 0), 0) || 0;
 
     // Get today's revenue
     const { data: todayRevenueData } = await supabase
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
       .eq('status', 'completed')
       .gte('created_at', todayStart.toISOString());
 
-    const todayRevenue = todayRevenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+    const todayRevenue = todayRevenueData?.reduce((sum: number, transaction: any) => sum + transaction.amount, 0) || 0;
 
     // Get this month's revenue
     const { data: monthRevenueData } = await supabase
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
       .eq('status', 'completed')
       .gte('created_at', monthStart.toISOString());
 
-    const thisMonthRevenue = monthRevenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+    const thisMonthRevenue = monthRevenueData?.reduce((sum: number, transaction: any) => sum + transaction.amount, 0) || 0;
 
     const stats = {
       totalTransactions: totalTransactions || 0,

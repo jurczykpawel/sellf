@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,13 +16,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Rate Limiting
-    const allowed = await checkRateLimit('coupon_verify', 5, 60);
+    const { code, productId, email, sellerSlug } = await request.json();
+
+    // 1. Rate Limiting — tighter for seller-scoped requests to prevent coupon enumeration
+    const rateKey = sellerSlug ? `coupon_verify:${sellerSlug}` : 'coupon_verify';
+    const rateMax = sellerSlug ? 3 : 5;
+    const allowed = await checkRateLimit(rateKey, rateMax, 60);
     if (!allowed) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
-
-    const { code, productId, email } = await request.json();
 
     if (!code || typeof code !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Code and Product ID are required' }, { status: 400 });
@@ -33,10 +36,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    // Marketplace: optional sellerSlug to scope to seller schema
+    let client;
+    if (sellerSlug && typeof sellerSlug === 'string') {
+      const seller = await getSellerBySlug(sellerSlug);
+      if (!seller) {
+        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
+      }
+      client = createSellerAdminClient(seller.schema_name);
+    } else {
+      client = await createClient();
+    }
 
     // Use the secure DB function to verify coupon
-    const { data, error } = await supabase.rpc('verify_coupon', {
+    const { data, error } = await client.rpc('verify_coupon', {
       code_param: code.toUpperCase(),
       product_id_param: productId,
       customer_email_param: email || null

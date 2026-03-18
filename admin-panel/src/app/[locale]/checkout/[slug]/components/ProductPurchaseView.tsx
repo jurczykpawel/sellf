@@ -16,6 +16,8 @@ interface ProductPurchaseViewProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   licenseValid?: boolean;
   taxMode?: TaxMode;
+  /** Seller slug for marketplace products (undefined = platform owner / seller_main) */
+  sellerSlug?: string;
 }
 
 type UnavailableReason = 'not_started' | 'expired' | 'inactive' | null;
@@ -46,7 +48,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, sellerSlug }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled
@@ -61,9 +63,9 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       {showWaitlist ? (
         <WaitlistForm product={product} unavailableReason={unavailableReason} />
       ) : product.price === 0 && !product.allow_custom_price ? (
-        <FreeProductForm product={product} />
+        <FreeProductForm product={product} sellerSlug={sellerSlug} />
       ) : (
-        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} />
+        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} sellerSlug={sellerSlug} />
       )}
 
       {/* Sellf branding — hidden when a valid license is active */}

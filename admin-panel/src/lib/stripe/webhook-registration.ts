@@ -42,6 +42,8 @@ export function buildWebhookParams(url: string): Stripe.WebhookEndpointCreatePar
     url,
     enabled_events: [...STRIPE_WEBHOOK_EVENTS] as Stripe.WebhookEndpointCreateParams.EnabledEvent[],
     api_version: STRIPE_API_VERSION as Stripe.WebhookEndpointCreateParams.ApiVersion,
+    // Stripe Connect: receive events from connected seller accounts
+    connect: true,
   };
 }
 

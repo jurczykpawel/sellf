@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -10,7 +12,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const body = await request.json();
 
@@ -50,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await dataClient
       .from('coupons')
       .update(updateData)
       .eq('id', id)
@@ -76,9 +79,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { error } = await supabase
+    const { error } = await dataClient
       .from('coupons')
       .delete()
       .eq('id', id);

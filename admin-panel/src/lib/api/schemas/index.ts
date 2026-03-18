@@ -17,4 +17,3 @@ export * from './api-keys';
 export * from './analytics';
 export * from './refund-requests';
 export * from './system';
-export { generateOpenApiDocument, registry } from './openapi';

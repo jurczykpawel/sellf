@@ -19,9 +19,30 @@ vi.mock('@/lib/supabase/server', () => ({
   createPublicClient: mockCreatePublicClient,
 }));
 
+// Mock withAdminOrSellerAuth to bypass real auth and call the callback directly
+// with a fake dataClient that delegates to the same mock as createPublicClient
+vi.mock('@/lib/actions/admin-auth', () => ({
+  withAdminOrSellerAuth: vi.fn(async (fn: any) => {
+    const fakeDataClient = mockCreatePublicClient();
+    return fn({ user: { id: 'test-user' }, supabase: {}, role: 'platform_admin', dataClient: fakeDataClient });
+  }),
+}));
+
 const mockValidateLicense = vi.fn();
 vi.mock('@/lib/license/verify', () => ({
   validateLicense: mockValidateLicense,
+  extractDomainFromUrl: (url: string) => {
+    try { return new URL(url).hostname; } catch { return null; }
+  },
+  doesDomainMatch: (a: string, b: string) => a.toLowerCase() === b.toLowerCase(),
+}));
+
+vi.mock('@/lib/license/features', () => ({
+  hasFeature: (tier: string, feature: string) => {
+    const tiers: Record<string, number> = { free: 0, pro: 1, business: 2 };
+    const required: Record<string, string> = { 'theme-customization': 'pro' };
+    return (tiers[tier] ?? 0) >= (tiers[required[feature] ?? 'pro'] ?? 1);
+  },
 }));
 
 vi.mock('next/cache', () => ({
@@ -67,8 +88,8 @@ const VALID_THEME = {
 // Helpers
 // =============================================================================
 
-function setupSupabaseMock(license: string | null) {
-  mockCreatePublicClient.mockResolvedValue({
+function createMockClient(license: string | null) {
+  return {
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -76,7 +97,11 @@ function setupSupabaseMock(license: string | null) {
         }),
       }),
     }),
-  });
+  };
+}
+
+function setupSupabaseMock(license: string | null) {
+  mockCreatePublicClient.mockReturnValue(createMockClient(license));
 }
 
 // =============================================================================
@@ -91,6 +116,12 @@ describe('Theme license guard', () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
     delete process.env.DEMO_MODE;
+    delete process.env.SELLF_LICENSE_KEY;
+    // Set platform domain so license domain matching works (resolve.ts rejects when null)
+    process.env.SITE_URL = 'https://example.com';
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+    // Default: validateLicense returns invalid (overridden per-test when needed)
+    mockValidateLicense.mockReturnValue({ valid: false, info: { tier: 'free' }, error: 'No license' });
   });
 
   afterEach(() => {
@@ -108,8 +139,9 @@ describe('Theme license guard', () => {
 
       const result = await checkThemeLicense();
 
-      expect(result).toBe(true);
-      expect(mockCreatePublicClient).not.toHaveBeenCalled();
+      // Now returns ActionResponse<boolean>
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(true);
     });
 
     it('returns false without license (non-demo)', async () => {
@@ -119,29 +151,32 @@ describe('Theme license guard', () => {
       const { checkThemeLicense } = await import('@/lib/actions/theme');
       const result = await checkThemeLicense();
 
-      expect(result).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(false);
     });
 
     it('returns false with invalid license (non-demo)', async () => {
       process.env.DEMO_MODE = 'false';
       setupSupabaseMock('SF-invalid-license');
-      mockValidateLicense.mockReturnValue({ valid: false, error: 'Invalid signature' });
+      mockValidateLicense.mockReturnValue({ valid: false, info: { tier: 'free' }, error: 'Invalid signature' });
 
       const { checkThemeLicense } = await import('@/lib/actions/theme');
       const result = await checkThemeLicense();
 
-      expect(result).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(false);
     });
 
     it('returns true with valid license (non-demo)', async () => {
       process.env.DEMO_MODE = 'false';
       setupSupabaseMock('SF-example.com-UNLIMITED-validSig');
-      mockValidateLicense.mockReturnValue({ valid: true });
+      mockValidateLicense.mockReturnValue({ valid: true, info: { tier: 'pro', domain: 'example.com' } });
 
       const { checkThemeLicense } = await import('@/lib/actions/theme');
       const result = await checkThemeLicense();
 
-      expect(result).toBe(true);
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(true);
     });
   });
 
@@ -175,7 +210,7 @@ describe('Theme license guard', () => {
     it('succeeds with valid license (non-demo)', async () => {
       process.env.DEMO_MODE = 'false';
       setupSupabaseMock('SF-example.com-UNLIMITED-sig');
-      mockValidateLicense.mockReturnValue({ valid: true });
+      mockValidateLicense.mockReturnValue({ valid: true, info: { tier: 'pro', domain: 'example.com' } });
 
       const { saveActiveTheme } = await import('@/lib/actions/theme');
       const result = await saveActiveTheme(VALID_THEME as any);
@@ -224,7 +259,7 @@ describe('Theme license guard', () => {
     it('succeeds with valid license (non-demo)', async () => {
       process.env.DEMO_MODE = 'false';
       setupSupabaseMock('SF-example.com-UNLIMITED-sig');
-      mockValidateLicense.mockReturnValue({ valid: true });
+      mockValidateLicense.mockReturnValue({ valid: true, info: { tier: 'pro', domain: 'example.com' } });
 
       const { removeActiveTheme } = await import('@/lib/actions/theme');
       const result = await removeActiveTheme();

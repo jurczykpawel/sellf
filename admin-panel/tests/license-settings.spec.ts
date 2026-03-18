@@ -127,8 +127,6 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.unlimited);
 
-    await page.waitForTimeout(500);
-
     // Should see license details section
     const detailsSection = page.locator('text=/License Details|Szczegóły licencji/i');
     await expect(detailsSection).toBeVisible();
@@ -150,8 +148,6 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.future);
 
-    await page.waitForTimeout(500);
-
     // Should see formatted date (2030-12-31)
     const dateText = page.locator('text=/2030-12-31/');
     await expect(dateText).toBeVisible();
@@ -169,11 +165,9 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.invalid);
 
-    await page.waitForTimeout(500);
-
     // Should show invalid format error
     const errorText = page.locator('text=/Invalid license format|Nieprawidłowy format licencji/i');
-    await expect(errorText).toBeVisible();
+    await expect(errorText).toBeVisible({ timeout: 10000 });
   });
 
   test('License with wrong prefix shows error', async ({ page }) => {
@@ -184,11 +178,9 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.wrongPrefix);
 
-    await page.waitForTimeout(500);
-
     // Should show invalid format error
     const errorText = page.locator('text=/Invalid license format|Nieprawidłowy format licencji/i');
-    await expect(errorText).toBeVisible();
+    await expect(errorText).toBeVisible({ timeout: 10000 });
   });
 
   test('Too short license shows error', async ({ page }) => {
@@ -199,11 +191,9 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.tooShort);
 
-    await page.waitForTimeout(500);
-
     // Should show invalid format error
     const errorText = page.locator('text=/Invalid license format|Nieprawidłowy format licencji/i');
-    await expect(errorText).toBeVisible();
+    await expect(errorText).toBeVisible({ timeout: 10000 });
   });
 
   test('Can save license successfully', async ({ page }) => {
@@ -223,14 +213,14 @@ test.describe('License Settings', () => {
     await expect(successMessage).toBeVisible({ timeout: 10000 });
 
     // Verify in database
-    await page.waitForTimeout(1000);
-    const { data: config } = await supabaseAdmin
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single();
-
-    expect(config?.sellf_license).toBe(TEST_LICENSES.unlimited);
+    await expect.poll(async () => {
+      const { data } = await supabaseAdmin
+        .from('integrations_config')
+        .select('sellf_license')
+        .eq('id', 1)
+        .single();
+      return data?.sellf_license;
+    }, { timeout: 10000 }).toBe(TEST_LICENSES.unlimited);
   });
 
   test('Saved license persists after page refresh', async ({ page }) => {
@@ -269,11 +259,9 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.expired);
 
-    await page.waitForTimeout(500);
-
     // Should show the expiry date (even if expired)
     const dateText = page.locator('text=/2025-12-31/');
-    await expect(dateText).toBeVisible();
+    await expect(dateText).toBeVisible({ timeout: 10000 });
 
     // Should show domain
     const domainText = page.getByText('localhost', { exact: true });
@@ -290,27 +278,34 @@ test.describe('License Settings', () => {
     await loginAsAdmin(page);
     await gotoSystemSettings(page);
 
-    // Clear the license input
+    // Wait for the saved license to load into the input before clearing
     const licenseInput = page.locator('input[placeholder*="SF-"]');
+    await expect(licenseInput).toHaveValue(/SF-/, { timeout: 10000 });
+
+    // Clear the license input
     await licenseInput.clear();
+
+    // Confirm license details section disappeared (proves state updated)
+    const detailsSection = page.locator('text=/License Details|Szczegóły licencji/i');
+    await expect(detailsSection).not.toBeVisible({ timeout: 10000 });
 
     // Click save button
     const saveButton = page.locator('button', { hasText: /Save License|Zapisz licencję/i });
     await saveButton.click();
 
-    // Wait for success message
-    const successMessage = page.locator('text=/saved successfully|zapisana pomyślnie/i');
+    // Wait for success toast (use license-specific text to avoid matching stale toasts)
+    const successMessage = page.locator('text=/License saved|Licencja zapisana/i');
     await expect(successMessage).toBeVisible({ timeout: 10000 });
 
     // Verify in database
-    await page.waitForTimeout(1000);
-    const { data: config } = await supabaseAdmin
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single();
-
-    expect(config?.sellf_license).toBeNull();
+    await expect.poll(async () => {
+      const { data } = await supabaseAdmin
+        .from('integrations_config')
+        .select('sellf_license')
+        .eq('id', 1)
+        .single();
+      return data?.sellf_license;
+    }, { timeout: 10000 }).toBeNull();
   });
 
   test('Signature is partially displayed (truncated)', async ({ page }) => {
@@ -320,8 +315,6 @@ test.describe('License Settings', () => {
     // Enter valid license
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.unlimited);
-
-    await page.waitForTimeout(500);
 
     // Signature should be truncated with "..." in the details section
     const signatureSpan = page.locator('span.font-mono.text-sf-muted', { hasText: '...' });

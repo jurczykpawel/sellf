@@ -17,6 +17,7 @@ import {
   maskApiKey,
   validateScopes,
   getScopeDescription,
+  enforceApiKeyScopeGate,
   API_SCOPES,
   SCOPE_PRESETS,
 } from '@/lib/api/api-keys';
@@ -324,6 +325,92 @@ describe('API Keys', () => {
       expect(support).toContain(API_SCOPES.PRODUCTS_READ);
       expect(support).toContain(API_SCOPES.USERS_READ);
       expect(support).not.toContain(API_SCOPES.PRODUCTS_WRITE);
+    });
+
+    it('should have readOnly preset with payments:read', () => {
+      expect(SCOPE_PRESETS.readOnly).toContain(API_SCOPES.PAYMENTS_READ);
+      expect(SCOPE_PRESETS.readOnly).not.toContain(API_SCOPES.PAYMENTS_WRITE);
+    });
+
+    it('should have sellerDefault preset with payments:read and payments:write', () => {
+      expect(SCOPE_PRESETS.sellerDefault).toContain(API_SCOPES.PAYMENTS_READ);
+      expect(SCOPE_PRESETS.sellerDefault).toContain(API_SCOPES.PAYMENTS_WRITE);
+    });
+  });
+
+  // ===== PAYMENTS SCOPES =====
+
+  describe('payments scopes', () => {
+    it('should define PAYMENTS_READ and PAYMENTS_WRITE', () => {
+      expect(API_SCOPES.PAYMENTS_READ).toBe('payments:read');
+      expect(API_SCOPES.PAYMENTS_WRITE).toBe('payments:write');
+    });
+
+    it('hasScope should grant payments:write with full access', () => {
+      expect(hasScope(['*'], API_SCOPES.PAYMENTS_WRITE)).toBe(true);
+    });
+
+    it('hasScope should grant payments:write with explicit scope', () => {
+      expect(hasScope(['payments:write'], API_SCOPES.PAYMENTS_WRITE)).toBe(true);
+    });
+
+    it('hasScope should NOT grant payments:write with only payments:read', () => {
+      expect(hasScope(['payments:read'], API_SCOPES.PAYMENTS_WRITE)).toBe(false);
+    });
+
+    it('hasScope should NOT grant payments:write with only analytics:read', () => {
+      expect(hasScope(['analytics:read'], API_SCOPES.PAYMENTS_WRITE)).toBe(false);
+    });
+
+    it('getScopeDescription should return descriptions for payment scopes', () => {
+      expect(getScopeDescription(API_SCOPES.PAYMENTS_READ)).toBe('View payment transactions');
+      expect(getScopeDescription(API_SCOPES.PAYMENTS_WRITE)).toBe('Update payment metadata');
+    });
+  });
+
+  // ===== API KEY SCOPE GATING (LICENSE TIER) =====
+
+  describe('enforceApiKeyScopeGate', () => {
+    it('should force full access for free tier regardless of requested scopes', () => {
+      const result = enforceApiKeyScopeGate('free', ['products:read', 'users:read']);
+      expect(result.scopes).toEqual(['*']);
+      expect(result.gated).toBe(true);
+    });
+
+    it('should force full access for free tier when no scopes requested', () => {
+      const result = enforceApiKeyScopeGate('free', undefined);
+      expect(result.scopes).toEqual(['*']);
+      expect(result.gated).toBe(true);
+    });
+
+    it('should allow custom scopes for pro tier', () => {
+      const result = enforceApiKeyScopeGate('pro', ['products:read', 'analytics:read']);
+      expect(result.scopes).toEqual(['products:read', 'analytics:read']);
+      expect(result.gated).toBe(false);
+    });
+
+    it('should allow custom scopes for business tier', () => {
+      const result = enforceApiKeyScopeGate('business', ['users:write']);
+      expect(result.scopes).toEqual(['users:write']);
+      expect(result.gated).toBe(false);
+    });
+
+    it('should default to full access for pro tier when no scopes provided', () => {
+      const result = enforceApiKeyScopeGate('pro', undefined);
+      expect(result.scopes).toEqual(['*']);
+      expect(result.gated).toBe(false);
+    });
+
+    it('should default to full access for pro tier with empty array', () => {
+      const result = enforceApiKeyScopeGate('pro', []);
+      expect(result.scopes).toEqual(['*']);
+      expect(result.gated).toBe(false);
+    });
+
+    it('should force full access for free tier even when full access explicitly requested', () => {
+      const result = enforceApiKeyScopeGate('free', ['*']);
+      expect(result.scopes).toEqual(['*']);
+      expect(result.gated).toBe(true);
     });
   });
 });

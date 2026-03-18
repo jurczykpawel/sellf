@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const endpointId = searchParams.get('endpointId');
@@ -14,7 +17,7 @@ export async function GET(request: NextRequest) {
     const countOnly = searchParams.get('count') === 'true';
 
     // Base query
-    let query = supabase
+    let query = dataClient
       .from('webhook_logs')
       .select(
         countOnly 

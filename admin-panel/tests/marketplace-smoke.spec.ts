@@ -48,6 +48,22 @@ test.describe('Marketplace Provisioning Smoke', () => {
       }
     };
 
+    // ── Clean up stale smoke sellers from previous runs ─────────────────
+    for (const seller of TEST_SELLERS) {
+      const dbSlug = seller.slug.replace(/-/g, '_');
+      const { data: existing } = await supabaseAdmin
+        .from('sellers')
+        .select('id')
+        .eq('slug', dbSlug)
+        .maybeSingle();
+      if (existing) {
+        await supabaseAdmin.rpc('deprovision_seller_schema', {
+          p_seller_id: existing.id,
+          p_hard_delete: true,
+        });
+      }
+    }
+
     // ── Provision test sellers ─────────────────────────────────────────────
     for (const seller of TEST_SELLERS) {
       const { data: sellerId, error } = await supabaseAdmin

@@ -89,6 +89,14 @@ test.describe('Users API v1', () => {
 
     if (productError) throw productError;
     testProductId = product.id;
+
+    // Grant access so user appears in seller_customer_stats (INNER JOIN view)
+    const { data: access } = await supabaseAdmin
+      .from('user_product_access')
+      .insert({ user_id: testUserId, product_id: testProductId })
+      .select('id')
+      .single();
+    if (access) createdAccessIds.push(access.id);
   });
 
   test.afterAll(async () => {

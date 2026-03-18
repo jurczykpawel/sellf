@@ -232,7 +232,6 @@
       "analytics": "Analityka",
       "marketing": "Marketing",
       "consents": "Zgody",
-      "code": "Menedżer Skryptów",
       "currency": "Waluty",
       "gus": "GUS"
     },
@@ -442,39 +441,6 @@
         "purchaseDesc": "zakończone transakcje",
         "leadDesc": "rejestracje/pobrania darmowych produktów",
         "notAllowed": "Niedozwolone: ViewContent, InitiateCheckout, AddPaymentInfo (zdarzenia przeglądania)"
-      }
-    },
-    "scripts": {
-      "title": "Własne Skrypty",
-      "addScript": "Dodaj Skrypt",
-      "noScripts": "Brak własnych skryptów.",
-      "deleteConfirm": "Usunąć skrypt?",
-      "table": {
-        "name": "Nazwa",
-        "location": "Lokalizacja",
-        "category": "Kategoria (RODO)",
-        "status": "Status",
-        "actions": "Akcje"
-      },
-      "categories": {
-        "marketing": "Marketing",
-        "analytics": "Analityka",
-        "essential": "Niezbędne"
-      },
-      "modal": {
-        "title": "Dodaj Nowy Skrypt",
-        "name": "Nazwa",
-        "location": "Lokalizacja",
-        "category": "Kategoria (RODO)",
-        "code": "Kod Skryptu",
-        "cancel": "Anuluj",
-        "add": "Dodaj Skrypt",
-        "namePlaceholder": "np. Hotjar",
-        "codePlaceholder": "<script>...</script>"
-      },
-      "location": {
-        "head": "HEAD",
-        "body": "BODY"
       }
     },
     "messages": {
@@ -1706,6 +1672,8 @@
       "keyNamePlaceholder": "np. Produkcyjny klucz API, Serwer MCP",
       "quickPresets": "Szybkie ustawienia",
       "permissions": "Uprawnienia",
+      "scopesLockedTitle": "Odblokuj z licencja Pro",
+      "scopesLockedDescription": "Licencja Pro wymagana do konfiguracji uprawnien kluczy API. Darmowe klucze maja pelny dostep.",
       "showAdvanced": "Pokaż opcje zaawansowane",
       "hideAdvanced": "Ukryj opcje zaawansowane",
       "rateLimit": "Limit żądań",
@@ -2425,9 +2393,10 @@
       "title": "Licencja Sellf",
       "subtitle": "Usuń branding Sellf ze strony koszyka i innych miejsc",
       "licenseKey": "Klucz licencji",
-      "formatHint": "Format: SF-domena-wygaśnięcie-podpis (np. SF-example.com-20271231-MEUCIQDx... lub SF-example.com-UNLIMITED-MEUCIQDx...)",
+      "formatHint": "Format: SF-domena-TIER-wygaśnięcie-podpis (np. SF-example.com-PRO-UNLIMITED-MEUCIQDx...)",
       "licenseDetails": "Szczegóły licencji",
       "domain": "Domena",
+      "tier": "Plan",
       "expires": "Wygasa",
       "signature": "Podpis",
       "never": "Nigdy (Nieograniczona)",
@@ -2441,7 +2410,7 @@
       "howItWorks2": "Ważna licencja usuwa branding Sellf ze strony koszyka",
       "howItWorks3": "Licencja jest przypisana do konkretnej domeny",
       "howItWorks4": "Kup licencję na",
-      "keyPlaceholder": "SF-twojadomena.pl-UNLIMITED-xxxxxxxxxxxx"
+      "keyPlaceholder": "SF-twojadomena.pl-PRO-UNLIMITED-xxxxxxxxxxxx"
     },
     "paymentMethods": {
       "title": "Konfiguracja Metod Płatności",
@@ -2548,7 +2517,29 @@
       "shop": "Sklep",
       "payments": "Płatności",
       "legal": "Prawne",
-      "system": "System"
+      "system": "System",
+      "marketplace": "Marketplace"
+    },
+    "marketplace": {
+      "title": "Marketplace",
+      "description": "Ustawienia marketplace multi-tenant. Zarządzaj sklepami sellerów, Stripe Connect i prowizjami platformy.",
+      "sellersLink": "Zarządzaj Sellerami",
+      "sellersDescription": "Przeglądaj i zarządzaj sklepami sellerów, ich statusem, onboardingiem Stripe Connect i konfiguracją prowizji.",
+      "stripeConnect": {
+        "title": "Stripe Connect",
+        "description": "Podlacz swoje konto Stripe, aby otrzymywac platnosci bezposrednio. Srodki sa przekazywane na Twoje konto po kazdej sprzedazy.",
+        "loading": "Sprawdzanie statusu konta Stripe...",
+        "error": "Nie udalo sie zaladowac statusu",
+        "retry": "Ponow",
+        "notConnected": "Niepodlaczone",
+        "notConnectedDesc": "Podlacz swoje konto Stripe, aby zaczac otrzymywac platnosci.",
+        "connectButton": "Podlacz konto Stripe",
+        "incomplete": "Onboarding niekompletny",
+        "incompleteDesc": "Konfiguracja Twojego konta Stripe nie zostala ukonczona. Dokoncz onboarding, aby zaczac otrzymywac platnosci.",
+        "completeButton": "Dokoncz onboarding",
+        "connected": "Podlaczone",
+        "accountId": "Konto"
+      }
     }
   },
   "stripe": {

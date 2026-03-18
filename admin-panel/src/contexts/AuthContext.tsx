@@ -3,12 +3,13 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
-import { AuthContextType } from '@/types/auth'
+import { AuthContextType, UserRole } from '@/types/auth'
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
+  role: 'user',
   loading: true,
   error: null,
   signOut: async () => {},
@@ -29,7 +30,16 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // State Management with Performance Tracking
   const [user, setUser] = useState<User | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [role, setRole] = useState<UserRole>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('sf_role') as UserRole) || 'user'
+    }
+    return 'user'
+  })
+  const [sellerSchema, setSellerSchema] = useState<string | undefined>()
+  const [sellerSlug, setSellerSlug] = useState<string | undefined>()
+  const [sellerDisplayName, setSellerDisplayName] = useState<string | undefined>()
+  const isAdmin = role !== 'user'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -40,33 +50,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Fetches admin status using cached function for better performance
    */
-  const checkAdminStatus = async (userId: string, retries = 3): Promise<boolean> => {
+  interface RoleResult {
+    role: UserRole
+    sellerSchema?: string
+    sellerSlug?: string
+    sellerDisplayName?: string
+  }
+
+  const resolveUserRole = async (userId: string, retries = 3): Promise<RoleResult> => {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        // Use cached version for better performance when called repeatedly
         const supabase = await createClient()
-        const { data, error } = await supabase.rpc('is_admin_cached')
-        
+
+        // Check platform admin
+        const { data: isAdminData, error } = await supabase.rpc('is_admin_cached')
         if (error) {
-          if (attempt === retries) {
-            return false // Default to non-admin after final attempt
-          }
-          
-          // Exponential backoff: 1s, 2s, 3s
+          if (attempt === retries) return { role: 'user' }
           await new Promise(resolve => setTimeout(resolve, attempt * 1000))
           continue
         }
-        
-        return Boolean(data)
+
+        // is_admin_cached returns true for both platform admins and seller admins
+        // Need to distinguish which one
+        if (!isAdminData) return { role: 'user' }
+
+        // Check if platform admin (in admin_users table)
+        const { data: adminCheck } = await supabase
+          .from('admin_users')
+          .select('user_id')
+          .eq('user_id', userId)
+          .maybeSingle()
+
+        if (adminCheck) return { role: 'platform_admin' }
+
+        // Must be seller admin — get seller info
+        const { data: seller } = await supabase
+          .from('sellers')
+          .select('schema_name, slug, display_name')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (seller) {
+          return {
+            role: 'seller_admin',
+            sellerSchema: seller.schema_name,
+            sellerSlug: seller.slug,
+            sellerDisplayName: seller.display_name,
+          }
+        }
+
+        return { role: 'user' as const }
       } catch {
         if (attempt === retries) {
-          return false // Default to non-admin after final attempt
+          return { role: 'user' as const }
         }
         await new Promise(resolve => setTimeout(resolve, attempt * 1000))
       }
     }
-    
-    return false // Final fallback
+
+    return { role: 'user' as const }
   }
 
   /**
@@ -88,17 +131,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set user immediately for responsive UI
         setUser(currentUser)
         setError(null)
-        
-        // Check admin status if user exists
+
+        // Resolve user role
         if (currentUser) {
-          const adminStatus = await checkAdminStatus(currentUser.id)
-          
-          // Check again after async operation
+          const result = await resolveUserRole(currentUser.id)
+
           if (!isMountedRef.current) return
-          
-          setIsAdmin(adminStatus)
+
+          setRole(result.role)
+          setSellerSchema(result.sellerSchema)
+          setSellerSlug(result.sellerSlug)
+          setSellerDisplayName(result.sellerDisplayName)
+          if (typeof window !== 'undefined') localStorage.setItem('sf_role', result.role)
         } else {
-          setIsAdmin(false)
+          setRole('user')
+          setSellerSchema(undefined)
+          setSellerSlug(undefined)
+          setSellerDisplayName(undefined)
+          if (typeof window !== 'undefined') localStorage.removeItem('sf_role')
         }
       } catch {
         if (isMountedRef.current) {
@@ -146,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await supabase.auth.signOut()
           if (!isMountedRef.current) return
           setUser(null)
-          setIsAdmin(false)
+          setRole('user')
           setLoading(false)
           return
         }
@@ -231,9 +281,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isAdmin,
+        role,
         loading,
         error,
         signOut,
+        sellerSchema,
+        sellerSlug,
+        sellerDisplayName,
       }}
     >
       {children}

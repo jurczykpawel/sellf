@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 export async function POST(
   request: NextRequest,
@@ -9,9 +11,10 @@ export async function POST(
   try {
     const { logId } = await context.params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
-    const { error } = await supabase
+    const { error } = await dataClient
       .from('webhook_logs')
       .update({ status: 'archived' })
       .eq('id', logId);

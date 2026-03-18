@@ -6,13 +6,15 @@ import { verifyPaymentSession, verifyPaymentIntent, OtoInfo } from '@/lib/paymen
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { PaymentStatus, OtoOfferInfo } from './types';
+import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<{
     session_id?: string;
     payment_intent?: string;
-    success_url?: string
+    success_url?: string;
+    seller?: string;
   }>;
 }
 
@@ -22,9 +24,9 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
   const { session_id, payment_intent } = resolvedSearchParams;
   const isStripePayment = !!(session_id || payment_intent); // Has session_id or payment_intent = paid product
-  
+
   const supabase = await createClient();
-  
+
   // Get authenticated user (optional for guest purchases)
   const { data: { user } } = await supabase.auth.getUser();
   // For free products, user must be logged in
@@ -32,8 +34,20 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
     redirect('/login');
   }
 
+  // Marketplace: optional seller query param to scope product lookup to seller schema
+  const sellerSlug = resolvedSearchParams.seller;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let productClient: any = supabase;
+
+  if (sellerSlug) {
+    const seller = await getSellerBySlug(sellerSlug);
+    if (seller) {
+      productClient = createSellerAdminClient(seller.schema_name);
+    }
+  }
+
   // Get product details
-  const { data: product, error: productError } = await supabase
+  const { data: product, error: productError } = await productClient
     .from('products')
     .select('id, name, slug, description, icon, price, currency, allow_custom_price, custom_price_min, success_redirect_url, pass_params_to_redirect')
     .eq('slug', resolvedParams.slug)
@@ -56,7 +70,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       // Handle paid product with Stripe Checkout Session (embedded checkout flow)
       const result = await verifyPaymentSession(session_id, user);
       customerEmail = result.customer_email || '';
-      
+
       // Capture OTO info (both active and skipped)
       if (result.oto_info?.has_oto || result.oto_info?.reason) {
         otoInfo = result.oto_info;
@@ -72,7 +86,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         if (result.access_granted) {
           accessGranted = true;
           paymentStatus = 'completed';
-          
+
           if (result.scenario === 'existing_user_email' && result.requires_login && result.send_magic_link) {
             // User exists but needs to login - let frontend handle magic link
             paymentStatus = 'magic_link_sent';
@@ -138,17 +152,17 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       if (!user) {
         redirect('/login');
       }
-      
+
       customerEmail = user.email || '';
-      
-      const { data: existingAccess } = await supabase
+
+      const { data: existingAccess } = await productClient
         .from('user_product_access')
         .select('access_expires_at')
         .eq('user_id', user.id)
         .eq('product_id', product.id)
         .single();
 
-      const adminClient = createAdminClient();
+      const adminClient = sellerSlug ? productClient : createAdminClient();
       const freeAccessResult = await grantFreeProductAccess(supabase, adminClient, {
         product: {
           id: product.id,
@@ -190,15 +204,15 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
     if (otoInfo.oto_product_id && customerEmail) {
       // First check if user exists with this email
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await productClient
         .from('users')
         .select('id')
         .eq('email', customerEmail)
         .maybeSingle();
 
       if (existingUser) {
-        // Check if user has access to OTO product
-        const { data: existingOtoAccess } = await supabase
+        // Check if user has access to OTO product (same schema as source product)
+        const { data: existingOtoAccess } = await productClient
           .from('user_product_access')
           .select('id, access_expires_at')
           .eq('user_id', existingUser.id)

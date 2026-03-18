@@ -3,28 +3,59 @@
  *
  * GET: Generate a new Account Link when the previous one expired.
  * Redirects the seller back to Stripe onboarding.
+ * Accessible by platform admins and seller admins (own seller only).
+ *
+ * NOTE: This endpoint intentionally uses GET, not POST.
+ * Stripe redirects the user's browser to `refresh_url` via HTTP 302 when
+ * an account link expires or has already been visited. Browser redirects
+ * are always GET requests — Stripe never POSTs to this URL directly.
+ * Changing this to POST would break the Stripe Connect onboarding flow.
+ * @see https://docs.stripe.com/api/account_links/create (refresh_url field)
  *
  * Query params:
- *   seller_id: string — the seller to refresh the link for
+ *   seller_id: string - the seller to refresh the link for
  *
  * @see src/lib/stripe/connect.ts
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireMarketplaceAdmin } from '@/lib/auth-server';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { getSellerById } from '@/lib/marketplace/seller-client';
 import { createOnboardingLink, buildOnboardingUrls } from '@/lib/stripe/connect';
+import { createPlatformClient } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   try {
-    // Auth: admin + marketplace gate (K3 — was missing authentication)
+    // Marketplace feature gate
+    const marketplaceAccess = await checkMarketplaceAccess();
+    if (!marketplaceAccess.accessible) {
+      return NextResponse.json({ error: 'Marketplace is not enabled' }, { status: 403 });
+    }
+
+    // Auth: admin or seller
     const supabase = await createClient();
-    await requireMarketplaceAdmin(supabase);
+    const access = await requireAdminOrSellerApi(supabase);
 
     const sellerId = request.nextUrl.searchParams.get('seller_id');
     if (!sellerId) {
       return NextResponse.json({ error: 'seller_id is required' }, { status: 400 });
+    }
+
+    // Seller admins can only refresh their own link
+    if (access.role === 'seller_admin') {
+      const platform = createPlatformClient();
+      const { data: ownSeller } = await platform
+        .from('sellers')
+        .select('id')
+        .eq('user_id', access.user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (!ownSeller || ownSeller.id !== sellerId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const seller = await getSellerById(sellerId);
@@ -35,8 +66,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Generate a new onboarding link
-    const { refreshUrl, returnUrl } = buildOnboardingUrls(sellerId);
+    // Generate a new onboarding link with context-appropriate return URL
+    const urlContext = access.role === 'seller_admin' ? 'seller' : 'admin';
+    const { refreshUrl, returnUrl } = buildOnboardingUrls(sellerId, urlContext);
 
     const linkResult = await createOnboardingLink(seller.stripe_account_id, refreshUrl, returnUrl);
     if (!linkResult.success || !linkResult.url) {
@@ -55,9 +87,6 @@ export async function GET(request: NextRequest) {
       }
       if (error.message === 'Forbidden') {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      if (error.message === 'Marketplace is not enabled') {
-        return NextResponse.json({ error: 'Marketplace is not enabled' }, { status: 403 });
       }
     }
 

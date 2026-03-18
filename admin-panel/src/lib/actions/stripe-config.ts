@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptStripeKey, decryptStripeKey } from '@/lib/services/stripe-encryption'
 import { requireAdminApi } from '@/lib/auth-server'
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
 import Stripe from 'stripe'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { invalidateStripeCache } from '@/lib/stripe/server'
@@ -428,9 +429,7 @@ export async function validateStripeKey(apiKey: string, expectedMode?: StripeMod
  */
 export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<SaveConfigResponse> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const supabase = await createClient()
-
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
     // Validate the key first
     const validation = await validateStripeKey(input.apiKey, input.mode)
     if (!validation.success || !validation.data?.isValid) {
@@ -450,14 +449,14 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
     const keyLast4 = input.apiKey.trim().slice(-4)
 
     // Deactivate any existing active configurations for this mode
-    await supabase
+    await dataClient
       .from('stripe_configurations')
       .update({ is_active: false })
       .eq('mode', input.mode)
       .eq('is_active', true)
 
     // Insert new configuration
-    const { data, error } = await supabase
+    const { data, error } = await dataClient
       .from('stripe_configurations')
       .insert({
         mode: input.mode,
@@ -496,11 +495,43 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
         mode: data.mode as StripeMode,
       },
     }
+  })
+}
+
+/**
+ * Internal helper: retrieves active config using service-role client.
+ * Used by server-side callers (getStripeServer, verifyWebhookSignature) that
+ * run outside a user session (e.g. webhook handlers, checkout flows).
+ */
+async function getActiveStripeConfigInternal(mode: StripeMode): Promise<GetActiveConfigResponse> {
+  try {
+    const adminClient = createAdminClient()
+
+    const { data, error } = await adminClient
+      .from('stripe_configurations')
+      .select('*')
+      .eq('mode', mode)
+      .eq('is_active', true)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { success: true, data: null }
+      }
+      console.error('Failed to retrieve Stripe configuration:', error)
+      return {
+        success: false,
+        error: 'Failed to retrieve configuration',
+        errorCode: 'DATABASE_ERROR',
+      }
+    }
+
+    return { success: true, data: data as StripeConfiguration }
   } catch (error) {
-    console.error('[saveStripeConfig] Error:', error)
+    console.error('[getActiveStripeConfigInternal] Error:', error)
     return {
       success: false,
-      error: 'Failed to save Stripe configuration',
+      error: 'Failed to retrieve Stripe configuration',
       errorCode: 'UNKNOWN_ERROR',
     }
   }
@@ -510,10 +541,8 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
  * Retrieves the active Stripe configuration for a given mode
  */
 export async function getActiveStripeConfig(mode: StripeMode): Promise<GetActiveConfigResponse> {
-  try {
-    const supabase = await createClient()
-
-    const { data, error } = await supabase
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data, error } = await dataClient
       .from('stripe_configurations')
       .select('*')
       .eq('mode', mode)
@@ -534,38 +563,43 @@ export async function getActiveStripeConfig(mode: StripeMode): Promise<GetActive
     }
 
     return { success: true, data: data as StripeConfiguration }
-  } catch (error) {
-    console.error('[getActiveStripeConfig] Error:', error)
-    return {
-      success: false,
-      error: 'Failed to retrieve Stripe configuration',
-      errorCode: 'UNKNOWN_ERROR',
-    }
-  }
+  })
 }
 
 /**
- * Retrieves and decrypts the active Stripe API key for a given mode
+ * Internal helper: decrypts active Stripe key using service-role client.
+ * Used by server-side callers that run outside a user session.
  */
-export async function getDecryptedStripeKey(mode: StripeMode): Promise<string | null> {
+export async function getDecryptedStripeKeyInternal(mode: StripeMode): Promise<string | null> {
   try {
-    const configResponse = await getActiveStripeConfig(mode)
+    const configResponse = await getActiveStripeConfigInternal(mode)
 
     if (!configResponse.success || !configResponse.data) {
       return null
     }
 
-    const decrypted = await decryptStripeKey({
+    return await decryptStripeKey({
       encrypted_key: configResponse.data.encrypted_key,
       encryption_iv: configResponse.data.encryption_iv,
       encryption_tag: configResponse.data.encryption_tag,
     })
-
-    return decrypted
   } catch (error) {
-    console.error('Error decrypting Stripe key:', error)
+    console.error('[getDecryptedStripeKeyInternal] Error:', error)
     return null
   }
+}
+
+/**
+ * Retrieves and decrypts the active Stripe API key for a given mode.
+ * Requires admin or seller authentication.
+ */
+export async function getDecryptedStripeKey(mode: StripeMode): Promise<string | null> {
+  const result = await withAdminOrSellerAuth(async () => {
+    const decrypted = await getDecryptedStripeKeyInternal(mode)
+    return { success: true, data: decrypted }
+  })
+  if (!result.success) return null
+  return result.data ?? null
 }
 
 /**
@@ -573,10 +607,8 @@ export async function getDecryptedStripeKey(mode: StripeMode): Promise<string | 
  */
 export async function deleteStripeConfig(id: string): Promise<DeleteConfigResponse> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  try {
-    const supabase = await createClient()
-
-    const { error } = await supabase.from('stripe_configurations').delete().eq('id', id)
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { error } = await dataClient.from('stripe_configurations').delete().eq('id', id)
 
     if (error) {
       console.error('Failed to delete Stripe configuration:', error)
@@ -590,14 +622,7 @@ export async function deleteStripeConfig(id: string): Promise<DeleteConfigRespon
     revalidatePath('/dashboard/settings')
 
     return { success: true }
-  } catch (error) {
-    console.error('[deleteStripeConfig] Error:', error)
-    return {
-      success: false,
-      error: 'Failed to delete Stripe configuration',
-      errorCode: 'UNKNOWN_ERROR',
-    }
-  }
+  })
 }
 
 /**
@@ -609,9 +634,9 @@ export async function getStripeAccountInfo(): Promise<{ accountId: string | null
   if (isDemoMode()) return null
   try {
     const supabase = await createClient()
-    await requireAdminApi(supabase)
+    try { await requireAdminApi(supabase) } catch { return null }
     const mode: StripeMode = process.env.NODE_ENV === 'production' ? 'live' : 'test'
-    const apiKey = await getDecryptedStripeKey(mode) || process.env.STRIPE_SECRET_KEY
+    const apiKey = await getDecryptedStripeKeyInternal(mode) || process.env.STRIPE_SECRET_KEY
     if (!apiKey) return null
 
     const stripe = new Stripe(apiKey, { apiVersion: '2026-02-25.clover' })
@@ -634,13 +659,13 @@ export async function getStripeAccountInfo(): Promise<{ accountId: string | null
  */
 export async function getStripeKeySource(): Promise<{ activeSource: 'db' | 'env' | 'none'; dbConfigured: boolean; envConfigured: boolean }> {
   const supabase = await createClient()
-  await requireAdminApi(supabase)
+  try { await requireAdminApi(supabase) } catch { return { activeSource: 'none', dbConfigured: false, envConfigured: false } }
   const envConfigured = !!process.env.STRIPE_SECRET_KEY
   const mode: StripeMode = process.env.NODE_ENV === 'production' ? 'live' : 'test'
 
   let dbConfigured = false
   try {
-    const dbKey = await getDecryptedStripeKey(mode)
+    const dbKey = await getDecryptedStripeKeyInternal(mode)
     dbConfigured = !!dbKey
   } catch {
     // DB not available — ignore
@@ -657,10 +682,8 @@ export async function getStripeKeySource(): Promise<{ activeSource: 'db' | 'env'
  * Lists all Stripe configurations (active and inactive)
  */
 export async function listStripeConfigs(): Promise<ActionResponse<StripeConfiguration[]>> {
-  try {
-    const supabase = await createClient()
-
-    const { data, error } = await supabase
+  return withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data, error } = await dataClient
       .from('stripe_configurations')
       .select('*')
       .order('created_at', { ascending: false })
@@ -675,14 +698,7 @@ export async function listStripeConfigs(): Promise<ActionResponse<StripeConfigur
     }
 
     return { success: true, data: data as StripeConfiguration[] }
-  } catch (error) {
-    console.error('[listStripeConfigs] Error:', error)
-    return {
-      success: false,
-      error: 'Failed to list Stripe configurations',
-      errorCode: 'UNKNOWN_ERROR',
-    }
-  }
+  })
 }
 
 /**
@@ -692,7 +708,7 @@ export async function listStripeConfigs(): Promise<ActionResponse<StripeConfigur
 export async function getWebhookRegistrationInfo(): Promise<WebhookRegistrationInfo> {
   try {
     const supabase = await createClient()
-    await requireAdminApi(supabase)
+    try { await requireAdminApi(supabase) } catch { return { status: 'not_registered', endpointId: null } }
 
     const { data } = await supabase
       .from('stripe_configurations')
@@ -734,7 +750,7 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
 
     const webhookUrl = `${siteUrl}/api/webhooks/stripe`
     const mode: StripeMode = process.env.NODE_ENV === 'production' ? 'live' : 'test'
-    const apiKey = await getDecryptedStripeKey(mode) || process.env.STRIPE_SECRET_KEY
+    const apiKey = await getDecryptedStripeKeyInternal(mode) || process.env.STRIPE_SECRET_KEY
     if (!apiKey) {
       return { success: false, error: 'Stripe is not configured', errorCode: 'CONFIGURATION_ERROR' }
     }
@@ -822,14 +838,14 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
 }
 
 /**
- * Retrieves and decrypts the webhook signing secret from the active DB config.
- * Used by verifyWebhookSignature() as fallback when STRIPE_WEBHOOK_SECRET env is not set.
+ * Internal helper: decrypts webhook signing secret using service-role client.
+ * Used by verifyWebhookSignature() which runs in webhook context (no user session).
  */
-export async function getDecryptedWebhookSecret(): Promise<string | null> {
+export async function getDecryptedWebhookSecretInternal(): Promise<string | null> {
   try {
-    const supabase = createAdminClient()
+    const adminClient = createAdminClient()
 
-    const { data } = await supabase
+    const { data } = await adminClient
       .from('stripe_configurations')
       .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')
       .eq('is_active', true)
@@ -847,7 +863,37 @@ export async function getDecryptedWebhookSecret(): Promise<string | null> {
       encryption_tag: data.webhook_signing_tag,
     })
   } catch (error) {
-    console.error('[getDecryptedWebhookSecret] Error:', error)
+    console.error('[getDecryptedWebhookSecretInternal] Error:', error)
     return null
   }
+}
+
+/**
+ * Retrieves and decrypts the webhook signing secret from the active DB config.
+ * Requires admin or seller authentication.
+ */
+export async function getDecryptedWebhookSecret(): Promise<string | null> {
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data } = await dataClient
+      .from('stripe_configurations')
+      .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!data?.webhook_signing_secret_enc || !data.webhook_signing_iv || !data.webhook_signing_tag) {
+      return { success: true, data: null }
+    }
+
+    const secret = await decryptStripeKey({
+      encrypted_key: data.webhook_signing_secret_enc,
+      encryption_iv: data.webhook_signing_iv,
+      encryption_tag: data.webhook_signing_tag,
+    })
+
+    return { success: true, data: secret }
+  })
+  if (!result.success) return null
+  return result.data ?? null
 }

@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { get, post, deleteTestApiKey, API_URL, supabase } from './setup';
+import { get, post, patch, deleteTestApiKey, API_URL, supabase } from './setup';
 
 interface Payment {
   id: string;
@@ -443,6 +443,88 @@ describe('Payments API v1', () => {
       expect(data.pagination).toHaveProperty('next_cursor');
       expect(data.pagination).toHaveProperty('has_more');
       expect(typeof data.pagination!.has_more).toBe('boolean');
+    });
+  });
+
+  // ===== PATCH /api/v1/payments/:id (metadata update) =====
+
+  describe('PATCH /api/v1/payments/:id — metadata update', () => {
+    it('should merge metadata with existing data', async () => {
+      const { status, data } = await patch<ApiResponse<{ id: string; metadata: Record<string, unknown> }>>(
+        `/api/v1/payments/${testTransactionId}`,
+        { metadata: { license: { key: 'SF-test-PRO-UNLIMITED-sig', domain: 'test.com' } } }
+      );
+
+      expect(status).toBe(200);
+      expect(data.data?.metadata).toHaveProperty('test', true); // original preserved
+      expect(data.data?.metadata).toHaveProperty('license');
+      expect((data.data?.metadata as any).license.domain).toBe('test.com');
+    });
+
+    it('should preserve existing metadata on subsequent merges', async () => {
+      const { status, data } = await patch<ApiResponse<{ id: string; metadata: Record<string, unknown> }>>(
+        `/api/v1/payments/${testTransactionId}`,
+        { metadata: { notes: 'VIP customer' } }
+      );
+
+      expect(status).toBe(200);
+      // Both previous fields preserved
+      expect(data.data?.metadata).toHaveProperty('test', true);
+      expect(data.data?.metadata).toHaveProperty('license');
+      expect(data.data?.metadata).toHaveProperty('notes', 'VIP customer');
+    });
+
+    it('should reject request without metadata field', async () => {
+      const { status } = await patch(`/api/v1/payments/${testTransactionId}`, {});
+      expect(status).toBe(400);
+    });
+
+    it('should reject non-object metadata', async () => {
+      const { status } = await patch(`/api/v1/payments/${testTransactionId}`, { metadata: 'string' });
+      expect(status).toBe(400);
+    });
+
+    it('should reject array metadata', async () => {
+      const { status } = await patch(`/api/v1/payments/${testTransactionId}`, { metadata: [1, 2, 3] });
+      expect(status).toBe(400);
+    });
+
+    it('should reject extra fields beyond metadata', async () => {
+      const { status, data } = await patch<ApiResponse<never>>(
+        `/api/v1/payments/${testTransactionId}`,
+        { metadata: { ok: true }, status: 'refunded', amount: 0 }
+      );
+
+      expect(status).toBe(400);
+      expect((data as any).error?.message).toMatch(/Only metadata/);
+    });
+
+    it('should reject PATCH on non-existent payment', async () => {
+      const { status } = await patch(
+        '/api/v1/payments/00000000-0000-0000-0000-000000000000',
+        { metadata: { test: true } }
+      );
+      expect(status).toBe(404);
+    });
+
+    it('should reject PATCH with invalid UUID', async () => {
+      const { status } = await patch(
+        '/api/v1/payments/not-a-uuid',
+        { metadata: { test: true } }
+      );
+      expect(status).toBe(400);
+    });
+
+    it('should not modify amount, status, or other fields via metadata', async () => {
+      // First patch metadata
+      await patch(`/api/v1/payments/${testTransactionId}`, {
+        metadata: { attempted_status_change: 'refunded' }
+      });
+
+      // Verify actual status unchanged
+      const { data } = await get<ApiResponse<Payment>>(`/api/v1/payments/${testTransactionId}`);
+      expect(data.data?.status).toBe('completed');
+      expect(data.data?.amount).toBe(9900);
     });
   });
 });

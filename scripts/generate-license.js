@@ -4,13 +4,22 @@
  *
  * Generates ECDSA-signed license keys for Sellf installations.
  *
+ * License format: SF-{domain}-{tier}-{expiry}-{signature}
+ * Signed data:    {domain}-{tier}-{expiry}
+ *
  * Usage:
- *   node generate-license.js <domain> [expiry]
+ *   node generate-license.js <domain> [tier] [expiry]
  *
  * Examples:
- *   node generate-license.js example.com 20271231      # Valid until Dec 31, 2027
- *   node generate-license.js example.com UNLIMITED     # Never expires
- *   node generate-license.js "*.example.com" UNLIMITED # Wildcard domain
+ *   node generate-license.js example.com PRO 20271231      # Pro until Dec 31, 2027
+ *   node generate-license.js example.com PRO UNLIMITED     # Pro, never expires
+ *   node generate-license.js example.com BIZ UNLIMITED     # Business, never expires
+ *   node generate-license.js "*.example.com" PRO UNLIMITED # Wildcard domain
+ *
+ * Tiers:
+ *   REG  - Registered Free: CSV export, audit log UI.
+ *   PRO  - Watermark removal, themes, marketplace, webhook retry, API key scopes, etc.
+ *   BIZ  - All PRO features + RBAC, SSO, advanced analytics, backup/restore, etc.
  *
  * Environment:
  *   SELLF_PRIVATE_KEY - ECDSA private key (PEM format)
@@ -63,10 +72,17 @@ function getPrivateKey() {
 // LICENSE GENERATION
 // =============================================================================
 
-function generateLicense(domain, expiry, privateKeyPem) {
+const VALID_TIERS = ['REG', 'PRO', 'BIZ', 'MKT'];
+
+function generateLicense(domain, tier, expiry, privateKeyPem) {
     // Validate domain
     if (!domain || typeof domain !== 'string') {
         throw new Error('Invalid domain');
+    }
+
+    // Validate tier
+    if (!VALID_TIERS.includes(tier)) {
+        throw new Error(`Tier must be one of: ${VALID_TIERS.join(', ')}`);
     }
 
     // Validate expiry
@@ -74,8 +90,8 @@ function generateLicense(domain, expiry, privateKeyPem) {
         throw new Error('Expiry must be YYYYMMDD format or "UNLIMITED"');
     }
 
-    // Data to sign
-    const dataToSign = `${domain}-${expiry}`;
+    // Data to sign: domain-tier-expiry
+    const dataToSign = `${domain}-${tier}-${expiry}`;
 
     // Create signature
     const sign = crypto.createSign('SHA256');
@@ -91,8 +107,8 @@ function generateLicense(domain, expiry, privateKeyPem) {
         .replace(/\//g, '_')
         .replace(/=/g, '');
 
-    // Build license key
-    return `SF-${domain}-${expiry}-${signatureBase64url}`;
+    // Build license key: SF-{domain}-{tier}-{expiry}-{signature}
+    return `SF-${domain}-${tier}-${expiry}-${signatureBase64url}`;
 }
 
 function verifyLicense(licenseKey, publicKeyPem) {
@@ -101,9 +117,23 @@ function verifyLicense(licenseKey, publicKeyPem) {
         return { valid: false, reason: 'invalid_format' };
     }
 
-    const domain = parts[1];
-    const expiry = parts[2];
-    const signatureBase64url = parts.slice(3).join('-');
+    let domain, tier, expiry, signedData, signatureBase64url;
+
+    // Current format: SF-{domain}-{TIER}-{expiry}-{signature}
+    if (parts.length >= 5 && VALID_TIERS.includes(parts[2])) {
+        domain = parts[1];
+        tier = parts[2];
+        expiry = parts[3];
+        signedData = `${domain}-${tier}-${expiry}`;
+        signatureBase64url = parts.slice(4).join('-');
+    } else {
+        // Legacy format: SF-{domain}-{expiry}-{signature} (no tier = PRO)
+        domain = parts[1];
+        tier = 'PRO';
+        expiry = parts[2];
+        signedData = `${domain}-${expiry}`;
+        signatureBase64url = parts.slice(3).join('-');
+    }
 
     // Convert base64url back to base64
     let signatureBase64 = signatureBase64url.replace(/-/g, '+').replace(/_/g, '/');
@@ -111,9 +141,8 @@ function verifyLicense(licenseKey, publicKeyPem) {
     const signature = Buffer.from(signatureBase64, 'base64');
 
     // Verify signature
-    const dataToVerify = `${domain}-${expiry}`;
     const verify = crypto.createVerify('SHA256');
-    verify.update(dataToVerify);
+    verify.update(signedData);
     verify.end();
 
     const isValid = verify.verify(publicKeyPem, signature);
@@ -121,6 +150,7 @@ function verifyLicense(licenseKey, publicKeyPem) {
     return {
         valid: isValid,
         domain,
+        tier,
         expiry,
         expiryDate: expiry === 'UNLIMITED' ? null : parseExpiryDate(expiry)
     };
@@ -142,13 +172,19 @@ function printUsage() {
 Sellf License Generator
 
 Usage:
-  node generate-license.js <domain> [expiry]
+  node generate-license.js <domain> <tier> [expiry]
   node generate-license.js --generate-keys
   node generate-license.js --verify <license-key>
 
 Arguments:
   domain    Domain the license is valid for (e.g., example.com, *.example.com)
+  tier      License tier: PRO or BIZ (Business)
   expiry    Expiry date in YYYYMMDD format, or "UNLIMITED" (default: UNLIMITED)
+
+Tiers:
+  REG   Registered Free: CSV export, audit log UI.
+  PRO   Watermark removal, themes, marketplace, API key scopes, etc.
+  BIZ   All PRO features + RBAC, SSO, unlimited API keys, etc.
 
 Options:
   --generate-keys    Generate a new ECDSA key pair
@@ -159,9 +195,10 @@ Environment Variables:
   SELLF_PRIVATE_KEY_FILE  Path to private key file
 
 Examples:
-  node generate-license.js example.com 20271231
-  node generate-license.js example.com UNLIMITED
-  node generate-license.js "*.example.com" UNLIMITED
+  node generate-license.js example.com PRO 20271231
+  node generate-license.js example.com PRO UNLIMITED
+  node generate-license.js example.com BIZ UNLIMITED
+  node generate-license.js "*.example.com" PRO UNLIMITED
 `);
 }
 
@@ -213,6 +250,7 @@ function main() {
         console.log(`Valid: ${result.valid ? 'YES' : 'NO'}`);
         if (result.valid) {
             console.log(`Domain: ${result.domain}`);
+            console.log(`Tier: ${result.tier}`);
             console.log(`Expiry: ${result.expiry}${result.expiryDate ? ` (${result.expiryDate.toDateString()})` : ''}`);
         } else {
             console.log(`Reason: ${result.reason || 'Invalid signature'}`);
@@ -227,7 +265,15 @@ function main() {
     }
 
     const domain = args[0];
-    const expiry = args[1] || 'UNLIMITED';
+    const tier = args[1];
+    const expiry = args[2] || 'UNLIMITED';
+
+    if (!tier || !VALID_TIERS.includes(tier)) {
+        console.error(`Error: Tier is required. Must be one of: ${VALID_TIERS.join(', ')}`);
+        console.error('');
+        console.error('Usage: node generate-license.js <domain> <tier> [expiry]');
+        process.exit(1);
+    }
 
     // Get private key
     const privateKey = getPrivateKey();
@@ -242,21 +288,17 @@ function main() {
     }
 
     try {
-        const license = generateLicense(domain, expiry, privateKey);
+        const license = generateLicense(domain, tier, expiry, privateKey);
+        const tierLabel = tier === 'BIZ' ? 'Business' : 'Pro';
 
         console.log('\n=== Generated License ===\n');
         console.log(license);
         console.log('\n=== License Details ===');
         console.log(`Domain: ${domain}`);
+        console.log(`Tier: ${tierLabel} (${tier})`);
         console.log(`Expiry: ${expiry}${expiry !== 'UNLIMITED' ? ` (${parseExpiryDate(expiry).toDateString()})` : ''}`);
         console.log('\n=== Usage ===');
-        console.log('Add to your sellf configuration:');
-        console.log(`
-window.sellfConfig = {
-    sellfLicense: '${license}',
-    // ... other config
-};
-`);
+        console.log('Set SELLF_LICENSE_KEY environment variable or add to admin panel settings.');
     } catch (error) {
         console.error(`Error: ${error.message}`);
         process.exit(1);

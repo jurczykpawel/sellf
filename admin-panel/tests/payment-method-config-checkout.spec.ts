@@ -176,11 +176,10 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
     await customLabel.scrollIntoViewIfNeeded();
     const customRadio = page.locator('input[name="config_mode"]').nth(2);
     await customRadio.check();
-    await page.waitForTimeout(500);
 
-    // In custom mode, all enabled methods (Card, BLIK, Przelewy24) are shown in a drag-and-drop list
-    // Verify the list is visible
-    await expect(page.getByText('Kolejność Metod Płatności', { exact: true }).or(page.getByText('Payment Method Order', { exact: true }))).toBeVisible({ timeout: 5000 });
+    // Wait for custom mode UI to render (drag-and-drop list appears after radio change)
+    const methodOrderHeading = page.getByText('Kolejność Metod Płatności', { exact: true }).or(page.getByText('Payment Method Order', { exact: true }));
+    await expect(methodOrderHeading).toBeVisible();
 
     const saveButton = page.locator('button:has-text("Zapisz Konfigurację")');
     await saveButton.click();

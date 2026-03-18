@@ -4,7 +4,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 interface RouteParams {
   params: Promise<{
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   // Auth + admin check required even on stub endpoints
   const supabase = await createClient();
-  await requireAdminApi(supabase);
+  await requireAdminOrSellerApi(supabase);
 
   return NextResponse.json({ 
     error: 'Session cancellation not supported in embedded checkout',

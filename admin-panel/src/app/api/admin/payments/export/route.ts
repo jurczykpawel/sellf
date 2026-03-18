@@ -2,16 +2,28 @@
 // API endpoint for exporting payment data as CSV
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminApiWithRequest } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
+import { resolveCurrentTier } from '@/lib/license/resolve';
+import { hasFeature } from '@/lib/license/features';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdminApiWithRequest(request);
+    // CSV export requires at least Registered Free license
+    const tier = await resolveCurrentTier();
+    if (!hasFeature(tier, 'csv-export')) {
+      return NextResponse.json(
+        { error: 'CSV export requires a Sellf license. Register at sellf.app to get a free key.' },
+        { status: 403 }
+      );
+    }
+
+    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
 
     // Use admin client for seller_main data (FK embedding requires correct schema)
-    const supabase = createAdminClient();
+    const supabase = await createDataClientFromAuth(sellerSchema);
 
     // SECURITY: Rate limit export operations (heavy DB queries)
     const rateLimitOk = await checkRateLimit(
@@ -119,7 +131,7 @@ export async function POST(request: NextRequest) {
     // Create CSV content
     const csvContent = [
       csvHeaders.join(','),
-      ...csvRows.map(row =>
+      ...csvRows.map((row: any[]) =>
         row.map(sanitizeCsvField).join(',')
       )
     ].join('\n');

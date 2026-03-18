@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: Marketplace Sellers (Krok 2)
+-- Migration: Marketplace Sellers
 -- Purpose: public.sellers table + provision/deprovision functions
 -- Depends on: 20260311000000_pg_clone_schema.sql (clone_schema function)
 -- =============================================================================

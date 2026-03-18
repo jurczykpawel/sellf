@@ -2,7 +2,7 @@
 // Secure Stripe server configuration for Next.js Server Actions and API routes
 
 import Stripe from 'stripe';
-import { getDecryptedStripeKey, getDecryptedWebhookSecret } from '@/lib/actions/stripe-config';
+import { getDecryptedStripeKeyInternal, getDecryptedWebhookSecretInternal } from '@/lib/actions/stripe-config';
 import { STRIPE_API_VERSION } from '@/lib/constants';
 import type { StripeMode } from '@/types/stripe-config';
 
@@ -54,7 +54,7 @@ export const getStripeServer = async (): Promise<Stripe> => {
 
     // Priority 1: Try database configuration
     try {
-      const dbKey = await getDecryptedStripeKey(mode);
+      const dbKey = await getDecryptedStripeKeyInternal(mode);
       if (dbKey) {
         console.log(`[Stripe] Using database configuration (${mode} mode)`);
         stripe = new Stripe(dbKey, {
@@ -110,7 +110,7 @@ export const verifyWebhookSignature = async (
   signature: string
 ): Promise<Stripe.Event> => {
   // Priority 1: DB-stored secret (set via Settings → Integrations or auto-registered webhook)
-  let webhookSecret = await getDecryptedWebhookSecret() ?? undefined;
+  let webhookSecret = await getDecryptedWebhookSecretInternal() ?? undefined;
 
   // Priority 2: env var fallback
   if (!webhookSecret) {
@@ -137,7 +137,7 @@ export const isUsingEnvConfig = async (): Promise<boolean> => {
   const mode = getStripeMode();
 
   try {
-    const dbKey = await getDecryptedStripeKey(mode);
+    const dbKey = await getDecryptedStripeKeyInternal(mode);
     return !dbKey; // If no DB key, we're using env fallback
   } catch (error) {
     return true; // If error retrieving DB key, assume env fallback
@@ -160,7 +160,7 @@ export const getStripeKeySource = async (): Promise<StripeKeySource> => {
 
   let dbConfigured = false;
   try {
-    const dbKey = await getDecryptedStripeKey(mode);
+    const dbKey = await getDecryptedStripeKeyInternal(mode);
     dbConfigured = !!dbKey;
   } catch {
     // DB not available — ignore

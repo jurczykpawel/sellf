@@ -34,7 +34,7 @@ const SCOPE_KEY_MAP: Record<string, string> = {
   'webhooks:write': 'scopes.webhooksWrite',
 };
 
-export default function ApiKeysPageContent() {
+export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLocked?: boolean }) {
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
 
@@ -342,6 +342,7 @@ export default function ApiKeysPageContent() {
         onClose={() => setShowForm(false)}
         onSubmit={handleCreate}
         isSubmitting={isSubmitting}
+        scopesLocked={scopesLocked}
       />
 
       {/* Edit Key Modal */}

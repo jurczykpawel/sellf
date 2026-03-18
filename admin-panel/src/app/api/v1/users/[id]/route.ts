@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 
 interface RouteParams {
@@ -32,7 +31,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_READ]);
     const { id } = await params;
 
     // Validate ID format (reuse UUID validation)
@@ -41,11 +40,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid user ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
-    // Get user stats (explicit fields — avoid exposing full raw_user_meta_data)
+    // seller_customer_stats: only users with access/transactions (prevents cross-schema leak)
     const { data: userStat, error: statsError } = await adminClient
-      .from('user_access_stats')
+      .from('seller_customer_stats')
       .select('user_id, email, user_created_at, email_confirmed_at, last_sign_in_at, raw_user_meta_data, total_products, total_value, last_access_granted_at, first_access_granted_at')
       .eq('user_id', id)
       .single();

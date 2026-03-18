@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { validateUUID } from '@/lib/validations/product';
 import { isValidEventType } from '@/lib/validations/webhook';
@@ -44,9 +43,9 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_READ]);
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
     const { searchParams } = request.nextUrl;
 
     // Parse params

@@ -18,7 +18,6 @@ import {
   parseJsonBody,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateProductId, validateUUID } from '@/lib/validations/product';
 
 interface RouteContext {
@@ -56,9 +55,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
     }
 
-    // Use adminClient for FK embedding queries (PostgREST can't resolve FKs through proxy views)
-    const adminClient = createAdminClient();
-    const { data: otoOffer, error } = await adminClient
+    // Use service-role client for FK embedding queries (PostgREST can't resolve FKs through proxy views)
+    const { data: otoOffer, error } = await supabase
       .from('oto_offers')
       .select(`
         id,

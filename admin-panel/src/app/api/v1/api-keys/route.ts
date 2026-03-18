@@ -4,6 +4,10 @@
  * GET /api/v1/api-keys - List API keys (without secrets)
  * POST /api/v1/api-keys - Create a new API key (returns secret ONCE)
  *
+ * Supports both platform admins and seller admins.
+ * Platform admins: keys scoped to admin_user_id, seller_id = NULL
+ * Seller admins: keys scoped to seller_id, admin_user_id = NULL
+ *
  * NOTE: These endpoints require session auth (admin panel only)
  * API keys cannot create other API keys for security reasons.
  */
@@ -20,27 +24,53 @@ import {
   generateApiKey,
   hashApiKey,
   validateScopes,
+  enforceApiKeyScopeGate,
   API_SCOPES,
+  SCOPE_PRESETS,
 } from '@/lib/api';
+import { resolveCurrentTier } from '@/lib/license/resolve';
+import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import type { LicenseResolveOptions } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createPlatformClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import type { Database } from '@/types/database';
+
+type ApiKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
 
 /**
+ * Resolve the seller ID for a seller admin user.
+ * Returns null if not found (should not happen after auth check).
+ */
+async function getSellerIdForUser(userId: string): Promise<string | null> {
+  const platform = createPlatformClient();
+  const { data } = await platform
+    .from('sellers')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+  return data?.id ?? null;
+}
+
+/**
  * GET /api/v1/api-keys
  *
- * List all API keys for the authenticated admin.
+ * List all API keys for the authenticated admin or seller.
  * Does NOT return the key secrets (they're only shown once at creation).
  */
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { admin } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminOrSellerApi(supabase);
 
-    const { data: keys, error } = await supabase
+    // api_keys is in public schema — use platform client (service_role)
+    const platformQuery = createPlatformClient();
+    let query = platformQuery
       .from('api_keys')
       .select(`
         id,
@@ -55,8 +85,29 @@ export async function GET(request: NextRequest) {
         created_at,
         revoked_at
       `)
-      .eq('admin_user_id', admin.id)
       .order('created_at', { ascending: false });
+
+    if (role === 'seller_admin') {
+      const sellerId = await getSellerIdForUser(user.id);
+      if (!sellerId) {
+        return apiError(request, 'FORBIDDEN', 'Seller account not found');
+      }
+      query = query.eq('seller_id', sellerId);
+    } else {
+      // Platform admin: look up admin_users.id (public schema)
+      const { data: admin } = await platformQuery
+        .from('admin_users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!admin) {
+        return apiError(request, 'FORBIDDEN', 'Admin account not found');
+      }
+      query = query.eq('admin_user_id', admin.id);
+    }
+
+    const { data: keys, error } = await query;
 
     if (error) {
       console.error('Error fetching API keys:', error);
@@ -84,7 +135,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { admin } = await requireAdminApi(supabase);
+    const { user, role, sellerSlug, sellerSchema } = await requireAdminOrSellerApi(supabase);
 
     const body = await parseJsonBody<{
       name?: string;
@@ -102,13 +153,41 @@ export async function POST(request: NextRequest) {
       throw new ApiValidationError('Name must be less than 100 characters');
     }
 
-    // Validate scopes
-    const scopes = body.scopes || [API_SCOPES.FULL_ACCESS];
-    const scopeValidation = validateScopes(scopes);
-    if (!scopeValidation.isValid) {
-      throw new ApiValidationError(
-        `Invalid scopes: ${scopeValidation.invalidScopes.join(', ')}`
-      );
+    // License-based scope gating: free tier = locked to ['*']
+    // Seller admin: check THEIR license (not platform's)
+    let tierOptions: LicenseResolveOptions | undefined;
+    if (sellerSlug && sellerSchema) {
+      tierOptions = { dataClient: createSellerAdminClient(sellerSchema), sellerSlug };
+    }
+    const tier = await resolveCurrentTier(tierOptions);
+    const scopeGate = enforceApiKeyScopeGate(tier, body.scopes);
+    let scopes = scopeGate.scopes;
+
+    // Only validate custom scopes (gated scopes are always valid)
+    if (!scopeGate.gated) {
+      const scopeValidation = validateScopes(scopes);
+      if (!scopeValidation.isValid) {
+        throw new ApiValidationError(
+          `Invalid scopes: ${scopeValidation.invalidScopes.join(', ')}`
+        );
+      }
+    }
+
+    // Seller admins: use sellerDefault preset (never FULL_ACCESS)
+    if (role === 'seller_admin') {
+      const allowedScopes: readonly string[] = SCOPE_PRESETS.sellerDefault;
+      if (scopeGate.gated || scopes.includes(API_SCOPES.FULL_ACCESS)) {
+        // Free tier or wildcard requested — give seller default scopes
+        scopes = [...allowedScopes];
+      } else {
+        // Custom scopes — filter to allowed set
+        scopes = scopes.filter((s: string) => allowedScopes.includes(s));
+        if (scopes.length === 0) {
+          throw new ApiValidationError(
+            'No valid scopes for seller. Allowed scopes: ' + allowedScopes.join(', ')
+          );
+        }
+      }
     }
 
     // Validate rate limit
@@ -133,18 +212,45 @@ export async function POST(request: NextRequest) {
     // Generate the key
     const generatedKey = generateApiKey(false); // Live key
 
-    // Insert into database
-    const { data: newKey, error: insertError } = await supabase
+    // Build insert payload based on role
+    const baseInsert = {
+      name: body.name.trim(),
+      key_prefix: generatedKey.prefix,
+      key_hash: generatedKey.hash,
+      scopes,
+      rate_limit_per_minute: rateLimit,
+      expires_at: expiresAt,
+    };
+
+    let insertData: ApiKeyInsert;
+
+    if (role === 'seller_admin') {
+      const sellerId = await getSellerIdForUser(user.id);
+      if (!sellerId) {
+        return apiError(request, 'FORBIDDEN', 'Seller account not found');
+      }
+      insertData = { ...baseInsert, seller_id: sellerId };
+      // admin_user_id stays NULL for seller keys
+    } else {
+      // Platform admin
+      const { data: admin } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!admin) {
+        return apiError(request, 'FORBIDDEN', 'Admin account not found');
+      }
+      insertData = { ...baseInsert, admin_user_id: admin.id };
+      // seller_id stays NULL for platform keys
+    }
+
+    // Insert into database using platform client (api_keys is in public schema, needs service_role)
+    const platformForInsert = createPlatformClient();
+    const { data: newKey, error: insertError } = await platformForInsert
       .from('api_keys')
-      .insert({
-        name: body.name.trim(),
-        key_prefix: generatedKey.prefix,
-        key_hash: generatedKey.hash,
-        admin_user_id: admin.id,
-        scopes,
-        rate_limit_per_minute: rateLimit,
-        expires_at: expiresAt,
-      })
+      .insert(insertData)
       .select('id, name, key_prefix, scopes, rate_limit_per_minute, expires_at, created_at')
       .single();
 

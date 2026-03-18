@@ -95,7 +95,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Fine-grained API keys with 13 permission scopes (`products:read`, `users:write`, `*`, ...)
 - Zero-downtime key rotation with configurable grace period
 - Per-key rate limiting (1–1000 req/min)
-- Cursor-based pagination with sorting (`sort_by`, `sort_order`), OpenAPI 3.1 spec, Swagger UI at `/api/v1/docs`
+- Cursor-based pagination with sorting (`sort_by`, `sort_order`), OpenAPI 3.1 spec
 - MCP Server for Claude Desktop (45 tools, 4 resources, 6 prompts)
 - Bruno API collection for testing (includes all query params)
 
@@ -323,7 +323,6 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 | [STRIPE-TESTING-GUIDE.md](./STRIPE-TESTING-GUIDE.md) | Testing payments locally |
 | [BACKLOG.md](./BACKLOG.md) | Development roadmap |
 | [mcp-server/README.md](./mcp-server/README.md) | MCP Server setup guide |
-| `/api/v1/docs` | Interactive Swagger UI (OpenAPI 3.1) |
 
 ---
 
@@ -331,7 +330,7 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 - [x] Dark/Light theme with admin control
 - [x] Whitelabel Theme System (presets, editor, import/export)
-- [x] REST API v1 with OpenAPI 3.1 + Swagger UI
+- [x] REST API v1 with OpenAPI 3.1
 - [x] MCP Server for Claude Desktop
 - [x] Simple Funnel System (OTO chaining)
 - [ ] Zero-Config Setup Wizard (no .env needed)

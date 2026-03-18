@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 // GET /api/admin/refund-requests - Get all refund requests (admin only)
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || null;
@@ -14,9 +17,9 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Use the database function
-    const { data, error } = await supabase
+    const { data, error } = await dataClient
       .rpc('get_admin_refund_requests', {
-        status_filter: status,
+        status_filter: status ?? undefined,
         limit_param: limit,
         offset_param: offset,
       });

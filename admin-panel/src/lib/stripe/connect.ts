@@ -21,13 +21,13 @@ import type { SellerInfo } from '@/lib/marketplace/seller-client';
 
 // ===== TYPES =====
 
-export interface ConnectAccountResult {
+interface ConnectAccountResult {
   success: boolean;
   accountId?: string;
   error?: string;
 }
 
-export interface OnboardingLinkResult {
+interface OnboardingLinkResult {
   success: boolean;
   url?: string;
   error?: string;
@@ -46,12 +46,18 @@ export interface ConnectAccountStatus {
 /**
  * Build Stripe Connect onboarding URLs for a seller.
  * Extracted to avoid duplication between onboard and refresh routes.
+ *
+ * @param sellerId - The seller's database ID
+ * @param context - 'admin' returns to /admin/sellers, 'seller' returns to /dashboard/settings
  */
-export function buildOnboardingUrls(sellerId: string): { refreshUrl: string; returnUrl: string } {
+export function buildOnboardingUrls(sellerId: string, context: 'admin' | 'seller' = 'admin'): { refreshUrl: string; returnUrl: string } {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || '';
+  const returnUrl = context === 'seller'
+    ? `${baseUrl}/dashboard/settings?stripe_connected=true`
+    : `${baseUrl}/admin/sellers?connect_return=true&seller_id=${sellerId}`;
   return {
     refreshUrl: `${baseUrl}/api/stripe/connect/refresh?seller_id=${sellerId}`,
-    returnUrl: `${baseUrl}/admin/sellers?connect_return=true&seller_id=${sellerId}`,
+    returnUrl,
   };
 }
 

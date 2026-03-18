@@ -11,76 +11,66 @@ import { setAuthSession } from './helpers/admin-auth';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-async function loginAsAdmin(page: Page, email: string, password: string) {
+// Use seed admin (demo@sellf.app) — avoids creating auth user in beforeAll
+const adminEmail = 'demo@sellf.app';
+const adminPassword = 'demo123';
+
+async function loginAsAdmin(page: Page) {
   await page.goto('/');
   await page.waitForLoadState('domcontentloaded');
-
-  await setAuthSession(page, email, password);
-
-  await page.waitForTimeout(500);
+  await setAuthSession(page, adminEmail, adminPassword);
 }
 
 test.describe('Mass Assignment - Coupon PATCH', () => {
   test.describe.configure({ mode: 'serial' });
 
-  let adminUserId: string;
-  let adminEmail: string;
   let testCouponId: string;
-  const password = 'TestPassword123!';
   const initialUsageCount = 5;
 
   test.beforeAll(async () => {
     const suffix = Date.now().toString();
-    adminEmail = `mass-assign-admin-${suffix}@example.com`;
 
-    // Create admin user
-    const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
-      email: adminEmail,
-      password,
-      email_confirm: true,
-    });
-    if (adminError) throw adminError;
-    adminUserId = adminData.user!.id;
+    // Create test coupon with retry (PostgREST may return PGRST002 during schema cache rebuild)
+    let lastError: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: coupon, error: couponError } = await supabaseAdmin
+        .from('coupons')
+        .insert({
+          code: `MASS-TEST-${suffix}-${attempt}`,
+          name: 'Mass Assignment Test Coupon',
+          discount_type: 'percentage',
+          discount_value: 10,
+          is_active: true,
+          current_usage_count: initialUsageCount,
+          usage_limit_global: 100,
+        })
+        .select()
+        .single();
 
-    await supabaseAdmin.from('admin_users').insert({ user_id: adminUserId });
+      if (!couponError) {
+        testCouponId = coupon.id;
+        console.log(`Created test coupon: ${testCouponId} with usage count: ${initialUsageCount}`);
+        return;
+      }
 
-    // Create test coupon with usage count
-    const { data: coupon, error: couponError } = await supabaseAdmin
-      .from('coupons')
-      .insert({
-        code: `MASS-TEST-${suffix}`,
-        name: 'Mass Assignment Test Coupon',
-        discount_type: 'percentage',
-        discount_value: 10,
-        is_active: true,
-        current_usage_count: initialUsageCount,
-        usage_limit_global: 100,
-      })
-      .select()
-      .single();
-
-    if (couponError) throw couponError;
-    testCouponId = coupon.id;
-
-    console.log(`Created test coupon: ${testCouponId} with usage count: ${initialUsageCount}`);
+      lastError = couponError;
+      console.warn(`Coupon insert attempt ${attempt + 1} failed: ${couponError.message}`);
+      await new Promise(r => setTimeout(r, 2000)); // Wait for PostgREST cache rebuild
+    }
+    throw lastError;
   });
 
   test.afterAll(async () => {
     if (testCouponId) {
       await supabaseAdmin.from('coupons').delete().eq('id', testCouponId);
     }
-    if (adminUserId) {
-      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
-      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
-    }
   });
 
   test('SECURITY: Should NOT allow resetting current_usage_count via PATCH', async ({ page }) => {
-    await loginAsAdmin(page, adminEmail, password);
+    await loginAsAdmin(page);
 
     console.log(`\nMass Assignment Test (current_usage_count):`);
     console.log(`  Initial usage count: ${initialUsageCount}`);
@@ -120,7 +110,7 @@ test.describe('Mass Assignment - Coupon PATCH', () => {
   });
 
   test('SECURITY: Should NOT allow modifying id field', async ({ page }) => {
-    await loginAsAdmin(page, adminEmail, password);
+    await loginAsAdmin(page);
 
     console.log(`\nMass Assignment Test (id):`);
 
@@ -150,7 +140,7 @@ test.describe('Mass Assignment - Coupon PATCH', () => {
   });
 
   test('Should allow updating valid fields', async ({ page }) => {
-    await loginAsAdmin(page, adminEmail, password);
+    await loginAsAdmin(page);
 
     console.log(`\nValid field update test:`);
 

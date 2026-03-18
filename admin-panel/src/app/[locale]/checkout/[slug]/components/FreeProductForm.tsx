@@ -20,9 +20,11 @@ import ProductShowcase from './ProductShowcase';
 
 interface FreeProductFormProps {
   product: Product;
+  /** Seller slug for marketplace products (undefined = platform owner / seller_main) */
+  sellerSlug?: string;
 }
 
-export default function FreeProductForm({ product }: FreeProductFormProps) {
+export default function FreeProductForm({ product, sellerSlug }: FreeProductFormProps) {
   const t = useTranslations('productView');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');
@@ -74,6 +76,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sellerSlug: sellerSlug || undefined }),
         });
 
         if (!response.ok) {
@@ -111,7 +114,11 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         }
 
         // No OTO — redirect to success page (no session_id needed for free products)
-        const redirectPath = `/p/${product.slug}/payment-status${successUrl ? `?success_url=${encodeURIComponent(successUrl)}` : ''}`;
+        const params = new URLSearchParams();
+        if (successUrl) params.set('success_url', successUrl);
+        if (sellerSlug) params.set('seller', sellerSlug);
+        const qs = params.toString();
+        const redirectPath = `/p/${product.slug}/payment-status${qs ? `?${qs}` : ''}`;
         router.push(redirectPath);
       } catch {
         toast.error(t('unexpectedError'));

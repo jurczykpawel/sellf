@@ -64,7 +64,7 @@ export function PostPurchaseSection({
 
   const handleHideBumpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
-    let currentUrl = formData.success_redirect_url || '';
+    const currentUrl = formData.success_redirect_url || '';
 
     try {
       const isRelative = currentUrl.startsWith('/');

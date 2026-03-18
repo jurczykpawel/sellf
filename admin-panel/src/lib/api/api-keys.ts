@@ -27,8 +27,12 @@ export const API_SCOPES = {
   COUPONS_READ: 'coupons:read',
   COUPONS_WRITE: 'coupons:write',
 
-  // Analytics
+  // Analytics (includes payment read for backward compat)
   ANALYTICS_READ: 'analytics:read',
+
+  // Payments
+  PAYMENTS_READ: 'payments:read',
+  PAYMENTS_WRITE: 'payments:write',
 
   // Webhooks
   WEBHOOKS_READ: 'webhooks:read',
@@ -59,6 +63,7 @@ export const SCOPE_PRESETS = {
     API_SCOPES.USERS_READ,
     API_SCOPES.COUPONS_READ,
     API_SCOPES.ANALYTICS_READ,
+    API_SCOPES.PAYMENTS_READ,
     API_SCOPES.WEBHOOKS_READ,
     API_SCOPES.REFUND_REQUESTS_READ,
     API_SCOPES.SYSTEM_READ,
@@ -76,6 +81,23 @@ export const SCOPE_PRESETS = {
 
   // MCP Server (typically needs full access)
   mcp: [API_SCOPES.FULL_ACCESS],
+
+  // Seller admin: access to own products, coupons, analytics, webhooks, refunds - but NOT system or full access
+  sellerDefault: [
+    API_SCOPES.PRODUCTS_READ,
+    API_SCOPES.PRODUCTS_WRITE,
+    API_SCOPES.COUPONS_READ,
+    API_SCOPES.COUPONS_WRITE,
+    API_SCOPES.ANALYTICS_READ,
+    API_SCOPES.PAYMENTS_READ,
+    API_SCOPES.PAYMENTS_WRITE,
+    API_SCOPES.WEBHOOKS_READ,
+    API_SCOPES.WEBHOOKS_WRITE,
+    API_SCOPES.REFUND_REQUESTS_READ,
+    API_SCOPES.REFUND_REQUESTS_WRITE,
+    API_SCOPES.USERS_READ,
+    API_SCOPES.USERS_WRITE,
+  ],
 } as const;
 
 export type ScopePreset = keyof typeof SCOPE_PRESETS;
@@ -274,6 +296,8 @@ export function getScopeDescription(scope: ApiScope): string {
     [API_SCOPES.COUPONS_READ]: 'View coupons',
     [API_SCOPES.COUPONS_WRITE]: 'Create, update, delete coupons',
     [API_SCOPES.ANALYTICS_READ]: 'View analytics and reports',
+    [API_SCOPES.PAYMENTS_READ]: 'View payment transactions',
+    [API_SCOPES.PAYMENTS_WRITE]: 'Update payment metadata',
     [API_SCOPES.WEBHOOKS_READ]: 'View webhook configurations',
     [API_SCOPES.WEBHOOKS_WRITE]: 'Manage webhooks',
     [API_SCOPES.REFUND_REQUESTS_READ]: 'View refund requests',
@@ -284,4 +308,38 @@ export function getScopeDescription(scope: ApiScope): string {
   };
 
   return descriptions[scope] || scope;
+}
+
+// ===== LICENSE-GATED SCOPE CUSTOMIZATION =====
+
+import type { LicenseTier } from '@/lib/license/verify';
+import { hasFeature } from '@/lib/license/features';
+
+interface ScopeGateResult {
+  /** Final scopes to use (may be overridden to ['*'] for free tier) */
+  scopes: string[];
+  /** True if scopes were forced due to license restriction */
+  gated: boolean;
+}
+
+/**
+ * Enforce license-based scope gating on API key creation.
+ * Free tier: scopes locked to ['*'] (full access, no granular control).
+ * Pro+: full scope customization.
+ */
+export function enforceApiKeyScopeGate(
+  tier: LicenseTier,
+  requestedScopes: string[] | undefined,
+): ScopeGateResult {
+  const canCustomize = hasFeature(tier, 'api-key-scopes');
+
+  if (!canCustomize) {
+    return { scopes: [API_SCOPES.FULL_ACCESS], gated: true };
+  }
+
+  const scopes = requestedScopes && requestedScopes.length > 0
+    ? requestedScopes
+    : [API_SCOPES.FULL_ACCESS];
+
+  return { scopes, gated: false };
 }

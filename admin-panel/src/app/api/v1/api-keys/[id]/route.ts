@@ -4,6 +4,9 @@
  * GET /api/v1/api-keys/:id - Get key details
  * PATCH /api/v1/api-keys/:id - Update key (name, is_active)
  * DELETE /api/v1/api-keys/:id - Revoke key
+ *
+ * Supports both platform admins and seller admins.
+ * Ownership is verified via admin_user_id (platform) or seller_id (seller).
  */
 
 import { NextRequest } from 'next/server';
@@ -17,8 +20,13 @@ import {
   successResponse,
 } from '@/lib/api';
 import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createPlatformClient } from '@/lib/supabase/admin';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
 import { validateUUID } from '@/lib/validations/product';
+import type { Database } from '@/types/database';
+
+type ApiKeyUpdate = Database['public']['Tables']['api_keys']['Update'];
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,7 +44,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { admin } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminOrSellerApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -45,7 +53,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid key ID format');
     }
 
-    const { data: key, error } = await supabase
+    const platformClient = createPlatformClient();
+    const owner = await resolveApiKeyOwner(user.id, role);
+    if (!owner) {
+      return apiError(request, 'FORBIDDEN', 'Account not found');
+    }
+
+    let query = platformClient
       .from('api_keys')
       .select(`
         id,
@@ -62,9 +76,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         revoked_at,
         revoked_reason
       `)
-      .eq('id', id)
-      .eq('admin_user_id', admin.id)
-      .single();
+      .eq('id', id);
+
+    if (owner.role === 'seller_admin') {
+      query = query.eq('seller_id', owner.sellerId!);
+    } else {
+      query = query.eq('admin_user_id', owner.adminId!);
+    }
+
+    const { data: key, error } = await query.single();
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -94,7 +114,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { admin } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminOrSellerApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -103,13 +123,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid key ID format');
     }
 
-    // Check key exists and belongs to this admin
-    const { data: existingKey, error: checkError } = await supabase
+    const platformClient = createPlatformClient();
+    const owner = await resolveApiKeyOwner(user.id, role);
+    if (!owner) {
+      return apiError(request, 'FORBIDDEN', 'Account not found');
+    }
+
+    // Check key exists and belongs to this user
+    let checkQuery = platformClient
       .from('api_keys')
       .select('id, is_active, revoked_at')
-      .eq('id', id)
-      .eq('admin_user_id', admin.id)
-      .single();
+      .eq('id', id);
+
+    if (owner.role === 'seller_admin') {
+      checkQuery = checkQuery.eq('seller_id', owner.sellerId!);
+    } else {
+      checkQuery = checkQuery.eq('admin_user_id', owner.adminId!);
+    }
+
+    const { data: existingKey, error: checkError } = await checkQuery.single();
 
     if (checkError || !existingKey) {
       return apiError(request, 'NOT_FOUND', 'API key not found');
@@ -125,7 +157,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       is_active?: boolean;
     }>(request);
 
-    const updateData: Record<string, unknown> = {};
+    const updateData: ApiKeyUpdate = {};
 
     // Validate and add name
     if (body.name !== undefined) {
@@ -151,7 +183,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update the key
-    const { data: updatedKey, error: updateError } = await supabase
+    const { data: updatedKey, error: updateError } = await platformClient
       .from('api_keys')
       .update(updateData)
       .eq('id', id)
@@ -192,7 +224,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { admin } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminOrSellerApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -201,13 +233,25 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid key ID format');
     }
 
-    // Check key exists and belongs to this admin
-    const { data: existingKey, error: checkError } = await supabase
+    const platformClient = createPlatformClient();
+    const owner = await resolveApiKeyOwner(user.id, role);
+    if (!owner) {
+      return apiError(request, 'FORBIDDEN', 'Account not found');
+    }
+
+    // Check key exists and belongs to this user
+    let deleteCheckQuery = platformClient
       .from('api_keys')
       .select('id, name, revoked_at')
-      .eq('id', id)
-      .eq('admin_user_id', admin.id)
-      .single();
+      .eq('id', id);
+
+    if (owner.role === 'seller_admin') {
+      deleteCheckQuery = deleteCheckQuery.eq('seller_id', owner.sellerId!);
+    } else {
+      deleteCheckQuery = deleteCheckQuery.eq('admin_user_id', owner.adminId!);
+    }
+
+    const { data: existingKey, error: checkError } = await deleteCheckQuery.single();
 
     if (checkError || !existingKey) {
       return apiError(request, 'NOT_FOUND', 'API key not found');
@@ -221,7 +265,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const reason = request.nextUrl.searchParams.get('reason') || null;
 
     // Revoke the key
-    const { error: revokeError } = await supabase
+    const { error: revokeError } = await platformClient
       .from('api_keys')
       .update({
         is_active: false,

@@ -1,3 +1,15 @@
+/**
+ * User Profile — internal API for admin panel UI
+ *
+ * Used by: UserDetailsModal component (session/cookie auth)
+ * Data source: get_user_profile() SQL function (returns JSON with user info + stats + access)
+ *
+ * NOT the same as /api/v1/users/:id which uses user_access_stats view
+ * and supports API key auth with scopes/pagination.
+ *
+ * Access: own profile (any user) | any profile (platform_admin, seller_admin)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -22,18 +34,30 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // SECURITY FIX (V5): Check if user is accessing their own profile OR is an admin
+    // SECURITY FIX (V5): Check if user is accessing their own profile OR is an admin/seller
     if (user.id !== id) {
-      // Not their own profile - check if they're an admin
-      const { data: adminRecord, error: adminError } = await supabase
+      // Not their own profile - check if they're an admin or seller owner
+      const { data: adminRecord } = await supabase
         .from('admin_users')
         .select('id')
         .eq('user_id', user.id)
         .single();
 
-      if (adminError || !adminRecord) {
-        // Not admin, not their own profile - forbidden
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      if (!adminRecord) {
+        // Not platform admin — check if seller owner
+        const { createPlatformClient } = await import('@/lib/supabase/admin');
+        const platformClient = createPlatformClient();
+        const { data: sellerRecord } = await platformClient
+          .from('sellers')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (!sellerRecord) {
+          // Not admin, not seller, not their own profile - forbidden
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
       }
     }
 

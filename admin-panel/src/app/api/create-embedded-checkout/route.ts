@@ -70,6 +70,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateChe
       }
       returnUrl += `&success_url=${encodeURIComponent(finalRequestData.successUrl)}`;
     }
+
+    // Marketplace: append seller slug to return URL so payment-status page can scope to seller schema
+    if (finalRequestData.sellerSlug) {
+      returnUrl += `&seller=${encodeURIComponent(finalRequestData.sellerSlug)}`;
+    }
     
     const result = await checkoutService.createCheckoutSession(
       finalRequestData,

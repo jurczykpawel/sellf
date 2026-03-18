@@ -14,7 +14,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { WebhookService } from '@/lib/services/webhook-service';
 
@@ -36,7 +35,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
     const { id } = await params;
 
     // Validate ID format
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid webhook ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Check webhook exists
     const { data: webhook, error: fetchError } = await adminClient

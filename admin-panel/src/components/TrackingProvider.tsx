@@ -27,14 +27,6 @@ function isValidScriptUrl(url: string): boolean {
   }
 }
 
-interface CustomScript {
-  id: string
-  name: string
-  location: 'head' | 'body'
-  content: string
-  category: 'essential' | 'analytics' | 'marketing'
-}
-
 interface PublicIntegrationsConfig {
   gtm_container_id?: string | null
   gtm_server_container_url?: string | null
@@ -44,7 +36,6 @@ interface PublicIntegrationsConfig {
   umami_script_url?: string | null
   cookie_consent_enabled?: boolean
   consent_logging_enabled?: boolean
-  scripts?: CustomScript[]
 }
 
 // Consent banner translations — TrackingProvider lives in RootLayout outside
@@ -85,7 +76,6 @@ export default function TrackingProvider({ config }: TrackingProviderProps) {
     umami_script_url: rawUmamiScriptUrl = 'https://cloud.umami.is/script.js',
     cookie_consent_enabled,
     consent_logging_enabled,
-    scripts = []
   } = config
 
   // Validate integration IDs to prevent script injection via DB config
@@ -132,7 +122,7 @@ export default function TrackingProvider({ config }: TrackingProviderProps) {
     hideLearnMore: false,
     lang: 'en',
     translations: CONSENT_TRANSLATIONS,
-    services: [] as any[],
+    services: [] as Array<{ name: string; title: string; purposes: string[]; required: boolean }>,
     // NOTE: callback is NOT included here because JSON.stringify drops functions.
     // It is appended as raw JS after serialization — see klaroCallbackJs below.
   }
@@ -162,18 +152,6 @@ export default function TrackingProvider({ config }: TrackingProviderProps) {
       required: false,
     })
   }
-
-  // 2. Add Custom Scripts to Klaro (if consent required)
-  scripts.forEach(script => {
-    if (cookie_consent_enabled && script.category !== 'essential') {
-        klaroConfig.services.push({
-            name: `script-${script.id}`,
-            title: script.name,
-            purposes: [script.category],
-            required: false
-        })
-    }
-  })
 
   // --- KLARO CALLBACK (raw JS, appended after JSON.stringify) ---
   // JSON.stringify drops functions, so the callback must be a raw JS string.
@@ -222,44 +200,6 @@ klaroConfig.callback = function(consent, service) {
     }, 100);
   }
 };`
-
-  // --- RENDER HELPERS ---
-
-  const renderScript = (script: CustomScript) => {
-    // Basic heuristics to detect if content is wrapped in <script> tags
-    // If user pasted "<script>...</script>", we strip tags to use with Next/Script or DangerouslySet
-    // If user pasted raw JS "console.log()", we wrap it.
-    
-    let content = script.content.trim()
-    const hasScriptTag = content.startsWith('<script')
-    
-    // Extract inner content if wrapped
-    if (hasScriptTag) {
-        content = content.replace(/^<script[^>]*>|<\/script>$/g, '')
-    }
-
-    // Determine Logic
-    const requiresConsent = cookie_consent_enabled && script.category !== 'essential'
-    
-    // Props for the script
-    const scriptProps: any = {
-        id: `script-${script.id}`,
-        dangerouslySetInnerHTML: { __html: content }
-    }
-
-    if (requiresConsent) {
-        scriptProps.type = 'text/plain'
-        scriptProps['data-type'] = 'application/javascript'
-        scriptProps['data-name'] = `script-${script.id}`
-    }
-
-    // Use Next Script for Head/Body injection
-    // Note: strategy='afterInteractive' is default. 
-    // For 'head', we can try 'beforeInteractive' or rely on Next.js placement.
-    // Ideally we'd use portal to head for 'head' scripts, but Script handles it.
-    
-    return <Script key={script.id} {...scriptProps} />
-  }
 
   return (
     <>
@@ -353,8 +293,6 @@ klaroConfig.callback = function(consent, service) {
         />
       )}
 
-      {/* CUSTOM SCRIPTS */}
-      {scripts.map(script => renderScript(script))}
     </>
   )
 }

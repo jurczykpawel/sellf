@@ -6,8 +6,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 import type { OrderBumpFormData, OrderBumpAdmin } from '@/types/order-bump';
 
 /**
@@ -20,15 +21,17 @@ import type { OrderBumpFormData, OrderBumpAdmin } from '@/types/order-bump';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // Get query params
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
 
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
+
     if (productId) {
       // Get bumps for specific product using database function
-      const { data, error } = await supabase.rpc('admin_get_product_order_bumps', {
+      const { data, error } = await dataClient.rpc('admin_get_product_order_bumps', {
         product_id_param: productId,
       });
 
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Use adminClient (seller_main schema) for FK embedding queries —
       // PostgREST can't resolve FK relationships through proxy views in public schema.
-      const adminClient = createAdminClient();
+      const adminClient = await createDataClientFromAuth(authResult.sellerSchema);
       const { data, error } = await adminClient
         .from('order_bumps')
         .select(
@@ -99,7 +102,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // Parse request body
     const formData: OrderBumpFormData = await request.json();
@@ -116,8 +119,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
+
     // Validate that products exist and are active
-    const { data: mainProduct } = await supabase
+    const { data: mainProduct } = await dataClient
       .from('products')
       .select('id, is_active')
       .eq('id', formData.main_product_id)
@@ -130,7 +135,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: bumpProduct } = await supabase
+    const { data: bumpProduct } = await dataClient
       .from('products')
       .select('id, is_active, price')
       .eq('id', formData.bump_product_id)
@@ -152,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create order bump
-    const { data, error } = await supabase
+    const { data, error } = await dataClient
       .from('order_bumps')
       .insert({
         main_product_id: formData.main_product_id,

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
 import { WebhookService } from '@/lib/services/webhook-service';
-import { requireAdminApi } from '@/lib/auth-server';
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 export async function POST(
   request: NextRequest,
@@ -10,9 +12,21 @@ export async function POST(
   try {
     const { logId } = await context.params;
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
-    const result = await WebhookService.retry(logId);
+    // SECURITY: Verify log belongs to the seller's schema before retrying
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
+    const { data: log } = await dataClient
+      .from('webhook_logs')
+      .select('id')
+      .eq('id', logId)
+      .single();
+
+    if (!log) {
+      return NextResponse.json({ error: 'Webhook log not found' }, { status: 404 });
+    }
+
+    const result = await WebhookService.retry(logId, dataClient);
 
     return NextResponse.json(result);
   } catch (error: any) {

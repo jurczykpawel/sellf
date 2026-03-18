@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 
-export function useOrderBumps(productId: string) {
+export function useOrderBumps(productId: string, sellerSlug?: string) {
   const [orderBumps, setOrderBumps] = useState<OrderBumpWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,8 @@ export function useOrderBumps(productId: string) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/order-bumps?productId=${productId}`, {
+        const url = `/api/order-bumps?productId=${productId}${sellerSlug ? `&seller=${encodeURIComponent(sellerSlug)}` : ''}`;
+        const response = await fetch(url, {
           signal: controller.signal,
         });
 
@@ -60,7 +61,7 @@ export function useOrderBumps(productId: string) {
     fetchOrderBumps();
 
     return () => controller.abort();
-  }, [productId]);
+  }, [productId, sellerSlug]);
 
   return { orderBumps, loading, error };
 }

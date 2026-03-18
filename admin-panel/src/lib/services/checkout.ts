@@ -6,8 +6,9 @@ import {
   CheckoutError,
   CheckoutErrorType,
   CheckoutSessionOptions,
-  CreateCheckoutRequest
+  CreateCheckoutRequest,
 } from '@/types/checkout';
+import type { CheckoutSellerInfo } from '@/types/checkout';
 import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
@@ -564,6 +565,33 @@ export class CheckoutService {
       }
     }
 
+    // Marketplace: resolve seller info for destination charges
+    let sellerInfo: CheckoutSellerInfo | undefined;
+    if (request.sellerSlug) {
+      const platform = createPlatformClient();
+      const { data: seller } = await platform
+        .from('sellers')
+        .select('stripe_account_id, stripe_onboarding_complete, platform_fee_percent, slug, schema_name')
+        .eq('slug', request.sellerSlug)
+        .eq('status', 'active')
+        .single();
+
+      if (!seller?.stripe_account_id || !seller.stripe_onboarding_complete) {
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'Seller has not completed Stripe setup',
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+
+      sellerInfo = {
+        stripeAccountId: seller.stripe_account_id,
+        platformFeePercent: seller.platform_fee_percent,
+        sellerSlug: seller.slug,
+        schemaName: seller.schema_name,
+      };
+    }
+
     // Create Stripe session
     return await this.createStripeSession({
       product,
@@ -573,7 +601,8 @@ export class CheckoutService {
       userId,
       returnUrl,
       coupon: couponInfo,
-      customAmount: request.customAmount
+      customAmount: request.customAmount,
+      seller: sellerInfo,
     });
   }
 }

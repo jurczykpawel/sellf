@@ -1,28 +1,23 @@
-import { verifyAdminAccess } from '@/lib/auth-server';
+import { verifyAdminOrSellerAccess } from '@/lib/auth-server';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ReactNode } from 'react';
 import { RealtimeProvider } from '@/contexts/RealtimeContext';
 import { UserPreferencesProvider } from '@/contexts/UserPreferencesContext';
-import { getDefaultCurrency, getShopConfig } from '@/lib/actions/shop-config';
+import { AdminSchemaProvider } from '@/contexts/AdminSchemaContext';
+import { getShopConfig } from '@/lib/actions/shop-config';
 
 export default async function Layout({ children }: { children: ReactNode }) {
-  // Parallel fetch: auth check + shop config
-  // verifyAdminAccess() redirects if not authorized (throws NEXT_REDIRECT)
-  const [user, shopConfig] = await Promise.all([
-    verifyAdminAccess(),
-    getShopConfig(),
-  ]);
+  // Auth check: platform admin OR seller admin
+  const access = await verifyAdminOrSellerAccess();
+
+  const shopConfig = await getShopConfig();
   const shopDefaultCurrency = shopConfig?.default_currency || 'USD';
 
   // Extract initial preferences safely
-  const initialHideValues = user.user_metadata?.preferences?.hideValues || false;
-
-  // If user has a saved currency preference, use it; otherwise use shop default
-  const userSavedCurrency = user.user_metadata?.preferences?.displayCurrency;
+  const initialHideValues = access.user.user_metadata?.preferences?.hideValues || false;
+  const userSavedCurrency = access.user.user_metadata?.preferences?.displayCurrency;
   const initialDisplayCurrency = userSavedCurrency !== undefined ? userSavedCurrency : shopDefaultCurrency;
-
-  // Default to 'converted' mode with shop's default currency instead of 'grouped'
-  const userSavedMode = user.user_metadata?.preferences?.currencyViewMode;
+  const userSavedMode = access.user.user_metadata?.preferences?.currencyViewMode;
   const initialCurrencyViewMode = userSavedMode || 'converted';
 
   return (
@@ -31,11 +26,24 @@ export default async function Layout({ children }: { children: ReactNode }) {
       initialDisplayCurrency={initialDisplayCurrency}
       initialCurrencyViewMode={initialCurrencyViewMode}
     >
-      <RealtimeProvider>
-        <DashboardLayout user={user} isAdmin={true} shopConfig={shopConfig}>
-          {children}
-        </DashboardLayout>
-      </RealtimeProvider>
+      <AdminSchemaProvider
+        role={access.role}
+        sellerSchema={access.sellerSchema}
+        sellerSlug={access.sellerSlug}
+        sellerDisplayName={access.sellerDisplayName}
+      >
+        <RealtimeProvider>
+          <DashboardLayout
+            user={access.user}
+            isAdmin={access.role === 'platform_admin' || access.role === 'seller_admin'}
+            shopConfig={shopConfig}
+            adminRole={access.role}
+            sellerDisplayName={access.sellerDisplayName}
+          >
+            {children}
+          </DashboardLayout>
+        </RealtimeProvider>
+      </AdminSchemaProvider>
     </UserPreferencesProvider>
   );
 }

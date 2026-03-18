@@ -56,7 +56,7 @@ export default function StatsOverview() {
         getRevenueStats(productId), // Filtered by product
       ]);
 
-      if (dashboardData) setStats(dashboardData as DashboardStats);
+      if (dashboardData) setStats(dashboardData as unknown as DashboardStats);
       if (revenueData) {
         setRevenueStats(revenueData);
 

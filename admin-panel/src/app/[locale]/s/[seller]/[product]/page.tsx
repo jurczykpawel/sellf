@@ -15,7 +15,7 @@ import { Metadata } from 'next';
 import { cache } from 'react';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { getSellerBySlug, createSellerPublicClient, createSellerAdminClient } from '@/lib/marketplace/seller-client';
-import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify';
+import { checkFeature } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
 import ProductView from '@/app/[locale]/p/[slug]/components/ProductView';
 import type { Product } from '@/types';
@@ -111,24 +111,12 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
 
   if (!product) return notFound();
 
-  // License check (seller-scoped)
-  let licenseValid = false;
-  try {
-    const adminClient = createSellerAdminClient(seller.schema_name);
-    const { data: integrations } = await adminClient
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single();
-
-    if (integrations?.sellf_license) {
-      const domain = extractDomainFromUrl(process.env.NEXT_PUBLIC_APP_URL ?? '') ?? undefined;
-      const result = validateLicense(integrations.sellf_license, domain);
-      licenseValid = result.valid;
-    }
-  } catch {
-    // Non-fatal
-  }
+  // License check — per-seller (removes watermark for this seller)
+  const sellerClient = createSellerAdminClient(seller.schema_name);
+  const licenseValid = await checkFeature('watermark-removal', {
+    dataClient: sellerClient,
+    sellerSlug: seller.slug,
+  });
 
   // Sanitize content_config (same security pattern as /p/[slug])
   const safeProduct = {
@@ -140,5 +128,5 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
         : {},
   };
 
-  return <ProductView product={safeProduct as typeof product} licenseValid={licenseValid} previewMode={previewMode} />;
+  return <ProductView product={safeProduct as typeof product} licenseValid={licenseValid} previewMode={previewMode} sellerSlug={seller.slug} />;
 }

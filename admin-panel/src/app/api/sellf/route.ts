@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { SellfGenerator } from '@/lib/sellf-generator'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { MemoryCache, handleConditionalRequest, createScriptResponse } from '@/lib/script-cache'
-import { validateLicense as verifyLicense, extractDomainFromUrl } from '@/lib/license/verify'
+import { checkFeature } from '@/lib/license/resolve'
 import { checkRateLimit } from '@/lib/rate-limiting'
 import packageJson from '../../../../package.json'
 
@@ -14,7 +13,7 @@ const licenseCache = new MemoryCache<boolean>({ ttl: 5 * 60 * 1000 });
 /**
  * Get cached license validity or fetch from database
  */
-async function getCachedLicenseValid(siteUrl?: string): Promise<boolean> {
+async function getCachedLicenseValid(): Promise<boolean> {
   const cacheKey = 'license_valid';
 
   // Check cache first
@@ -23,23 +22,16 @@ async function getCachedLicenseValid(siteUrl?: string): Promise<boolean> {
     return cached.data;
   }
 
-  // Fetch from database
+  // Resolve via unified license resolver
   try {
-    const supabaseAdmin = createAdminClient();
-    const { data: integrationsConfig } = await supabaseAdmin
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single();
-
-    const isValid = validateLicense(integrationsConfig?.sellf_license || null, siteUrl);
+    const isValid = await checkFeature('watermark-removal');
 
     // Cache the result
     licenseCache.set(cacheKey, isValid);
 
     return isValid;
   } catch {
-    // If DB read fails, return false
+    // If resolution fails, return false
     return false;
   }
 }
@@ -49,22 +41,6 @@ async function getCachedLicenseValid(siteUrl?: string): Promise<boolean> {
  */
 export function clearLicenseCache(): void {
   licenseCache.clear();
-}
-
-/**
- * Validate license with cryptographic signature verification
- * Returns true if license is valid, not expired, and matches domain
- */
-function validateLicense(licenseKey: string | null, siteUrl?: string): boolean {
-  if (!licenseKey) return false;
-
-  // Get current domain from site URL
-  const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
-
-  // Use the proper license verification with ECDSA signature check
-  const result = verifyLicense(licenseKey, currentDomain || undefined);
-
-  return result.valid;
 }
 
 /**
@@ -140,9 +116,8 @@ export async function GET(request: Request) {
 
     // Get license validity from cache (5 min TTL) or fetch from database
     let licenseValid = false;
-    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     try {
-      licenseValid = await getCachedLicenseValid(siteUrl);
+      licenseValid = await getCachedLicenseValid();
     } catch {
       // If admin client creation fails (missing env vars), proceed without license
     }

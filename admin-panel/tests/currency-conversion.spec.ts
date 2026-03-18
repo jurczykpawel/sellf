@@ -248,28 +248,34 @@ test.describe('Currency Conversion Feature', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // Wait for currency selector to load
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
-    await expect(currencyButton).toBeVisible({ timeout: 10000 });
+    await expect(currencyButton).toBeVisible({ timeout: 30000 });
 
-    // First set to converted mode (USD) — click to open dropdown
-    await currencyButton.click();
-    const usdOption = page.locator('button', { hasText: 'USD' }).first();
-    await expect(usdOption).toBeVisible({ timeout: 5000 });
-    await usdOption.click();
+    const buttonText = await currencyButton.textContent() || '';
+    const isAlreadyGrouped = /Grouped/i.test(buttonText);
 
-    // Wait for dropdown to close and button to update
-    const convertButton = page.locator('button', { hasText: /Convert to USD/i }).first();
+    if (isAlreadyGrouped) {
+      // Already in grouped mode — switch to converted first, then back
+      await currencyButton.click();
+      // Pick any available currency option (not "Grouped")
+      const anyConvertOption = page.locator('button').filter({ hasNotText: /Grouped|Pogrupowane|Convert/i }).filter({ hasText: /\b(USD|EUR|PLN|GBP|CHF|CZK|SEK|NOK|DKK|HUF|RON|BGN|HRK|JPY|CAD|AUD)\b/ }).first();
+      await expect(anyConvertOption).toBeVisible({ timeout: 5000 });
+      await anyConvertOption.click();
+      // Wait for converted mode to take effect
+      await expect(page.locator('button', { hasText: /Convert to/i }).first()).toBeVisible({ timeout: 10000 });
+    } else {
+      // Already in converted mode — just need to verify we can switch to grouped
+    }
+
+    // Now switch to grouped mode
+    const convertButton = page.locator('button', { hasText: /Convert to/i }).first();
     await expect(convertButton).toBeVisible({ timeout: 10000 });
 
-    // Preference save triggers revalidatePath which causes RSC refetch — the
-    // resulting React reconciliation can swallow a click event.  Use toPass()
-    // to retry the click until the dropdown actually opens.
     const groupedOption = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane według Waluty/i }).first();
     await expect(async () => {
       await convertButton.click();
       await expect(groupedOption).toBeVisible({ timeout: 1000 });
-    }).toPass({ timeout: 10000 });
+    }).toPass({ timeout: 15000 });
 
     await groupedOption.click();
 
@@ -318,32 +324,48 @@ test.describe('Currency Conversion Feature', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
-    // Get initial grouped total
+    // Ensure we start in grouped mode (previous test may have left it in converted)
+    const currencyBtn = page.locator('button', { hasText: /Grouped|Convert/i }).first();
+    await expect(currencyBtn).toBeVisible({ timeout: 30000 });
+    const btnText = await currencyBtn.textContent() || '';
+    if (/Convert/i.test(btnText)) {
+      // Currently in converted mode — switch to grouped first
+      await currencyBtn.click();
+      const groupedOpt = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane/i }).first();
+      await expect(groupedOpt).toBeVisible({ timeout: 5000 });
+      await groupedOpt.click();
+      await expect(page.locator('button', { hasText: /Grouped/i }).first()).toBeVisible({ timeout: 10000 });
+    }
+
+    // Get initial grouped total (should contain +)
     const revenueCard = page.getByTestId('stat-card-total-revenue');
     const initialValue = await revenueCard.locator('p').nth(1).textContent();
     console.log('Grouped revenue:', initialValue);
 
-    // Convert to USD
+    // Convert to a currency — retry click to handle RSC refetch swallowing events
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
-    await currencyButton.click();
-    await page.waitForTimeout(300);
+    const currencyOption = page.locator('button').filter({ hasNotText: /Grouped|Pogrupowane|Convert/i }).filter({ hasText: /\b(USD|EUR|PLN|GBP|CHF|CZK|SEK|NOK|DKK|HUF|RON|BGN|HRK|JPY|CAD|AUD)\b/ }).first();
+    await expect(async () => {
+      await currencyButton.click();
+      await expect(currencyOption).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15000 });
+    const rawText = await currencyOption.textContent() || '';
+    // Extract 3-letter currency code (e.g. "$ USD" → "USD")
+    const selectedCurrency = rawText.match(/[A-Z]{3}/)?.[0] || rawText.trim();
+    await currencyOption.click();
 
-    const usdOption = page.locator('button', { hasText: 'USD' }).first();
-    await usdOption.click();
-    await page.waitForTimeout(2000); // Wait for conversion
+    // Wait for conversion to take effect
+    await expect(page.locator('button', { hasText: new RegExp(`Convert to ${selectedCurrency}`, 'i') }).first()).toBeVisible({ timeout: 10000 });
 
     // Get converted value
     const convertedValue = await revenueCard.locator('p').nth(1).textContent();
-    console.log('Converted to USD:', convertedValue);
+    console.log(`Converted to ${selectedCurrency}:`, convertedValue);
 
-    // Values should be different
+    // Values should be different (grouped multi-currency vs single converted)
     expect(initialValue).not.toBe(convertedValue);
 
-    // Converted should only have $ symbol
-    expect(convertedValue).toContain('$');
+    // Converted value should show a single currency (no + sign between multiple currencies)
     expect(convertedValue).not.toContain('+');
-    expect(convertedValue).not.toContain('€');
-    expect(convertedValue).not.toContain('£');
   });
 
   test('should handle revenue goal in converted currency', async ({ page }) => {

@@ -333,6 +333,46 @@ export function normalizeBumpIds(input: {
   return { validIds, invalidIds };
 }
 
+function validateFeatures(features: unknown): ValidationResult {
+  const errors: string[] = [];
+
+  if (!Array.isArray(features)) {
+    errors.push('Features must be an array');
+    return { isValid: false, errors };
+  }
+
+  for (let i = 0; i < features.length; i++) {
+    const section = features[i];
+    if (typeof section === 'string') {
+      errors.push(`Features[${i}] is a plain string — each element must be an object with { title: string, items: string[] }`);
+      continue;
+    }
+    if (!section || typeof section !== 'object' || Array.isArray(section)) {
+      errors.push(`Features[${i}] must be an object with { title: string, items: string[] }`);
+      continue;
+    }
+    const obj = section as Record<string, unknown>;
+    if (typeof obj.title !== 'string' || obj.title.trim().length === 0) {
+      errors.push(`Features[${i}].title is required and must be a non-empty string`);
+    } else if (obj.title.length > 200) {
+      errors.push(`Features[${i}].title must be 200 characters or less`);
+    }
+    if (!Array.isArray(obj.items)) {
+      errors.push(`Features[${i}].items is required and must be an array of strings`);
+    } else {
+      for (let j = 0; j < obj.items.length; j++) {
+        if (typeof obj.items[j] !== 'string') {
+          errors.push(`Features[${i}].items[${j}] must be a string`);
+        } else if ((obj.items[j] as string).length > 500) {
+          errors.push(`Features[${i}].items[${j}] must be 500 characters or less`);
+        }
+      }
+    }
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
 function validateContentConfig(contentConfig: unknown): ValidationResult {
   const errors: string[] = [];
 
@@ -506,6 +546,12 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     }
   }
 
+  // Validate features
+  if (input.features !== undefined && input.features !== null) {
+    const featuresResult = validateFeatures(input.features);
+    errors.push(...featuresResult.errors);
+  }
+
   // Validate content config
   if (input.content_config) {
     const contentConfigResult = validateContentConfig(input.content_config);
@@ -602,6 +648,12 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     if (typeof input.long_description === 'string' && input.long_description.length > 50000) {
       errors.push('Long description must be 50,000 characters or less');
     }
+  }
+
+  // Validate features
+  if (input.features !== undefined) {
+    const featuresResult = validateFeatures(input.features);
+    errors.push(...featuresResult.errors);
   }
 
   // Validate content config

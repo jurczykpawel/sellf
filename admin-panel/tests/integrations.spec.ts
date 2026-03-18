@@ -71,7 +71,7 @@ test.describe('Integrations & Script Injection', () => {
     });
   });
 
-  test('should save integration settings and inject scripts on product page', async ({ page }) => {
+  test('should save integration settings and verify tracking on product page', async ({ page }) => {
     // Create product for this test
     const productSlug = `int-product-${Date.now()}-1`;
     await supabaseAdmin.from('products').insert({
@@ -145,33 +145,7 @@ test.describe('Integrations & Script Injection', () => {
     console.log('Toast message:', toastText);
     expect(toastText).toMatch(/saved successfully|zapisane pomyślnie/i);
 
-    // 4. Add Custom Script
-    await page.getByRole('button', { name: /Script Manager|Menedżer Skryptów/i }).click();
-    await page.waitForTimeout(500); // Wait for tab switch
-    
-    await page.getByText(/Add Script|Dodaj Skrypt/i).click();
-    
-    const customScriptCode = `console.log('Custom Script Injected ${Date.now()}')`;
-    const scriptModal = page.locator('div.fixed').filter({ hasText: /Add Script|Dodaj Skrypt/i });
-    
-    await scriptModal.locator('input[type="text"]').first().fill('My Test Script');
-    await scriptModal.locator('textarea').fill(`<script>${customScriptCode}</script>`);
-    await scriptModal.locator('select').nth(1).selectOption('essential'); 
-    
-    await scriptModal.getByRole('button', { name: /Add Script|Dodaj Skrypt/i }).click();
-    
-    // Wait for reload (IntegrationsForm reloads on script add)
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000); 
-    
-    // Switch back to scripts tab
-    await page.getByRole('button', { name: /Script Manager|Menedżer Skryptów/i }).click();
-    await page.waitForTimeout(500);
-
-    // Verify script appears in list
-    await expect(page.getByText('My Test Script').first()).toBeVisible();
-
-    // 5. Navigate to Product Page and Verify Injection
+    // 4. Navigate to Product Page and Verify Injection
     await page.goto(`/p/${productSlug}`);
     
     // Check for consent banner
@@ -188,9 +162,6 @@ test.describe('Integrations & Script Injection', () => {
     // B) Verify Umami
     expect(pageContent).toContain(umamiId);
     expect(pageContent).toContain(umamiUrl);
-
-    // C) Verify Custom Script
-    expect(pageContent).toContain(customScriptCode);
   });
 
   test('should verify consent blocking behavior', async ({ page }) => {
@@ -366,12 +337,6 @@ test.describe('Integrations - Field Persistence & Validation', () => {
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    // Cleanup custom scripts
-    await supabaseAdmin
-      .from('custom_scripts')
-      .delete()
-      .ilike('name', 'E2E Test%');
-
     // Delete test user
     const { data: users } = await supabaseAdmin.auth.admin.listUsers();
     const testUser = users.users.find((u: any) => u.email === adminEmail);
@@ -488,60 +453,6 @@ test.describe('Integrations - Field Persistence & Validation', () => {
       .maybeSingle();
 
     expect(config?.facebook_pixel_id).not.toBe('not-a-number');
-  });
-
-  test('should add and delete custom script', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
-
-    // Switch to Script Manager tab
-    await page.getByRole('button', { name: /Script Manager|Menedżer Skryptów/i }).click();
-    await page.waitForTimeout(500);
-
-    // Click "Add Script" button
-    await page.getByText(/Add Script|Dodaj Skrypt/i).click();
-    await page.waitForTimeout(500);
-
-    // Fill script form in modal (div.fixed pattern from existing tests)
-    const scriptName = `E2E Test Script ${Date.now()}`;
-    const scriptModal = page.locator('div.fixed').filter({ hasText: /Add Script|Dodaj Skrypt/i });
-
-    await scriptModal.locator('input[type="text"]').first().fill(scriptName);
-    await scriptModal.locator('textarea').fill('<script>console.log("e2e")</script>');
-    await scriptModal.locator('select').nth(1).selectOption('essential');
-
-    await scriptModal.getByRole('button', { name: /Add Script|Dodaj Skrypt/i }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-
-    // Verify script appears in DB
-    const { data: scripts } = await supabaseAdmin
-      .from('custom_scripts')
-      .select('id, name')
-      .eq('name', scriptName);
-
-    expect(scripts).toBeTruthy();
-    expect(scripts!.length).toBe(1);
-
-    // Switch back to scripts tab and verify visible
-    await page.getByRole('button', { name: /Script Manager|Menedżer Skryptów/i }).click();
-    await page.waitForTimeout(500);
-    await expect(page.getByText(scriptName).first()).toBeVisible();
-
-    // Delete via DB (UI delete varies, direct DB cleanup is reliable for test isolation)
-    await supabaseAdmin
-      .from('custom_scripts')
-      .delete()
-      .eq('name', scriptName);
-
-    // Verify removed from DB
-    const { data: remaining } = await supabaseAdmin
-      .from('custom_scripts')
-      .select('id')
-      .eq('name', scriptName);
-
-    expect(remaining?.length ?? 0).toBe(0);
   });
 
   test('should show GTM SS toggle only when server container URL is filled', async ({ page }) => {

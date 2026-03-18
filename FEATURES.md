@@ -466,8 +466,7 @@
 - **System** - Health check, status
 
 ### OpenAPI Documentation
-- **Swagger UI** - Interactive documentation at `/api/v1/docs`
-- **OpenAPI 3.1 spec** - JSON spec at `/api/v1/docs/openapi.json`
+- **OpenAPI 3.1 spec** - Generated from Zod schemas
 - **Zod schemas** - Type-safe validation and spec generation
 
 ### Authentication
@@ -830,7 +829,7 @@ bruno/environments/local.bru.example → local.bru
 | Admin endpoints | 20+ |
 | Public endpoints | 15+ |
 | Webhook events | 3 |
-| OpenAPI spec | ✓ (Swagger UI) |
+| OpenAPI spec | ✓ |
 
 ## Frontend
 | Metric | Value |

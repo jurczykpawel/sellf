@@ -209,6 +209,13 @@
     <script>
         const container = document.getElementById('container');
 
+        // Escape user-controlled strings before inserting into HTML templates
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(String(str ?? '')));
+            return div.innerHTML;
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const productSlug = urlParams.get('product');
@@ -244,12 +251,14 @@
             }
             const layoutHtml = await layoutResponse.text();
 
-            // Manually replace template variables in the loaded HTML
+            // Manually replace template variables in the loaded HTML.
+            // SECURITY: escape product fields — they come from the DB but could contain HTML if
+            // an admin stored malicious content (stored XSS via admin panel → rendered here).
             let processedLayoutHtml = layoutHtml
-                .replace(/\${product\.icon}/g, product.icon)
-                .replace(/\${product\.name}/g, product.name)
-                .replace(/\${product\.description}/g, product.description)
-                .replace(/\${product\.priceFormatted}/g, formattedPrice);
+                .replace(/\${product\.icon}/g, escapeHtml(product.icon))
+                .replace(/\${product\.name}/g, escapeHtml(product.name))
+                .replace(/\${product\.description}/g, escapeHtml(product.description))
+                .replace(/\${product\.priceFormatted}/g, escapeHtml(formattedPrice));
 
             // Populate the container with the loaded layout
             container.innerHTML = processedLayoutHtml;

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminApi } from '@/lib/auth-server';
+import { createDataClientFromAuth } from '@/lib/supabase/admin';
+
+import { requireAdminOrSellerApi } from '@/lib/auth-server';
 
 /**
  * Variant Groups API (M:N relationship)
@@ -46,10 +47,10 @@ interface VariantGroupWithProducts {
 export async function GET() {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
 
     // Use admin client (seller_main schema) for FK embedding support
-    const adminClient = createAdminClient();
+    const adminClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     // Get all variant groups
     const { data: groups, error: groupsError } = await adminClient
@@ -97,11 +98,11 @@ export async function GET() {
     }
 
     // Build response with products nested under groups
-    const groupsWithProducts: VariantGroupWithProducts[] = (groups || []).map(group => ({
+    const groupsWithProducts: VariantGroupWithProducts[] = (groups || []).map((group: any) => ({
       ...group,
       products: (productGroups || [])
-        .filter(pg => pg.group_id === group.id)
-        .map(pg => ({
+        .filter((pg: any) => pg.group_id === group.id)
+        .map((pg: any) => ({
           id: pg.id,
           product_id: pg.product_id,
           group_id: pg.group_id,
@@ -111,7 +112,7 @@ export async function GET() {
           created_at: pg.created_at,
           product: pg.products as unknown as ProductInGroup['product']
         }))
-        .sort((a, b) => a.display_order - b.display_order)
+        .sort((a: any, b: any) => a.display_order - b.display_order)
     }));
 
     return NextResponse.json({ groups: groupsWithProducts });
@@ -138,7 +139,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const body = await request.json();
     const { name, slug, products } = body as {
@@ -167,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the variant group
-    const { data: newGroup, error: groupError } = await supabase
+    const { data: newGroup, error: groupError } = await dataClient
       .from('variant_groups')
       .insert({ name: name || null, slug: slug || null })
       .select('id, slug')
@@ -197,13 +199,13 @@ export async function POST(request: NextRequest) {
       is_featured: p.is_featured || false
     }));
 
-    const { error: pgError } = await supabase
+    const { error: pgError } = await dataClient
       .from('product_variant_groups')
       .insert(productGroupEntries);
 
     if (pgError) {
       // Rollback: delete the group
-      await supabase.from('variant_groups').delete().eq('id', newGroup.id);
+      await dataClient.from('variant_groups').delete().eq('id', newGroup.id);
       console.error('Error adding products to group:', pgError);
       return NextResponse.json(
         { error: 'Failed to add products to variant group' },
@@ -240,7 +242,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -278,7 +281,7 @@ export async function PATCH(request: NextRequest) {
       if (name !== undefined) updates.name = name || null;
       if (slug !== undefined) updates.slug = slug || null;
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await dataClient
         .from('variant_groups')
         .update(updates)
         .eq('id', groupId);
@@ -295,7 +298,7 @@ export async function PATCH(request: NextRequest) {
     // Update products if provided
     if (products && products.length > 0) {
       // Delete existing product-group relationships
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await dataClient
         .from('product_variant_groups')
         .delete()
         .eq('group_id', groupId);
@@ -317,7 +320,7 @@ export async function PATCH(request: NextRequest) {
         is_featured: p.is_featured || false
       }));
 
-      const { error: insertError } = await supabase
+      const { error: insertError } = await dataClient
         .from('product_variant_groups')
         .insert(productGroupEntries);
 
@@ -356,7 +359,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    const authResult = await requireAdminOrSellerApi(supabase);
+    const dataClient = await createDataClientFromAuth(authResult.sellerSchema);
 
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get('groupId');
@@ -369,7 +373,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the group (cascade will delete product_variant_groups entries)
-    const { error } = await supabase
+    const { error } = await dataClient
       .from('variant_groups')
       .delete()
       .eq('id', groupId);

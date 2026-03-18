@@ -20,33 +20,71 @@ import {
   validateLicense,
   isValidLicenseFormat,
 } from '../../src/lib/license/verify';
+import {
+  hasFeature,
+  getRequiredTier,
+  getFeaturesForTier,
+} from '../../src/lib/license/features';
 
 describe('License Verification', () => {
-  // Fixtures: real ECDSA P-256 signatures generated with the private key
-  const VALID_LICENSE_UNLIMITED = 'SF-test.example.com-UNLIMITED-MEUCIEHqYzD3xj-ro61wuTmeBnXI7atQ3d_NWX6QcZUk05zrAiEA53-g5nGLU3_hR2OZfCeUruyVU3lY_57ZQbmO4obico8';
-  const VALID_LICENSE_DATED = 'SF-test.example.com-20301231-MEQCIFsw5GEhrFgVQnq-fz0qVEs3vXbo4u6iMsi5S6gJw43PAiACNsshNQIqPLGwVeNlQW22K0pRvfhnC0yzE0M6roOC4A';
-  const EXPIRED_LICENSE = 'SF-test.example.com-20201231-MEYCIQCIDcA-LOWSM9PT67A0Gt8WI44ME0FbpM0XXspCgoMe5QIhANtBIAE3Mk1Bp6sRFvKh2AeAYSuiKwDchK8tA6nbhIyE';
+  // Legacy fixtures (no tier = PRO): signed with original ECDSA P-256 key from Vaultwarden
+  const VALID_LICENSE_UNLIMITED = 'SF-test.example.com-UNLIMITED-MEQCIFOQdQ3HIjNyMpP8fZGEnxSKJkjOl41DE52Ryiti6RpBAiA0jQjtVM7E-oYdrTyvIrmqwXJAafSxhSVsyQsM2U5rsA';
+  const VALID_LICENSE_DATED = 'SF-test.example.com-20301231-MEUCIQDagMQjsPrJZtLeSk5QoyVYgVS7n-3sim6GlyrWQmpDfAIgCNRiOyfywAGgnyxDz4r192rcqzd8MlRT1uorliGe9R0';
+  const EXPIRED_LICENSE = 'SF-test.example.com-20201231-MEUCIAlitOZwn3Btmyy5cmZ1GIGdT8eDVtxaNFrCrsgbBAhGAiEA-iZqQcEJH46UhxCwmnO_ORCtNVCtk7zYrDiRxouenys';
+
+  // Current format fixtures (with tier) — signed with original key
+  const VALID_REG_UNLIMITED = 'SF-test.example.com-REG-UNLIMITED-MEQCIEF8Xs3WSGCUH4O8_tCTwpH6FqR0mPEh2HP0UndqLk1aAiA4Ay5k-3xAKR00bvUug1dUHMmNbllfnihQHOxlZZFhwQ';
+  const VALID_PRO_UNLIMITED = 'SF-test.example.com-PRO-UNLIMITED-MEQCIFJvfvcakzjXutavoqSX9d-NnKPfVit5lb2kSezgO0YZAiAyVYnHJOa9A5WSav0YYVB9LWFQJyR_cM2EL9NfJZAq5Q';
+  const VALID_BIZ_UNLIMITED = 'SF-test.example.com-BIZ-UNLIMITED-MEYCIQDVctECqyu3T94QuJML7fBTVGRJRR8h7VxibrHeKotiIgIhAKQ8WFOD5cCgc2aBchajxe2qH0YXjSrUzUHP8LufYwM-';
+  const VALID_PRO_DATED = 'SF-test.example.com-PRO-20301231-MEYCIQCwx4gdCR3YjgIA0wuIDV2M309UButoWGxQUtP3yFwNdwIhAKiezQ95eTzZhEyxI4u8lftekxQsB_6KZBsPZeJbXQxz';
+  const EXPIRED_BIZ = 'SF-test.example.com-BIZ-20201231-MEYCIQCoWI1lxsqiLO0KTQk3pf7MtuRbpYkca4bYxuv_TcRqeQIhALPNuWYfln8hmL88Wlh8GQhU45N735GU5hBMpeyPD0D3';
 
   // Invalid: tampered / fabricated signatures
   const INVALID_LICENSE = 'SF-test.example.com-UNLIMITED-INVALID_SIGNATURE_HERE';
   const MALFORMED_LICENSE = 'not-a-valid-license';
 
   describe('parseLicense', () => {
-    it('should parse valid unlimited license', () => {
+    it('should parse legacy unlimited license as PRO', () => {
       const result = parseLicense(VALID_LICENSE_UNLIMITED);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe('SF');
       expect(result?.domain).toBe('test.example.com');
+      expect(result?.tier).toBe('pro');
       expect(result?.expiry).toBe('UNLIMITED');
       expect(result?.signature).toBeTruthy();
     });
 
-    it('should parse valid dated license', () => {
+    it('should parse legacy dated license as PRO', () => {
       const result = parseLicense(VALID_LICENSE_DATED);
       expect(result).not.toBeNull();
       expect(result?.prefix).toBe('SF');
       expect(result?.domain).toBe('test.example.com');
+      expect(result?.tier).toBe('pro');
       expect(result?.expiry).toBe('20301231');
+    });
+
+    it('should parse current REG license with tier', () => {
+      const result = parseLicense(VALID_REG_UNLIMITED);
+      expect(result).not.toBeNull();
+      expect(result?.domain).toBe('test.example.com');
+      expect(result?.tier).toBe('registered');
+      expect(result?.expiry).toBe('UNLIMITED');
+    });
+
+    it('should parse current PRO license with tier', () => {
+      const result = parseLicense(VALID_PRO_UNLIMITED);
+      expect(result).not.toBeNull();
+      expect(result?.domain).toBe('test.example.com');
+      expect(result?.tier).toBe('pro');
+      expect(result?.expiry).toBe('UNLIMITED');
+    });
+
+    it('should parse current BIZ license with tier', () => {
+      const result = parseLicense(VALID_BIZ_UNLIMITED);
+      expect(result).not.toBeNull();
+      expect(result?.domain).toBe('test.example.com');
+      expect(result?.tier).toBe('business');
+      expect(result?.expiry).toBe('UNLIMITED');
     });
 
     it('should return null for malformed license', () => {
@@ -61,14 +99,27 @@ describe('License Verification', () => {
   });
 
   describe('verifyLicenseSignature', () => {
-    it('should verify valid unlimited license signature', () => {
+    it('should verify valid legacy unlimited license signature', () => {
       const isValid = verifyLicenseSignature(VALID_LICENSE_UNLIMITED);
       expect(isValid).toBe(true);
     });
 
-    it('should verify valid dated license signature', () => {
+    it('should verify valid legacy dated license signature', () => {
       const isValid = verifyLicenseSignature(VALID_LICENSE_DATED);
       expect(isValid).toBe(true);
+    });
+
+    it('should verify valid REG tiered license signature', () => {
+      expect(verifyLicenseSignature(VALID_REG_UNLIMITED)).toBe(true);
+    });
+
+    it('should verify valid PRO tiered license signature', () => {
+      expect(verifyLicenseSignature(VALID_PRO_UNLIMITED)).toBe(true);
+      expect(verifyLicenseSignature(VALID_PRO_DATED)).toBe(true);
+    });
+
+    it('should verify valid BIZ tiered license signature', () => {
+      expect(verifyLicenseSignature(VALID_BIZ_UNLIMITED)).toBe(true);
     });
 
     it('should reject invalid signature', () => {
@@ -125,6 +176,16 @@ describe('License Verification', () => {
       // Valid base64url encoding but meaningless bytes
       const garbage = 'SF-test.example.com-UNLIMITED-dGhpcyBpcyBub3QgYSByZWFsIHNpZ25hdHVyZQ';
       expect(verifyLicenseSignature(garbage)).toBe(false);
+    });
+
+    it('should reject tampered tier (PRO changed to BIZ)', () => {
+      const tampered = VALID_PRO_UNLIMITED.replace('-PRO-', '-BIZ-');
+      expect(verifyLicenseSignature(tampered)).toBe(false);
+    });
+
+    it('should reject tampered tier (BIZ changed to PRO)', () => {
+      const tampered = VALID_BIZ_UNLIMITED.replace('-BIZ-', '-PRO-');
+      expect(verifyLicenseSignature(tampered)).toBe(false);
     });
   });
 
@@ -193,6 +254,19 @@ describe('License Verification', () => {
     it('should not match subdomain to base domain license', () => {
       expect(doesDomainMatch('example.com', 'app.example.com')).toBe(false);
     });
+
+    it('should match seller slug exactly', () => {
+      expect(doesDomainMatch('kowalski-digital', 'kowalski-digital')).toBe(true);
+    });
+
+    it('should not match different seller slugs', () => {
+      expect(doesDomainMatch('kowalski-digital', 'creative-studio')).toBe(false);
+    });
+
+    it('should not match slug to domain with same name', () => {
+      // slug "kowalski-digital" does not match domain "kowalski-digital.com"
+      expect(doesDomainMatch('kowalski-digital', 'kowalski-digital.com')).toBe(false);
+    });
   });
 
   describe('extractDomainFromUrl', () => {
@@ -211,58 +285,101 @@ describe('License Verification', () => {
   });
 
   describe('getLicenseInfo', () => {
-    it('should return valid info for valid unlimited license', () => {
+    it('should return valid info for legacy unlimited license (tier=pro)', () => {
       const info = getLicenseInfo(VALID_LICENSE_UNLIMITED);
       expect(info.valid).toBe(true);
       expect(info.domain).toBe('test.example.com');
+      expect(info.tier).toBe('pro');
       expect(info.expiry).toBe('UNLIMITED');
       expect(info.expiryDate).toBeNull();
       expect(info.isExpired).toBe(false);
       expect(info.error).toBeUndefined();
     });
 
-    it('should return valid info for valid dated license', () => {
+    it('should return valid info for legacy dated license (tier=pro)', () => {
       const info = getLicenseInfo(VALID_LICENSE_DATED);
       expect(info.valid).toBe(true);
       expect(info.domain).toBe('test.example.com');
+      expect(info.tier).toBe('pro');
       expect(info.expiry).toBe('20301231');
       expect(info.expiryDate).toBeInstanceOf(Date);
       expect(info.isExpired).toBe(false);
     });
 
-    it('should return invalid for malformed license', () => {
+    it('should return valid info for REG tiered license', () => {
+      const info = getLicenseInfo(VALID_REG_UNLIMITED);
+      expect(info.valid).toBe(true);
+      expect(info.tier).toBe('registered');
+    });
+
+    it('should return valid info for PRO tiered license', () => {
+      const info = getLicenseInfo(VALID_PRO_UNLIMITED);
+      expect(info.valid).toBe(true);
+      expect(info.tier).toBe('pro');
+    });
+
+    it('should return valid info for BIZ tiered license', () => {
+      const info = getLicenseInfo(VALID_BIZ_UNLIMITED);
+      expect(info.valid).toBe(true);
+      expect(info.tier).toBe('business');
+    });
+
+    it('should return tier=free for malformed license', () => {
       const info = getLicenseInfo(MALFORMED_LICENSE);
       expect(info.valid).toBe(false);
+      expect(info.tier).toBe('free');
       expect(info.error).toBe('Invalid license format');
     });
 
-    it('should return invalid for bad signature', () => {
+    it('should return tier=free for bad signature', () => {
       const info = getLicenseInfo(INVALID_LICENSE);
       expect(info.valid).toBe(false);
+      expect(info.tier).toBe('free');
       expect(info.error).toBe('Invalid license signature');
     });
 
-    it('should return expired for expired license with valid signature', () => {
-      const info = getLicenseInfo(EXPIRED_LICENSE);
-      // Signature is valid but date is in the past
+    it('should return expired for expired BIZ license with valid signature', () => {
+      const info = getLicenseInfo(EXPIRED_BIZ);
       expect(info.isExpired).toBe(true);
       expect(info.valid).toBe(false);
+      expect(info.tier).toBe('business');
+      expect(info.error).toBe('License has expired');
+    });
+
+    it('should return expired for expired legacy license with valid signature', () => {
+      const info = getLicenseInfo(EXPIRED_LICENSE);
+      expect(info.isExpired).toBe(true);
+      expect(info.valid).toBe(false);
+      expect(info.tier).toBe('pro');
       expect(info.error).toBe('License has expired');
     });
   });
 
   describe('validateLicense (full validation)', () => {
-    it('should validate valid license without domain check', () => {
+    it('should validate legacy license without domain check', () => {
       const result = validateLicense(VALID_LICENSE_UNLIMITED);
       expect(result.valid).toBe(true);
+      expect(result.info.tier).toBe('pro');
       expect(result.domainMatch).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
-    it('should validate valid license with matching domain', () => {
+    it('should validate legacy license with matching domain', () => {
       const result = validateLicense(VALID_LICENSE_UNLIMITED, 'test.example.com');
       expect(result.valid).toBe(true);
       expect(result.domainMatch).toBe(true);
+    });
+
+    it('should validate PRO tiered license', () => {
+      const result = validateLicense(VALID_PRO_UNLIMITED, 'test.example.com');
+      expect(result.valid).toBe(true);
+      expect(result.info.tier).toBe('pro');
+    });
+
+    it('should validate BIZ tiered license', () => {
+      const result = validateLicense(VALID_BIZ_UNLIMITED, 'test.example.com');
+      expect(result.valid).toBe(true);
+      expect(result.info.tier).toBe('business');
     });
 
     it('should reject valid license with non-matching domain', () => {
@@ -281,6 +398,7 @@ describe('License Verification', () => {
     it('should reject empty license', () => {
       const result = validateLicense('');
       expect(result.valid).toBe(false);
+      expect(result.info.tier).toBe('free');
       expect(result.error).toBe('No license key provided');
     });
 
@@ -292,16 +410,111 @@ describe('License Verification', () => {
   });
 
   describe('isValidLicenseFormat', () => {
-    it('should accept valid format', () => {
+    it('should accept legacy format', () => {
       expect(isValidLicenseFormat('SF-example.com-UNLIMITED-abc123')).toBe(true);
       expect(isValidLicenseFormat('SF-example.com-20301231-abc123_XYZ')).toBe(true);
       expect(isValidLicenseFormat('SF-*.example.com-UNLIMITED-sig')).toBe(true);
+    });
+
+    it('should accept current format with tier', () => {
+      expect(isValidLicenseFormat('SF-example.com-REG-UNLIMITED-abc123')).toBe(true);
+      expect(isValidLicenseFormat('SF-example.com-PRO-UNLIMITED-abc123')).toBe(true);
+      expect(isValidLicenseFormat('SF-example.com-BIZ-20301231-abc123')).toBe(true);
+      expect(isValidLicenseFormat('SF-*.example.com-PRO-UNLIMITED-sig')).toBe(true);
     });
 
     it('should reject invalid format', () => {
       expect(isValidLicenseFormat('invalid')).toBe(false);
       expect(isValidLicenseFormat('SF-domain')).toBe(false);
       expect(isValidLicenseFormat('XX-domain-UNLIMITED-sig')).toBe(false);
+    });
+  });
+});
+
+// ===== FEATURE GATING =====
+
+describe('License Feature Gating', () => {
+  describe('hasFeature', () => {
+    it('should grant registered features to registered tier', () => {
+      expect(hasFeature('registered', 'csv-export')).toBe(true);
+    });
+
+    it('should deny pro features to registered tier', () => {
+      expect(hasFeature('registered', 'watermark-removal')).toBe(false);
+      expect(hasFeature('registered', 'marketplace')).toBe(false);
+    });
+
+    it('should grant registered + pro features to pro tier (not marketplace)', () => {
+      expect(hasFeature('pro', 'csv-export')).toBe(true);
+      expect(hasFeature('pro', 'watermark-removal')).toBe(true);
+      expect(hasFeature('pro', 'marketplace')).toBe(false);
+    });
+
+    it('should grant all non-marketplace features to business tier', () => {
+      expect(hasFeature('business', 'csv-export')).toBe(true);
+      expect(hasFeature('business', 'watermark-removal')).toBe(true);
+      expect(hasFeature('business', 'api-key-scopes')).toBe(true);
+      expect(hasFeature('business', 'marketplace')).toBe(false);
+    });
+
+    it('should grant all features including marketplace to marketplace tier', () => {
+      expect(hasFeature('marketplace', 'csv-export')).toBe(true);
+      expect(hasFeature('marketplace', 'watermark-removal')).toBe(true);
+      expect(hasFeature('marketplace', 'api-key-scopes')).toBe(true);
+      expect(hasFeature('marketplace', 'marketplace')).toBe(true);
+    });
+
+    it('should deny all paid features to free tier', () => {
+      expect(hasFeature('free', 'csv-export')).toBe(false);
+      expect(hasFeature('free', 'watermark-removal')).toBe(false);
+    });
+  });
+
+  describe('getRequiredTier', () => {
+    it('should return registered for registered features', () => {
+      expect(getRequiredTier('csv-export')).toBe('registered');
+    });
+
+    it('should return pro for pro features', () => {
+      expect(getRequiredTier('watermark-removal')).toBe('pro');
+    });
+
+    it('should return marketplace for marketplace feature', () => {
+      expect(getRequiredTier('marketplace')).toBe('marketplace');
+    });
+  });
+
+  describe('getFeaturesForTier', () => {
+    it('should return empty for free tier', () => {
+      expect(getFeaturesForTier('free')).toHaveLength(0);
+    });
+
+    it('should return only registered features for registered tier', () => {
+      const features = getFeaturesForTier('registered');
+      expect(features).toContain('csv-export');
+      expect(features).not.toContain('watermark-removal');
+    });
+
+    it('should return registered + pro features for pro tier (not marketplace)', () => {
+      const features = getFeaturesForTier('pro');
+      expect(features).toContain('csv-export');
+      expect(features).toContain('watermark-removal');
+      expect(features).not.toContain('marketplace');
+    });
+
+    it('should return all non-marketplace features for business tier', () => {
+      const features = getFeaturesForTier('business');
+      expect(features).toContain('csv-export');
+      expect(features).toContain('watermark-removal');
+      expect(features).toContain('api-key-scopes');
+      expect(features).not.toContain('marketplace');
+    });
+
+    it('should return all features for marketplace tier', () => {
+      const features = getFeaturesForTier('marketplace');
+      expect(features).toContain('csv-export');
+      expect(features).toContain('watermark-removal');
+      expect(features).toContain('marketplace');
     });
   });
 });

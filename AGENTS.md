@@ -904,11 +904,10 @@ if (!key) throw new Error('Missing SUPABASE_ANON_KEY');
 
 ## Core Mandates
 
-- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code. Analyze surrounding code, tests, and configuration first.
-- **Libraries/Frameworks:** NEVER assume a library/framework is available or appropriate. Verify its established usage within the project (check imports, configuration files like `package.json`, etc.) before employing it.
-- **Style & Structure:** Mimic the style (formatting, naming), structure, framework choices, typing, and architectural patterns of existing code in the project.
-- **Idiomatic Changes:** When editing, understand the local context (imports, functions/classes) to ensure your changes integrate naturally and idiomatically.
-- **Comments:** Add code comments sparingly. Focus on *why* something is done, especially for complex logic, rather than *what* is done. Only add high-value comments if necessary for clarity or if requested by the user. Do not edit comments that are separate from the code you are changing. *NEVER* talk to the user or describe your changes through comments.
+**MANDATORY: Before starting any coding task, read `vault/brands/_shared/reference/coding-standards.md` and follow ALL rules defined there.** This includes: zero tolerance for broken things, cleanup after changes, DRY, KISS, SOLID, opportunistic refactoring, think-before-you-code, security-first (OWASP Top 10), and code quality standards.
+
+In addition to the shared coding standards, the following Sellf-specific mandates apply:
+
 - **Proactiveness:** Fulfill the user's request thoroughly. When adding features or fixing bugs, this includes adding tests to ensure quality. Consider all created files, especially tests, to be permanent artifacts unless the user says otherwise.
 - **Confirm Ambiguity/Expansion:** Do not take significant actions beyond the clear scope of the request without confirming with the user. If asked *how* to do something, explain first, don't just do it.
 - **Explaining Changes:** After completing a code modification or file operation *do not* provide summaries unless asked.
@@ -924,19 +923,21 @@ When requested to perform tasks like fixing bugs, adding features, refactoring, 
 
 2. **Plan:** Build a coherent and grounded (based on the understanding in step 1) plan for how you intend to resolve the user's task. If 'codebase_investigator' was used, do not ignore the output of 'codebase_investigator', you must use it as the foundation of your plan. Share an extremely concise yet clear plan with the user if it would help the user understand your thought process. As part of the plan, you should use an iterative development process that includes writing unit tests to verify your changes. Use output logs or debug statements as part of this process to arrive at a solution.
 
-3. **Implement:** Use the available tools to act on the plan, strictly adhering to the project's established conventions (detailed under 'Core Mandates').
+3. **Test First (TDD):** Before writing implementation, write a failing test that defines the expected behavior. Run it - it must fail (RED). This applies to new features, bug fixes, and refactors. For bug fixes, the test reproduces the bug. For features, the test defines the acceptance criteria. See `vault/brands/_shared/reference/coding-standards.md` for the full TDD workflow.
 
-4. **Verify (Tests):** If applicable and feasible, verify the changes using the project's testing procedures. Identify the correct test commands and frameworks by examining `README` files, build/package configuration (e.g., `package.json`), or existing test execution patterns. NEVER assume standard test commands.
+4. **Implement (GREEN):** Write the minimum code to make the test pass. Nothing more. Then refactor if needed while keeping tests green.
 
-5. **Verify (Standards):** VERY IMPORTANT: After making ANY code changes, execute the project-specific build, linting and type-checking commands (e.g., `tsc`, `bun run lint`, `bun run build`) to ensure code quality and adherence to standards.
+5. **Verify (Tests):** Run the full test suite (`bun run test:unit`), not just the new test. Scan ALL output for failures, flaky tests, and warnings. Fix everything.
+
+6. **Verify (Standards):** VERY IMPORTANT: After making ANY code changes, execute the project-specific build, linting and type-checking commands (e.g., `tsc`, `bun run lint`, `bun run build`) to ensure code quality and adherence to standards.
    - **Compilations Check:** ALWAYS run `bun run build` (or equivalent) to verify there are no compilation errors before finishing the task.
    - **Database Changes:** If you modified the database schema (migrations), you MUST regenerate TypeScript types (`npx supabase gen types typescript --local > admin-panel/src/types/database.ts`) and run a build check (`bun run build`) to ensure type safety is maintained.
 
-6. **Finalize:** After all verification passes, consider the task complete. Do not remove or revert any changes or created files (like tests). Await the user's next instruction.
+7. **Finalize:** After all verification passes, consider the task complete. Do not remove or revert any changes or created files (like tests). Await the user's next instruction.
 
 ## Operational Mandates
 
-- **Test-Driven Development:** Always write comprehensive tests (E2E or Integration) for every new feature or critical bug fix.
+- **Test-Driven Development:** Follow the TDD workflow (RED -> GREEN -> REFACTOR) as defined in `vault/brands/_shared/reference/coding-standards.md`. Tests come BEFORE implementation, not after.
 - **Pre-Commit Verification:** Always perform a `git diff` after file modifications to verify that the changes match the intended plan and that no excessive content was accidentally deleted. Additionally, always run the full test suite (`bun run test` or equivalent) and a production build (`bun run build`) before committing changes to ensure no regressions or type errors are introduced.
 
 ## Important Notes

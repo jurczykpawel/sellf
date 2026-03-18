@@ -11,6 +11,8 @@ interface UseCouponOptions {
   email?: string;
   /** When true, OTO hook handles coupon from URL — skip URL coupon logic here */
   isOtoMode?: boolean;
+  /** Seller slug for marketplace products (scopes coupon verification to seller schema) */
+  sellerSlug?: string;
 }
 
 interface UseCouponReturn {
@@ -29,7 +31,7 @@ interface UseCouponReturn {
   applyOtoCoupon: (coupon: AppliedCoupon, code: string) => void;
 }
 
-export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): UseCouponReturn {
+export function useCoupon({ productId, email, isOtoMode, sellerSlug }: UseCouponOptions): UseCouponReturn {
   const t = useTranslations('checkout');
   const searchParams = useSearchParams();
 
@@ -59,6 +61,7 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
           code,
           productId,
           email: currentEmail || email,
+          sellerSlug: sellerSlug || undefined,
         }),
       });
       const data = await res.json();
@@ -75,7 +78,7 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
     } finally {
       setIsVerifyingCoupon(false);
     }
-  }, [productId, email, t]);
+  }, [productId, email, sellerSlug, t]);
 
   // Auto-apply coupon for email change
   useEffect(() => {
@@ -85,7 +88,7 @@ export function useCoupon({ productId, email, isOtoMode }: UseCouponOptions): Us
         const res = await fetch('/api/coupons/auto-apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, productId }),
+          body: JSON.stringify({ email, productId, sellerSlug }),
         });
         const data = await res.json();
         if (data.found) {

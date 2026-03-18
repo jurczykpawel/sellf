@@ -485,14 +485,18 @@ test.describe('Waitlist Feature', () => {
       const modal = page.locator('[role="dialog"]');
       const waitlistLabel = modal.locator('label').filter({ hasText: /Włącz zapis na listę|Enable Waitlist/i });
 
-      // If section is already expanded, nothing to do
-      const isExpanded = await waitlistLabel.isVisible().catch(() => false);
-      if (isExpanded) return;
-
-      // Section is collapsed — click header to expand and wait for content
-      const sectionHeader = modal.locator('button').filter({ hasText: /Dostępność.*Lista|Availability.*Waitlist/i }).first();
-      await sectionHeader.click();
-      await expect(waitlistLabel).toBeVisible({ timeout: 5000 });
+      // Retry: section might need a click to expand, and the click might be swallowed
+      await expect(async () => {
+        const isExpanded = await waitlistLabel.isVisible().catch(() => false);
+        if (!isExpanded) {
+          // Try broader regex — button text may vary by locale and may not contain both words
+          const sectionHeader = modal.locator('button').filter({ hasText: /Dostępność|Availability/i }).first();
+          if (await sectionHeader.isVisible().catch(() => false)) {
+            await sectionHeader.click();
+          }
+        }
+        await expect(waitlistLabel).toBeVisible({ timeout: 1000 });
+      }).toPass({ timeout: 10000 });
     }
 
     test('should disable waitlist checkbox when no webhook configured', async ({ page }) => {

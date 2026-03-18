@@ -20,6 +20,10 @@ interface DashboardLayoutProps {
   isAdmin?: boolean
   shopConfig?: ShopConfig | null
   showSellfCTA?: boolean
+  /** 'platform_admin' = full access, 'seller_admin' = scoped to seller schema */
+  adminRole?: 'platform_admin' | 'seller_admin'
+  /** Seller display name (shown in sidebar for seller admins) */
+  sellerDisplayName?: string
 }
 
 // Icons
@@ -132,15 +136,16 @@ const Icons = {
   ),
 };
 
-export default function DashboardLayout({ children, user, isAdmin: isAdminProp, shopConfig, showSellfCTA }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole, sellerDisplayName }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
-  const { signOut, isAdmin: isAdminContext } = useAuth()
+  const { signOut, role: authRole } = useAuth()
   const t = useTranslations('navigation')
   const pathname = usePathname()
 
-  const isAdmin = isAdminProp !== undefined ? isAdminProp : isAdminContext
+  // Single source of truth: AuthContext role. Props are fallback for SSR initial render.
+  const isAdmin = authRole !== 'user' || (isAdminProp !== undefined ? isAdminProp : false)
   const isExpanded = isPinned || isHovered
 
   // Load pin state from localStorage
@@ -167,7 +172,7 @@ export default function DashboardLayout({ children, user, isAdmin: isAdminProp, 
     signOut()
   }
 
-  // Navigation Items Config
+  // Navigation Items Config — all admin links visible for both platform and seller admins
   const adminLinks = [
     { href: '/dashboard', label: t('dashboard'), icon: Icons.dashboard, exact: true },
     { href: '/dashboard/products', label: t('products'), icon: Icons.products },

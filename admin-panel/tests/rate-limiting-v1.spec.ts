@@ -28,6 +28,9 @@ const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing. Cannot run rate limit tests.');
 }
+if (process.env.RATE_LIMIT_TEST_MODE !== 'true') {
+  throw new Error('RATE_LIMIT_TEST_MODE is not set. Run via: RATE_LIMIT_TEST_MODE=true npx playwright test --project=rate-limiting-v1 (or use bun ttt)');
+}
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY!);
 
@@ -53,6 +56,9 @@ test.describe('V1 API Rate Limiting', () => {
   let testApiKeyId: string;
 
   test.beforeAll(async () => {
+    // Clear stale rate limit entries from previous test runs (60 min window can overlap)
+    await supabaseAdmin.from('rate_limits').delete().lt('window_start', new Date().toISOString());
+
     // Create admin user
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `rate-limit-v1-test-${randomStr}@example.com`;

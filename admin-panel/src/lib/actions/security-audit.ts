@@ -8,7 +8,7 @@
  * @see priv/pentest-2026-03-06.md — Supabase Production Configuration Checklist
  */
 
-import { withAdminAuth } from '@/lib/actions/admin-auth';
+import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
 
 export interface SecurityCheckResult {
   id: string;
@@ -17,6 +17,7 @@ export interface SecurityCheckResult {
   message: string;
   fix?: string;
   steps?: string[];
+  scope?: 'platform' | 'shop';
 }
 
 export interface SecurityAuditResult {
@@ -43,12 +44,16 @@ function getCacheTtl(result: SecurityAuditResult): number {
  * TTL: 1h when issues exist (re-check after fix), 24h when all pass.
  */
 export async function getSecurityAudit(): Promise<SecurityAuditResult> {
-  const result = await withAdminAuth(async () => {
+  const result = await withAdminOrSellerAuth(async ({ role }) => {
     if (cachedResult && (Date.now() - cachedAt) < getCacheTtl(cachedResult)) {
-      return { success: true as const, data: cachedResult };
+      // Filter cached result by role
+      const filtered = role === 'seller_admin'
+        ? { ...cachedResult, checks: cachedResult.checks.filter(c => c.scope === 'shop') }
+        : cachedResult;
+      return { success: true as const, data: filtered };
     }
 
-    const audit = await executeAudit();
+    const audit = await executeAudit(role);
     return { success: true as const, data: audit };
   });
 
@@ -63,8 +68,8 @@ export async function getSecurityAudit(): Promise<SecurityAuditResult> {
  * Forces a fresh audit run, bypassing cache. Called via "Run again" button.
  */
 export async function runSecurityAudit(): Promise<SecurityAuditResult> {
-  const result = await withAdminAuth(async () => {
-    const audit = await executeAudit();
+  const result = await withAdminOrSellerAuth(async ({ role }) => {
+    const audit = await executeAudit(role);
     return { success: true as const, data: audit };
   });
 
@@ -75,7 +80,7 @@ export async function runSecurityAudit(): Promise<SecurityAuditResult> {
   return result.data!;
 }
 
-async function executeAudit(): Promise<SecurityAuditResult> {
+async function executeAudit(role?: string): Promise<SecurityAuditResult> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -83,42 +88,56 @@ async function executeAudit(): Promise<SecurityAuditResult> {
     return { success: false, checks: [], timestamp: new Date().toISOString(), error: 'Missing Supabase configuration' };
   }
 
-  const checks: SecurityCheckResult[] = [];
-
   const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
 
-  const results = await Promise.allSettled([
-    // Supabase configuration checks
-    checkGraphQLIntrospection(supabaseUrl, anonKey),
-    checkMCPEndpoint(supabaseUrl, anonKey),
-    checkServerHeaders(supabaseUrl, anonKey),
-    checkEmailAutoconfirm(supabaseUrl, anonKey),
-    checkProductCountLeak(supabaseUrl, anonKey),
-    checkRPCFunctionHints(supabaseUrl, anonKey),
-    // Sellf app configuration checks
-    checkHttpsRedirect(siteUrl),
-    checkHstsHeader(siteUrl),
-    checkAppUrl(),
-    checkAllowedOrigins(),
-    checkCookieSecure(siteUrl),
-    // Environment variable checks
-    checkAppEncryptionKey(),
-    checkCaptcha(),
-    checkCronSecret(),
-    checkStripeWebhookSecret(),
-  ]);
+  // Define all checks with scope
+  interface ScopedCheck {
+    scope: 'platform' | 'shop';
+    check: () => Promise<SecurityCheckResult>;
+  }
 
-  for (const result of results) {
+  const allChecks: ScopedCheck[] = [
+    // Platform-only checks
+    { scope: 'platform', check: () => checkGraphQLIntrospection(supabaseUrl, anonKey) },
+    { scope: 'platform', check: () => checkMCPEndpoint(supabaseUrl, anonKey) },
+    { scope: 'platform', check: () => checkServerHeaders(supabaseUrl, anonKey) },
+    { scope: 'platform', check: () => checkEmailAutoconfirm(supabaseUrl, anonKey) },
+    { scope: 'platform', check: () => checkProductCountLeak(supabaseUrl, anonKey) },
+    { scope: 'platform', check: () => checkRPCFunctionHints(supabaseUrl, anonKey) },
+    { scope: 'platform', check: () => checkAppEncryptionKey() },
+    { scope: 'platform', check: () => checkCaptcha() },
+    { scope: 'platform', check: () => checkCronSecret() },
+    // Shop-relevant checks
+    { scope: 'shop', check: () => checkHttpsRedirect(siteUrl) },
+    { scope: 'shop', check: () => checkHstsHeader(siteUrl) },
+    { scope: 'shop', check: () => checkAppUrl() },
+    { scope: 'shop', check: () => checkAllowedOrigins() },
+    { scope: 'shop', check: () => checkStripeWebhookSecret() },
+    { scope: 'shop', check: () => checkCookieSecure(siteUrl) },
+  ];
+
+  // Filter checks by role
+  const checksToRun = role === 'seller_admin'
+    ? allChecks.filter(c => c.scope === 'shop')
+    : allChecks;
+
+  const results = await Promise.allSettled(checksToRun.map(c => c.check()));
+
+  const checks: SecurityCheckResult[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
     if (result.status === 'fulfilled') {
-      checks.push(result.value);
+      checks.push({ ...result.value, scope: checksToRun[i].scope });
     }
   }
 
   const audit: SecurityAuditResult = { success: true, checks, timestamp: new Date().toISOString() };
 
-  // Update cache
-  cachedResult = audit;
-  cachedAt = Date.now();
+  // Update cache (always cache the full audit for platform admins)
+  if (role !== 'seller_admin') {
+    cachedResult = audit;
+    cachedAt = Date.now();
+  }
 
   return audit;
 }

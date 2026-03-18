@@ -18,7 +18,6 @@ import {
   validateCursor,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { escapeIlikePattern } from '@/lib/validations/product';
 
 // Valid sort columns for users
@@ -56,10 +55,14 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate with users:read scope
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_READ]);
 
     // Use admin client to access user views
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
+
+    // Both roles use seller_customer_stats (INNER JOIN — only users with access/transactions)
+    // Prevents cross-schema user leak (user_access_stats LEFT JOINs global auth.users)
+    const usersView = 'seller_customer_stats';
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -83,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     // Count query (no cursor, no limit — accurate total for current filters)
     let countQuery = adminClient
-      .from('user_access_stats')
+      .from(usersView)
       .select('user_id', { count: 'exact', head: true });
     if (search) {
       const escapedSearch = escapeIlikePattern(search);
@@ -93,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     // Build query for user stats (explicit fields)
     let query = adminClient
-      .from('user_access_stats')
+      .from(usersView)
       .select('user_id, email, user_created_at, email_confirmed_at, last_sign_in_at, raw_user_meta_data, total_products, total_value, last_access_granted_at, first_access_granted_at');
 
     // Apply search filter

@@ -656,9 +656,11 @@ test.describe('Variant Selector - PWYW, Icon and Branding', () => {
     await expect(pwywCard.getByText('💰')).toBeVisible();
   });
 
-  test('should display Sellf branding footer in test environment (no license)', async ({ page }) => {
-    // In test env there is no valid Sellf license, so branding should be visible
-    await expect(page.getByText(/Sellf/i).last()).toBeVisible();
+  test('should hide Sellf branding when valid license exists (env var)', async ({ page }) => {
+    // SELLF_LICENSE_KEY env var provides valid platform license → branding hidden
+    // Branding (watermark) is only shown when license is free tier
+    const brandingFooter = page.locator('[class*="sellf-branding"], [data-testid="sellf-branding"]');
+    await expect(brandingFooter).not.toBeVisible();
   });
 
   test('should display improved not-found state with SVG icon', async ({ page }) => {

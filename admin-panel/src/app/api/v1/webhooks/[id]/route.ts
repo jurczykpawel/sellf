@@ -18,7 +18,6 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateUUID } from '@/lib/validations/product';
 import { isValidWebhookUrl, validateEventTypes } from '@/lib/validations/webhook';
 
@@ -37,7 +36,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_READ]);
     const { id } = await params;
 
     // Validate ID format
@@ -46,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid webhook ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     const { data: webhook, error } = await adminClient
       .from('webhook_endpoints')
@@ -89,7 +88,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
     const { id } = await params;
 
     // Validate ID format
@@ -98,7 +97,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid webhook ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Check webhook exists
     const { data: existing, error: fetchError } = await adminClient
@@ -193,7 +192,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
     const { id } = await params;
 
     // Validate ID format
@@ -202,7 +201,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid webhook ID format');
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Check webhook exists
     const { data: existing, error: fetchError } = await adminClient

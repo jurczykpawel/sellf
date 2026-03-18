@@ -2,7 +2,12 @@
  * Sellf License Verification
  *
  * Verifies ECDSA-signed license keys for Sellf installations.
- * License format: SF-{domain}-{expiry}-{signature}
+ *
+ * License formats:
+ *   Legacy:  SF-{domain}-{expiry}-{signature}         (treated as PRO)
+ *   Current: SF-{domain}-{tier}-{expiry}-{signature}
+ *
+ * Supported tiers: PRO, BIZ (Business)
  */
 
 import * as crypto from 'crypto';
@@ -14,9 +19,30 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE8K2XLvuxHQsCMSvBLemkdpMZqXpy
 LeS3pFS7JyEEyi9Kew8TADDYBKh7mVLJSxqfXfy4H0qsCwy2S+zMdoCiIg==
 -----END PUBLIC KEY-----`;
 
+// ===== TIER TYPES =====
+
+export type LicenseTier = 'free' | 'registered' | 'pro' | 'business' | 'marketplace';
+
+const VALID_TIER_CODES = ['REG', 'PRO', 'BIZ', 'MKT'] as const;
+type TierCode = typeof VALID_TIER_CODES[number];
+
+const TIER_CODE_MAP: Record<TierCode, LicenseTier> = {
+  REG: 'registered',
+  PRO: 'pro',
+  BIZ: 'business',
+  MKT: 'marketplace',
+};
+
+function isTierCode(value: string): value is TierCode {
+  return VALID_TIER_CODES.includes(value as TierCode);
+}
+
+// ===== INTERFACES =====
+
 export interface LicenseInfo {
   valid: boolean;
   domain: string | null;
+  tier: LicenseTier;
   expiry: string | null;
   expiryDate: Date | null;
   isExpired: boolean;
@@ -30,15 +56,20 @@ export interface LicenseValidationResult {
   error?: string;
 }
 
-/**
- * Parse a license key into its components
- */
-export function parseLicense(licenseKey: string): {
+interface ParsedLicense {
   prefix: string;
   domain: string;
+  tier: LicenseTier;
   expiry: string;
   signature: string;
-} | null {
+  signedData: string;
+}
+
+/**
+ * Parse a license key into its components.
+ * Supports both legacy (no tier, treated as PRO) and current (with tier) formats.
+ */
+export function parseLicense(licenseKey: string): ParsedLicense | null {
   if (!licenseKey || typeof licenseKey !== 'string') {
     return null;
   }
@@ -48,11 +79,27 @@ export function parseLicense(licenseKey: string): {
     return null;
   }
 
+  // Current format: SF-{domain}-{TIER}-{expiry}-{signature}
+  if (parts.length >= 5 && isTierCode(parts[2])) {
+    const tier = TIER_CODE_MAP[parts[2]];
+    return {
+      prefix: parts[0],
+      domain: parts[1],
+      tier,
+      expiry: parts[3],
+      signature: parts.slice(4).join('-'),
+      signedData: `${parts[1]}-${parts[2]}-${parts[3]}`,
+    };
+  }
+
+  // Legacy format: SF-{domain}-{expiry}-{signature} (no tier = PRO)
   return {
     prefix: parts[0],
     domain: parts[1],
+    tier: 'pro',
     expiry: parts[2],
     signature: parts.slice(3).join('-'),
+    signedData: `${parts[1]}-${parts[2]}`,
   };
 }
 
@@ -65,10 +112,7 @@ export function verifyLicenseSignature(licenseKey: string): boolean {
     return false;
   }
 
-  const { domain, expiry, signature } = parsed;
-
-  // Data that was signed
-  const dataToVerify = `${domain}-${expiry}`;
+  const { signedData, signature } = parsed;
 
   // Convert base64url signature back to base64
   let signatureBase64 = signature.replace(/-/g, '+').replace(/_/g, '/');
@@ -79,7 +123,7 @@ export function verifyLicenseSignature(licenseKey: string): boolean {
   try {
     const signatureBuffer = Buffer.from(signatureBase64, 'base64');
     const verify = crypto.createVerify('SHA256');
-    verify.update(dataToVerify);
+    verify.update(signedData);
     verify.end();
     return verify.verify(SELLF_PUBLIC_KEY, signatureBuffer);
   } catch {
@@ -181,6 +225,7 @@ export function getLicenseInfo(licenseKey: string): LicenseInfo {
     return {
       valid: false,
       domain: null,
+      tier: 'free',
       expiry: null,
       expiryDate: null,
       isExpired: true,
@@ -193,6 +238,7 @@ export function getLicenseInfo(licenseKey: string): LicenseInfo {
     return {
       valid: false,
       domain: parsed.domain,
+      tier: 'free',
       expiry: parsed.expiry,
       expiryDate: parseExpiryDate(parsed.expiry),
       isExpired: isLicenseExpired(parsed.expiry),
@@ -205,6 +251,7 @@ export function getLicenseInfo(licenseKey: string): LicenseInfo {
   return {
     valid: !expired,
     domain: parsed.domain,
+    tier: parsed.tier,
     expiry: parsed.expiry,
     expiryDate: parseExpiryDate(parsed.expiry),
     isExpired: expired,
@@ -223,6 +270,7 @@ export function validateLicense(licenseKey: string, currentDomain?: string): Lic
       info: {
         valid: false,
         domain: null,
+        tier: 'free',
         expiry: null,
         expiryDate: null,
         isExpired: true,
@@ -268,5 +316,7 @@ export function validateLicense(licenseKey: string, currentDomain?: string): Lic
  * Does NOT verify signature - use validateLicense for full verification
  */
 export function isValidLicenseFormat(licenseKey: string): boolean {
-  return /^SF-[a-zA-Z0-9.*-]+-(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(licenseKey);
+  // Current format: SF-{domain}-{TIER}-{expiry}-{signature}
+  // Legacy format:  SF-{domain}-{expiry}-{signature}
+  return /^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ|MKT)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(licenseKey);
 }

@@ -31,16 +31,15 @@ test.describe('Theme Editor (Branding Settings)', () => {
   async function navigateToSettings(page: Page) {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for AuthContext to resolve role AND BrandingSettings to render
+    await page.getByText(/Theme Presets|Gotowe motywy/i).first().waitFor({ state: 'visible', timeout: 15000 });
   }
 
   test('Theme Editor UI loads with all sections', async ({ page }) => {
     await navigateToSettings(page);
 
-    // Should see "Theme Presets" heading
-    const presetsHeading = page.locator('h2', { hasText: /Theme Presets|Gotowe motywy/i });
-    await expect(presetsHeading).toBeVisible({ timeout: 10000 });
+    // BrandingSettings is already visible (navigateToSettings waits for it)
 
     // Should see preset cards (at least 5 built-in)
     const presetButtons = page.locator('button').filter({ has: page.locator('p') }).filter({
@@ -71,9 +70,7 @@ test.describe('Theme Editor (Branding Settings)', () => {
     await expect(importBtn).toBeVisible();
     await expect(exportBtn).toBeVisible();
 
-    // Should see license warning (no license in test env)
-    const licenseWarning = page.locator('text=/License Required|Wymagana licencja/i');
-    await expect(licenseWarning).toBeVisible();
+    // With valid SELLF_LICENSE_KEY env var, no license warning shown (save button enabled)
   });
 
   test('Clicking a preset updates theme name and preview colors', async ({ page }) => {
@@ -263,7 +260,7 @@ test.describe('Theme Editor (Branding Settings)', () => {
     expect(parsed.colors.accent).toBe('#FF6B35');
   });
 
-  test('Save button is disabled without license', async ({ page }) => {
+  test('Save button is enabled with valid license (env var)', async ({ page }) => {
     await navigateToSettings(page);
 
     // Select a preset to create "unsaved changes"
@@ -271,9 +268,9 @@ test.describe('Theme Editor (Branding Settings)', () => {
     await sunsetPreset.click();
     await page.waitForTimeout(500);
 
-    // Save button should be disabled (no license in test env)
+    // Save button should be enabled (SELLF_LICENSE_KEY env var provides valid MKT license)
     const saveButton = page.locator('button', { hasText: /Save Theme|Zapisz motyw/i });
-    await expect(saveButton).toBeDisabled();
+    await expect(saveButton).toBeEnabled();
   });
 
   test('Non-admin users cannot access settings', async ({ page }) => {
@@ -297,7 +294,7 @@ test.describe('Theme Editor (Branding Settings)', () => {
 
       await page.waitForTimeout(1000);
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
       // Should NOT see theme presets OR should be redirected

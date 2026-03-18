@@ -21,7 +21,6 @@ import {
   validateCursor,
   API_SCOPES,
 } from '@/lib/api';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { validateProductId, validateUUID } from '@/lib/validations/product';
 import { validateGrantAccess, sanitizeGrantAccessData } from '@/lib/validations/access';
 
@@ -44,7 +43,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_READ]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_READ]);
     const { id: userId } = await params;
 
     // Validate user ID format
@@ -62,7 +61,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', cursorError);
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Build paginated query
     let query = adminClient
@@ -122,7 +121,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    await authenticate(request, [API_SCOPES.USERS_WRITE]);
+    const auth = await authenticate(request, [API_SCOPES.USERS_WRITE]);
     const { id: userId } = await params;
 
     // Validate user ID format
@@ -143,7 +142,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const productId = sanitizedData.product_id as string;
-    const adminClient = createAdminClient();
+    const adminClient = auth.supabase;
 
     // Check if product exists and is active
     const { data: product, error: productError } = await adminClient
