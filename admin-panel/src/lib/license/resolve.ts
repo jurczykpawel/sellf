@@ -83,7 +83,7 @@ export async function checkFeature(
 // ===== INTERNAL HELPERS =====
 
 function getPlatformDomain(): string | null {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN;
   return siteUrl ? extractDomainFromUrl(siteUrl) : null;
 }
 

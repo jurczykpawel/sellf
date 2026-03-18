@@ -53,8 +53,8 @@ export async function saveActiveTheme(theme: ThemeConfig): Promise<ActionRespons
     return { success: true };
   }
 
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
-    const licenseCheck = await checkFeature('theme-customization', { dataClient });
+  return withAdminOrSellerAuth(async ({ dataClient, sellerSlug }) => {
+    const licenseCheck = await checkFeature('theme-customization', { dataClient, sellerSlug });
     if (!licenseCheck) {
       return { success: false, error: 'Valid Sellf Pro license required to save themes' };
     }
@@ -96,8 +96,8 @@ export async function removeActiveTheme(): Promise<ActionResponse<void>> {
     return { success: true };
   }
 
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
-    const licenseCheck = await checkFeature('theme-customization', { dataClient });
+  return withAdminOrSellerAuth(async ({ dataClient, sellerSlug }) => {
+    const licenseCheck = await checkFeature('theme-customization', { dataClient, sellerSlug });
     if (!licenseCheck) {
       return { success: false, error: 'Valid Sellf Pro license required' };
     }
@@ -135,8 +135,8 @@ export async function checkThemeLicense(): Promise<ActionResponse<boolean>> {
     return { success: true, data: true };
   }
 
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
-    const valid = await checkFeature('theme-customization', { dataClient });
+  return withAdminOrSellerAuth(async ({ dataClient, sellerSlug }) => {
+    const valid = await checkFeature('theme-customization', { dataClient, sellerSlug });
     return { success: true, data: valid };
   });
 }
