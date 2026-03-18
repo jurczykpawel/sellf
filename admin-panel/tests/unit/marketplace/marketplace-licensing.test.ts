@@ -69,10 +69,10 @@ describe('Domain license (marketplace access)', () => {
     expect(result.error).toContain('not "other-domain.com"');
   });
 
-  it('checkMarketplaceAccess uses domain license from SELLF_LICENSE_KEY env', () => {
-    // Static analysis: feature-flag.ts reads SELLF_LICENSE_KEY and passes it to validateLicense
-    expect(FEATURE_FLAG_SOURCE).toContain('process.env.SELLF_LICENSE_KEY');
-    expect(FEATURE_FLAG_SOURCE).toContain('validateLicense(licenseKey, domain)');
+  it('checkMarketplaceAccess uses checkFeature from license resolve', () => {
+    // Static analysis: feature-flag.ts delegates to checkFeature('marketplace') from resolve.ts
+    expect(FEATURE_FLAG_SOURCE).toContain("checkFeature('marketplace')");
+    expect(FEATURE_FLAG_SOURCE).toContain("from '@/lib/license/resolve'");
   });
 });
 
@@ -112,24 +112,19 @@ describe('Shop license (watermark removal)', () => {
 // ============================================================================
 
 describe('License isolation between sellers', () => {
-  it('each seller has their OWN integrations_config with their own license key', () => {
-    // Seller product page reads license from the seller's own schema via createSellerAdminClient
+  it('each seller has their OWN schema client for license checks', () => {
+    // Seller product page uses createSellerAdminClient for schema-scoped license resolution
     expect(SELLER_PRODUCT_PAGE).toContain('createSellerAdminClient(seller.schema_name)');
-    expect(SELLER_PRODUCT_PAGE).toMatch(
-      /from\(['"]integrations_config['"]\).*select\(['"]sellf_license['"]\)/s
-    );
+    // License check delegates to checkFeature with seller-scoped dataClient
+    expect(SELLER_PRODUCT_PAGE).toContain("checkFeature('watermark-removal'");
   });
 
   it('seller_main license does NOT affect seller_X license status (separate schemas)', () => {
     // Both pages use createSellerAdminClient (schema-scoped), not the platform client.
-    // This means seller_main.integrations_config is never read for seller pages.
     const sellerAdminCount = (SELLER_PRODUCT_PAGE.match(/createSellerAdminClient/g) || []).length;
     expect(sellerAdminCount).toBeGreaterThanOrEqual(1);
 
-    // No call to createClient for license checks — only createSellerAdminClient
-    // The only createClient call is for the preview mode admin check (auth)
-    const createClientCalls = SELLER_PRODUCT_PAGE.match(/await createClient\(\)/g) || [];
-    // createClient is used for auth check (preview mode), not for license
+    // License section uses sellerClient passed to checkFeature, not createClient()
     const licenseSection = SELLER_PRODUCT_PAGE.slice(
       SELLER_PRODUCT_PAGE.indexOf('// License check')
     );
@@ -137,11 +132,10 @@ describe('License isolation between sellers', () => {
     expect(licenseSection).toContain('createSellerAdminClient');
   });
 
-  it('checkout page reads license from seller schema, not platform schema', () => {
-    // Checkout fetches integrations_config.sellf_license in parallel with product data
-    // using the seller-scoped admin client
+  it('checkout page reads license from seller schema via checkFeature', () => {
+    // Checkout uses seller-scoped admin client for license resolution
     expect(SELLER_CHECKOUT_PAGE).toContain('createSellerAdminClient');
-    expect(SELLER_CHECKOUT_PAGE).toMatch(/from\(['"]integrations_config['"]\).*sellf_license/s);
+    expect(SELLER_CHECKOUT_PAGE).toContain("checkFeature('watermark-removal'");
   });
 });
 
@@ -150,18 +144,15 @@ describe('License isolation between sellers', () => {
 // ============================================================================
 
 describe('Seller product page license check', () => {
-  it('validates license from seller schema integrations_config', () => {
-    expect(SELLER_PRODUCT_PAGE).toContain("integrations?.sellf_license");
+  it('uses checkFeature with seller-scoped client and slug', () => {
+    // Product page calls checkFeature('watermark-removal', { dataClient, sellerSlug })
+    expect(SELLER_PRODUCT_PAGE).toContain("checkFeature('watermark-removal'");
+    expect(SELLER_PRODUCT_PAGE).toContain('sellerSlug: seller.slug');
   });
 
-  it('validates against seller.slug (not just domain)', () => {
-    // Must call validateLicense with seller.slug
-    expect(SELLER_PRODUCT_PAGE).toContain('validateLicense(integrations.sellf_license, seller.slug)');
-  });
-
-  it('accepts both slug match AND domain match (OR logic)', () => {
-    // Product page uses OR: slugResult.valid || domainResult.valid
-    expect(SELLER_PRODUCT_PAGE).toContain('slugResult.valid || domainResult.valid');
+  it('passes seller-scoped dataClient to checkFeature', () => {
+    // The sellerClient is created via createSellerAdminClient and passed as dataClient
+    expect(SELLER_PRODUCT_PAGE).toContain('dataClient: sellerClient');
   });
 
   it('passes licenseValid to ProductView component', () => {
@@ -174,20 +165,17 @@ describe('Seller product page license check', () => {
 // ============================================================================
 
 describe('Seller checkout page license check', () => {
-  it('reads license from seller schema integrations_config', () => {
-    expect(SELLER_CHECKOUT_PAGE).toMatch(
-      /from\(['"]integrations_config['"]\).*select\(['"]sellf_license['"]\)/s
-    );
+  it('uses checkFeature with seller-scoped client', () => {
+    // Checkout page delegates to checkFeature('watermark-removal', { dataClient, sellerSlug })
+    expect(SELLER_CHECKOUT_PAGE).toContain("checkFeature('watermark-removal'");
+    expect(SELLER_CHECKOUT_PAGE).toContain('sellerSlug: data.seller.slug');
   });
 
-  it('validates against seller slug OR domain', () => {
-    // Checkout page: slugResult = validateLicense(key, seller.slug), domainResult = validateLicense(key, domain)
-    expect(SELLER_CHECKOUT_PAGE).toContain('validateLicense(licenseKey, data.seller.slug)');
-    expect(SELLER_CHECKOUT_PAGE).toContain('validateLicense(licenseKey, currentDomain)');
-    expect(SELLER_CHECKOUT_PAGE).toContain('slugResult.valid || domainResult.valid');
+  it('uses seller admin client as dataClient', () => {
+    expect(SELLER_CHECKOUT_PAGE).toContain('dataClient: data.client');
   });
 
   it('passes licenseValid to ProductPurchaseView component', () => {
-    expect(SELLER_CHECKOUT_PAGE).toMatch(/licenseValid=\{licenseResult\.valid\}/);
+    expect(SELLER_CHECKOUT_PAGE).toMatch(/licenseValid=\{licenseValid\}/);
   });
 });

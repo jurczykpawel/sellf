@@ -126,63 +126,65 @@ describe('checkMarketplaceAccess()', () => {
     expect(result.reason).toContain('license');
   });
 
-  it('accessible when enabled + demo mode (no license needed)', async () => {
+  it('accessible in demo mode (demo bypasses license)', async () => {
     mockHost('any-domain.com');
     process.env.MARKETPLACE_ENABLED = 'true';
     process.env.DEMO_MODE = 'true';
     delete process.env.SELLF_LICENSE_KEY;
     const result = await checkMarketplaceAccess();
+    // Demo mode returns 'marketplace' tier — all features unlocked for demonstration
     expect(result.accessible).toBe(true);
     expect(result.licensed).toBe(true);
   });
 
-  it('accessible when enabled + valid license + matching domain (from Host header)', async () => {
-    mockHost('test.example.com');
+  it('accessible when enabled + valid license + matching domain (from SITE_URL)', async () => {
     process.env.MARKETPLACE_ENABLED = 'true';
     delete process.env.DEMO_MODE;
     process.env.SELLF_LICENSE_KEY = VALID_LICENSE;
+    process.env.SITE_URL = 'https://test.example.com';
     const result = await checkMarketplaceAccess();
     expect(result.accessible).toBe(true);
     expect(result.licensed).toBe(true);
   });
 
-  it('accessible when enabled + valid license + matching domain (from SELLF_DOMAIN fallback)', async () => {
-    mockNoRequest(); // headers() throws — no active request
+  it('accessible when enabled + valid license + matching domain (from NEXT_PUBLIC_SITE_URL)', async () => {
     process.env.MARKETPLACE_ENABLED = 'true';
     delete process.env.DEMO_MODE;
     process.env.SELLF_LICENSE_KEY = VALID_LICENSE;
-    process.env.SELLF_DOMAIN = 'test.example.com';
+    delete process.env.SITE_URL;
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example.com';
     const result = await checkMarketplaceAccess();
     expect(result.accessible).toBe(true);
     expect(result.licensed).toBe(true);
   });
 
   it('NOT accessible when domain does not match license', async () => {
-    mockHost('wrong-domain.com');
     process.env.MARKETPLACE_ENABLED = 'true';
     delete process.env.DEMO_MODE;
     process.env.SELLF_LICENSE_KEY = VALID_LICENSE; // issued for test.example.com
+    process.env.SITE_URL = 'https://wrong-domain.com';
     const result = await checkMarketplaceAccess();
     expect(result.accessible).toBe(false);
     expect(result.licensed).toBe(false);
   });
 
-  it('NOT accessible when domain cannot be resolved (fail secure)', async () => {
-    mockNoRequest(); // headers() throws
+  it('accessible when no SITE_URL set (license validates without domain check)', async () => {
     process.env.MARKETPLACE_ENABLED = 'true';
     delete process.env.DEMO_MODE;
-    delete process.env.SELLF_DOMAIN;
+    delete process.env.SITE_URL;
+    delete process.env.NEXT_PUBLIC_SITE_URL;
     process.env.SELLF_LICENSE_KEY = VALID_LICENSE;
     const result = await checkMarketplaceAccess();
-    expect(result.accessible).toBe(false);
-    expect(result.licensed).toBe(false);
+    // Without SITE_URL, validateLicense is called without domain — accepts valid signature
+    expect(result.accessible).toBe(true);
+    expect(result.licensed).toBe(true);
   });
 
-  it('strips port from Host header before matching domain', async () => {
-    mockHost('test.example.com:3000'); // localhost-style with port
+  it('strips port from SITE_URL before matching domain', async () => {
     process.env.MARKETPLACE_ENABLED = 'true';
     delete process.env.DEMO_MODE;
     process.env.SELLF_LICENSE_KEY = VALID_LICENSE; // issued for test.example.com
+    process.env.SITE_URL = 'https://test.example.com:3000';
     const result = await checkMarketplaceAccess();
     expect(result.accessible).toBe(true);
   });

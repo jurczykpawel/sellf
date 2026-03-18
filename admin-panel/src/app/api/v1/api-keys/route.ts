@@ -28,7 +28,7 @@ import {
   API_SCOPES,
   SCOPE_PRESETS,
 } from '@/lib/api';
-import { getCurrentTier } from '@/lib/license/features';
+import { resolveCurrentTier } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminOrSellerApi } from '@/lib/auth-server';
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // License-based scope gating: free tier = locked to ['*']
-    const tier = getCurrentTier();
+    const tier = await resolveCurrentTier();
     const scopeGate = enforceApiKeyScopeGate(tier, body.scopes);
     let scopes = scopeGate.scopes;
 

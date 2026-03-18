@@ -15,7 +15,7 @@ import { Metadata } from 'next';
 import { cache } from 'react';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { getSellerBySlug, createSellerPublicClient, createSellerAdminClient } from '@/lib/marketplace/seller-client';
-import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify';
+import { checkFeature } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
 import ProductView from '@/app/[locale]/p/[slug]/components/ProductView';
 import type { Product } from '@/types';
@@ -111,28 +111,12 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
 
   if (!product) return notFound();
 
-  // License check — per-seller shop license (removes watermark for this seller)
-  // Shop licenses are validated against seller SLUG (not domain), because
-  // all sellers share one domain in marketplace mode.
-  let licenseValid = false;
-  try {
-    const adminClient = createSellerAdminClient(seller.schema_name);
-    const { data: integrations } = await adminClient
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single();
-
-    if (integrations?.sellf_license) {
-      // Validate against seller slug (shop license) OR domain (legacy single-tenant)
-      const domain = extractDomainFromUrl(process.env.NEXT_PUBLIC_APP_URL ?? '') ?? undefined;
-      const slugResult = validateLicense(integrations.sellf_license, seller.slug);
-      const domainResult = domain ? validateLicense(integrations.sellf_license, domain) : { valid: false };
-      licenseValid = slugResult.valid || domainResult.valid;
-    }
-  } catch {
-    // Non-fatal
-  }
+  // License check — per-seller (removes watermark for this seller)
+  const sellerClient = createSellerAdminClient(seller.schema_name);
+  const licenseValid = await checkFeature('watermark-removal', {
+    dataClient: sellerClient,
+    sellerSlug: seller.slug,
+  });
 
   // Sanitize content_config (same security pattern as /p/[slug])
   const safeProduct = {

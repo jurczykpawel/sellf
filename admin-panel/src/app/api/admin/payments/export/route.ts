@@ -6,12 +6,13 @@ import { createDataClientFromAuth } from '@/lib/supabase/admin';
 
 import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-import { getCurrentTier, hasFeature } from '@/lib/license/features';
+import { resolveCurrentTier } from '@/lib/license/resolve';
+import { hasFeature } from '@/lib/license/features';
 
 export async function POST(request: NextRequest) {
   try {
     // CSV export requires at least Registered Free license
-    const tier = getCurrentTier();
+    const tier = await resolveCurrentTier();
     if (!hasFeature(tier, 'csv-export')) {
       return NextResponse.json(
         { error: 'CSV export requires a Sellf license. Register at sellf.app to get a free key.' },

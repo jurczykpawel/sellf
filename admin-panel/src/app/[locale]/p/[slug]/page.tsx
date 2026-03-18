@@ -1,6 +1,6 @@
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify';
+import { checkFeature } from '@/lib/license/resolve';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
@@ -101,23 +101,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   }
 
   // Check license server-side
-  let licenseValid = false;
-  try {
-    const adminSupabase = createAdminClient();
-    const { data: integrations } = await adminSupabase
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single();
-
-    if (integrations?.sellf_license) {
-      const domain = extractDomainFromUrl(process.env.NEXT_PUBLIC_APP_URL ?? '') ?? undefined;
-      const result = validateLicense(integrations.sellf_license, domain);
-      licenseValid = result.valid;
-    }
-  } catch {
-    // License check failure is non-fatal — branding watermark stays visible
-  }
+  const licenseValid = await checkFeature('watermark-removal');
 
   // Preview mode: server-side admin check — no client-side race conditions.
   // Only active when ?preview=1 AND the requester is a verified admin.

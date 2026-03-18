@@ -58,9 +58,12 @@ describe('Seller Routing — Gate + Resolution', () => {
     expect(access.accessible).toBe(false);
   });
 
-  it('should allow seller routes when marketplace is enabled + demo mode', async () => {
+  it('should allow seller routes when marketplace is enabled + valid MKT license', async () => {
     process.env.MARKETPLACE_ENABLED = 'true';
-    process.env.DEMO_MODE = 'true';
+    delete process.env.DEMO_MODE;
+    // MKT license for test.example.com
+    process.env.SELLF_LICENSE_KEY = 'SF-test.example.com-MKT-UNLIMITED-MEYCIQDWhIm4U1DKdgtpaxX1hRQR5ebOgUxn9EoAXPs16wotsQIhAJYLsXqnn8nAbM-C0QVlSqT_sfbgK6o6woZzwE5ZyYAA';
+    process.env.SITE_URL = 'https://test.example.com';
     const path = '/s/nick/my-product';
     const isSeller = isSellerRoute(path);
     const slug = extractSellerSlug(path);

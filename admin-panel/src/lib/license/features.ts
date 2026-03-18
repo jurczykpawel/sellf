@@ -78,12 +78,12 @@ export function getAllFeatures(): Record<Feature, LicenseTier> {
 }
 
 /**
- * Resolve the current license tier from SELLF_LICENSE_KEY env var (sync, no DB).
- * Use resolveCurrentTier() in async contexts for full env + DB resolution.
- * Returns 'free' if no license, invalid license, or demo mode returns 'business'.
+ * @deprecated Use resolveCurrentTier() from '@/lib/license/resolve' instead.
+ * This sync version reads ONLY from env var — misses DB-stored licenses.
+ * Kept for edge cases where async is impossible.
  */
 export function getCurrentTier(): LicenseTier {
-  if (process.env.DEMO_MODE === 'true') return 'business';
+  if (process.env.DEMO_MODE === 'true') return 'marketplace';
 
   const licenseKey = process.env.SELLF_LICENSE_KEY;
   if (!licenseKey) return 'free';
@@ -94,4 +94,8 @@ export function getCurrentTier(): LicenseTier {
 
   return result.valid ? result.info.tier : 'free';
 }
+
+// Re-export from resolve.ts for convenience
+export { resolveCurrentTier, checkFeature } from './resolve';
+export type { LicenseResolveOptions } from './resolve';
 

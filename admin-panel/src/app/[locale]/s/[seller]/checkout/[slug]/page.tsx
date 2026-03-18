@@ -15,7 +15,7 @@ import { Metadata } from 'next';
 import { cache } from 'react';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
-import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify';
+import { checkFeature } from '@/lib/license/resolve';
 import { getEffectivePaymentMethodOrder } from '@/lib/utils/payment-method-helpers';
 import { extractExpressCheckoutConfig } from '@/types/payment-config';
 import type { PaymentMethodConfig } from '@/types/payment-config';
@@ -38,12 +38,10 @@ const getSellerCheckoutData = cache(async (sellerSlug: string, productSlug: stri
 
   const client = createSellerAdminClient(seller.schema_name);
 
-  // Fetch product, payment config, integrations config, and shop config in parallel
-  // License from seller schema (shop license, validated against seller slug)
-  const [productResult, paymentConfigResult, integrationsResult, shopConfigResult] = await Promise.all([
+  // Fetch product, payment config, and shop config in parallel
+  const [productResult, paymentConfigResult, shopConfigResult] = await Promise.all([
     client.from('products').select('*').eq('slug', productSlug).single(),
     client.from('payment_method_config').select('*').eq('id', 1).single(),
-    client.from('integrations_config').select('sellf_license').eq('id', 1).single(),
     client.from('shop_config').select('tax_mode').eq('id', 1).single(),
   ]);
 
@@ -51,9 +49,9 @@ const getSellerCheckoutData = cache(async (sellerSlug: string, productSlug: stri
 
   return {
     seller,
+    client,
     product: productResult.data as unknown as Product,
     paymentConfig: paymentConfigResult.data as PaymentMethodConfig | null,
-    integrationsConfig: integrationsResult.data as { sellf_license: string | null } | null,
     shopConfig: shopConfigResult.data as { tax_mode: string } | null,
   };
 });
@@ -86,7 +84,7 @@ export default async function SellerCheckoutPage({ params }: PageProps) {
 
   if (!data) return notFound();
 
-  const { product, paymentConfig, integrationsConfig, shopConfig } = data;
+  const { product, paymentConfig, shopConfig } = data;
 
   // Check product availability
   const now = new Date();
@@ -105,13 +103,11 @@ export default async function SellerCheckoutPage({ params }: PageProps) {
     : undefined;
   const expressCheckoutConfig = extractExpressCheckoutConfig(paymentConfig);
 
-  // License check — per-seller shop license (validated against seller slug OR domain)
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
-  const licenseKey = integrationsConfig?.sellf_license || '';
-  const slugResult = validateLicense(licenseKey, data.seller.slug);
-  const domainResult = currentDomain ? validateLicense(licenseKey, currentDomain) : { valid: false };
-  const licenseResult = { valid: slugResult.valid || domainResult.valid };
+  // License check — per-seller shop license via unified resolver
+  const licenseValid = await checkFeature('watermark-removal', {
+    dataClient: data.client,
+    sellerSlug: data.seller.slug,
+  });
 
   // Tax mode
   const taxMode: TaxMode = (shopConfig?.tax_mode as TaxMode) || 'local';
@@ -121,7 +117,7 @@ export default async function SellerCheckoutPage({ params }: PageProps) {
       product={product}
       paymentMethodOrder={paymentMethodOrder}
       expressCheckoutConfig={expressCheckoutConfig}
-      licenseValid={licenseResult.valid}
+      licenseValid={licenseValid}
       taxMode={taxMode}
       sellerSlug={data.seller.slug}
     />

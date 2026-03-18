@@ -7,7 +7,7 @@ import ProductPurchaseView from './components/ProductPurchaseView';
 import { getEffectivePaymentMethodOrder } from '@/lib/utils/payment-method-helpers';
 import { extractExpressCheckoutConfig } from '@/types/payment-config';
 import type { PaymentMethodConfig } from '@/types/payment-config';
-import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify';
+import { checkFeature } from '@/lib/license/resolve';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
@@ -91,15 +91,7 @@ export default async function CheckoutPage({ params }: PageProps) {
   const expressCheckoutConfig = extractExpressCheckoutConfig(paymentConfig);
 
   // Check Sellf license validity (controls "Powered by" branding)
-  const { data: integrationsConfig } = await adminSupabase
-    .from('integrations_config')
-    .select('sellf_license')
-    .eq('id', 1)
-    .single() as { data: { sellf_license: string | null } | null };
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
-  const licenseResult = validateLicense(integrationsConfig?.sellf_license || '', currentDomain || undefined);
-  const licenseValid = licenseResult.valid;
+  const licenseValid = await checkFeature('watermark-removal');
 
   // Get tax mode for conditional VAT display
   const shopConfig = await getShopConfig();

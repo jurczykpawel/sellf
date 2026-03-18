@@ -661,12 +661,12 @@ describe('TS-M01: sellf.js endpoint hardening', () => {
     expect(source).toMatch(/clearCache.*admin|clearCache.*auth|admin.*clearCache|requireAdmin.*clearCache/is);
   });
 
-  it('sellf/route.ts uses createAdminClient instead of raw createClient', () => {
+  it('sellf/route.ts uses checkFeature (which uses createAdminClient internally) instead of raw createClient', () => {
     const source = src('app/api/sellf/route.ts');
     // Should NOT import createClient from @supabase/supabase-js
     expect(source).not.toMatch(/from\s+['"]@supabase\/supabase-js['"]/);
-    // Should use createAdminClient or createPlatformClient
-    expect(source).toMatch(/createAdminClient|createPlatformClient/);
+    // Should use checkFeature from license/resolve (which internally uses createAdminClient)
+    expect(source).toMatch(/checkFeature/);
   });
 });
 

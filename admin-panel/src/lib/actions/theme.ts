@@ -11,11 +11,8 @@ import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { themeConfigSchema, THEME_PRESETS, getPresetById } from '@/lib/themes';
 import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
-import { validateLicense } from '@/lib/license/verify';
-import { hasFeature } from '@/lib/license/features';
-import { isDemoMode } from '@/lib/demo-guard';
+import { checkFeature } from '@/lib/license/resolve';
 import type { ActionResponse } from '@/lib/actions/admin-auth';
-import type { SellerDataClient } from '@/lib/supabase/admin';
 import type { ThemeConfig, ThemePreset } from '@/lib/themes';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -42,8 +39,22 @@ export async function getActiveTheme(): Promise<ThemeConfig | null> {
 // ===== WRITE =====
 
 export async function saveActiveTheme(theme: ThemeConfig): Promise<ActionResponse<void>> {
+  const isDemoMode = process.env.DEMO_MODE === 'true';
+
+  // Demo mode: skip auth + license (demo users can freely explore theme editor)
+  if (isDemoMode) {
+    const result = themeConfigSchema.safeParse(theme);
+    if (!result.success) {
+      return { success: false, error: `Invalid theme: ${result.error.message}` };
+    }
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(ACTIVE_THEME_PATH, JSON.stringify(result.data, null, 2), 'utf-8');
+    revalidatePath('/', 'layout');
+    return { success: true };
+  }
+
   return withAdminOrSellerAuth(async ({ dataClient }) => {
-    const licenseCheck = await checkThemeLicenseWithClient(dataClient);
+    const licenseCheck = await checkFeature('theme-customization', { dataClient });
     if (!licenseCheck) {
       return { success: false, error: 'Valid Sellf Pro license required to save themes' };
     }
@@ -74,8 +85,19 @@ export async function applyPreset(presetId: string): Promise<ActionResponse<void
 // ===== DELETE =====
 
 export async function removeActiveTheme(): Promise<ActionResponse<void>> {
+  // Demo mode: skip auth + license
+  if (process.env.DEMO_MODE === 'true') {
+    try {
+      await fs.unlink(ACTIVE_THEME_PATH);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    revalidatePath('/', 'layout');
+    return { success: true };
+  }
+
   return withAdminOrSellerAuth(async ({ dataClient }) => {
-    const licenseCheck = await checkThemeLicenseWithClient(dataClient);
+    const licenseCheck = await checkFeature('theme-customization', { dataClient });
     if (!licenseCheck) {
       return { success: false, error: 'Valid Sellf Pro license required' };
     }
@@ -104,38 +126,17 @@ export async function getThemePresets(): Promise<ThemePreset[]> {
 // ===== LICENSE CHECK =====
 
 /**
- * Internal license check using an already-authenticated data client.
- * Used by saveActiveTheme, removeActiveTheme, etc. inside withAdminOrSellerAuth.
- */
-async function checkThemeLicenseWithClient(dataClient: SellerDataClient): Promise<boolean> {
-  if (isDemoMode()) return true;
-
-  try {
-    const { data } = await dataClient
-      .from('integrations_config')
-      .select('sellf_license')
-      .eq('id', 1)
-      .single() as { data: { sellf_license: string | null } | null };
-
-    if (!data?.sellf_license) return false;
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-    const currentDomain = siteUrl ? new URL(siteUrl).hostname : undefined;
-    const result = validateLicense(data.sellf_license, currentDomain);
-
-    return result.valid && hasFeature(result.info.tier, 'theme-customization');
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Public server action for license check — requires admin/seller auth.
  * Returns ActionResponse<boolean> with the license validity in `data`.
  */
 export async function checkThemeLicense(): Promise<ActionResponse<boolean>> {
+  // Demo mode: all features unlocked without auth
+  if (process.env.DEMO_MODE === 'true') {
+    return { success: true, data: true };
+  }
+
   return withAdminOrSellerAuth(async ({ dataClient }) => {
-    const valid = await checkThemeLicenseWithClient(dataClient);
+    const valid = await checkFeature('theme-customization', { dataClient });
     return { success: true, data: valid };
   });
 }
