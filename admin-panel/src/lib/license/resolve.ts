@@ -23,6 +23,7 @@
 
 import { validateLicense, extractDomainFromUrl, doesDomainMatch } from './verify';
 import { hasFeature } from './features';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { LicenseTier } from './verify';
 import type { Feature } from './features';
 
@@ -98,7 +99,7 @@ async function readTierFromDb(
   platformDomain: string | null
 ): Promise<LicenseTier> {
   try {
-    const dbClient = client || (await import('@/lib/supabase/admin')).createAdminClient();
+    const dbClient = client || createAdminClient();
 
     const { data } = await dbClient
       .from('integrations_config')
