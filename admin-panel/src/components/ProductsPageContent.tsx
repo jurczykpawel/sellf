@@ -12,12 +12,20 @@ import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts } from '@/hooks/useProducts';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ProductsPageContent: React.FC = () => {
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const t = useTranslations('admin.products');
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { sellerSlug } = useAuth();
+
+  // Build product URLs based on context: seller uses /s/[slug]/[product], platform uses /p/[product]
+  const productPath = (productSlug: string) =>
+    sellerSlug ? `/s/${sellerSlug}/${productSlug}` : `/p/${productSlug}`;
+  const checkoutPath = (productSlug: string) =>
+    sellerSlug ? `/s/${sellerSlug}/checkout/${productSlug}` : `/checkout/${productSlug}`;
 
   // State for modals
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -186,7 +194,7 @@ const ProductsPageContent: React.FC = () => {
   };
 
   const handlePreviewProduct = (product: Product) => {
-    window.open(`/p/${product.slug}?preview=1`, '_blank');
+    window.open(`${productPath(product.slug)}?preview=1`, '_blank');
   };
 
   const handlePreviewRedirect = (product: Product) => {
@@ -295,6 +303,8 @@ const ProductsPageContent: React.FC = () => {
         products={products}
         loading={loading}
         error={error}
+        productPath={productPath}
+        checkoutPath={checkoutPath}
         onEditProduct={handleEditProduct}
         onDuplicateProduct={handleDuplicateProduct}
         onDeleteProduct={handleDeleteProductClick}

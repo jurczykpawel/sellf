@@ -14,6 +14,10 @@ interface ProductsTableProps {
   products: Product[];
   loading: boolean;
   error: string | null;
+  /** Build product page URL: /p/[slug] (platform) or /s/[seller]/[slug] (seller) */
+  productPath: (slug: string) => string;
+  /** Build checkout URL: /checkout/[slug] (platform) or /s/[seller]/checkout/[slug] (seller) */
+  checkoutPath: (slug: string) => string;
   onEditProduct: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
   onDeleteProduct: (product: Product) => void;
@@ -87,6 +91,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   products,
   loading,
   error,
+  productPath,
+  checkoutPath,
   onEditProduct,
   onDuplicateProduct,
   onDeleteProduct,
@@ -402,7 +408,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                       </svg>
                                     ),
-                                    onClick: () => window.open(`/p/${product.slug}`, '_blank'),
+                                    onClick: () => window.open(productPath(product.slug), '_blank'),
                                   },
                                   {
                                     label: t('testFunnel'),
@@ -411,7 +417,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M5 14.5l-1.43 5.725a1.125 1.125 0 001.09 1.4h14.68a1.125 1.125 0 001.09-1.4L19 14.5" />
                                       </svg>
                                     ),
-                                    onClick: () => window.open(`/checkout/${product.slug}?funnel_test=1`, '_blank'),
+                                    onClick: () => window.open(`${checkoutPath(product.slug)}?funnel_test=1`, '_blank'),
                                   },
                                   {
                                     label: t('previewRedirect'),

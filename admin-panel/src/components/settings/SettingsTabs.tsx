@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Store, CreditCard, FileText, Wrench, ShoppingBag } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ShopSettings from './ShopSettings'
@@ -37,6 +37,14 @@ interface SettingsTabsProps {
 export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: SettingsTabsProps) {
   const t = useTranslations('settings')
   const [active, setActive] = useState<TabId>('shop')
+
+  // Auto-open Payments tab when returning from Stripe Connect redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('stripe_connected') || params.has('connect_return')) {
+      setActive('payments')
+    }
+  }, [])
   const { demoMode } = useConfig()
   const { role } = useAuth()
 
@@ -81,10 +89,10 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
 
         {active === 'payments' && (
           <>
-            {role === 'seller_admin' && marketplaceEnabled && <StripeConnectStatus />}
-            <StripeSettings siteUrl={siteUrl} />
-            <StripeTaxSettings />
-            <PaymentMethodSettingsWrapper />
+            {role === 'seller_admin' && <StripeConnectStatus />}
+            {role === 'platform_admin' && <StripeSettings siteUrl={siteUrl} />}
+            {role === 'platform_admin' && <StripeTaxSettings />}
+            {role === 'platform_admin' && <PaymentMethodSettingsWrapper />}
           </>
         )}
 

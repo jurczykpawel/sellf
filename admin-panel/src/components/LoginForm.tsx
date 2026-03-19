@@ -15,7 +15,7 @@ import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from './OAuthIc
  * In demo mode, switches to email+password login
  */
 export default function LoginForm() {
-  const { demoMode, oauthProviders } = useConfig()
+  const { demoMode, passwordLoginEnabled, oauthProviders } = useConfig()
   const [email, setEmail] = useState(demoMode ? 'demo@sellf.app' : '')
   const [password, setPassword] = useState(demoMode ? 'demo123' : '')
   const [isLoading, setIsLoading] = useState(false)
@@ -45,8 +45,8 @@ export default function LoginForm() {
     setMessage('')
 
     try {
-      // Demo mode: password login (skip captcha & terms)
-      if (demoMode) {
+      // Password login mode (demo or E2E): skip captcha & terms
+      if (passwordLoginEnabled) {
         const supabase = await createClient()
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -129,7 +129,7 @@ export default function LoginForm() {
     }
   }
 
-  const hasOAuth = !demoMode && oauthProviders.length > 0
+  const hasOAuth = !passwordLoginEnabled && oauthProviders.length > 0
 
   // Form display before email is sent
   const renderLoginForm = () => (
@@ -145,12 +145,12 @@ export default function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           className="w-full px-4 py-3 bg-sf-float border border-sf-border rounded-xl text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent transition-all"
-          placeholder={demoMode ? 'demo@sellf.app' : t('auth.emailPlaceholder')}
+          placeholder={demoMode ? 'demo@sellf.app' : (passwordLoginEnabled ? '' : t('auth.emailPlaceholder'))}
         />
       </div>
 
-      {/* Password field - demo mode only */}
-      {demoMode && (
+      {/* Password field - demo/E2E mode only */}
+      {passwordLoginEnabled && (
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-sf-heading mb-2">
             {t('auth.password')}
@@ -168,26 +168,26 @@ export default function LoginForm() {
       )}
 
       {/* Terms checkbox */}
-      {!demoMode && (
+      {!passwordLoginEnabled && (
         <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} />
       )}
 
       {/* Magic link button */}
       <button
         type="submit"
-        disabled={isLoading || (!demoMode && captcha.isLoading)}
+        disabled={isLoading || (!passwordLoginEnabled && captcha.isLoading)}
         className="w-full py-3 px-4 bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold rounded-full shadow-[var(--sf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--sf-accent-glow)] focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 focus:ring-offset-sf-deep transition-[background-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
-        {isLoading || (!demoMode && captcha.isLoading) ? (
+        {isLoading || (!passwordLoginEnabled && captcha.isLoading) ? (
           <div className="flex items-center justify-center">
             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            {!demoMode && captcha.isLoading ? t('security.verifying') : (demoMode ? t('auth.signingIn') : t('productView.sendingMagicLink'))}
+            {!passwordLoginEnabled && captcha.isLoading ? t('security.verifying') : (passwordLoginEnabled ? t('auth.signingIn') : t('productView.sendingMagicLink'))}
           </div>
         ) : (
-          demoMode ? t('auth.signIn') : t('auth.sendMagicLink')
+          passwordLoginEnabled ? t('auth.signIn') : t('auth.sendMagicLink')
         )}
       </button>
 
@@ -208,8 +208,8 @@ export default function LoginForm() {
         </div>
       )}
 
-      {/* Captcha — auto-detects Turnstile vs ALTCHA; not needed in demo */}
-      {!demoMode && (
+      {/* Captcha — auto-detects Turnstile vs ALTCHA; not needed in password login mode */}
+      {!passwordLoginEnabled && (
         <CaptchaWidget
           onVerify={captcha.onVerify}
           onError={captcha.onError}

@@ -349,12 +349,17 @@ describe('Server actions: correct auth wrapper per scope', () => {
       ).toBe(false);
     });
 
-    it('stripe-config.ts uses withAdminOrSellerAuth for config management', () => {
+    it('stripe-config.ts uses withAdminAuth for platform Stripe keys (sellers use Connect)', () => {
       const source = readSource('lib/actions/stripe-config.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'stripe-config.ts must use withAdminOrSellerAuth for per-shop Stripe config'
+        /withAdminAuth/.test(source),
+        'stripe-config.ts must use withAdminAuth — sellers cannot manage platform Stripe keys'
       ).toBe(true);
+      // Must NOT use withAdminOrSellerAuth (security: seller could overwrite platform keys)
+      expect(
+        /withAdminOrSellerAuth/.test(source),
+        'stripe-config.ts must NOT use withAdminOrSellerAuth'
+      ).toBe(false);
     });
 
     it('payment.ts uses withAdminOrSellerAuth', () => {
@@ -552,7 +557,7 @@ describe('All server action files have auth wrappers', () => {
    * This is an older pattern but still valid for auth enforcement.
    */
   const USES_REQUIRE_ADMIN_API = new Set([
-    'stripe-config.ts', // Mix of requireAdminApi and withAdminOrSellerAuth
+    'stripe-config.ts', // Mix of requireAdminApi and withAdminAuth (platform-only)
   ]);
 
   it('every action file either uses auth wrappers or is explicitly whitelisted', () => {

@@ -10,6 +10,7 @@ interface AppConfig {
   captchaProvider: 'turnstile' | 'altcha' | 'none'
   siteUrl: string
   demoMode: boolean
+  passwordLoginEnabled: boolean
   oauthProviders: string[]
 }
 

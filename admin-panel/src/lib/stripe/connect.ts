@@ -51,7 +51,8 @@ export interface ConnectAccountStatus {
  * @param context - 'admin' returns to /admin/sellers, 'seller' returns to /dashboard/settings
  */
 export function buildOnboardingUrls(sellerId: string, context: 'admin' | 'seller' = 'admin'): { refreshUrl: string; returnUrl: string } {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || '';
+  // SITE_URL (runtime) takes priority over NEXT_PUBLIC_BASE_URL (baked at build time, may be localhost)
+  const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
   const returnUrl = context === 'seller'
     ? `${baseUrl}/dashboard/settings?stripe_connected=true`
     : `${baseUrl}/admin/sellers?connect_return=true&seller_id=${sellerId}`;

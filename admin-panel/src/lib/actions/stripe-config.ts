@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptStripeKey, decryptStripeKey } from '@/lib/services/stripe-encryption'
 import { requireAdminApi } from '@/lib/auth-server'
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
+import { withAdminAuth } from '@/lib/actions/admin-auth'
 import Stripe from 'stripe'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { invalidateStripeCache } from '@/lib/stripe/server'
@@ -429,7 +429,9 @@ export async function validateStripeKey(apiKey: string, expectedMode?: StripeMod
  */
 export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<SaveConfigResponse> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  // Platform admin only — sellers use Stripe Connect, not raw API keys
+  return withAdminAuth(async ({ supabase: _supabase }) => {
+    const dataClient = createAdminClient();
     // Validate the key first
     const validation = await validateStripeKey(input.apiKey, input.mode)
     if (!validation.success || !validation.data?.isValid) {
@@ -541,7 +543,9 @@ async function getActiveStripeConfigInternal(mode: StripeMode): Promise<GetActiv
  * Retrieves the active Stripe configuration for a given mode
  */
 export async function getActiveStripeConfig(mode: StripeMode): Promise<GetActiveConfigResponse> {
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  // Platform admin only — seller schemas don't have stripe_configurations
+  return withAdminAuth(async () => {
+    const dataClient = createAdminClient();
     const { data, error } = await dataClient
       .from('stripe_configurations')
       .select('*')
@@ -591,10 +595,10 @@ export async function getDecryptedStripeKeyInternal(mode: StripeMode): Promise<s
 
 /**
  * Retrieves and decrypts the active Stripe API key for a given mode.
- * Requires admin or seller authentication.
+ * Platform admin only — sellers use Stripe Connect, not raw API keys.
  */
 export async function getDecryptedStripeKey(mode: StripeMode): Promise<string | null> {
-  const result = await withAdminOrSellerAuth(async () => {
+  const result = await withAdminAuth(async () => {
     const decrypted = await getDecryptedStripeKeyInternal(mode)
     return { success: true, data: decrypted }
   })
@@ -607,7 +611,9 @@ export async function getDecryptedStripeKey(mode: StripeMode): Promise<string | 
  */
 export async function deleteStripeConfig(id: string): Promise<DeleteConfigResponse> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  // Platform admin only — sellers cannot delete Stripe configurations
+  return withAdminAuth(async () => {
+    const dataClient = createAdminClient();
     const { error } = await dataClient.from('stripe_configurations').delete().eq('id', id)
 
     if (error) {
@@ -682,7 +688,9 @@ export async function getStripeKeySource(): Promise<{ activeSource: 'db' | 'env'
  * Lists all Stripe configurations (active and inactive)
  */
 export async function listStripeConfigs(): Promise<ActionResponse<StripeConfiguration[]>> {
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  // Platform admin only — sellers don't manage platform Stripe keys
+  return withAdminAuth(async () => {
+    const dataClient = createAdminClient();
     const { data, error } = await dataClient
       .from('stripe_configurations')
       .select('*')
@@ -870,10 +878,11 @@ export async function getDecryptedWebhookSecretInternal(): Promise<string | null
 
 /**
  * Retrieves and decrypts the webhook signing secret from the active DB config.
- * Requires admin or seller authentication.
+ * Platform admin only.
  */
 export async function getDecryptedWebhookSecret(): Promise<string | null> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminAuth(async () => {
+    const dataClient = createAdminClient();
     const { data } = await dataClient
       .from('stripe_configurations')
       .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')

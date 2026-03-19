@@ -6,12 +6,11 @@ import { useTranslations } from 'next-intl';
 import { initSellerStripeConnect } from '@/lib/actions/sellers';
 
 interface ConnectStatus {
-  has_account: boolean;
-  onboarding_complete: boolean;
-  account_id: string | null;
-  charges_enabled: boolean;
-  payouts_enabled: boolean;
-  details_submitted: boolean;
+  accountId: string | null;
+  onboardingComplete: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
 }
 
 export default function StripeConnectStatus() {
@@ -65,8 +64,8 @@ export default function StripeConnectStatus() {
     );
   }
 
-  const isConnected = status?.has_account && status?.onboarding_complete;
-  const isIncomplete = status?.has_account && !status?.onboarding_complete;
+  const isConnected = !!status?.accountId && status?.onboardingComplete;
+  const isIncomplete = !!status?.accountId && !status?.onboardingComplete;
 
   return (
     <div className="bg-sf-surface border border-sf-border rounded-lg p-6">
@@ -97,7 +96,7 @@ export default function StripeConnectStatus() {
               </div>
               <div className="text-xs text-sf-muted mt-0.5">
                 {isConnected
-                  ? `${t('accountId')}: ${status?.account_id}`
+                  ? `${t('accountId')}: ${status?.accountId}`
                   : isIncomplete
                   ? t('incompleteDesc')
                   : t('notConnectedDesc')}

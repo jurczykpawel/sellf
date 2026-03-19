@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ModalSection } from '@/components/ui/Modal';
 import { PostPurchaseSectionProps } from '../types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function PostPurchaseSection({
   formData,
@@ -16,6 +17,7 @@ export function PostPurchaseSection({
   setOto,
 }: PostPurchaseSectionProps) {
   const tCommon = useTranslations('common');
+  const { sellerSlug } = useAuth();
   // Helper to detect if redirect URL points to an internal product
   const getSelectedProductFromUrl = () => {
     const url = formData.success_redirect_url || '';
@@ -41,7 +43,8 @@ export function PostPurchaseSection({
     const selectedProduct = products.find(p => p.slug === selectedSlug);
     const currentUrl = formData.success_redirect_url || '';
     const queryParams = currentUrl.includes('?') ? currentUrl.split('?')[1] : '';
-    const newUrl = `/checkout/${selectedSlug}${queryParams ? `?${queryParams}` : ''}`;
+    const checkoutBase = sellerSlug ? `/s/${sellerSlug}/checkout` : '/checkout';
+    const newUrl = `${checkoutBase}/${selectedSlug}${queryParams ? `?${queryParams}` : ''}`;
 
     setFormData(prev => ({ ...prev, success_redirect_url: newUrl }));
 

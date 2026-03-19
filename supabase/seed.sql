@@ -1105,6 +1105,14 @@ BEGIN
     '{"accent_color": "#2563eb"}'::jsonb
   );
 
+  -- Seller license for Kowalski (PRO — removes Sellf watermark/branding)
+  -- Creative Studio intentionally has NO license to test free-tier branding
+  -- License domain format: {seller_slug}.{platform_domain}
+  -- Generate with: node scripts/generate-license.js kowalski_digital.sellf.tojest.dev PRO UNLIMITED
+  INSERT INTO seller_kowalski_digital.integrations_config (id, sellf_license)
+  VALUES (1, 'SF-kowalski_digital.sellf.tojest.dev-PRO-UNLIMITED-MEUCIQCg1HEn0796oif8PhNMIQeVgsHUWzR4EYqWvbf5ODvhuwIgCrwOSW0n-Ew3CR7bOZjzJ4ztiHG3cvtbtna-4RXZv50')
+  ON CONFLICT (id) DO UPDATE SET sellf_license = EXCLUDED.sellf_license;
+
   -- Category + tags for Kowalski store
   INSERT INTO seller_kowalski_digital.categories (name, slug, description) VALUES
     ('Kursy', 'kursy', 'Kursy online i szkolenia'),

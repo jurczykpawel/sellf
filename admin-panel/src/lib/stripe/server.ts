@@ -73,7 +73,8 @@ export const getStripeServer = async (): Promise<Stripe> => {
     // Priority 2: .env configuration (alternative method)
     const envKey = process.env.STRIPE_SECRET_KEY;
     if (envKey) {
-      console.log(`[Stripe] Using .env configuration (${mode} mode)`);
+      const actualMode = envKey.startsWith('sk_test_') ? 'test' : 'live';
+      console.log(`[Stripe] Using .env configuration (${actualMode} mode)`);
       stripe = new Stripe(envKey, {
         apiVersion: STRIPE_API_VERSION,
         typescript: true,

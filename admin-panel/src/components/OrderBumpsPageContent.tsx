@@ -18,6 +18,7 @@ import OrderBumpFormModal from './OrderBumpFormModal';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { api } from '@/lib/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrderBumpWithDetails {
   id: string;
@@ -49,6 +50,9 @@ interface OrderBumpWithDetails {
 
 const OrderBumpsPageContent: React.FC = () => {
   const t = useTranslations('admin.orderBumps');
+  const { sellerSlug } = useAuth();
+  const productPath = (slug: string) =>
+    sellerSlug ? `/s/${sellerSlug}/${slug}` : `/p/${slug}`;
 
   // State for order bumps and loading status
   const [orderBumps, setOrderBumps] = useState<OrderBumpWithDetails[]>([]);
@@ -293,7 +297,7 @@ const OrderBumpsPageContent: React.FC = () => {
                   <tr key={bump.id} className={`hover:bg-sf-hover transition-colors ${index % 2 === 1 ? 'bg-sf-row-alt' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
-                        href={`/p/${bump.main_product.slug}`}
+                        href={productPath(bump.main_product.slug)}
                         className="group block"
                       >
                         <div className="text-sm font-medium text-sf-heading group-hover:text-sf-accent transition-colors">
@@ -309,7 +313,7 @@ const OrderBumpsPageContent: React.FC = () => {
                         {bump.bump_title}
                       </div>
                       <Link
-                        href={`/p/${bump.bump_product.slug}`}
+                        href={productPath(bump.bump_product.slug)}
                         className="text-xs text-sf-muted hover:text-sf-accent transition-colors"
                       >
                         {bump.bump_product.name}

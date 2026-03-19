@@ -17,6 +17,7 @@ import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
 import { getSellerBySlug, createSellerPublicClient, createSellerAdminClient } from '@/lib/marketplace/seller-client';
 import { checkFeature } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
+import { createPlatformClient } from '@/lib/supabase/admin';
 import ProductView from '@/app/[locale]/p/[slug]/components/ProductView';
 import type { Product } from '@/types';
 
@@ -72,22 +73,37 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
   const { seller: sellerSlug, product: productSlug } = await params;
   const resolvedSearch = searchParams ? await searchParams : {};
 
-  // Preview mode check (same as /p/[slug])
+  // Preview mode: allowed for platform admins AND the seller who owns this store
   let previewMode = false;
   if (resolvedSearch?.preview === '1') {
     try {
       const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      console.log('[Seller Preview] user:', user?.id, 'authErr:', authErr?.message, 'sellerSlug:', sellerSlug);
       if (user) {
+        // Platform admin check
         const { data: admin } = await supabase
           .from('admin_users')
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (admin) previewMode = true;
+        if (admin) {
+          previewMode = true;
+        } else {
+          // Seller owner check: user owns this seller store
+          const platform = createPlatformClient();
+          const { data: sellerOwner } = await platform
+            .from('sellers')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('slug', sellerSlug.replace(/-/g, '_'))
+            .eq('status', 'active')
+            .maybeSingle();
+          if (sellerOwner) previewMode = true;
+        }
       }
-    } catch {
-      // Auth failure — preview mode stays false
+    } catch (err) {
+      console.error('[Seller Preview] Auth check failed:', err);
     }
   }
 
