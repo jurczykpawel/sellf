@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
+import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
 
 export async function GET(
   request: NextRequest,
@@ -18,17 +19,28 @@ export async function GET(
 
     const { slug } = await context.params;
     const supabase = await createClient();
-    
+
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Resolve data client: seller schema if ?seller= param, otherwise default (user's session client)
+    const sellerSlug = request.nextUrl.searchParams.get('seller');
+    let dataClient: typeof supabase = supabase;
+    if (sellerSlug) {
+      const seller = await getSellerBySlug(sellerSlug);
+      if (!seller) {
+        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
+      }
+      dataClient = createSellerAdminClient(seller.schema_name) as unknown as typeof supabase;
+    }
+
     // Two-step query to avoid FK embedding through proxy views (PGRST200).
     // Step 1: Fetch product by slug
-    const { data: productWithAccess, error: productError } = await supabase
+    const { data: productWithAccess, error: productError } = await dataClient
       .from('products')
       .select(`
         id,
@@ -53,8 +65,8 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Step 2: Check user access separately
-    const { data: userAccessData, error: accessError } = await supabase
+    // Step 2: Check user access separately (use dataClient for seller schema)
+    const { data: userAccessData, error: accessError } = await dataClient
       .from('user_product_access')
       .select('access_expires_at, access_duration_days, created_at')
       .eq('product_id', productWithAccess.id)

@@ -144,7 +144,7 @@ export default function ProductView({ product, licenseValid, previewMode = false
 
   // Check if user has access (non-redirect products)
   if (accessData?.hasAccess) {
-    return <ProductAccessView product={product} licenseValid={licenseValid} previewMode={previewMode} />;
+    return <ProductAccessView product={product} licenseValid={licenseValid} previewMode={previewMode} sellerSlug={sellerSlug} />;
   }
 
   // Handle different reasons for lack of access
