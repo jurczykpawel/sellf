@@ -87,7 +87,8 @@ describe('useCountdown — source verification', () => {
       /isAuthenticatedSuccess\s*\|\|\s*isGuestSuccessWithRedirect/,
     );
     expect(countdownSource).toContain('window.location.href = redirectUrl');
-    expect(countdownSource).toMatch(/router\.push\(`\/p\/\$\{productSlug\}`\)/);
+    // Seller-aware redirect: uses productUrl() helper instead of hardcoded /p/
+    expect(countdownSource).toMatch(/router\.push\(productUrl\(productSlug/);
   });
 
   it('defaults disableAutoRedirect and magicLinkSent to false', () => {
@@ -123,7 +124,7 @@ describe('PaymentStatusView — source verification', () => {
 
   it('OTO skip: redirects authenticated user, sends magic link for guest', () => {
     expect(viewSource).toMatch(
-      /handleOtoSkip[\s\S]*?auth\.isAuthenticated[\s\S]*?router\.push\(`\/p\/\$\{product\.slug\}`\)/,
+      /handleOtoSkip[\s\S]*?auth\.isAuthenticated[\s\S]*?router\.push\(buildProductUrl\(product\.slug\)\)/,
     );
     expect(viewSource).toMatch(
       /handleOtoSkip[\s\S]*?magicLink\.sendMagicLink\(\)/,

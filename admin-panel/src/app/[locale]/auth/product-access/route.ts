@@ -1,19 +1,28 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createSellerAdminClient, getSellerBySlug } from '@/lib/marketplace/seller-client';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { productUrl, paymentStatusUrl } from '@/lib/utils/product-urls';
 
 /**
- * Helper function to handle redirect with return_url support
+ * Product Access Route
+ *
+ * Handles the magic link callback after a user claims a free product.
+ * Flow: FreeProductForm → magic link email → /auth/callback → this route
+ *
+ * Query params:
+ *   product    — product slug (required)
+ *   seller     — seller slug (optional, for marketplace products)
+ *   return_url — override redirect target (validated for safety)
+ *   success_url — OTO/funnel success URL passthrough
  */
-function handleRedirect(url: string, returnUrl?: string | null) {
+
+function safeRedirect(url: string, returnUrl?: string | null) {
   if (returnUrl && isSafeRedirectUrl(returnUrl)) {
     try {
       redirect(returnUrl);
     } catch (error) {
-      // Only catch actual errors, not NEXT_REDIRECT
-      if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
-        throw error;
-      }
+      if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
       redirect(url);
     }
   } else {
@@ -23,163 +32,133 @@ function handleRedirect(url: string, returnUrl?: string | null) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const productSlug = searchParams.get('product');
+  const slug = searchParams.get('product');
+  const sellerSlug = searchParams.get('seller');
   const returnUrl = searchParams.get('return_url');
   const successUrl = searchParams.get('success_url');
 
-  // If no product slug is provided, redirect to homepage
-  if (!productSlug) {
-    handleRedirect('/');
+  if (!slug) {
+    safeRedirect('/');
     return;
   }
 
-  // Initialize Supabase client
-  const supabase = await createClient();
+  // Build product URL once — used for all fallback redirects
+  const prodUrl = productUrl(slug, sellerSlug);
+  const statusUrl = paymentStatusUrl(slug, sellerSlug);
 
-  // Get authenticated user
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
   if (!user) {
-    // If user is not authenticated, redirect to product page with return_url preserved
-    handleRedirect(`/p/${productSlug}`, returnUrl);
+    safeRedirect(prodUrl, returnUrl);
     return;
+  }
+
+  // Resolve data client: seller schema or platform (seller_main)
+  let dataClient: typeof supabase = supabase;
+  if (sellerSlug) {
+    const seller = await getSellerBySlug(sellerSlug);
+    if (seller) {
+      dataClient = createSellerAdminClient(seller.schema_name) as unknown as typeof supabase;
+    }
   }
 
   try {
-    // First, check if the user already has access to the product.
-    // Two-step query: find product by slug, then check access — avoids FK embedding
-    // which doesn't work through proxy views in public schema (PGRST200).
-    const { data: product } = await supabase
+    // Check existing access
+    const { data: product } = await dataClient
       .from('products')
       .select('id')
-      .eq('slug', productSlug)
+      .eq('slug', slug)
       .single();
 
     let existingAccess = null;
-    let accessError = null;
     if (product) {
-      const result = await supabase
+      const { data } = await dataClient
         .from('user_product_access')
         .select('*')
         .eq('user_id', user.id)
         .eq('product_id', product.id)
-        .single();
-      existingAccess = result.data;
-      accessError = result.error;
+        .maybeSingle();
+      existingAccess = data;
     }
 
-    if (accessError && accessError.code !== 'PGRST116') { // PGRST116 is "not found" error
-      console.error(`[ProductAccess] Error checking existing access:`, accessError);
-      // Continue execution instead of redirecting - we'll just attempt to grant access
-    }
-
-    // If the user doesn't have access, check if product is free and grant access if so
+    // No access yet — check if product is free and grant
     if (!existingAccess) {
-      const { data: productDetails, error: productError } = await supabase
+      const { data: productDetails, error: productError } = await dataClient
         .from('products')
         .select('*')
-        .eq('slug', productSlug)
+        .eq('slug', slug)
         .eq('is_active', true)
         .single();
 
-      if (productError) {
-        console.error(`[ProductAccess] Error fetching product:`, productError);
-        // If we can't find the product, redirect to home page with return_url
-        handleRedirect('/', returnUrl);
+      if (productError || !productDetails) {
+        safeRedirect('/', returnUrl);
         return;
       }
 
-      if (!productDetails) {
-        handleRedirect('/', returnUrl);
-        return;
-      }
-
-      // Check if product qualifies for free access grant
-      // SECURITY: Only explicit 0 qualifies — null is NOT treated as free (fail-closed)
       const isPwywFree = productDetails.allow_custom_price && productDetails.custom_price_min === 0;
       const isFreeEligible = productDetails.price === 0 || isPwywFree;
 
       if (isFreeEligible) {
-        // Use appropriate RPC based on product type
         const rpcName = isPwywFree && productDetails.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
-        const { data: accessResult, error: grantError } = await supabase
+        const { data: accessResult, error: grantError } = await dataClient
           .rpc(rpcName, {
-            product_slug_param: productSlug,
-            access_duration_days_param: null // Will use product's auto_grant_duration_days
+            product_slug_param: slug,
+            access_duration_days_param: null,
           });
 
         if (grantError) {
           console.error(`[ProductAccess] Error granting access:`, grantError);
-          handleRedirect(`/p/${productSlug}`, returnUrl);
-          return;
-        } else if (accessResult) {
-          // Redirect to payment success page to show confetti
-          const paymentStatusUrl = `/p/${productSlug}/payment-status${successUrl ? `?success_url=${encodeURIComponent(successUrl)}` : ''}`;
-          handleRedirect(paymentStatusUrl, returnUrl);
-          return;
-        } else {
-          console.error(`[ProductAccess] ${rpcName} returned false - product might not qualify`);
-          handleRedirect(`/p/${productSlug}`, returnUrl);
+          safeRedirect(prodUrl, returnUrl);
           return;
         }
-      } else {
-        // If product exists but is not free, redirect to payment page with return_url
-        handleRedirect(`/p/${productSlug}`, returnUrl);
+
+        if (accessResult) {
+          const qs = successUrl ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(successUrl)}` : '';
+          safeRedirect(`${statusUrl}${qs}`, returnUrl);
+          return;
+        }
+
+        console.error(`[ProductAccess] ${rpcName} returned false`);
+        safeRedirect(prodUrl, returnUrl);
         return;
       }
-    }
-    // At this point, user either already had access or we've granted it (for free products)
-    // Get the product's content delivery configuration
-    const { data: redirectProduct, error: redirectError } = await supabase
-      .from('products')
-      .select('content_delivery_type, content_config')
-      .eq('slug', productSlug)
-      .single();
 
-    if (redirectError) {
-      console.error(`[ProductAccess] Error fetching product for redirect:`, redirectError);
-      // If we can't fetch the redirect info, just go to the product page with return_url
-      handleRedirect(`/p/${productSlug}`, returnUrl);
+      // Paid product — redirect to product/checkout page
+      safeRedirect(prodUrl, returnUrl);
       return;
     }
 
-    // Redirect to the specified URL if available, otherwise to the product page
+    // User has access — check content delivery type for redirect products
+    const { data: redirectProduct } = await dataClient
+      .from('products')
+      .select('content_delivery_type, content_config')
+      .eq('slug', slug)
+      .single();
+
     if (redirectProduct?.content_delivery_type === 'redirect' && redirectProduct?.content_config?.redirect_url) {
-      // Security: Validate redirect URL to prevent open redirect attacks
       try {
         const redirectUrl = new URL(redirectProduct.content_config.redirect_url);
-        
-        // Basic security checks
         if (redirectUrl.protocol !== 'https:' && redirectUrl.protocol !== 'http:') {
-          console.warn(`[ProductAccess] Invalid protocol in redirect URL: ${redirectUrl.protocol}`);
-          handleRedirect(`/p/${productSlug}`, returnUrl);
+          safeRedirect(prodUrl, returnUrl);
           return;
         }
-        
-        // Block dangerous URLs (can be expanded)
         const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0'];
         if (blockedHosts.includes(redirectUrl.hostname)) {
-          console.warn(`[ProductAccess] Blocked redirect to localhost/internal IP`);
-          handleRedirect(`/p/${productSlug}`, returnUrl);
+          safeRedirect(prodUrl, returnUrl);
           return;
         }
-        
-        // Redirect to the validated URL (use parsed URL, not raw input)
         redirect(redirectUrl.href);
       } catch (error) {
-        console.error(`[ProductAccess] Invalid redirect URL:`, error);
-        handleRedirect(`/p/${productSlug}`, returnUrl);
+        if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+        safeRedirect(prodUrl, returnUrl);
         return;
       }
     } else {
-      handleRedirect(`/p/${productSlug}`, returnUrl);
+      safeRedirect(prodUrl, returnUrl);
     }
   } catch (error) {
-    // Handle any unexpected errors (but not NEXT_REDIRECT)
-    if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
-      throw error; // Re-throw NEXT_REDIRECT - this is expected behavior
-    }
-    // Instead of redirecting to access-denied, redirect to the product page
-    // This gives a better user experience if something goes wrong
-    handleRedirect(`/p/${productSlug}`, returnUrl);
+    if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+    safeRedirect(prodUrl, returnUrl);
   }
 }
