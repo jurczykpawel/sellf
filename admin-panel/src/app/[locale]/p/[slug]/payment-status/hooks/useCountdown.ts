@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { COUNTDOWN_START } from '../utils/helpers';
 import { PaymentStatus } from '../types';
+import { productUrl } from '@/lib/utils/product-urls';
 
 interface UseCountdownParams {
   paymentStatus: PaymentStatus;
@@ -48,7 +49,8 @@ export function useCountdown({
           if (redirectUrl) {
             window.location.href = redirectUrl;
           } else {
-            router.push(`/p/${productSlug}`);
+            const sellerSlug = new URLSearchParams(window.location.search).get('seller');
+            router.push(productUrl(productSlug, sellerSlug));
           }
         }
       }, 1000);

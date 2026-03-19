@@ -48,7 +48,10 @@ export function useMagicLink({
       const paymentParam = sessionId
         ? `session_id=${sessionId}`
         : `payment_intent=${paymentIntentId}`;
-      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(`/p/${product.slug}/payment-status?${paymentParam}`)}`;
+      const sellerParam = new URLSearchParams(window.location.search).get('seller');
+      const productBase = sellerParam ? `/s/${sellerParam}/${product.slug}` : `/p/${product.slug}`;
+      const sellerQs = sellerParam ? `&seller=${encodeURIComponent(sellerParam)}` : '';
+      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(`${productBase}/payment-status?${paymentParam}${sellerQs}`)}`;
       const supabase = await createClient();
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: customerEmail,

@@ -118,7 +118,9 @@ export default function FreeProductForm({ product, sellerSlug }: FreeProductForm
         if (successUrl) params.set('success_url', successUrl);
         if (sellerSlug) params.set('seller', sellerSlug);
         const qs = params.toString();
-        const redirectPath = `/p/${product.slug}/payment-status${qs ? `?${qs}` : ''}`;
+        const statusBase = sellerSlug ? `/p/${product.slug}/payment-status?seller=${encodeURIComponent(sellerSlug)}` : `/p/${product.slug}/payment-status`;
+        const sep = statusBase.includes('?') ? '&' : '?';
+        const redirectPath = qs ? `${statusBase}${sep}${qs}` : statusBase;
         router.push(redirectPath);
       } catch {
         toast.error(t('unexpectedError'));

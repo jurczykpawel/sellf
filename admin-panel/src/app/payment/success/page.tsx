@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { paymentStatusUrl } from '@/lib/utils/product-urls';
 
 interface PaymentSuccessPageProps {
   searchParams: Promise<{
@@ -44,12 +45,11 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
     // Use productSlug if available (it's in URL as 'product' param from CustomPaymentForm)
     // Otherwise fetch product by ID
     if (productSlug) {
-      let redirectUrl = `/${locale}/p/${productSlug}/payment-status?payment_intent=${paymentIntent}`;
+      const baseUrl = `/${locale}${paymentStatusUrl(productSlug, sellerSlug)}`;
+      const sep = baseUrl.includes('?') ? '&' : '?';
+      let redirectUrl = `${baseUrl}${sep}payment_intent=${paymentIntent}`;
       if (successUrl) {
         redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
-      }
-      if (sellerSlug) {
-        redirectUrl += `&seller=${encodeURIComponent(sellerSlug)}`;
       }
       redirect(redirectUrl);
     } else if (productId) {
@@ -57,12 +57,11 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
         const response = await fetch(`${process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/products/${productId}`);
         const data = await response.json();
         if (data.product?.slug) {
-          let redirectUrl = `/${locale}/p/${data.product.slug}/payment-status?payment_intent=${paymentIntent}`;
+          const baseUrl2 = `/${locale}${paymentStatusUrl(data.product.slug, sellerSlug)}`;
+          const sep2 = baseUrl2.includes('?') ? '&' : '?';
+          let redirectUrl = `${baseUrl2}${sep2}payment_intent=${paymentIntent}`;
           if (successUrl) {
             redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
-          }
-          if (sellerSlug) {
-            redirectUrl += `&seller=${encodeURIComponent(sellerSlug)}`;
           }
           redirect(redirectUrl);
         }
@@ -75,7 +74,8 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
 
   // OLD FLOW: If we have a product slug (embedded checkout), redirect to it
   if (productSlug && !paymentIntent) {
-    redirect(`/p/${productSlug}?payment=success`);
+    const productBase = sellerSlug ? `/s/${sellerSlug}/${productSlug}` : `/p/${productSlug}`;
+    redirect(`${productBase}?payment=success`);
   }
 
   // If we have a session ID but no product slug, show generic success page (old flow)

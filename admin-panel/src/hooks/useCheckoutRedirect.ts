@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import type { Product } from '@/types';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { productUrl } from '@/lib/utils/product-urls';
 
 interface UseCheckoutRedirectOptions {
   product: Product;
@@ -74,7 +75,8 @@ export function useCheckoutRedirect({
     }
 
     // Priority 6: default — product page
-    router.push(`/p/${product.slug}`);
+    const sellerSlug = searchParams.get('seller');
+    router.push(productUrl(product.slug, sellerSlug));
   }, [product.slug, product.success_redirect_url, router, bumpSelected, searchParams, isFunnelTest, funnelTestOtoSlug, t]);
 
   // Countdown and auto-redirect after access granted
