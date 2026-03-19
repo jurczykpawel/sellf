@@ -1379,3 +1379,473 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
     expect(failed).toBe(true);
   });
 });
+
+// ============================================================================
+// 13. Fixed price edge cases
+// ============================================================================
+
+describe('Fixed price edge cases', () => {
+  it('should reject fixed price product when amount is TOO HIGH', async () => {
+    // mainProduct.price = $50, so expected = 5000 cents
+    // Send 20000 cents ($200) - should reject with "Amount mismatch"
+    const sid = `cs_test_fixed_too_high_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `fixed-high-${TS}@example.com`,
+      amount_total: 20000,
+      currency_param: 'USD',
+    });
+
+    // RAISE EXCEPTION 'Amount mismatch: ...' is caught by EXCEPTION handler
+    const failed = (data?.success === false) || (error != null);
+    expect(failed).toBe(true);
+    if (data) {
+      expect(data.success).toBe(false);
+    }
+  });
+
+  it('should reject fixed price product WITH bumps when total does not match', async () => {
+    // mainProduct.price = $50, bump0.bump_price = $10
+    // Expected = ($50 + $10) * 100 = 6000 cents
+    // Send 5500 cents (incorrect) - should reject
+    const sid = `cs_test_fixed_bumps_mismatch_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `fixed-bumps-bad-${TS}@example.com`,
+      amount_total: 5500,
+      currency_param: 'USD',
+      bump_product_ids_param: [bumpProducts[0].id],
+    });
+
+    const failed = (data?.success === false) || (error != null);
+    expect(failed).toBe(true);
+    if (data) {
+      expect(data.success).toBe(false);
+    }
+  });
+
+  it('should accept fixed price product WITH bumps when total matches exactly (regression)', async () => {
+    // mainProduct.price = $50, bump0.bump_price = $10, bump1.bump_price = $15
+    // Expected = ($50 + $10 + $15) * 100 = 7500 cents
+    const sid = `cs_test_fixed_bumps_ok_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `fixed-bumps-ok-${TS}@example.com`,
+      amount_total: 7500,
+      currency_param: 'USD',
+      bump_product_ids_param: [bumpProducts[0].id, bumpProducts[1].id],
+    });
+
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+  });
+});
+
+// ============================================================================
+// 14. Bump edge cases
+// ============================================================================
+
+describe('Bump edge cases', () => {
+  it('should treat empty bump array [] like no bumps', async () => {
+    // array_length('{}'::UUID[], 1) returns NULL in PostgreSQL
+    // so the bump validation loop is skipped entirely
+    // Expected amount = mainProduct.price * 100 = 5000 cents
+    const sid = `cs_test_empty_bumps_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `empty-bumps-${TS}@example.com`,
+      amount_total: 5000,
+      currency_param: 'USD',
+      bump_product_ids_param: [],
+    });
+
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+  });
+
+  it('should silently skip bump product with no order_bump record for this main product', async () => {
+    // Create a product that exists but has NO order_bump linking it to mainProduct
+    const { data: orphanProduct, error: opErr } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `RPC Orphan Bump ${TS}`,
+        slug: `rpc-orphan-bump-${TS}`,
+        price: 20.0,
+        currency: 'USD',
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (opErr) throw opErr;
+    createdProductIds.push(orphanProduct.id);
+
+    // Pass orphan as bump - JOIN on order_bumps will find nothing
+    // bump_count stays 0, total_bump_price stays 0
+    // So expected amount = mainProduct.price * 100 = 5000 cents
+    const sid = `cs_test_orphan_bump_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `orphan-bump-${TS}@example.com`,
+      amount_total: 5000,
+      currency_param: 'USD',
+      bump_product_ids_param: [orphanProduct.id],
+    });
+
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+  });
+
+  it('should handle duplicate product ID in bump array', async () => {
+    // Passing the same bump product ID twice
+    // The bump validation loop JOINs unnest(bump_ids) with products and order_bumps
+    // The same product will match twice, adding its price twice to total_bump_price
+    // Then line_items INSERT has UNIQUE(transaction_id, product_id) constraint
+    // which will cause a duplicate key violation on the second insert
+    //
+    // Expected behavior: either the function handles it gracefully (skipping dupes)
+    // or raises an exception caught by the EXCEPTION handler
+    const sid = `cs_test_dup_bump_${TS}`;
+    createdSessionIds.push(sid);
+
+    // bump0.bump_price = $10
+    // If counted twice: expected = ($50 + $10 + $10) * 100 = 7000 cents
+    // If counted once: expected = ($50 + $10) * 100 = 6000 cents
+    // We send 7000 to match the double-counted amount, so validation passes
+    // but the unique constraint on payment_line_items will fail
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `dup-bump-${TS}@example.com`,
+      amount_total: 7000,
+      currency_param: 'USD',
+      bump_product_ids_param: [bumpProducts[0].id, bumpProducts[0].id],
+    });
+
+    // The unique constraint violation is caught by EXCEPTION WHEN OTHERS
+    // and returns {success: false, error: 'Payment processing failed...'}
+    const failed = (data?.success === false) || (error != null);
+    expect(failed).toBe(true);
+    if (data) {
+      expect(data.success).toBe(false);
+    }
+  });
+
+  it('should handle bump product with different currency than main product', async () => {
+    // Create a bump product in EUR while main product is USD
+    const { data: eurProduct, error: eurErr } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `RPC EUR Bump ${TS}`,
+        slug: `rpc-eur-bump-${TS}`,
+        price: 15.0,
+        currency: 'EUR',
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (eurErr) throw eurErr;
+    createdProductIds.push(eurProduct.id);
+
+    // Create order_bump linking EUR product to USD main product
+    const { data: eurOb, error: eurObErr } = await supabaseAdmin
+      .from('order_bumps')
+      .insert({
+        main_product_id: mainProduct.id,
+        bump_product_id: eurProduct.id,
+        bump_title: 'EUR Bump',
+        bump_price: 12.0,
+        display_order: 10,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (eurObErr) throw eurObErr;
+    createdOrderBumpIds.push(eurOb.id);
+
+    // The function does NOT validate bump currency against main product currency.
+    // It uses COALESCE(ob.bump_price, p.price) for amount validation
+    // and stores upper(COALESCE(bump_rec.currency, currency_param)) in line items.
+    // So it should succeed: expected = ($50 + $12) * 100 = 6200 cents
+    const sid = `cs_test_eur_bump_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `eur-bump-${TS}@example.com`,
+      amount_total: 6200,
+      currency_param: 'USD',
+      bump_product_ids_param: [eurProduct.id],
+    });
+
+    // Should succeed - no cross-currency validation on bumps
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+
+    // Verify line item stores the bump's own currency (EUR)
+    const { data: txs } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    if (txs) {
+      const { data: lineItems } = await supabaseAdmin
+        .from('payment_line_items')
+        .select('currency, item_type')
+        .eq('transaction_id', txs.id)
+        .eq('item_type', 'order_bump');
+      expect(lineItems!.length).toBe(1);
+      expect(lineItems![0].currency).toBe('EUR');
+    }
+  });
+});
+
+// ============================================================================
+// 15. Pending payment conversion
+// ============================================================================
+
+describe('Pending payment conversion', () => {
+  it('should UPDATE existing pending transaction instead of INSERT when stripe_payment_intent_id matches', async () => {
+    const paymentIntentId = `pi_test_pending_${TS}`;
+    const pendingSessionId = `cs_test_pending_orig_${TS}`;
+    createdSessionIds.push(pendingSessionId);
+
+    // Manually insert a pending transaction
+    const { data: pendingTx, error: ptxErr } = await supabaseAdmin
+      .from('payment_transactions')
+      .insert({
+        session_id: pendingSessionId,
+        product_id: mainProduct.id,
+        customer_email: `pending-${TS}@example.com`,
+        amount: 5000,
+        currency: 'USD',
+        stripe_payment_intent_id: paymentIntentId,
+        status: 'pending',
+        metadata: {},
+      })
+      .select()
+      .single();
+    if (ptxErr) throw ptxErr;
+
+    // Now call RPC with the same stripe_payment_intent_id
+    // The function should find the pending transaction and UPDATE it
+    const completionSessionId = `cs_test_pending_complete_${TS}`;
+    createdSessionIds.push(completionSessionId);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: completionSessionId,
+      product_id_param: mainProduct.id,
+      customer_email_param: `pending-${TS}@example.com`,
+      amount_total: 5000,
+      currency_param: 'USD',
+      stripe_payment_intent_id: paymentIntentId,
+    });
+
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+
+    // Verify the original pending transaction was updated to 'completed'
+    const { data: updatedTx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id, status, metadata')
+      .eq('id', pendingTx.id)
+      .single();
+
+    expect(updatedTx).toBeTruthy();
+    expect(updatedTx!.status).toBe('completed');
+    expect(updatedTx!.metadata?.converted_from_pending).toBe(true);
+
+    // Verify NO new transaction was created with the completion session_id
+    const { data: newTxs } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', completionSessionId);
+
+    // The pending transaction was updated, not a new one inserted
+    // So the completion session_id should not exist as a separate transaction
+    expect(newTxs!.length).toBe(0);
+  });
+});
+
+// ============================================================================
+// 16. Concurrency & security
+// ============================================================================
+
+describe('Concurrency & security', () => {
+  it('should reject SQL injection attempt in session_id via format validation', async () => {
+    // The regex '^(cs_|pi_)[a-zA-Z0-9_]+$' rejects special chars like quotes, semicolons
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: "cs_test'; DROP TABLE--",
+      product_id_param: mainProduct.id,
+      customer_email_param: `sqli-${TS}@example.com`,
+      amount_total: 5000,
+      currency_param: 'USD',
+    });
+
+    if (data) {
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('Invalid session ID format');
+    } else {
+      expect(error).toBeTruthy();
+    }
+  });
+
+  it('should reject NULL currency_param via payment_line_items NOT NULL constraint', async () => {
+    // The products table has NOT NULL on currency, so all products have a currency.
+    // However, currency_param is a separate RPC parameter.
+    // If someone passes NULL as currency_param, the product currency check passes
+    // (product.currency IS NOT NULL, upper(NULL) != upper('USD') -> currency mismatch exception).
+    // Test: pass null currency_param with a normal product that has currency set.
+    const sid = `cs_test_null_currency_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `null-currency-${TS}@example.com`,
+      amount_total: 5000,
+      currency_param: null as unknown as string,
+    });
+
+    // upper(NULL) != upper('USD') triggers RAISE EXCEPTION 'Currency mismatch'
+    // which is caught by the EXCEPTION handler
+    const failed = (data?.success === false) || (error != null);
+    expect(failed).toBe(true);
+    if (data) {
+      expect(data.success).toBe(false);
+    }
+  });
+});
+
+// ============================================================================
+// 17. Line items verification
+// ============================================================================
+
+describe('Line items verification', () => {
+  it('should create correct line items with proper item_type after payment with bumps', async () => {
+    const sid = `cs_test_line_items_${TS}`;
+    createdSessionIds.push(sid);
+
+    // mainProduct.price = $50, bump0.bump_price = $10, bump1.bump_price = $15
+    // Total = ($50 + $10 + $15) * 100 = 7500 cents
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `line-items-${TS}@example.com`,
+      amount_total: 7500,
+      currency_param: 'USD',
+      bump_product_ids_param: [bumpProducts[0].id, bumpProducts[1].id],
+    });
+
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+
+    // Get the transaction
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    expect(tx).toBeTruthy();
+
+    // Get all line items for this transaction
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('product_id, item_type, unit_price, total_price, currency, product_name, order_bump_id')
+      .eq('transaction_id', tx!.id)
+      .order('item_type', { ascending: true }); // main_product comes first alphabetically
+
+    expect(lineItems).toBeTruthy();
+    expect(lineItems!.length).toBe(3); // 1 main + 2 bumps
+
+    // Verify main product line item
+    const mainItem = lineItems!.find(li => li.item_type === 'main_product');
+    expect(mainItem).toBeTruthy();
+    expect(mainItem!.product_id).toBe(mainProduct.id);
+    expect(Number(mainItem!.unit_price)).toBe(mainProduct.price); // $50
+    expect(Number(mainItem!.total_price)).toBe(mainProduct.price); // $50 (qty=1)
+    expect(mainItem!.currency).toBe('USD');
+    expect(mainItem!.order_bump_id).toBeNull();
+
+    // Verify bump line items
+    const bumpItems = lineItems!.filter(li => li.item_type === 'order_bump');
+    expect(bumpItems.length).toBe(2);
+
+    // All bump items should have order_bump_id set
+    for (const bi of bumpItems) {
+      expect(bi.order_bump_id).toBeTruthy();
+      expect(bi.currency).toBe('USD');
+    }
+
+    // Verify bump prices match order_bump.bump_price (not product.price)
+    // bump0: product.price=$30 but bump_price=$10
+    // bump1: product.price=$40 but bump_price=$15
+    const bump0Item = bumpItems.find(bi => bi.product_id === bumpProducts[0].id);
+    expect(bump0Item).toBeTruthy();
+    expect(Number(bump0Item!.unit_price)).toBe(10); // bump_price, not product.price
+
+    const bump1Item = bumpItems.find(bi => bi.product_id === bumpProducts[1].id);
+    expect(bump1Item).toBeTruthy();
+    expect(Number(bump1Item!.unit_price)).toBe(15); // bump_price, not product.price
+  });
+
+  it('should use product.price for main item and order_bumps.bump_price for bump items', async () => {
+    // This is a focused regression test:
+    // main product uses product_record.price for line item unit_price
+    // bump uses COALESCE(ob.bump_price, p.price) for line item unit_price
+    const sid = `cs_test_price_sources_${TS}`;
+    createdSessionIds.push(sid);
+
+    // Use just one bump: bump0 (product.price=$30, bump_price=$10)
+    // Expected = ($50 + $10) * 100 = 6000 cents
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `price-sources-${TS}@example.com`,
+      amount_total: 6000,
+      currency_param: 'USD',
+      bump_product_ids_param: [bumpProducts[0].id],
+    });
+
+    expect(error).toBeFalsy();
+    expect(data?.success).toBe(true);
+
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    expect(tx).toBeTruthy();
+
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('product_id, item_type, unit_price')
+      .eq('transaction_id', tx!.id);
+
+    expect(lineItems!.length).toBe(2);
+
+    const mainLI = lineItems!.find(li => li.item_type === 'main_product');
+    const bumpLI = lineItems!.find(li => li.item_type === 'order_bump');
+
+    // Main product: unit_price = product.price = $50
+    expect(Number(mainLI!.unit_price)).toBe(50);
+
+    // Bump: unit_price = COALESCE(ob.bump_price, p.price) = $10 (not $30)
+    expect(Number(bumpLI!.unit_price)).toBe(10);
+  });
+});
