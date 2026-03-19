@@ -5,7 +5,7 @@
  * Uses fake Facebook credentials so the FB Graph API call fails, but we can
  * still verify consent logic, validation, and rate limiting that happen before it.
  *
- * Run: bun run test:api (requires dev server running at localhost:3000)
+ * Run: bun run test:api (requires dev server running at localhost:3777)
  *
  * @see admin-panel/src/app/api/tracking/fb-capi/route.ts
  */
@@ -17,7 +17,7 @@ import { createClient } from '@supabase/supabase-js';
 // Test configuration
 // ---------------------------------------------------------------------------
 
-const API_URL = process.env.TEST_API_URL || 'http://localhost:3000';
+const API_URL = process.env.TEST_API_URL || 'http://localhost:3777';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 

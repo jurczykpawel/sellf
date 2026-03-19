@@ -36,7 +36,7 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
 
     // 2. Create Free Product with DB Redirect
     // We redirect to the CHECKOUT of the OTO product to simulate a funnel
-    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/checkout/${otoSlug}`;
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3777'}/checkout/${otoSlug}`;
     
     await supabaseAdmin.from('products').insert({
       name: 'Free Trigger DB',

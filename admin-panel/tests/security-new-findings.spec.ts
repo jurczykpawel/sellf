@@ -190,7 +190,7 @@ test.describe('V6: Mass Assignment in Coupon PATCH', () => {
     const authCookie = `${cookieKey}=base64-${base64Value}`;
 
     // Send PATCH via v1 API with cookie auth trying to reset usage_count
-    const response = await request.patch(`http://localhost:3000/api/v1/coupons/${testCouponId}`, {
+    const response = await request.patch(`/api/v1/coupons/${testCouponId}`, {
       headers: {
         'Cookie': authCookie,
         'Content-Type': 'application/json',
@@ -271,7 +271,7 @@ test.describe('V9: SSRF in Webhook URL Configuration', () => {
     ];
 
     for (const url of internalUrls) {
-      const response = await request.post(`http://localhost:3000/api/v1/webhooks`, {
+      const response = await request.post(`/api/v1/webhooks`, {
         headers: {
           'Cookie': authCookie,
           'Content-Type': 'application/json',

@@ -126,8 +126,7 @@ export async function GET(request: Request) {
     const productSlug = url.searchParams.get('productSlug');
 
     // Get main domain from environment or default to current host
-    const mainDomain = process.env.MAIN_DOMAIN ||
-                      (process.env.NODE_ENV === 'development' ? 'localhost:3000' : request.headers.get('host') || 'localhost:3000');
+    const mainDomain = process.env.MAIN_DOMAIN || request.headers.get('host') || 'localhost:3000';
 
     // Generate the sellf script using the new generator
     const config = {

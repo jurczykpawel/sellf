@@ -26,7 +26,7 @@ test.describe('Admin Refund API - Auth Tests', () => {
   test('AUTH: Unauthenticated request is rejected', async ({ request }) => {
     console.log(`\n🔍 Testing unauthenticated access to refund endpoint`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -115,7 +115,7 @@ test.describe('Admin Refund API Tests', () => {
 
     // Make 2 concurrent refund requests
     const refundPromises = [
-      request.post(`http://localhost:3000/api/admin/payments/refund`, {
+      request.post(`/api/admin/payments/refund`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json',
@@ -126,7 +126,7 @@ test.describe('Admin Refund API Tests', () => {
           reason: 'requested_by_customer',
         },
       }),
-      request.post(`http://localhost:3000/api/admin/payments/refund`, {
+      request.post(`/api/admin/payments/refund`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json',
@@ -205,7 +205,7 @@ test.describe('Admin Refund API Tests', () => {
     console.log(`\n🔍 Attempting to refund already-refunded transaction`);
 
     // Try to refund again
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -229,7 +229,7 @@ test.describe('Admin Refund API Tests', () => {
 
   test('VALIDATION: Refund rejects invalid amounts', async ({ request }) => {
     // Test negative amount
-    let response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    let response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -247,7 +247,7 @@ test.describe('Admin Refund API Tests', () => {
     // Note: amount=0 is falsy in JS, so the route's `amount ? Number(amount) : transaction.amount`
     // falls through to using the full transaction amount, which then fails at Stripe (500).
     // Either the route validates (400) or Stripe rejects the fake intent (500) — both mean "not successful".
-    response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -262,7 +262,7 @@ test.describe('Admin Refund API Tests', () => {
     expect([400, 500]).toContain(response.status());
 
     // Test amount exceeding max (99999999)
-    response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -298,7 +298,7 @@ test.describe('Admin Refund API Tests', () => {
 
     console.log(`\n🔍 Testing non-admin access to refund endpoint`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${regularToken}`,
         'Content-Type': 'application/json',
@@ -326,7 +326,7 @@ test.describe('Admin Refund API Tests', () => {
   test('VALIDATION: Missing transactionId is rejected', async ({ request }) => {
     console.log(`\n🔍 Testing missing transactionId`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -350,7 +350,7 @@ test.describe('Admin Refund API Tests', () => {
 
     const fakeTransactionId = '00000000-0000-0000-0000-000000000000';
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -392,7 +392,7 @@ test.describe('Admin Refund API Tests', () => {
     console.log(`\n🔍 Testing refund of disputed transaction`);
     console.log(`   Transaction status after update: ${verifyTx?.status}`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -421,7 +421,7 @@ test.describe('Admin Refund API Tests', () => {
     console.log(`   Original amount: $${originalAmount / 100}`);
     console.log(`   Requested refund: $${excessiveAmount / 100}`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -446,7 +446,7 @@ test.describe('Admin Refund API Tests', () => {
   test('VALIDATION: Negative refund amount is rejected', async ({ request }) => {
     console.log(`\n🔍 Testing negative refund amount`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -470,7 +470,7 @@ test.describe('Admin Refund API Tests', () => {
   test('VALIDATION: Zero refund amount is rejected', async ({ request }) => {
     console.log(`\n🔍 Testing zero refund amount`);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -498,7 +498,7 @@ test.describe('Admin Refund API Tests', () => {
       .update({ status: 'refunded' })
       .eq('id', testTransaction.id);
 
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
@@ -519,7 +519,7 @@ test.describe('Admin Refund API Tests', () => {
   });
 
   test('SECURITY: Mismatched payment intent ID is rejected by Stripe', async ({ request }) => {
-    const response = await request.post(`http://localhost:3000/api/admin/payments/refund`, {
+    const response = await request.post(`/api/admin/payments/refund`, {
       headers: {
         'Authorization': `Bearer ${adminToken}`,
         'Content-Type': 'application/json',

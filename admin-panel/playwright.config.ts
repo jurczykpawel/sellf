@@ -50,7 +50,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+    // Playwright starts its own server on 3777 to avoid conflicts with other dev servers on 3000
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -144,19 +145,19 @@ export default defineConfig({
   webServer: [
     {
       command: isRateLimitTestMode
-        ? 'RATE_LIMIT_TEST_MODE=true bun run dev'
-        : 'bun run dev',
-      url: 'http://localhost:3000',
-      // Don't reuse existing server for rate-limit tests (need fresh server with env var)
-      reuseExistingServer: isRateLimitTestMode ? false : !process.env.CI,
+        ? 'PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
+        : 'PORT=3777 bun run dev',
+      url: 'http://localhost:3777',
+      // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
+      reuseExistingServer: false,
       stdout: quietMode ? 'ignore' : 'pipe',
       stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 60000,
     },
     {
-      command: 'npx http-server ../examples/test-pages -p 3002 --cors -c-1',
-      url: 'http://localhost:3002',
-      reuseExistingServer: !process.env.CI,
+      command: 'npx http-server ../examples/test-pages -p 3778 --cors -c-1',
+      url: 'http://localhost:3778',
+      reuseExistingServer: false,
       stdout: quietMode ? 'ignore' : 'pipe',
       stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 30000,

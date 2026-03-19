@@ -17,7 +17,7 @@ test.describe.configure({ mode: 'serial' });
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3777';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   throw new Error('Missing Supabase env variables for testing');
@@ -150,7 +150,7 @@ test.describe('Security - CORS Headers', () => {
     const response = await request.fetch('/api/v1/products', {
       method: 'OPTIONS',
       headers: {
-        Origin: 'http://localhost:3000',
+        Origin: 'http://localhost:3777',
         'Access-Control-Request-Method': 'GET',
       },
     });
@@ -158,7 +158,7 @@ test.describe('Security - CORS Headers', () => {
     const corsOrigin = response.headers()['access-control-allow-origin'];
 
     // Should allow localhost
-    expect(corsOrigin).toBe('http://localhost:3000');
+    expect(corsOrigin).toBe('http://localhost:3777');
   });
 
   test('public claim-free route should echo origin (for embedding)', async ({ request }) => {

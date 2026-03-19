@@ -112,8 +112,8 @@ test.describe('GUS Integration - API Metadata Update', () => {
         companyName: 'TEST',
       },
       headers: {
-        'origin': 'http://localhost:3000',
-        'referer': 'http://localhost:3000/',
+        'origin': 'http://localhost:3777',
+        'referer': '/',
       },
     });
 

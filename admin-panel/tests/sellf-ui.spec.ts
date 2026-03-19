@@ -14,10 +14,10 @@ import { setAuthSession } from './helpers/admin-auth';
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const STATIC_SERVER_URL = 'http://localhost:3002';
+const STATIC_SERVER_URL = 'http://localhost:3778';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const NEXT_JS_URL = 'http://localhost:3000';
+const NEXT_JS_URL = 'http://localhost:3777';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
   throw new Error('Missing Supabase env variables for testing');
@@ -152,7 +152,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
 
       // Should redirect to checkout page on Next.js server (port 3000, not 3002)
       // Anonymous user without access gets redirected to checkout to purchase
-      expect(currentUrl).toMatch(/^http:\/\/localhost:3000/);
+      expect(currentUrl).toMatch(/^http:\/\/localhost:3777/);
       expect(currentUrl).toContain(`/checkout/${paidProduct.slug}`);
     });
 
@@ -178,7 +178,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       await expect(productSlugElement).toContainText(paidProduct.slug, { timeout: 5000 });
 
       // Page should NOT redirect
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Public section should always be visible
       await expect(page.locator('[data-testid="public-section"]')).toBeVisible();
@@ -222,7 +222,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       await expect(page.locator('#product-slug')).toContainText(paidProduct.slug, { timeout: 5000 });
 
       // Page should NOT redirect
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Public section always visible
       await expect(page.locator('[data-testid="public-section"]')).toBeVisible();
@@ -268,7 +268,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       await expect(page.locator('#product-slug')).toContainText(paidProduct.slug, { timeout: 5000 });
 
       // Page should NOT redirect
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Public section always visible
       await expect(page.locator('[data-testid="public-section"]')).toBeVisible();
@@ -313,7 +313,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
 
       // Page should NOT redirect (embed for free products stays on static server)
       await page.waitForTimeout(2000);
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Wait for JavaScript to run and set product slug
       const productSlugElement = page.locator('#product-slug');
@@ -325,7 +325,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
 
       // Should have requested the embed script from Next.js server
       expect(scriptRequests.length).toBeGreaterThan(0);
-      expect(scriptRequests[0]).toContain('localhost:3000/sellf-embed.js');
+      expect(scriptRequests[0]).toContain('localhost:3777/sellf-embed.js');
     });
 
     test('Gatekeeper script is loaded from Next.js server', async ({ page }) => {
@@ -346,7 +346,7 @@ test.describe('Gatekeeper UI Protection Tests', () => {
 
       // Should have made request to sellf API on Next.js server
       expect(scriptRequests.length).toBeGreaterThan(0);
-      expect(scriptRequests[0]).toContain('localhost:3000/api/sellf');
+      expect(scriptRequests[0]).toContain('localhost:3777/api/sellf');
     });
   });
 

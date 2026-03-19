@@ -5,7 +5,7 @@
  * Before running: npm run dev (in another terminal)
  *
  * Environment variables:
- * - TEST_API_URL: Base URL (default: http://localhost:3000)
+ * - TEST_API_URL: Base URL (default: http://localhost:3777)
  * - TEST_API_KEY: API key for authentication (created in beforeAll)
  */
 
@@ -13,7 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash, randomBytes } from 'crypto';
 
 // Test configuration
-export const API_URL = process.env.TEST_API_URL || 'http://localhost:3000';
+export const API_URL = process.env.TEST_API_URL || 'http://localhost:3777';
 
 // Supabase client for test setup (using service role for admin operations)
 const supabase = createClient(

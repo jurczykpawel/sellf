@@ -119,7 +119,7 @@
         // Optional second product for multi-product tests
         const productSlug2 = urlParams.get('testProduct2');
         // API base URL - the main Next.js server
-        const apiBaseUrl = urlParams.get('apiUrl') || 'http://localhost:3000';
+        const apiBaseUrl = urlParams.get('apiUrl') || 'http://localhost:3777';
 
         if (productSlug) {
             document.getElementById('product-slug').textContent = productSlug + (productSlug2 ? ` + ${productSlug2}` : '');

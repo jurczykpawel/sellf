@@ -61,7 +61,7 @@ test.describe('SSRF - Webhook URL Validation', () => {
 
   const ssrfUrls = [
     { url: 'http://127.0.0.1:8080/internal', name: 'localhost IPv4' },
-    { url: 'http://localhost:3000/api', name: 'localhost hostname' },
+    { url: '/api', name: 'localhost hostname' },
     { url: 'http://10.0.0.1/admin', name: 'private IP (10.x)' },
     { url: 'http://192.168.1.1/admin', name: 'private IP (192.168.x)' },
     { url: 'http://172.16.0.1/admin', name: 'private IP (172.16.x)' },

@@ -84,7 +84,7 @@ export async function setAuthSession(page: Page, email: string, password: string
   const base64Value = Buffer.from(sessionJson).toString('base64url');
   const cookieValue = `base64-${base64Value}`;
 
-  const baseUrl = new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+  const baseUrl = new URL(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777');
 
   const CHUNK_SIZE = 3180;
   if (cookieValue.length <= CHUNK_SIZE) {

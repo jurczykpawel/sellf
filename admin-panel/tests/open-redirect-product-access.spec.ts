@@ -185,6 +185,6 @@ test.describe('Open Redirect - Product Access View', () => {
     expect(currentUrl).not.toContain('error');
     expect(currentUrl).not.toContain('blocked');
     // Safe URLs should stay on the same domain
-    expect(currentUrl).toContain('localhost:3000');
+    expect(currentUrl).toContain('localhost:3777');
   });
 });

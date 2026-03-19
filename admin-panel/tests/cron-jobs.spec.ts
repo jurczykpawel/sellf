@@ -12,7 +12,7 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 const CRON_SECRET = process.env.CRON_SECRET || 'dev-cron-secret-change-in-production';
 
 function cronUrl(job: string) {

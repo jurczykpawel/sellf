@@ -423,8 +423,8 @@ test.describe('Rate Limiting', () => {
         },
         100,
         {
-          'origin': 'http://localhost:3000',
-          'referer': 'http://localhost:3000/',
+          'origin': 'http://localhost:3777',
+          'referer': '/',
         }
       );
 
@@ -660,7 +660,7 @@ test.describe('Rate Limiting', () => {
 
       // Send 12 requests (limit is 10)
       const requests = Array(12).fill(null).map(() =>
-        request.post('http://localhost:3000/api/admin/payments/refund', {
+        request.post('/api/admin/payments/refund', {
           headers: {
             'Authorization': `Bearer ${adminToken}`,
             'Content-Type': 'application/json',
@@ -689,7 +689,7 @@ test.describe('Rate Limiting', () => {
 
       // Send 35 requests (limit is 30)
       const requests = Array(35).fill(null).map(() =>
-        request.get('http://localhost:3000/api/admin/payments/stats', {
+        request.get('/api/admin/payments/stats', {
           headers: {
             'Authorization': `Bearer ${adminToken}`,
           },
@@ -709,7 +709,7 @@ test.describe('Rate Limiting', () => {
 
       // Send 7 requests (limit is 5)
       const requests = Array(7).fill(null).map(() =>
-        request.post('http://localhost:3000/api/admin/payments/export', {
+        request.post('/api/admin/payments/export', {
           headers: {
             'Authorization': `Bearer ${adminToken}`,
             'Content-Type': 'application/json',

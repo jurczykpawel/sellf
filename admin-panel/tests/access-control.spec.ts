@@ -494,7 +494,7 @@ test.describe('Element Protection - data-has-access / data-no-access visibility'
     `;
 
     // Navigate to test page served by http-server
-    await page.goto(`http://localhost:3002/element-protection.html?testProduct=${testProduct.slug}&apiUrl=http://localhost:3000`);
+    await page.goto(`/api/test-page/element-protection?testProduct=${testProduct.slug}`);
 
     // Wait for sellf to process
     await page.waitForTimeout(3000);
@@ -514,7 +514,7 @@ test.describe('Element Protection - data-has-access / data-no-access visibility'
     await loginAsUser(page, userWithoutAccess.email);
 
     // Navigate to test page
-    await page.goto(`http://localhost:3002/element-protection.html?testProduct=${testProduct.slug}&apiUrl=http://localhost:3000`);
+    await page.goto(`/api/test-page/element-protection?testProduct=${testProduct.slug}`);
 
     // Wait for sellf to process
     await page.waitForTimeout(3000);
@@ -532,7 +532,7 @@ test.describe('Element Protection - data-has-access / data-no-access visibility'
   test('anonymous user should see data-no-access fallback', async ({ page }) => {
     // No login - anonymous user
 
-    await page.goto(`http://localhost:3002/element-protection.html?testProduct=${testProduct.slug}&apiUrl=http://localhost:3000`);
+    await page.goto(`/api/test-page/element-protection?testProduct=${testProduct.slug}`);
 
     // Wait for sellf to process
     await page.waitForTimeout(3000);

@@ -19,10 +19,10 @@ import { setAuthSession } from './helpers/admin-auth';
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const STATIC_SERVER_URL = 'http://localhost:3002';
+const STATIC_SERVER_URL = 'http://localhost:3778';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const NEXT_JS_URL = 'http://localhost:3000';
+const NEXT_JS_URL = 'http://localhost:3777';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
   throw new Error('Missing Supabase env variables for testing');
@@ -325,7 +325,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await expect(page.locator('#product-slug')).toContainText(paidProduct.slug, { timeout: 5000 });
 
       // Page should NOT redirect
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Public content always visible
       await expect(page.locator('[data-testid="public-section"]')).toBeVisible();
@@ -354,7 +354,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await page.waitForLoadState('domcontentloaded');
 
       await expect(page.locator('#product-slug')).toContainText(paidProduct.slug, { timeout: 5000 });
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Public content always visible
       await expect(page.locator('[data-testid="public-section"]')).toBeVisible();
@@ -383,7 +383,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await page.waitForLoadState('domcontentloaded');
 
       await expect(page.locator('#product-slug')).toContainText(paidProduct.slug, { timeout: 5000 });
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       await page.waitForTimeout(3000);
 
@@ -422,7 +422,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(3000);
 
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Verify both sections got their respective product slugs
       const section1 = page.locator('#protected-section');
@@ -466,7 +466,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(3000);
 
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Verify both sections got their respective product slugs
       const section1 = page.locator('#protected-section');
@@ -509,7 +509,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(3000);
 
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Should see premium content
       const hasAccessContent = page.locator('[data-testid="has-access-content"]');
@@ -529,7 +529,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(3000);
 
-      expect(page.url()).toContain('localhost:3002');
+      expect(page.url()).toContain('localhost:3778');
 
       // Premium content should be hidden
       const hasAccessContent = page.locator('[data-testid="has-access-content"]');
@@ -646,7 +646,7 @@ test.describe('Comprehensive Gatekeeper Protection Tests', () => {
 
       // Page should still be navigable (graceful degradation)
       const url = page.url();
-      expect(url).toContain('localhost:3002');
+      expect(url).toContain('localhost:3778');
     });
   });
 });

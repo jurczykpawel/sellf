@@ -103,7 +103,7 @@ test.describe('Coupon Race Condition - Simplified', () => {
     // Without lock (vulnerability): multiple succeed simultaneously
 
     const verifyPromises = Array(10).fill(null).map((_, i) =>
-      request.post('http://localhost:3000/api/coupons/verify', {
+      request.post('/api/coupons/verify', {
         data: {
           code: couponCode,
           productId: productId,

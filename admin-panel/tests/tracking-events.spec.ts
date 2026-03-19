@@ -1088,7 +1088,7 @@ test.describe('Tracking Events - Partial Consent', () => {
 // via fetch (not through the Klaro banner UI flow).
 
 test.describe('Tracking Events - Consent Logging E2E', () => {
-  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3777';
 
   test.beforeAll(async () => {
     // Enable cookie consent + consent logging + GTM (so Klaro banner appears)

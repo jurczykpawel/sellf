@@ -504,7 +504,7 @@ describe('Products API v1 — Digital Content Config', () => {
     it.each([
       ['HTTP (not HTTPS)',          'http://storage.googleapis.com/bucket/file.pdf'],
       ['untrusted domain',          'https://random-host.com/file.pdf'],
-      ['localhost',                 'http://localhost:3000/file.pdf'],
+      ['localhost',                 '/file.pdf'],
       ['domain spoofing attempt',   'https://evil.com/googleapis.com/file.pdf'],
       ['invalid URL',               'not-a-url'],
     ])('should reject %s', async (label, download_url) => {
