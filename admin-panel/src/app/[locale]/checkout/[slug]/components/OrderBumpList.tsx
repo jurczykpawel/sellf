@@ -50,9 +50,6 @@ export default function OrderBumpList({ bumps, selectedBumpIds, onToggle }: Orde
             <div className="relative p-5">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3 flex-1">
-                  {bump.bump_product_icon && (
-                    <span className="text-2xl flex-shrink-0">{bump.bump_product_icon}</span>
-                  )}
                   <div className="min-w-0">
                     <h4 className={`text-base font-bold transition-colors ${isSelected ? 'text-sf-warning' : 'text-sf-heading'}`}>
                       {bump.bump_title}
@@ -61,8 +58,8 @@ export default function OrderBumpList({ bumps, selectedBumpIds, onToggle }: Orde
                       <span className={`
                         inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border
                         ${isSelected
-                          ? 'bg-amber-400/10 text-amber-300 border-amber-400/20'
-                          : 'bg-sf-raised text-sf-muted border-sf-border'}
+                          ? 'bg-sf-warning-soft text-sf-warning border-sf-border-accent'
+                          : 'bg-sf-raised text-sf-body border-sf-border'}
                       `}>
                         {bump.bump_access_duration && bump.bump_access_duration > 0 ? (
                           <>
