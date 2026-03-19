@@ -86,8 +86,8 @@ let pwywOrderBumpId: string;
 let couponProduct: { id: string; price: number; currency: string };
 let couponBumpProduct: { id: string; price: number };
 let couponOrderBumpId: string;
-let testCoupon: { id: string; code: string };
-let testCouponExcludeBumps: { id: string; code: string };
+// testCoupon and testCouponExcludeBumps removed: each coupon test now creates its own
+// coupon in a describe-level beforeAll or inline to avoid order dependency (issue #4).
 
 // IDs to clean up
 const createdProductIds: string[] = [];
@@ -101,7 +101,9 @@ const createdCouponIds: string[] = [];
 // ============================================================================
 
 beforeAll(async () => {
-  // Clear rate limits to prevent interference
+  // Clear rate limits to prevent interference.
+  // NOTE: This clears ALL rate limits globally, which could interfere with parallel test suites.
+  // Scoping to TEST_ID is not possible because rate_limits is keyed by IP/action, not test context.
   await supabaseAdmin.from('rate_limits').delete().gte('created_at', '1970-01-01');
 
   // --- Main product ($50 USD) ---
@@ -288,49 +290,8 @@ beforeAll(async () => {
   couponOrderBumpId = cob.id;
   createdOrderBumpIds.push(cob.id);
 
-  // --- Coupon: 20% off, includes bumps ---
-  const { data: tc, error: tcErr } = await supabaseAdmin
-    .from('coupons')
-    .insert({
-      code: `COUPON20-${TS}`,
-      name: `Test Coupon 20% ${TS}`,
-      discount_type: 'percentage',
-      discount_value: 20,
-      allowed_emails: [],
-      allowed_product_ids: [],
-      exclude_order_bumps: false,
-      usage_limit_global: 10,
-      usage_limit_per_user: 1,
-      current_usage_count: 0,
-      is_active: true,
-    })
-    .select()
-    .single();
-  if (tcErr) throw tcErr;
-  testCoupon = { id: tc.id, code: tc.code };
-  createdCouponIds.push(tc.id);
-
-  // --- Coupon: 25% off, excludes bumps ---
-  const { data: tceb, error: tcebErr } = await supabaseAdmin
-    .from('coupons')
-    .insert({
-      code: `COUPON25NB-${TS}`,
-      name: `Test Coupon 25% no bumps ${TS}`,
-      discount_type: 'percentage',
-      discount_value: 25,
-      allowed_emails: [],
-      allowed_product_ids: [],
-      exclude_order_bumps: true,
-      usage_limit_global: 10,
-      usage_limit_per_user: 1,
-      current_usage_count: 0,
-      is_active: true,
-    })
-    .select()
-    .single();
-  if (tcebErr) throw tcebErr;
-  testCouponExcludeBumps = { id: tceb.id, code: tceb.code };
-  createdCouponIds.push(tceb.id);
+  // Shared coupons removed: each coupon test now creates its own coupon
+  // in a describe-level beforeAll or inline to avoid order dependency.
 });
 
 afterAll(async () => {
@@ -397,8 +358,34 @@ describe('PWYW + Bumps combination', () => {
       bump_product_ids_param: [pwywBumpProduct.id],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
+
+    // Verify records were actually created (not just idempotency path returning success)
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id, status')
+      .eq('session_id', sid)
+      .single();
+    expect(tx).toBeTruthy();
+    expect(tx!.status).toBe('completed');
+
+    // Verify line items: 1 main + 1 bump
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type, product_id')
+      .eq('transaction_id', tx!.id);
+    expect(lineItems!.length).toBe(2);
+    expect(lineItems!.find(li => li.item_type === 'main_product')).toBeTruthy();
+    expect(lineItems!.find(li => li.item_type === 'order_bump' && li.product_id === pwywBumpProduct.id)).toBeTruthy();
+
+    // Verify guest_purchase was created (no user_id passed)
+    const { data: gp } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    expect(gp).toBeTruthy();
   });
 
   it('should accept PWYW at exact minimum + bump prices', async () => {
@@ -415,8 +402,26 @@ describe('PWYW + Bumps combination', () => {
       bump_product_ids_param: [pwywBumpProduct.id],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
+
+    // Verify records were actually created (not just idempotency path returning success)
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id, status')
+      .eq('session_id', sid)
+      .single();
+    expect(tx).toBeTruthy();
+    expect(tx!.status).toBe('completed');
+
+    // Verify line items: 1 main + 1 bump
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type, product_id')
+      .eq('transaction_id', tx!.id);
+    expect(lineItems!.length).toBe(2);
+    expect(lineItems!.find(li => li.item_type === 'main_product')).toBeTruthy();
+    expect(lineItems!.find(li => li.item_type === 'order_bump' && li.product_id === pwywBumpProduct.id)).toBeTruthy();
   });
 });
 
@@ -443,6 +448,14 @@ describe('PWYW + Bumps rejection', () => {
 
     expect(error).toBeTruthy();
     expect(error?.message).toContain('Amount below minimum');
+
+    // Verify no transaction was created (rollback on error)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 });
 
@@ -462,9 +475,10 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    // null param may cause a Postgres error or return validation error
-    const hasError = error || (data && !data.success);
-    expect(hasError).toBeTruthy();
+    // null session_id is handled by the function's validation
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid session ID');
   });
 
   it('should reject empty session_id', async () => {
@@ -477,13 +491,9 @@ describe('Input validation', () => {
     });
 
     // The function returns {success: false, error: 'Invalid session ID'}
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid session ID');
-    } else {
-      // Alternatively might be a DB error
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid session ID');
   });
 
   it('should reject session_id longer than 255 characters', async () => {
@@ -497,12 +507,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid session ID');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid session ID');
   });
 
   it('should reject session_id without cs_/pi_ prefix', async () => {
@@ -514,12 +521,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid session ID format');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid session ID format');
   });
 
   it('should reject session_id with special characters after prefix', async () => {
@@ -531,12 +535,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid session ID format');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid session ID format');
   });
 
   it('should reject invalid email', async () => {
@@ -551,12 +552,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Valid email address is required');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Valid email address is required');
   });
 
   it('should reject amount_total = 0', async () => {
@@ -571,12 +569,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid amount');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid amount');
   });
 
   it('should reject negative amount_total', async () => {
@@ -591,12 +586,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid amount');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid amount');
   });
 
   it('should reject amount_total > 99999999', async () => {
@@ -611,12 +603,9 @@ describe('Input validation', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid amount');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid amount');
   });
 });
 
@@ -666,13 +655,9 @@ describe('Authorization bypass', () => {
     });
 
     // Should be rejected with "Unauthorized"
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Unauthorized');
-    } else {
-      // Could also be a DB-level permission error
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Unauthorized');
   });
 
   it('should allow service_role to pass any user_id_param', async () => {
@@ -697,7 +682,7 @@ describe('Authorization bypass', () => {
       user_id_param: userData.user.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
   });
 });
@@ -728,8 +713,19 @@ describe('Idempotency', () => {
       currency_param: 'USD',
       user_id_param: userData.user.id,
     });
-    expect(firstErr).toBeFalsy();
+    expect(firstErr).toBeNull();
     expect(first?.success).toBe(true);
+
+    // Verify the first call actually created a transaction record
+    // (without this, the idempotency test is meaningless - the second call
+    // could return success from any path)
+    const { data: txAfterFirst } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id, status')
+      .eq('session_id', sid)
+      .single();
+    expect(txAfterFirst).toBeTruthy();
+    expect(txAfterFirst!.status).toBe('completed');
 
     // Second call: same session_id (idempotency)
     const { data: second, error: secondErr } = await callRpc(supabaseAdmin, {
@@ -741,10 +737,23 @@ describe('Idempotency', () => {
       user_id_param: userData.user.id,
     });
 
-    expect(secondErr).toBeFalsy();
+    expect(secondErr).toBeNull();
     expect(second?.success).toBe(true);
     expect(second?.scenario).toBe('already_processed_idempotent');
     expect(second?.already_had_access).toBe(true);
+
+    // Verify no duplicate records were created by the idempotent call
+    const { data: txCount } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid);
+    expect(txCount!.length).toBe(1);
+
+    const { data: lineItemCount } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('id')
+      .eq('transaction_id', txAfterFirst!.id);
+    expect(lineItemCount!.length).toBe(1); // 1 main_product, no bumps
   });
 
   it('should return guest_purchase_new_user_with_bump idempotent for guest with existing guest_purchase', async () => {
@@ -759,7 +768,7 @@ describe('Idempotency', () => {
       amount_total: 5000,
       currency_param: 'USD',
     });
-    expect(firstErr).toBeFalsy();
+    expect(firstErr).toBeNull();
     expect(first?.success).toBe(true);
     expect(first?.is_guest_purchase).toBe(true);
 
@@ -772,11 +781,30 @@ describe('Idempotency', () => {
       currency_param: 'USD',
     });
 
-    expect(secondErr).toBeFalsy();
+    expect(secondErr).toBeNull();
     expect(second?.success).toBe(true);
     expect(second?.scenario).toBe('guest_purchase_new_user_with_bump');
     expect(second?.is_guest_purchase).toBe(true);
     expect(second?.send_magic_link).toBe(true);
+
+    // Verify no duplicate records were created by the idempotent call
+    const { data: txCount } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid);
+    expect(txCount!.length).toBe(1);
+
+    const { data: gpCount } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('id')
+      .eq('session_id', sid);
+    expect(gpCount!.length).toBe(1);
+
+    const { data: lineItemCount } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('id')
+      .eq('transaction_id', txCount![0].id);
+    expect(lineItemCount!.length).toBe(1); // 1 main_product, no bumps
   });
 });
 
@@ -797,12 +825,9 @@ describe('Product not found', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Product not found or inactive');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Product not found or inactive');
   });
 
   it('should reject non-existent product_id', async () => {
@@ -817,12 +842,9 @@ describe('Product not found', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Product not found or inactive');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Product not found or inactive');
   });
 });
 
@@ -902,7 +924,7 @@ describe('Bump array limits', () => {
       bump_product_ids_param: twentyBumpIds,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
   });
 
@@ -920,12 +942,9 @@ describe('Bump array limits', () => {
       bump_product_ids_param: manyBumpProductIds, // 21 items
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Too many bump products');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Too many bump products');
   });
 });
 
@@ -958,7 +977,7 @@ describe('Access expiration', () => {
       user_id_param: userData.user.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
     expect(data?.access_granted).toBe(true);
 
@@ -972,18 +991,15 @@ describe('Access expiration', () => {
 
     expect(access).toBeTruthy();
 
-    if (access?.access_expires_at) {
-      const expiresAt = new Date(access.access_expires_at);
-      const expectedMin = new Date(beforeCall.getTime() + 29 * 24 * 60 * 60 * 1000);
-      const expectedMax = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+    // access_expires_at MUST be set for a timed product (auto_grant_duration_days=30)
+    expect(access!.access_expires_at).not.toBeNull();
+    const expiresAt = new Date(access!.access_expires_at!);
+    const expectedMin = new Date(beforeCall.getTime() + 29 * 24 * 60 * 60 * 1000);
+    const expectedMax = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
 
-      // Expiration should be roughly 30 days from now
-      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
-      expect(expiresAt.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
-    }
-    // Note: access_expires_at may be set on the transaction but not on user_product_access
-    // depending on how grant_product_access_service_role works. If null, the grant function
-    // may handle expiration differently. Either way, the function calculated it correctly.
+    // Expiration should be roughly 30 days from now
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(expectedMin.getTime());
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(expectedMax.getTime());
   });
 });
 
@@ -1011,12 +1027,9 @@ describe('Coupon + amount = 0', () => {
     });
 
     // amount_total = 0 should be rejected by input validation (amount <= 0)
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid amount');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid amount');
   });
 
   it('should reject amount that is positive but made zero by coupon logic check', async () => {
@@ -1045,12 +1058,9 @@ describe('Coupon + amount = 0', () => {
       coupon_id_param: fakeCouponId,
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid amount');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid amount');
   });
 });
 
@@ -1059,7 +1069,31 @@ describe('Coupon + amount = 0', () => {
 // ============================================================================
 
 describe('Coupon redemption logic', () => {
+  // Each test creates its own coupon to avoid order dependency.
+  // This ensures tests pass even with --shuffle.
+
   it('should create coupon_redemptions row on successful payment with coupon', async () => {
+    // Create a fresh coupon for this test
+    const { data: localCoupon, error: lcErr } = await supabaseAdmin
+      .from('coupons')
+      .insert({
+        code: `COUPON-REDEEM-${TS}`,
+        name: `Redeem test coupon ${TS}`,
+        discount_type: 'percentage',
+        discount_value: 20,
+        allowed_emails: [],
+        allowed_product_ids: [],
+        exclude_order_bumps: false,
+        usage_limit_global: 10,
+        usage_limit_per_user: 5,
+        current_usage_count: 0,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (lcErr) throw lcErr;
+    createdCouponIds.push(localCoupon.id);
+
     const email = `coupon-redeem-${TS}@example.com`;
     const sid = `cs_test_coupon_redeem_${TS}`;
     createdSessionIds.push(sid);
@@ -1067,7 +1101,7 @@ describe('Coupon redemption logic', () => {
     // Create reservation (required by the function)
     const reservationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabaseAdmin.from('coupon_reservations').insert({
-      coupon_id: testCoupon.id,
+      coupon_id: localCoupon.id,
       customer_email: email,
       expires_at: reservationExpires,
       session_id: sid,
@@ -1080,17 +1114,17 @@ describe('Coupon redemption logic', () => {
       customer_email_param: email,
       amount_total: 3200,
       currency_param: 'USD',
-      coupon_id_param: testCoupon.id,
+      coupon_id_param: localCoupon.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     // Verify coupon_redemptions row was created
     const { data: redemptions } = await supabaseAdmin
       .from('coupon_redemptions')
       .select('*')
-      .eq('coupon_id', testCoupon.id)
+      .eq('coupon_id', localCoupon.id)
       .eq('customer_email', email);
 
     expect(redemptions).toBeTruthy();
@@ -1099,14 +1133,26 @@ describe('Coupon redemption logic', () => {
   });
 
   it('should increment coupon usage_count on successful payment with coupon', async () => {
-    // Read current usage count
-    const { data: beforeCoupon } = await supabaseAdmin
+    // Create a fresh coupon for this test with known initial usage_count=0
+    const { data: localCoupon, error: lcErr } = await supabaseAdmin
       .from('coupons')
-      .select('current_usage_count')
-      .eq('id', testCoupon.id)
+      .insert({
+        code: `COUPON-USAGE-${TS}`,
+        name: `Usage test coupon ${TS}`,
+        discount_type: 'percentage',
+        discount_value: 20,
+        allowed_emails: [],
+        allowed_product_ids: [],
+        exclude_order_bumps: false,
+        usage_limit_global: 10,
+        usage_limit_per_user: 5,
+        current_usage_count: 0,
+        is_active: true,
+      })
+      .select()
       .single();
-
-    const usageBefore = beforeCoupon?.current_usage_count ?? 0;
+    if (lcErr) throw lcErr;
+    createdCouponIds.push(localCoupon.id);
 
     const email = `coupon-usage-${TS}@example.com`;
     const sid = `cs_test_coupon_usage_${TS}`;
@@ -1115,7 +1161,7 @@ describe('Coupon redemption logic', () => {
     // Create reservation
     const reservationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabaseAdmin.from('coupon_reservations').insert({
-      coupon_id: testCoupon.id,
+      coupon_id: localCoupon.id,
       customer_email: email,
       expires_at: reservationExpires,
       session_id: sid,
@@ -1128,23 +1174,49 @@ describe('Coupon redemption logic', () => {
       customer_email_param: email,
       amount_total: 3200,
       currency_param: 'USD',
-      coupon_id_param: testCoupon.id,
+      coupon_id_param: localCoupon.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
-    // Verify usage_count was incremented
+    // Verify usage_count was incremented from 0 to 1
     const { data: afterCoupon } = await supabaseAdmin
       .from('coupons')
       .select('current_usage_count')
-      .eq('id', testCoupon.id)
+      .eq('id', localCoupon.id)
       .single();
 
-    expect(afterCoupon?.current_usage_count).toBe(usageBefore + 1);
+    expect(afterCoupon?.current_usage_count).toBe(1);
+
+    // Note: increment_sale_quantity_sold only increments when the product has an active sale
+    // (sale_price + sale_price_until set). couponProduct doesn't have a sale configured,
+    // so sale_quantity_sold won't change here. That side effect is tested in
+    // coupon-functions-rpc.test.ts instead.
   });
 
   it('should delete coupon_reservations row on successful payment with coupon', async () => {
+    // Create a fresh coupon for this test
+    const { data: localCoupon, error: lcErr } = await supabaseAdmin
+      .from('coupons')
+      .insert({
+        code: `COUPON-CLEANUP-${TS}`,
+        name: `Cleanup test coupon ${TS}`,
+        discount_type: 'percentage',
+        discount_value: 20,
+        allowed_emails: [],
+        allowed_product_ids: [],
+        exclude_order_bumps: false,
+        usage_limit_global: 10,
+        usage_limit_per_user: 5,
+        current_usage_count: 0,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (lcErr) throw lcErr;
+    createdCouponIds.push(localCoupon.id);
+
     const email = `coupon-cleanup-${TS}@example.com`;
     const sid = `cs_test_coupon_cleanup_${TS}`;
     createdSessionIds.push(sid);
@@ -1152,7 +1224,7 @@ describe('Coupon redemption logic', () => {
     // Create reservation
     const reservationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabaseAdmin.from('coupon_reservations').insert({
-      coupon_id: testCoupon.id,
+      coupon_id: localCoupon.id,
       customer_email: email,
       expires_at: reservationExpires,
       session_id: sid,
@@ -1162,7 +1234,7 @@ describe('Coupon redemption logic', () => {
     const { data: resBefore } = await supabaseAdmin
       .from('coupon_reservations')
       .select('id')
-      .eq('coupon_id', testCoupon.id)
+      .eq('coupon_id', localCoupon.id)
       .eq('customer_email', email);
     expect(resBefore!.length).toBe(1);
 
@@ -1173,17 +1245,17 @@ describe('Coupon redemption logic', () => {
       customer_email_param: email,
       amount_total: 3200,
       currency_param: 'USD',
-      coupon_id_param: testCoupon.id,
+      coupon_id_param: localCoupon.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     // Verify reservation was deleted
     const { data: resAfter } = await supabaseAdmin
       .from('coupon_reservations')
       .select('id')
-      .eq('coupon_id', testCoupon.id)
+      .eq('coupon_id', localCoupon.id)
       .eq('customer_email', email);
     expect(resAfter!.length).toBe(0);
   });
@@ -1246,8 +1318,23 @@ describe('Coupon usage limit reached during reservation window', () => {
       coupon_id_param: limitCoupon.id,
     });
 
-    // The function catches the exception and returns a generic error
+    // Coupon usage exhausted - caught by the EXCEPTION WHEN OTHERS handler in the DB function.
+    // The generic 'Payment processing failed' message is intentional: the DB function catches
+    // all unhandled exceptions (including the coupon usage limit violation from the
+    // UPDATE coupons WHERE current_usage_count < usage_limit_global returning NOT FOUND)
+    // with a single catch-all handler that returns this message. A more specific assertion
+    // isn't possible without modifying the DB function to add a dedicated exception for this case.
+    expect(error).toBeNull();
     expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Payment processing failed');
+
+    // Negative DB verification: confirm no transaction was created (rollback on exception)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 });
 
@@ -1255,7 +1342,64 @@ describe('Coupon usage limit reached during reservation window', () => {
 // 12. Percentage coupon + bumps (exclude_order_bumps flag)
 // ============================================================================
 
+// NOTE: The exclude_order_bumps flag's effect on DISCOUNT CALCULATION is enforced
+// at the application layer (Stripe session creation), NOT in this DB function.
+// This DB function trusts the caller's amount_total and does not compute discounts.
+// These tests verify that:
+// 1. The flag value is correctly stored in the coupon_redemptions/transaction record
+// 2. The function accepts valid payments regardless of the flag value
+// 3. Bump line items are always recorded regardless of the flag
 describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
+  // Each test creates its own coupon to avoid order dependency (issue #4)
+  let localCouponIncludeBumps: { id: string; code: string };
+  let localCouponExcludeBumps: { id: string; code: string };
+
+  beforeAll(async () => {
+    // Coupon that includes bumps in discount
+    const { data: tc1, error: tc1Err } = await supabaseAdmin
+      .from('coupons')
+      .insert({
+        code: `COUPON20-12A-${TS}`,
+        name: `Test Coupon 20% 12a ${TS}`,
+        discount_type: 'percentage',
+        discount_value: 20,
+        allowed_emails: [],
+        allowed_product_ids: [],
+        exclude_order_bumps: false,
+        usage_limit_global: 10,
+        usage_limit_per_user: 5,
+        current_usage_count: 0,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (tc1Err) throw tc1Err;
+    localCouponIncludeBumps = { id: tc1.id, code: tc1.code };
+    createdCouponIds.push(tc1.id);
+
+    // Coupon that excludes bumps from discount
+    const { data: tc2, error: tc2Err } = await supabaseAdmin
+      .from('coupons')
+      .insert({
+        code: `COUPON25NB-12B-${TS}`,
+        name: `Test Coupon 25% no bumps 12b ${TS}`,
+        discount_type: 'percentage',
+        discount_value: 25,
+        allowed_emails: [],
+        allowed_product_ids: [],
+        exclude_order_bumps: true,
+        usage_limit_global: 10,
+        usage_limit_per_user: 5,
+        current_usage_count: 0,
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (tc2Err) throw tc2Err;
+    localCouponExcludeBumps = { id: tc2.id, code: tc2.code };
+    createdCouponIds.push(tc2.id);
+  });
+
   it('should accept payment with coupon that includes bumps (exclude_order_bumps=false)', async () => {
     const email = `coupon-with-bumps-${TS}@example.com`;
     const sid = `cs_test_coupon_bumps_incl_${TS}`;
@@ -1264,7 +1408,7 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
     // Create reservation
     const reservationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabaseAdmin.from('coupon_reservations').insert({
-      coupon_id: testCoupon.id,
+      coupon_id: localCouponIncludeBumps.id,
       customer_email: email,
       expires_at: reservationExpires,
       session_id: sid,
@@ -1282,10 +1426,10 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
       amount_total: 4400,
       currency_param: 'USD',
       bump_product_ids_param: [couponBumpProduct.id],
-      coupon_id_param: testCoupon.id,
+      coupon_id_param: localCouponIncludeBumps.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
     // Guest purchase does not include bump_count in response, but bump access is tracked via line items
     expect(data?.is_guest_purchase).toBe(true);
@@ -1296,15 +1440,32 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
       .select('id')
       .eq('session_id', sid)
       .single();
-    if (txs) {
-      const { data: lineItems } = await supabaseAdmin
-        .from('payment_line_items')
-        .select('item_type, product_id')
-        .eq('transaction_id', txs.id)
-        .eq('item_type', 'order_bump');
-      expect(lineItems!.length).toBe(1);
-      expect(lineItems![0].product_id).toBe(couponBumpProduct.id);
-    }
+    expect(txs).toBeTruthy();
+
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type, product_id')
+      .eq('transaction_id', txs!.id)
+      .eq('item_type', 'order_bump');
+    expect(lineItems!.length).toBe(1);
+    expect(lineItems![0].product_id).toBe(couponBumpProduct.id);
+
+    // Verify the exclude_order_bumps=false flag is stored in the redemption record
+    const { data: redemption } = await supabaseAdmin
+      .from('coupon_redemptions')
+      .select('coupon_id')
+      .eq('coupon_id', localCouponIncludeBumps.id)
+      .eq('customer_email', email)
+      .single();
+    expect(redemption).toBeTruthy();
+
+    // Verify the coupon itself has exclude_order_bumps=false (the flag value is what we set)
+    const { data: couponRecord } = await supabaseAdmin
+      .from('coupons')
+      .select('exclude_order_bumps')
+      .eq('id', localCouponIncludeBumps.id)
+      .single();
+    expect(couponRecord!.exclude_order_bumps).toBe(false);
   });
 
   it('should accept payment with coupon that excludes bumps (exclude_order_bumps=true)', async () => {
@@ -1315,7 +1476,7 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
     // Create reservation
     const reservationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabaseAdmin.from('coupon_reservations').insert({
-      coupon_id: testCouponExcludeBumps.id,
+      coupon_id: localCouponExcludeBumps.id,
       customer_email: email,
       expires_at: reservationExpires,
       session_id: sid,
@@ -1332,19 +1493,56 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
       amount_total: 4500,
       currency_param: 'USD',
       bump_product_ids_param: [couponBumpProduct.id],
-      coupon_id_param: testCouponExcludeBumps.id,
+      coupon_id_param: localCouponExcludeBumps.id,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     // Verify redemption was created
     const { data: redemptions } = await supabaseAdmin
       .from('coupon_redemptions')
       .select('*')
-      .eq('coupon_id', testCouponExcludeBumps.id)
+      .eq('coupon_id', localCouponExcludeBumps.id)
       .eq('customer_email', email);
     expect(redemptions!.length).toBe(1);
+
+    // Verify line items were created correctly.
+    // The exclude_order_bumps flag only affects discount CALCULATION at the application layer
+    // (Stripe session creation), not in this DB function. This DB function trusts amount_total
+    // and does not compute discounts. Bumps should still appear as line items regardless.
+    const { data: txs } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    expect(txs).toBeTruthy();
+
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type, product_id, unit_price')
+      .eq('transaction_id', txs!.id);
+    expect(lineItems).toBeTruthy();
+
+    // Should have 1 main_product + 1 order_bump = 2 line items
+    expect(lineItems!.length).toBe(2);
+    const mainItem = lineItems!.find(li => li.item_type === 'main_product');
+    expect(mainItem).toBeTruthy();
+    expect(mainItem!.product_id).toBe(couponProduct.id);
+
+    const bumpItem = lineItems!.find(li => li.item_type === 'order_bump');
+    expect(bumpItem).toBeTruthy();
+    expect(bumpItem!.product_id).toBe(couponBumpProduct.id);
+    // Bump price should be the order_bump price ($15), unaffected by coupon
+    expect(Number(bumpItem!.unit_price)).toBe(15);
+
+    // Verify the exclude_order_bumps=true flag is stored correctly on the coupon
+    const { data: couponRecord } = await supabaseAdmin
+      .from('coupons')
+      .select('exclude_order_bumps')
+      .eq('id', localCouponExcludeBumps.id)
+      .single();
+    expect(couponRecord!.exclude_order_bumps).toBe(true);
   });
 
   it('should reject payment with coupon when amount exceeds max possible', async () => {
@@ -1352,10 +1550,10 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
     const sid = `cs_test_coupon_overpay_${TS}`;
     createdSessionIds.push(sid);
 
-    // Create reservation
+    // Create reservation (uses the local coupon from this describe block)
     const reservationExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await supabaseAdmin.from('coupon_reservations').insert({
-      coupon_id: testCoupon.id,
+      coupon_id: localCouponIncludeBumps.id,
       customer_email: email,
       expires_at: reservationExpires,
       session_id: sid,
@@ -1370,13 +1568,20 @@ describe('Percentage coupon + bumps (exclude_order_bumps)', () => {
       amount_total: 6000,
       currency_param: 'USD',
       bump_product_ids_param: [couponBumpProduct.id],
-      coupon_id_param: testCoupon.id,
+      coupon_id_param: localCouponIncludeBumps.id,
     });
 
-    // The RAISE EXCEPTION is caught by the function's EXCEPTION handler
-    // and returned as {success: false, error: 'Payment processing failed...'}
-    const failed = (data?.success === false) || (error != null);
-    expect(failed).toBe(true);
+    // Amount too high with coupon raises Postgres exception
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain('Amount too high with coupon');
+
+    // Verify no transaction was created (rollback on error)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 });
 
@@ -1399,12 +1604,17 @@ describe('Fixed price edge cases', () => {
       currency_param: 'USD',
     });
 
-    // RAISE EXCEPTION 'Amount mismatch: ...' is caught by EXCEPTION handler
-    const failed = (data?.success === false) || (error != null);
-    expect(failed).toBe(true);
-    if (data) {
-      expect(data.success).toBe(false);
-    }
+    // Amount mismatch raises Postgres exception
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain('Amount mismatch');
+
+    // Verify no transaction was created (rollback on error)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 
   it('should reject fixed price product WITH bumps when total does not match', async () => {
@@ -1423,11 +1633,17 @@ describe('Fixed price edge cases', () => {
       bump_product_ids_param: [bumpProducts[0].id],
     });
 
-    const failed = (data?.success === false) || (error != null);
-    expect(failed).toBe(true);
-    if (data) {
-      expect(data.success).toBe(false);
-    }
+    // Amount mismatch raises Postgres exception
+    expect(error).not.toBeNull();
+    expect(error!.message).toContain('Amount mismatch');
+
+    // Verify no transaction was created (rollback on error)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 
   it('should accept fixed price product WITH bumps when total matches exactly (regression)', async () => {
@@ -1445,7 +1661,7 @@ describe('Fixed price edge cases', () => {
       bump_product_ids_param: [bumpProducts[0].id, bumpProducts[1].id],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
   });
 });
@@ -1471,8 +1687,21 @@ describe('Bump edge cases', () => {
       bump_product_ids_param: [],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
+
+    // Verify no bump line items were created (empty array = no bumps)
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    const { data: lineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type')
+      .eq('transaction_id', tx!.id);
+    expect(lineItems!.length).toBe(1);
+    expect(lineItems![0].item_type).toBe('main_product');
   });
 
   it('should silently skip bump product with no order_bump record for this main product', async () => {
@@ -1506,8 +1735,33 @@ describe('Bump edge cases', () => {
       bump_product_ids_param: [orphanProduct.id],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
+
+    // Verify NO line item was created for the orphan bump product.
+    // This proves the function actually filters out bumps with no matching order_bump record,
+    // rather than just accepting any amount_total blindly.
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .single();
+    expect(tx).toBeTruthy();
+
+    const { data: bumpLineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type, product_id')
+      .eq('transaction_id', tx!.id)
+      .eq('item_type', 'order_bump');
+    expect(bumpLineItems!.length).toBe(0);
+
+    // Should only have the main product line item
+    const { data: allLineItems } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('item_type')
+      .eq('transaction_id', tx!.id);
+    expect(allLineItems!.length).toBe(1);
+    expect(allLineItems![0].item_type).toBe('main_product');
   });
 
   it('should handle duplicate product ID in bump array', async () => {
@@ -1536,15 +1790,27 @@ describe('Bump edge cases', () => {
       bump_product_ids_param: [bumpProducts[0].id, bumpProducts[0].id],
     });
 
-    // The unique constraint violation is caught by EXCEPTION WHEN OTHERS
-    // and returns {success: false, error: 'Payment processing failed...'}
-    const failed = (data?.success === false) || (error != null);
-    expect(failed).toBe(true);
-    if (data) {
-      expect(data.success).toBe(false);
-    }
+    // The unique constraint violation on payment_line_items(transaction_id, product_id)
+    // is caught by the EXCEPTION WHEN OTHERS handler in the DB function.
+    // The generic 'Payment processing failed' message is intentional: the DB function's
+    // catch-all handler wraps all unhandled exceptions (including the unique constraint
+    // violation from inserting duplicate bump line items) into this single error message.
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Payment processing failed');
+
+    // Negative DB verification: confirm no transaction was persisted (rollback on exception)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 
+  // NOTE: This test documents CURRENT behavior, not necessarily CORRECT behavior.
+  // Mixed-currency bumps (EUR bump on USD main product) are accepted without
+  // cross-currency validation. This may be a bug worth investigating separately.
   it('should handle bump product with different currency than main product', async () => {
     // Create a bump product in EUR while main product is USD
     const { data: eurProduct, error: eurErr } = await supabaseAdmin
@@ -1594,7 +1860,7 @@ describe('Bump edge cases', () => {
     });
 
     // Should succeed - no cross-currency validation on bumps
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     // Verify line item stores the bump's own currency (EUR)
@@ -1656,7 +1922,7 @@ describe('Pending payment conversion', () => {
       stripe_payment_intent_id: paymentIntentId,
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     // Verify the original pending transaction was updated to 'completed'
@@ -1697,12 +1963,9 @@ describe('Concurrency & security', () => {
       currency_param: 'USD',
     });
 
-    if (data) {
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Invalid session ID format');
-    } else {
-      expect(error).toBeTruthy();
-    }
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Invalid session ID format');
   });
 
   it('should reject NULL currency_param via payment_line_items NOT NULL constraint', async () => {
@@ -1723,12 +1986,22 @@ describe('Concurrency & security', () => {
     });
 
     // upper(NULL) != upper('USD') triggers RAISE EXCEPTION 'Currency mismatch'
-    // which is caught by the EXCEPTION handler
-    const failed = (data?.success === false) || (error != null);
-    expect(failed).toBe(true);
-    if (data) {
-      expect(data.success).toBe(false);
-    }
+    // which is caught by the EXCEPTION WHEN OTHERS handler in the DB function.
+    // The generic 'Payment processing failed' message is intentional: the DB function's
+    // catch-all handler wraps all unhandled exceptions (including currency mismatch from
+    // NULL input) into this single error message. A more specific assertion isn't possible
+    // without modifying the DB function to return the original exception message.
+    expect(error).toBeNull();
+    expect(data?.success).toBe(false);
+    expect(data?.error).toContain('Payment processing failed');
+
+    // Negative DB verification: confirm no transaction was created (rollback on exception)
+    const { data: txn } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(txn).toBeNull();
   });
 });
 
@@ -1752,7 +2025,7 @@ describe('Line items verification', () => {
       bump_product_ids_param: [bumpProducts[0].id, bumpProducts[1].id],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     // Get the transaction
@@ -1822,7 +2095,7 @@ describe('Line items verification', () => {
       bump_product_ids_param: [bumpProducts[0].id],
     });
 
-    expect(error).toBeFalsy();
+    expect(error).toBeNull();
     expect(data?.success).toBe(true);
 
     const { data: tx } = await supabaseAdmin
@@ -1847,5 +2120,98 @@ describe('Line items verification', () => {
 
     // Bump: unit_price = COALESCE(ob.bump_price, p.price) = $10 (not $30)
     expect(Number(bumpLI!.unit_price)).toBe(10);
+  });
+});
+
+// ============================================================================
+// 18. Authenticated user (non-service_role) positive path
+// ============================================================================
+
+describe('Authenticated user positive path', () => {
+  it('should process payment successfully when called by authenticated user (not service_role)', async () => {
+    // All other positive-path tests use service_role. This test verifies the function
+    // works correctly when called by an actual authenticated user via anon client.
+    const email = `auth-user-${TS}@example.com`;
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    // Sign in with anon client
+    const anonClient = createClient(SUPABASE_URL, ANON_KEY);
+    const { error: signInErr } = await anonClient.auth.signInWithPassword({
+      email,
+      password: 'test123456',
+    });
+    if (signInErr) throw signInErr;
+
+    const sid = `cs_test_auth_user_ok_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(anonClient, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: 5000,
+      currency_param: 'USD',
+      user_id_param: userData.user.id,
+    });
+
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    expect(data?.access_granted).toBe(true);
+    expect(data?.scenario).toBe('logged_in_user_with_bump');
+
+    // Verify transaction was created
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id, status, user_id')
+      .eq('session_id', sid)
+      .single();
+    expect(tx).toBeTruthy();
+    expect(tx!.status).toBe('completed');
+    expect(tx!.user_id).toBe(userData.user.id);
+
+    // Verify user_product_access was granted
+    const { data: access } = await supabaseAdmin
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', userData.user.id)
+      .eq('product_id', mainProduct.id)
+      .single();
+    expect(access).toBeTruthy();
+  });
+});
+
+// ============================================================================
+// 19. Anon role cannot call service-role-only function
+// ============================================================================
+
+describe('Anon role access', () => {
+  it('allows anon calls but still validates inputs (function is PUBLIC for guest checkout)', async () => {
+    // NOTE: This function intentionally has PUBLIC execute permission because it
+    // supports guest checkout (unauthenticated users purchasing products).
+    // Security is enforced via input validation and rate limiting, not role restriction.
+    const anonClient = createClient(SUPABASE_URL, ANON_KEY);
+
+    const sid = `cs_test_anon_access_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(anonClient, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `anon-access-${TS}@example.com`,
+      amount_total: 5000,
+      currency_param: 'USD',
+    });
+
+    // Function is callable by anon (no 42501 permission error).
+    // With a valid product, it processes the payment and returns success.
+    expect(error).toBeNull();
+    expect(data).toBeDefined();
+    expect(data.success).toBe(true);
   });
 });

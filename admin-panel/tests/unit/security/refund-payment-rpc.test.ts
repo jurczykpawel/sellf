@@ -22,23 +22,12 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 
 // ===== SUPABASE CLIENT SETUP =====
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const LOCAL_SERVICE_ROLE_KEY = 'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz';
-const LOCAL_ANON_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
-
-const isLocalDev =
-  (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') &&
-  SUPABASE_URL.includes('127.0.0.1');
-
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || (isLocalDev ? LOCAL_SERVICE_ROLE_KEY : '');
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (isLocalDev ? LOCAL_ANON_KEY : '');
-
-if (!SERVICE_ROLE_KEY) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required.');
-}
-if (!ANON_KEY) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required.');
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
+  throw new Error('Missing Supabase env variables for testing');
 }
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -54,6 +43,9 @@ const cleanupIds = {
   userProductAccess: [] as Array<{ userId: string; productId: string }>,
 };
 
+// NOTE: getTestProduct() depends on seed data (supabase/seed.sql) containing at least
+// one active product with a non-null price > 0. Run `npx supabase db reset` to ensure
+// seed data is present before running these tests.
 async function getTestProduct() {
   const { data } = await supabaseAdmin
     .from('products')
@@ -63,7 +55,7 @@ async function getTestProduct() {
     .gt('price', 0)
     .limit(1)
     .single();
-  if (!data) throw new Error('No active product with price found for testing');
+  if (!data) throw new Error('No active product with price found for testing. Ensure seed data exists (npx supabase db reset).');
   return data;
 }
 
@@ -289,15 +281,16 @@ describe('process_refund_request RPC', () => {
     expect(data.message).toContain('rejected');
     expect(data.admin_response).toBe('Outside refund window');
 
-    // Verify DB state
+    // Verify DB state (including admin_response persisted in DB, not just RPC return)
     const { data: updatedRequest } = await supabaseAdmin
       .from('refund_requests')
-      .select('status, admin_id, processed_at')
+      .select('status, admin_id, admin_response, processed_at')
       .eq('id', request.id)
       .single();
 
     expect(updatedRequest?.status).toBe('rejected');
     expect(updatedRequest?.admin_id).toBe(adminUser.userId);
+    expect(updatedRequest?.admin_response).toBe('Outside refund window');
     expect(updatedRequest?.processed_at).not.toBeNull();
   });
 
@@ -319,11 +312,13 @@ describe('process_refund_request RPC', () => {
     const transaction = await createTestTransaction(testProduct.id);
     const request = await createTestRefundRequest(transaction.id, testProduct.id);
 
-    // First call - approve
-    await adminUser.client.rpc('process_refund_request', {
+    // First call - approve (must succeed before testing idempotency)
+    const { data: firstData, error: firstError } = await adminUser.client.rpc('process_refund_request', {
       request_id_param: request.id,
       action_param: 'approve',
     });
+    expect(firstError).toBeNull();
+    expect(firstData?.success).toBe(true);
 
     // Second call - try to process again
     const { data, error } = await adminUser.client.rpc('process_refund_request', {
@@ -353,17 +348,20 @@ describe('process_refund_request RPC', () => {
     expect(data.success).toBe(false);
     expect(data.error).toContain('Admin privileges required');
 
-    // Verify request was NOT processed
+    // Verify request was NOT processed and admin_id was not set
     const { data: unchanged } = await supabaseAdmin
       .from('refund_requests')
-      .select('status')
+      .select('status, admin_id, admin_response, processed_at')
       .eq('id', request.id)
       .single();
 
     expect(unchanged?.status).toBe('pending');
+    expect(unchanged?.admin_id).toBeNull();
+    expect(unchanged?.admin_response).toBeNull();
+    expect(unchanged?.processed_at).toBeNull();
   });
 
-  it('6. Invalid action_param is rejected', async () => {
+  it('6. Invalid action_param is rejected and DB status unchanged', async () => {
     const transaction = await createTestTransaction(testProduct.id);
     const request = await createTestRefundRequest(transaction.id, testProduct.id);
 
@@ -376,6 +374,18 @@ describe('process_refund_request RPC', () => {
     expect(data).toBeDefined();
     expect(data.success).toBe(false);
     expect(data.error).toContain('Invalid action');
+
+    // Verify DB state was NOT modified after rejection
+    const { data: unchangedRequest } = await supabaseAdmin
+      .from('refund_requests')
+      .select('status, admin_id, admin_response, processed_at')
+      .eq('id', request.id)
+      .single();
+
+    expect(unchangedRequest?.status).toBe('pending');
+    expect(unchangedRequest?.admin_id).toBeNull();
+    expect(unchangedRequest?.admin_response).toBeNull();
+    expect(unchangedRequest?.processed_at).toBeNull();
   });
 
   it('7. Approval returns Stripe payment details for downstream processing', async () => {
@@ -393,13 +403,72 @@ describe('process_refund_request RPC', () => {
     });
 
     expect(data.success).toBe(true);
-    // The function returns stripe_payment_intent_id and amount
-    // so the caller can process the actual Stripe refund
+
+    // The primary purpose of this test is to verify the JOIN between refund_requests
+    // and payment_transactions works correctly. The function must retrieve and return
+    // fields from BOTH tables in a single structured response for downstream Stripe
+    // refund processing.
+
+    // Fields from payment_transactions (prove JOIN retrieves transaction data):
     expect(data.stripe_payment_intent_id).toBeTruthy();
     expect(data.stripe_payment_intent_id).toMatch(/^pi_/);
-    expect(data.amount).toBe(9999);
-    expect(data.currency).toBe('usd');
     expect(data.transaction_id).toBe(transaction.id);
+
+    // Amount validates the JOIN path: the function reads requested_amount from
+    // refund_requests which references the payment_transactions record.
+    expect(typeof data.amount).toBe('number');
+    expect(data.amount).toBe(request.requested_amount);
+    expect(data.currency).toBe(request.currency);
+
+    // Fields from refund_requests (prove JOIN retrieves request data):
+    expect(data.status).toBe('approved');
+    expect(data.message).toContain('approved');
+
+    // Verify the DB was actually updated with computed timestamps and admin metadata
+    const { data: updatedRequest } = await supabaseAdmin
+      .from('refund_requests')
+      .select('status, admin_id, processed_at, updated_at')
+      .eq('id', request.id)
+      .single();
+
+    expect(updatedRequest?.status).toBe('approved');
+    expect(updatedRequest?.admin_id).toBe(adminUser.userId);
+    expect(updatedRequest?.processed_at).not.toBeNull();
+    expect(updatedRequest?.updated_at).not.toBeNull();
+  });
+
+  it('8. Anon (unauthenticated) user cannot call process_refund_request', async () => {
+    const transaction = await createTestTransaction(testProduct.id);
+    const request = await createTestRefundRequest(transaction.id, testProduct.id);
+
+    // Create an unauthenticated (anon) client - no sign-in
+    const anonClient = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data, error } = await anonClient.rpc('process_refund_request', {
+      request_id_param: request.id,
+      action_param: 'approve',
+    });
+
+    // REVOKE EXECUTE from anon should result in permission denied
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe('42501');
+    expect(data).toBeNull();
+  });
+
+  it('9. NULL request_id_param returns "not found" error', async () => {
+    const { data, error } = await adminUser.client.rpc('process_refund_request', {
+      request_id_param: null as unknown as string,
+      action_param: 'approve',
+    });
+
+    // The function handles NULL gracefully: NULL uuid matches no row in the
+    // SELECT ... WHERE id = request_id_param query, so it returns "not found".
+    expect(error).toBeNull();
+    expect(data).toBeDefined();
+    expect(data.success).toBe(false);
+    expect(data.error).toBe('Refund request not found');
   });
 });
 
@@ -408,6 +477,12 @@ describe('process_refund_request RPC', () => {
 // =============================================================================
 
 describe('validate_payment_transaction RPC', () => {
+  // NOTE: Tests 1-6, 9-10 use service_role (supabaseAdmin) because EXECUTE on
+  // validate_payment_transaction is restricted to service_role only (see migration
+  // 20260302000000_restrict_rpc_function_access.sql). The SQL function contains a
+  // `user_id = current_user_id` ownership path, but it is unreachable since no
+  // authenticated user can call the function. Tests 7 and 8 verify this restriction.
+
   it('1. Returns true for a valid completed transaction', async () => {
     const transaction = await createTestTransaction(testProduct.id);
 
@@ -445,13 +520,25 @@ describe('validate_payment_transaction RPC', () => {
     expect(data).toBe(false);
   });
 
-  it('4. Returns false for null UUID', async () => {
-    const nullUuid = '00000000-0000-0000-0000-000000000000';
+  it('4. Returns false for nil UUID (00000000...)', async () => {
+    const nilUuid = '00000000-0000-0000-0000-000000000000';
 
     const { data, error } = await supabaseAdmin.rpc('validate_payment_transaction', {
-      transaction_id: nullUuid,
+      transaction_id: nilUuid,
     });
 
+    expect(error).toBeNull();
+    expect(data).toBe(false);
+  });
+
+  it('4b. Returns false for actual NULL transaction_id', async () => {
+    const { data, error } = await supabaseAdmin.rpc('validate_payment_transaction', {
+      transaction_id: null as unknown as string,
+    });
+
+    // NULL UUID parameter: PostgreSQL coerces NULL to the function's UUID param type.
+    // The function should handle NULL gracefully by returning false (no matching row),
+    // not by raising a PostgreSQL error.
     expect(error).toBeNull();
     expect(data).toBe(false);
   });
@@ -533,23 +620,22 @@ describe('validate_payment_transaction RPC', () => {
     expect(data).toBe(true);
   });
 
-  it('10. Returns false when refunded_amount exceeds amount (data integrity)', async () => {
-    // We can't easily insert a row violating CHECK constraints via Supabase client,
-    // so we use a raw SQL update via service_role to simulate data corruption
+  it('10. Returns true for refunded transaction with full refund amount and refunded_at set', async () => {
+    // Tests the valid state when refunded_amount == amount: status should be 'refunded'
+    // with refunded_at set. This is the expected production state after a full refund
+    // is processed. The function should return true for this consistent data state.
     const transaction = await createTestTransaction(testProduct.id, {
-      amount: 1000,
-      refunded_amount: 500,
+      amount: 3000,
+      refunded_amount: 3000,
+      status: 'refunded',
+      refunded_at: new Date().toISOString(),
     });
 
-    // Direct update bypassing constraints to simulate corruption
-    // The CHECK constraint (refunded_amount <= amount) prevents this via normal insert,
-    // but the function should still validate this invariant
-    // Since we can't violate the CHECK, we verify the function returns true
-    // for a valid case where refunded_amount < amount
-    const { data } = await supabaseAdmin.rpc('validate_payment_transaction', {
+    const { data, error } = await supabaseAdmin.rpc('validate_payment_transaction', {
       transaction_id: transaction.id,
     });
 
+    expect(error).toBeNull();
     expect(data).toBe(true);
   });
 });
