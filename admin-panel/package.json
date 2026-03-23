@@ -26,7 +26,7 @@
     "tttt": "cd .. && npx supabase db reset && cd admin-panel && scripts/run-pw.sh --project=chromium; kill $(lsof -ti:3000) 2>/dev/null; RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh --project=rate-limiting --project=rate-limiting-v1"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^8.4.3",
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@floating-ui/react": "^0.27.19",
     "@marsidev/react-turnstile": "^1.4.2",
     "@stripe/react-stripe-js": "^5.6.1",
