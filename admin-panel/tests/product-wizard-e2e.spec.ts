@@ -112,9 +112,13 @@ test.describe('Product Creation Wizard', () => {
     const dialog = page.getByRole('dialog');
     const nextBtn = dialog.getByRole('button', { name: /Dalej/i });
 
-    // Step 1 → Step 2
-    await nextBtn.click();
-    await expect(page.locator('input#name')).not.toBeVisible({ timeout: 15000 });
+    // Step 1 → Step 2 (retry — RSC refetch can swallow the click)
+    await expect(async () => {
+      if (await nextBtn.isVisible().catch(() => false)) {
+        await nextBtn.click();
+      }
+      await expect(page.locator('input#name')).not.toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15000 });
     await expect(page.getByRole('button', { name: /Wstecz/i })).toBeVisible();
 
     // Step 2 → Step 3 (retry — RSC refetch can swallow the click)
