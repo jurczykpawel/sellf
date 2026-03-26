@@ -1176,8 +1176,8 @@ Response includes:
         url: 'https://github.com/sellf/sellf',
       },
       license: {
-        name: 'MIT',
-        url: 'https://opensource.org/licenses/MIT',
+        name: 'AGPL-3.0',
+        url: 'https://www.gnu.org/licenses/agpl-3.0.html',
       },
     },
     servers: [

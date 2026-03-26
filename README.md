@@ -12,7 +12,7 @@
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![License](https://img.shields.io/badge/License-MIT-green)
+![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
 [🚀 Live Demo](https://demo.sellf.app) · [Documentation](./FEATURES.md) · [Deployment Guide](./docs/DEPLOYMENT-MIKRUS.md) · [Contributing](./CONTRIBUTING.md) · [Issues](https://github.com/jurczykpawel/sellf/issues)
 
@@ -407,7 +407,7 @@ Built with [Next.js](https://nextjs.org/), [Supabase](https://supabase.com/), [S
 
 ## License
 
-MIT License. See [LICENSE](./LICENSE) for details.
+AGPL-3.0. See [LICENSE](./LICENSE) for details.
 
 ---
 

@@ -10,7 +10,7 @@ export async function SocialProofBar() {
     { value: '100%', label: t('socialProof.openSource') },
     { value: '$0', label: t('socialProof.monthlyFees') },
     { value: '∞', label: t('socialProof.products') },
-    { value: 'MIT', label: t('socialProof.license') },
+    { value: 'AGPL', label: t('socialProof.license') },
   ];
 
   return (

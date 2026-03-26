@@ -3145,6 +3145,7 @@
       "support": "Support",
       "legal": "Legal",
       "licenseMIT": "License (MIT)",
+      "licenseAGPL": "License (AGPL-3.0)",
       "privacy": "Privacy",
       "terms": "Terms",
       "copyright": "© {year} Sellf. Open source and self-hosted",

@@ -107,7 +107,7 @@ export async function LandingFooter() {
                 rel="noopener noreferrer"
                 className="block text-sm text-sf-muted hover:text-sf-heading transition-colors duration-200 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
               >
-                {t('footer.licenseMIT')}
+                {t('footer.licenseAGPL')}
               </a>
               <Link
                 href="/privacy"
