@@ -114,7 +114,7 @@ export async function GET(request: Request) {
       const isFreeEligible = product.price === 0 || isPwywFree;
 
       if (isFreeEligible) {
-        const rpcName = isPwywFree && productDetails.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
+        const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
         // Use the user's session client for RPC — service_role loses auth.uid() context
         const { data: accessResult, error: grantError } = await supabase
           .rpc(rpcName, {
