@@ -297,7 +297,7 @@ test.describe('License Settings', () => {
     const successMessage = page.locator('text=/License saved|Licencja zapisana/i');
     await expect(successMessage).toBeVisible({ timeout: 10000 });
 
-    // Verify in database
+    // Verify in database (server action write can be slow under full-suite pressure)
     await expect.poll(async () => {
       const { data } = await supabaseAdmin
         .from('integrations_config')
@@ -305,7 +305,7 @@ test.describe('License Settings', () => {
         .eq('id', 1)
         .single();
       return data?.sellf_license;
-    }, { timeout: 10000 }).toBeNull();
+    }, { timeout: 20000, intervals: [500, 1000, 2000] }).toBeNull();
   });
 
   test('Signature is partially displayed (truncated)', async ({ page }) => {

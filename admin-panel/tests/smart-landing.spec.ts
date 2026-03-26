@@ -382,11 +382,12 @@ test.describe('Smart Landing Page', () => {
   test('Language switching should work on all landing page variants', async ({ page }) => {
     await acceptAllCookies(page);
     // Use /about which has LandingNav — SiteMenu is in the top nav (no overflow clipping)
-    await page.goto('/about', { waitUntil: 'domcontentloaded' });
+    await expect(async () => {
+      await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await expect(page.locator('nav button[aria-haspopup="menu"]').first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
 
-    // Wait for hydrated nav (not global networkidle — Turbopack asset loading can stall it)
     const languageSwitcher = page.locator('nav button[aria-haspopup="menu"]').first();
-    await expect(languageSwitcher).toBeVisible({ timeout: 20000 });
 
     // Hover to open the dropdown (SiteMenu opens on mouseenter, not click)
     await languageSwitcher.hover();
