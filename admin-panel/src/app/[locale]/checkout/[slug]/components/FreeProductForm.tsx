@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import { buildOtoRedirectUrl } from '@/lib/payment/oto-redirect';
+import { paymentStatusUrl } from '@/lib/utils/product-urls';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -114,13 +115,9 @@ export default function FreeProductForm({ product, sellerSlug }: FreeProductForm
         }
 
         // No OTO — redirect to success page (no session_id needed for free products)
-        const params = new URLSearchParams();
-        if (successUrl) params.set('success_url', successUrl);
-        if (sellerSlug) params.set('seller', sellerSlug);
-        const qs = params.toString();
-        const statusBase = sellerSlug ? `/p/${product.slug}/payment-status?seller=${encodeURIComponent(sellerSlug)}` : `/p/${product.slug}/payment-status`;
+        const statusBase = paymentStatusUrl(product.slug, sellerSlug);
         const sep = statusBase.includes('?') ? '&' : '?';
-        const redirectPath = qs ? `${statusBase}${sep}${qs}` : statusBase;
+        const redirectPath = successUrl ? `${statusBase}${sep}success_url=${encodeURIComponent(successUrl)}` : statusBase;
         router.push(redirectPath);
       } catch {
         toast.error(t('unexpectedError'));
