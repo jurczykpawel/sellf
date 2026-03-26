@@ -1,10 +1,10 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import SiteMenu from './SiteMenu'
 import type { ShopConfig } from '@/lib/actions/shop-config'
 import DemoBanner from './DemoBanner'
@@ -136,16 +136,38 @@ const Icons = {
   ),
 };
 
-export default function DashboardLayout({ children, user, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole, sellerDisplayName }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole, sellerDisplayName: sellerDisplayNameProp }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
-  const { signOut, role: authRole } = useAuth()
+  const { signOut, role: authRole, user: authUser, loading: authLoading, sellerDisplayName: authSellerDisplayName } = useAuth()
   const t = useTranslations('navigation')
   const pathname = usePathname()
+  const router = useRouter()
 
-  // Single source of truth: AuthContext role. Props are fallback for SSR initial render.
+  // Single source of truth: AuthContext. SSR props are fallback for initial render only.
+  const user = authUser ?? userProp
+  const sellerDisplayName = authSellerDisplayName ?? sellerDisplayNameProp
   const isAdmin = authRole !== 'user' || (isAdminProp !== undefined ? isAdminProp : false)
+
+  // Auto-redirect to login when session expires on protected routes.
+  // Only triggers when user WAS authenticated and then lost the session (not on initial load).
+  // DashboardLayout is also used on public pages (SmartLanding) so we guard by pathname.
+  const hadUserRef = useRef(false)
+  useEffect(() => {
+    if (authLoading) return
+    if (authUser) {
+      hadUserRef.current = true
+      return
+    }
+    // Only redirect if we previously had a user (session expired), not on cold start
+    if (hadUserRef.current && !authUser) {
+      const isProtectedRoute = pathname.includes('/dashboard') || pathname.includes('/admin') || pathname.includes('/my-products')
+      if (isProtectedRoute) {
+        router.push('/login')
+      }
+    }
+  }, [authUser, authLoading, router, pathname])
   const isExpanded = isPinned || isHovered
 
   // Load pin state from localStorage
