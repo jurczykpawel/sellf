@@ -74,6 +74,10 @@ export const getStripeServer = async (): Promise<Stripe> => {
     const envKey = process.env.STRIPE_SECRET_KEY;
     if (envKey) {
       const actualMode = envKey.startsWith('sk_test_') ? 'test' : 'live';
+      if (actualMode !== mode) {
+        console.error(`[Stripe] Mode mismatch: expected ${mode} but STRIPE_SECRET_KEY is ${actualMode}`);
+        throw new Error(`Stripe key mode mismatch: expected ${mode}, got ${actualMode}`);
+      }
       console.log(`[Stripe] Using .env configuration (${actualMode} mode)`);
       stripe = new Stripe(envKey, {
         apiVersion: STRIPE_API_VERSION,

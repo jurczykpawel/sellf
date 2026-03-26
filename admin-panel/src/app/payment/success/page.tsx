@@ -42,33 +42,22 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
 
   // NEW FLOW: If we have payment_intent, use the new Payment Intent flow
   if (paymentIntent && redirectStatus === 'succeeded') {
-    // Use productSlug if available (it's in URL as 'product' param from CustomPaymentForm)
-    // Otherwise fetch product by ID
-    if (productSlug) {
-      const baseUrl = `/${locale}${paymentStatusUrl(productSlug, sellerSlug)}`;
-      const sep = baseUrl.includes('?') ? '&' : '?';
-      let redirectUrl = `${baseUrl}${sep}payment_intent=${paymentIntent}`;
-      if (successUrl) {
-        redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
-      }
-      redirect(redirectUrl);
-    } else if (productId) {
+    let resolvedSlug = productSlug;
+    if (!resolvedSlug && productId) {
       try {
         const response = await fetch(`${process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/products/${productId}`);
         const data = await response.json();
-        if (data.product?.slug) {
-          const baseUrl2 = `/${locale}${paymentStatusUrl(data.product.slug, sellerSlug)}`;
-          const sep2 = baseUrl2.includes('?') ? '&' : '?';
-          let redirectUrl = `${baseUrl2}${sep2}payment_intent=${paymentIntent}`;
-          if (successUrl) {
-            redirectUrl += `&success_url=${encodeURIComponent(successUrl)}`;
-          }
-          redirect(redirectUrl);
-        }
+        resolvedSlug = data.product?.slug;
       } catch (error) {
-        // If fetch fails, show success page anyway
         console.error('Failed to fetch product:', error);
       }
+    }
+    if (resolvedSlug) {
+      const base = `/${locale}${paymentStatusUrl(resolvedSlug, sellerSlug)}`;
+      const sep = base.includes('?') ? '&' : '?';
+      let url = `${base}${sep}payment_intent=${paymentIntent}`;
+      if (successUrl) url += `&success_url=${encodeURIComponent(successUrl)}`;
+      redirect(url);
     }
   }
 
