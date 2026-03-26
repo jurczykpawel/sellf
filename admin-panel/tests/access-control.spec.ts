@@ -1,5 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 import { supabaseAdmin, setAuthSession } from './helpers/admin-auth';
+import { ProductStateGuard } from './helpers/product-state';
+
+const productGuard = new ProductStateGuard(supabaseAdmin);
 
 test.describe('Access Control (Security)', () => {
   // Enforce single worker
@@ -16,6 +19,7 @@ test.describe('Access Control (Security)', () => {
   };
 
   test.beforeAll(async () => {
+    await productGuard.save();
     // 1. Create test product
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
@@ -62,7 +66,12 @@ test.describe('Access Control (Security)', () => {
     userWithoutAccess = { ...user2, email: email2 };
   });
 
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
+    await productGuard.restore();
     // Cleanup
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
@@ -222,6 +231,7 @@ test.describe('Access Control - Inactive Product', () => {
   };
 
   test.beforeAll(async () => {
+    await productGuard.save();
     // Create test product (initially ACTIVE)
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
@@ -258,7 +268,12 @@ test.describe('Access Control - Inactive Product', () => {
       });
   });
 
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
+    await productGuard.restore();
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
@@ -413,6 +428,7 @@ test.describe('Element Protection - data-has-access / data-no-access visibility'
   };
 
   test.beforeAll(async () => {
+    await productGuard.save();
     // Create test product
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
@@ -459,7 +475,12 @@ test.describe('Element Protection - data-has-access / data-no-access visibility'
     userWithoutAccess = { ...user2, email: email2 };
   });
 
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
+    await productGuard.restore();
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }

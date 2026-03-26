@@ -25,7 +25,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABAS
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3777';
+const SITE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
   throw new Error('Missing Supabase env variables for testing');
@@ -65,8 +65,10 @@ test.describe('Stripe Webhook Registration', () => {
   const gotoPaymentsSettings = async (page: Page) => {
     await page.goto('/pl/dashboard/settings');
     await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('button', { name: /^Payments$|^Płatności$/i }).click();
-    await page.waitForSelector('h4:has-text("Webhook Endpoint")', { timeout: 10000 });
+    const paymentsTab = page.getByRole('button', { name: /^Payments$|^Płatności$/i });
+    await expect(paymentsTab).toBeVisible({ timeout: 20000 });
+    await paymentsTab.click();
+    await page.waitForSelector('h4:has-text("Webhook Endpoint")', { timeout: 15000 });
   };
 
   test.beforeAll(async () => {

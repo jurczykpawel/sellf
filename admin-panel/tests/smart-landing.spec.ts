@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { ProductStateGuard } from './helpers/product-state';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -20,7 +21,7 @@ test.describe('Smart Landing Page', () => {
   let regularUserEmail: string;
   const password = 'password123';
   let testProductId: string;
-  let originallyActiveProductIds: string[] = [];
+  const productGuard = new ProductStateGuard(supabaseAdmin);
 
   const loginAsAdmin = async (page: Page) => {
     await acceptAllCookies(page);
@@ -71,12 +72,7 @@ test.describe('Smart Landing Page', () => {
   };
 
   test.beforeAll(async () => {
-    // Save originally active products before any test runs
-    const { data: activeProducts } = await supabaseAdmin
-      .from('products')
-      .select('id')
-      .eq('is_active', true);
-    originallyActiveProductIds = activeProducts?.map(p => p.id) || [];
+    await productGuard.save();
 
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `test-smart-admin-${Date.now()}-${randomStr}@example.com`;
@@ -120,19 +116,19 @@ test.describe('Smart Landing Page', () => {
     testProductId = product.id;
   });
 
+  // Restore originally active products after each test to prevent state contamination
+  // of other parallel test suites (each test deactivates ALL products for its scenario)
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
     // Cleanup test product
     if (testProductId) {
       await supabaseAdmin.from('products').delete().eq('id', testProductId);
     }
 
-    // Restore originally active products
-    if (originallyActiveProductIds.length > 0) {
-      await supabaseAdmin
-        .from('products')
-        .update({ is_active: true })
-        .in('id', originallyActiveProductIds);
-    }
+    await productGuard.restore();
 
     // Delete users by email
     const { data: users } = await supabaseAdmin.auth.admin.listUsers();
@@ -154,7 +150,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check if we see admin onboarding
     const hasOnboarding = await page.locator('[data-testid="admin-onboarding"]').count();
@@ -182,15 +178,15 @@ test.describe('Smart Landing Page', () => {
   });
 
   test('SCENARIO 2: Guest without products should see coming soon message', async ({ page }) => {
-    // Ensure no active products
+    // Ensure ALL products are inactive (not just test product — seed data has active products too)
     await supabaseAdmin
       .from('products')
       .update({ is_active: false })
-      .eq('id', testProductId);
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see coming soon state
@@ -211,22 +207,21 @@ test.describe('Smart Landing Page', () => {
   });
 
   test('SCENARIO 3: User with active products should see storefront', async ({ page }) => {
-    // Activate the test product
+    // Activate the test product + restore any originally active products
     await supabaseAdmin
       .from('products')
       .update({ is_active: true })
       .eq('id', testProductId);
-
-    await page.waitForTimeout(1000);
+    await productGuard.restore();
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
-    // Should see storefront
+    // Should see storefront (products are active in DB)
     const storefront = page.locator('[data-testid="storefront"]');
-    await expect(storefront).toBeVisible({ timeout: 10000 });
+    await expect(storefront).toBeVisible({ timeout: 15000 });
 
     // Should see product cards (links to /p/)
     const productLinks = page.locator('a[href^="/p/"]');
@@ -240,8 +235,9 @@ test.describe('Smart Landing Page', () => {
     const addProductButton = page.locator('a', { hasText: /Add Your First Product/i });
     await expect(addProductButton).not.toBeVisible();
 
-    const rocket = page.locator('text=🚀');
-    await expect(rocket).not.toBeVisible();
+    // ComingSoonEmptyState should not be visible (rocket in sidebar CTA is OK)
+    const comingSoon = page.locator('[data-testid="coming-soon"]');
+    await expect(comingSoon).not.toBeVisible();
   });
 
   test('SCENARIO 4: Admin with active products should see storefront (not onboarding)', async ({ page }) => {
@@ -253,7 +249,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Even as admin, should see storefront when products exist
@@ -272,7 +268,7 @@ test.describe('Smart Landing Page', () => {
   test('About page should display Sellf marketing content', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto('/about');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see main headline (TextReveal uses \u00A0 between words, so match with \s)
@@ -304,23 +300,18 @@ test.describe('Smart Landing Page', () => {
   test('Navigation sidebar should include About link', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Look for About link in sidebar
     const aboutLink = page.locator('aside a[href="/about"]');
     await expect(aboutLink).toBeVisible({ timeout: 10000 });
 
-    // Click it and verify navigation
+    // Click and wait for About page content to appear (soft navigation in App Router)
     await aboutLink.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-
-    // Should be on about page
-    expect(page.url()).toContain('/about');
 
     // Should see marketing content headline (TextReveal uses \u00A0 between words)
     const mainHeadline = page.locator('h1');
-    await expect(mainHeadline.filter({ hasText: /Your\s+Products|Twoje\s+Produkty/i })).toBeVisible({ timeout: 10000 });
+    await expect(mainHeadline.filter({ hasText: /Your\s+Products|Twoje\s+Produkty/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('Onboarding CTA quick links should navigate correctly', async ({ page }) => {
@@ -334,7 +325,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify quick links exist in onboarding component (not sidebar)
@@ -357,7 +348,7 @@ test.describe('Smart Landing Page', () => {
     await expect(mainCTA).toBeVisible({ timeout: 10000 });
 
     await mainCTA.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     // Should navigate to products page with ?open=new param
@@ -376,7 +367,7 @@ test.describe('Smart Landing Page', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify storefront is shown
@@ -392,7 +383,7 @@ test.describe('Smart Landing Page', () => {
     await acceptAllCookies(page);
     // Use /about which has LandingNav — SiteMenu is in the top nav (no overflow clipping)
     await page.goto('/about');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // SiteMenu trigger is a button with aria-haspopup="menu" in the top nav
     const languageSwitcher = page.locator('nav button[aria-haspopup="menu"]').first();

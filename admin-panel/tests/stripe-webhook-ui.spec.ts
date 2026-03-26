@@ -17,7 +17,7 @@ import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3777';
+const SITE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
   throw new Error('Missing Supabase env variables for testing');
@@ -49,13 +49,16 @@ test.describe('Stripe Webhook Section UI', () => {
       addStyle();
     });
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await setAuthSession(page, adminEmail, adminPassword);
     await page.waitForTimeout(1000);
     await page.goto('/pl/dashboard/settings');
-    await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('button', { name: /^Payments$|^Płatności$/i }).click();
-    await page.waitForSelector('h4:has-text("Webhook Endpoint")', { timeout: 10000 });
+    await page.waitForLoadState('networkidle');
+    // Wait for React hydration before clicking tab (can be slow under full-suite pressure)
+    const paymentsTab = page.getByRole('button', { name: /^Payments$|^Płatności$/i });
+    await expect(paymentsTab).toBeVisible({ timeout: 20000 });
+    await paymentsTab.click();
+    await page.waitForSelector('h4:has-text("Webhook Endpoint")', { timeout: 15000 });
   };
 
   const setWebhookEndpointId = async (id: string | null) => {
@@ -81,14 +84,18 @@ test.describe('Stripe Webhook Section UI', () => {
     await supabaseAdmin.from('stripe_configurations').delete().eq('key_last_4', 'xxxx');
 
     // Insert a fake stripe_configurations row so webhook state updates work.
-    // The encrypted fields are placeholders — the key is intentionally not decryptable.
+    // The encrypted fields must be valid base64 with correct lengths to avoid
+    // "Invalid IV length" errors when other tests try to decrypt active configs.
+    // IV = 16 bytes, Tag = 16 bytes (AES-256-GCM)
+    const fakeIv = Buffer.alloc(16, 0).toString('base64');   // 16 bytes → valid IV
+    const fakeTag = Buffer.alloc(16, 0).toString('base64');  // 16 bytes → valid tag
     const { data: config, error: configError } = await supabaseAdmin
       .from('stripe_configurations')
       .insert({
         mode: 'test',
-        encrypted_key: 'ui_test_fake',
-        encryption_iv: 'ui_test_fake',
-        encryption_tag: 'ui_test_fake',
+        encrypted_key: 'ui_test_fake_encrypted_key_placeholder',
+        encryption_iv: fakeIv,
+        encryption_tag: fakeTag,
         key_last_4: 'xxxx',
         key_prefix: 'sk_test_',
         is_active: true,

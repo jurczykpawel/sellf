@@ -4,8 +4,8 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import { Product } from '@/types';
 
-// Enable ISR - cache for 60 seconds
-export const revalidate = 60;
+// ISR: cache for 60 seconds in production. No caching in dev for test reliability.
+export const revalidate = process.env.NODE_ENV === 'production' ? 60 : 0;
 
 export default async function SmartLandingPage() {
   // Demo mode: always show the landing/about page as homepage

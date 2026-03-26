@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { ProductStateGuard } from './helpers/product-state';
 
 /**
  * Order Bump Security Tests
@@ -16,6 +17,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABAS
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const productGuard = new ProductStateGuard(supabaseAdmin);
 
 test.describe('Order Bump Pricing Security', () => {
   let mainProduct: any;
@@ -23,6 +25,7 @@ test.describe('Order Bump Pricing Security', () => {
   let orderBump: any;
 
   test.beforeAll(async () => {
+    await productGuard.save();
     // Create main product ($50)
     const { data: main, error: mainErr } = await supabaseAdmin
       .from('products')
@@ -84,7 +87,12 @@ test.describe('Order Bump Pricing Security', () => {
     });
   });
 
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
+    await productGuard.restore();
     if (orderBump) {
       await supabaseAdmin.from('order_bumps').delete().eq('id', orderBump.id);
     }
@@ -326,6 +334,7 @@ test.describe('Order Bump with Coupon', () => {
   let couponIncludeBumps: any;
 
   test.beforeAll(async () => {
+    await productGuard.save();
     // Create main product ($100)
     const { data: main } = await supabaseAdmin
       .from('products')
@@ -408,7 +417,12 @@ test.describe('Order Bump with Coupon', () => {
     });
   });
 
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
+    await productGuard.restore();
     if (couponExcludeBumps) {
       await supabaseAdmin.from('coupons').delete().eq('id', couponExcludeBumps.id);
     }

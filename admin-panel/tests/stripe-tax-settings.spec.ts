@@ -66,7 +66,10 @@ test.describe('Stripe Tax Settings Admin UI', () => {
   async function goToStripeTaxSection(page: Page) {
     await page.goto('/dashboard/settings');
     await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('button', { name: /^Payments$|^Płatności$/i }).click();
+    // Payments tab: wait for React hydration (can be slow under full-suite pressure)
+    const paymentsTab = page.getByRole('button', { name: /^Payments$|^Płatności$/i });
+    await expect(paymentsTab).toBeVisible({ timeout: 20000 });
+    await paymentsTab.click();
 
     const heading = page.locator('h2', { hasText: /Tax & Checkout|Stripe Tax|Tax/i }).first();
     await expect(heading).toBeVisible({ timeout: 10000 });

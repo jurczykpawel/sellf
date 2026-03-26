@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
+import { ProductStateGuard } from './helpers/product-state';
 
 // Enforce single worker to prevent conflicts
 test.describe.configure({ mode: 'serial' });
@@ -16,25 +17,14 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 test.describe('Modern Storefront Landing Page 2026', () => {
   let testProductIds: string[] = [];
-  let originallyActiveProductIds: string[] = [];
+  const productGuard = new ProductStateGuard(supabaseAdmin);
 
-  // Save originally active products before any test runs
   test.beforeAll(async () => {
-    const { data } = await supabaseAdmin
-      .from('products')
-      .select('id')
-      .eq('is_active', true);
-    originallyActiveProductIds = data?.map(p => p.id) || [];
+    await productGuard.save();
   });
 
-  // Restore originally active products after all tests
   test.afterAll(async () => {
-    if (originallyActiveProductIds.length > 0) {
-      await supabaseAdmin
-        .from('products')
-        .update({ is_active: true })
-        .in('id', originallyActiveProductIds);
-    }
+    await productGuard.restore();
   });
 
   // Cleanup helper
@@ -50,6 +40,11 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
   test.afterEach(async () => {
     await cleanupTestProducts();
+    // Restore originally active products immediately (not just in afterAll)
+    // to prevent state contamination of subsequent tests and parallel suites
+    await productGuard.restore();
+    // Small delay to ensure DB writes are flushed before next test reads
+    await new Promise(r => setTimeout(r, 300));
   });
 
   test('FREE-ONLY shop: Should show free-focused hero and only free products section', async ({ page }) => {
@@ -59,7 +54,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
       .update({ is_active: false })
       .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    await page.waitForTimeout(500);
+    await new Promise(r => setTimeout(r, 500));
 
     // Create 3 free products
     const freeProducts = [];
@@ -81,13 +76,30 @@ test.describe('Modern Storefront Landing Page 2026', () => {
       }
     }
 
-    await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    // Verify DB state before loading page — only our 3 free products should be active
+    const { data: activeCheck } = await supabaseAdmin
+      .from('products')
+      .select('id, price')
+      .eq('is_active', true)
+      .eq('is_listed', true);
+    const activeIds = activeCheck?.map(p => p.id) || [];
+    const activePaid = activeCheck?.filter(p => p.price > 0) || [];
+    // If stale paid products leaked from other tests, deactivate them
+    if (activePaid.length > 0) {
+      await supabaseAdmin
+        .from('products')
+        .update({ is_active: false })
+        .in('id', activePaid.map(p => p.id));
+    }
 
-    // Verify free-only hero (use flexible text matching)
-    await expect(page.locator('text=/Start Your Journey|Rozpocznij swoją podróż/i')).toBeVisible({ timeout: 15000 });
+    await acceptAllCookies(page);
+
+    // Poll: page may serve stale RSC cache from previous test. Reload until storefront shows free-only hero.
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('text=/Start Your Journey|Rozpocznij swoją podróż/i')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
     await expect(page.locator('text=/Completely Free|Całkowicie za darmo/i')).toBeVisible();
 
     // Verify product count in hero description
@@ -135,13 +147,28 @@ test.describe('Modern Storefront Landing Page 2026', () => {
       }
     }
 
-    await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    // Verify DB: only paid products should be active (clean up any free leaks from other tests)
+    const { data: activeCheck } = await supabaseAdmin
+      .from('products')
+      .select('id, price')
+      .eq('is_active', true)
+      .eq('is_listed', true);
+    const activeFree = activeCheck?.filter(p => p.price === 0) || [];
+    if (activeFree.length > 0) {
+      await supabaseAdmin
+        .from('products')
+        .update({ is_active: false })
+        .in('id', activeFree.map(p => p.id));
+    }
 
-    // Verify premium-only hero
-    await expect(page.getByText('Premium Quality')).toBeVisible({ timeout: 15000 });
+    await acceptAllCookies(page);
+
+    // Poll: page may serve stale RSC cache from previous test
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByText('Premium Quality')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
     await expect(page.getByText('Professional Results')).toBeVisible();
 
     // Verify product count in hero description
@@ -493,16 +520,19 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Poll: page may serve stale RSC cache from previous test
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      // "Show All 8 Premium Products" proves all 8 were loaded from DB
+      await expect(page.getByRole('button', { name: /Show All 8 Premium Products/i })).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 25000, intervals: [2000, 3000, 5000] });
 
     // Verify NO "Show All" button for free products (only 4)
     await expect(page.getByRole('button', { name: /Show All.*Free Resources/i })).not.toBeVisible();
 
-    // Verify "Show All" button EXISTS for premium products
     const showAllPremium = page.getByRole('button', { name: /Show All 8 Premium Products/i });
-    await expect(showAllPremium).toBeVisible({ timeout: 15000 });
 
     // Count visible premium product cards initially (should be 6 or less)
     const premiumCards = page.locator('a[href^="/p/"]').filter({ hasText: /Premium \d+/i });
@@ -579,9 +609,13 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (data) testProductIds.push(data.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Poll: page may serve stale RSC cache from previous test
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
 
     // Get shop config to verify shop name
     const { data: shopConfig } = await supabaseAdmin

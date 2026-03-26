@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { setAuthSession } from './helpers/admin-auth';
+import { ProductStateGuard } from './helpers/product-state';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -26,6 +27,8 @@ async function loginAsAdmin(page: any, email: string, password: string) {
   await page.reload();
 }
 
+const productGuard = new ProductStateGuard(supabaseAdmin);
+
 test.describe('API Key Rotation', () => {
   let adminUserId: string;
   let adminEmail: string;
@@ -34,6 +37,7 @@ test.describe('API Key Rotation', () => {
   const createdKeyIds: string[] = [];
 
   test.beforeAll(async () => {
+    await productGuard.save();
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `rotate-api-test-${randomStr}@example.com`;
 
@@ -56,7 +60,12 @@ test.describe('API Key Rotation', () => {
     adminDbId = adminUser!.id;
   });
 
+  test.afterEach(async () => {
+    await productGuard.restore();
+  });
+
   test.afterAll(async () => {
+    await productGuard.restore();
     // Cleanup API keys
     for (const keyId of createdKeyIds) {
       await supabaseAdmin.from('api_key_audit_log').delete().eq('api_key_id', keyId);

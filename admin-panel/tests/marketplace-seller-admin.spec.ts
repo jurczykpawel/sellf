@@ -20,6 +20,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { setAuthSession } from './helpers/admin-auth';
+import { ProductStateGuard } from './helpers/product-state';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -58,8 +59,10 @@ const createdProductIds: string[] = [];
 const createdCouponIds: string[] = [];
 const createdOrderBumpIds: string[] = [];
 const createdWebhookIds: string[] = [];
+const productGuard = new ProductStateGuard(supabaseAdmin);
 
 test.beforeAll(async () => {
+  await productGuard.save();
   // 1. Create seller owner user
   const randomStr = Math.random().toString(36).substring(7);
   sellerEmail = `seller-admin-test-${Date.now()}-${randomStr}@example.com`;
@@ -81,7 +84,12 @@ test.beforeAll(async () => {
   if (updateError) throw updateError;
 });
 
+test.afterEach(async () => {
+  await productGuard.restore();
+});
+
 test.afterAll(async () => {
+  await productGuard.restore();
   // 1. Clear seller ownership
   await supabaseAdmin
     .from('sellers')
@@ -372,7 +380,7 @@ test.describe('Seller Admin: Sales & Payments', () => {
 test.describe('Seller Admin: Shop Settings', () => {
   test('seller can access settings page', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/en/dashboard/settings', { waitUntil: 'domcontentloaded' });
+    await page.goto('/en/dashboard/settings', { waitUntil: 'networkidle' });
 
     // Should not redirect to login
     await page.waitForURL('**/dashboard/settings**', { timeout: 10000 });
@@ -381,7 +389,7 @@ test.describe('Seller Admin: Shop Settings', () => {
 
   test('seller can view/update shop config', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/en/dashboard/settings', { waitUntil: 'domcontentloaded' });
+    await page.goto('/en/dashboard/settings', { waitUntil: 'networkidle' });
 
     // Settings page should load with form elements
     await page.waitForURL('**/dashboard/settings**', { timeout: 10000 });
@@ -977,7 +985,7 @@ test.describe('Seller Admin: Settings Update', () => {
     originalCurrency = config?.default_currency || 'PLN';
 
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/en/dashboard/settings', { waitUntil: 'domcontentloaded' });
+    await page.goto('/en/dashboard/settings', { waitUntil: 'networkidle' });
 
     // Page should load without auth error
     expect(page.url()).toContain('/dashboard/settings');

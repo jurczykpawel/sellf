@@ -78,6 +78,9 @@ test.describe('Storefront & Checkout Flows', () => {
   });
 
   test('UNAUTHENTICATED user should claim free product via Magic Link flow', async ({ page }) => {
+    // Re-activate our product (other tests may have deactivated ALL products)
+    await supabaseAdmin.from('products').update({ is_active: true }).eq('id', freeProductId);
+
     // Log browser errors
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`BROWSER ERROR: ${msg.text()}`);
