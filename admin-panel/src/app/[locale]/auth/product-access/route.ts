@@ -4,6 +4,23 @@ import { createSellerAdminClient, getSellerBySlug } from '@/lib/marketplace/sell
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { productUrl, paymentStatusUrl } from '@/lib/utils/product-urls';
 
+/** Block redirects to internal/private network hosts */
+function isBlockedHost(hostname: string): boolean {
+  const h = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (h === 'localhost' || h === '::1' || h === '0.0.0.0') return true;
+  if (h.startsWith('::ffff:')) return true;
+  if (h.startsWith('fe80:')) return true;
+  const parts = h.split('.');
+  if (parts.length === 4) {
+    const [a, b] = parts.map(Number);
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+  }
+  return false;
+}
+
 /**
  * Product Access Route
  *
@@ -64,44 +81,42 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Check existing access
+    // Single product fetch (avoids redundant query)
     const { data: product } = await dataClient
       .from('products')
-      .select('id')
+      .select('id, price, is_active, allow_custom_price, custom_price_min, content_delivery_type, content_config')
       .eq('slug', slug)
       .single();
 
-    let existingAccess = null;
-    if (product) {
-      const { data } = await dataClient
-        .from('user_product_access')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('product_id', product.id)
-        .maybeSingle();
-      existingAccess = data;
+    if (!product) {
+      safeRedirect('/', returnUrl);
+      return;
     }
+
+    // Check existing access
+    let existingAccess = null;
+    const { data } = await dataClient
+      .from('user_product_access')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('product_id', product.id)
+      .maybeSingle();
+    existingAccess = data;
 
     // No access yet — check if product is free and grant
     if (!existingAccess) {
-      const { data: productDetails, error: productError } = await dataClient
-        .from('products')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single();
-
-      if (productError || !productDetails) {
+      if (!product.is_active) {
         safeRedirect('/', returnUrl);
         return;
       }
 
-      const isPwywFree = productDetails.allow_custom_price && productDetails.custom_price_min === 0;
-      const isFreeEligible = productDetails.price === 0 || isPwywFree;
+      const isPwywFree = product.allow_custom_price && product.custom_price_min === 0;
+      const isFreeEligible = product.price === 0 || isPwywFree;
 
       if (isFreeEligible) {
         const rpcName = isPwywFree && productDetails.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
-        const { data: accessResult, error: grantError } = await dataClient
+        // Use the user's session client for RPC — service_role loses auth.uid() context
+        const { data: accessResult, error: grantError } = await supabase
           .rpc(rpcName, {
             product_slug_param: slug,
             access_duration_days_param: null,
@@ -130,21 +145,14 @@ export async function GET(request: Request) {
     }
 
     // User has access — check content delivery type for redirect products
-    const { data: redirectProduct } = await dataClient
-      .from('products')
-      .select('content_delivery_type, content_config')
-      .eq('slug', slug)
-      .single();
-
-    if (redirectProduct?.content_delivery_type === 'redirect' && redirectProduct?.content_config?.redirect_url) {
+    if (product.content_delivery_type === 'redirect' && product.content_config?.redirect_url) {
       try {
-        const redirectUrl = new URL(redirectProduct.content_config.redirect_url);
+        const redirectUrl = new URL(product.content_config.redirect_url);
         if (redirectUrl.protocol !== 'https:' && redirectUrl.protocol !== 'http:') {
           safeRedirect(prodUrl, returnUrl);
           return;
         }
-        const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0'];
-        if (blockedHosts.includes(redirectUrl.hostname)) {
+        if (isBlockedHost(redirectUrl.hostname)) {
           safeRedirect(prodUrl, returnUrl);
           return;
         }

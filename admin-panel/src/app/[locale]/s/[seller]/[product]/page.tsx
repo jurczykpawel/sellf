@@ -14,7 +14,7 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
 import { checkMarketplaceAccess } from '@/lib/marketplace/feature-flag';
-import { getSellerBySlug, createSellerPublicClient, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { getSellerBySlug, createSellerPublicClient, createSellerAdminClient, normalizeSellerSlug } from '@/lib/marketplace/seller-client';
 import { checkFeature } from '@/lib/license/resolve';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
@@ -79,7 +79,9 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
     try {
       const supabase = await createClient();
       const { data: { user }, error: authErr } = await supabase.auth.getUser();
-      console.log('[Seller Preview] user:', user?.id, 'authErr:', authErr?.message, 'sellerSlug:', sellerSlug);
+      if (process.env.NODE_ENV !== 'production') {
+          console.log('[Seller Preview] user:', user?.id, 'authErr:', authErr?.message, 'sellerSlug:', sellerSlug);
+        }
       if (user) {
         // Platform admin check
         const { data: admin } = await supabase
@@ -96,7 +98,7 @@ export default async function SellerProductPage({ params, searchParams }: PagePr
             .from('sellers')
             .select('id')
             .eq('user_id', user.id)
-            .eq('slug', sellerSlug.replace(/-/g, '_'))
+            .eq('slug', normalizeSellerSlug(sellerSlug))
             .eq('status', 'active')
             .maybeSingle();
           if (sellerOwner) previewMode = true;

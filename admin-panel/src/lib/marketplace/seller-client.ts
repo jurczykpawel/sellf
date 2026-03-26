@@ -82,11 +82,15 @@ function setCacheEntry(key: string, seller: SellerInfo | null): void {
  *
  * @returns SellerInfo or null if not found / not active
  */
+/** Normalize seller slug: lowercase, non-alphanumeric → underscore, collapse, trim */
+export function normalizeSellerSlug(slug: string): string {
+  return slug.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+
 export async function getSellerBySlug(slug: string): Promise<SellerInfo | null> {
   if (!slug) return null;
 
-  // Normalize slug: URL may use hyphens (kowalski-store) but DB stores underscores (kowalski_store)
-  const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const normalizedSlug = normalizeSellerSlug(slug);
 
   // Check cache
   const cached = sellerCache.get(normalizedSlug);
