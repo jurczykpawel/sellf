@@ -22,8 +22,8 @@
     "test:visual:review": "playwright test --project=visual-mobile --project=visual-tablet --project=visual-laptop --project=visual-wide --project=visual-qhd --project=visual-4k && ../../../scripts/dev/visual-review",
     "t": "vitest run && playwright test tests/smoke --project=chromium --workers=2",
     "tt": "vitest run",
-    "ttt": "scripts/run-pw.sh --project=chromium; kill $(lsof -ti:3777) 2>/dev/null; RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh --project=rate-limiting --project=rate-limiting-v1",
-    "tttt": "cd .. && npx supabase db reset && cd admin-panel && scripts/run-pw.sh --project=chromium; kill $(lsof -ti:3777) 2>/dev/null; RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh --project=rate-limiting --project=rate-limiting-v1"
+    "ttt": "scripts/run-pw.sh --project=chromium; scripts/kill-dev-server.sh; RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh --project=rate-limiting --project=rate-limiting-v1",
+    "tttt": "cd .. && npx supabase db reset && cd admin-panel && scripts/run-pw.sh --project=chromium; scripts/kill-dev-server.sh; RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh --project=rate-limiting --project=rate-limiting-v1"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.4.3",

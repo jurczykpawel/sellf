@@ -47,6 +47,8 @@ export default defineConfig({
   workers: 1,
   /* Reporter: 'dot' in quiet mode (ttt/tttt), 'list' otherwise */
   reporter: quietMode ? 'dot' : 'list',
+  /* Per-test timeout: 45s (default 30s is too tight when Turbopack compiles pages on demand) */
+  timeout: 45000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -145,8 +147,8 @@ export default defineConfig({
   webServer: [
     {
       command: isRateLimitTestMode
-        ? 'PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
-        : 'PORT=3777 bun run dev',
+        ? 'NODE_OPTIONS=--max-old-space-size=8192 PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
+        : 'NODE_OPTIONS=--max-old-space-size=8192 PORT=3777 bun run dev',
       url: 'http://localhost:3777',
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
       reuseExistingServer: false,
