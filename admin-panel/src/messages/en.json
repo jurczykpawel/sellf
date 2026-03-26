@@ -1764,6 +1764,8 @@
       "toggleSuccess": "Coupon {status}",
       "activated": "activated",
       "deactivated": "deactivated",
+      "select": "Select",
+      "selectAll": "Select all coupons",
       "noCoupons": "No coupons found. Create your first one!",
       "otoExpired": "Expired",
       "otoExpiresIn": "Expires in {minutes} min",

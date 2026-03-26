@@ -99,7 +99,7 @@ test.describe('Variants Admin Page', () => {
     test('should display variants page with title and create button', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show page title
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
@@ -112,7 +112,7 @@ test.describe('Variants Admin Page', () => {
     test('should display stats cards', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show stats cards
       await expect(page.getByText(/Grupy wariantów|Variant Groups/i).first()).toBeVisible();
@@ -123,7 +123,7 @@ test.describe('Variants Admin Page', () => {
     test('should show empty state OR groups list', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show either empty state or groups list (depending on test order)
       const emptyState = page.getByText(/Brak grup wariantów|No variant groups/i);
@@ -138,7 +138,7 @@ test.describe('Variants Admin Page', () => {
     test('should open modal when clicking Create Group button', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -151,7 +151,7 @@ test.describe('Variants Admin Page', () => {
     test('should display all products in the modal', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -168,7 +168,7 @@ test.describe('Variants Admin Page', () => {
     test('should have search functionality in modal', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -190,7 +190,7 @@ test.describe('Variants Admin Page', () => {
     test('should allow selecting products by clicking', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -209,7 +209,7 @@ test.describe('Variants Admin Page', () => {
     test('should show variant name input for selected products', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -230,7 +230,7 @@ test.describe('Variants Admin Page', () => {
     test('should disable submit with less than 2 products selected', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -252,7 +252,7 @@ test.describe('Variants Admin Page', () => {
     test('should enable submit with 2+ products selected', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -271,7 +271,7 @@ test.describe('Variants Admin Page', () => {
     test('should close modal on cancel', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -288,7 +288,7 @@ test.describe('Variants Admin Page', () => {
     test('should successfully create variant group', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -318,7 +318,7 @@ test.describe('Variants Admin Page', () => {
     test('should allow removing selected product', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -343,7 +343,7 @@ test.describe('Variants Admin Page', () => {
     test('should auto-generate slug from group name', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();
@@ -403,7 +403,7 @@ test.describe('Variants Admin Page', () => {
     test('should display existing variant group', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show the existing group
       await expect(page.getByText('Existing Test Group')).toBeVisible({ timeout: 10000 });
@@ -412,7 +412,7 @@ test.describe('Variants Admin Page', () => {
     test('should display products in the group', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show products in the group
       await expect(page.getByText('Option 1')).toBeVisible({ timeout: 10000 });
@@ -424,7 +424,7 @@ test.describe('Variants Admin Page', () => {
 
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Find copy button
       const copyButton = page.locator('button[title*="Kopiuj"]').or(page.locator('button[title*="Copy"]')).first();
@@ -442,7 +442,7 @@ test.describe('Variants Admin Page', () => {
     test('should have edit button', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Find edit button
       const editButton = page.locator('button[title*="Edytuj"]').or(page.locator('button[title*="Edit"]')).first();
@@ -452,7 +452,7 @@ test.describe('Variants Admin Page', () => {
     test('should have delete button', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Find delete button
       const deleteButton = page.locator('button[title*="Usuń"]').or(page.locator('button[title*="Delete"]')).first();
@@ -462,7 +462,7 @@ test.describe('Variants Admin Page', () => {
     test('should show featured badge for featured product', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show featured badge
       await expect(page.getByText(/Wyróżniony|Featured/i).first()).toBeVisible({ timeout: 10000 });
@@ -471,7 +471,7 @@ test.describe('Variants Admin Page', () => {
     test('should toggle featured status', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Find any star button (for toggling featured)
       const starButtons = page.locator('button[title*="jako wyróżniony"]').or(page.locator('button[title*="as featured"]'));
@@ -521,7 +521,7 @@ test.describe('Variants Admin Page', () => {
     test('should show deactivate button for active group', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Toggle Active Test Group')).toBeVisible({ timeout: 10000 });
 
@@ -532,7 +532,7 @@ test.describe('Variants Admin Page', () => {
     test('should deactivate group and show inactive badge', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Toggle Active Test Group')).toBeVisible({ timeout: 10000 });
 
@@ -550,7 +550,7 @@ test.describe('Variants Admin Page', () => {
 
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Toggle Active Test Group')).toBeVisible({ timeout: 10000 });
 
@@ -564,7 +564,7 @@ test.describe('Variants Admin Page', () => {
 
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Toggle Active Test Group')).toBeVisible({ timeout: 10000 });
 
@@ -629,7 +629,7 @@ test.describe('Variants Admin Page', () => {
     test('should display same product in multiple groups', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       // Should show both groups
       await expect(page.getByText('M:N Group 1')).toBeVisible({ timeout: 10000 });
@@ -643,7 +643,7 @@ test.describe('Variants Admin Page', () => {
     test('should allow adding already-grouped product to another group', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/pl/dashboard/variants');
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForLoadState('networkidle');
 
       const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i }).first();
       await createButton.click();

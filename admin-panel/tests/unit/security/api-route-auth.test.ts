@@ -100,6 +100,7 @@ const PUBLIC_ROUTES = new Set([
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
   'captcha/challenge/route.ts',                // ALTCHA challenge generation — public, stateless
+  'test-page/element-protection/route.ts',    // test page — serves HTML for SDK e2e tests
 ]);
 
 /**

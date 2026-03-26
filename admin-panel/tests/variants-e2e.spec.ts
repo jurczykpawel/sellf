@@ -35,7 +35,7 @@ test.describe('Product Variants E2E Flow', () => {
   const loginAsAdmin = async (page: Page) => {
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     await setAuthSession(page, adminEmail, adminPassword);
 
@@ -115,7 +115,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Step 2: Navigate to variants page
     await page.goto('/pl/dashboard/variants');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Step 3: Click Create Group
     const createButton = page.getByRole('button', { name: /Utwórz grupę|Create Group/i });
@@ -169,7 +169,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Verify group is visible on page
     await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await expect(page.getByText(ourGroup.name)).toBeVisible({ timeout: 10000 });
   });
 
@@ -178,7 +178,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/variants');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Find any copy button (don't depend on specific group)
     const copyButtons = page.locator('button[title*="Kopiuj"]').or(page.locator('button[title*="Copy"]'));
@@ -202,7 +202,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Navigate to variant selector using group created by test #1
     await page.goto(`/pl/v/${createdGroupSlug || createdGroupId}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Should show variant selector
     await expect(page.getByRole('heading', { name: 'Wybierz opcję' })).toBeVisible({ timeout: 10000 });
@@ -214,7 +214,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Navigate to variant selector using group created by test #1
     await page.goto(`/pl/v/${createdGroupSlug || createdGroupId}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Click on first visible variant
     const variant = page.locator('[class*="cursor-pointer"]').first();
@@ -228,7 +228,7 @@ test.describe('Product Variants E2E Flow', () => {
   test('E2E: Edit existing variant group', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/variants');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Find any edit button (don't depend on specific group name)
     const editButtons = page.locator('button[title*="Edytuj"]').or(page.locator('button[title*="Edit"]'));
@@ -262,14 +262,14 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Verify name changed on page
     await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await expect(page.getByText('E2E Updated Plans').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('E2E: Remove product from variant group via edit modal', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/variants');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Find any existing group (either E2E Updated Plans or E2E License Plans)
     const editButtons = page.locator('button[title*="Edytuj"]').or(page.locator('button[title*="Edit"]'));
@@ -297,7 +297,7 @@ test.describe('Product Variants E2E Flow', () => {
   test('E2E: Delete variant group', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/variants');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Find any delete button
     const deleteButtons = page.locator('button[title*="Usuń grupę"]').or(page.locator('button[title*="Delete group"]'));
@@ -323,7 +323,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Reload to verify
     await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Should have one fewer group
     const newDeleteButtons = page.locator('button[title*="Usuń grupę"]').or(page.locator('button[title*="Delete group"]'));
@@ -447,7 +447,7 @@ test.describe('Variant Flow with Order Bumps', () => {
 
     // Go to variant selector
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Select Standard variant (has bump)
     const standardVariant = page.locator('[class*="cursor-pointer"]').filter({ hasText: 'Standard' }).first();
@@ -455,7 +455,7 @@ test.describe('Variant Flow with Order Bumps', () => {
 
     // Should redirect to checkout
     await page.waitForURL(/\/checkout\//);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Order bump should be visible for Standard variant
     await expect(page.getByText('Add bonus content!')).toBeVisible({ timeout: 10000 });
@@ -466,7 +466,7 @@ test.describe('Variant Flow with Order Bumps', () => {
 
     // Go to variant selector
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Select Premium variant (no bump configured)
     const premiumVariant = page.locator('[class*="cursor-pointer"]').filter({ hasText: 'Premium' }).first();
@@ -474,7 +474,7 @@ test.describe('Variant Flow with Order Bumps', () => {
 
     // Should redirect to checkout
     await page.waitForURL(/\/checkout\//);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Wait for page to fully load
     await page.waitForTimeout(2000);
@@ -559,7 +559,7 @@ test.describe('Variant Selector respects product status', () => {
   test('should show only active variants', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Should show only 2 active variants
     await expect(page.getByRole('heading', { name: 'Option 1' })).toBeVisible();
@@ -576,7 +576,7 @@ test.describe('Variant Selector respects product status', () => {
 
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Should show only 1 active variant now
     await expect(page.getByRole('heading', { name: 'Option 1' })).toBeVisible();

@@ -380,7 +380,7 @@ test.describe('Seller Admin: Sales & Payments', () => {
 test.describe('Seller Admin: Shop Settings', () => {
   test('seller can access settings page', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/en/dashboard/settings', { waitUntil: 'networkidle' });
+    await page.goto('/en/dashboard/settings', { waitUntil: 'domcontentloaded' });
 
     // Should not redirect to login
     await page.waitForURL('**/dashboard/settings**', { timeout: 10000 });
@@ -389,7 +389,7 @@ test.describe('Seller Admin: Shop Settings', () => {
 
   test('seller can view/update shop config', async ({ page }) => {
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/en/dashboard/settings', { waitUntil: 'networkidle' });
+    await page.goto('/en/dashboard/settings', { waitUntil: 'domcontentloaded' });
 
     // Settings page should load with form elements
     await page.waitForURL('**/dashboard/settings**', { timeout: 10000 });
@@ -985,7 +985,7 @@ test.describe('Seller Admin: Settings Update', () => {
     originalCurrency = config?.default_currency || 'PLN';
 
     await loginAsSeller(page, sellerEmail, sellerPassword);
-    await page.goto('/en/dashboard/settings', { waitUntil: 'networkidle' });
+    await page.goto('/en/dashboard/settings', { waitUntil: 'domcontentloaded' });
 
     // Page should load without auth error
     expect(page.url()).toContain('/dashboard/settings');

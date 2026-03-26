@@ -143,14 +143,14 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       // The useProductAccess hook redirects users without access to checkout
       await page.waitForURL(url =>
         url.hostname === 'localhost' &&
-        url.port === '3000' &&
+        url.port === '3777' &&
         url.pathname.includes('/checkout/'),
         { timeout: 15000 }
       );
 
       const currentUrl = page.url();
 
-      // Should redirect to checkout page on Next.js server (port 3000, not 3002)
+      // Should redirect to checkout page on Next.js server (port 3777, not 3778)
       // Anonymous user without access gets redirected to checkout to purchase
       expect(currentUrl).toMatch(/^http:\/\/localhost:3777/);
       expect(currentUrl).toContain(`/checkout/${paidProduct.slug}`);

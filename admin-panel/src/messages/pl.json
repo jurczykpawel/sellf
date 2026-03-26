@@ -1779,6 +1779,8 @@
       "toggleSuccess": "Kupon {status}",
       "activated": "aktywowany",
       "deactivated": "deaktywowany",
+      "select": "Zaznacz",
+      "selectAll": "Zaznacz wszystkie kupony",
       "noCoupons": "Brak kuponów. Utwórz pierwszy!",
       "otoExpired": "Wygasł",
       "otoExpiresIn": "Wygasa za {minutes} min",

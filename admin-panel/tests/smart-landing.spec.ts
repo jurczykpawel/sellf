@@ -150,7 +150,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Check if we see admin onboarding
     const hasOnboarding = await page.locator('[data-testid="admin-onboarding"]').count();
@@ -186,7 +186,7 @@ test.describe('Smart Landing Page', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Should see coming soon state
@@ -216,7 +216,7 @@ test.describe('Smart Landing Page', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Should see storefront (products are active in DB)
@@ -249,7 +249,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Even as admin, should see storefront when products exist
@@ -268,7 +268,7 @@ test.describe('Smart Landing Page', () => {
   test('About page should display Sellf marketing content', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto('/about');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Should see main headline (TextReveal uses \u00A0 between words, so match with \s)
@@ -300,7 +300,7 @@ test.describe('Smart Landing Page', () => {
   test('Navigation sidebar should include About link', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // Look for About link in sidebar
     const aboutLink = page.locator('aside a[href="/about"]');
@@ -325,7 +325,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Verify quick links exist in onboarding component (not sidebar)
@@ -348,7 +348,7 @@ test.describe('Smart Landing Page', () => {
     await expect(mainCTA).toBeVisible({ timeout: 10000 });
 
     await mainCTA.click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
     // Should navigate to products page with ?open=new param
@@ -367,7 +367,7 @@ test.describe('Smart Landing Page', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Verify storefront is shown
@@ -382,8 +382,8 @@ test.describe('Smart Landing Page', () => {
   test('Language switching should work on all landing page variants', async ({ page }) => {
     await acceptAllCookies(page);
     // Use /about which has LandingNav — SiteMenu is in the top nav (no overflow clipping)
-    await page.goto('/about');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/about', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle');
 
     // SiteMenu trigger is a button with aria-haspopup="menu" in the top nav
     const languageSwitcher = page.locator('nav button[aria-haspopup="menu"]').first();
