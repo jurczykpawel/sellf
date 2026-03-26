@@ -225,8 +225,8 @@ export default function FreeProductForm({ product, sellerSlug }: FreeProductForm
       setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
       return;
     }
-    const sellerParam2 = sellerSlug ? `&seller=${encodeURIComponent(sellerSlug)}` : '';
-    const authRedirectPath = `/auth/product-access?product=${encodeURIComponent(product.slug)}${sellerParam2}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+    const sellerParam = sellerSlug ? `&seller=${encodeURIComponent(sellerSlug)}` : '';
+    const authRedirectPath = `/auth/product-access?product=${encodeURIComponent(product.slug)}${sellerParam}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
     // Store redirect path in a short-lived cookie instead of embedding it as a query param
     // in the OAuth redirectTo URL. Supabase validates redirectTo against the allowlist and
     // does not allow arbitrary query params — only the exact registered URL passes.
