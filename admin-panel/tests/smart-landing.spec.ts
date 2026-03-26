@@ -347,12 +347,12 @@ test.describe('Smart Landing Page', () => {
     const mainCTA = page.locator('a[href="/dashboard/products?open=new"]').first();
     await expect(mainCTA).toBeVisible({ timeout: 10000 });
 
-    await mainCTA.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    // Click CTA — retry because RSC refetch can swallow the click
+    await expect(async () => {
+      await mainCTA.click();
+      await page.waitForURL('**/dashboard/products**', { timeout: 3000 });
+    }).toPass({ timeout: 15000 });
 
-    // Should navigate to products page with ?open=new param
-    expect(page.url()).toContain('/dashboard/products');
     expect(page.url()).toContain('open=new');
   });
 
@@ -383,11 +383,10 @@ test.describe('Smart Landing Page', () => {
     await acceptAllCookies(page);
     // Use /about which has LandingNav — SiteMenu is in the top nav (no overflow clipping)
     await page.goto('/about', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
 
-    // SiteMenu trigger is a button with aria-haspopup="menu" in the top nav
+    // Wait for hydrated nav (not global networkidle — Turbopack asset loading can stall it)
     const languageSwitcher = page.locator('nav button[aria-haspopup="menu"]').first();
-    await expect(languageSwitcher).toBeVisible({ timeout: 10000 });
+    await expect(languageSwitcher).toBeVisible({ timeout: 20000 });
 
     // Hover to open the dropdown (SiteMenu opens on mouseenter, not click)
     await languageSwitcher.hover();
