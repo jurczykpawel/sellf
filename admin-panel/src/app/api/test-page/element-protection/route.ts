@@ -8,14 +8,21 @@ import { join } from 'path';
  * Only available in development/test mode.
  */
 export async function GET(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production' && !process.env.E2E_MODE) {
+  // Test pages must never be served in production — regardless of E2E_MODE
+  if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not available' }, { status: 404 });
   }
 
-  const testProduct = request.nextUrl.searchParams.get('testProduct') || 'test-product';
+  // Validate testProduct: only allow slug-safe characters (prevent XSS via </script> breakout)
+  const rawTestProduct = request.nextUrl.searchParams.get('testProduct') || 'test-product';
+  const testProduct = rawTestProduct.replace(/[^a-zA-Z0-9_-]/g, '');
 
-  // Read the static HTML file and inject apiUrl pointing to ourselves (same origin)
-  const baseUrl = `http://${request.headers.get('host') || 'localhost:3777'}`;
+  // Sanitize host header: only allow hostname:port characters (prevent XSS injection into HTML)
+  const rawHost = request.headers.get('host') || 'localhost:3777';
+  if (!/^[a-zA-Z0-9.\-:]+$/.test(rawHost)) {
+    return NextResponse.json({ error: 'Invalid host header' }, { status: 400 });
+  }
+  const baseUrl = `http://${rawHost}`;
 
   try {
     const htmlPath = join(process.cwd(), '..', 'examples', 'test-pages', 'element-protection.html');
@@ -27,10 +34,10 @@ export async function GET(request: NextRequest) {
       `const apiBaseUrl = '${baseUrl}'`
     );
 
-    // Set testProduct
+    // Set testProduct (already sanitized to alphanumeric+hyphens above)
     html = html.replace(
       "urlParams.get('testProduct') || 'test-product'",
-      `'${testProduct.replace(/'/g, "\\'")}'`
+      `'${testProduct}'`
     );
 
     return new NextResponse(html, {
