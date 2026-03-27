@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Google Sheets Log — Konfiguracja\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. Google Sheets — credentials**\nn8n → Credentials → Google Sheets OAuth2 → autoryzuj konto.\nW node \"Append to Google Sheets\" wybierz\nspreadsheeta i zakładkę (sheet).\n\n**3. Nagłówki w arkuszu**\nUtwórz w pierwszym wierszu kolumny:\n`date | time | email | name | product | product_id\n| amount | currency | bump | coupon | guest\n| stripe_session | payment_intent`\n\nDane są dopisywane do nowego wiersza po każdym zakupie.",
+        "height": 320,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "path": "sellf-sheets",
         "httpMethod": "POST",
         "responseMode": "responseNode",
@@ -12,7 +28,10 @@
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 300],
+      "position": [
+        0,
+        300
+      ],
       "webhookId": "sellf-sheets"
     },
     {
@@ -24,7 +43,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -34,13 +56,24 @@
       "name": "Format Row Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "appendOrUpdate",
-        "documentId": { "__rl": true, "mode": "list", "value": "" },
-        "sheetName": { "__rl": true, "mode": "list", "value": "" },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
         "columns": {
           "mappingMode": "autoMapInputData",
           "value": {}
@@ -51,7 +84,10 @@
       "name": "Append to Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [680, 300],
+      "position": [
+        680,
+        300
+      ],
       "notes": "TODO: Configure Google Sheets credentials, select spreadsheet and sheet. Columns: date, time, email, name, product, product_id, amount, currency, bump, coupon, guest, stripe_session, payment_intent"
     }
   ],
@@ -59,18 +95,38 @@
     "Sellf Webhook": {
       "main": [
         [
-          { "node": "Respond OK", "type": "main", "index": 0 },
-          { "node": "Format Row Data", "type": "main", "index": 0 }
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Row Data",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Format Row Data": {
       "main": [
-        [{ "node": "Append to Google Sheets", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "UNAeWBnYcFQQiRKt"
 }

@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Refund Alert — Konfiguracja\n\n**1. Sellf API — URL + klucz**\nW node \"Check Pending Refunds\" zmień domenę:\n`https://yourdomain.com` → Twoja domena Sellf.\nW n8n → Credentials → HTTP Header Auth → dodaj:\n`X-Api-Key: sf_live_xxx` (klucz z Sellf admin → Settings → API).\n\n**2. Telegram Bot**\nn8n → Credentials → Telegram API → wpisz Bot Token\n(utwórz bota przez @BotFather).\nW node \"Send to Telegram\" ustaw `YOUR_CHAT_ID`\n(użyj @userinfobot aby poznać swoje Chat ID).\n\n**3. Częstotliwość sprawdzania**\nDomyślnie co 15 minut. Zmień w node \"Every 15 Minutes\".",
+        "height": 300,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "rule": {
           "interval": [
             {
@@ -16,7 +32,10 @@
       "name": "Every 15 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 300]
+      "position": [
+        0,
+        300
+      ]
     },
     {
       "parameters": {
@@ -30,7 +49,10 @@
       "name": "Check Pending Refunds (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [260, 300],
+      "position": [
+        260,
+        300
+      ],
       "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
     },
     {
@@ -41,7 +63,10 @@
       "name": "Format Alert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 300]
+      "position": [
+        520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -55,28 +80,55 @@
       "name": "Send to Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [760, 300],
+      "position": [
+        760,
+        300
+      ],
       "notes": "TODO: Configure Telegram Bot credentials and set YOUR_CHAT_ID."
     }
   ],
   "connections": {
     "Every 15 Minutes": {
       "main": [
-        [{ "node": "Check Pending Refunds (Sellf API)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Check Pending Refunds (Sellf API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Check Pending Refunds (Sellf API)": {
       "main": [
-        [{ "node": "Format Alert", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Format Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Format Alert": {
       "main": [
-        [{ "node": "Send to Telegram", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "htZNMuiK4WS01HWe"
 }

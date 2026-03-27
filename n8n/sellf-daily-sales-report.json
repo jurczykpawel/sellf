@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Daily Sales Report — Konfiguracja\n\n**1. Sellf API — URL + klucz**\nW node'ach \"Get Dashboard Stats\" i \"Get Top Products\"\nzmień `yourdomain.com` na swoją domenę Sellf.\nn8n → Credentials → HTTP Header Auth → dodaj:\n`X-Api-Key: sf_live_xxx` (Sellf admin → Settings → API).\nPodepnij credentials do obu HTTP node'ów.\n\n**2. Telegram Bot**\nn8n → Credentials → Telegram API → wpisz Bot Token\n(utwórz bota przez @BotFather).\nW node \"Send to Telegram\" ustaw `YOUR_CHAT_ID`\n(użyj @userinfobot aby poznać swoje Chat ID).\n\n**3. Godzina wysyłki**\nDomyślnie 9:00. Zmień w node \"Every Day at 9:00\".",
+        "height": 300,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "rule": {
           "interval": [
             {
@@ -16,7 +32,10 @@
       "name": "Every Day at 9:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 300]
+      "position": [
+        0,
+        300
+      ]
     },
     {
       "parameters": {
@@ -30,7 +49,10 @@
       "name": "Get Dashboard Stats (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
     },
     {
@@ -45,7 +67,10 @@
       "name": "Get Top Products (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 500],
+      "position": [
+        240,
+        500
+      ],
       "notes": "TODO: Configure HTTP Header Auth with Sellf API key."
     },
     {
@@ -56,7 +81,10 @@
       "name": "Format Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 400]
+      "position": [
+        520,
+        400
+      ]
     },
     {
       "parameters": {
@@ -70,7 +98,10 @@
       "name": "Send to Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [760, 400],
+      "position": [
+        760,
+        400
+      ],
       "notes": "TODO: Configure Telegram Bot credentials and set YOUR_CHAT_ID."
     }
   ],
@@ -78,28 +109,60 @@
     "Every Day at 9:00": {
       "main": [
         [
-          { "node": "Get Dashboard Stats (Sellf API)", "type": "main", "index": 0 },
-          { "node": "Get Top Products (Sellf API)", "type": "main", "index": 0 }
+          {
+            "node": "Get Dashboard Stats (Sellf API)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Top Products (Sellf API)",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Get Dashboard Stats (Sellf API)": {
       "main": [
-        [{ "node": "Format Report", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Top Products (Sellf API)": {
       "main": [
-        [{ "node": "Format Report", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Format Report": {
       "main": [
-        [{ "node": "Send to Telegram", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "6xuxkC2f4JfZ-759"
 }

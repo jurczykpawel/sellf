@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Invoice + Delivery Email — Konfiguracja\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. Fakturownia — API token**\nW node \"Create Invoice (Fakturownia)\" zastąp\n`YOUR_FAKTUROWNIA_TOKEN` swoim tokenem API\n(Fakturownia → Ustawienia → Integracje → Token API).\nZmień też URL na `https://TWOJE_KONTO.fakturownia.pl/invoices.json`.\n\n**3. Stawka VAT**\nDomyślnie `\"tax\": 23`. Zmień jeśli inny VAT.\n\n**4. SMTP — credentials + nadawca**\nn8n → Credentials → SMTP → skonfiguruj serwer.\nW node \"Send Delivery Email\" zmień `fromEmail`\ni zaktualizuj `yourdomain.com` na właściwą domenę.",
+        "height": 320,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "path": "sellf-purchase",
         "httpMethod": "POST",
         "responseMode": "responseNode",
@@ -12,7 +28,10 @@
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 300],
+      "position": [
+        0,
+        300
+      ],
       "webhookId": "sellf-purchase"
     },
     {
@@ -24,7 +43,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -32,13 +54,20 @@
           "values": [
             {
               "conditions": {
-                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "combinator": "and",
                 "conditions": [
                   {
                     "leftValue": "={{ $json.body.event }}",
                     "rightValue": "purchase.completed",
-                    "operator": { "type": "string", "operation": "equals" }
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
                 ]
               },
@@ -47,13 +76,18 @@
             }
           ]
         },
-        "options": { "fallbackOutput": "none" }
+        "options": {
+          "fallbackOutput": "none"
+        }
       },
       "id": "sw-1",
       "name": "Is Purchase?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -63,7 +97,10 @@
       "name": "Extract Purchase Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -71,13 +108,20 @@
           "values": [
             {
               "conditions": {
-                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "combinator": "and",
                 "conditions": [
                   {
                     "leftValue": "={{ $json.needsInvoice }}",
                     "rightValue": true,
-                    "operator": { "type": "boolean", "operation": "true" }
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
                   }
                 ]
               },
@@ -86,13 +130,19 @@
             }
           ]
         },
-        "options": { "fallbackOutput": "extra", "renameFallbackOutput": "No Invoice" }
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "No Invoice"
+        }
       },
       "id": "sw-2",
       "name": "Needs Invoice?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [920, 200]
+      "position": [
+        920,
+        200
+      ]
     },
     {
       "parameters": {
@@ -101,7 +151,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -113,7 +166,10 @@
       "name": "Create Invoice (Fakturownia)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1180, 100],
+      "position": [
+        1180,
+        100
+      ],
       "notes": "TODO: Replace YOUR_FAKTUROWNIA_TOKEN with actual API token. Adjust tax rate and invoice kind as needed."
     },
     {
@@ -129,7 +185,10 @@
       "name": "Send Delivery Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [920, 440],
+      "position": [
+        920,
+        440
+      ],
       "notes": "TODO: Configure SMTP credentials. Update fromEmail, domain URLs, and email content."
     }
   ],
@@ -137,32 +196,66 @@
     "Sellf Webhook": {
       "main": [
         [
-          { "node": "Respond OK", "type": "main", "index": 0 },
-          { "node": "Is Purchase?", "type": "main", "index": 0 }
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Purchase?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Is Purchase?": {
       "main": [
-        [{ "node": "Extract Purchase Data", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Extract Purchase Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Purchase Data": {
       "main": [
         [
-          { "node": "Needs Invoice?", "type": "main", "index": 0 },
-          { "node": "Send Delivery Email", "type": "main", "index": 0 }
+          {
+            "node": "Needs Invoice?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Delivery Email",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Needs Invoice?": {
       "main": [
-        [{ "node": "Create Invoice (Fakturownia)", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Create Invoice (Fakturownia)",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "XZ_q_Ly71l93tcRt"
 }

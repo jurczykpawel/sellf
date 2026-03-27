@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Webhooks Handler — Konfiguracja\n\nTo jest **szkielet** — punkt startowy do budowania własnych\nautomatyzacji. Sam w sobie nic nie robi poza routingiem.\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. Podłącz własną logikę**\nKażdy noOp node to placeholder — zastąp go\nlub podepnij kolejne node'y za nim:\n- `Purchase Completed` → faktura, email, sheets\n- `Lead Captured` → email provider, nurture\n- `Waitlist Signup` → lista oczekujących\n- `Access Expired` → win-back\n- `Test Event` → debug / logi\n\nGotowe workflowy dla każdego zdarzenia znajdziesz\nw pozostałych plikach `sellf-*.json`.",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "path": "sellf",
         "httpMethod": "POST",
         "responseMode": "responseNode",
@@ -12,7 +28,10 @@
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 300],
+      "position": [
+        0,
+        300
+      ],
       "webhookId": "sellf-webhook"
     },
     {
@@ -24,7 +43,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -151,7 +173,10 @@
       "name": "Route by Event",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [480, 300]
+      "position": [
+        480,
+        300
+      ]
     },
     {
       "parameters": {},
@@ -159,7 +184,10 @@
       "name": "Purchase Completed",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [780, -100],
+      "position": [
+        780,
+        -100
+      ],
       "notes": "customer: { email, firstName, lastName, userId }\nproduct: { id, name, slug, price, currency, icon }\nbumpProduct: { id, name, slug, price, currency, icon } | null\norder: { amount, currency, sessionId, paymentIntentId, couponId, isGuest }\ninvoice?: { needsInvoice, nip, companyName, address, city, postalCode, country }"
     },
     {
@@ -168,7 +196,10 @@
       "name": "Lead Captured",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [780, 60],
+      "position": [
+        780,
+        60
+      ],
       "notes": "Free product claimed.\ncustomer: { email, userId }\nproduct: { id, name, slug, price (0), currency, icon }"
     },
     {
@@ -177,7 +208,10 @@
       "name": "Waitlist Signup",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [780, 220],
+      "position": [
+        780,
+        220
+      ],
       "notes": "Visitor signed up for waitlist.\ncustomer: { email }\nproduct: { id, name, slug, price, currency, icon }"
     },
     {
@@ -186,7 +220,10 @@
       "name": "Access Expired",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [780, 380],
+      "position": [
+        780,
+        380
+      ],
       "notes": "Time-limited access expired (cron job).\ncustomer: { email (nullable), userId }\nproduct: { id, name, slug, price, currency, icon (some nullable) }\naccess: { grantedAt, expiredAt }"
     },
     {
@@ -195,7 +232,10 @@
       "name": "Test Event",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [780, 540],
+      "position": [
+        780,
+        540
+      ],
       "notes": "Admin panel webhook test.\ndata: { message, system: { version, environment } }"
     },
     {
@@ -204,7 +244,10 @@
       "name": "Unknown Event",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [780, 700],
+      "position": [
+        780,
+        700
+      ],
       "notes": "Fallback for unrecognized events.\nFuture: payment.refunded, user.access_granted, user.access_revoked, product.created/updated/deleted"
     }
   ],
@@ -212,19 +255,63 @@
     "Sellf Webhook": {
       "main": [
         [
-          { "node": "Respond OK", "type": "main", "index": 0 },
-          { "node": "Route by Event", "type": "main", "index": 0 }
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route by Event",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Route by Event": {
       "main": [
-        [{ "node": "Purchase Completed", "type": "main", "index": 0 }],
-        [{ "node": "Lead Captured", "type": "main", "index": 0 }],
-        [{ "node": "Waitlist Signup", "type": "main", "index": 0 }],
-        [{ "node": "Access Expired", "type": "main", "index": 0 }],
-        [{ "node": "Test Event", "type": "main", "index": 0 }],
-        [{ "node": "Unknown Event", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Purchase Completed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lead Captured",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Waitlist Signup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Access Expired",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Test Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unknown Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -235,5 +322,6 @@
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "sellf"
-  }
+  },
+  "id": "9jPIlWQxNeg8q3tS"
 }

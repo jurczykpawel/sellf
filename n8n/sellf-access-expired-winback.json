@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Win-back — Konfiguracja\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. SMTP — credentials + nadawca**\nn8n → Credentials → SMTP → skonfiguruj serwer.\nW obu node'ach email zmień `fromEmail` na swój adres\noraz zaktualizuj `yourdomain.com` na właściwą domenę.\n\n**3. Sellf API — URL + klucz**\nW node \"Create Win-back Coupon\" zmień domenę na swoją.\nn8n → Credentials → HTTP Header Auth → dodaj:\n`X-Api-Key: sf_live_xxx` (Sellf admin → Settings → API).\n\n**4. Rabat i ważność kuponu**\nDomyślnie 20% przez 7 dni. Zmień w node\n\"Create Win-back Coupon\" pola `discount_value` i `expires_at`.\n\n**5. Opóźnienie kuponu**\nDomyślnie 2 dni po wygaśnięciu. Zmień w node \"Wait 2 Days\".",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "path": "sellf-expired",
         "httpMethod": "POST",
         "responseMode": "responseNode",
@@ -12,7 +28,10 @@
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 300],
+      "position": [
+        0,
+        300
+      ],
       "webhookId": "sellf-expired"
     },
     {
@@ -24,7 +43,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -34,7 +56,10 @@
       "name": "Extract Expiry Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -49,7 +74,10 @@
       "name": "Send Expiry Notification",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [700, 160],
+      "position": [
+        700,
+        160
+      ],
       "notes": "TODO: Configure SMTP credentials."
     },
     {
@@ -61,7 +89,10 @@
       "name": "Wait 2 Days",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [700, 440]
+      "position": [
+        700,
+        440
+      ]
     },
     {
       "parameters": {
@@ -78,7 +109,10 @@
       "name": "Create Win-back Coupon (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [940, 440],
+      "position": [
+        940,
+        440
+      ],
       "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
     },
     {
@@ -94,7 +128,10 @@
       "name": "Send Win-back Email with Coupon",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1200, 440],
+      "position": [
+        1200,
+        440
+      ],
       "notes": "TODO: Configure SMTP credentials. Update domain URLs."
     }
   ],
@@ -102,31 +139,65 @@
     "Sellf Webhook": {
       "main": [
         [
-          { "node": "Respond OK", "type": "main", "index": 0 },
-          { "node": "Extract Expiry Data", "type": "main", "index": 0 }
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract Expiry Data",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Extract Expiry Data": {
       "main": [
         [
-          { "node": "Send Expiry Notification", "type": "main", "index": 0 },
-          { "node": "Wait 2 Days", "type": "main", "index": 0 }
+          {
+            "node": "Send Expiry Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait 2 Days",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Wait 2 Days": {
       "main": [
-        [{ "node": "Create Win-back Coupon (Sellf API)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Create Win-back Coupon (Sellf API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Create Win-back Coupon (Sellf API)": {
       "main": [
-        [{ "node": "Send Win-back Email with Coupon", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Win-back Email with Coupon",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "IrTZ_gMMxik3B2x3"
 }

@@ -1,0 +1,407 @@
+{
+  "name": "Sellf: Purchase → iFirma Invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Sellf → iFirma: Konfiguracja po imporcie\n\n**1. Zmienne IFIRMA_LOGIN i IFIRMA_API_KEY**\nn8n → Settings → Variables → dodaj:\n`IFIRMA_LOGIN` = login do konta iFirma\n`IFIRMA_API_KEY` = klucz API do faktur (hex)\n\n**2. Webhook URL**\nSkopiuj URL webhooka z tego node'a (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**3. Stawka VAT**\nDomyślnie `23%`. Jeśli Twoje produkty mają inną stawkę\n(0, 5, 8), zmień `StawkaVat` w node **Build iFirma Payload**.\n\n**4. Klucz API z iFirma**\nPanel iFirma → Ustawienia → Dostęp przez API\n→ skopiuj klucz do faktur (pole hexowe).\nUWAGA: klucze do faktur, kontrahentów itp. są osobne.\n\n**5. Błędy wystawiania faktury**\nNode **Log Error** na końcu — podepnij Slack, email lub\nSupabase aby dostawać alerty o nieudanych wystawieniach.",
+        "height": 400,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "path": "sellf-purchase-ifirma",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "sellf-purchase-ifirma",
+      "notes": "Configure this webhook URL in Sellf admin panel → Settings → Webhooks."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "purchase.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purchase.completed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "sw-1",
+      "name": "Is Purchase?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    lastName: data.customer.lastName || '',\n    userId: data.customer.userId || null,\n    productName: data.product.name,\n    productSlug: data.product.slug,\n    amount: data.order.amount / 100,\n    currency: (data.order.currency || 'PLN').toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    isGuest: data.order.isGuest || false,\n    couponId: data.order.couponId || null,\n    needsInvoice: data.invoice?.needsInvoice || false,\n    invoiceNip: data.invoice?.nip || null,\n    invoiceCompany: data.invoice?.companyName || null,\n    invoiceAddress: data.invoice?.address || null,\n    invoiceCity: data.invoice?.city || null,\n    invoicePostalCode: data.invoice?.postalCode || null,\n    invoiceCountry: data.invoice?.country || 'PL'\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Extract Purchase Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.needsInvoice }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.invoiceNip }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Needs Invoice"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "sw-2",
+      "name": "Needs Invoice?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        920,
+        300
+      ],
+      "notes": "Proceeds only when customer requested an invoice AND provided NIP. Both conditions required."
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst d = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\n// Termin platnosci: 7 dni od wystawienia\nconst due = new Date();\ndue.setDate(due.getDate() + 7);\nconst dueDate = due.toISOString().split('T')[0];\n\nconst payload = {\n  Zaplacono: 1,\n  ZaplaconoNaDokumencie: d.amount,\n  LiczOd: 'BRT',\n  DataWystawienia: today,\n  DataSprzedazy: today,\n  TerminPlatnosci: dueDate,\n  SposobZaplaty: 'PRZ',\n  RodzajPodpisuOdbiorcy: 'OUP',\n  Kontrahent: {\n    Nazwa: d.invoiceCompany || d.email,\n    NIP: d.invoiceNip,\n    Ulica: d.invoiceAddress || '-',\n    KodPocztowy: d.invoicePostalCode || '00-000',\n    Miejscowosc: d.invoiceCity || '-',\n    KodKraju: d.invoiceCountry || 'PL',\n    Email: d.email\n  },\n  Pozycje: [\n    {\n      NazwaPelna: d.productName,\n      Jednostka: 'szt.',\n      Ilosc: 1,\n      CenaBrutto: d.amount,\n      StawkaVat: 23\n    }\n  ]\n};\n\n// Generowanie HMAC-SHA1 dla iFirma API\nconst url = 'https://panel.ifirma.pl/iapi/fakturavat.json';\nconst apiKey = Buffer.from($vars.IFIRMA_API_KEY, 'hex');\nconst body = JSON.stringify(payload);\nconst hmac = crypto.createHmac('sha1', apiKey).update(url + body).digest('hex');\nconst authHeader = `IAPIS user=${$vars.IFIRMA_LOGIN},hmac-sha1=${hmac}`;\n\nreturn [{\n  json: {\n    ...payload,\n    _body: body,\n    _authHeader: authHeader,\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  }\n}];"
+      },
+      "id": "code-2",
+      "name": "Build iFirma Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ],
+      "notes": "StawkaVat domyslnie 23%. Zmien jesli Twoje produkty maja inna stawke (0, 5, 8).\nHMAC-SHA1 generowany z IFIRMA_LOGIN i IFIRMA_API_KEY (n8n Variables)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://panel.ifirma.pl/iapi/fakturavat.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=UTF-8"
+            },
+            {
+              "name": "Authentication",
+              "value": "={{ $json._authHeader }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{ $json._body }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-1",
+      "name": "Send to iFirma",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        300
+      ],
+      "notes": "Wysyla fakture do iFirma API. Autentykacja przez HMAC-SHA1 wygenerowany w poprzednim node."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.response?.Identyfikator }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "invoiceId",
+              "name": "invoiceId",
+              "value": "={{ $json.response.Identyfikator }}",
+              "type": "string"
+            },
+            {
+              "id": "sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build iFirma Payload').item.json._meta.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "buyerEmail",
+              "name": "buyerEmail",
+              "value": "={{ $('Build iFirma Payload').item.json._meta.buyerEmail }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-1",
+      "name": "Extract Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1880,
+        200
+      ],
+      "notes": "invoiceId (Identyfikator) — zapisz do bazy danych (Supabase payment_transactions) dla audytu.\nOpcjonalnie podepnij node Supabase aby go przechowac."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "value": "={{ JSON.stringify($json) }}",
+              "type": "string"
+            },
+            {
+              "id": "sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build iFirma Payload').item.json._meta.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "buyerEmail",
+              "name": "buyerEmail",
+              "value": "={{ $('Build iFirma Payload').item.json._meta.buyerEmail }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-2",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1880,
+        420
+      ],
+      "notes": "TODO: Podepnij Slack / email / Supabase audit_log aby dostawac alerty o nieudanych wystawieniach faktury iFirma."
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Purchase?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Purchase?": {
+      "main": [
+        [
+          {
+            "node": "Extract Purchase Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Purchase Data": {
+      "main": [
+        [
+          {
+            "node": "Needs Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Build iFirma Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build iFirma Payload": {
+      "main": [
+        [
+          {
+            "node": "Send to iFirma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to iFirma": {
+      "main": [
+        [
+          {
+            "node": "Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success?": {
+      "main": [
+        [
+          {
+            "node": "Extract Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "214V5TXQ9iU3hUP8"
+}

@@ -1,0 +1,411 @@
+{
+  "name": "Sellf: Purchase → wFirma Invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Sellf → wFirma: Konfiguracja po imporcie\n\n**1. Zmienna WFIRMA_API_TOKEN**\nn8n → Settings → Variables → dodaj:\n`WFIRMA_API_TOKEN` = token z panelu wFirma\n(wFirma → Ustawienia → Integracje → API → Wygeneruj token)\n\n**2. Webhook URL**\nSkopiuj URL webhooka z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**3. Stawka VAT**\nDomyślnie `23%`. Jeśli Twoje produkty mają inną stawkę,\nzmień `vatRate` w node **Build wFirma Payload**.\nDostępne wartości: `\"0%\"`, `\"5%\"`, `\"8%\"`, `\"23%\"`, `\"zw\"`.\n\n**4. Błędy wystawiania faktury**\nNode **Log Error** na końcu — podepnij Slack, email lub\nSupabase aby dostawać alerty o nieudanych zgłoszeniach do wFirma.",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "path": "sellf-purchase-wfirma",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "sellf-purchase-wfirma",
+      "notes": "Configure this webhook URL in Sellf admin panel → Settings → Webhooks."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "purchase.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purchase.completed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "sw-1",
+      "name": "Is Purchase?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    lastName: data.customer.lastName || '',\n    productName: data.product.name,\n    amount: data.order.amount / 100,\n    currency: data.order.currency.toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    needsInvoice: data.invoice?.needsInvoice || false,\n    invoiceNip: data.invoice?.nip || null,\n    invoiceCompany: data.invoice?.companyName || null,\n    invoiceAddress: data.invoice?.address || null,\n    invoiceCity: data.invoice?.city || null,\n    invoicePostalCode: data.invoice?.postalCode || null,\n    invoiceCountry: data.invoice?.country || 'PL'\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Extract Purchase Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.needsInvoice }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.invoiceNip }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Needs Invoice"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "sw-2",
+      "name": "Needs Invoice?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        920,
+        300
+      ],
+      "notes": "Proceeds only when customer requested an invoice AND provided NIP. Both conditions required."
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\n// Payment date = today (invoice issued day of purchase)\nconst paymentDate = today;\n\n// VAT rate — change here if your products use a different rate\nconst vatRate = '23%';\n\n// Net price = gross amount / (1 + VAT)\nconst vatMultiplier = vatRate === '23%' ? 1.23\n  : vatRate === '8%' ? 1.08\n  : vatRate === '5%' ? 1.05\n  : vatRate === '0%' ? 1.00\n  : 1.00; // 'zw' treated as gross = net\nconst netPrice = vatRate === 'zw'\n  ? d.amount\n  : Math.round((d.amount / vatMultiplier) * 100) / 100;\n\nconst buyerName = d.invoiceCompany || `${d.firstName} ${d.lastName}`.trim() || d.email;\n\nreturn [{\n  json: {\n    payload: {\n      invoices: {\n        invoice: {\n          paymentmethod: 'transfer',\n          paymentdate: paymentDate,\n          type: 'normal',\n          status: 'paid',\n          alreadypaid: d.amount,\n          currency: d.currency || 'PLN',\n          buyer: {\n            name: buyerName,\n            nip: d.invoiceNip,\n            street: d.invoiceAddress || '',\n            zip: d.invoicePostalCode || '',\n            city: d.invoiceCity || '',\n            country: d.invoiceCountry || 'PL',\n            email: d.email\n          },\n          invoicecontents: {\n            invoicecontent: [\n              {\n                name: d.productName,\n                unit: 'szt.',\n                count: 1,\n                price: netPrice,\n                vat_rate: vatRate\n              }\n            ]\n          }\n        }\n      }\n    },\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  }\n}];"
+      },
+      "id": "code-2",
+      "name": "Build wFirma Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ],
+      "notes": "vatRate is hardcoded to 23%. Adjust if your products use a different VAT rate.\nNet price is calculated from gross (order.amount) by dividing by (1 + VAT rate).\nSet WFIRMA_API_TOKEN in n8n → Settings → Variables."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api2.wfirma.pl/invoices/add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.WFIRMA_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-1",
+      "name": "Send to wFirma",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        300
+      ],
+      "notes": "Set WFIRMA_API_TOKEN in n8n → Settings → Variables.\nToken wygeneruj w wFirma → Ustawienia → Integracje → API."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.invoices.invoice.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "invoiceId",
+              "name": "invoiceId",
+              "value": "={{ $json.invoices.invoice.id }}",
+              "type": "string"
+            },
+            {
+              "id": "sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build wFirma Payload').item.json._meta.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "buyerEmail",
+              "name": "buyerEmail",
+              "value": "={{ $('Build wFirma Payload').item.json._meta.buyerEmail }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-1",
+      "name": "Extract Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1880,
+        200
+      ],
+      "notes": "invoiceId — zapisz do DB (Supabase payment_transactions) dla audit trail.\nOpcjonalnie podepnij node Supabase aby go zapisać."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "value": "={{ $json.error || JSON.stringify($json) }}",
+              "type": "string"
+            },
+            {
+              "id": "sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build wFirma Payload').item.json._meta.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "paymentIntentId",
+              "name": "paymentIntentId",
+              "value": "={{ $('Build wFirma Payload').item.json._meta.paymentIntentId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-2",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1880,
+        420
+      ],
+      "notes": "TODO: Podepnij Slack / email / Supabase audit_log aby dostawać alerty o nieudanych wystawieniach faktury wFirma."
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Purchase?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Purchase?": {
+      "main": [
+        [
+          {
+            "node": "Extract Purchase Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Purchase Data": {
+      "main": [
+        [
+          {
+            "node": "Needs Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Build wFirma Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build wFirma Payload": {
+      "main": [
+        [
+          {
+            "node": "Send to wFirma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to wFirma": {
+      "main": [
+        [
+          {
+            "node": "Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success?": {
+      "main": [
+        [
+          {
+            "node": "Extract Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "N3oy3TMDznFjKvY3"
+}

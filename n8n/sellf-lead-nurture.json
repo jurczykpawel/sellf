@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Lead Nurture — Konfiguracja\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. MailerLite — credentials**\nn8n → Credentials → MailerLite API → wpisz API key.\nW node \"Add to MailerLite\" możesz też przypisać\nsubskrybenta do grupy pasującej do produktu.\n\n**3. SMTP — credentials + nadawca**\nn8n → Credentials → SMTP → skonfiguruj serwer.\nW node \"Send Follow-up Email\" zmień `fromEmail`\nna swój adres oraz zaktualizuj link do oferty.\n\n**4. Opóźnienie follow-upu**\nDomyślnie 3 dni. Zmień w node \"Wait 3 Days\".",
+        "height": 320,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "path": "sellf-lead",
         "httpMethod": "POST",
         "responseMode": "responseNode",
@@ -12,7 +28,10 @@
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 300],
+      "position": [
+        0,
+        300
+      ],
       "webhookId": "sellf-lead"
     },
     {
@@ -24,7 +43,10 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -34,7 +56,10 @@
       "name": "Extract Lead Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -48,7 +73,10 @@
       "name": "Add to MailerLite",
       "type": "n8n-nodes-base.mailerLite",
       "typeVersion": 1,
-      "position": [700, 200],
+      "position": [
+        700,
+        200
+      ],
       "notes": "TODO: Configure MailerLite credentials. Optionally assign to a group matching the product."
     },
     {
@@ -60,7 +88,10 @@
       "name": "Wait 3 Days",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [700, 440]
+      "position": [
+        700,
+        440
+      ]
     },
     {
       "parameters": {
@@ -75,7 +106,10 @@
       "name": "Send Follow-up Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [940, 440],
+      "position": [
+        940,
+        440
+      ],
       "notes": "TODO: Configure SMTP credentials. Customize content and link to paid product."
     }
   ],
@@ -83,26 +117,54 @@
     "Sellf Webhook": {
       "main": [
         [
-          { "node": "Respond OK", "type": "main", "index": 0 },
-          { "node": "Extract Lead Data", "type": "main", "index": 0 }
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract Lead Data",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Extract Lead Data": {
       "main": [
         [
-          { "node": "Add to MailerLite", "type": "main", "index": 0 },
-          { "node": "Wait 3 Days", "type": "main", "index": 0 }
+          {
+            "node": "Add to MailerLite",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait 3 Days",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Wait 3 Days": {
       "main": [
-        [{ "node": "Send Follow-up Email", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Follow-up Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "PwZTYYoQQMcnzaGP"
 }

@@ -1,0 +1,421 @@
+{
+  "name": "Sellf: Purchase → Fakturownia Invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Sellf → Fakturownia: Konfiguracja po imporcie\n\n**1. Zmienne w n8n**\nn8n → Settings → Variables → dodaj:\n- `FAKTUROWNIA_ACCOUNT` = nazwa konta (subdomena, np. `mycompany`)\n- `FAKTUROWNIA_API_TOKEN` = token API z Fakturownia → Ustawienia → Integracje → API\n\n**2. Webhook URL**\nSkopiuj URL webhooka z node'a **Sellf Webhook** (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**3. Stawka VAT**\nDomyślnie `23`. Jeśli Twoje produkty mają inną stawkę\n(0, 5, 8), zmień `vatRate` w node **Build Fakturownia Payload**.\n\n**4. Termin płatności**\nDomyślnie = data wystawienia (płatność kartą = od razu opłacone).\nAby zmienić, edytuj pole `payment_to` w node **Build Fakturownia Payload**.\n\n**5. Błędy wystawiania faktury**\nNode **Log Error** na końcu — podepnij Slack, email lub\nSupabase aby dostawać alerty o nieudanych wywołaniach API.",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "path": "sellf-purchase-fakturownia",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Sellf Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "sellf-purchase-fakturownia",
+      "notes": "Configure this webhook URL in Sellf admin panel → Settings → Webhooks."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "id": "res-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "purchase.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purchase.completed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "sw-1",
+      "name": "Is Purchase?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    lastName: data.customer.lastName || '',\n    productName: data.product.name,\n    amount: data.order.amount / 100,\n    currency: (data.order.currency || 'PLN').toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    isGuest: data.order.isGuest || false,\n    needsInvoice: data.invoice?.needsInvoice || false,\n    invoiceNip: data.invoice?.nip || null,\n    invoiceCompany: data.invoice?.companyName || null,\n    invoiceAddress: data.invoice?.address || null,\n    invoiceCity: data.invoice?.city || null,\n    invoicePostalCode: data.invoice?.postalCode || null,\n    invoiceCountry: data.invoice?.country || 'PL'\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "Extract Purchase Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.needsInvoice }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.invoiceNip }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEquals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Needs Invoice"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "sw-2",
+      "name": "Needs Invoice?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        920,
+        300
+      ],
+      "notes": "Proceeds only when customer requested an invoice AND provided NIP. Both conditions required."
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\n// Termin płatności = data wystawienia (karta = opłacone od razu)\nconst paymentTo = today;\n\n// Nazwa kupującego: firma lub imię + nazwisko lub email\nconst buyerName = d.invoiceCompany\n  || ((d.firstName || '') + ' ' + (d.lastName || '')).trim()\n  || d.email;\n\nconst vatRate = 23; // Zmień jeśli Twoje produkty mają inną stawkę (0, 5, 8)\n\nreturn [{\n  json: {\n    issueDate: today,\n    sellDate: today,\n    paymentTo,\n    buyerName,\n    buyerTaxNo: d.invoiceNip,\n    buyerStreet: d.invoiceAddress || '',\n    buyerCity: d.invoiceCity || '',\n    buyerPostCode: d.invoicePostalCode || '',\n    buyerCountry: d.invoiceCountry || 'PL',\n    buyerEmail: d.email,\n    productName: d.productName,\n    amount: d.amount,\n    currency: d.currency || 'PLN',\n    vatRate,\n    // Pass-through dla logu błędów\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  }\n}];"
+      },
+      "id": "code-2",
+      "name": "Build Fakturownia Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ],
+      "notes": "vatRate domyślnie 23%. Zmień jeśli produkty mają inną stawkę (0, 5, 8).\npaymentTo = issueDate (karta = opłacone od razu). Zmień jeśli potrzebujesz innego terminu."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $vars.FAKTUROWNIA_ACCOUNT }}.fakturownia.pl/invoices.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"api_token\": \"{{ $vars.FAKTUROWNIA_API_TOKEN }}\",\n  \"invoice\": {\n    \"kind\": \"vat\",\n    \"number\": null,\n    \"sell_date\": \"{{ $json.sellDate }}\",\n    \"issue_date\": \"{{ $json.issueDate }}\",\n    \"payment_to\": \"{{ $json.paymentTo }}\",\n    \"payment_type\": \"card\",\n    \"status\": \"paid\",\n    \"currency\": \"{{ $json.currency }}\",\n    \"buyer_name\": \"{{ $json.buyerName }}\",\n    \"buyer_tax_no\": \"{{ $json.buyerTaxNo }}\",\n    \"buyer_street\": \"{{ $json.buyerStreet }}\",\n    \"buyer_city\": \"{{ $json.buyerCity }}\",\n    \"buyer_post_code\": \"{{ $json.buyerPostCode }}\",\n    \"buyer_country\": \"{{ $json.buyerCountry }}\",\n    \"buyer_email\": \"{{ $json.buyerEmail }}\",\n    \"positions\": [\n      {\n        \"name\": \"{{ $json.productName }}\",\n        \"quantity\": 1,\n        \"total_price_gross\": {{ $json.amount }},\n        \"tax\": {{ $json.vatRate }}\n      }\n    ]\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-1",
+      "name": "Create Fakturownia Invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        300
+      ],
+      "notes": "Wymaga zmiennych FAKTUROWNIA_ACCOUNT i FAKTUROWNIA_API_TOKEN w n8n → Settings → Variables.\nResponse sukcesu: HTTP 201 z polem id (numer faktury w Fakturownia)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $response.statusCode }}",
+              "rightValue": 201,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "invoiceId",
+              "name": "invoiceId",
+              "value": "={{ $json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "invoiceNumber",
+              "name": "invoiceNumber",
+              "value": "={{ $json.number }}",
+              "type": "string"
+            },
+            {
+              "id": "sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build Fakturownia Payload').item.json._meta.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "buyerEmail",
+              "name": "buyerEmail",
+              "value": "={{ $('Build Fakturownia Payload').item.json._meta.buyerEmail }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-1",
+      "name": "Extract Invoice Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1880,
+        200
+      ],
+      "notes": "invoiceId i invoiceNumber — zapisz do DB (Supabase payment_transactions) dla celów audytowych.\nOpcjonalnie podepnij node Supabase aby persystować te dane."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "value": "={{ $json.error || JSON.stringify($json) }}",
+              "type": "string"
+            },
+            {
+              "id": "statusCode",
+              "name": "statusCode",
+              "value": "={{ $response.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build Fakturownia Payload').item.json._meta.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "paymentIntentId",
+              "name": "paymentIntentId",
+              "value": "={{ $('Build Fakturownia Payload').item.json._meta.paymentIntentId }}",
+              "type": "string"
+            },
+            {
+              "id": "buyerEmail",
+              "name": "buyerEmail",
+              "value": "={{ $('Build Fakturownia Payload').item.json._meta.buyerEmail }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-2",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1880,
+        420
+      ],
+      "notes": "TODO: Podepnij Slack / email / Supabase audit_log aby otrzymywać alerty o nieudanych wywołaniach Fakturownia API."
+    }
+  ],
+  "connections": {
+    "Sellf Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Purchase?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Purchase?": {
+      "main": [
+        [
+          {
+            "node": "Extract Purchase Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Purchase Data": {
+      "main": [
+        [
+          {
+            "node": "Needs Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Build Fakturownia Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Fakturownia Payload": {
+      "main": [
+        [
+          {
+            "node": "Create Fakturownia Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Fakturownia Invoice": {
+      "main": [
+        [
+          {
+            "node": "Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success?": {
+      "main": [
+        [
+          {
+            "node": "Extract Invoice Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "5kp6x7ZZomSkwCaF"
+}

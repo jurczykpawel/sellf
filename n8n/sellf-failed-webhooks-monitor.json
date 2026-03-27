@@ -3,6 +3,22 @@
   "nodes": [
     {
       "parameters": {
+        "content": "## Sellf: Failed Webhook Monitor — Konfiguracja\n\n**1. Sellf API — URL + klucz**\nW node'ach \"List Webhooks\", \"Get Failed Logs\"\ni \"Retry Failed Webhook\" zmień `yourdomain.com`\nna swoją domenę Sellf.\nn8n → Credentials → HTTP Header Auth → dodaj:\n`X-Api-Key: sf_live_xxx` (Sellf admin → Settings → API).\nPodepnij te credentials do wszystkich 3 HTTP node'ów.\n\n**2. Telegram Bot**\nn8n → Credentials → Telegram API → wpisz Bot Token.\nW node \"Alert on Telegram\" ustaw `YOUR_CHAT_ID`\n(użyj @userinfobot aby poznać swoje Chat ID).\n\n**3. Częstotliwość**\nDomyślnie co godzinę. Zmień w node \"Every Hour\".\n\n**4. Limit retry**\nDomyślnie max 5 nieudanych logów na webhook per run.\nZmień `slice(0, 5)` w node \"Split Log IDs\".",
+        "height": 340,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1",
+      "name": "Konfiguracja",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        100
+      ]
+    },
+    {
+      "parameters": {
         "rule": {
           "interval": [
             {
@@ -16,7 +32,10 @@
       "name": "Every Hour",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 300]
+      "position": [
+        0,
+        300
+      ]
     },
     {
       "parameters": {
@@ -30,7 +49,10 @@
       "name": "List Webhooks (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [260, 300],
+      "position": [
+        260,
+        300
+      ],
       "notes": "TODO: Configure HTTP Header Auth with Sellf API key (X-API-Key: sf_live_xxx). Update domain URL."
     },
     {
@@ -41,7 +63,10 @@
       "name": "Extract Webhook IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -55,7 +80,10 @@
       "name": "Get Failed Logs (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [740, 300],
+      "position": [
+        740,
+        300
+      ],
       "notes": "TODO: Configure HTTP Header Auth."
     },
     {
@@ -66,7 +94,10 @@
       "name": "Check for Failures",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [980, 300]
+      "position": [
+        980,
+        300
+      ]
     },
     {
       "parameters": {
@@ -80,7 +111,10 @@
       "name": "Alert on Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1240, 200],
+      "position": [
+        1240,
+        200
+      ],
       "notes": "TODO: Configure Telegram Bot credentials and set YOUR_CHAT_ID."
     },
     {
@@ -91,7 +125,10 @@
       "name": "Split Log IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1240, 440]
+      "position": [
+        1240,
+        440
+      ]
     },
     {
       "parameters": {
@@ -105,46 +142,93 @@
       "name": "Retry Failed Webhook (Sellf API)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1500, 440],
+      "position": [
+        1500,
+        440
+      ],
       "notes": "TODO: Configure HTTP Header Auth. Retries up to 5 failed logs per webhook per run."
     }
   ],
   "connections": {
     "Every Hour": {
       "main": [
-        [{ "node": "List Webhooks (Sellf API)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "List Webhooks (Sellf API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "List Webhooks (Sellf API)": {
       "main": [
-        [{ "node": "Extract Webhook IDs", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Extract Webhook IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Webhook IDs": {
       "main": [
-        [{ "node": "Get Failed Logs (Sellf API)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Failed Logs (Sellf API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Failed Logs (Sellf API)": {
       "main": [
-        [{ "node": "Check for Failures", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Check for Failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Check for Failures": {
       "main": [
         [
-          { "node": "Alert on Telegram", "type": "main", "index": 0 },
-          { "node": "Split Log IDs", "type": "main", "index": 0 }
+          {
+            "node": "Alert on Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Log IDs",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Split Log IDs": {
       "main": [
-        [{ "node": "Retry Failed Webhook (Sellf API)", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Retry Failed Webhook (Sellf API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {},
-  "meta": { "templateCredsSetupCompleted": true, "instanceId": "sellf" }
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "sellf"
+  },
+  "id": "g2GYQ8aSyb6do1Kd"
 }
