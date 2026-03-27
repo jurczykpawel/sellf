@@ -147,9 +147,9 @@ describe('Marketplace Payment Flow', () => {
     });
 
     it('should reject payment when seller has no stripe_account_id', async () => {
-      // Seed sellers don't have Stripe accounts connected
-      expect(kowalskiSeller!.stripe_account_id).toBeNull();
-      expect(kowalskiSeller!.stripe_onboarding_complete).toBe(false);
+      // Creative Studio has no Stripe account connected (seed default)
+      expect(creativeSeller!.stripe_account_id).toBeNull();
+      expect(creativeSeller!.stripe_onboarding_complete).toBe(false);
       // TODO: API should return error when sellerSlug points to seller without Stripe
     });
 

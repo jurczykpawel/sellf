@@ -546,7 +546,7 @@ test.describe('Rate Limiting', () => {
     // Rate limiting code is present and functional in:
     // - /api/refund-requests (requires user auth, 3/60min per user)
     // - /api/public/products/[slug]/grant-access (requires user auth, 5/60min per user)
-    // - /api/admin/coupons (requires admin auth, 20/hour per admin)
+    // - /api/v1/coupons (requires admin auth, 20/hour per admin)
   });
 
   // ============================================

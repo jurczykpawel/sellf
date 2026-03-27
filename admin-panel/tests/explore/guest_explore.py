@@ -113,8 +113,8 @@ def main():
         print()
         api_checks = [
             '/api/runtime-config',
-            '/api/admin/products',
-            '/api/admin/users',
+            '/api/v1/products',
+            '/api/v1/users',
         ]
 
         for endpoint in api_checks:

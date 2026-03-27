@@ -396,7 +396,6 @@ describe('revokeTransactionAccess', () => {
         'src/app/api/admin/payments/refund/route.ts',
         'src/app/api/v1/payments/[id]/refund/route.ts',
         'src/lib/actions/payment.ts',
-        'src/app/api/admin/refund-requests/[id]/route.ts',
         'src/app/api/v1/refund-requests/[id]/route.ts',
       ];
 

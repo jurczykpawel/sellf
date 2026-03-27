@@ -431,7 +431,7 @@ describe('TS-C01: admin routes must use createAdminClient()', () => {
     'app/api/admin/payments/stats/route.ts',
     'app/api/admin/payments/export/route.ts',
     'app/api/admin/payments/refund/route.ts',
-    'app/api/admin/coupons/route.ts',
+    'app/api/v1/coupons/route.ts',
   ];
 
   for (const route of adminRoutes) {
@@ -444,9 +444,9 @@ describe('TS-C01: admin routes must use createAdminClient()', () => {
     });
   }
 
-  it('admin/coupons uses createAdminClient, createSchemaAwareAdminClient, or createDataClientFromAuth', () => {
-    const source = src('app/api/admin/coupons/route.ts');
-    expect(source).toMatch(/createAdminClient|createSchemaAwareAdminClient|createDataClientFromAuth/);
+  it('v1/coupons uses authenticate middleware', () => {
+    const source = src('app/api/v1/coupons/route.ts');
+    expect(source).toMatch(/authenticate/);
   });
 });
 
@@ -671,12 +671,10 @@ describe('TS-M01: sellf.js endpoint hardening', () => {
 // TS-N01: Admin CORS — no wildcard on admin endpoints
 // ============================================================================
 
-describe('TS-N01: admin CORS hardening', () => {
-  it('admin/products/[id]/route.ts uses origin-aware CORS, not wildcard', () => {
-    const source = src('app/api/admin/products/[id]/route.ts');
-    // Should have getCorsHeaders or getAdminCorsOrigin pattern
-    expect(source).toMatch(/getCorsHeaders|getAdminCorsOrigin/);
-    // Should NOT have hardcoded wildcard '*' for CORS origin
+describe('TS-N01: API CORS hardening', () => {
+  it('v1/products/route.ts uses handleCorsPreFlight, not wildcard', () => {
+    const source = src('app/api/v1/products/route.ts');
+    expect(source).toMatch(/handleCorsPreFlight/);
     expect(source).not.toMatch(/'Access-Control-Allow-Origin':\s*['"]\*['"]/);
   });
 });

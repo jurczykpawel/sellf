@@ -13,8 +13,8 @@ import {
  *
  * Tests the PRODUCTION isValidWebhookUrl() from @/lib/validations/webhook.ts
  * which is used by:
- *   - src/app/api/admin/webhooks/route.ts (POST — create webhook)
- *   - src/app/api/admin/webhooks/[id]/route.ts (PUT — update webhook)
+ *   - src/app/api/v1/webhooks/route.ts (POST — create webhook)
+ *   - src/app/api/v1/webhooks/[id]/route.ts (PUT — update webhook)
  *
  * Validates that webhook URLs are properly validated against internal network
  * targets, cloud metadata endpoints, and protocol requirements.

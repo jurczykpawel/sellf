@@ -46,7 +46,7 @@ describe('CORS/CSRF Security', () => {
       expect(CROSS_ORIGIN_ALLOWED_PATHS).toContain('/api/sellf');
 
       // Should NOT contain admin endpoints
-      expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/admin/products');
+      expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/v1/products');
       expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/users');
       expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/webhooks');
     });
