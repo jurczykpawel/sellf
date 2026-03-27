@@ -68,23 +68,6 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Block deprecated /api/admin/* endpoints (except payments)
-  // Set ALLOW_DEPRECATED_API=true to re-enable
-  if (
-    pathname.startsWith('/api/admin/') &&
-    !pathname.startsWith('/api/admin/payments/') &&
-    process.env.ALLOW_DEPRECATED_API !== 'true'
-  ) {
-    return addSecurityHeaders(NextResponse.json(
-      {
-        error: 'Deprecated API endpoint',
-        message: `Use /api/v1/* instead of ${pathname}`,
-        hint: 'Set ALLOW_DEPRECATED_API=true to temporarily re-enable',
-      },
-      { status: 503 }
-    ));
-  }
-
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
     return addSecurityHeaders(NextResponse.json(
