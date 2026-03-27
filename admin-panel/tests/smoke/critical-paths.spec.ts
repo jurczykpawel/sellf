@@ -161,17 +161,16 @@ test.describe('Public Pages', () => {
     await supabaseAdmin.from('products').update({ is_active: true }).eq('id', paidProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Retry: SSR may serve stale data right after DB write
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('a[href*="/p/"]').first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 25000 });
 
     // Page loads without errors
     await expect(page.locator('body')).not.toContainText('Application error');
-
-    // Should show at least one product (test product or seed data)
-    // Storefront renders product cards with links to /p/
-    const productLinks = page.locator('a[href*="/p/"]');
-    await expect(productLinks.first()).toBeVisible({ timeout: 15000 });
   });
 
   test('product page renders for paid product', async ({ page }) => {
