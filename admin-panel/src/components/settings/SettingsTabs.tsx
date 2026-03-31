@@ -81,7 +81,7 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
       <div className="space-y-8">
         {active === 'shop' && (
           <>
-            <ShopSettings />
+            {role === 'platform_admin' && <ShopSettings />}
             {role === 'platform_admin' && <BrandingSettings />}
             <CheckoutThemeSettings />
           </>
