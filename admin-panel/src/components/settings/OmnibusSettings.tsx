@@ -7,7 +7,7 @@
 
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
-import { getShopConfig, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
+import { getMyShopConfig, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
 import { useTranslations } from 'next-intl';
 
 export default function OmnibusSettings() {
@@ -21,7 +21,7 @@ export default function OmnibusSettings() {
  let cancelled = false;
  async function loadConfig() {
  try {
- const data = await getShopConfig();
+ const data = await getMyShopConfig();
  if (cancelled) return;
  if (data) {
  setConfig(data);
@@ -54,7 +54,7 @@ export default function OmnibusSettings() {
  if (success) {
  toast.success(t('saveSuccess'));
  // Reload config and sync state
- const newConfig = await getShopConfig();
+ const newConfig = await getMyShopConfig();
  if (newConfig) {
  setConfig(newConfig);
  setOmnibusEnabled(newConfig.omnibus_enabled ?? true);

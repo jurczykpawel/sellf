@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getShopConfig, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
+import { getMyShopConfig, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -20,7 +20,7 @@ export default function LegalDocumentsSettings() {
  let cancelled = false;
  async function loadConfig() {
  try {
- const data = await getShopConfig();
+ const data = await getMyShopConfig();
  if (cancelled) return;
  if (data) {
  setConfig(data);
@@ -54,7 +54,7 @@ export default function LegalDocumentsSettings() {
 
  if (success) {
  toast.success(t('saveSuccess'));
- const newConfig = await getShopConfig();
+ const newConfig = await getMyShopConfig();
  if (newConfig) setConfig(newConfig);
  } else {
  toast.error(t('saveError'));

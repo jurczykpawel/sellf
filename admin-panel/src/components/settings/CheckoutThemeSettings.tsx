@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getShopConfig, updateShopConfig } from '@/lib/actions/shop-config';
+import { getMyShopConfig, updateShopConfig } from '@/lib/actions/shop-config';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -21,7 +21,7 @@ export default function CheckoutThemeSettings() {
  let cancelled = false;
  async function load() {
  try {
- const config = await getShopConfig();
+ const config = await getMyShopConfig();
  if (cancelled) return;
  if (config?.checkout_theme) {
  setTheme(config.checkout_theme);

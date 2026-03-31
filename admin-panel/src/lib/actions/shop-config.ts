@@ -87,6 +87,26 @@ export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
 })
 
 /**
+ * Get shop config for the current admin/seller's own schema.
+ * Seller admins get their seller schema config, platform admins get seller_main.
+ * Use this in Settings UI. For public pages, use getShopConfig() (always platform).
+ */
+export async function getMyShopConfig(): Promise<ShopConfig | null> {
+  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+    const { data, error } = await dataClient
+      .from('shop_config')
+      .select('*')
+      .maybeSingle()
+    if (error) {
+      console.error('Error fetching shop config:', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true, data: data as ShopConfig | null }
+  })
+  return result.success ? (result.data ?? null) : null
+}
+
+/**
  * Get default shop currency
  */
 export async function getDefaultCurrency(): Promise<string> {
@@ -101,10 +121,13 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
   if (isDemoMode()) return false
 
   const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
-    // Get current config first
-    const config = await getShopConfig()
-    if (!config) {
-      console.error('No shop config found to update')
+    // Read config from the SAME schema we'll write to (not platform's getShopConfig)
+    const { data: config, error: fetchError } = await dataClient
+      .from('shop_config')
+      .select('id')
+      .maybeSingle()
+    if (fetchError || !config) {
+      console.error('No shop config found to update:', fetchError)
       return { success: false, error: 'No shop config found' }
     }
 
