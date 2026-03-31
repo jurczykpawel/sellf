@@ -17,7 +17,13 @@ const STRIPE_CACHE_TTL_MS = 60 * 60 * 1000;
  * Determines the Stripe mode based on environment
  */
 function getStripeMode(): StripeMode {
-  // In production, use live mode; otherwise use test mode
+  // Detect mode from the key itself — NODE_ENV=production doesn't mean live Stripe
+  // (test servers run production builds with test keys)
+  const envKey = process.env.STRIPE_SECRET_KEY;
+  if (envKey) {
+    return envKey.startsWith('sk_live_') ? 'live' : 'test';
+  }
+  // No env key — fall back to NODE_ENV (DB config will determine actual mode)
   return process.env.NODE_ENV === 'production' ? 'live' : 'test';
 }
 
