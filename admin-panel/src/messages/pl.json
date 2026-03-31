@@ -1226,6 +1226,12 @@
       "featuredProduct": "Produkt wyróżniony",
       "copyId": "Kopiuj ID",
       "idCopied": "ID produktu skopiowane do schowka",
+      "copyLink": "Kopiuj link",
+      "copyLinkLabel": "Kopiuj link do {name}",
+      "linkCopied": "Link do produktu skopiowany do schowka",
+      "inactiveTooltipTitle": "Produkt jest dezaktywowany",
+      "inactiveTooltipDesc": "Ten produkt jest calkowicie niedostepny - nawet dla osob, ktore go juz kupily.",
+      "inactiveTooltipHint": "Jesli chcesz tylko wstrzymac sprzedaz, ustaw date waznosci zamiast dezaktywacji.",
       "form": {
         "editProduct": "Edytuj produkt",
         "createNewProduct": "Utwórz nowy produkt",

@@ -1211,6 +1211,12 @@
       "featuredProduct": "Featured product",
       "copyId": "Copy ID",
       "idCopied": "Product ID copied to clipboard",
+      "copyLink": "Copy link",
+      "copyLinkLabel": "Copy link to {name}",
+      "linkCopied": "Product link copied to clipboard",
+      "inactiveTooltipTitle": "Product is deactivated",
+      "inactiveTooltipDesc": "This product is completely inaccessible - even for users who already purchased it.",
+      "inactiveTooltipHint": "To only stop new sales, set an expiration date instead.",
       "form": {
         "editProduct": "Edit Product",
         "createNewProduct": "Create New Product",

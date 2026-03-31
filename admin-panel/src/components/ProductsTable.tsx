@@ -9,6 +9,7 @@ import { getIconEmoji } from '@/utils/themeUtils';
 import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import { toast } from 'sonner';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface ProductsTableProps {
   products: Product[];
@@ -273,32 +274,32 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => onToggleStatus(product.id, product.is_active)}
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold cursor-pointer transition-colors hover:opacity-80 ${
-                            product.is_active
-                              ? 'bg-sf-success-soft text-sf-success'
-                              : 'bg-sf-danger-soft text-sf-danger'
-                          }`}
-                        >
-                          {product.is_active ? t('active') : t('inactive')}
-                        </button>
-                        {!product.is_active && (
-                          product.enable_waitlist ? (
-                            <span
-                              className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-sf-accent-soft text-sf-accent"
-                              title={t('waitlistEnabled')}
+                        {product.is_active ? (
+                          <button
+                            onClick={() => onToggleStatus(product.id, product.is_active)}
+                            className="px-2 inline-flex text-xs leading-5 font-semibold cursor-pointer transition-colors hover:opacity-80 bg-sf-success-soft text-sf-success"
+                          >
+                            {t('active')}
+                          </button>
+                        ) : (
+                          <Tooltip
+                            content={
+                              <div className="space-y-1.5">
+                                <p className="font-medium">{t('inactiveTooltipTitle')}</p>
+                                <p>{t('inactiveTooltipDesc')}</p>
+                                <p className="text-sf-tooltip-text/70">{t('inactiveTooltipHint')}</p>
+                              </div>
+                            }
+                            side="top"
+                            maxWidth={280}
+                          >
+                            <button
+                              onClick={() => onToggleStatus(product.id, product.is_active)}
+                              className="px-2 inline-flex text-xs leading-5 font-semibold cursor-pointer transition-colors hover:opacity-80 bg-sf-danger-soft text-sf-danger"
                             >
-                              📋
-                            </span>
-                          ) : (
-                            <span
-                              className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium bg-sf-raised text-sf-muted"
-                              title={t('waitlistDisabled')}
-                            >
-                              🚫
-                            </span>
-                          )
+                              {t('inactive')}
+                            </button>
+                          </Tooltip>
                         )}
                       </div>
                     </td>
@@ -334,6 +335,22 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     </td>
                     <td className="px-3 py-4 text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-0.5">
+
+                        {/* ── Copy product link ────────────────────────────── */}
+                        <button
+                          onClick={() => {
+                            const url = `${window.location.origin}${productPath(product.slug)}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success(t('linkCopied'));
+                          }}
+                          className="p-1.5 rounded text-sf-muted hover:text-sf-heading hover:bg-sf-raised transition-colors"
+                          title={t('copyLink')}
+                          aria-label={t('copyLinkLabel', { name: product.name })}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                        </button>
 
                         {/* ── Primary action 1: Admin preview ─────────────── */}
                         <button
