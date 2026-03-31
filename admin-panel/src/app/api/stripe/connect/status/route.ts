@@ -75,10 +75,14 @@ export async function GET(request: NextRequest) {
 
     const status = await getConnectedAccountStatus(seller.stripe_account_id);
     if (!status) {
-      return NextResponse.json(
-        { error: 'Failed to retrieve Stripe account status' },
-        { status: 500 }
-      );
+      // Stripe API unreachable or account from different env — fall back to DB state
+      return NextResponse.json({
+        accountId: seller.stripe_account_id,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        detailsSubmitted: false,
+        onboardingComplete: seller.stripe_onboarding_complete ?? false,
+      });
     }
 
     return NextResponse.json(status);
