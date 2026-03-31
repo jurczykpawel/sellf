@@ -127,10 +127,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isMountedRef.current) return
 
         const currentUser = session?.user ?? null
-        
+
         // Set user immediately for responsive UI
         setUser(currentUser)
         setError(null)
+
+        // Reset role immediately to prevent stale role from rendering wrong components
+        // (e.g. localStorage had 'platform_admin' but user is now 'seller_admin')
+        setRole('user')
 
         // Resolve user role
         if (currentUser) {
@@ -217,9 +221,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const signOut = async () => {
     try {
-      // POST (not GET) to prevent logout CSRF via link/image injection.
-      // Server clears session cookies before redirect so the proxy doesn't
-      // see a valid JWT and 307 back to dashboard.
+      // Clear cached role so next login doesn't flash stale role
+      if (typeof window !== 'undefined') localStorage.removeItem('sf_role')
+
       const res = await fetch('/api/auth/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
