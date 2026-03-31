@@ -927,6 +927,8 @@
     "accessExpiredStatus": "Expired {date}",
     "accessExpiresStatus": "Expires {date}",
     "legacyAccess": "Product no longer available for purchase",
+    "inactivePreviewTitle": "This product is deactivated.",
+    "inactivePreviewDesc": "Customers cannot see this page. To make it available, activate the product in Settings.",
     "productDescription": "Product Description",
     "securedBySellf": "Secured by Sellf",
     "notAvailableToNew": "This product is no longer available to new customers",

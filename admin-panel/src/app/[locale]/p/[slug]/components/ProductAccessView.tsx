@@ -319,6 +319,19 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
   return (
     <div className="min-h-screen bg-sf-deep font-sans">
 
+      {/* Admin preview: inactive product warning banner */}
+      {previewMode && !secureProduct.is_active && (
+        <div className="bg-sf-danger-soft border-b border-sf-danger/30 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3 text-sm text-sf-danger">
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+            <div>
+              <span className="font-semibold">{t('inactivePreviewTitle')}</span>
+              {' '}{t('inactivePreviewDesc')}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky mini-header */}
       <header className="sticky top-0 z-20 bg-sf-base/90 backdrop-blur-md border-b border-sf-border">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
@@ -369,12 +382,6 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
                   {secureUserAccess.is_expired
                     ? t('accessExpiredStatus', { date: formatDate(secureUserAccess.access_expires_at) })
                     : t('accessExpiresStatus', { date: formatDate(secureUserAccess.access_expires_at) })}
-                </div>
-              )}
-              {!secureProduct.is_active && (
-                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium w-fit bg-sf-warning-soft border border-sf-warning/30 text-sf-warning">
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833-.23 2.5 1.732 2.5z" /></svg>
-                  {t('legacyAccess')}
                 </div>
               )}
             </div>
