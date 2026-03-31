@@ -17,8 +17,7 @@ export async function GET() {
     captchaProvider: getCaptchaProvider(),
     siteUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL!,
     demoMode: process.env.DEMO_MODE === 'true',
-    // E2E_MODE only enables password login outside production (prevents misconfigured deploys)
-    passwordLoginEnabled: process.env.DEMO_MODE === 'true' || (process.env.E2E_MODE === 'true' && process.env.NODE_ENV !== 'production'),
+    passwordLoginEnabled: process.env.DEMO_MODE === 'true' || process.env.E2E_MODE === 'true',
     oauthProviders: (process.env.OAUTH_PROVIDERS || '')
       .split(',')
       .map(p => p.trim().toLowerCase())
