@@ -4,9 +4,8 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import { Product } from '@/types';
 
-// Build-time constant: production builds get ISR (60s), dev server gets revalidate=0 (no cache).
-// next dev ignores ISR anyway, but revalidate=0 ensures test DB writes are immediately visible.
-export const revalidate = process.env.NODE_ENV === 'production' ? 60 : 0;
+// ISR: revalidate every 60s. Dev server ignores this (always fresh).
+export const revalidate = 60;
 
 export default async function SmartLandingPage() {
   // Demo mode: always show the landing/about page as homepage
