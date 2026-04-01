@@ -92,18 +92,14 @@ export default function AltchaWidget({
   })
 
   return (
-    <div className={compact ? 'mb-2' : 'mb-4'}>
-      <div className="flex justify-center">
-        <altcha-widget
-          ref={widgetRef}
-          challengeurl="/api/captcha/challenge"
-          auto="onload"
-          hidelogo
-          hidefooter
-          strings={strings}
-          style={{ maxWidth: '100%' }}
-        />
-      </div>
-    </div>
+    <altcha-widget
+      ref={widgetRef}
+      challengeurl="/api/captcha/challenge"
+      auto="onload"
+      floating="bottom"
+      hidelogo
+      hidefooter
+      strings={strings}
+    />
   )
 }
