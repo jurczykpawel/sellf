@@ -66,11 +66,7 @@ export default function FreeProductForm({ product, sellerSlug }: FreeProductForm
 
   const handleFreeAccess = async () => {
     if (user) {
-      if (!termsAccepted) {
-        setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-        return;
-      }
-      // Logged in user - grant access directly
+      // Logged in user - grant access directly (ToS accepted at registration)
       try {
         setLoading(true);
         
@@ -272,20 +268,22 @@ export default function FreeProductForm({ product, sellerSlug }: FreeProductForm
             </div>
           )}
 
-          {/* Terms and Conditions Checkbox - always shown */}
-          <TermsCheckbox
-            checked={termsAccepted}
-            onChange={setTermsAccepted}
-            termsUrl="/terms"
-            privacyUrl="/privacy"
-          />
+          {/* Terms checkbox — only for guests (logged-in users accepted at registration) */}
+          {!user && (
+            <TermsCheckbox
+              checked={termsAccepted}
+              onChange={setTermsAccepted}
+              termsUrl="/terms"
+              privacyUrl="/privacy"
+            />
+          )}
 
           <button
             type="submit"
             disabled={
               loading ||
               captcha.isLoading ||
-              !termsAccepted ||
+              (!user && !termsAccepted) ||
               (!user && (!email || (process.env.NODE_ENV === 'production' && !captcha.token)))
             }
             className="w-full bg-sf-success hover:bg-sf-success/90 disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-success focus:ring-offset-2 active:scale-[0.98]"
