@@ -175,6 +175,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               "frame-src js.stripe.com challenges.cloudflare.com *.youtube.com player.vimeo.com iframe.mediadelivery.net *.loom.com fast.wistia.net *.dailymotion.com player.twitch.tv",
               `connect-src 'self' *.supabase.co *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com${process.env.NODE_ENV === 'development' ? ' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*' : ''}`,
+              "worker-src 'self' blob:",
               "object-src 'none'",
               "base-uri 'self'",
             ].join('; '),
