@@ -1,4 +1,4 @@
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import WaitlistForm from '@/components/WaitlistForm';
@@ -9,6 +9,7 @@ interface ProductTemporalStateProps {
 
 export default function ProductTemporalState({ product }: ProductTemporalStateProps) {
   const t = useTranslations('productView');
+  const locale = useLocale();
 
   const now = new Date();
   const availableFrom = product.available_from ? new Date(product.available_from) : null;
@@ -38,7 +39,9 @@ export default function ProductTemporalState({ product }: ProductTemporalStatePr
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {product.price === 0 ? 'FREE' : `$${product.price}`}
+          {product.price === 0
+            ? t('free')
+            : new Intl.NumberFormat(locale, { style: 'currency', currency: product.currency || 'USD' }).format(product.price)}
         </div>
 
         <div className="text-4xl mb-4">⏰</div>
@@ -51,13 +54,13 @@ export default function ProductTemporalState({ product }: ProductTemporalStatePr
 
         {availableFrom && isNotYetAvailable && (
           <div className="bg-sf-accent-soft border border-sf-border-accent rounded-lg p-4 text-sf-accent mb-6">
-            <p className="text-sm">Available from: {availableFrom.toLocaleDateString()}</p>
+            <p className="text-sm">{t('availableFromDate', { date: availableFrom.toLocaleDateString(locale) })}</p>
           </div>
         )}
 
         {availableUntil && isExpired && (
           <div className="bg-sf-danger-soft border border-sf-danger/30 rounded-lg p-4 text-sf-danger mb-6">
-            <p className="text-sm">Was available until: {availableUntil.toLocaleDateString()}</p>
+            <p className="text-sm">{t('wasAvailableUntil', { date: availableUntil.toLocaleDateString(locale) })}</p>
           </div>
         )}
 
