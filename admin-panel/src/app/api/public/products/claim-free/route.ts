@@ -157,7 +157,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Send magic link via Supabase
-    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback?redirect_to=${encodeURIComponent(`/auth/product-access?product=${productSlug}`)}`;
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const redirectUrl = `${siteUrl}/auth/callback?redirect_to=${encodeURIComponent(`/auth/product-access?product=${productSlug}`)}`;
 
     const { error: magicLinkError } = await supabase.auth.signInWithOtp({
       email,
