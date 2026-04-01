@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations, useLocale } from 'next-intl';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useConfig } from '@/components/providers/config-provider';
 
 interface Product {
   id: string;
@@ -25,12 +26,21 @@ interface UserProductAccess {
   id: string;
   product: Product;
   granted_at: string;
+  sellerSlug?: string;
+  sellerDisplayName?: string;
 }
 
-interface UserAccessData {
-    id: string;
-    created_at: string;
-    product: Product;
+interface CrossSchemaProduct {
+  seller_slug: string;
+  seller_display_name: string;
+  product_id: string;
+  product_name: string;
+  product_slug: string;
+  product_icon: string;
+  product_price: number;
+  product_currency: string;
+  access_granted_at: string;
+  access_expires_at: string | null;
 }
 
 function ProductImage({ src, alt, icon }: { src: string; alt: string; icon: string }) {
@@ -75,6 +85,7 @@ function formatPriceLocalized(price: number | null, currency: string | null = 'U
 
 export default function MyProductsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { marketplaceEnabled } = useConfig();
   const t = useTranslations('myProducts');
   const locale = useLocale();
   const [userProducts, setUserProducts] = useState<UserProductAccess[]>([]);
@@ -94,59 +105,59 @@ export default function MyProductsPage() {
 
       const supabase = await createClient();
 
-      // Two-step query to avoid FK embedding through proxy views (PGRST200).
-      // Step 1: Get user's access records
-      const { data: accessRecords, error: accessError } = await supabase
-        .from('user_product_access')
-        .select('id, created_at, product_id')
-        .eq('user_id', user.id);
+      // Cross-schema RPC: fetches user's products from ALL seller schemas.
+      // Works for both single-tenant (seller_main only) and marketplace mode.
+      const { data: crossData, error: crossError } = await supabase
+        .rpc('get_user_products_all_sellers');
 
-      if (accessError) throw accessError;
+      if (crossError) throw crossError;
 
-      // Step 2: Fetch product details for all accessed products
-      const productIds = (accessRecords || []).map((r: { product_id: string }) => r.product_id);
-      let productsMap: Record<string, UserAccessData['product']> = {};
-      if (productIds.length > 0) {
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('id, name, slug, description, icon, image_url, price, currency, is_active, is_featured, created_at')
-          .in('id', productIds);
-        if (productsError) throw productsError;
-        productsMap = Object.fromEntries((productsData || []).map((p: { id: string }) => [p.id, p as UserAccessData['product']]));
-      }
-
-      // Combine into the expected shape (filter out products not found — e.g., deleted)
-      const userAccessData = (accessRecords || [])
-        .filter((r: { product_id: string }) => productsMap[r.product_id])
-        .map((r: { id: string; created_at: string; product_id: string }) => ({
-          id: r.id,
-          created_at: r.created_at,
-          product: productsMap[r.product_id],
+      const transformedUserProducts: UserProductAccess[] = ((crossData || []) as CrossSchemaProduct[])
+        .filter((p) => {
+          // Exclude expired access
+          if (p.access_expires_at && new Date(p.access_expires_at) < new Date()) return false;
+          return true;
+        })
+        .map((p) => ({
+          id: p.product_id,
+          granted_at: p.access_granted_at,
+          sellerSlug: p.seller_slug !== 'main' ? p.seller_slug : undefined,
+          sellerDisplayName: p.seller_slug !== 'main' ? p.seller_display_name : undefined,
+          product: {
+            id: p.product_id,
+            name: p.product_name,
+            slug: p.product_slug,
+            description: '',
+            icon: p.product_icon || '',
+            image_url: null,
+            price: p.product_price,
+            currency: p.product_currency,
+            is_active: true,
+            is_featured: false,
+            created_at: p.access_granted_at,
+          },
         }));
-      
-      const transformedUserProducts: UserProductAccess[] = (userAccessData as unknown as UserAccessData[] || []).map((item) => ({
-        id: item.id,
-        granted_at: item.created_at,
-        product: item.product,
-      })).filter((item): item is UserProductAccess => item.product !== null);
-
-      // Fetch all active products
-      const { data: allProductsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .eq('is_listed', true)
-        .order('is_featured', { ascending: false })
-        .order('price', { ascending: true });
-
-      if (productsError) throw productsError;
 
       setUserProducts(transformedUserProducts);
-      setAllProducts(allProductsData || []);
+
+      // "Discover more" — only in single-tenant mode.
+      // In marketplace, promoted products require a separate feature (seller ads).
+      if (!marketplaceEnabled) {
+        const { data: allProductsData } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .eq('is_listed', true)
+          .order('is_featured', { ascending: false })
+          .order('price', { ascending: true });
+        setAllProducts(allProductsData || []);
+      } else {
+        setAllProducts([]);
+      }
 
     } catch (err) {
-        const error = err as Error;
-        setError(error.message || 'Failed to load products data.');
+      const error = err as Error;
+      setError(error.message || 'Failed to load products data.');
     } finally {
       setLoading(false);
     }
@@ -221,7 +232,7 @@ export default function MyProductsPage() {
   const freeProducts = availableProducts.filter(p => p.price === 0);
   const paidProducts = availableProducts.filter(p => p.price > 0);
 
-  const renderOwnedProductCard = (product: Product, grantedAt: string) => (
+  const renderOwnedProductCard = (product: Product, grantedAt: string, sellerSlug?: string, sellerDisplayName?: string) => (
     <div
       key={product.id}
       className="group bg-sf-raised/80 backdrop-blur-md border border-sf-success/30 rounded-2xl overflow-hidden hover:bg-sf-hover transition-all duration-300 active:scale-[0.98] relative"
@@ -257,8 +268,12 @@ export default function MyProductsPage() {
           {t('accessSince', { date: formatDateLocalized(grantedAt, locale) })}
         </div>
 
+        {sellerDisplayName && (
+          <p className="text-xs text-sf-muted mb-3">{sellerDisplayName}</p>
+        )}
+
         <Link
-          href={`/p/${product.slug}`}
+          href={sellerSlug ? `/s/${sellerSlug}/${product.slug}` : `/p/${product.slug}`}
           className="block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] bg-sf-success hover:bg-sf-success/90 text-sf-inverse"
         >
           {t('openProduct')}
@@ -357,7 +372,7 @@ export default function MyProductsPage() {
               <p className="text-sf-body mt-1">{t('yourProductsDescription')}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userProducts.map((userProduct) => renderOwnedProductCard(userProduct.product, userProduct.granted_at))}
+              {userProducts.map((userProduct) => renderOwnedProductCard(userProduct.product, userProduct.granted_at, userProduct.sellerSlug, userProduct.sellerDisplayName))}
             </div>
           </section>
         )}
