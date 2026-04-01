@@ -16,7 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import {
@@ -337,7 +337,6 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   const scopes = Array.isArray(keyData.scopes) ? keyData.scopes as string[] : [];
 
   // Resolve data client: seller-scoped if API key has seller_id, otherwise seller_main
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let dataClient: any;
   let sellerSchema: string | undefined;
 

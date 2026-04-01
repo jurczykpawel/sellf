@@ -107,7 +107,6 @@ export async function getHourlyRevenueStats(date?: string, productId?: string): 
 
 export async function getRevenueGoal(productId?: string): Promise<{ amount: number, startDate: string, currency: string } | null> {
   const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (dataClient as any).rpc('get_revenue_goal', {
       p_product_id: productId || null
     }) as { data: any[] | null; error: any }
@@ -137,7 +136,6 @@ export async function getRevenueGoal(productId?: string): Promise<{ amount: numb
 
 export async function setRevenueGoal(amount: number, startDate: string, currency: string, productId?: string): Promise<{ success: boolean; error?: string }> {
   const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (dataClient as any).rpc('set_revenue_goal', {
       p_goal_amount: amount,
       p_start_date: startDate,

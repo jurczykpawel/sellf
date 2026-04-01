@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -108,7 +108,7 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
     setCustomPaymentMethods(defaults);
   }
 
-  async function loadConfig() {
+  const loadConfig = useCallback(async () => {
     try {
       setLoading(true);
       const [config, sourceResult] = await Promise.all([
@@ -149,12 +149,11 @@ export function usePaymentMethodConfig(): UsePaymentMethodConfigReturn {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   useEffect(() => {
     loadConfig();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadConfig]);
 
   function handleModeChange(mode: PaymentConfigMode, loadStripePmcs: () => void) {
     setConfigMode(mode);

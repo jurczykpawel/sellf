@@ -5,13 +5,13 @@ import crypto from 'crypto';
 interface WebhookPayload {
   event: string;
   timestamp: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }
 
 // Supabase clients with different schema types can't be unified via generics.
 // This alias accepts any schema-scoped client (seller_main, seller_X, etc.)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Supabase clients with different schema types can't be unified via generics.
+// This alias accepts any schema-scoped client (seller_main, seller_X, etc.)
 type SupabaseClientLike = any;
 
 export class WebhookService {

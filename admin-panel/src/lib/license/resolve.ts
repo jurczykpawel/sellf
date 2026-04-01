@@ -27,7 +27,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { LicenseTier } from './verify';
 import type { Feature } from './features';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClientLike = { from: (table: string) => any };
 
 // ===== OPTIONS =====

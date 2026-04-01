@@ -55,10 +55,11 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
   };
 
   // When autoplay is enabled, trigger play() on mount to start API loading
+  const adapterRef = useRef(adapter);
+  adapterRef.current = adapter;
   useEffect(() => {
-    if (autoplay) adapter.play();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (autoplay) adapterRef.current.play();
+  }, [autoplay]);
 
   // ── Fallback: plain iframe ──────────────────────────────────────────────── 
   // Render plain iframe when adapter has no control API OR when custom player

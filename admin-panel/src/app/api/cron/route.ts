@@ -64,7 +64,6 @@ async function handleAccessExpired(): Promise<CronJobResult> {
   const platformClient = createPlatformClient();
 
   // Single query across ALL seller schemas via SQL function
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: expiredRows, error } = await (platformClient as any)
     .rpc('get_expired_access_all_schemas', { p_limit: 100 }) as { data: any[] | null; error: any };
 
@@ -131,7 +130,6 @@ async function handleAccessExpired(): Promise<CronJobResult> {
       }, webhookClient);
 
       // Mark as notified in the correct schema
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: updateError } = await (platformClient as any)
         .rpc('mark_access_expiry_notified', {
           p_schema: row.seller_schema,
@@ -162,7 +160,6 @@ async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
   const platformClient = createPlatformClient();
 
   // Single call that cleans ALL seller schemas
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: deletedCount, error } = await (platformClient as any)
     .rpc('cleanup_webhook_logs_all_schemas', { p_retention_days: WEBHOOK_LOG_RETENTION_DAYS }) as { data: number | null; error: any };
 

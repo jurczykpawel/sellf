@@ -124,8 +124,7 @@ export function useCoupon({ productId, email, isOtoMode, sellerSlug }: UseCoupon
       setShowCouponInput(true);
       handleVerifyCoupon(urlCoupon);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, isOtoMode]);
+  }, [searchParams, isOtoMode, lastCheckedUrlCoupon, handleVerifyCoupon]);
 
   const removeCoupon = useCallback(() => {
     setAppliedCoupon(null);

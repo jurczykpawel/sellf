@@ -172,8 +172,7 @@ export function useInvoiceData(email: string | undefined): UseInvoiceDataReturn 
       setGusError(null);
       setGusSuccess(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nip, t]);
+  }, [nip, t, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
 
   return {
     isLoadingProfile,

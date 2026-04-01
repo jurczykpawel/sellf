@@ -27,7 +27,6 @@ function resolveServiceClient(metadata?: Stripe.Metadata | null): AdminClient {
       console.error('[verify-payment] SECURITY: Invalid seller_schema in metadata: %s — refusing to process under seller scope, falling back to default', metadata.seller_schema);
       return createAdminClient();
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return createSellerAdminClient(metadata.seller_schema) as any;
   }
   return createAdminClient();

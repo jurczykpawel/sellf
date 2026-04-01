@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { AppliedCoupon } from '@/types/coupon';
@@ -49,6 +49,10 @@ export function useOto({
   const [otoExpired, setOtoExpired] = useState(false);
   const [funnelTestOtoSlug, setFunnelTestOtoSlug] = useState<string | null>(null);
 
+  // Ref for callback to avoid re-triggering effect on parent re-renders
+  const onCouponReadyRef = useRef(onCouponReady);
+  onCouponReadyRef.current = onCouponReady;
+
   // Fetch OTO info from URL params
   useEffect(() => {
     if (otoParam !== '1' || !urlCoupon || !urlEmail) return;
@@ -66,7 +70,7 @@ export function useOto({
 
         if (data.valid) {
           setOtoInfo(data);
-          onCouponReady(
+          onCouponReadyRef.current(
             {
               code: urlCoupon,
               discount_type: data.discount_type,
@@ -88,7 +92,6 @@ export function useOto({
 
     fetchOtoInfo();
     return () => controller.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otoParam, urlCoupon, urlEmail]);
 
   // Funnel test: pre-fetch OTO target slug (absorbed from PaidProductForm)
