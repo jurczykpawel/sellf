@@ -185,51 +185,30 @@ export async function POST(request: NextRequest) {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '';
+
+    // Auth errors from requireAdminApi
+    if (msg === 'Unauthorized') {
+      return NextResponse.json({ success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+    }
+    if (msg === 'Forbidden') {
+      return NextResponse.json({ success: false, error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 });
+    }
+
     console.error('Error fetching GUS data:', error);
 
-    // Handle specific errors
-    if (error.message?.includes('timeout')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'GUS API request timeout. Please try again.',
-          code: 'TIMEOUT'
-        },
-        { status: 504 }
-      );
+    if (msg.includes('timeout')) {
+      return NextResponse.json({ success: false, error: 'GUS API request timeout. Please try again.', code: 'TIMEOUT' }, { status: 504 });
+    }
+    if (msg.includes('authentication') || msg.includes('session')) {
+      return NextResponse.json({ success: false, error: 'GUS API authentication failed. Please contact administrator.', code: 'AUTH_FAILED' }, { status: 503 });
+    }
+    if (msg.includes('network')) {
+      return NextResponse.json({ success: false, error: 'Network error connecting to GUS API. Please try again.', code: 'NETWORK_ERROR' }, { status: 503 });
     }
 
-    if (error.message?.includes('authentication') || error.message?.includes('session')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'GUS API authentication failed. Please contact administrator.',
-          code: 'AUTH_FAILED'
-        },
-        { status: 500 }
-      );
-    }
-
-    if (error.message?.includes('network')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Network error connecting to GUS API. Please try again.',
-          code: 'NETWORK_ERROR'
-        },
-        { status: 503 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch company data',
-        code: 'UNKNOWN_ERROR'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Failed to fetch company data', code: 'UNKNOWN_ERROR' }, { status: 500 });
   }
 }
 
