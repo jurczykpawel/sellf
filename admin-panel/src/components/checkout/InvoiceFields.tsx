@@ -62,7 +62,7 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
 
       {/* Company fields — shown when NIP is long enough or GUS data loaded */}
       {(invoice.nip.length === 10 || invoice.gusData || invoice.companyName) && (
-        <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+        <div className={`space-y-3 animate-in slide-in-from-top-2 duration-300 ${invoice.isLoadingGUS ? 'opacity-60 pointer-events-none' : ''}`}>
           <div>
             <label htmlFor="companyName" className="block text-sm font-medium text-sf-body mb-2">
               {t('companyNameLabel', { defaultValue: 'Company Name' })}
@@ -72,8 +72,9 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
               id="companyName"
               value={invoice.companyName}
               onChange={(e) => invoice.setCompanyName(e.target.value)}
+              disabled={invoice.isLoadingGUS}
               placeholder={t('companyNamePlaceholder')}
-              className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+              className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
             />
           </div>
           <div>
@@ -85,8 +86,9 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
               id="address"
               value={invoice.address}
               onChange={(e) => invoice.setAddress(e.target.value)}
+              disabled={invoice.isLoadingGUS}
               placeholder={t('addressPlaceholder')}
-              className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+              className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -99,8 +101,9 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
                 id="postalCode"
                 value={invoice.postalCode}
                 onChange={(e) => invoice.setPostalCode(e.target.value)}
+                disabled={invoice.isLoadingGUS}
                 placeholder={t('postalCodePlaceholder')}
-                className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+                className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
               />
             </div>
             <div>
@@ -112,8 +115,9 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
                 id="city"
                 value={invoice.city}
                 onChange={(e) => invoice.setCity(e.target.value)}
+                disabled={invoice.isLoadingGUS}
                 placeholder={t('cityPlaceholder')}
-                className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+                className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
               />
             </div>
           </div>
