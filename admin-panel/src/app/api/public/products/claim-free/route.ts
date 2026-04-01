@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 /**
  * Helper to create CORS-enabled responses
@@ -14,8 +15,9 @@ import { verifyCaptchaToken } from '@/lib/captcha/verify';
  * - Server-side product validation
  */
 function corsResponse(data: any, status: number, origin: string | null): NextResponse {
-  // In production, prefer explicit origin over wildcard for security
-  const allowedOrigin = origin || '*';
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  // Use request origin for cross-domain embeds, SITE_URL as fallback. Never wildcard.
+  const allowedOrigin = origin || siteUrl || 'null';
 
   return NextResponse.json(data, {
     status,
@@ -23,8 +25,9 @@ function corsResponse(data: any, status: number, origin: string | null): NextRes
       'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
-      // Don't allow credentials with wildcard origin
-      ...(origin && origin !== '*' ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
+      'Vary': 'Origin',
+      // Allow credentials when we have a specific origin
+      ...(origin ? { 'Access-Control-Allow-Credentials': 'true' } : {}),
     },
   });
 }
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
   try {
     const body = await request.json();
-    const { email, productSlug, turnstileToken } = body;
+    const { email, productSlug, turnstileToken, sellerSlug } = body;
 
     // Validate required fields
     if (!email || !productSlug) {
@@ -100,9 +103,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get product and validate
     const supabase = await createClient();
-    const { data: product, error: productError } = await supabase
+    const { dataClient } = await resolvePublicDataClient(sellerSlug, supabase);
+
+    // Get product and validate (from seller schema if marketplace)
+    const { data: product, error: productError } = await dataClient
       .from('products')
       .select('id, name, slug, price, is_active, available_from, available_until')
       .eq('slug', productSlug)
@@ -198,14 +203,16 @@ export async function POST(request: NextRequest) {
 // Enable CORS for embedding on external websites
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Origin': origin || siteUrl || 'null',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin',
     },
   });
 }

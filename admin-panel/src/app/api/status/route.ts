@@ -5,13 +5,13 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 /**
  * Handle CORS preflight requests
  */
-export async function OPTIONS(request: Request) {
-  const origin = request.headers.get('origin') || '*';
-  
+export async function OPTIONS() {
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': siteUrl || 'null',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400', // 24 hours
@@ -61,18 +61,20 @@ export async function GET() {
       }
     };
 
-    return NextResponse.json(status, { 
+    const statusSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    return NextResponse.json(status, {
       status: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': statusSiteUrl || 'null',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
     });
   } catch (error) {
     console.error('Error in status endpoint:', error);
+    const errorSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     return NextResponse.json(
-      { 
+      {
         system: {
           status: 'error',
           timestamp: new Date().toISOString(),
@@ -82,10 +84,10 @@ export async function GET() {
           connected: false,
         }
       },
-      { 
+      {
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': errorSiteUrl || 'null',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }

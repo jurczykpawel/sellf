@@ -23,6 +23,7 @@ export const CROSS_ORIGIN_ALLOWED_PATHS = [
 export function validateCrossOriginRequest(request: Request): NextResponse | null {
   const requestedWith = request.headers.get('X-Requested-With')
   const origin = request.headers.get('origin')
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
 
   // Require X-Requested-With header to prevent simple CSRF attacks
   if (requestedWith !== 'XMLHttpRequest') {
@@ -34,7 +35,8 @@ export function validateCrossOriginRequest(request: Request): NextResponse | nul
       {
         status: 403,
         headers: {
-          'Access-Control-Allow-Origin': origin || '*',
+          // Use validated origin or SITE_URL, never wildcard with credentials
+          'Access-Control-Allow-Origin': origin || siteUrl || 'null',
           'Access-Control-Allow-Credentials': 'true',
         }
       }
@@ -94,10 +96,12 @@ export function getCrossOriginHeaders(request: Request): Record<string, string> 
 /**
  * Get restrictive CORS headers for admin/internal endpoints.
  * Does NOT allow credentials from cross-origin requests.
+ * Uses SITE_URL to restrict origin instead of wildcard.
  */
 export function getRestrictiveHeaders(): Record<string, string> {
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
   return {
-    'Access-Control-Allow-Origin': '*', // Allow preflight but no credentials
+    'Access-Control-Allow-Origin': siteUrl || 'null',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     // NO Access-Control-Allow-Credentials - this prevents cross-origin cookie sending

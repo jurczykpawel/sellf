@@ -213,11 +213,13 @@ describe('CORS/CSRF Security', () => {
       expect(headers['Access-Control-Allow-Credentials']).toBeUndefined();
     });
 
-    it('should use wildcard origin (safe without credentials)', () => {
+    it('should use SITE_URL origin instead of wildcard', () => {
       const headers = getRestrictiveHeaders();
 
-      // Wildcard is safe when credentials are not allowed
-      expect(headers['Access-Control-Allow-Origin']).toBe('*');
+      // Should use SITE_URL, never wildcard — even without credentials
+      expect(headers['Access-Control-Allow-Origin']).not.toBe('*');
+      // Falls back to 'null' when SITE_URL is not set (blocks all cross-origin)
+      expect(typeof headers['Access-Control-Allow-Origin']).toBe('string');
     });
 
     it('should allow necessary methods', () => {

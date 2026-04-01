@@ -51,8 +51,9 @@ export async function GET(request: NextRequest) {
     // CORS headers — config.js is loaded cross-origin by sellf but without credentials
     const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     const requestOrigin = request.headers.get('origin');
+    // Use request origin if present (cross-domain embed), otherwise SITE_URL. Never wildcard.
     const corsHeaders = {
-      'Access-Control-Allow-Origin': requestOrigin || siteUrl || '*',
+      'Access-Control-Allow-Origin': requestOrigin || siteUrl || 'null',
       'Access-Control-Allow-Methods': 'GET',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Vary': 'Origin',
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': request.headers.get('origin') || process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '*',
+        'Access-Control-Allow-Origin': request.headers.get('origin') || process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'null',
         'Access-Control-Allow-Methods': 'GET',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Vary': 'Origin'
@@ -93,13 +94,16 @@ export async function GET(request: NextRequest) {
 }
 
 // Handle OPTIONS request for CORS
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const requestOrigin = request.headers.get('origin');
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': requestOrigin || siteUrl || 'null',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
+      'Vary': 'Origin',
     },
   });
 }

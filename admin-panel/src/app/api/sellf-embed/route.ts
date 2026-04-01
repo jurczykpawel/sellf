@@ -129,7 +129,9 @@ export async function GET(request: NextRequest) {
   const rawProtocol = request.headers.get('x-forwarded-proto') || 'https';
   const rawHost = request.headers.get('host') || 'localhost:3000';
   const protocol = /^https?$/.test(rawProtocol) ? rawProtocol : 'https';
-  const host = /^[a-zA-Z0-9._:-]+$/.test(rawHost) ? rawHost : 'localhost:3000';
+  // Strict hostname validation: labels separated by dots, optional port.
+  // Each label: alphanumeric, may contain hyphens (not leading/trailing).
+  const host = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(:\d{1,5})?$/.test(rawHost) ? rawHost : 'localhost:3000';
   const apiBaseUrl = `${protocol}://${host}`;
 
   // Detect language from Accept-Language header
@@ -154,10 +156,12 @@ export async function GET(request: NextRequest) {
     generateEmbedScript(apiBaseUrl, captchaProvider, turnstileSiteKey, t)
   );
 
-  // CORS headers for embedding
+  // CORS headers for embedding — use request origin when available for cross-domain embeds
+  const requestOrigin = request.headers.get('origin');
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Vary': 'Accept-Language',
+    'Access-Control-Allow-Origin': requestOrigin || siteUrl || 'null',
+    'Vary': 'Accept-Language, Origin',
   };
 
   // Check for conditional request (ETag/If-None-Match)

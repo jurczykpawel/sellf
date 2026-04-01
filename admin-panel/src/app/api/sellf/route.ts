@@ -47,16 +47,17 @@ export function clearLicenseCache(): void {
  * Handle CORS preflight requests
  */
 export async function OPTIONS(request: Request) {
-  // Get the origin from the request headers or default to '*'
-  const origin = request.headers.get('origin') || '*';
-  
+  const origin = request.headers.get('origin');
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': origin || siteUrl || 'null',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400', // 24 hours
+      'Vary': 'Origin',
     },
   });
 }
@@ -85,8 +86,8 @@ export async function GET(request: Request) {
     const supabaseUrl = process.env.SUPABASE_URL
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 
-    // Get the origin from the request headers or default to '*'
-    const origin = request.headers.get('origin') || '*';
+    const origin = request.headers.get('origin');
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
 
     // Check for cache clearing parameter — admin-only
     const url = new URL(request.url);
@@ -98,9 +99,10 @@ export async function GET(request: Request) {
         {
           status: 500,
           headers: {
-            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Origin': origin || siteUrl || 'null',
             'Access-Control-Allow-Methods': 'GET, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Vary': 'Origin',
           }
         }
       )
@@ -144,12 +146,13 @@ export async function GET(request: Request) {
 
     const generatedResult = await SellfGenerator.generateScript(config);
 
-    // CORS headers
+    // CORS headers — use request origin for cross-domain embeds, SITE_URL as fallback
     const corsHeaders = {
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': origin || siteUrl || 'null',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin',
     };
 
     // Check for conditional request (ETag/If-None-Match)
@@ -165,14 +168,17 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('Error serving sellf.js:', error)
+    const errorOrigin = request.headers.get('origin');
+    const errorSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     return NextResponse.json(
       { error: 'Failed to serve sellf.js' },
       {
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': errorOrigin || errorSiteUrl || 'null',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Vary': 'Origin',
         }
       }
     )

@@ -5,10 +5,11 @@ import { checkRateLimit } from '@/lib/rate-limiting';
  * Handle CORS preflight requests
  */
 export async function OPTIONS() {
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': siteUrl || 'null',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400', // 24 hours
@@ -34,25 +35,27 @@ export async function GET() {
       service: 'sellf-admin',
     }
 
-    return NextResponse.json(health, { 
+    const healthSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    return NextResponse.json(health, {
       status: 200,
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': healthSiteUrl || 'null',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
     })
   } catch {
+    const errorSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     return NextResponse.json(
-      { 
-        status: 'error', 
+      {
+        status: 'error',
         message: 'Health check failed',
         timestamp: new Date().toISOString()
       },
-      { 
+      {
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': errorSiteUrl || 'null',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         }
