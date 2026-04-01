@@ -14,6 +14,7 @@ import { isValidSellerSchema } from '@/lib/marketplace/tenant';
 
 // ===== TYPES =====
 
+
 export interface SellerInfo {
   id: string;
   slug: string;
@@ -134,6 +135,40 @@ export async function getSellerById(sellerId: string): Promise<SellerInfo | null
   if (error || !data) return null;
 
   return toSellerInfo(data);
+}
+
+// ===== PUBLIC DATA CLIENT RESOLUTION =====
+
+/**
+ * Resolve a data client for public-facing API routes.
+ *
+ * Accepts an optional sellerSlug. When present, resolves to a
+ * service-role client scoped to the seller's schema (for reading
+ * seller-specific products, coupons, webhooks, etc.).
+ * When absent, returns the provided fallback client (usually the
+ * default cookie-based server client or createAdminClient).
+ *
+ * Backwards-compatible: endpoints that don't receive sellerSlug
+ * keep working against seller_main as before.
+ *
+ * @param sellerSlug - Optional marketplace seller slug from the request
+ * @param fallbackClient - Client to use when no seller (default schema)
+ * @returns { dataClient, seller } — seller is null for platform-owner requests
+ */
+export async function resolvePublicDataClient(
+  sellerSlug: string | null | undefined,
+  fallbackClient: any,
+): Promise<{ dataClient: any; seller: SellerInfo | null }> {
+  if (!sellerSlug) {
+    return { dataClient: fallbackClient, seller: null };
+  }
+
+  const seller = await getSellerBySlug(sellerSlug);
+  if (!seller) {
+    return { dataClient: fallbackClient, seller: null };
+  }
+
+  return { dataClient: createSellerAdminClient(seller.schema_name), seller };
 }
 
 // ===== TENANT-SCOPED CLIENTS =====

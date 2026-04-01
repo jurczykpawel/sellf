@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,16 +36,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Marketplace: scope coupon lookup to seller schema
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let client: any = await createClient();
-    if (sellerSlug && typeof sellerSlug === 'string') {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (seller) {
-        client = createSellerAdminClient(seller.schema_name);
-      }
-    }
+    const defaultClient = await createClient();
+    const { dataClient } = await resolvePublicDataClient(sellerSlug, defaultClient);
 
-    const { data, error } = await client.rpc('find_auto_apply_coupon', {
+    const { data, error } = await dataClient.rpc('find_auto_apply_coupon', {
       customer_email_param: email,
       product_id_param: productId
     });

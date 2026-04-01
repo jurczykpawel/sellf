@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function GET(
   request: NextRequest,
@@ -29,13 +29,9 @@ export async function GET(
 
     // Resolve data client: seller schema if ?seller= param, otherwise default (user's session client)
     const sellerSlug = request.nextUrl.searchParams.get('seller');
-    let dataClient: typeof supabase = supabase;
-    if (sellerSlug) {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (!seller) {
-        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-      }
-      dataClient = createSellerAdminClient(seller.schema_name) as unknown as typeof supabase;
+    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, supabase);
+    if (sellerSlug && !seller) {
+      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
     }
 
     // Two-step query to avoid FK embedding through proxy views (PGRST200).

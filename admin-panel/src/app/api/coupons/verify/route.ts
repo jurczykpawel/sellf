@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -37,15 +37,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Marketplace: optional sellerSlug to scope to seller schema
-    let client;
-    if (sellerSlug && typeof sellerSlug === 'string') {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (!seller) {
-        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-      }
-      client = createSellerAdminClient(seller.schema_name);
-    } else {
-      client = await createClient();
+    const defaultClient = await createClient();
+    const { dataClient: client, seller } = await resolvePublicDataClient(sellerSlug, defaultClient);
+    if (sellerSlug && !seller) {
+      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
     }
 
     // Use the secure DB function to verify coupon

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function GET(
   request: NextRequest,
@@ -16,13 +17,12 @@ export async function GET(
     }
 
     const { slug } = await context.params;
+    const sellerSlug = request.nextUrl.searchParams.get('seller');
     const supabase = await createClient();
-    
-    // Get product by slug
+    const { dataClient } = await resolvePublicDataClient(sellerSlug, supabase);
+
     // SECURITY FIX (V18): Only select public-safe fields
-    // Previously used select('*') which exposed content_config with download URLs
-    // This allowed anyone to get download links without paying
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await dataClient
       .from('products')
       .select(`
         id,

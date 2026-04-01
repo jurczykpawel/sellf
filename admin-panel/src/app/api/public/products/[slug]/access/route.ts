@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function GET(
@@ -19,24 +19,13 @@ export async function GET(
     const { slug } = await context.params;
     const sellerSlug = request.nextUrl.searchParams.get('seller');
 
-    // Resolve seller slug → schema (server-side, never trust client with schema names)
-    let dataClient: ReturnType<typeof createSellerAdminClient> | Awaited<ReturnType<typeof createClient>> | null = null;
-    if (sellerSlug) {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (!seller) {
-        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-      }
-      // Service role client scoped to seller schema — bypasses RLS
-      // Safe because we authenticate the user separately via cookie-based client
-      dataClient = createSellerAdminClient(seller.schema_name);
-    }
-
     // Auth client — always uses default schema with cookie-based session
     const supabase = await createClient();
-    
-    // If no seller, use the default auth client for data too
-    if (!dataClient) {
-      dataClient = supabase;
+
+    // Resolve seller slug → schema-scoped client (server-side, never trust client with schema names)
+    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, supabase);
+    if (sellerSlug && !seller) {
+      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
     }
     
     // Get authenticated user

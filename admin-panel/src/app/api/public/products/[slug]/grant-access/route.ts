@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { trackServerSideConversion } from '@/lib/tracking';
@@ -33,7 +33,6 @@ export async function POST(
     }
 
     // Resolve marketplace seller → schema-scoped client
-    // sellerSlug in POST body (consistent with create-payment-intent)
     let sellerSlug: string | null = null;
     try {
       const body = await request.clone().json();
@@ -41,14 +40,9 @@ export async function POST(
     } catch {
       // No body or not JSON — platform owner (seller_main)
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let dataClient: any = supabase;
-    if (sellerSlug) {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (!seller) {
-        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-      }
-      dataClient = createSellerAdminClient(seller.schema_name);
+    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, supabase);
+    if (sellerSlug && !seller) {
+      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
     }
 
     // Get product (from seller schema if marketplace)

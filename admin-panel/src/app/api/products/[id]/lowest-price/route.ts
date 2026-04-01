@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLowestPriceInLast30Days, isSalePriceActive } from '@/lib/services/omnibus';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function GET(
   request: NextRequest,
@@ -33,9 +34,11 @@ export async function GET(
       );
     }
 
-    // Get product to check if sale_price is active
+    // Get product to check if sale_price is active (from seller schema if marketplace)
+    const sellerSlug = request.nextUrl.searchParams.get('seller');
     const supabase = await createClient();
-    const { data: product, error: productError } = await supabase
+    const { dataClient } = await resolvePublicDataClient(sellerSlug, supabase);
+    const { data: product, error: productError } = await dataClient
       .from('products')
       .select('sale_price, sale_price_until, sale_quantity_limit, sale_quantity_sold')
       .eq('id', productId)
@@ -68,7 +71,7 @@ export async function GET(
       });
     }
 
-    const result = await getLowestPriceInLast30Days(productId);
+    const result = await getLowestPriceInLast30Days(productId, dataClient);
 
     return NextResponse.json({
       lowestPrice: result?.lowestPrice ?? null,

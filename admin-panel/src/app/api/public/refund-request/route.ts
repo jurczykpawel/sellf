@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function POST(request: NextRequest) {
@@ -34,16 +34,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve seller schema
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let dataClient: any;
-    if (sellerSlug) {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (!seller) {
-        return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-      }
-      dataClient = createSellerAdminClient(seller.schema_name);
-    } else {
-      dataClient = createAdminClient();
+    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, createAdminClient());
+    if (sellerSlug && !seller) {
+      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
     }
 
     // Verify transaction belongs to authenticated user

@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,19 +41,10 @@ export async function GET(request: NextRequest) {
 
     // Marketplace: optional seller query param to scope to seller schema
     const sellerSlug = searchParams.get('seller');
-    let client;
-
-    if (sellerSlug) {
-      const seller = await getSellerBySlug(sellerSlug);
-      if (!seller) {
-        return NextResponse.json(
-          { error: 'Seller not found' },
-          { status: 404 }
-        );
-      }
-      client = createSellerAdminClient(seller.schema_name);
-    } else {
-      client = await createClient();
+    const defaultClient = await createClient();
+    const { dataClient: client, seller } = await resolvePublicDataClient(sellerSlug, defaultClient);
+    if (sellerSlug && !seller) {
+      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
     }
 
     // Call database function to get active order bumps

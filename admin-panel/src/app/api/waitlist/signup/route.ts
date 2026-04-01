@@ -4,6 +4,7 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { sanitizeForLog } from '@/lib/logger';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, productId, productSlug, captchaToken } = body;
+    const { email, productId, productSlug, captchaToken, sellerSlug } = body;
 
     // Validate required fields
     if (!email || !productId) {
@@ -66,9 +67,10 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+    const { dataClient } = await resolvePublicDataClient(sellerSlug, supabase);
 
-    // Fetch product details
-    const { data: product, error: productError } = await supabase
+    // Fetch product details (from seller schema if marketplace)
+    const { data: product, error: productError } = await dataClient
       .from('products')
       .select('id, name, slug, price, currency, icon, enable_waitlist')
       .eq('id', productId)
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
         currency: product.currency,
         icon: product.icon,
       }
-    });
+    }, dataClient);
 
     // Log the signup for debugging (can be removed in production)
     console.log(`[Waitlist] New signup: ${sanitizeForLog(email)} for product ${sanitizeForLog(product.name)} (${product.id})`);

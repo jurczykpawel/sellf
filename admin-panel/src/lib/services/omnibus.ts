@@ -1,17 +1,27 @@
 /**
  * Omnibus Directive (EU 2019/2161) Service
  * Implements 30-day price history tracking for discount transparency
+ *
+ * All data-fetching functions require an explicit Supabase client parameter
+ * to support marketplace multi-tenant schemas (DRY — no internal createClient).
  */
 
-import { createClient } from '@/lib/supabase/server';
+// ===== TYPES =====
+
+type PriceEntry = {
+  price: string;
+  sale_price: string | null;
+  currency: string;
+  effective_from: string;
+};
+
+// ===== INTERNAL HELPERS =====
 
 /**
- * Check if Omnibus price tracking is globally enabled
+ * Check if Omnibus price tracking is enabled in the given schema's shop_config.
  */
-export async function isOmnibusEnabled(): Promise<boolean> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
+async function isOmnibusEnabled(client: any): Promise<boolean> {
+  const { data, error } = await client
     .from('shop_config')
     .select('omnibus_enabled')
     .single();
@@ -24,30 +34,31 @@ export async function isOmnibusEnabled(): Promise<boolean> {
   return data?.omnibus_enabled ?? false;
 }
 
+// ===== PUBLIC API =====
+
 /**
- * Get the lowest price for a product in the last 30 days
- * Returns null if:
- * - Omnibus is globally disabled
- * - Product is exempt from Omnibus
- * - No price history exists
+ * Get the lowest price for a product in the last 30 days.
+ * Returns null if Omnibus is disabled, product is exempt, or no price history exists.
+ *
+ * @param productId - Product UUID
+ * @param client - Schema-scoped Supabase client (seller or platform)
  */
 export async function getLowestPriceInLast30Days(
-  productId: string
+  productId: string,
+  client: any,
 ): Promise<{
   lowestPrice: number;
   currency: string;
   effectiveFrom: Date;
 } | null> {
-  const supabase = await createClient();
-
-  // Check if Omnibus is globally enabled
-  const globalEnabled = await isOmnibusEnabled();
+  // Check if Omnibus is globally enabled in this schema
+  const globalEnabled = await isOmnibusEnabled(client);
   if (!globalEnabled) {
     return null;
   }
 
   // Check if product is exempt
-  const { data: product, error: productError } = await supabase
+  const { data: product, error: productError } = await client
     .from('products')
     .select('omnibus_exempt')
     .eq('id', productId)
@@ -66,9 +77,8 @@ export async function getLowestPriceInLast30Days(
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  // Query price history - get ALL entries from last 30 days (including current)
-  // We need to calculate the effective price for each entry (min of price and sale_price if set)
-  const { data: history, error } = await supabase
+  // Query price history — all entries from last 30 days
+  const { data: history, error } = await client
     .from('product_price_history')
     .select('price, sale_price, currency, effective_from')
     .eq('product_id', productId)
@@ -79,9 +89,8 @@ export async function getLowestPriceInLast30Days(
     return null;
   }
 
-  // Calculate effective price for each history entry (min of price and active sale_price)
-  // For historical entries, we don't know if sale_price was expired, so we take min if set
-  const lowestEntry = history.reduce((lowest, entry) => {
+  // Find entry with lowest effective price (min of price and sale_price if set)
+  const lowestEntry = history.reduce((lowest: PriceEntry, entry: PriceEntry) => {
     const effectivePrice = entry.sale_price
       ? Math.min(parseFloat(entry.price), parseFloat(entry.sale_price))
       : parseFloat(entry.price);
@@ -105,16 +114,8 @@ export async function getLowestPriceInLast30Days(
 }
 
 /**
- * Determine if sale price is currently active
- * Sale price is active if:
- * - sale_price is set and > 0
- * - AND time limit not reached (if set)
- * - AND quantity limit not reached (if set)
- *
- * Supports three scenarios:
- * 1. Only time limit (sale_price_until set)
- * 2. Only quantity limit (sale_quantity_limit set)
- * 3. Both limits (ends when either is reached first)
+ * Determine if sale price is currently active.
+ * Pure function — no DB access needed.
  */
 export function isSalePriceActive(
   salePrice: number | null,
@@ -122,30 +123,21 @@ export function isSalePriceActive(
   saleQuantityLimit?: number | null,
   saleQuantitySold?: number | null
 ): boolean {
-  // No sale price set
-  if (!salePrice || salePrice <= 0) {
-    return false;
-  }
+  if (!salePrice || salePrice <= 0) return false;
+  if (salePriceUntil && new Date(salePriceUntil) <= new Date()) return false;
 
-  // Check time limit (if set)
-  if (salePriceUntil && new Date(salePriceUntil) <= new Date()) {
-    return false;
-  }
-
-  // Check quantity limit (if set)
   if (saleQuantityLimit !== null && saleQuantityLimit !== undefined) {
     const sold = saleQuantitySold ?? 0;
-    if (sold >= saleQuantityLimit) {
-      return false;
-    }
+    if (sold >= saleQuantityLimit) return false;
   }
 
   return true;
 }
 
 /**
- * Calculate effective price considering regular price, sale price, and coupon
- * Promotions do NOT stack - we choose the most beneficial for the customer
+ * Calculate effective price considering regular price, sale price, and coupon.
+ * Promotions do NOT stack — chooses the most beneficial for the customer.
+ * Pure function — no DB access needed.
  */
 export function calculateEffectivePrice(
   price: number,
@@ -167,7 +159,6 @@ export function calculateEffectivePrice(
 
   const priceWithCoupon = couponDiscount > 0 ? price - couponDiscount : null;
 
-  // Choose the most beneficial price (lowest)
   const prices = [
     { value: price, type: 'regular' },
     activeSalePrice ? { value: activeSalePrice, type: 'sale' } : null,
@@ -183,52 +174,4 @@ export function calculateEffectivePrice(
     isUsingSalePrice: best.type === 'sale',
     isUsingCoupon: best.type === 'coupon',
   };
-}
-
-/**
- * Update Omnibus global settings
- */
-export async function updateOmnibusSettings(enabled: boolean): Promise<void> {
-  const supabase = await createClient();
-
-  // Get shop_config id (singleton table)
-  const { data: shopConfig } = await supabase
-    .from('shop_config')
-    .select('id')
-    .single();
-
-  if (!shopConfig) {
-    throw new Error('Shop config not found');
-  }
-
-  const { error } = await supabase
-    .from('shop_config')
-    .update({
-      omnibus_enabled: enabled,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', shopConfig.id);
-
-  if (error) {
-    throw new Error(`Failed to update Omnibus settings: ${error.message}`);
-  }
-}
-
-/**
- * Update product Omnibus exemption status
- */
-export async function updateProductOmnibusExemption(
-  productId: string,
-  exempt: boolean
-): Promise<void> {
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from('products')
-    .update({ omnibus_exempt: exempt })
-    .eq('id', productId);
-
-  if (error) {
-    throw new Error(`Failed to update product Omnibus exemption: ${error.message}`);
-  }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 /**
  * GET /api/oto/info
@@ -38,10 +39,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 4. Call database function
+    // 4. Resolve marketplace seller → schema-scoped client
+    const seller = searchParams.get('seller');
     const supabase = await createClient();
+    const { dataClient } = await resolvePublicDataClient(seller, supabase);
 
-    const { data, error } = await supabase.rpc('get_oto_coupon_info', {
+    const { data, error } = await dataClient.rpc('get_oto_coupon_info', {
       coupon_code_param: code,
       email_param: email.toLowerCase()
     });

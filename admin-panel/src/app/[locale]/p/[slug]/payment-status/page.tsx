@@ -6,7 +6,7 @@ import { verifyPaymentSession, verifyPaymentIntent, OtoInfo } from '@/lib/paymen
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { PaymentStatus, OtoOfferInfo } from './types';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
+import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -36,15 +36,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
   // Marketplace: optional seller query param to scope product lookup to seller schema
   const sellerSlug = resolvedSearchParams.seller;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let productClient: any = supabase;
-
-  if (sellerSlug) {
-    const seller = await getSellerBySlug(sellerSlug);
-    if (seller) {
-      productClient = createSellerAdminClient(seller.schema_name);
-    }
-  }
+  const { dataClient: productClient } = await resolvePublicDataClient(sellerSlug, supabase);
 
   // Get product details
   const { data: product, error: productError } = await productClient
