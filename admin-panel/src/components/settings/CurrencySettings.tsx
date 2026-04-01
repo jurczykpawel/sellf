@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { DollarSign, ExternalLink, CheckCircle2, AlertCircle, Loader2, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { saveCurrencyConfig, getCurrencyConfig, deleteCurrencyConfig, type CurrencyConfig } from '@/lib/actions/currency-config';
 import { getExchangeRates } from '@/lib/actions/currency';
-import { getDefaultCurrency } from '@/lib/actions/shop-config';
+import { getMyDefaultCurrency } from '@/lib/actions/shop-config';
 import { type ExchangeRates } from '@/lib/services/currencyService';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 import { toast } from 'sonner';
@@ -46,7 +46,7 @@ export default function CurrencySettings() {
  useEffect(() => {
  loadConfig();
  // Load default currency from shop config
- getDefaultCurrency().then(currency => {
+ getMyDefaultCurrency().then(currency => {
  setBaseCurrency(currency);
  });
  }, []);

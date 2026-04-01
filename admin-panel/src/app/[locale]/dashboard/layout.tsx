@@ -4,13 +4,17 @@ import { ReactNode } from 'react';
 import { RealtimeProvider } from '@/contexts/RealtimeContext';
 import { UserPreferencesProvider } from '@/contexts/UserPreferencesContext';
 import { AdminSchemaProvider } from '@/contexts/AdminSchemaContext';
-import { getShopConfig } from '@/lib/actions/shop-config';
+import { getShopConfig, getMyShopConfig } from '@/lib/actions/shop-config';
 
 export default async function Layout({ children }: { children: ReactNode }) {
   // Auth check: platform admin OR seller admin
   const access = await verifyAdminOrSellerAccess();
 
-  const shopConfig = await getShopConfig();
+  // Seller admins must see their OWN shop config (currency, name, tax settings),
+  // not the platform's. getMyShopConfig() reads from the caller's schema.
+  const shopConfig = access.role === 'seller_admin'
+    ? await getMyShopConfig()
+    : await getShopConfig();
   const shopDefaultCurrency = shopConfig?.default_currency || 'USD';
 
   // Extract initial preferences safely

@@ -5,7 +5,7 @@ import { Product } from '@/types';
 import { ProductContentConfig } from '@/types';
 import { getIconEmoji } from '@/utils/themeUtils';
 import { getCategories, getProductCategories, Category } from '@/lib/actions/categories';
-import { getDefaultCurrency, getShopConfig } from '@/lib/actions/shop-config';
+import { getMyShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
@@ -93,18 +93,13 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       };
       fetchCats();
 
-      // Fetch default currency for new products
-      if (!product) {
-        getDefaultCurrency().then(currency => {
-          setDefaultCurrency(currency);
-        }).catch(err => {
-          console.error('Failed to fetch default currency', err);
-        });
-      }
-
-      // Fetch Omnibus Directive global setting, default VAT rate, and tax mode
-      getShopConfig().then(config => {
+      // Fetch shop config from caller's own schema (seller sees their own, not platform's)
+      getMyShopConfig().then(config => {
         if (config) {
+          // Default currency for new products
+          if (!product) {
+            setDefaultCurrency(config.default_currency || 'USD');
+          }
           setOmnibusEnabled(config.omnibus_enabled);
           // tax_rate is stored as decimal (0.23 = 23%)
           setShopDefaultVatRate(config.tax_rate ?? null);

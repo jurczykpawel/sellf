@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { getRevenueStats, getRevenueGoal, setRevenueGoal, CurrencyAmount } from '@/lib/actions/analytics';
-import { getDefaultCurrency } from '@/lib/actions/shop-config';
+import { getMyDefaultCurrency } from '@/lib/actions/shop-config';
 import { getExchangeRates } from '@/lib/actions/currency';
 import { convertAmount } from '@/lib/utils/currency-conversion';
 import { useRealtime } from '@/contexts/RealtimeContext';
@@ -50,7 +50,7 @@ export default function RevenueGoal() {
         startDateForStats = new Date(goalData.startDate);
       } else {
         // No goal set for this context? Use shop default currency
-        const defaultCurrency = await getDefaultCurrency();
+        const defaultCurrency = await getMyDefaultCurrency();
         setGoal(1000000);
         setGoalCurrency(defaultCurrency);
         setGoalStartDate(null);
@@ -166,7 +166,7 @@ export default function RevenueGoal() {
 
     try {
       // Save goal in shop's default currency (or current goal currency if already set)
-      const currency = goalCurrency || await getDefaultCurrency();
+      const currency = goalCurrency || await getMyDefaultCurrency();
       const result = await setRevenueGoal(newGoalCents, startDate, currency, productId);
       if (!result.success) {
         console.error('Failed to save goal:', result.error);

@@ -107,10 +107,20 @@ export async function getMyShopConfig(): Promise<ShopConfig | null> {
 }
 
 /**
- * Get default shop currency
+ * Get default shop currency (platform-wide, for public pages)
  */
 export async function getDefaultCurrency(): Promise<string> {
   const config = await getShopConfig()
+  return config?.default_currency || 'USD'
+}
+
+/**
+ * Get default currency for the caller's own schema.
+ * Seller admins get their seller schema currency, platform admins get seller_main.
+ * Use this in dashboard/admin UI. For public pages, use getDefaultCurrency().
+ */
+export async function getMyDefaultCurrency(): Promise<string> {
+  const config = await getMyShopConfig()
   return config?.default_currency || 'USD'
 }
 
