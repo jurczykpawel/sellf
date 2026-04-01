@@ -27,16 +27,18 @@ export interface FreeProductAccessResult {
  * - /api/public/products/[slug]/grant-access  (primary path via FreeProductForm)
  * - /p/[slug]/payment-status                  (fallback when user arrives without session_id)
  *
- * @param supabase     Authenticated user client (RLS enforced)
- * @param adminClient  Service role client (needed for generate_oto_coupon)
+ * @param userClient   Authenticated user client (for RPC calls that need auth.uid())
+ * @param adminClient  Service role client, schema-scoped for marketplace (needed for
+ *                     access check + generate_oto_coupon which bypass RLS)
  */
 export async function grantFreeProductAccess(
-  supabase: SupabaseClient<any, any>,
+  userClient: SupabaseClient<any, any>,
   adminClient: SupabaseClient<any, any>,
   { product, user }: FreeProductInput,
 ): Promise<FreeProductAccessResult> {
   // 1. Check whether user already has valid (non-expired) access
-  const { data: existingAccess } = await supabase
+  // Use adminClient (schema-scoped) — in marketplace, user_product_access lives in seller schema
+  const { data: existingAccess } = await adminClient
     .from('user_product_access')
     .select('access_expires_at')
     .eq('user_id', user.id)
@@ -64,9 +66,29 @@ export async function grantFreeProductAccess(
         ? 'grant_pwyw_free_access'
         : 'grant_free_product_access';
 
-    const { data: grantResult, error: grantError } = await supabase.rpc(rpcName, {
-      product_slug_param: product.slug,
-    });
+    // Use adminClient (service_role, schema-scoped) for the grant.
+    // grant_free_product_access uses auth.uid() which isn't available with service_role,
+    // so for marketplace (adminClient != userClient) use grant_product_access_service_role
+    // which accepts explicit user_id parameter.
+    let grantResult: boolean | null = null;
+    let grantError: Error | null = null;
+
+    if (adminClient !== userClient) {
+      // Marketplace: service_role grant with explicit user_id (no auth.uid() needed)
+      const { data, error } = await adminClient.rpc('grant_product_access_service_role', {
+        user_id_param: user.id,
+        product_id_param: product.id,
+      });
+      grantResult = data;
+      grantError = error;
+    } else {
+      // Platform: user client with auth.uid()
+      const { data, error } = await userClient.rpc(rpcName, {
+        product_slug_param: product.slug,
+      });
+      grantResult = data;
+      grantError = error;
+    }
 
     if (grantError) {
       console.error('[grantFreeProductAccess] RPC error:', grantError);
