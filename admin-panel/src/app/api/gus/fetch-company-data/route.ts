@@ -3,8 +3,6 @@ import { validateNIPChecksum, normalizeNIP } from '@/lib/validation/nip';
 import { GUSAPIClient } from '@/lib/services/gus-api-client';
 import { getDecryptedGUSAPIKey } from '@/lib/actions/gus-config';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { createClient } from '@/lib/supabase/server';
-import { requireAdminApi } from '@/lib/auth-server';
 
 /**
  * POST /api/gus/fetch-company-data
@@ -66,42 +64,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. CORS Protection - checked before auth to reject cross-origin requests early
+    // 1. Origin Protection - reject explicitly cross-origin requests
+    // Same-origin fetch() does NOT send an Origin header, so missing origin = same-origin.
+    // Only block when Origin IS present and doesn't match SITE_URL (= cross-origin attempt).
     const origin = request.headers.get('origin');
-    const referer = request.headers.get('referer');
-
-    // Use SITE_URL (server-side runtime env) — NEXT_PUBLIC_SITE_URL is baked at build time
-    const allowedOrigins = [
-      process.env.SITE_URL,
-    ].filter(Boolean);
-
-    const isValidOrigin = origin && allowedOrigins.some(allowed =>
-      origin === allowed || (allowed ? origin.startsWith(allowed) : false)
-    );
-
-    const isValidReferer = referer && allowedOrigins.some(allowed =>
-      allowed ? referer.startsWith(allowed) : false
-    );
-
-    if (!isValidOrigin && !isValidReferer) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Forbidden - Invalid origin',
-          code: 'INVALID_ORIGIN'
-        },
-        {
-          status: 403,
-          headers: {
-            'Access-Control-Allow-Origin': 'null', // Explicitly deny
-          }
-        }
-      );
+    if (origin) {
+      const siteUrl = process.env.SITE_URL;
+      if (!siteUrl || !origin.startsWith(siteUrl)) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden - Invalid origin', code: 'INVALID_ORIGIN' },
+          { status: 403 }
+        );
+      }
     }
 
-    // 2. Authentication - only admins can query company data
-    const supabase = await createClient();
-    await requireAdminApi(supabase);
+    // 2. No auth required — checkout page uses this for NIP autofill (guest + logged-in).
+    //    Protected by rate limiting (above) and origin check.
 
     // 3. Parse and validate request
     const { nip } = await request.json();
@@ -188,7 +166,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : '';
 
-    // Auth errors from requireAdminApi
+    // Auth errors
     if (msg === 'Unauthorized') {
       return NextResponse.json({ success: false, error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
     }

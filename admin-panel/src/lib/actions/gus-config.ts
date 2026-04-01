@@ -151,7 +151,11 @@ export async function getGUSConfig(): Promise<ActionResponse<GUSConfig>> {
 export async function getDecryptedGUSAPIKey(): Promise<string | null> {
   try {
     // METHOD 1: Check database first (priority)
-    const supabase = await createClient();
+    // Use admin client — integrations_config requires service_role (RLS).
+    // This function is called from a public endpoint (checkout NIP autofill)
+    // where there's no user session.
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const supabase = createAdminClient();
 
     const { data: config } = await supabase
       .from('integrations_config')
@@ -160,7 +164,7 @@ export async function getDecryptedGUSAPIKey(): Promise<string | null> {
       .single();
 
     // If DB has an encrypted key and GUS is enabled, use it
-    if (config?.gus_api_enabled === true && config?.gus_api_key_encrypted) {
+    if (config?.gus_api_enabled === true && config?.gus_api_key_encrypted && config.gus_api_key_iv && config.gus_api_key_tag) {
       const decrypted = await decryptGUSKey({
         encrypted_key: config.gus_api_key_encrypted,
         encryption_iv: config.gus_api_key_iv,
