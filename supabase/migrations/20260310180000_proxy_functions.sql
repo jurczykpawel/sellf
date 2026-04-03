@@ -477,3 +477,47 @@ REVOKE ALL ON FUNCTION public.increment_sale_quantity_sold FROM anon;
 -- get_variant_group_by_slug, is_sale_price_active,
 -- verify_coupon, check_refund_eligibility
 -- → These keep default EXECUTE for both anon and authenticated (no revoke needed).
+
+-- ===== VIEW: seller_customer_stats =====
+-- Shows customers who have product access or payment transactions.
+-- Used by /api/v1/users to list shop customers.
+
+CREATE OR REPLACE VIEW seller_main.seller_customer_stats WITH (security_invoker = on) AS
+SELECT
+  u.id AS user_id,
+  u.email,
+  u.created_at AS user_created_at,
+  u.email_confirmed_at,
+  u.last_sign_in_at,
+  u.raw_user_meta_data,
+  COALESCE(access_stats.total_products, 0) AS total_products,
+  COALESCE(access_stats.total_value, 0) AS total_value,
+  access_stats.last_access_granted_at,
+  access_stats.first_access_granted_at
+FROM (
+  SELECT user_id FROM seller_main.user_product_access
+  UNION
+  SELECT user_id FROM seller_main.payment_transactions WHERE user_id IS NOT NULL
+) customers
+JOIN auth.users u ON u.id = customers.user_id
+LEFT JOIN (
+  SELECT
+    upa.user_id,
+    COUNT(upa.id) AS total_products,
+    COALESCE(SUM(p.price), 0) AS total_value,
+    MAX(upa.created_at) AS last_access_granted_at,
+    MIN(upa.created_at) AS first_access_granted_at
+  FROM seller_main.user_product_access upa
+  JOIN seller_main.products p ON upa.product_id = p.id
+  GROUP BY upa.user_id
+) access_stats ON access_stats.user_id = u.id;
+
+REVOKE ALL ON seller_main.seller_customer_stats FROM anon, authenticated;
+GRANT SELECT ON seller_main.seller_customer_stats TO service_role;
+
+-- Proxy view for PostgREST access via public schema
+CREATE OR REPLACE VIEW public.seller_customer_stats WITH (security_invoker = on) AS
+SELECT * FROM seller_main.seller_customer_stats;
+
+REVOKE ALL ON public.seller_customer_stats FROM anon, authenticated;
+GRANT SELECT ON public.seller_customer_stats TO service_role;

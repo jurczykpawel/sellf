@@ -856,7 +856,7 @@
     "loadingContent": "Ładowanie treści...",
     "paymentSuccessful": "Płatność zakończona sukcesem!",
     "paymentSuccessMessage": "Twoja płatność została pomyślnie przetworzona! Masz teraz pełny dostęp do {productName}.",
-    "free": "DARMOWE",
+    "free": "ZA DARMO",
     "sendingMagicLink": "Wysyłanie magicznego linku...",
     "checkEmailForMagicLink": "Sukces! Sprawdź swój email w poszukiwaniu magicznego linku.",
     "unexpectedError": "Wystąpił nieoczekiwany błąd.",
@@ -879,7 +879,6 @@
     "comingSoon": "Wkrótce",
     "comingSoonMessage": "Ten produkt nie jest jeszcze dostępny. Sprawdź później!",
     "availableFromDate": "Dostępny od: {date}",
-    "free": "ZA DARMO",
     "offerExpired": "Oferta wygasła",
     "offerExpiredMessage": "Ten produkt był dostępny przez ograniczony czas i nie jest już dostępny dla nowych klientów.",
     "wasAvailableUntil": "Był dostępny do: {date}",
@@ -1163,8 +1162,8 @@
       "featuredToggleError": "Nie udało się zmienić statusu wyróżnienia",
       "setFeatured": "Ustaw jako wyróżniony",
       "removeFeatured": "Usuń z wyróżnionych",
-      "waitlistEnabled": "Lista oczekujących włączona dla tego produktu",
-      "waitlistDisabled": "Brak listy oczekujących - produkt całkowicie niedostępny",
+      "waitlistEnabled": "Lista oczekujących jest włączona dla tego produktu",
+      "waitlistDisabled": "Lista oczekujących nie jest włączona",
       "unlisted": "Ukryty",
       "unlistedTooltip": "Nie wyświetlany na stronie sklepu, dostępny przez bezpośredni link",
       "listedEnabled": "Produkt jest teraz widoczny w sklepie",
@@ -2530,29 +2529,7 @@
       "shop": "Sklep",
       "payments": "Płatności",
       "legal": "Prawne",
-      "system": "System",
-      "marketplace": "Marketplace"
-    },
-    "marketplace": {
-      "title": "Marketplace",
-      "description": "Ustawienia marketplace multi-tenant. Zarządzaj sklepami sellerów, Stripe Connect i prowizjami platformy.",
-      "sellersLink": "Zarządzaj Sellerami",
-      "sellersDescription": "Przeglądaj i zarządzaj sklepami sellerów, ich statusem, onboardingiem Stripe Connect i konfiguracją prowizji.",
-      "stripeConnect": {
-        "title": "Stripe Connect",
-        "description": "Podlacz swoje konto Stripe, aby otrzymywac platnosci bezposrednio. Srodki sa przekazywane na Twoje konto po kazdej sprzedazy.",
-        "loading": "Sprawdzanie statusu konta Stripe...",
-        "error": "Nie udalo sie zaladowac statusu",
-        "retry": "Ponow",
-        "notConnected": "Niepodlaczone",
-        "notConnectedDesc": "Podlacz swoje konto Stripe, aby zaczac otrzymywac platnosci.",
-        "connectButton": "Podlacz konto Stripe",
-        "incomplete": "Onboarding niekompletny",
-        "incompleteDesc": "Konfiguracja Twojego konta Stripe nie zostala ukonczona. Dokoncz onboarding, aby zaczac otrzymywac platnosci.",
-        "completeButton": "Dokoncz onboarding",
-        "connected": "Podlaczone",
-        "accountId": "Konto"
-      }
+      "system": "System"
     }
   },
   "stripe": {

@@ -1,9 +1,9 @@
 import { getIntegrationsConfig } from '@/lib/actions/integrations'
 import IntegrationsForm from '@/components/IntegrationsForm'
-import { verifyAdminOrSellerAccess } from '@/lib/auth-server'
+import { verifyAdminAccess } from '@/lib/auth-server'
 
 export default async function IntegrationsPage() {
-  await verifyAdminOrSellerAccess()
+  await verifyAdminAccess()
 
   const configResult = await getIntegrationsConfig()
   const config = configResult.success ? configResult.data : null

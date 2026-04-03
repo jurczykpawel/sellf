@@ -1,6 +1,6 @@
 'use server'
 
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 import { validateIntegrations, type IntegrationsInput } from '@/lib/validations/integrations'
 import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify'
 import { revalidatePath } from 'next/cache'
@@ -10,7 +10,7 @@ import { createPublicClient } from '@/lib/supabase/server'
 // --- GLOBAL CONFIG ---
 
 export async function getIntegrationsConfig() {
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient.from('integrations_config').select('*').single()
 
     if (error && error.code === 'PGRST116') {
@@ -23,7 +23,7 @@ export async function getIntegrationsConfig() {
 
 export async function updateIntegrationsConfig(values: IntegrationsInput) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const validation = validateIntegrations(values)
     if (!validation.isValid) return { success: false, error: 'Invalid fields', details: validation.errors }
 

@@ -4,7 +4,7 @@
  * Verifies that the omnibus service:
  * - Requires an explicit client parameter (no internal client creation)
  * - Uses the passed client for all DB queries (shop_config, products, price_history)
- * - Works correctly with schema-scoped clients (marketplace support)
+ * - Works correctly with explicit client parameter (DRY)
  *
  * @see src/lib/services/omnibus.ts
  */

@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 /**
  * Helper to create CORS-enabled responses
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
   try {
     const body = await request.json();
-    const { email, productSlug, turnstileToken, sellerSlug } = body;
+    const { email, productSlug, turnstileToken } = body;
 
     // Validate required fields
     if (!email || !productSlug) {
@@ -104,10 +103,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { dataClient } = await resolvePublicDataClient(sellerSlug, supabase);
 
-    // Get product and validate (from seller schema if marketplace)
-    const { data: product, error: productError } = await dataClient
+    // Get product and validate
+    const { data: product, error: productError } = await supabase
       .from('products')
       .select('id, name, slug, price, is_active, available_from, available_until')
       .eq('slug', productSlug)

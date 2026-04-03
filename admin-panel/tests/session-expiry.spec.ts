@@ -24,8 +24,6 @@ import { acceptAllCookies } from './helpers/consent';
 // Seed credentials
 const ADMIN_EMAIL = 'demo@sellf.app';
 const ADMIN_PASSWORD = 'demo123';
-const SELLER_EMAIL = 'kowalski@demo.sellf.app';
-const SELLER_PASSWORD = 'demo1234';
 
 async function loginViaSession(page: import('@playwright/test').Page, email: string, password: string) {
   await acceptAllCookies(page);
@@ -94,20 +92,3 @@ test.describe('Session expiry — API protection', () => {
   });
 });
 
-test.describe('Session expiry — seller context', () => {
-
-  test('after cookie clearing, dashboard redirects seller to login', async ({ page }) => {
-    // 1. Login as seller via session injection
-    await loginViaSession(page, SELLER_EMAIL, SELLER_PASSWORD);
-    await page.goto('/en/dashboard');
-    await page.waitForLoadState('domcontentloaded');
-    expect(page.url()).toContain('/dashboard');
-
-    // 2. Clear cookies
-    await page.context().clearCookies();
-
-    // 3. Navigate — should redirect to login
-    await page.goto('/en/dashboard/products');
-    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-  });
-});

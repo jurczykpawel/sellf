@@ -2,17 +2,17 @@
 // API endpoint for payment statistics
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createDataClientFromAuth } from '@/lib/supabase/admin';
+import { createAdminClient } from "@/lib/supabase/admin";
 
-import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
+import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
+    const { user } = await requireAdminApiWithRequest(request);
 
     // Use admin client for seller_main data operations
-    const supabase = await createDataClientFromAuth(sellerSchema);
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit analytics operations (aggregation queries can be expensive)
     const rateLimitOk = await checkRateLimit(

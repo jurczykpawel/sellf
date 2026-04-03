@@ -262,7 +262,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
  )}
  </div>
 
-{/* Webhook Endpoint — platform admin only (marketplace uses Connect destination charges) */}
+{/* Webhook Endpoint */}
 {role === 'platform_admin' && (
 <div className="bg-sf-base border-2 border-sf-border-medium p-6">
    <div className="flex items-center justify-between mb-2">

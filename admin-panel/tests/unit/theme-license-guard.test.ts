@@ -19,10 +19,10 @@ vi.mock('@/lib/supabase/server', () => ({
   createPublicClient: mockCreatePublicClient,
 }));
 
-// Mock withAdminOrSellerAuth to bypass real auth and call the callback directly
+// Mock withAdminClient to bypass real auth and call the callback directly
 // with a fake dataClient that delegates to the same mock as createPublicClient
 vi.mock('@/lib/actions/admin-auth', () => ({
-  withAdminOrSellerAuth: vi.fn(async (fn: any) => {
+  withAdminClient: vi.fn(async (fn: any) => {
     const fakeDataClient = mockCreatePublicClient();
     return fn({ user: { id: 'test-user' }, supabase: {}, role: 'platform_admin', dataClient: fakeDataClient });
   }),

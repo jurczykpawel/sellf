@@ -11,9 +11,7 @@ BEGIN;
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create seller_main schema for shop/seller data (marketplace: schema-per-tenant)
--- seller_main is the owner's (platform operator's) seller schema
--- New sellers get a copy of this schema during provisioning
+-- Create seller_main schema for shop data
 CREATE SCHEMA IF NOT EXISTS seller_main;
 
 -- Create products table (seller schema — shop data)
@@ -714,10 +712,9 @@ BEGIN
         RAISE EXCEPTION 'Authentication required';
     END IF;
     
-    -- Security check: only allow users to view their own profile, or admins/seller owners to view any profile
+    -- Security check: only allow users to view their own profile, or admins to view any profile
     IF user_id_param != current_user_id THEN
         IF NOT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = current_user_id)
-           AND NOT EXISTS (SELECT 1 FROM public.sellers WHERE user_id = current_user_id AND status = 'active')
         THEN
             RAISE EXCEPTION 'Unauthorized: Can only view your own profile';
         END IF;

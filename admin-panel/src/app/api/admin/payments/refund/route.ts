@@ -4,22 +4,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
-import { createDataClientFromAuth } from '@/lib/supabase/admin';
+import { createAdminClient } from "@/lib/supabase/admin";
 
-import { requireAdminOrSellerApiWithRequest } from '@/lib/auth-server';
+import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Authenticate before initializing service client
-    const { user, sellerSchema } = await requireAdminOrSellerApiWithRequest(request);
+    const { user } = await requireAdminApiWithRequest(request);
 
     // Initialize service client only after auth validation
     const stripe = await getStripeServer();
 
     // Use admin client for seller_main data operations
-    const supabase = await createDataClientFromAuth(sellerSchema);
+    const supabase = createAdminClient();
 
     // SECURITY: Rate limit refund operations (prevents abuse of compromised admin accounts)
     const rateLimitOk = await checkRateLimit(

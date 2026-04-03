@@ -1,8 +1,8 @@
--- Migration: Add advisory lock to migrate_guest_purchases_all_schemas
+-- Migration: Add advisory lock to migrate_guest_purchases
 -- Prevents double-grant when concurrent user registrations with the same email
 -- race each other through the guest purchase migration.
 
-CREATE OR REPLACE FUNCTION public.migrate_guest_purchases_all_schemas(
+CREATE OR REPLACE FUNCTION public.migrate_guest_purchases(
   p_user_id UUID,
   p_email TEXT
 )
@@ -12,13 +12,11 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_seller RECORD;
   v_guest RECORD;
   v_total_migrated INTEGER := 0;
-  v_query TEXT;
 BEGIN
   IF (SELECT auth.role()) != 'service_role' THEN
-    RAISE EXCEPTION 'Only service_role can call migrate_guest_purchases_all_schemas';
+    RAISE EXCEPTION 'Only service_role can call migrate_guest_purchases';
   END IF;
 
   IF p_user_id IS NULL OR p_email IS NULL THEN
@@ -28,42 +26,35 @@ BEGIN
   -- Advisory lock keyed on email hash — prevents concurrent migrations for the same email
   PERFORM pg_advisory_xact_lock(hashtext(p_email));
 
-  FOR v_seller IN
-    SELECT s.schema_name
-    FROM public.sellers s
-    WHERE s.status = 'active'
+  FOR v_guest IN
+    SELECT product_id
+    FROM seller_main.guest_purchases
+    WHERE customer_email = p_email
+      AND claimed_by_user_id IS NULL
   LOOP
-    v_query := format(
-      'SELECT product_id FROM %I.guest_purchases WHERE customer_email = %L AND claimed_by_user_id IS NULL',
-      v_seller.schema_name, p_email
-    );
-
-    FOR v_guest IN EXECUTE v_query
-    LOOP
-      BEGIN
-        EXECUTE format(
-          'SELECT %I.grant_product_access_service_role(%L::uuid, %L::uuid)',
-          v_seller.schema_name, p_user_id, v_guest.product_id
-        );
-        -- Only mark THIS purchase as claimed after successful grant (prevents data loss on partial failure)
-        EXECUTE format(
-          'UPDATE %I.guest_purchases SET claimed_by_user_id = %L WHERE customer_email = %L AND product_id = %L AND claimed_by_user_id IS NULL',
-          v_seller.schema_name, p_user_id, p_email, v_guest.product_id
-        );
-        v_total_migrated := v_total_migrated + 1;
-      EXCEPTION WHEN OTHERS THEN
-        RAISE WARNING 'Failed to grant access in schema % for product %: %',
-          v_seller.schema_name, v_guest.product_id, SQLERRM;
-      END;
-    END LOOP;
+    BEGIN
+      PERFORM seller_main.grant_product_access_service_role(p_user_id, v_guest.product_id);
+      UPDATE seller_main.guest_purchases
+        SET claimed_by_user_id = p_user_id
+        WHERE customer_email = p_email
+          AND product_id = v_guest.product_id
+          AND claimed_by_user_id IS NULL;
+      v_total_migrated := v_total_migrated + 1;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Failed to grant access for product %: %',
+        v_guest.product_id, SQLERRM;
+    END;
   END LOOP;
 
   RETURN v_total_migrated;
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.migrate_guest_purchases_all_schemas(UUID, TEXT) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.migrate_guest_purchases_all_schemas(UUID, TEXT) TO service_role;
+-- Drop old multi-schema version if exists
+DROP FUNCTION IF EXISTS public.migrate_guest_purchases_all_schemas(UUID, TEXT);
+
+REVOKE EXECUTE ON FUNCTION public.migrate_guest_purchases(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.migrate_guest_purchases(UUID, TEXT) TO service_role;
 
 
 -- Drop duplicate registration trigger.

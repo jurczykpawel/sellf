@@ -7,18 +7,17 @@
  * NOT the same as /api/v1/users/:id/access which supports API key auth
  * with scopes, pagination, and standardized response format.
  *
- * Access: platform_admin, seller_admin (schema-scoped via requireAdminOrSellerApi)
+ * Access: platform_admin only (via requireAdminApi)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createPlatformClient } from '@/lib/supabase/admin';
-import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { requireAdminApi } from '@/lib/auth-server';
 import {
   validateGrantAccess,
   sanitizeGrantAccessData
 } from '@/lib/validations/access';
-import { createDataClientFromAuth } from '@/lib/supabase/admin';
 
 // GET /api/users/[id]/access - Get user's product access
 export async function GET(
@@ -29,15 +28,15 @@ export async function GET(
     const { id: userId } = await params;
     const supabase = await createClient();
 
-    // Verify admin or seller access
+    // Verify admin access
     let authResult;
     try {
-      authResult = await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminApi(supabase);
     } catch (authError: any) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const adminClient = createDataClientFromAuth(authResult.sellerSchema);
+    const adminClient = createAdminClient();
 
     // Get user's product access using adminClient to access restricted view
     const { data: userAccess, error: accessError } = await adminClient
@@ -83,17 +82,17 @@ export async function POST(
     const { id: userId } = await params;
     const supabase = await createClient();
 
-    // Verify admin or seller access
+    // Verify admin access
     let authResult;
     try {
-      authResult = await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminApi(supabase);
     } catch (authError: any) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const adminUser = authResult.user;
 
     const body = await request.json();
-    const adminClient = createDataClientFromAuth(authResult.sellerSchema);
+    const adminClient = createAdminClient();
 
     // Sanitize input data
     const sanitizedData = sanitizeGrantAccessData(body);
@@ -201,16 +200,16 @@ export async function DELETE(
     const { id: userId } = await params;
     const supabase = await createClient();
 
-    // Verify admin or seller access
+    // Verify admin access
     let authResult;
     try {
-      authResult = await requireAdminOrSellerApi(supabase);
+      authResult = await requireAdminApi(supabase);
     } catch (authError: any) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const adminUser = authResult.user;
 
-    const adminClient = createDataClientFromAuth(authResult.sellerSchema);
+    const adminClient = createAdminClient();
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('product_id');
 

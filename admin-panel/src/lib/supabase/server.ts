@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { isMarketplaceEnabled } from '@/lib/marketplace/feature-flag'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -28,10 +27,8 @@ export async function createClient() {
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              // SameSite=None is required for cross-domain SDK (sellf.js on seller domains).
-              // In marketplace mode, cross-domain SDK is disabled — SameSite=Lax is safer
-              // and eliminates CSRF risk from the many seller_admin accounts.
-              const needsCrossDomain = isProduction && !isMarketplaceEnabled()
+              // SameSite=None is required for cross-domain SDK (sellf.js on external domains).
+              const needsCrossDomain = isProduction
               cookieStore.set(name, value, {
                 ...(options as object),
                 httpOnly: true,

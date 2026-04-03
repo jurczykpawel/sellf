@@ -109,7 +109,7 @@ class FixerIoProvider implements ExchangeRateProvider {
  */
 class ECBProvider implements ExchangeRateProvider {
   name = 'ecb';
-  private baseUrl = 'https://api.frankfurter.app';
+  private baseUrl = 'https://api.frankfurter.dev/v1';
 
   async fetchRates(baseCurrency: string): Promise<ExchangeRates> {
     const url = `${this.baseUrl}/latest?from=${baseCurrency}`;

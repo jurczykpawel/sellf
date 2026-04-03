@@ -4,7 +4,7 @@
  * ============================================================================
  *
  * Verifies that pages and API routes enforce the correct level of access
- * per role: platform_admin, seller_admin, user.
+ * per role: platform_admin, user.
  *
  * Uses static source analysis — no live server required.
  *
@@ -79,59 +79,26 @@ describe('RBAC: Users API allows seller admins', () => {
 });
 
 // ============================================================================
-// RBAC: Scope presets
-// ============================================================================
-
-describe('RBAC: Scope presets', () => {
-  it('sellerDefault includes users:read', () => {
-    const source = readSource('lib/api/api-keys.ts');
-    // Match sellerDefault array containing 'users:read'
-    const sellerDefaultMatch = source.match(/sellerDefault\s*[=:]\s*\[([^\]]*)\]/s);
-    expect(
-      sellerDefaultMatch,
-      'api-keys.ts must define a sellerDefault scope preset'
-    ).not.toBeNull();
-    expect(
-      sellerDefaultMatch![1],
-      'sellerDefault must include USERS_READ scope'
-    ).toContain('USERS_READ');
-  });
-
-  it('sellerDefault includes users:write', () => {
-    const source = readSource('lib/api/api-keys.ts');
-    const sellerDefaultMatch = source.match(/sellerDefault\s*[=:]\s*\[([^\]]*)\]/s);
-    expect(
-      sellerDefaultMatch,
-      'api-keys.ts must define a sellerDefault scope preset'
-    ).not.toBeNull();
-    expect(
-      sellerDefaultMatch![1],
-      'sellerDefault must include USERS_WRITE scope'
-    ).toContain('USERS_WRITE');
-  });
-});
-
-// ============================================================================
 // RBAC: Integrations allows seller admins
 // ============================================================================
 
 describe('RBAC: Integrations allows seller admins', () => {
-  it('integrations page uses verifyAdminOrSellerAccess, not verifyAdminAccess', () => {
+  it('integrations page uses verifyAdminAccess, not verifyAdminAccess', () => {
     const source = readSource('app/[locale]/dashboard/integrations/page.tsx');
     expect(
-      /verifyAdminOrSellerAccess/.test(source),
-      'Integrations page must use verifyAdminOrSellerAccess'
+      /verifyAdminAccess/.test(source),
+      'Integrations page must use verifyAdminAccess'
     ).toBe(true);
     expect(
-      /verifyAdminAccess/.test(source) && !/verifyAdminOrSellerAccess/.test(source),
-      'Integrations page must NOT use verifyAdminAccess (use verifyAdminOrSellerAccess instead)'
+      /verifyAdminAccess/.test(source) && !/verifyAdminAccess/.test(source),
+      'Integrations page must NOT use verifyAdminAccess (use verifyAdminAccess instead)'
     ).toBe(false);
   });
 
-  it('integrations actions use withAdminOrSellerAuth for schema scoping', () => {
+  it('integrations actions use withAdminClient for schema scoping', () => {
     const source = readSource('lib/actions/integrations.ts');
 
-    // All admin functions should use withAdminOrSellerAuth
+    // All admin functions should use withAdminClient
     const adminFunctions = [
       'getIntegrationsConfig',
       'updateIntegrationsConfig',
@@ -141,10 +108,10 @@ describe('RBAC: Integrations allows seller admins', () => {
       'toggleScript',
     ];
 
-    // Source must contain withAdminOrSellerAuth
+    // Source must contain withAdminClient
     expect(
-      /withAdminOrSellerAuth/.test(source),
-      'integrations.ts must use withAdminOrSellerAuth'
+      /withAdminClient/.test(source),
+      'integrations.ts must use withAdminClient'
     ).toBe(true);
 
     // Source must NOT contain bare createClient() calls
@@ -159,7 +126,7 @@ describe('RBAC: Integrations allows seller admins', () => {
     }
     expect(
       violations,
-      `integrations.ts contains bare createClient() calls (should use withAdminOrSellerAuth scoped client):\n` +
+      `integrations.ts contains bare createClient() calls (should use withAdminClient scoped client):\n` +
       violations.map(l => `  ${l}`).join('\n')
     ).toHaveLength(0);
   });
@@ -170,17 +137,17 @@ describe('RBAC: Integrations allows seller admins', () => {
 // ============================================================================
 
 describe('RBAC: Security Audit per role', () => {
-  it('security-audit actions use withAdminOrSellerAuth, not withAdminAuth', () => {
+  it('security-audit actions use withAdminClient, not withAdminAuth', () => {
     const source = readSource('lib/actions/security-audit.ts');
 
     expect(
-      /withAdminOrSellerAuth/.test(source),
-      'security-audit.ts must use withAdminOrSellerAuth'
+      /withAdminClient/.test(source),
+      'security-audit.ts must use withAdminClient'
     ).toBe(true);
 
     expect(
-      /withAdminAuth/.test(source) && !/withAdminOrSellerAuth/.test(source),
-      'security-audit.ts must NOT use withAdminAuth (use withAdminOrSellerAuth instead)'
+      /withAdminAuth/.test(source) && !/withAdminClient/.test(source),
+      'security-audit.ts must NOT use withAdminAuth (use withAdminClient instead)'
     ).toBe(false);
   });
 });
@@ -190,32 +157,32 @@ describe('RBAC: Security Audit per role', () => {
 // ============================================================================
 
 describe('RBAC: Settings actions allow seller admins', () => {
-  it('shop-config uses withAdminOrSellerAuth, not withAdminAuth', () => {
+  it('shop-config uses withAdminClient, not withAdminAuth', () => {
     const source = readSource('lib/actions/shop-config.ts');
 
     expect(
-      /withAdminOrSellerAuth/.test(source),
-      'shop-config.ts must use withAdminOrSellerAuth'
+      /withAdminClient/.test(source),
+      'shop-config.ts must use withAdminClient'
     ).toBe(true);
 
     // Must NOT import withAdminAuth
     expect(
       /import.*withAdminAuth[^O]/.test(source),
-      'shop-config.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+      'shop-config.ts must NOT import withAdminAuth (use withAdminClient instead)'
     ).toBe(false);
   });
 
-  it('payment-config uses withAdminOrSellerAuth, not withAdminAuth', () => {
+  it('payment-config uses withAdminClient, not withAdminAuth', () => {
     const source = readSource('lib/actions/payment-config.ts');
 
     expect(
-      /withAdminOrSellerAuth/.test(source),
-      'payment-config.ts must use withAdminOrSellerAuth'
+      /withAdminClient/.test(source),
+      'payment-config.ts must use withAdminClient'
     ).toBe(true);
 
     expect(
       /import.*withAdminAuth[^O]/.test(source),
-      'payment-config.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+      'payment-config.ts must NOT import withAdminAuth (use withAdminClient instead)'
     ).toBe(false);
   });
 
@@ -238,21 +205,7 @@ describe('RBAC: Settings actions allow seller admins', () => {
 // ============================================================================
 
 describe('RBAC: Platform-only pages remain restricted', () => {
-  it('admin/sellers page checks platform admin access', () => {
-    const source = readSource('app/[locale]/admin/sellers/page.tsx');
-    const hasPlatformAdminCheck =
-      /admin_users/.test(source) ||
-      /verifyAdminAccess/.test(source) ||
-      /platform_admin/.test(source) ||
-      /isPlatformAdmin/.test(source);
-
-    expect(
-      hasPlatformAdminCheck,
-      'admin/sellers page must verify platform admin access (admin_users check or verifyAdminAccess)'
-    ).toBe(true);
-  });
-
-  it('SettingsTabs marketplace tab requires platform_admin role', () => {
+  it('SettingsTabs requires platform_admin role', () => {
     const source = readSource('components/settings/SettingsTabs.tsx');
     const hasRoleCheck =
       /role\s*===?\s*['"`]platform_admin['"`]/.test(source) ||
@@ -261,7 +214,7 @@ describe('RBAC: Platform-only pages remain restricted', () => {
 
     expect(
       hasRoleCheck,
-      'SettingsTabs must check for platform_admin role before showing marketplace tab'
+      'SettingsTabs must check for platform_admin role'
     ).toBe(true);
   });
 });

@@ -121,11 +121,17 @@ async function getUserAccess(userId: string, productId: string) {
   return data;
 }
 
+/** Platform client targeting public schema — for rate_limits cleanup */
+const platformAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+  db: { schema: 'public' },
+});
+
 async function cleanupRateLimits(functionName: string) {
-  await supabaseAdmin
+  await platformAdmin
     .from('rate_limits')
     .delete()
-    .eq('function_name', functionName);
+    .like('function_name', `%${functionName}%`);
 }
 
 const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY, {
@@ -153,6 +159,7 @@ describe('claim_guest_purchases_for_user', () => {
   let product2: { id: string; slug: string };
 
   beforeAll(async () => {
+    await cleanupRateLimits('claim_guest_purchases_for_user');
     product1 = await createTestProduct({ price: 10 });
     product2 = await createTestProduct({ price: 20 });
     createdProductIds.push(product1.id, product2.id);
@@ -433,6 +440,9 @@ describe('grant_free_product_access', () => {
   let durationProduct: { id: string; slug: string };
 
   beforeAll(async () => {
+    await cleanupRateLimits('grant_free_product_access');
+    await cleanupRateLimits('grant_pwyw_free_access');
+    await cleanupRateLimits('grant_product_access_service_role');
     userId = await createTestUser(EMAIL_FREE, PASSWORD);
     createdUserIds.push(userId);
     authenticatedClient = await createAuthenticatedClient(EMAIL_FREE, PASSWORD);
@@ -618,6 +628,7 @@ describe('grant_pwyw_free_access', () => {
   let nonPwywProduct: { id: string; slug: string };
 
   beforeAll(async () => {
+    await cleanupRateLimits('grant_pwyw_free_access');
     userId = await createTestUser(EMAIL_PWYW, PASSWORD);
     createdUserIds.push(userId);
     authenticatedClient = await createAuthenticatedClient(EMAIL_PWYW, PASSWORD);
@@ -698,6 +709,7 @@ describe('grant_product_access_service_role', () => {
   let durationProduct: { id: string; slug: string };
 
   beforeAll(async () => {
+    await cleanupRateLimits('grant_product_access_service_role');
     userId = await createTestUser(EMAIL_SVC, PASSWORD);
     createdUserIds.push(userId);
 
@@ -846,6 +858,8 @@ describe('grant_product_access_service_role', () => {
 
 describe('handle_new_user_registration', () => {
   it('creates profile and claims guest purchases on user registration', async () => {
+    // Clear rate limits from previous describe blocks to avoid false failures
+    await cleanupRateLimits('claim_guest_purchases_for_user');
     const email = `trigger-test-${TEST_ID}@example.com`;
     const product = await createTestProduct({ price: 40 });
     createdProductIds.push(product.id);

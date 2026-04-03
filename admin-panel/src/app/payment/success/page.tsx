@@ -15,7 +15,6 @@ interface PaymentSuccessPageProps {
     product_id?: string;
     redirect_status?: string;
     success_url?: string;
-    seller?: string;
   }>;
 }
 
@@ -29,7 +28,6 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
   const productId = params.product_id;
   const redirectStatus = params.redirect_status;
   const successUrl = params.success_url;
-  const sellerSlug = params.seller;
 
   // Handle old Embedded Checkout flow
   const sessionId = params.session_id;
@@ -56,8 +54,8 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
       }
     }
     if (resolvedSlug) {
-      const base = `/${locale}${paymentStatusUrl(resolvedSlug, sellerSlug)}`;
-      const sep = base.includes('?') ? '&' : '?';
+      const base = `/${locale}${paymentStatusUrl(resolvedSlug)}`;
+      const sep = '?';
       let url = `${base}${sep}payment_intent=${encodeURIComponent(paymentIntent)}`;
       if (successUrl) url += `&success_url=${encodeURIComponent(successUrl)}`;
       redirect(url);
@@ -66,7 +64,7 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
 
   // OLD FLOW: If we have a product slug (embedded checkout), redirect to it
   if (productSlug && !paymentIntent) {
-    redirect(`${productUrl(productSlug, sellerSlug)}?payment=success`);
+    redirect(`${productUrl(productSlug)}?payment=success`);
   }
 
   // If we have a session ID but no product slug, show generic success page (old flow)

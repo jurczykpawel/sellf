@@ -17,7 +17,6 @@ export async function GET() {
     captchaProvider: getCaptchaProvider(),
     siteUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL!,
     demoMode: process.env.DEMO_MODE === 'true',
-    marketplaceEnabled: process.env.MARKETPLACE_ENABLED === 'true',
     passwordLoginEnabled: process.env.DEMO_MODE === 'true' || process.env.E2E_MODE === 'true',
     oauthProviders: (process.env.OAUTH_PROVIDERS || '')
       .split(',')

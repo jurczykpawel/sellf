@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { createSellerAdminClient, getSellerBySlug } from '@/lib/marketplace/seller-client';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
-import { productUrl, paymentStatusUrl } from '@/lib/utils/product-urls';
 
 /** Block redirects to internal/private network hosts */
 function isBlockedHost(hostname: string): boolean {
@@ -25,13 +23,12 @@ function isBlockedHost(hostname: string): boolean {
  * Product Access Route
  *
  * Handles the magic link callback after a user claims a free product.
- * Flow: FreeProductForm → magic link email → /auth/callback → this route
+ * Flow: FreeProductForm -> magic link email -> /auth/callback -> this route
  *
  * Query params:
- *   product    — product slug (required)
- *   seller     — seller slug (optional, for marketplace products)
- *   return_url — override redirect target (validated for safety)
- *   success_url — OTO/funnel success URL passthrough
+ *   product    - product slug (required)
+ *   return_url - override redirect target (validated for safety)
+ *   success_url - OTO/funnel success URL passthrough
  */
 
 function safeRedirect(url: string, returnUrl?: string | null) {
@@ -50,7 +47,6 @@ function safeRedirect(url: string, returnUrl?: string | null) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get('product');
-  const sellerSlug = searchParams.get('seller');
   const returnUrl = searchParams.get('return_url');
   const successUrl = searchParams.get('success_url');
 
@@ -59,9 +55,9 @@ export async function GET(request: Request) {
     return;
   }
 
-  // Build product URL once — used for all fallback redirects
-  const prodUrl = productUrl(slug, sellerSlug);
-  const statusUrl = paymentStatusUrl(slug, sellerSlug);
+  // Build product URL once - used for all fallback redirects
+  const prodUrl = `/p/${slug}`;
+  const statusUrl = `/p/${slug}/payment-status`;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -71,18 +67,9 @@ export async function GET(request: Request) {
     return;
   }
 
-  // Resolve data client: seller schema or platform (seller_main)
-  let dataClient: typeof supabase = supabase;
-  if (sellerSlug) {
-    const seller = await getSellerBySlug(sellerSlug);
-    if (seller) {
-      dataClient = createSellerAdminClient(seller.schema_name) as unknown as typeof supabase;
-    }
-  }
-
   try {
     // Single product fetch (avoids redundant query)
-    const { data: product } = await dataClient
+    const { data: product } = await supabase
       .from('products')
       .select('id, price, is_active, allow_custom_price, custom_price_min, content_delivery_type, content_config')
       .eq('slug', slug)
@@ -95,7 +82,7 @@ export async function GET(request: Request) {
 
     // Check existing access
     let existingAccess = null;
-    const { data } = await dataClient
+    const { data } = await supabase
       .from('user_product_access')
       .select('*')
       .eq('user_id', user.id)
@@ -103,7 +90,7 @@ export async function GET(request: Request) {
       .maybeSingle();
     existingAccess = data;
 
-    // No access yet — check if product is free and grant
+    // No access yet - check if product is free and grant
     if (!existingAccess) {
       if (!product.is_active) {
         safeRedirect('/', returnUrl);
@@ -115,7 +102,7 @@ export async function GET(request: Request) {
 
       if (isFreeEligible) {
         const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
-        // Use the user's session client for RPC — service_role loses auth.uid() context
+        // Use the user's session client for RPC - service_role loses auth.uid() context
         const { data: accessResult, error: grantError } = await supabase
           .rpc(rpcName, {
             product_slug_param: slug,
@@ -139,12 +126,12 @@ export async function GET(request: Request) {
         return;
       }
 
-      // Paid product — redirect to product/checkout page
+      // Paid product - redirect to product/checkout page
       safeRedirect(prodUrl, returnUrl);
       return;
     }
 
-    // User has access — check content delivery type for redirect products
+    // User has access - check content delivery type for redirect products
     if (product.content_delivery_type === 'redirect' && product.content_config?.redirect_url) {
       try {
         const redirectUrl = new URL(product.content_config.redirect_url);

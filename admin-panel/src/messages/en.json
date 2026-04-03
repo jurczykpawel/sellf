@@ -864,7 +864,6 @@
     "comingSoon": "Coming Soon",
     "comingSoonMessage": "This product is not yet available. Check back later!",
     "availableFromDate": "Available from: {date}",
-    "free": "FREE",
     "offerExpired": "Offer Expired",
     "offerExpiredMessage": "This product was available for a limited time and is no longer accessible to new customers.",
     "wasAvailableUntil": "Was available until: {date}",
@@ -1148,8 +1147,8 @@
       "featuredToggleError": "Failed to toggle featured status",
       "setFeatured": "Set as featured",
       "removeFeatured": "Remove from featured",
-      "waitlistEnabled": "Waitlist enabled for this product",
-      "waitlistDisabled": "No waitlist - product is completely unavailable",
+      "waitlistEnabled": "Waitlist is enabled for this product",
+      "waitlistDisabled": "Waitlist is not enabled",
       "unlisted": "Unlisted",
       "unlistedTooltip": "Not shown on store page, available via direct link",
       "listedEnabled": "Product is now listed on store",
@@ -2515,29 +2514,7 @@
       "shop": "Store",
       "payments": "Payments",
       "legal": "Legal",
-      "system": "System",
-      "marketplace": "Marketplace"
-    },
-    "marketplace": {
-      "title": "Marketplace",
-      "description": "Multi-tenant marketplace settings. Manage seller stores, Stripe Connect, and platform fees.",
-      "sellersLink": "Manage Sellers",
-      "sellersDescription": "View and manage all marketplace seller stores, their status, Stripe Connect onboarding, and platform fee configuration.",
-      "stripeConnect": {
-        "title": "Stripe Connect",
-        "description": "Connect your Stripe account to receive payments directly. Funds are transferred to your account after each sale.",
-        "loading": "Checking Stripe account status...",
-        "error": "Failed to load status",
-        "retry": "Retry",
-        "notConnected": "Not connected",
-        "notConnectedDesc": "Connect your Stripe account to start receiving payments.",
-        "connectButton": "Connect Stripe Account",
-        "incomplete": "Onboarding incomplete",
-        "incompleteDesc": "Your Stripe account setup is not finished. Complete onboarding to start receiving payments.",
-        "completeButton": "Complete Onboarding",
-        "connected": "Connected",
-        "accountId": "Account"
-      }
+      "system": "System"
     }
   },
   "stripe": {

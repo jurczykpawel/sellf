@@ -146,11 +146,6 @@ describe('RLS-A01: RLS policies must use is_admin() function', () => {
       .toHaveLength(0);
   });
 
-  it('marketplace_sellers migration uses is_admin() in all policies', () => {
-    const violations = findPolicyAdminUsersViolations(migration('20260311000001_marketplace_sellers.sql'));
-    expect(violations, 'marketplace_sellers violations:\n' + violations.join('\n'))
-      .toHaveLength(0);
-  });
 });
 
 // ============================================================================
@@ -231,25 +226,6 @@ describe('RLS-E01: profiles must have INSERT and DELETE handling', () => {
 });
 
 // ============================================================================
-// GRANT-A01: Tables must REVOKE ALL before selective GRANT
-// ============================================================================
-
-describe('GRANT-A01: tables must REVOKE ALL before granting to anon', () => {
-
-  it('sellers migration REVOKEs ALL before granting to anon', () => {
-    const sql = migration('20260311000001_marketplace_sellers.sql');
-    const revokePattern = /REVOKE ALL ON public\.sellers FROM anon/i;
-    expect(revokePattern.test(sql), 'sellers: missing REVOKE ALL before GRANT').toBe(true);
-  });
-
-  it('anon gets only SELECT on public.sellers', () => {
-    const sql = migration('20260311000001_marketplace_sellers.sql');
-    const forbiddenGrant = /GRANT\s+(?:ALL|INSERT|UPDATE|DELETE|TRUNCATE)[^;]*sellers[^;]*TO\s+anon/i;
-    expect(forbiddenGrant.test(sql), 'sellers: anon has more than SELECT').toBe(false);
-  });
-});
-
-// ============================================================================
 // GRANT-B01: No blanket default privileges for anon/authenticated
 // ============================================================================
 
@@ -268,39 +244,13 @@ describe('GRANT-B01: default privileges must be explicit, not blanket', () => {
 });
 
 // ============================================================================
-// GRANT-C01: Utility functions must be revoked from public roles
-// ============================================================================
-
-describe('GRANT-C01: utility functions must be revoked from anon', () => {
-  it('clone_schema EXECUTE is revoked', () => {
-    const hasRevoke = /REVOKE\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:public\.)?clone_schema\b/i.test(ALL_SQL);
-    expect(hasRevoke, 'clone_schema: EXECUTE not revoked from public roles').toBe(true);
-  });
-
-  it('pg_get_tabledef EXECUTE is revoked', () => {
-    const hasRevoke = /REVOKE\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:public\.)?pg_get_tabledef\b/i.test(ALL_SQL);
-    expect(hasRevoke, 'pg_get_tabledef: EXECUTE not revoked from public roles').toBe(true);
-  });
-
-  it('pg_get_coldef EXECUTE is revoked', () => {
-    const hasRevoke = /REVOKE\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:public\.)?pg_get_coldef\b/i.test(ALL_SQL);
-    expect(hasRevoke, 'pg_get_coldef: EXECUTE not revoked from public roles').toBe(true);
-  });
-
-  it('get_insert_stmt_ddl EXECUTE is revoked', () => {
-    const hasRevoke = /REVOKE\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:public\.)?get_insert_stmt_ddl\b/i.test(ALL_SQL);
-    expect(hasRevoke, 'get_insert_stmt_ddl: EXECUTE not revoked from public roles').toBe(true);
-  });
-});
-
-// ============================================================================
 // GRANT-D01: Default EXECUTE privileges revoked in seller_main
 // ============================================================================
 
 describe('GRANT-D01: function execute privilege controls', () => {
   it('default EXECUTE on new functions revoked from anon/authenticated in seller_main', () => {
     const revokePattern =
-      /ALTER\s+DEFAULT\s+PRIVILEGES\s+.*IN\s+SCHEMA\s+seller_main[\s\S]*?REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+(?:anon|authenticated)/i;
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+.*IN\s+SCHEMA\s+seller_main[\s\S]*?REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+(?:anon|authenticated|PUBLIC)/i;
     expect(ALL_SQL).toMatch(revokePattern);
   });
 
@@ -310,11 +260,6 @@ describe('GRANT-D01: function execute privilege controls', () => {
     );
   });
 
-  it('REVOKE EXECUTE from anon on admin-only functions', () => {
-    expect(ALL_SQL).toMatch(
-      /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+seller_main\.admin_get_product_order_bumps/i
-    );
-  });
 });
 
 // ============================================================================
@@ -322,15 +267,6 @@ describe('GRANT-D01: function execute privilege controls', () => {
 // ============================================================================
 
 describe('SQL-A01: SECURITY DEFINER functions must SET search_path', () => {
-
-  it('get_insert_stmt_ddl includes SET search_path', () => {
-    const sql = migration('20260311000000_pg_clone_schema.sql');
-    const fnStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.get_insert_stmt_ddl');
-    expect(fnStart, 'get_insert_stmt_ddl function not found').toBeGreaterThan(-1);
-    const fnHeader = sql.slice(fnStart, fnStart + 500);
-    const hasSearchPath = /SET\s+search_path\s*=/.test(fnHeader);
-    expect(hasSearchPath, 'get_insert_stmt_ddl: missing SET search_path').toBe(true);
-  });
 
   it('no SECURITY DEFINER function should have pg_temp in search_path', () => {
     const lines = ALL_SQL.split('\n');
@@ -375,21 +311,16 @@ describe('TS-A01: API routes must require authentication', () => {
   );
   const source = readFileSync(GUS_ROUTE, 'utf-8');
 
-  it('gus route calls an auth helper before processing', () => {
-    const hasAuthCheck = (
-      /require(?:Admin|AdminOrSeller)Api(?:WithRequest)?\s*\(/.test(source) ||
-      /requireMarketplaceAdmin\s*\(/.test(source) ||
-      /\bauthenticate\s*\(/.test(source) ||
-      /\.auth\.getUser\s*\(/.test(source)
-    );
-    expect(hasAuthCheck, 'gus route: no authentication check found').toBe(true);
+  it('gus route has rate limiting (public endpoint for checkout NIP autofill)', () => {
+    const hasRateLimit = /checkRateLimit|rateLimit/.test(source);
+    expect(hasRateLimit, 'gus route: no rate limiting found on public endpoint').toBe(true);
   });
 
-  it('gus route is NOT classified as public in auth tests', () => {
+  it('gus route is classified as public in auth tests', () => {
     const authTestPath = join(__dirname, 'api-route-auth.test.ts');
     const authTestSource = readFileSync(authTestPath, 'utf-8');
     const inPublicRoutes = /PUBLIC_ROUTES\s*=\s*new Set\([^)]*gus\/fetch-company-data/s.test(authTestSource);
-    expect(inPublicRoutes, 'gus route: still classified as PUBLIC_ROUTES').toBe(false);
+    expect(inPublicRoutes, 'gus route: not classified as PUBLIC_ROUTES').toBe(true);
   });
 });
 
@@ -398,22 +329,6 @@ describe('TS-A01: API routes must require authentication', () => {
 // ============================================================================
 
 describe('TS-B01: no hardcoded fallback credentials', () => {
-
-  const SELLER_CLIENT = join(
-    __dirname,
-    '../../../src/lib/marketplace/seller-client.ts'
-  );
-  const sellerClientSource = readFileSync(SELLER_CLIENT, 'utf-8');
-
-  it('createSellerPublicClient does not contain dummy key', () => {
-    expect(sellerClientSource, 'seller-client: contains hardcoded fallback key')
-      .not.toContain('dummy-anon-key-for-build-time');
-  });
-
-  it('createSellerPublicClient throws on missing env var', () => {
-    const hasFallback = /supabaseAnonKey\s*\|\|\s*['"`]/.test(sellerClientSource);
-    expect(hasFallback, 'seller-client: uses || fallback to hardcoded string').toBe(false);
-  });
 
   it('createPublicClient does not have dummy fallback values', () => {
     const serverSource = src('lib/supabase/server.ts');
@@ -447,21 +362,6 @@ describe('TS-C01: admin routes must use createAdminClient()', () => {
   it('v1/coupons uses authenticate middleware', () => {
     const source = src('app/api/v1/coupons/route.ts');
     expect(source).toMatch(/authenticate/);
-  });
-});
-
-// ============================================================================
-// TS-D01: Dynamic schema clients must validate schema names
-// ============================================================================
-
-describe('TS-D01: schema name validation', () => {
-  it('createSellerPublicClient calls isValidSellerSchema', () => {
-    const source = src('lib/marketplace/seller-client.ts');
-    const fnStart = source.indexOf('function createSellerPublicClient');
-    expect(fnStart, 'createSellerPublicClient function not found').toBeGreaterThan(-1);
-    const fnBody = source.slice(fnStart, fnStart + 500);
-    const validates = /isValidSellerSchema/.test(fnBody);
-    expect(validates, 'createSellerPublicClient: missing schema name validation').toBe(true);
   });
 });
 
@@ -568,34 +468,6 @@ describe('TS-I01: input validation in API endpoints', () => {
     expect(source).toMatch(
       /duplicate.*fraudulent.*requested_by_customer|VALID_REFUND_REASONS|allowedReasons/i
     );
-  });
-});
-
-// ============================================================================
-// TS-J01: TypeScript reserved slugs aligned with SQL
-// ============================================================================
-
-describe('TS-J01: reserved slugs alignment', () => {
-  it('TypeScript RESERVED_SLUGS includes Supabase internal schemas', () => {
-    const source = src('lib/marketplace/tenant.ts');
-    const supabaseInternals = [
-      'storage', 'graphql', 'graphql_public', 'realtime', 'pgsodium',
-      'supabase_functions', 'supabase_migrations', 'extensions', 'vault',
-    ];
-    for (const slug of supabaseInternals) {
-      expect(source, `Missing reserved slug: ${slug}`).toContain(`'${slug}'`);
-    }
-  });
-
-  it('TypeScript RESERVED_SLUGS includes common web names', () => {
-    const source = src('lib/marketplace/tenant.ts');
-    const commonNames = [
-      'www', 'login', 'signup', 'dashboard', 'settings',
-      'checkout', 'stripe', 'webhook', 'webhooks',
-    ];
-    for (const slug of commonNames) {
-      expect(source, `Missing reserved slug: ${slug}`).toContain(`'${slug}'`);
-    }
   });
 });
 

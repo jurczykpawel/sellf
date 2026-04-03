@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
-import type { UserPurchase, UserProductAllSellers } from '@/types';
+import type { UserPurchase } from '@/types';
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
@@ -50,52 +50,14 @@ export default function MyPurchasesPage() {
 
       const supabase = await createClient();
 
-      // Try cross-schema RPC first (works for both single-tenant and marketplace).
-      // In single-tenant mode, seller_main is the only active seller so results are identical.
-      // Falls back to legacy RPC if cross-schema function doesn't exist yet (pre-migration).
-      const { data: crossData, error: crossError } = await supabase
-        .rpc('get_user_products_all_sellers');
+      const { data, error: fetchError } = await supabase
+        .rpc('get_user_purchases_with_refund_status');
 
-      if (!crossError && crossData) {
-        const mapped: UserPurchase[] = ((crossData || []) as UserProductAllSellers[])
-          .filter(p => p.transaction_status !== 'pending' && p.transaction_status !== 'abandoned')
-          .map(p => ({
-            transaction_id: p.transaction_id || p.product_id,
-            product_id: p.product_id,
-            product_name: p.product_name,
-            product_slug: p.product_slug,
-            product_icon: p.product_icon || '',
-            amount: p.transaction_amount || 0,
-            currency: p.transaction_currency || p.product_currency,
-            purchase_date: p.transaction_date || p.access_granted_at,
-            status: p.transaction_status || 'completed',
-            refunded_amount: p.refunded_amount || 0,
-            is_refundable: p.is_refundable ?? false,
-            refund_period_days: p.refund_period_days ?? null,
-            days_since_purchase: p.transaction_date
-              ? Math.floor((Date.now() - new Date(p.transaction_date).getTime()) / (1000 * 60 * 60 * 24))
-              : 0,
-            refund_eligible: (p.is_refundable && p.refund_period_days && p.transaction_date)
-              ? Math.floor((Date.now() - new Date(p.transaction_date).getTime()) / (1000 * 60 * 60 * 24)) <= p.refund_period_days
-              : false,
-            refund_request_status: p.refund_request_status,
-            refund_request_id: null,
-            seller_slug: p.seller_slug,
-            seller_display_name: p.seller_display_name,
-          } as UserPurchase & { seller_slug: string; seller_display_name: string }));
+      if (fetchError) throw fetchError;
 
-        setPurchases(mapped);
-      } else {
-        // Fallback: legacy single-schema RPC
-        const { data, error: fetchError } = await supabase
-          .rpc('get_user_purchases_with_refund_status');
-
-        if (fetchError) throw fetchError;
-
-        setPurchases((data || []).filter((p: UserPurchase) =>
-          p.status !== 'pending' && p.status !== 'abandoned'
-        ));
-      }
+      setPurchases((data || []).filter((p: UserPurchase) =>
+        p.status !== 'pending' && p.status !== 'abandoned'
+      ));
     } catch (err) {
       const error = err as Error;
       setError(error.message || 'Failed to load purchases.');
@@ -311,12 +273,6 @@ export default function MyPurchasesPage() {
                         <h3 className="text-lg font-semibold text-sf-heading">
                           {purchase.product_name}
                         </h3>
-                        {/* Seller badge for marketplace purchases */}
-                        {(purchase as UserPurchase & { seller_display_name?: string }).seller_display_name && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-sf-accent/10 text-sf-accent mt-0.5">
-                            {(purchase as UserPurchase & { seller_display_name?: string }).seller_display_name}
-                          </span>
-                        )}
                         <p className="text-sm text-sf-muted">
                           {t('purchasedOn', { defaultValue: 'Purchased on' })} {formatDate(purchase.purchase_date)}
                         </p>

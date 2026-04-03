@@ -2,7 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
 import { locales, defaultLocale } from './lib/locales'
-import { isMarketplaceEnabled } from './lib/marketplace/feature-flag'
 
 // Create next-intl middleware
 const intlMiddleware = createMiddleware({
@@ -147,7 +146,8 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           const isProduction = process.env.NODE_ENV === 'production'
-          const needsCrossDomain = isProduction && !isMarketplaceEnabled()
+          // SameSite=None is required for cross-domain SDK (sellf.js on external domains).
+          const needsCrossDomain = isProduction
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set({
               name,

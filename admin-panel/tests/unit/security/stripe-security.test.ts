@@ -377,7 +377,7 @@ describe('Stripe Integration Security', () => {
       });
 
       it('should verify production refund route requires admin auth', () => {
-        // Route uses requireAdminOrSellerApiWithRequest which checks admin_users internally
+        // Route uses requireAdminApiWithRequest which checks admin_users internally
         expect(REFUND_ROUTE_SOURCE).toMatch(/require(?:Admin|AdminOrSeller)Api/);
         expect(REFUND_ROUTE_SOURCE).toContain('Forbidden');
       });

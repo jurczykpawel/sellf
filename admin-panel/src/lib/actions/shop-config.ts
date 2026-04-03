@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -92,7 +92,7 @@ export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
  * Use this in Settings UI. For public pages, use getShopConfig() (always platform).
  */
 export async function getMyShopConfig(): Promise<ShopConfig | null> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient
       .from('shop_config')
       .select('*')
@@ -130,7 +130,7 @@ export async function getMyDefaultCurrency(): Promise<string> {
 export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
   if (isDemoMode()) return false
 
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     // Read config from the SAME schema we'll write to (not platform's getShopConfig)
     const { data: config, error: fetchError } = await dataClient
       .from('shop_config')

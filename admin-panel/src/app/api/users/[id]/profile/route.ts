@@ -7,7 +7,7 @@
  * NOT the same as /api/v1/users/:id which uses user_access_stats view
  * and supports API key auth with scopes/pagination.
  *
- * Access: own profile (any user) | any profile (platform_admin, seller_admin)
+ * Access: own profile (any user) | any profile (platform_admin)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -34,9 +34,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // SECURITY FIX (V5): Check if user is accessing their own profile OR is an admin/seller
+    // Check if user is accessing their own profile OR is a platform admin
     if (user.id !== id) {
-      // Not their own profile - check if they're an admin or seller owner
       const { data: adminRecord } = await supabase
         .from('admin_users')
         .select('id')
@@ -44,20 +43,7 @@ export async function GET(
         .single();
 
       if (!adminRecord) {
-        // Not platform admin — check if seller owner
-        const { createPlatformClient } = await import('@/lib/supabase/admin');
-        const platformClient = createPlatformClient();
-        const { data: sellerRecord } = await platformClient
-          .from('sellers')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle();
-
-        if (!sellerRecord) {
-          // Not admin, not seller, not their own profile - forbidden
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 

@@ -58,7 +58,6 @@ function findRoutes(dir: string, base = dir): Array<{ rel: string; source: strin
 const ADMIN_ROUTE_PREFIXES = [
   'admin/',
   'v1/',
-  'stripe/connect/',
 ];
 
 /**
@@ -101,6 +100,7 @@ const PUBLIC_ROUTES = new Set([
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
   'captcha/challenge/route.ts',                // ALTCHA challenge generation — public, stateless
   'test-page/element-protection/route.ts',    // test page — serves HTML for SDK e2e tests
+  'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
 ]);
 
 /**
@@ -121,7 +121,6 @@ const AUTH_REQUIRED_ROUTES = new Set([
   'users/[id]/profile/route.ts',
   'users/route.ts',
   'refund-requests/route.ts',
-  'gus/fetch-company-data/route.ts',           // MEDIUM-001 fix: admin-only GUS lookup
 ]);
 
 // ============================================================================

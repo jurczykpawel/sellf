@@ -2,8 +2,7 @@
  * Omnibus Directive (EU 2019/2161) Service
  * Implements 30-day price history tracking for discount transparency
  *
- * All data-fetching functions require an explicit Supabase client parameter
- * to support marketplace multi-tenant schemas (DRY — no internal createClient).
+ * All data-fetching functions require an explicit Supabase client parameter (DRY).
  */
 
 // ===== TYPES =====

@@ -6,7 +6,7 @@
 import { revalidatePath } from 'next/cache';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
+import { withAdminClient } from '@/lib/actions/admin-auth';
 import type {
   RefundRequest,
   RefundResponse
@@ -16,7 +16,7 @@ import type {
  * Process refund - Admin only Server Action
  */
 export async function processRefund(data: RefundRequest): Promise<RefundResponse> {
-  const authResult = await withAdminOrSellerAuth(async ({ user, dataClient }) => {
+  const authResult = await withAdminClient(async ({ user, dataClient }) => {
     // Get transaction details (schema-scoped — seller admins see their own transactions)
     const { data: transaction, error: transactionError } = await dataClient
       .from('payment_transactions')

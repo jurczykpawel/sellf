@@ -75,13 +75,7 @@ describe.skipIf(!isDatabaseAvailable())(
     // ------------------------------------------------------------------
     describe('SA-0011: functions must SET search_path', () => {
       it('no functions in public/seller_main have mutable search_path', () => {
-        // Exclude third-party pg_clone_schema functions (complex dynamic SQL,
-        // service_role only, EXECUTE revoked from anon/authenticated)
-        const EXCLUDED_THIRD_PARTY = [
-          'public.clone_schema',
-          'public.pg_get_tabledef',
-          'public.pg_get_coldef',
-        ];
+        const EXCLUDED_THIRD_PARTY: string[] = [];
 
         const violations = query<{ fn: string }>(`
           SELECT n.nspname || '.' || p.proname AS fn

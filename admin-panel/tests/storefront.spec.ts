@@ -184,12 +184,9 @@ test.describe('Storefront & Checkout Flows', () => {
     await page.goto(`/p/${freeProductSlug}`);
     await expect(page).toHaveURL(new RegExp(`/checkout/${freeProductSlug}`), { timeout: 10000 });
     
-    // 3. Accept Terms and Click "Get Free Access"
-    const termsLabel = page.locator('label').filter({ hasText: /I agree|Akceptuję|regulamin/i });
-    await expect(termsLabel).toBeVisible({ timeout: 5000 });
-    await termsLabel.click();
-
+    // 3. Click "Get Free Access" (authenticated users skip terms — accepted at registration)
     const getAccessBtn = page.getByRole('button', { name: /Get Free Access|Odbierz darmowy dostęp/i });
+    await expect(getAccessBtn).toBeVisible({ timeout: 5000 });
     await expect(getAccessBtn).toBeEnabled({ timeout: 5000 });
     await getAccessBtn.click();
     

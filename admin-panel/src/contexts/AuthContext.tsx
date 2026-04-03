@@ -36,9 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return 'user'
   })
-  const [sellerSchema, setSellerSchema] = useState<string | undefined>()
-  const [sellerSlug, setSellerSlug] = useState<string | undefined>()
-  const [sellerDisplayName, setSellerDisplayName] = useState<string | undefined>()
   const isAdmin = role !== 'user'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -50,66 +47,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Fetches admin status using cached function for better performance
    */
-  interface RoleResult {
-    role: UserRole
-    sellerSchema?: string
-    sellerSlug?: string
-    sellerDisplayName?: string
-  }
-
-  const resolveUserRole = async (userId: string, retries = 3): Promise<RoleResult> => {
+  const resolveUserRole = async (_userId: string, retries = 3): Promise<UserRole> => {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const supabase = await createClient()
 
-        // Check platform admin
         const { data: isAdminData, error } = await supabase.rpc('is_admin_cached')
         if (error) {
-          if (attempt === retries) return { role: 'user' }
+          if (attempt === retries) return 'user'
           await new Promise(resolve => setTimeout(resolve, attempt * 1000))
           continue
         }
 
-        // is_admin_cached returns true for both platform admins and seller admins
-        // Need to distinguish which one
-        if (!isAdminData) return { role: 'user' }
-
-        // Check if platform admin (in admin_users table)
-        const { data: adminCheck } = await supabase
-          .from('admin_users')
-          .select('user_id')
-          .eq('user_id', userId)
-          .maybeSingle()
-
-        if (adminCheck) return { role: 'platform_admin' }
-
-        // Must be seller admin — get seller info
-        const { data: seller } = await supabase
-          .from('sellers')
-          .select('schema_name, slug, display_name')
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .maybeSingle()
-
-        if (seller) {
-          return {
-            role: 'seller_admin',
-            sellerSchema: seller.schema_name,
-            sellerSlug: seller.slug,
-            sellerDisplayName: seller.display_name,
-          }
-        }
-
-        return { role: 'user' as const }
+        return isAdminData ? 'platform_admin' : 'user'
       } catch {
-        if (attempt === retries) {
-          return { role: 'user' as const }
-        }
+        if (attempt === retries) return 'user'
         await new Promise(resolve => setTimeout(resolve, attempt * 1000))
       }
     }
 
-    return { role: 'user' as const }
+    return 'user'
   }
 
   /**
@@ -133,25 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(null)
 
         // Reset role immediately to prevent stale role from rendering wrong components
-        // (e.g. localStorage had 'platform_admin' but user is now 'seller_admin')
         setRole('user')
 
         // Resolve user role
         if (currentUser) {
-          const result = await resolveUserRole(currentUser.id)
+          const resolvedRole = await resolveUserRole(currentUser.id)
 
           if (!isMountedRef.current) return
 
-          setRole(result.role)
-          setSellerSchema(result.sellerSchema)
-          setSellerSlug(result.sellerSlug)
-          setSellerDisplayName(result.sellerDisplayName)
-          if (typeof window !== 'undefined') localStorage.setItem('sf_role', result.role)
+          setRole(resolvedRole)
+          if (typeof window !== 'undefined') localStorage.setItem('sf_role', resolvedRole)
         } else {
           setRole('user')
-          setSellerSchema(undefined)
-          setSellerSlug(undefined)
-          setSellerDisplayName(undefined)
           if (typeof window !== 'undefined') localStorage.removeItem('sf_role')
         }
       } catch {
@@ -289,9 +239,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         signOut,
-        sellerSchema,
-        sellerSlug,
-        sellerDisplayName,
       }}
     >
       {children}

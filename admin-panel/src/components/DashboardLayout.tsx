@@ -20,10 +20,7 @@ interface DashboardLayoutProps {
   isAdmin?: boolean
   shopConfig?: ShopConfig | null
   showSellfCTA?: boolean
-  /** 'platform_admin' = full access, 'seller_admin' = scoped to seller schema */
-  adminRole?: 'platform_admin' | 'seller_admin'
-  /** Seller display name (shown in sidebar for seller admins) */
-  sellerDisplayName?: string
+  adminRole?: 'platform_admin'
 }
 
 // Icons
@@ -136,18 +133,17 @@ const Icons = {
   ),
 };
 
-export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole, sellerDisplayName: sellerDisplayNameProp }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
-  const { signOut, role: authRole, user: authUser, loading: authLoading, sellerDisplayName: authSellerDisplayName } = useAuth()
+  const { signOut, role: authRole, user: authUser, loading: authLoading } = useAuth()
   const t = useTranslations('navigation')
   const pathname = usePathname()
   const router = useRouter()
 
   // Single source of truth: AuthContext. SSR props are fallback for initial render only.
   const user = authUser ?? userProp
-  const sellerDisplayName = authSellerDisplayName ?? sellerDisplayNameProp
   const isAdmin = authRole !== 'user' || (isAdminProp !== undefined ? isAdminProp : false)
 
   // Auto-redirect to login when session expires on protected routes.

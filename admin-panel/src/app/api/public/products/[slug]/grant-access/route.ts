@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { trackServerSideConversion } from '@/lib/tracking';
@@ -32,21 +31,8 @@ export async function POST(
       );
     }
 
-    // Resolve marketplace seller → schema-scoped client
-    let sellerSlug: string | null = null;
-    try {
-      const body = await request.clone().json();
-      sellerSlug = body?.sellerSlug || null;
-    } catch {
-      // No body or not JSON — platform owner (seller_main)
-    }
-    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, supabase);
-    if (sellerSlug && !seller) {
-      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-    }
-
-    // Get product (from seller schema if marketplace)
-    const { data: product, error: productError } = await dataClient
+    // Get product
+    const { data: product, error: productError } = await supabase
       .from('products')
       .select('id, name, slug, price, currency, icon, is_active, available_from, available_until, allow_custom_price, custom_price_min')
       .eq('slug', slug)
@@ -76,7 +62,7 @@ export async function POST(
       return NextResponse.json({ error: 'Payment required' }, { status: 400 });
     }
 
-    const adminClient = sellerSlug ? dataClient : createAdminClient();
+    const adminClient = createAdminClient();
     const accessResult = await grantFreeProductAccess(supabase, adminClient, {
       product: { id: product.id, slug, price: product.price, isPwywFree },
       user: { id: user.id, email: user.email ?? '' },

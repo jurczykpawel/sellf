@@ -2,14 +2,12 @@
  * Session consistency tests
  *
  * Verifies that:
- * 1. Product URLs depend on AuthContext sellerSlug, not SSR props
- * 2. When sellerSlug is lost (session expires), URLs fall back to platform paths
- * 3. SiteMenu and DashboardLayout use the same auth source (AuthContext)
+ * 1. Product URLs use correct /p/ prefix
+ * 2. SiteMenu and DashboardLayout use the same auth source (AuthContext)
  *
  * These tests exist because of a bug where session expiry caused split-brain:
  * - Sidebar (SSR props) still showed user as logged in
  * - SiteMenu (AuthContext) showed "Zaloguj" (Login)
- * - sellerSlug became undefined → product links acted as platform admin
  *
  * @see src/components/DashboardLayout.tsx — unified auth source
  * @see src/components/ProductsPageContent.tsx — productPath uses AuthContext
@@ -19,12 +17,12 @@ import { describe, it, expect } from 'vitest';
 
 // ===== Pure logic extracted from ProductsPageContent.tsx =====
 
-function productPath(productSlug: string, sellerSlug?: string): string {
-  return sellerSlug ? `/s/${sellerSlug}/${productSlug}` : `/p/${productSlug}`;
+function productPath(productSlug: string): string {
+  return `/p/${productSlug}`;
 }
 
-function checkoutPath(productSlug: string, sellerSlug?: string): string {
-  return sellerSlug ? `/s/${sellerSlug}/checkout/${productSlug}` : `/checkout/${productSlug}`;
+function checkoutPath(productSlug: string): string {
+  return `/checkout/${productSlug}`;
 }
 
 /**
@@ -38,39 +36,21 @@ function resolveUser<T>(authUser: T | null, userProp: T): T | null {
 // ===== Tests =====
 
 describe('Session consistency — product URL generation', () => {
-  const SELLER_SLUG = 'kowalski_digital';
   const PRODUCT_SLUG = 'kurs-ecommerce';
 
-  it('seller admin: product URL uses /s/ prefix with seller slug', () => {
-    const url = productPath(PRODUCT_SLUG, SELLER_SLUG);
-    expect(url).toBe('/s/kowalski_digital/kurs-ecommerce');
-  });
-
-  it('platform admin: product URL uses /p/ prefix (no seller slug)', () => {
-    const url = productPath(PRODUCT_SLUG, undefined);
+  it('product URL uses /p/ prefix', () => {
+    const url = productPath(PRODUCT_SLUG);
     expect(url).toBe('/p/kurs-ecommerce');
   });
 
-  it('session expired: sellerSlug becomes undefined → falls back to /p/', () => {
-    // Before expiry — seller context active
-    const urlBefore = productPath(PRODUCT_SLUG, SELLER_SLUG);
-    expect(urlBefore).toMatch('/s/');
-
-    // After expiry — sellerSlug lost from AuthContext
-    const urlAfter = productPath(PRODUCT_SLUG, undefined);
-    expect(urlAfter).toMatch('/p/');
-    expect(urlAfter).not.toContain(SELLER_SLUG);
-  });
-
-  it('checkout URL follows same pattern as product URL', () => {
-    expect(checkoutPath(PRODUCT_SLUG, SELLER_SLUG)).toBe('/s/kowalski_digital/checkout/kurs-ecommerce');
-    expect(checkoutPath(PRODUCT_SLUG, undefined)).toBe('/checkout/kurs-ecommerce');
+  it('checkout URL uses /checkout/ prefix', () => {
+    expect(checkoutPath(PRODUCT_SLUG)).toBe('/checkout/kurs-ecommerce');
   });
 });
 
 describe('Session consistency — user resolution', () => {
-  const SSR_USER = { id: 'ssr-user-id', email: 'kowalski@demo.sellf.app' };
-  const AUTH_USER = { id: 'auth-user-id', email: 'kowalski@demo.sellf.app' };
+  const SSR_USER = { id: 'ssr-user-id', email: 'user@demo.sellf.app' };
+  const AUTH_USER = { id: 'auth-user-id', email: 'user@demo.sellf.app' };
 
   it('prefers AuthContext user over SSR prop', () => {
     const resolved = resolveUser(AUTH_USER, SSR_USER);
@@ -104,8 +84,8 @@ describe('Session consistency — split-brain detection', () => {
     // FIX: auto-redirect to /login when authUser becomes null after init
 
     // Simulate the timeline:
-    const authUserInitial = { email: 'kowalski@demo.sellf.app' };
-    const ssrUserProp = { email: 'kowalski@demo.sellf.app' };
+    const authUserInitial = { email: 'user@demo.sellf.app' };
+    const ssrUserProp = { email: 'user@demo.sellf.app' };
 
     // T=0: Both in sync (authUser set)
     const sidebarUser0 = resolveUser(authUserInitial, ssrUserProp);

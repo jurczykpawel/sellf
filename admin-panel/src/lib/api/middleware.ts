@@ -54,9 +54,7 @@ export interface SessionAuthResult {
     adminId: string;
     email: string;
   };
-  scopes: string[]; // Session auth has full access
-  /** Seller schema for seller admins (e.g. 'seller_kowalski_digital'). Undefined for platform admins. */
-  sellerSchema?: string;
+  scopes: string[];
 }
 
 // Auth result for API key auth
@@ -75,8 +73,6 @@ export interface ApiKeyAuthResult {
     rateLimitPerMinute: number;
   };
   scopes: string[];
-  /** Seller schema for seller API keys. Undefined for platform keys. */
-  sellerSchema?: string;
 }
 
 export type AuthResult = SessionAuthResult | ApiKeyAuthResult;
@@ -177,8 +173,7 @@ export function apiError(
 
 /**
  * Authenticate via session (JWT/cookies).
- * Supports both platform admins and seller admins.
- * Seller admins get a schema-scoped admin client.
+ * Checks admin_users table for platform admin access.
  */
 async function authenticateViaSession(request: NextRequest): Promise<SessionAuthResult | null> {
   try {
@@ -209,36 +204,7 @@ async function authenticateViaSession(request: NextRequest): Promise<SessionAuth
       };
     }
 
-    // Check seller owner — gets scoped access to their schema only
-    const platformClient = createPlatformClient();
-    const { data: seller } = await platformClient
-      .from('sellers')
-      .select('id, schema_name')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (seller?.schema_name) {
-      const { isValidSellerSchema } = await import('@/lib/marketplace/tenant');
-      if (!isValidSellerSchema(seller.schema_name)) return null;
-
-      const { createSellerAdminClient } = await import('@/lib/marketplace/seller-client');
-      const sellerClient = createSellerAdminClient(seller.schema_name);
-
-      return {
-        method: 'session',
-        supabase: sellerClient as unknown as SupabaseClient,
-        admin: {
-          userId: user.id,
-          adminId: seller.id, // seller ID as admin ID
-          email: user.email,
-        },
-        scopes: [...SCOPE_PRESETS.sellerDefault],
-        sellerSchema: seller.schema_name,
-      };
-    }
-
-    // Neither admin nor seller
+    // Not an admin
     return null;
   } catch (error) {
     console.error('[authenticateViaSession] Unexpected error:', error instanceof Error ? error.message : error);
@@ -283,38 +249,18 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     throw new ApiAuthError('INVALID_TOKEN', keyData.rejection_reason || 'Invalid API key');
   }
 
-  // Get key owner details — platform admin or seller
-  let ownerId: string;
-  let ownerUserId: string;
+  // Get key owner details
+  const { data: adminUser, error: adminError } = await platformClient
+    .from('admin_users')
+    .select('id, user_id')
+    .eq('id', keyData.admin_user_id)
+    .single();
 
-  if (keyData.seller_id) {
-    // Seller API key — get seller owner info
-    const { data: seller, error: sellerError } = await platformClient
-      .from('sellers')
-      .select('id, user_id')
-      .eq('id', keyData.seller_id)
-      .eq('status', 'active')
-      .single();
-
-    if (sellerError || !seller || !seller.user_id) {
-      throw new ApiAuthError('FORBIDDEN', 'Seller account not found or inactive');
-    }
-    ownerId = seller.id;
-    ownerUserId = seller.user_id;
-  } else {
-    // Platform admin API key
-    const { data: adminUser, error: adminError } = await platformClient
-      .from('admin_users')
-      .select('id, user_id')
-      .eq('id', keyData.admin_user_id)
-      .single();
-
-    if (adminError || !adminUser) {
-      throw new ApiAuthError('FORBIDDEN', 'API key owner not found');
-    }
-    ownerId = adminUser.id;
-    ownerUserId = adminUser.user_id;
+  if (adminError || !adminUser) {
+    throw new ApiAuthError('FORBIDDEN', 'API key owner not found');
   }
+  const ownerId = adminUser.id;
+  const ownerUserId = adminUser.user_id;
 
   // Get the key name for logging
   const { data: keyInfo } = await platformClient
@@ -336,39 +282,11 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   // Cast scopes from Json to string[]
   const scopes = Array.isArray(keyData.scopes) ? keyData.scopes as string[] : [];
 
-  // Resolve data client: seller-scoped if API key has seller_id, otherwise seller_main
-  let dataClient: any;
-  let sellerSchema: string | undefined;
-
-  if (keyData.seller_id) {
-    // Seller API key — resolve schema from sellers table
-    const { data: seller } = await platformClient
-      .from('sellers')
-      .select('schema_name')
-      .eq('id', keyData.seller_id)
-      .eq('status', 'active')
-      .single();
-
-    if (seller?.schema_name) {
-      const { isValidSellerSchema } = await import('@/lib/marketplace/tenant');
-      if (isValidSellerSchema(seller.schema_name)) {
-        const { createSellerAdminClient } = await import('@/lib/marketplace/seller-client');
-        dataClient = createSellerAdminClient(seller.schema_name) as unknown as SupabaseClient;
-        sellerSchema = seller.schema_name;
-      } else {
-        throw new ApiAuthError('FORBIDDEN', 'Seller schema validation failed');
-      }
-    } else {
-      throw new ApiAuthError('FORBIDDEN', 'Seller account not found or inactive');
-    }
-  } else {
-    // Platform API key — seller_main
-    dataClient = createAdminClient();
-  }
+  const dataClient = createAdminClient();
 
   return {
     method: 'api_key',
-    supabase: dataClient,
+    supabase: dataClient as unknown as SupabaseClient,
     admin: {
       userId: ownerUserId,
       adminId: ownerId,
@@ -381,7 +299,6 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
       rateLimitPerMinute: keyData.rate_limit_per_minute || 60,
     },
     scopes,
-    sellerSchema,
   } as ApiKeyAuthResult;
 }
 
@@ -398,7 +315,7 @@ export async function authenticate(
   // Try session auth first
   const sessionAuth = await authenticateViaSession(request);
   if (sessionAuth) {
-    // Platform admins have FULL_ACCESS; seller admins have limited scopes
+    // Platform admins have FULL_ACCESS
     if (requiredScopes && requiredScopes.length > 0) {
       for (const scope of requiredScopes) {
         if (!hasScope(sessionAuth.scopes, scope)) {
@@ -451,25 +368,14 @@ export async function authenticateAdmin(request: NextRequest): Promise<AuthResul
 }
 
 /**
- * Authenticate and require platform admin (not seller admin).
- * Use for platform-only endpoints: users, API keys, system management.
- * Seller admins get 403 Forbidden.
+ * Authenticate and require platform admin.
+ * Non-admins get 403 Forbidden.
  */
 export async function authenticatePlatformAdmin(
   request: NextRequest,
   requiredScopes?: ApiScope[]
 ): Promise<AuthResult> {
-  const auth = await authenticate(request, requiredScopes);
-
-  // Seller admins (session or API key) have sellerSchema — block from platform-only endpoints
-  const sellerSchema = auth.method === 'session'
-    ? (auth as SessionAuthResult).sellerSchema
-    : (auth as ApiKeyAuthResult).sellerSchema;
-  if (sellerSchema) {
-    throw new ApiAuthError('FORBIDDEN', 'Platform admin access required');
-  }
-
-  return auth;
+  return authenticate(request, requiredScopes);
 }
 
 /**

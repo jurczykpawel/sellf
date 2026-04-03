@@ -1,7 +1,6 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Product } from '../types';
-import { useSellerContext } from '@/hooks/useSellerContext';
 
 interface ErrorStatusProps {
   product: Product;
@@ -11,7 +10,6 @@ interface ErrorStatusProps {
 export default function ErrorStatus({ product, errorMessage }: ErrorStatusProps) {
   const t = useTranslations('paymentStatus');
   const router = useRouter();
-  const { buildProductUrl } = useSellerContext();
 
   return (
     <>
@@ -19,7 +17,7 @@ export default function ErrorStatus({ product, errorMessage }: ErrorStatusProps)
 
       <div className="space-y-4">
         <button
-          onClick={() => router.push(buildProductUrl(product.slug))}
+          onClick={() => router.push(`/p/${product.slug}`)}
           className="bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-medium py-3 px-6 rounded-full transition-[background-color] duration-200 active:scale-[0.98]"
         >
           {t('tryAgain')}

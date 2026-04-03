@@ -3,7 +3,7 @@
  *
  * Custom scripts (dangerouslySetInnerHTML) are disabled in favour of managed
  * integrations (GTM, Facebook Pixel, Umami) which accept only validated IDs.
- * This prevents arbitrary JS injection by seller_admin users in marketplace mode.
+ * This prevents arbitrary JS injection via custom scripts.
  *
  * The custom_scripts table is retained (data preserved), but scripts are no
  * longer exposed through the public RPC or rendered by TrackingProvider.

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 
 export interface Category {
   id: string
@@ -14,7 +14,7 @@ export interface Category {
 }
 
 export async function getCategories(): Promise<{ success: boolean; data?: Category[]; error?: string }> {
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient
       .from('categories')
       .select('*')
@@ -30,7 +30,7 @@ export async function getCategories(): Promise<{ success: boolean; data?: Catego
 
 export async function createCategory(data: { name: string; slug: string; description?: string }) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('categories')
       .insert(data)
@@ -46,7 +46,7 @@ export async function createCategory(data: { name: string; slug: string; descrip
 
 export async function updateCategory(id: string, data: { name: string; slug: string; description?: string }) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('categories')
       .update(data)
@@ -63,7 +63,7 @@ export async function updateCategory(id: string, data: { name: string; slug: str
 
 export async function deleteCategory(id: string) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('categories')
       .delete()
@@ -79,7 +79,7 @@ export async function deleteCategory(id: string) {
 }
 
 export async function getProductCategories(productId: string): Promise<{ success: boolean; data?: string[]; error?: string }> {
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient
       .from('product_categories')
       .select('category_id')
@@ -95,7 +95,7 @@ export async function getProductCategories(productId: string): Promise<{ success
 
 export async function updateProductCategories(productId: string, categoryIds: string[]) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
-  return withAdminOrSellerAuth(async ({ dataClient }) => {
+  return withAdminClient(async ({ dataClient }) => {
     // 1. Delete existing
     const { error: deleteError } = await dataClient
       .from('product_categories')

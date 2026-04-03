@@ -5,8 +5,7 @@
  * PATCH /api/v1/api-keys/:id - Update key (name, is_active)
  * DELETE /api/v1/api-keys/:id - Revoke key
  *
- * Supports both platform admins and seller admins.
- * Ownership is verified via admin_user_id (platform) or seller_id (seller).
+ * Platform admin only. Ownership verified via admin_user_id.
  */
 
 import { NextRequest } from 'next/server';
@@ -21,7 +20,7 @@ import {
 } from '@/lib/api';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
-import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import { requireAdminApi } from '@/lib/auth-server';
 import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
 import { validateUUID } from '@/lib/validations/product';
 import type { Database } from '@/types/database';
@@ -44,7 +43,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminOrSellerApi(supabase);
+    const { user, role } = await requireAdminApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -78,11 +77,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       `)
       .eq('id', id);
 
-    if (owner.role === 'seller_admin') {
-      query = query.eq('seller_id', owner.sellerId!);
-    } else {
-      query = query.eq('admin_user_id', owner.adminId!);
-    }
+    query = query.eq('admin_user_id', owner.adminId!);
 
     const { data: key, error } = await query.single();
 
@@ -114,7 +109,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminOrSellerApi(supabase);
+    const { user, role } = await requireAdminApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -135,11 +130,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .select('id, is_active, revoked_at')
       .eq('id', id);
 
-    if (owner.role === 'seller_admin') {
-      checkQuery = checkQuery.eq('seller_id', owner.sellerId!);
-    } else {
-      checkQuery = checkQuery.eq('admin_user_id', owner.adminId!);
-    }
+    checkQuery = checkQuery.eq('admin_user_id', owner.adminId!);
 
     const { data: existingKey, error: checkError } = await checkQuery.single();
 
@@ -224,7 +215,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminOrSellerApi(supabase);
+    const { user, role } = await requireAdminApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -245,11 +236,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .select('id, name, revoked_at')
       .eq('id', id);
 
-    if (owner.role === 'seller_admin') {
-      deleteCheckQuery = deleteCheckQuery.eq('seller_id', owner.sellerId!);
-    } else {
-      deleteCheckQuery = deleteCheckQuery.eq('admin_user_id', owner.adminId!);
-    }
+    deleteCheckQuery = deleteCheckQuery.eq('admin_user_id', owner.adminId!);
 
     const { data: existingKey, error: checkError } = await deleteCheckQuery.single();
 

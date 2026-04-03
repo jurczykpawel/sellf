@@ -4,7 +4,6 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { sanitizeForLog } from '@/lib/logger';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, productId, productSlug, captchaToken, sellerSlug } = body;
+    const { email, productId, productSlug, captchaToken } = body;
 
     // Validate required fields
     if (!email || !productId) {
@@ -67,10 +66,9 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const { dataClient } = await resolvePublicDataClient(sellerSlug, supabase);
 
-    // Fetch product details (from seller schema if marketplace)
-    const { data: product, error: productError } = await dataClient
+    // Fetch product details
+    const { data: product, error: productError } = await supabase
       .from('products')
       .select('id, name, slug, price, currency, icon, enable_waitlist')
       .eq('id', productId)
@@ -93,6 +91,7 @@ export async function POST(request: Request) {
 
     // Trigger webhook for waitlist signup
     // Note: We're not storing in DB yet - that will be added later (see backlog)
+    // Use admin client for webhook dispatch (anon client lacks access to webhook_endpoints)
     await WebhookService.trigger('waitlist.signup', {
       customer: {
         email
@@ -105,7 +104,7 @@ export async function POST(request: Request) {
         currency: product.currency,
         icon: product.icon,
       }
-    }, dataClient);
+    });
 
     // Log the signup for debugging (can be removed in production)
     console.log(`[Waitlist] New signup: ${sanitizeForLog(email)} for product ${sanitizeForLog(product.name)} (${product.id})`);

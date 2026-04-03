@@ -9,7 +9,6 @@ import { PaymentStatusViewProps } from '../types';
 import { getStatusInfo } from '../utils/helpers';
 import { useTracking } from '@/hooks/useTracking';
 import { generatePurchaseEventId } from '@/lib/tracking';
-import { useSellerContext } from '@/hooks/useSellerContext';
 import {
   ErrorStatus,
   ProcessingStatus,
@@ -34,7 +33,6 @@ export default function PaymentStatusView({
   const tOto = useTranslations('oto');
   const router = useRouter();
   const { track } = useTracking();
-  const { buildProductUrl } = useSellerContext();
   const purchaseTracked = useRef(false);
 
   // When OTO is shown, disable auto-redirect countdown
@@ -96,7 +94,7 @@ export default function PaymentStatusView({
   const handleOtoSkip = () => {
     if (auth.isAuthenticated) {
       // Logged-in user: go to product page
-      router.push(buildProductUrl(product.slug));
+      router.push(`/p/${product.slug}`);
     } else {
       // Guest user: trigger magic link flow (handled by MagicLinkStatus visibility)
       // We'll show magic link section by hiding OTO

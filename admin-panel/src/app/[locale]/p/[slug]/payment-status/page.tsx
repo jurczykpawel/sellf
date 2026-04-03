@@ -6,7 +6,6 @@ import { verifyPaymentSession, verifyPaymentIntent, OtoInfo } from '@/lib/paymen
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { PaymentStatus, OtoOfferInfo } from './types';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -14,7 +13,6 @@ interface PageProps {
     session_id?: string;
     payment_intent?: string;
     success_url?: string;
-    seller?: string;
   }>;
 }
 
@@ -34,12 +32,8 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
     redirect('/login');
   }
 
-  // Marketplace: optional seller query param to scope product lookup to seller schema
-  const sellerSlug = resolvedSearchParams.seller;
-  const { dataClient: productClient } = await resolvePublicDataClient(sellerSlug, supabase);
-
   // Get product details
-  const { data: product, error: productError } = await productClient
+  const { data: product, error: productError } = await supabase
     .from('products')
     .select('id, name, slug, description, icon, price, currency, allow_custom_price, custom_price_min, success_redirect_url, pass_params_to_redirect')
     .eq('slug', resolvedParams.slug)
@@ -147,14 +141,14 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
       customerEmail = user.email || '';
 
-      const { data: existingAccess } = await productClient
+      const { data: existingAccess } = await supabase
         .from('user_product_access')
         .select('access_expires_at')
         .eq('user_id', user.id)
         .eq('product_id', product.id)
         .single();
 
-      const adminClient = sellerSlug ? productClient : createAdminClient();
+      const adminClient = createAdminClient();
       const freeAccessResult = await grantFreeProductAccess(supabase, adminClient, {
         product: {
           id: product.id,
@@ -196,15 +190,15 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
     if (otoInfo.oto_product_id && customerEmail) {
       // First check if user exists with this email
-      const { data: existingUser } = await productClient
+      const { data: existingUser } = await supabase
         .from('users')
         .select('id')
         .eq('email', customerEmail)
         .maybeSingle();
 
       if (existingUser) {
-        // Check if user has access to OTO product (same schema as source product)
-        const { data: existingOtoAccess } = await productClient
+        // Check if user has access to OTO product
+        const { data: existingOtoAccess } = await supabase
           .from('user_product_access')
           .select('id, access_expires_at')
           .eq('user_id', existingUser.id)
@@ -257,9 +251,9 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   }
 
   // Redirect logic:
-  // 1. OTO active → handled above (otoOfferInfo is set)
-  // 2. OTO skipped (user owns product) → NO redirect
-  // 3. No OTO → use success_redirect_url
+  // 1. OTO active -> handled above (otoOfferInfo is set)
+  // 2. OTO skipped (user owns product) -> NO redirect
+  // 3. No OTO -> use success_redirect_url
 
   // Include magic_link_sent as a success scenario (guest purchase)
   const isSuccessfulPayment = (accessGranted && paymentStatus === 'completed') || paymentStatus === 'magic_link_sent';

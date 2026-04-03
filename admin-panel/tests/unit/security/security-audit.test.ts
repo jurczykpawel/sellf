@@ -320,7 +320,7 @@ describe('Security Audit', () => {
       const result = await runSecurityAudit();
 
       expect(result.success).toBe(false);
-      // Auth check (withAdminOrSellerAuth) runs before audit, so error may be auth-related
+      // Auth check (withAdminClient) runs before audit, so error may be auth-related
       // when Supabase is not configured
       expect(result.error).toBeDefined();
     });

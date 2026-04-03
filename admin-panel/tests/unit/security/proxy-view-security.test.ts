@@ -43,12 +43,8 @@ function getMigrationFiles(): string[] {
 /**
  * Extract all CREATE [OR REPLACE] VIEW statements from SQL.
  * Only captures views in `public` or `seller_main` schemas.
- * Ignores pg_clone_schema utility migration (not our code).
  */
 function extractViews(sql: string, filename: string): ViewDef[] {
-  // Skip the pg_clone_schema utility — it contains dynamic VIEW SQL strings,
-  // not actual view definitions we own.
-  if (filename.includes('pg_clone_schema')) return [];
 
   const views: ViewDef[] = [];
   const lines = sql.split('\n');
@@ -141,7 +137,6 @@ describe('Proxy View Security (Area 1)', () => {
     const violations: string[] = [];
 
     for (const filename of migrationFiles) {
-      if (filename.includes('pg_clone_schema')) continue;
       const sql = readFileSync(join(MIGRATIONS_DIR, filename), 'utf-8');
       const lines = sql.split('\n');
 
@@ -173,7 +168,6 @@ describe('Proxy View Security (Area 1)', () => {
     const violations: string[] = [];
 
     for (const filename of migrationFiles) {
-      if (filename.includes('pg_clone_schema')) continue;
       const sql = readFileSync(join(MIGRATIONS_DIR, filename), 'utf-8');
       const lines = sql.split('\n');
 

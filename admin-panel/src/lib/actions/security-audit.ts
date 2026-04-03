@@ -8,7 +8,7 @@
  * @see priv/pentest-2026-03-06.md — Supabase Production Configuration Checklist
  */
 
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
+import { withAdminClient } from '@/lib/actions/admin-auth';
 
 export interface SecurityCheckResult {
   id: string;
@@ -44,16 +44,12 @@ function getCacheTtl(result: SecurityAuditResult): number {
  * TTL: 1h when issues exist (re-check after fix), 24h when all pass.
  */
 export async function getSecurityAudit(): Promise<SecurityAuditResult> {
-  const result = await withAdminOrSellerAuth(async ({ role }) => {
+  const result = await withAdminClient(async () => {
     if (cachedResult && (Date.now() - cachedAt) < getCacheTtl(cachedResult)) {
-      // Filter cached result by role
-      const filtered = role === 'seller_admin'
-        ? { ...cachedResult, checks: cachedResult.checks.filter(c => c.scope === 'shop') }
-        : cachedResult;
-      return { success: true as const, data: filtered };
+      return { success: true as const, data: cachedResult };
     }
 
-    const audit = await executeAudit(role);
+    const audit = await executeAudit();
     return { success: true as const, data: audit };
   });
 
@@ -68,8 +64,8 @@ export async function getSecurityAudit(): Promise<SecurityAuditResult> {
  * Forces a fresh audit run, bypassing cache. Called via "Run again" button.
  */
 export async function runSecurityAudit(): Promise<SecurityAuditResult> {
-  const result = await withAdminOrSellerAuth(async ({ role }) => {
-    const audit = await executeAudit(role);
+  const result = await withAdminClient(async () => {
+    const audit = await executeAudit();
     return { success: true as const, data: audit };
   });
 
@@ -80,7 +76,7 @@ export async function runSecurityAudit(): Promise<SecurityAuditResult> {
   return result.data!;
 }
 
-async function executeAudit(role?: string): Promise<SecurityAuditResult> {
+async function executeAudit(): Promise<SecurityAuditResult> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
@@ -116,10 +112,7 @@ async function executeAudit(role?: string): Promise<SecurityAuditResult> {
     { scope: 'shop', check: () => checkCookieSecure(siteUrl) },
   ];
 
-  // Filter checks by role
-  const checksToRun = role === 'seller_admin'
-    ? allChecks.filter(c => c.scope === 'shop')
-    : allChecks;
+  const checksToRun = allChecks;
 
   const results = await Promise.allSettled(checksToRun.map(c => c.check()));
 
@@ -133,11 +126,8 @@ async function executeAudit(role?: string): Promise<SecurityAuditResult> {
 
   const audit: SecurityAuditResult = { success: true, checks, timestamp: new Date().toISOString() };
 
-  // Update cache (always cache the full audit for platform admins)
-  if (role !== 'seller_admin') {
-    cachedResult = audit;
-    cachedAt = Date.now();
-  }
+  cachedResult = audit;
+  cachedAt = Date.now();
 
   return audit;
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Store, CreditCard, FileText, Wrench, ShoppingBag } from 'lucide-react'
+import { Store, CreditCard, FileText, Wrench } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ShopSettings from './ShopSettings'
 import BrandingSettings from './BrandingSettings'
@@ -14,27 +14,23 @@ import OmnibusSettings from './OmnibusSettings'
 import LicenseSettings from './LicenseSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
-import MarketplaceSettings from './MarketplaceSettings'
-import StripeConnectStatus from './StripeConnectStatus'
 import { useConfig } from '@/components/providers/config-provider'
 import { useAuth } from '@/contexts/AuthContext'
 
-type TabId = 'shop' | 'payments' | 'legal' | 'system' | 'marketplace'
+type TabId = 'shop' | 'payments' | 'legal' | 'system'
 
-const BASE_TABS = [
+const TABS = [
   { id: 'shop' as TabId,        icon: Store,       labelKey: 'tabs.shop' },
   { id: 'payments' as TabId,    icon: CreditCard,  labelKey: 'tabs.payments' },
   { id: 'legal' as TabId,       icon: FileText,    labelKey: 'tabs.legal' },
-  { id: 'marketplace' as TabId, icon: ShoppingBag, labelKey: 'tabs.marketplace' },
   { id: 'system' as TabId,      icon: Wrench,      labelKey: 'tabs.system' },
 ]
 
 interface SettingsTabsProps {
   siteUrl: string
-  marketplaceEnabled?: boolean
 }
 
-export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: SettingsTabsProps) {
+export default function SettingsTabs({ siteUrl }: SettingsTabsProps) {
   const t = useTranslations('settings')
   const [active, setActive] = useState<TabId>('shop')
 
@@ -48,19 +44,12 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
   const { demoMode } = useConfig()
   const { role } = useAuth()
 
-  // Marketplace tab: platform admins only (seller management, not per-seller config)
-  const showMarketplace = marketplaceEnabled && role === 'platform_admin'
-
-  const tabs = showMarketplace
-    ? BASE_TABS
-    : BASE_TABS.filter(tab => tab.id !== 'marketplace')
-
   return (
     <div>
       {/* Tab bar */}
       <div className="border-b-2 border-sf-border-medium mb-8">
         <nav className="flex -mb-[2px] overflow-x-auto">
-          {tabs.map(({ id, icon: Icon, labelKey }) => (
+          {TABS.map(({ id, icon: Icon, labelKey }) => (
             <button
               key={id}
               onClick={() => setActive(id)}
@@ -89,7 +78,6 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
 
         {active === 'payments' && (
           <>
-            {role === 'seller_admin' && <StripeConnectStatus />}
             {role === 'platform_admin' && <StripeSettings siteUrl={siteUrl} />}
             {role === 'platform_admin' && <StripeTaxSettings />}
             {role === 'platform_admin' && <PaymentMethodSettingsWrapper />}
@@ -101,10 +89,6 @@ export default function SettingsTabs({ siteUrl, marketplaceEnabled = false }: Se
             <LegalDocumentsSettings />
             <OmnibusSettings />
           </>
-        )}
-
-        {active === 'marketplace' && (
-          <MarketplaceSettings />
         )}
 
         {active === 'system' && (

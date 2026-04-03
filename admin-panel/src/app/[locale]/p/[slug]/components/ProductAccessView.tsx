@@ -19,7 +19,6 @@ interface ProductAccessViewProps {
   } | null;
   licenseValid: boolean;
   previewMode?: boolean;
-  sellerSlug?: string;
 }
 
 interface SecureProductData {
@@ -38,7 +37,7 @@ interface SecureProductData {
   };
 }
 
-export default function ProductAccessView({ product, licenseValid, previewMode = false, sellerSlug }: ProductAccessViewProps) {
+export default function ProductAccessView({ product, licenseValid, previewMode = false }: ProductAccessViewProps) {
   const t = useTranslations('productView');
   const tContent = useTranslations('digitalContent');
   
@@ -77,9 +76,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
       }
 
       try {
-        const contentUrl = sellerSlug
-          ? `/api/public/products/${product.slug}/content?seller=${encodeURIComponent(sellerSlug)}`
-          : `/api/public/products/${product.slug}/content`;
+        const contentUrl = `/api/public/products/${product.slug}/content`;
         const response = await fetchWithTimeout(
           contentUrl,
           { signal: controller.signal }
@@ -128,7 +125,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
     return () => {
       controller.abort();
     };
-  }, [product, previewMode, showConfetti, t, sellerSlug]);
+  }, [product, previewMode, showConfetti, t]);
 
   // Handle redirect type products.
   // Note: redirect_url is admin-configured and intentionally allows cross-origin URLs

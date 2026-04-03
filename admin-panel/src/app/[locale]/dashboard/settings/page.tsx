@@ -1,10 +1,9 @@
-import { verifyAdminOrSellerAccess } from '@/lib/auth-server';
+import { verifyAdminAccess } from '@/lib/auth-server';
 import { getTranslations } from 'next-intl/server';
-import { isMarketplaceEnabled } from '@/lib/marketplace/feature-flag';
 import SettingsTabs from '@/components/settings/SettingsTabs';
 
 export default async function SettingsPage() {
-  await verifyAdminOrSellerAccess();
+  await verifyAdminAccess();
   const t = await getTranslations('settings');
 
   return (
@@ -20,7 +19,6 @@ export default async function SettingsPage() {
 
       <SettingsTabs
         siteUrl={process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || ''}
-        marketplaceEnabled={isMarketplaceEnabled()}
       />
     </div>
   );

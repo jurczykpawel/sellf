@@ -15,9 +15,8 @@ export interface AccessResponse {
   };
 }
 
-export function useProductAccess(product: Product, options?: { previewMode?: boolean; sellerSlug?: string }) {
+export function useProductAccess(product: Product, options?: { previewMode?: boolean }) {
   const previewMode = options?.previewMode ?? false;
-  const sellerSlug = options?.sellerSlug;
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,9 +39,7 @@ export function useProductAccess(product: Product, options?: { previewMode?: boo
       if (oto) params.set('oto', oto);
 
       const queryString = params.toString();
-      const basePath = sellerSlug
-        ? `/s/${sellerSlug}/checkout/${slug}`
-        : `/checkout/${slug}`;
+      const basePath = `/checkout/${slug}`;
       return `${basePath}${queryString ? `?${queryString}` : ''}`;
     };
 
@@ -95,7 +92,7 @@ export function useProductAccess(product: Product, options?: { previewMode?: boo
       setError(null);
 
       try {
-        const data = await checkProductAccess(product.slug, { signal: controller.signal, sellerSlug });
+        const data = await checkProductAccess(product.slug, { signal: controller.signal });
 
         if (controller.signal.aborted) return;
 
@@ -135,7 +132,7 @@ export function useProductAccess(product: Product, options?: { previewMode?: boo
     return () => {
       controller.abort();
     };
-  }, [previewMode, user, product.slug, product.is_active, product.available_from, product.available_until, router, authLoading, searchParams, sellerSlug]);
+  }, [previewMode, user, product.slug, product.is_active, product.available_from, product.available_until, router, authLoading, searchParams]);
 
   return {
     accessData,

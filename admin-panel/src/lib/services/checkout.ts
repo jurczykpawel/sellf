@@ -8,7 +8,6 @@ import {
   CheckoutSessionOptions,
   CreateCheckoutRequest,
 } from '@/types/checkout';
-import type { CheckoutSellerInfo } from '@/types/checkout';
 import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
@@ -310,40 +309,12 @@ export class CheckoutService {
             custom_amount: customAmount.toString(),
             is_pwyw: 'true'
           }),
-          // Marketplace seller metadata
-          ...(options.seller && {
-            seller_slug: options.seller.sellerSlug,
-            seller_schema: options.seller.schemaName,
-            is_marketplace: 'true',
-          }),
         },
         expires_at: Math.floor(Date.now() / 1000) + (checkoutConfig.expires_hours * 60 * 60),
         automatic_tax: checkoutConfig.automatic_tax,
         tax_id_collection: checkoutConfig.tax_id_collection,
         billing_address_collection: checkoutConfig.billing_address_collection,
       };
-
-      // Marketplace: route payment to seller's Stripe account with platform fee
-      if (options.seller) {
-        // Calculate total amount across all line items (in cents)
-        let totalCents = Math.round(mainProductPrice * 100);
-        for (const bp of bumpList) {
-          let bpPrice = bp.price;
-          if (coupon && coupon.discount_type === 'percentage' && !coupon.exclude_order_bumps) {
-            bpPrice = bpPrice * (1 - coupon.discount_value / 100);
-          }
-          totalCents += Math.round(bpPrice * 100);
-        }
-
-        const feeAmount = Math.round(totalCents * options.seller.platformFeePercent / 100);
-
-        sessionConfig.payment_intent_data = {
-          application_fee_amount: feeAmount,
-          transfer_data: {
-            destination: options.seller.stripeAccountId,
-          },
-        };
-      }
 
       // Apply payment method config based on mode
       if (checkoutConfig.paymentMethodMode === 'automatic') {
@@ -565,33 +536,6 @@ export class CheckoutService {
       }
     }
 
-    // Marketplace: resolve seller info for destination charges
-    let sellerInfo: CheckoutSellerInfo | undefined;
-    if (request.sellerSlug) {
-      const platform = createPlatformClient();
-      const { data: seller } = await platform
-        .from('sellers')
-        .select('stripe_account_id, stripe_onboarding_complete, platform_fee_percent, slug, schema_name')
-        .eq('slug', request.sellerSlug)
-        .eq('status', 'active')
-        .single();
-
-      if (!seller?.stripe_account_id || !seller.stripe_onboarding_complete) {
-        throw new CheckoutError(
-          CheckoutErrorType.VALIDATION_ERROR,
-          'Seller has not completed Stripe setup',
-          HTTP_STATUS.BAD_REQUEST
-        );
-      }
-
-      sellerInfo = {
-        stripeAccountId: seller.stripe_account_id,
-        platformFeePercent: seller.platform_fee_percent,
-        sellerSlug: seller.slug,
-        schemaName: seller.schema_name,
-      };
-    }
-
     // Create Stripe session
     return await this.createStripeSession({
       product,
@@ -602,7 +546,6 @@ export class CheckoutService {
       returnUrl,
       coupon: couponInfo,
       customAmount: request.customAmount,
-      seller: sellerInfo,
     });
   }
 }

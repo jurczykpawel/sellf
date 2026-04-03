@@ -75,8 +75,7 @@ export function useCheckoutRedirect({
     }
 
     // Priority 6: default — product page
-    const sellerSlug = searchParams.get('seller');
-    router.push(productUrl(product.slug, sellerSlug));
+    router.push(productUrl(product.slug));
   }, [product.slug, product.success_redirect_url, router, bumpSelected, searchParams, isFunnelTest, funnelTestOtoSlug, t]);
 
   // Countdown and auto-redirect after access granted

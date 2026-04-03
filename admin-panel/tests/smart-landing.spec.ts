@@ -315,7 +315,8 @@ test.describe('Smart Landing Page', () => {
   });
 
   test('Onboarding CTA quick links should navigate correctly', async ({ page }) => {
-    // Ensure ALL products are inactive
+    // Ensure ALL products are inactive (restore first to clear state from previous test)
+    await productGuard.restore();
     await supabaseAdmin
       .from('products')
       .update({ is_active: false })

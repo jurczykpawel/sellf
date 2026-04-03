@@ -1,6 +1,6 @@
 'use server'
 
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 
 export interface CurrencyAmount {
   [currency: string]: number
@@ -20,7 +20,7 @@ export interface ChartDataPoint {
 }
 
 export async function getRevenueStats(productId?: string, goalStartDate?: Date): Promise<RevenueStats | null> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     const { data, error } = await (dataClient as any).rpc('get_detailed_revenue_stats', {
       p_product_id: productId || null,
       p_goal_start_date: goalStartDate ? goalStartDate.toISOString() : null
@@ -39,7 +39,7 @@ export async function getRevenueStats(productId?: string, goalStartDate?: Date):
 }
 
 export async function getSalesChartData(days: number = 30, customStart?: Date, customEnd?: Date, productId?: string): Promise<ChartDataPoint[]> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     let startDate: Date
     let endDate: Date
 
@@ -78,7 +78,7 @@ export async function getSalesChartData(days: number = 30, customStart?: Date, c
 }
 
 export async function getHourlyRevenueStats(date?: string, productId?: string): Promise<{ hour: number, amount: CurrencyAmount, orders: number }[]> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     const targetDate = date ? new Date(date) : new Date()
 
     const { data, error } = await (dataClient as any).rpc('get_hourly_revenue_stats', {
@@ -106,7 +106,7 @@ export async function getHourlyRevenueStats(date?: string, productId?: string): 
 }
 
 export async function getRevenueGoal(productId?: string): Promise<{ amount: number, startDate: string, currency: string } | null> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     const { data, error } = await (dataClient as any).rpc('get_revenue_goal', {
       p_product_id: productId || null
     }) as { data: any[] | null; error: any }
@@ -135,7 +135,7 @@ export async function getRevenueGoal(productId?: string): Promise<{ amount: numb
 }
 
 export async function setRevenueGoal(amount: number, startDate: string, currency: string, productId?: string): Promise<{ success: boolean; error?: string }> {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     const { error } = await (dataClient as any).rpc('set_revenue_goal', {
       p_goal_amount: amount,
       p_start_date: startDate,

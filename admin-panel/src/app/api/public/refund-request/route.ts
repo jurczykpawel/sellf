@@ -1,8 +1,8 @@
 /**
- * Seller-aware refund request API
+ * Refund request API
  *
- * Accepts refund requests for products from any seller schema.
- * Used by the "My Purchases" page when marketplace is enabled.
+ * Accepts refund requests for products.
+ * Used by the "My Purchases" page.
  *
  * @see src/app/[locale]/my-purchases/page.tsx
  */
@@ -10,7 +10,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 export async function POST(request: NextRequest) {
@@ -27,20 +26,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    const { transactionId, sellerSlug, reason } = await request.json();
+    const { transactionId, reason } = await request.json();
 
     if (!transactionId) {
       return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 });
     }
 
-    // Resolve seller schema
-    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, createAdminClient());
-    if (sellerSlug && !seller) {
-      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-    }
+    const adminClient = createAdminClient();
 
     // Verify transaction belongs to authenticated user
-    const { data: tx } = await dataClient
+    const { data: tx } = await adminClient
       .from('payment_transactions')
       .select('id')
       .eq('id', transactionId)
@@ -51,8 +46,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    // Call create_refund_request RPC on the correct schema
-    const { data, error: rpcError } = await dataClient.rpc('create_refund_request', {
+    // Call create_refund_request RPC
+    const { data, error: rpcError } = await adminClient.rpc('create_refund_request', {
       transaction_id_param: transactionId,
       reason_param: reason || null,
     });
@@ -62,8 +57,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to submit refund request' }, { status: 500 });
     }
 
-    if (data && !data.success) {
-      return NextResponse.json({ error: data.error || 'Refund request failed' }, { status: 400 });
+    const rpcResult = data as Record<string, unknown> | null;
+    if (rpcResult && !rpcResult.success) {
+      return NextResponse.json({ error: (rpcResult.error as string) || 'Refund request failed' }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });

@@ -44,7 +44,7 @@ describe('Refund Access Revocation Security', () => {
     it('requires admin authentication', () => {
       expect(refundRouteSource).toContain("'Unauthorized'");
       expect(refundRouteSource).toContain("'Forbidden'");
-      // Route uses requireAdminOrSellerApiWithRequest which checks admin_users internally
+      // Route uses requireAdminApiWithRequest which checks admin_users internally
       expect(refundRouteSource).toMatch(/require(?:Admin|AdminOrSeller)Api/);
     });
 

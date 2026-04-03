@@ -141,16 +141,6 @@ describe('Area 3: Grant Permissions — Principle of Least Privilege', () => {
     expect(matches, 'api_keys must not have ALL grant to anon').toHaveLength(0);
   });
 
-  it('sellers table must have RLS-enabling REVOKE for anon where needed', () => {
-    // sellers is a public table — ensure anon cannot see sensitive seller data
-    // The actual check is that RLS is enabled (covered in Area 8 tests)
-    const allSql = getAllMigrationSql();
-    const rlsRe = /ALTER\s+TABLE\s+(?:public\.)?sellers\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/i;
-    expect(
-      rlsRe.test(allSql),
-      'public.sellers must have ROW LEVEL SECURITY enabled'
-    ).toBe(true);
-  });
 });
 
 // ============================================================================
@@ -203,7 +193,6 @@ describe('Area 8: RLS Policy Completeness', () => {
     'application_rate_limits',
     'api_keys',
     'api_key_audit_log',
-    'sellers',
     'tracking_logs',
   ] as const;
 

@@ -332,10 +332,6 @@ describe('API Keys', () => {
       expect(SCOPE_PRESETS.readOnly).not.toContain(API_SCOPES.PAYMENTS_WRITE);
     });
 
-    it('should have sellerDefault preset with payments:read and payments:write', () => {
-      expect(SCOPE_PRESETS.sellerDefault).toContain(API_SCOPES.PAYMENTS_READ);
-      expect(SCOPE_PRESETS.sellerDefault).toContain(API_SCOPES.PAYMENTS_WRITE);
-    });
   });
 
   // ===== PAYMENTS SCOPES =====

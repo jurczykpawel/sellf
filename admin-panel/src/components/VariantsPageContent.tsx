@@ -16,7 +16,6 @@ import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import VariantGroupFormModal from './VariantGroupFormModal';
 import { api } from '@/lib/api/client';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductInGroup {
   id: string;
@@ -49,9 +48,7 @@ interface VariantGroup {
 
 const VariantsPageContent: React.FC = () => {
   const t = useTranslations('admin.variantsPage');
-  const { sellerSlug } = useAuth();
-  const productPath = (slug: string) =>
-    sellerSlug ? `/s/${sellerSlug}/${slug}` : `/p/${slug}`;
+  const productPath = (slug: string) => `/p/${slug}`;
 
   // State for variant groups and loading
   const [groups, setGroups] = useState<VariantGroup[]>([]);

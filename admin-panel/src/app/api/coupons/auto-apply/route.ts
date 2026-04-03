@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    const { email, productId, sellerSlug } = await request.json();
+    const { email, productId } = await request.json();
 
     if (!email || typeof email !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Email and Product ID are required' }, { status: 400 });
@@ -35,11 +34,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
-    // Marketplace: scope coupon lookup to seller schema
-    const defaultClient = await createClient();
-    const { dataClient } = await resolvePublicDataClient(sellerSlug, defaultClient);
+    const supabase = await createClient();
 
-    const { data, error } = await dataClient.rpc('find_auto_apply_coupon', {
+    const { data, error } = await supabase.rpc('find_auto_apply_coupon', {
       customer_email_param: email,
       product_id_param: productId
     });

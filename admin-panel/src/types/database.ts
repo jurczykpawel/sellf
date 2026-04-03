@@ -91,6 +91,13 @@ export type Database = {
             foreignKeyName: "admin_actions_admin_id_fkey"
             columns: ["admin_id"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "admin_actions_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -113,6 +120,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "admin_users_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "admin_users_user_id_fkey"
             columns: ["user_id"]
@@ -159,7 +173,7 @@ export type Database = {
       }
       api_keys: {
         Row: {
-          admin_user_id: string | null
+          admin_user_id: string
           created_at: string
           expires_at: string | null
           id: string
@@ -175,11 +189,10 @@ export type Database = {
           rotated_from_id: string | null
           rotation_grace_until: string | null
           scopes: Json
-          seller_id: string | null
           usage_count: number
         }
         Insert: {
-          admin_user_id?: string | null
+          admin_user_id: string
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -195,11 +208,10 @@ export type Database = {
           rotated_from_id?: string | null
           rotation_grace_until?: string | null
           scopes?: Json
-          seller_id?: string | null
           usage_count?: number
         }
         Update: {
-          admin_user_id?: string | null
+          admin_user_id?: string
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -215,7 +227,6 @@ export type Database = {
           rotated_from_id?: string | null
           rotation_grace_until?: string | null
           scopes?: Json
-          seller_id?: string | null
           usage_count?: number
         }
         Relationships: [
@@ -231,13 +242,6 @@ export type Database = {
             columns: ["rotated_from_id"]
             isOneToOne: false
             referencedRelation: "api_keys"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "api_keys_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "sellers"
             referencedColumns: ["id"]
           },
         ]
@@ -314,7 +318,21 @@ export type Database = {
             foreignKeyName: "audit_log_performed_by_fkey"
             columns: ["performed_by"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "audit_log_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "audit_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
             referencedColumns: ["user_id"]
           },
           {
@@ -352,56 +370,6 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
-      }
-      sellers: {
-        Row: {
-          created_at: string
-          display_name: string
-          id: string
-          platform_fee_percent: number
-          schema_name: string
-          slug: string
-          status: string
-          stripe_account_id: string | null
-          stripe_onboarding_complete: boolean
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          display_name: string
-          id?: string
-          platform_fee_percent?: number
-          schema_name: string
-          slug: string
-          status?: string
-          stripe_account_id?: string | null
-          stripe_onboarding_complete?: boolean
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          display_name?: string
-          id?: string
-          platform_fee_percent?: number
-          schema_name?: string
-          slug?: string
-          status?: string
-          stripe_account_id?: string | null
-          stripe_onboarding_complete?: boolean
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sellers_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_access_stats"
-            referencedColumns: ["user_id"]
-          },
-        ]
       }
       tracking_logs: {
         Row: {
@@ -581,6 +549,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "coupon_redemptions_user_id_fkey"
@@ -781,6 +756,13 @@ export type Database = {
           transaction_amount?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "guest_purchases_claimed_by_user_id_fkey"
+            columns: ["claimed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "guest_purchases_claimed_by_user_id_fkey"
             columns: ["claimed_by_user_id"]
@@ -1128,6 +1110,13 @@ export type Database = {
             foreignKeyName: "payment_method_config_last_modified_by_fkey"
             columns: ["last_modified_by"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_method_config_last_modified_by_fkey"
+            columns: ["last_modified_by"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -1222,7 +1211,21 @@ export type Database = {
             foreignKeyName: "payment_transactions_refunded_by_fkey"
             columns: ["refunded_by"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_refunded_by_fkey"
+            columns: ["refunded_by"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
             referencedColumns: ["user_id"]
           },
           {
@@ -1311,6 +1314,13 @@ export type Database = {
           vat_rate?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "product_price_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "product_price_history_changed_by_fkey"
             columns: ["changed_by"]
@@ -1597,6 +1607,13 @@ export type Database = {
             foreignKeyName: "profiles_id_fkey"
             columns: ["id"]
             isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -1667,6 +1684,13 @@ export type Database = {
             foreignKeyName: "refund_requests_admin_id_fkey"
             columns: ["admin_id"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -1683,6 +1707,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "refund_requests_user_id_fkey"
@@ -1727,6 +1758,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      seller_customer_stats: {
+        Row: {
+          email: string | null
+          email_confirmed_at: string | null
+          first_access_granted_at: string | null
+          last_access_granted_at: string | null
+          last_sign_in_at: string | null
+          raw_user_meta_data: Json | null
+          total_products: number | null
+          total_value: number | null
+          user_created_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
       }
       shop_config: {
         Row: {
@@ -1948,6 +1994,13 @@ export type Database = {
             foreignKeyName: "user_product_access_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_product_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -1979,6 +2032,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_product_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "user_product_access_user_id_fkey"
@@ -2095,6 +2155,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "video_progress_user_id_fkey"
@@ -2282,21 +2349,9 @@ export type Database = {
       }
       cleanup_rate_limits: { Args: never; Returns: number }
       clear_admin_cache: { Args: never; Returns: undefined }
-      clone_schema: {
-        Args: {
-          arr?: Database["public"]["Enums"]["cloneparms"][]
-          dest_schema: string
-          source_schema: string
-        }
-        Returns: number
-      }
       create_refund_request: {
         Args: { reason_param?: string; transaction_id_param: string }
         Returns: Json
-      }
-      deprovision_seller_schema: {
-        Args: { p_hard_delete?: boolean; p_seller_id: string }
-        Returns: boolean
       }
       find_auto_apply_coupon: {
         Args: { customer_email_param: string; product_id_param: string }
@@ -2374,16 +2429,6 @@ export type Database = {
           orders: number
         }[]
       }
-      get_insert_stmt_ddl: {
-        Args: {
-          atable: string
-          bidentity?: boolean
-          btextcast?: boolean
-          source_schema: string
-          target_schema: string
-        }
-        Returns: string
-      }
       get_migration_status: { Args: never; Returns: Json }
       get_oto_coupon_info: {
         Args: { coupon_code_param: string; email_param: string }
@@ -2431,16 +2476,6 @@ export type Database = {
           orders: number
         }[]
       }
-      get_seller_for_user: {
-        Args: { p_user_id?: string }
-        Returns: {
-          display_name: string
-          schema_name: string
-          seller_id: string
-          seller_slug: string
-          status: string
-        }[]
-      }
       get_user_payment_history: {
         Args: { user_id_param: string }
         Returns: {
@@ -2452,28 +2487,6 @@ export type Database = {
           refunded_amount: number
           status: string
           transaction_id: string
-        }[]
-      }
-      get_user_products_all_sellers: {
-        Args: never
-        Returns: {
-          access_expires_at: string
-          access_granted_at: string
-          product_currency: string
-          product_icon: string
-          product_id: string
-          product_name: string
-          product_price: number
-          product_slug: string
-          refund_request_status: string
-          refunded_amount: number
-          seller_display_name: string
-          seller_slug: string
-          transaction_amount: number
-          transaction_currency: string
-          transaction_date: string
-          transaction_id: string
-          transaction_status: string
         }[]
       }
       get_user_profile: { Args: { user_id_param: string }; Returns: Json }
@@ -2605,27 +2618,9 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
-      migrate_guest_purchases_all_schemas: {
+      migrate_guest_purchases: {
         Args: { p_email: string; p_user_id: string }
         Returns: number
-      }
-      pg_get_coldef: {
-        Args: {
-          in_column: string
-          in_schema: string
-          in_table: string
-          oldway?: boolean
-        }
-        Returns: string
-      }
-      pg_get_tabledef: {
-        Args: {
-          _verbose: boolean
-          arr?: Database["public"]["Enums"]["tabledefs"][]
-          in_schema: string
-          in_table: string
-        }
-        Returns: string
       }
       process_refund_request: {
         Args: {
@@ -2660,14 +2655,6 @@ export type Database = {
           user_id_param?: string
         }
         Returns: Json
-      }
-      provision_seller_schema: {
-        Args: {
-          p_display_name: string
-          p_owner_user_id?: string
-          p_slug: string
-        }
-        Returns: string
       }
       send_monitoring_email: {
         Args: { alert_details: Json; alert_type: string }
@@ -2705,7 +2692,6 @@ export type Database = {
           rate_limit_per_minute: number
           rejection_reason: string
           scopes: Json
-          seller_id: string
         }[]
       }
       verify_coupon: {
@@ -2719,29 +2705,7 @@ export type Database = {
       }
     }
     Enums: {
-      cloneparms:
-        | "DATA"
-        | "NODATA"
-        | "DDLONLY"
-        | "NOOWNER"
-        | "NOACL"
-        | "VERBOSE"
-        | "DEBUG"
-        | "FILECOPY"
-        | "DEBUGEXEC"
-      tabledefs:
-        | "PKEY_INTERNAL"
-        | "PKEY_EXTERNAL"
-        | "FKEYS_INTERNAL"
-        | "FKEYS_EXTERNAL"
-        | "COMMENTS"
-        | "FKEYS_NONE"
-        | "INCLUDE_TRIGGERS"
-        | "NO_TRIGGERS"
-        | "SHOWPARTS"
-        | "ACL_OWNER"
-        | "ACL_DCL"
-        | "ACL_POLICIES"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2862,6 +2826,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "coupon_redemptions_user_id_fkey"
@@ -3062,6 +3033,13 @@ export type Database = {
           transaction_amount?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "guest_purchases_claimed_by_user_id_fkey"
+            columns: ["claimed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "guest_purchases_claimed_by_user_id_fkey"
             columns: ["claimed_by_user_id"]
@@ -3409,6 +3387,13 @@ export type Database = {
             foreignKeyName: "payment_method_config_last_modified_by_fkey"
             columns: ["last_modified_by"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_method_config_last_modified_by_fkey"
+            columns: ["last_modified_by"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -3490,7 +3475,21 @@ export type Database = {
             foreignKeyName: "payment_transactions_refunded_by_fkey"
             columns: ["refunded_by"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_refunded_by_fkey"
+            columns: ["refunded_by"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
             referencedColumns: ["user_id"]
           },
           {
@@ -3579,6 +3578,13 @@ export type Database = {
           vat_rate?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "product_price_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "product_price_history_changed_by_fkey"
             columns: ["changed_by"]
@@ -3865,6 +3871,13 @@ export type Database = {
             foreignKeyName: "profiles_id_fkey"
             columns: ["id"]
             isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -3924,6 +3937,13 @@ export type Database = {
             foreignKeyName: "refund_requests_admin_id_fkey"
             columns: ["admin_id"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -3940,6 +3960,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "refund_requests_user_id_fkey"
@@ -4190,6 +4217,13 @@ export type Database = {
             foreignKeyName: "user_product_access_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_product_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -4306,6 +4340,13 @@ export type Database = {
             foreignKeyName: "video_progress_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "video_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -4393,6 +4434,21 @@ export type Database = {
       }
     }
     Views: {
+      seller_customer_stats: {
+        Row: {
+          email: string | null
+          email_confirmed_at: string | null
+          first_access_granted_at: string | null
+          last_access_granted_at: string | null
+          last_sign_in_at: string | null
+          raw_user_meta_data: Json | null
+          total_products: number | null
+          total_value: number | null
+          user_created_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       user_access_stats: {
         Row: {
           email: string | null
@@ -4434,6 +4490,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_product_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "user_product_access_user_id_fkey"
@@ -5468,33 +5531,7 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {
-      cloneparms: [
-        "DATA",
-        "NODATA",
-        "DDLONLY",
-        "NOOWNER",
-        "NOACL",
-        "VERBOSE",
-        "DEBUG",
-        "FILECOPY",
-        "DEBUGEXEC",
-      ],
-      tabledefs: [
-        "PKEY_INTERNAL",
-        "PKEY_EXTERNAL",
-        "FKEYS_INTERNAL",
-        "FKEYS_EXTERNAL",
-        "COMMENTS",
-        "FKEYS_NONE",
-        "INCLUDE_TRIGGERS",
-        "NO_TRIGGERS",
-        "SHOWPARTS",
-        "ACL_OWNER",
-        "ACL_DCL",
-        "ACL_POLICIES",
-      ],
-    },
+    Enums: {},
   },
   seller_main: {
     Enums: {

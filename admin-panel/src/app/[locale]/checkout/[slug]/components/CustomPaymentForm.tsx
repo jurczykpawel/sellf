@@ -31,8 +31,6 @@ interface CustomPaymentFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
-  /** Seller slug for marketplace products (passed to payment-status URL) */
-  sellerSlug?: string;
 }
 
 export default function CustomPaymentForm({
@@ -49,7 +47,6 @@ export default function CustomPaymentForm({
   paymentMethodOrder,
   expressCheckoutConfig,
   taxMode,
-  sellerSlug,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const stripe = useStripe();
@@ -175,7 +172,7 @@ export default function CustomPaymentForm({
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/payment/success?product_id=${product.id}&product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}${sellerSlug ? `&seller=${encodeURIComponent(sellerSlug)}` : ''}`,
+          return_url: `${window.location.origin}/payment/success?product_id=${product.id}&product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`,
           receipt_email: finalEmail,
           payment_method_data: {
             billing_details: {

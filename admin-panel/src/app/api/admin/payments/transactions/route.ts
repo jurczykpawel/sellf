@@ -3,14 +3,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createDataClientFromAuth } from '@/lib/supabase/admin';
+import { createAdminClient } from "@/lib/supabase/admin";
 
-import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import { requireAdminApi } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const authResult = await requireAdminOrSellerApi(supabase);
+    const authResult = await requireAdminApi(supabase);
 
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url);
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Use adminClient (seller_main schema) for FK embedding queries —
     // PostgREST can't resolve FK relationships through proxy views in public schema.
-    const adminClient = await createDataClientFromAuth(authResult.sellerSchema);
+    const adminClient = createAdminClient();
     let query = adminClient
       .from('payment_transactions')
       .select(`

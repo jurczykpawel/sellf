@@ -5,8 +5,7 @@
  *
  * Comprehensive test that verifies every page, server action, and API route
  * enforces the correct level of access per role:
- *   - platform_admin: full access (dashboard + admin pages + marketplace)
- *   - seller_admin: dashboard access, no admin pages, no marketplace
+ *   - platform_admin: full access (dashboard + admin pages)
  *   - user: user-facing pages only (my-products, my-purchases, profile)
  *
  * Uses static source analysis — no live server required.
@@ -31,31 +30,20 @@ function readSource(relativePath: string): string {
 // ============================================================================
 
 describe('Dashboard pages: layout protection', () => {
-  it('dashboard/layout.tsx uses verifyAdminOrSellerAccess', () => {
+  it('dashboard/layout.tsx uses verifyAdminAccess', () => {
     const source = readSource('app/[locale]/dashboard/layout.tsx');
     expect(
-      /verifyAdminOrSellerAccess/.test(source),
-      'dashboard/layout.tsx must call verifyAdminOrSellerAccess to protect all child pages'
+      /verifyAdminAccess/.test(source),
+      'dashboard/layout.tsx must call verifyAdminAccess to protect all child pages'
     ).toBe(true);
   });
 
-  it('dashboard/layout.tsx imports verifyAdminOrSellerAccess from auth-server', () => {
+  it('dashboard/layout.tsx imports verifyAdminAccess from auth-server', () => {
     const source = readSource('app/[locale]/dashboard/layout.tsx');
     expect(
-      /import\s*\{[^}]*verifyAdminOrSellerAccess[^}]*\}\s*from\s*['"]@\/lib\/auth-server['"]/.test(source),
-      'dashboard/layout.tsx must import verifyAdminOrSellerAccess from @/lib/auth-server'
+      /import\s*\{[^}]*verifyAdminAccess[^}]*\}\s*from\s*['"]@\/lib\/auth-server['"]/.test(source),
+      'dashboard/layout.tsx must import verifyAdminAccess from @/lib/auth-server'
     ).toBe(true);
-  });
-
-  it('dashboard/layout.tsx does NOT use the weaker verifyAdminAccess', () => {
-    const source = readSource('app/[locale]/dashboard/layout.tsx');
-    // verifyAdminAccess would lock out seller admins
-    const usesAdminOnly =
-      /verifyAdminAccess/.test(source) && !/verifyAdminOrSellerAccess/.test(source);
-    expect(
-      usesAdminOnly,
-      'dashboard/layout.tsx must NOT use verifyAdminAccess (would lock out seller admins)'
-    ).toBe(false);
   });
 });
 
@@ -64,28 +52,6 @@ describe('Dashboard pages: layout protection', () => {
 // ============================================================================
 
 describe('Platform-admin-only pages', () => {
-  it('admin/sellers/page.tsx checks platform admin access', () => {
-    const source = readSource('app/[locale]/admin/sellers/page.tsx');
-    const hasPlatformAdminCheck =
-      /admin_users/.test(source) ||
-      /verifyAdminAccess/.test(source) ||
-      /platform_admin/.test(source) ||
-      /isPlatformAdmin/.test(source);
-
-    expect(
-      hasPlatformAdminCheck,
-      'admin/sellers/page.tsx must verify platform admin access (admin_users check, verifyAdminAccess, or platform_admin role check)'
-    ).toBe(true);
-  });
-
-  it('admin/sellers/page.tsx redirects non-admins', () => {
-    const source = readSource('app/[locale]/admin/sellers/page.tsx');
-    expect(
-      /redirect\s*\(/.test(source),
-      'admin/sellers/page.tsx must redirect unauthorized users'
-    ).toBe(true);
-  });
-
   it('admin/payments/page.tsx checks platform admin access', () => {
     const source = readSource('app/[locale]/admin/payments/page.tsx');
     const hasPlatformAdminCheck =
@@ -110,61 +76,7 @@ describe('Platform-admin-only pages', () => {
 });
 
 // ============================================================================
-// 3. Settings components: marketplace tab restriction
-// ============================================================================
-
-describe('Settings: marketplace tab is platform-admin only', () => {
-  it('SettingsTabs filters marketplace tab by platform_admin role', () => {
-    const source = readSource('components/settings/SettingsTabs.tsx');
-
-    // Must reference platform_admin role for filtering
-    expect(
-      /platform_admin/.test(source),
-      'SettingsTabs must check for platform_admin role'
-    ).toBe(true);
-
-    // Must filter marketplace tab
-    expect(
-      /marketplace/.test(source),
-      'SettingsTabs must reference marketplace tab'
-    ).toBe(true);
-
-    // Should use role from auth context
-    expect(
-      /useAuth|role/.test(source),
-      'SettingsTabs must read role from auth context'
-    ).toBe(true);
-  });
-
-  it('SettingsTabs conditionally shows marketplace based on role', () => {
-    const source = readSource('components/settings/SettingsTabs.tsx');
-    // Must filter tabs based on showMarketplace or similar condition
-    expect(
-      /filter|showMarketplace/.test(source),
-      'SettingsTabs must conditionally filter the marketplace tab'
-    ).toBe(true);
-  });
-
-  it('MarketplaceSettings does not branch on seller role', () => {
-    const source = readSource('components/settings/MarketplaceSettings.tsx');
-    expect(
-      /seller_admin/.test(source),
-      'MarketplaceSettings must not reference seller_admin (platform-only component)'
-    ).toBe(false);
-  });
-
-  it('MarketplaceSettings does not expose seller management to non-admins', () => {
-    const source = readSource('components/settings/MarketplaceSettings.tsx');
-    // Should not have any seller_admin-specific view that leaks admin functionality
-    expect(
-      /SellerAdminView/.test(source),
-      'MarketplaceSettings should not have a SellerAdminView (marketplace settings are platform-admin only)'
-    ).toBe(false);
-  });
-});
-
-// ============================================================================
-// 4. Server actions: correct auth wrapper per scope
+// 3. Server actions: correct auth wrapper per scope
 // ============================================================================
 
 describe('Server actions: correct auth wrapper per scope', () => {
@@ -172,59 +84,6 @@ describe('Server actions: correct auth wrapper per scope', () => {
   // ----- Platform-admin only actions (must use withAdminAuth) -----
 
   describe('Platform-admin only actions use withAdminAuth', () => {
-    it('sellers.ts uses withAdminAuth for seller management functions', () => {
-      const source = readSource('lib/actions/sellers.ts');
-      expect(
-        /withAdminAuth/.test(source),
-        'sellers.ts must use withAdminAuth for platform-admin-only seller management'
-      ).toBe(true);
-    });
-
-    it('sellers.ts: listSellers uses withAdminAuth', () => {
-      const source = readSource('lib/actions/sellers.ts');
-      // listSellers should be wrapped in withAdminAuth
-      const listFnMatch = source.match(/export async function listSellers[\s\S]*?return with(Admin(?:OrSeller)?Auth)/);
-      if (listFnMatch) {
-        expect(
-          listFnMatch[1],
-          'listSellers must use withAdminAuth (platform-admin only)'
-        ).toBe('AdminAuth');
-      }
-    });
-
-    it('sellers.ts: createSeller uses withAdminAuth', () => {
-      const source = readSource('lib/actions/sellers.ts');
-      const match = source.match(/export async function createSeller[\s\S]*?return with(Admin(?:OrSeller)?Auth)/);
-      if (match) {
-        expect(
-          match[1],
-          'createSeller must use withAdminAuth (platform-admin only)'
-        ).toBe('AdminAuth');
-      }
-    });
-
-    it('sellers.ts: deprovisionSeller uses withAdminAuth', () => {
-      const source = readSource('lib/actions/sellers.ts');
-      const match = source.match(/export async function deprovisionSeller[\s\S]*?return with(Admin(?:OrSeller)?Auth)/);
-      if (match) {
-        expect(
-          match[1],
-          'deprovisionSeller must use withAdminAuth (platform-admin only)'
-        ).toBe('AdminAuth');
-      }
-    });
-
-    it('sellers.ts: initSellerStripeConnect uses withAdminOrSellerAuth (seller self-service)', () => {
-      const source = readSource('lib/actions/sellers.ts');
-      const match = source.match(/export async function initSellerStripeConnect[\s\S]*?return with(Admin(?:OrSeller)?Auth)/);
-      if (match) {
-        expect(
-          match[1],
-          'initSellerStripeConnect must use withAdminOrSellerAuth (seller can onboard themselves)'
-        ).toBe('AdminOrSellerAuth');
-      }
-    });
-
     it('gus-config.ts uses withAdminAuth', () => {
       const source = readSource('lib/actions/gus-config.ts');
       expect(
@@ -233,11 +92,11 @@ describe('Server actions: correct auth wrapper per scope', () => {
       ).toBe(true);
     });
 
-    it('gus-config.ts does NOT use withAdminOrSellerAuth', () => {
+    it('gus-config.ts does NOT use withAdminClient', () => {
       const source = readSource('lib/actions/gus-config.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'gus-config.ts must NOT use withAdminOrSellerAuth (GUS config is platform-admin only)'
+        /withAdminClient/.test(source),
+        'gus-config.ts must NOT use withAdminClient (GUS config is platform-admin only)'
       ).toBe(false);
     });
 
@@ -249,23 +108,23 @@ describe('Server actions: correct auth wrapper per scope', () => {
       ).toBe(true);
     });
 
-    it('currency-config.ts does NOT use withAdminOrSellerAuth', () => {
+    it('currency-config.ts does NOT use withAdminClient', () => {
       const source = readSource('lib/actions/currency-config.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'currency-config.ts must NOT use withAdminOrSellerAuth (currency config is platform-admin only)'
+        /withAdminClient/.test(source),
+        'currency-config.ts must NOT use withAdminClient (currency config is platform-admin only)'
       ).toBe(false);
     });
   });
 
-  // ----- Per-shop actions (must use withAdminOrSellerAuth) -----
+  // ----- Per-shop actions (must use withAdminClient) -----
 
-  describe('Per-shop actions use withAdminOrSellerAuth', () => {
-    it('shop-config.ts uses withAdminOrSellerAuth', () => {
+  describe('Per-shop actions use withAdminClient', () => {
+    it('shop-config.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/shop-config.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'shop-config.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'shop-config.ts must use withAdminClient'
       ).toBe(true);
     });
 
@@ -273,15 +132,15 @@ describe('Server actions: correct auth wrapper per scope', () => {
       const source = readSource('lib/actions/shop-config.ts');
       expect(
         /import.*withAdminAuth[^O]/.test(source),
-        'shop-config.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+        'shop-config.ts must NOT import withAdminAuth (use withAdminClient instead)'
       ).toBe(false);
     });
 
-    it('payment-config.ts uses withAdminOrSellerAuth for mutations', () => {
+    it('payment-config.ts uses withAdminClient for mutations', () => {
       const source = readSource('lib/actions/payment-config.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'payment-config.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'payment-config.ts must use withAdminClient'
       ).toBe(true);
     });
 
@@ -289,15 +148,15 @@ describe('Server actions: correct auth wrapper per scope', () => {
       const source = readSource('lib/actions/payment-config.ts');
       expect(
         /import.*withAdminAuth[^O]/.test(source),
-        'payment-config.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+        'payment-config.ts must NOT import withAdminAuth (use withAdminClient instead)'
       ).toBe(false);
     });
 
-    it('integrations.ts uses withAdminOrSellerAuth', () => {
+    it('integrations.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/integrations.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'integrations.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'integrations.ts must use withAdminClient'
       ).toBe(true);
     });
 
@@ -305,23 +164,23 @@ describe('Server actions: correct auth wrapper per scope', () => {
       const source = readSource('lib/actions/integrations.ts');
       expect(
         /import.*withAdminAuth[^O]/.test(source),
-        'integrations.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+        'integrations.ts must NOT import withAdminAuth (use withAdminClient instead)'
       ).toBe(false);
     });
 
-    it('security-audit.ts uses withAdminOrSellerAuth', () => {
+    it('security-audit.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/security-audit.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'security-audit.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'security-audit.ts must use withAdminClient'
       ).toBe(true);
     });
 
-    it('categories.ts uses withAdminOrSellerAuth', () => {
+    it('categories.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/categories.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'categories.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'categories.ts must use withAdminClient'
       ).toBe(true);
     });
 
@@ -329,15 +188,15 @@ describe('Server actions: correct auth wrapper per scope', () => {
       const source = readSource('lib/actions/categories.ts');
       expect(
         /import.*withAdminAuth[^O]/.test(source),
-        'categories.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+        'categories.ts must NOT import withAdminAuth (use withAdminClient instead)'
       ).toBe(false);
     });
 
-    it('theme.ts uses withAdminOrSellerAuth', () => {
+    it('theme.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/theme.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'theme.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'theme.ts must use withAdminClient'
       ).toBe(true);
     });
 
@@ -345,7 +204,7 @@ describe('Server actions: correct auth wrapper per scope', () => {
       const source = readSource('lib/actions/theme.ts');
       expect(
         /import.*withAdminAuth[^O]/.test(source),
-        'theme.ts must NOT import withAdminAuth (use withAdminOrSellerAuth instead)'
+        'theme.ts must NOT import withAdminAuth (use withAdminClient instead)'
       ).toBe(false);
     });
 
@@ -355,26 +214,26 @@ describe('Server actions: correct auth wrapper per scope', () => {
         /withAdminAuth/.test(source),
         'stripe-config.ts must use withAdminAuth — sellers cannot manage platform Stripe keys'
       ).toBe(true);
-      // Must NOT use withAdminOrSellerAuth (security: seller could overwrite platform keys)
+      // Must NOT use withAdminClient (security: seller could overwrite platform keys)
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'stripe-config.ts must NOT use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'stripe-config.ts must NOT use withAdminClient'
       ).toBe(false);
     });
 
-    it('payment.ts uses withAdminOrSellerAuth', () => {
+    it('payment.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/payment.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'payment.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'payment.ts must use withAdminClient'
       ).toBe(true);
     });
 
-    it('dashboard.ts uses withAdminOrSellerAuth for getRecentActivity', () => {
+    it('dashboard.ts uses withAdminClient for getRecentActivity', () => {
       const source = readSource('lib/actions/dashboard.ts');
       expect(
-        /withAdminOrSellerAuth/.test(source),
-        'dashboard.ts must use withAdminOrSellerAuth'
+        /withAdminClient/.test(source),
+        'dashboard.ts must use withAdminClient'
       ).toBe(true);
     });
   });
@@ -445,15 +304,15 @@ describe('API routes: correct auth function per endpoint', () => {
     if (!existsSync(filePath)) continue;
 
     describe(file, () => {
-      it('uses authenticate( or requireAdminOrSellerApi( (not authenticatePlatformAdmin)', () => {
+      it('uses authenticate( or requireAdminApi( (not authenticatePlatformAdmin)', () => {
         const source = readSource(file);
-        // Must use authenticate() or requireAdminOrSellerApi() — seller-aware auth functions
+        // Must use authenticate() or requireAdminApi() — seller-aware auth functions
         const hasSellerAwareAuth =
           /\bauthenticate\s*\(/.test(source) ||
-          /requireAdminOrSellerApi\s*\(/.test(source);
+          /requireAdminApi\s*\(/.test(source);
         expect(
           hasSellerAwareAuth,
-          `${file} must call authenticate() or requireAdminOrSellerApi() for admin/seller access`
+          `${file} must call authenticate() or requireAdminApi() for admin/seller access`
         ).toBe(true);
       });
 
@@ -504,11 +363,11 @@ describe('User pages: accessible to all authenticated users', () => {
       ).toBe(false);
     });
 
-    it(`${page.name} page does NOT require admin/seller auth (verifyAdminOrSellerAccess)`, () => {
+    it(`${page.name} page does NOT require admin/seller auth (verifyAdminAccess)`, () => {
       const source = readSource(page.path);
       expect(
-        /verifyAdminOrSellerAccess/.test(source),
-        `${page.name} page must NOT call verifyAdminOrSellerAccess — it's for regular users`
+        /verifyAdminAccess/.test(source),
+        `${page.name} page must NOT call verifyAdminAccess — it's for regular users`
       ).toBe(false);
     });
 
@@ -545,7 +404,7 @@ describe('All server action files have auth wrappers', () => {
     'profile.ts',
     // User preferences — session-based auth (getUser), not admin
     'preferences.ts',
-    // Analytics — uses withAdminOrSellerAuth with schema-scoped dataClient
+    // Analytics — uses withAdminClient with schema-scoped dataClient
     // Stripe tax status — read-only Stripe API check, no mutations
     'stripe-tax.ts',
     // Admin auth module itself — defines the wrappers, doesn't need to wrap itself
@@ -553,7 +412,7 @@ describe('All server action files have auth wrappers', () => {
   ]);
 
   /**
-   * Files that use requireAdminApi instead of withAdminAuth/withAdminOrSellerAuth.
+   * Files that use requireAdminApi instead of withAdminAuth/withAdminClient.
    * This is an older pattern but still valid for auth enforcement.
    */
   const USES_REQUIRE_ADMIN_API = new Set([
@@ -573,7 +432,7 @@ describe('All server action files have auth wrappers', () => {
 
       const hasAuthWrapper =
         /withAdminAuth\s*\(/.test(source) ||
-        /withAdminOrSellerAuth\s*\(/.test(source) ||
+        /withAdminClient\s*\(/.test(source) ||
         /requireAdminApi\s*\(/.test(source);
 
       if (!hasAuthWrapper) {
@@ -584,7 +443,7 @@ describe('All server action files have auth wrappers', () => {
     expect(
       violations,
       `Action files without auth wrappers (not whitelisted):\n${violations.map(f => `  ${f}`).join('\n')}\n\n` +
-      `Either add withAdminAuth/withAdminOrSellerAuth, or whitelist in PUBLIC_OR_SESSION_ONLY_FILES with justification.`
+      `Either add withAdminAuth/withAdminClient, or whitelist in PUBLIC_OR_SESSION_ONLY_FILES with justification.`
     ).toHaveLength(0);
   });
 
@@ -603,7 +462,7 @@ describe('All server action files have auth wrappers', () => {
       // out of the whitelist to get proper classification
       const hasAdminWrapper =
         /withAdminAuth\s*\(/.test(source) ||
-        /withAdminOrSellerAuth\s*\(/.test(source);
+        /withAdminClient\s*\(/.test(source);
 
       if (hasAdminWrapper) {
         violations.push(`${file} (listed as public but uses admin auth wrapper)`);
@@ -637,7 +496,6 @@ describe('All server action files have auth wrappers', () => {
       'products.ts',
       'profile.ts',
       'security-audit.ts',
-      'sellers.ts',
       'shop-config.ts',
       'stripe-config.ts',
       'stripe-tax.ts',
@@ -675,7 +533,7 @@ describe('Cross-cutting: no privilege escalation vectors', () => {
       const importsAdminClient = /createAdminClient/.test(source);
       const hasAuthWrapper =
         /withAdminAuth\s*\(/.test(source) ||
-        /withAdminOrSellerAuth\s*\(/.test(source) ||
+        /withAdminClient\s*\(/.test(source) ||
         /requireAdminApi\s*\(/.test(source);
 
       if (importsAdminClient && !hasAuthWrapper) {
@@ -712,14 +570,6 @@ describe('Cross-cutting: no privilege escalation vectors', () => {
       `Action files using createPlatformClient without withAdminAuth:\n${violations.map(f => `  ${f}`).join('\n')}\n\n` +
       `createPlatformClient accesses the platform schema. Only platform admins should use it.`
     ).toHaveLength(0);
-  });
-
-  it('dashboard layout passes role to AdminSchemaProvider', () => {
-    const source = readSource('app/[locale]/dashboard/layout.tsx');
-    expect(
-      /AdminSchemaProvider/.test(source) && /role=/.test(source),
-      'Dashboard layout must pass role to AdminSchemaProvider for downstream RBAC'
-    ).toBe(true);
   });
 
   it('SettingsTabs reads role from auth context (not hardcoded)', () => {

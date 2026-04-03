@@ -441,27 +441,17 @@ describe('License Feature Gating', () => {
 
     it('should deny pro features to registered tier', () => {
       expect(hasFeature('registered', 'watermark-removal')).toBe(false);
-      expect(hasFeature('registered', 'marketplace')).toBe(false);
     });
 
-    it('should grant registered + pro features to pro tier (not marketplace)', () => {
+    it('should grant registered + pro features to pro tier', () => {
       expect(hasFeature('pro', 'csv-export')).toBe(true);
       expect(hasFeature('pro', 'watermark-removal')).toBe(true);
-      expect(hasFeature('pro', 'marketplace')).toBe(false);
     });
 
-    it('should grant all non-marketplace features to business tier', () => {
+    it('should grant all features to business tier', () => {
       expect(hasFeature('business', 'csv-export')).toBe(true);
       expect(hasFeature('business', 'watermark-removal')).toBe(true);
       expect(hasFeature('business', 'api-key-scopes')).toBe(true);
-      expect(hasFeature('business', 'marketplace')).toBe(false);
-    });
-
-    it('should grant all features including marketplace to marketplace tier', () => {
-      expect(hasFeature('marketplace', 'csv-export')).toBe(true);
-      expect(hasFeature('marketplace', 'watermark-removal')).toBe(true);
-      expect(hasFeature('marketplace', 'api-key-scopes')).toBe(true);
-      expect(hasFeature('marketplace', 'marketplace')).toBe(true);
     });
 
     it('should deny all paid features to free tier', () => {
@@ -479,9 +469,6 @@ describe('License Feature Gating', () => {
       expect(getRequiredTier('watermark-removal')).toBe('pro');
     });
 
-    it('should return marketplace for marketplace feature', () => {
-      expect(getRequiredTier('marketplace')).toBe('marketplace');
-    });
   });
 
   describe('getFeaturesForTier', () => {
@@ -495,26 +482,18 @@ describe('License Feature Gating', () => {
       expect(features).not.toContain('watermark-removal');
     });
 
-    it('should return registered + pro features for pro tier (not marketplace)', () => {
+    it('should return registered + pro features for pro tier', () => {
       const features = getFeaturesForTier('pro');
       expect(features).toContain('csv-export');
       expect(features).toContain('watermark-removal');
-      expect(features).not.toContain('marketplace');
     });
 
-    it('should return all non-marketplace features for business tier', () => {
+    it('should return all features for business tier', () => {
       const features = getFeaturesForTier('business');
       expect(features).toContain('csv-export');
       expect(features).toContain('watermark-removal');
       expect(features).toContain('api-key-scopes');
-      expect(features).not.toContain('marketplace');
     });
 
-    it('should return all features for marketplace tier', () => {
-      const features = getFeaturesForTier('marketplace');
-      expect(features).toContain('csv-export');
-      expect(features).toContain('watermark-removal');
-      expect(features).toContain('marketplace');
-    });
   });
 });

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getSellerBySlug, createSellerAdminClient } from '@/lib/marketplace/seller-client';
-import type { SellerInfo } from '@/lib/marketplace/seller-client';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { calculatePricing, toStripeCents, STRIPE_MINIMUM_AMOUNT } from '@/hooks/usePricing';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -12,38 +10,6 @@ import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import type { PaymentMethodConfig } from '@/types/payment-config';
-
-import type { SellerDataClient } from '@/lib/supabase/admin';
-
-/**
- * Resolve the data client for product/payment queries.
- * For marketplace sellers: service_role client scoped to seller schema.
- * For platform owner: default admin client (seller_main).
- */
-async function resolveDataClient(sellerSlug?: string): Promise<{
-  dataClient: SellerDataClient;
-  seller: SellerInfo | null;
-  error?: string;
-}> {
-  if (!sellerSlug) {
-    return { dataClient: createAdminClient(), seller: null };
-  }
-
-  const seller = await getSellerBySlug(sellerSlug);
-  if (!seller) {
-    return { dataClient: createAdminClient(), seller: null, error: 'Seller not found' };
-  }
-
-  if (!seller.stripe_account_id) {
-    return { dataClient: createAdminClient(), seller, error: 'Seller not configured for payments' };
-  }
-
-  if (!seller.stripe_onboarding_complete) {
-    return { dataClient: createAdminClient(), seller, error: 'Seller Stripe onboarding incomplete' };
-  }
-
-  return { dataClient: createSellerAdminClient(seller.schema_name) as unknown as SellerDataClient, seller };
-}
 
 /**
  * Apply automatic payment methods configuration to PaymentIntent params.
@@ -104,7 +70,6 @@ export async function POST(request: NextRequest) {
       country,
       successUrl,
       customAmount,  // Pay What You Want
-      sellerSlug,    // Marketplace: seller slug for schema routing
     } = body;
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
@@ -166,13 +131,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 0. Resolve marketplace seller → data client (schema-scoped)
-    const { dataClient, seller, error: sellerError } = await resolveDataClient(sellerSlug);
-    if (sellerError) {
-      return NextResponse.json({ error: sellerError }, { status: 404 });
-    }
+    const dataClient = createAdminClient();
 
-    // 1. Fetch product (from seller schema if marketplace, otherwise seller_main)
+    // 1. Fetch product
     const { data: product, error: productError } = await dataClient
       .from('products')
       .select('*')
@@ -187,7 +148,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Check if user already has access (in the correct seller schema)
+    // 2. Check if user already has access
     if (user) {
       const { data: existingAccess } = await dataClient
         .from('user_product_access')
@@ -352,7 +313,7 @@ export async function POST(request: NextRequest) {
 
     // 7a. Handle 100% coupon — skip Stripe, grant access directly
     if (pricing.isFreeWithCoupon && user) {
-      // Grant access for main product (in seller schema if marketplace)
+      // Grant access for main product
       const { error: grantError } = await dataClient.rpc('grant_free_product_access', {
         product_slug_param: product.slug,
       });
@@ -384,7 +345,7 @@ export async function POST(request: NextRequest) {
       // Record coupon usage (normally done by webhook, but no Stripe payment here).
       // Best-effort — access is already granted, failures are logged not fatal.
       if (appliedCoupon && finalEmail) {
-        const adminClient = seller ? dataClient : createAdminClient();
+        const adminClient = createAdminClient();
 
         try {
           // Record redemption (per-user usage tracking + prevents re-use)
@@ -468,26 +429,10 @@ export async function POST(request: NextRequest) {
         success_url: successUrl || '',
         custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
         is_pwyw: pricing.isPwyw ? 'true' : 'false',
-        // Marketplace: seller routing metadata for webhook
-        ...(seller ? {
-          is_marketplace: 'true',
-          seller_schema: seller.schema_name,
-          seller_slug: seller.slug,
-        } : {}),
       },
     };
 
-    // Stripe Connect: route payment to seller's Stripe account
-    if (seller?.stripe_account_id) {
-      // SECURITY: Clamp fee percent to [0, 100] to prevent negative fees or overflow
-      const feePercent = Math.max(0, Math.min(100, seller.platform_fee_percent));
-      paymentIntentParams.application_fee_amount = Math.round(totalAmount * feePercent / 100);
-      paymentIntentParams.transfer_data = {
-        destination: seller.stripe_account_id,
-      };
-    }
-
-    // Fetch payment method configuration from the correct schema (seller or platform)
+    // Fetch payment method configuration
     const { data: paymentConfig } = await dataClient
       .from('payment_method_config')
       .select('*')
@@ -591,7 +536,6 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
     // Save pending payment transaction for abandoned cart recovery
-    // Uses dataClient (seller-scoped if marketplace) because payment_transactions INSERT requires service_role
     try {
       const { error: insertError } = await dataClient
         .from('payment_transactions')

@@ -47,14 +47,14 @@ test.describe('Currency Conversion Feature', () => {
 
   test.beforeAll(async () => {
     // Ensure ECB (free, no key needed) is the currency provider for tests
-    await supabaseAdmin.from('integrations_config').upsert({
-      id: 1,
+    // Use update (not upsert) to preserve other fields like sellf_license
+    await supabaseAdmin.from('integrations_config').update({
       currency_api_provider: 'ecb',
       currency_api_enabled: true,
       currency_api_key_encrypted: null,
       currency_api_key_iv: null,
       currency_api_key_tag: null,
-    });
+    }).eq('id', 1);
 
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `test-currency-${Date.now()}-${randomStr}@example.com`;
@@ -329,10 +329,12 @@ test.describe('Currency Conversion Feature', () => {
     await expect(currencyBtn).toBeVisible({ timeout: 30000 });
     const btnText = await currencyBtn.textContent() || '';
     if (/Convert/i.test(btnText)) {
-      // Currently in converted mode — switch to grouped first
-      await currencyBtn.click();
+      // Currently in converted mode — switch to grouped first (retry for RSC refetch)
       const groupedOpt = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane/i }).first();
-      await expect(groupedOpt).toBeVisible({ timeout: 5000 });
+      await expect(async () => {
+        await currencyBtn.click();
+        await expect(groupedOpt).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 15000 });
       await groupedOpt.click();
       await expect(page.locator('button', { hasText: /Grouped/i }).first()).toBeVisible({ timeout: 10000 });
     }
@@ -354,15 +356,15 @@ test.describe('Currency Conversion Feature', () => {
     const selectedCurrency = rawText.match(/[A-Z]{3}/)?.[0] || rawText.trim();
     await currencyOption.click();
 
-    // Wait for conversion to take effect
-    await expect(page.locator('button', { hasText: new RegExp(`Convert to ${selectedCurrency}`, 'i') }).first()).toBeVisible({ timeout: 10000 });
+    // Wait for conversion to take effect — value must change from grouped
+    await expect(async () => {
+      const currentValue = await revenueCard.locator('p').nth(1).textContent();
+      expect(currentValue).not.toBe(initialValue);
+    }).toPass({ timeout: 15000 });
 
     // Get converted value
     const convertedValue = await revenueCard.locator('p').nth(1).textContent();
     console.log(`Converted to ${selectedCurrency}:`, convertedValue);
-
-    // Values should be different (grouped multi-currency vs single converted)
-    expect(initialValue).not.toBe(convertedValue);
 
     // Converted value should show a single currency (no + sign between multiple currencies)
     expect(convertedValue).not.toContain('+');

@@ -32,19 +32,8 @@ export async function GET(request: NextRequest) {
     const shopClient = auth.supabase;
     const now = new Date();
 
-    // Determine API key filter — seller sees only their keys, platform sees all
-    const sellerSchema = auth.method === 'session'
-      ? (auth as { sellerSchema?: string }).sellerSchema
-      : (auth as { sellerSchema?: string }).sellerSchema;
     const platformClient = createPlatformClient();
-    let apiKeysQuery = platformClient.from('api_keys').select('*', { count: 'exact', head: true }).eq('is_active', true);
-    if (sellerSchema) {
-      // Seller admin: count only their own API keys
-      const { data: seller } = await platformClient.from('sellers').select('id').eq('schema_name', sellerSchema).single();
-      if (seller) {
-        apiKeysQuery = apiKeysQuery.eq('seller_id', seller.id);
-      }
-    }
+    const apiKeysQuery = platformClient.from('api_keys').select('*', { count: 'exact', head: true }).eq('is_active', true);
 
     // Run all count queries in parallel
     // shopClient = auth.supabase (schema-scoped: seller_main for platform, seller_xyz for seller)

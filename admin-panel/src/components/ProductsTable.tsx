@@ -15,9 +15,9 @@ interface ProductsTableProps {
   products: Product[];
   loading: boolean;
   error: string | null;
-  /** Build product page URL: /p/[slug] (platform) or /s/[seller]/[slug] (seller) */
+  /** Build product page URL: /p/[slug] */
   productPath: (slug: string) => string;
-  /** Build checkout URL: /checkout/[slug] (platform) or /s/[seller]/checkout/[slug] (seller) */
+  /** Build checkout URL: /checkout/[slug] */
   checkoutPath: (slug: string) => string;
   onEditProduct: (product: Product) => void;
   onDuplicateProduct: (product: Product) => void;
@@ -299,6 +299,15 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             >
                               {t('inactive')}
                             </button>
+                          </Tooltip>
+                        )}
+                        {/* Waitlist indicator for inactive products */}
+                        {!product.is_active && (
+                          <Tooltip
+                            content={product.enable_waitlist ? t('waitlistEnabled') : t('waitlistDisabled')}
+                            side="top"
+                          >
+                            <span className="text-xs cursor-default">{product.enable_waitlist ? '📋' : '🚫'}</span>
                           </Tooltip>
                         )}
                       </div>

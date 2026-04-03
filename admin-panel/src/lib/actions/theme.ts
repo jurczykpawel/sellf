@@ -10,7 +10,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { themeConfigSchema, THEME_PRESETS, getPresetById } from '@/lib/themes';
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth';
+import { withAdminClient } from '@/lib/actions/admin-auth';
 import { checkFeature } from '@/lib/license/resolve';
 import type { ActionResponse } from '@/lib/actions/admin-auth';
 import type { ThemeConfig, ThemePreset } from '@/lib/themes';
@@ -53,8 +53,8 @@ export async function saveActiveTheme(theme: ThemeConfig): Promise<ActionRespons
     return { success: true };
   }
 
-  return withAdminOrSellerAuth(async ({ dataClient, sellerSlug }) => {
-    const licenseCheck = await checkFeature('theme-customization', { dataClient, sellerSlug });
+  return withAdminClient(async ({ dataClient }) => {
+    const licenseCheck = await checkFeature('theme-customization', { dataClient });
     if (!licenseCheck) {
       return { success: false, error: 'Valid Sellf Pro license required to save themes' };
     }
@@ -96,8 +96,8 @@ export async function removeActiveTheme(): Promise<ActionResponse<void>> {
     return { success: true };
   }
 
-  return withAdminOrSellerAuth(async ({ dataClient, sellerSlug }) => {
-    const licenseCheck = await checkFeature('theme-customization', { dataClient, sellerSlug });
+  return withAdminClient(async ({ dataClient }) => {
+    const licenseCheck = await checkFeature('theme-customization', { dataClient });
     if (!licenseCheck) {
       return { success: false, error: 'Valid Sellf Pro license required' };
     }
@@ -135,8 +135,8 @@ export async function checkThemeLicense(): Promise<ActionResponse<boolean>> {
     return { success: true, data: true };
   }
 
-  return withAdminOrSellerAuth(async ({ dataClient, sellerSlug }) => {
-    const valid = await checkFeature('theme-customization', { dataClient, sellerSlug });
+  return withAdminClient(async ({ dataClient }) => {
+    const valid = await checkFeature('theme-customization', { dataClient });
     return { success: true, data: valid };
   });
 }
@@ -144,7 +144,7 @@ export async function checkThemeLicense(): Promise<ActionResponse<boolean>> {
 // ===== EXPORT =====
 
 export async function exportActiveTheme(): Promise<ActionResponse<string>> {
-  return withAdminOrSellerAuth(async () => {
+  return withAdminClient(async () => {
     const theme = await getActiveTheme();
     if (!theme) {
       return { success: false, error: 'No active theme to export' };

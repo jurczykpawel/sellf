@@ -6,7 +6,7 @@
  * Creates a new key and optionally keeps the old one valid for a grace period.
  * This allows for zero-downtime key rotation.
  *
- * Supports both platform admins and seller admins.
+ * Platform admin only.
  */
 
 import { NextRequest } from 'next/server';
@@ -22,7 +22,7 @@ import {
 } from '@/lib/api';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
-import { requireAdminOrSellerApi } from '@/lib/auth-server';
+import { requireAdminApi } from '@/lib/auth-server';
 import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
 import { validateUUID } from '@/lib/validations/product';
 import type { Database } from '@/types/database';
@@ -49,7 +49,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminOrSellerApi(supabase);
+    const { user, role } = await requireAdminApi(supabase);
     const { id } = await params;
 
     // Validate ID format
@@ -67,14 +67,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const platformClient = createPlatformClient();
     let checkQuery = platformClient
       .from('api_keys')
-      .select('id, name, scopes, rate_limit_per_minute, expires_at, is_active, revoked_at, seller_id')
+      .select('id, name, scopes, rate_limit_per_minute, expires_at, is_active, revoked_at')
       .eq('id', id);
 
-    if (owner.role === 'seller_admin') {
-      checkQuery = checkQuery.eq('seller_id', owner.sellerId!);
-    } else {
-      checkQuery = checkQuery.eq('admin_user_id', owner.adminId!);
-    }
+    checkQuery = checkQuery.eq('admin_user_id', owner.adminId!);
 
     const { data: oldKey, error: checkError } = await checkQuery.single();
 
@@ -120,9 +116,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       rotated_from_id: oldKey.id,
     };
 
-    const insertData: ApiKeyInsert = owner.role === 'seller_admin'
-      ? { ...baseInsert, seller_id: oldKey.seller_id }
-      : { ...baseInsert, admin_user_id: owner.adminId };
+    const insertData: ApiKeyInsert = { ...baseInsert, admin_user_id: owner.adminId! };
 
     // Create new key (api_keys in public schema — use platform client)
     const { data: newKey, error: insertError } = await platformClient

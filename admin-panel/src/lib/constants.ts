@@ -79,14 +79,11 @@ export const STRIPE_WEBHOOK_EVENTS = [
   'payment_intent.succeeded',
   'charge.refunded',
   'charge.dispute.created',
-  // Stripe Connect: seller account lifecycle
-  'account.updated',
-  'account.application.deauthorized',
 ] as const;
 
 /**
  * Product fields for public-facing product page queries.
- * Shared between /p/[slug] and /s/[seller]/[product] pages.
+ * Used by /p/[slug] product pages.
  * @see supabase/migrations/20250101000000_core_schema.sql — products table
  */
 export const PRODUCT_PAGE_FIELDS = [

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
-import { resolvePublicDataClient } from '@/lib/marketplace/seller-client';
 
 export async function GET(
   request: NextRequest,
@@ -27,16 +26,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Resolve data client: seller schema if ?seller= param, otherwise default (user's session client)
-    const sellerSlug = request.nextUrl.searchParams.get('seller');
-    const { dataClient, seller } = await resolvePublicDataClient(sellerSlug, supabase);
-    if (sellerSlug && !seller) {
-      return NextResponse.json({ error: 'Seller not found' }, { status: 404 });
-    }
-
-    // Two-step query to avoid FK embedding through proxy views (PGRST200).
+    // Two-step query: fetch product then check access separately.
     // Step 1: Fetch product by slug
-    const { data: productWithAccess, error: productError } = await dataClient
+    const { data: productWithAccess, error: productError } = await supabase
       .from('products')
       .select(`
         id,
@@ -61,8 +53,8 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Step 2: Check user access separately (use dataClient for seller schema)
-    const { data: userAccessData, error: accessError } = await dataClient
+    // Step 2: Check user access separately
+    const { data: userAccessData, error: accessError } = await supabase
       .from('user_product_access')
       .select('access_expires_at, access_duration_days, created_at')
       .eq('product_id', productWithAccess.id)

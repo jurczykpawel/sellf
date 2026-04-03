@@ -2,7 +2,6 @@
  * Universal Cron Endpoint
  *
  * Secured with CRON_SECRET env var. Platform-admin infrastructure only.
- * Sellers don't interact with cron — it runs across all schemas automatically.
  *
  *   # Preferred (secret not in logs):
  *   curl -H "Authorization: Bearer $CRON_SECRET" "https://yourdomain.com/api/cron?job=access-expired"
@@ -11,15 +10,14 @@
  *   curl "https://yourdomain.com/api/cron?job=access-expired&secret=$CRON_SECRET"
  *
  * Jobs:
- *   access-expired        — dispatch access.expired webhooks for newly expired access records (ALL schemas)
- *   cleanup-webhook-logs  — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS (ALL schemas)
+ *   access-expired        — dispatch access.expired webhooks for newly expired access records
+ *   cleanup-webhook-logs  — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { createPlatformClient } from '@/lib/supabase/admin';
-import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
-import { isValidSellerSchema } from '@/lib/marketplace/tenant';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { WebhookService } from '@/lib/services/webhook-service';
 
 // ===== TYPES =====
@@ -51,7 +49,6 @@ function isAuthorized(request: NextRequest): boolean {
   try {
     const a = Buffer.from(candidate);
     const b = Buffer.from(cronSecret);
-    // timingSafeEqual requires same length — check length separately
     return a.length === b.length && timingSafeEqual(a, b);
   } catch {
     return false;
@@ -62,10 +59,29 @@ function isAuthorized(request: NextRequest): boolean {
 
 async function handleAccessExpired(): Promise<CronJobResult> {
   const platformClient = createPlatformClient();
+  const adminClient = createAdminClient();
 
-  // Single query across ALL seller schemas via SQL function
-  const { data: expiredRows, error } = await (platformClient as any)
-    .rpc('get_expired_access_all_schemas', { p_limit: 100 }) as { data: any[] | null; error: any };
+  // Query expired access records that haven't been notified yet
+  const { data: expiredRows, error } = await adminClient
+    .from('user_product_access')
+    .select(`
+      id,
+      user_id,
+      product_id,
+      access_granted_at,
+      access_expires_at,
+      products!inner (
+        name,
+        slug,
+        price,
+        currency,
+        icon
+      )
+    `)
+    .not('access_expires_at', 'is', null)
+    .lt('access_expires_at', new Date().toISOString())
+    .is('expiry_notified_at', null)
+    .limit(100);
 
   if (error) {
     console.error('[cron/access-expired] Failed to query expired access:', error);
@@ -77,7 +93,7 @@ async function handleAccessExpired(): Promise<CronJobResult> {
   }
 
   // Batch fetch user emails (auth.users is global)
-  const userIds = [...new Set(expiredRows.map((r: { user_id: string }) => r.user_id))];
+  const userIds = [...new Set(expiredRows.map((r) => r.user_id))];
   const emailMap: Record<string, string | null> = {};
   const EMAIL_BATCH_SIZE = 10;
   for (let i = 0; i < userIds.length; i += EMAIL_BATCH_SIZE) {
@@ -97,15 +113,11 @@ async function handleAccessExpired(): Promise<CronJobResult> {
   let errors = 0;
 
   for (const row of expiredRows) {
-    try {
-      // Get schema-scoped client for webhook delivery to correct seller's endpoints
-      let webhookClient;
-      if (row.seller_schema && isValidSellerSchema(row.seller_schema)) {
-        webhookClient = createSellerAdminClient(row.seller_schema);
-      } else {
-        webhookClient = platformClient;
-      }
+    const product = row.products as unknown as {
+      name: string; slug: string; price: number; currency: string; icon: string;
+    };
 
+    try {
       await WebhookService.trigger('access.expired', {
         customer: {
           email: emailMap[row.user_id] ?? null,
@@ -113,37 +125,32 @@ async function handleAccessExpired(): Promise<CronJobResult> {
         },
         product: {
           id: row.product_id,
-          name: row.product_name,
-          slug: row.product_slug,
-          price: row.product_price,
-          currency: row.product_currency,
-          icon: row.product_icon,
+          name: product.name,
+          slug: product.slug,
+          price: product.price,
+          currency: product.currency,
+          icon: product.icon,
         },
         access: {
           grantedAt: row.access_granted_at,
           expiredAt: row.access_expires_at,
         },
-        seller: {
-          slug: row.seller_slug,
-          schema: row.seller_schema,
-        },
-      }, webhookClient);
+      }, adminClient);
 
-      // Mark as notified in the correct schema
-      const { error: updateError } = await (platformClient as any)
-        .rpc('mark_access_expiry_notified', {
-          p_schema: row.seller_schema,
-          p_access_id: row.access_id,
-        });
+      // Mark as notified
+      const { error: updateError } = await adminClient
+        .from('user_product_access')
+        .update({ expiry_notified_at: new Date().toISOString() })
+        .eq('id', row.id);
 
       if (updateError) {
-        console.error('[cron/access-expired] Failed to mark notified:', row.access_id, updateError);
+        console.error('[cron/access-expired] Failed to mark notified:', row.id, updateError);
         errors++;
       } else {
         processed++;
       }
     } catch (err) {
-      console.error('[cron/access-expired] Error processing row:', row.access_id, err);
+      console.error('[cron/access-expired] Error processing row:', row.id, err);
       errors++;
     }
   }
@@ -157,11 +164,15 @@ const raw = Number(process.env.WEBHOOK_LOG_RETENTION_DAYS);
 const WEBHOOK_LOG_RETENTION_DAYS = Number.isFinite(raw) && raw > 0 ? raw : 30;
 
 async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
-  const platformClient = createPlatformClient();
+  const adminClient = createAdminClient();
 
-  // Single call that cleans ALL seller schemas
-  const { data: deletedCount, error } = await (platformClient as any)
-    .rpc('cleanup_webhook_logs_all_schemas', { p_retention_days: WEBHOOK_LOG_RETENTION_DAYS }) as { data: number | null; error: any };
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - WEBHOOK_LOG_RETENTION_DAYS);
+
+  const { count, error } = await adminClient
+    .from('webhook_logs')
+    .delete({ count: 'exact' })
+    .lt('created_at', cutoffDate.toISOString());
 
   if (error) {
     console.error('[cron/cleanup-webhook-logs] Failed to cleanup logs:', error);
@@ -169,9 +180,9 @@ async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
   }
 
   return {
-    processed: deletedCount ?? 0,
+    processed: count ?? 0,
     errors: 0,
-    details: `Deleted logs older than ${WEBHOOK_LOG_RETENTION_DAYS}d from all seller schemas`,
+    details: `Deleted logs older than ${WEBHOOK_LOG_RETENTION_DAYS}d`,
   };
 }
 

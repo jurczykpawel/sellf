@@ -18,7 +18,6 @@ import OrderBumpFormModal from './OrderBumpFormModal';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { api } from '@/lib/api/client';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface OrderBumpWithDetails {
   id: string;
@@ -50,9 +49,7 @@ interface OrderBumpWithDetails {
 
 const OrderBumpsPageContent: React.FC = () => {
   const t = useTranslations('admin.orderBumps');
-  const { sellerSlug } = useAuth();
-  const productPath = (slug: string) =>
-    sellerSlug ? `/s/${sellerSlug}/${slug}` : `/p/${slug}`;
+  const productPath = (slug: string) => `/p/${slug}`;
 
   // State for order bumps and loading status
   const [orderBumps, setOrderBumps] = useState<OrderBumpWithDetails[]>([]);

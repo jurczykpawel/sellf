@@ -19,13 +19,11 @@ interface ProductViewProps {
   licenseValid: boolean;
   /** Verified server-side: true only when the requester is a confirmed admin */
   previewMode?: boolean;
-  /** Seller slug for marketplace products (e.g. 'kowalski_digital') */
-  sellerSlug?: string;
 }
 
-export default function ProductView({ product, licenseValid, previewMode = false, sellerSlug }: ProductViewProps) {
+export default function ProductView({ product, licenseValid, previewMode = false }: ProductViewProps) {
   const t = useTranslations('productView');
-  const { accessData, loading, error: accessError } = useProductAccess(product, { previewMode, sellerSlug });
+  const { accessData, loading, error: accessError } = useProductAccess(product, { previewMode });
   const [redirecting, setRedirecting] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,7 +142,7 @@ export default function ProductView({ product, licenseValid, previewMode = false
 
   // Check if user has access (non-redirect products)
   if (accessData?.hasAccess) {
-    return <ProductAccessView product={product} licenseValid={licenseValid} previewMode={previewMode} sellerSlug={sellerSlug} />;
+    return <ProductAccessView product={product} licenseValid={licenseValid} previewMode={previewMode}  />;
   }
 
   // Handle different reasons for lack of access

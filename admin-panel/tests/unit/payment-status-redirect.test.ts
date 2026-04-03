@@ -124,7 +124,7 @@ describe('PaymentStatusView — source verification', () => {
 
   it('OTO skip: redirects authenticated user, sends magic link for guest', () => {
     expect(viewSource).toMatch(
-      /handleOtoSkip[\s\S]*?auth\.isAuthenticated[\s\S]*?router\.push\(buildProductUrl\(product\.slug\)\)/,
+      /handleOtoSkip[\s\S]*?auth\.isAuthenticated[\s\S]*?router\.push\(`\/p\/\$\{product\.slug\}`\)/,
     );
     expect(viewSource).toMatch(
       /handleOtoSkip[\s\S]*?magicLink\.sendMagicLink\(\)/,

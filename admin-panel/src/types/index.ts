@@ -358,29 +358,6 @@ export interface UserPurchase {
   refund_request_id: string | null;
 }
 
-/** Cross-schema user product from get_user_products_all_sellers() */
-export interface UserProductAllSellers {
-  seller_slug: string;
-  seller_display_name: string;
-  product_id: string;
-  product_name: string;
-  product_slug: string;
-  product_icon: string | null;
-  product_price: number;
-  product_currency: string;
-  access_granted_at: string;
-  access_expires_at: string | null;
-  transaction_id: string | null;
-  transaction_amount: number | null;
-  transaction_currency: string | null;
-  transaction_status: string | null;
-  transaction_date: string | null;
-  refund_request_status: string | null;
-  refunded_amount: number | null;
-  is_refundable: boolean | null;
-  refund_period_days: number | null;
-}
-
 // Variant Groups (M:N relationship)
 export interface VariantGroup {
   id: string;

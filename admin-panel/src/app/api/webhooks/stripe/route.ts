@@ -11,8 +11,6 @@
  * - payment_intent.succeeded: Process successful direct payments
  * - charge.refunded: Revoke access when refund is processed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
- * - account.updated: Sync Stripe Connect onboarding status (marketplace)
- * - account.application.deauthorized: Handle seller disconnecting their Stripe account (marketplace)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -24,42 +22,18 @@ import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
-import { handleAccountUpdated, handleAccountDeauthorized } from '@/lib/stripe/connect';
-import { isValidSellerSchema } from '@/lib/marketplace/tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createSellerAdminClient } from '@/lib/marketplace/seller-client';
-
-// Service client factory — uses createAdminClient (seller_main) by default,
-// or createSellerAdminClient for marketplace seller schemas.
-const getServiceClient = (schema?: string) => {
-  if (schema && schema !== 'seller_main') {
-    return createSellerAdminClient(schema);
-  }
-  return createAdminClient();
-};
 
 /**
  * Process successful payment from checkout session.
- * For marketplace payments (metadata.is_marketplace='true'), uses the seller's schema.
  */
 async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
-  supabase: ReturnType<typeof getServiceClient>
+  supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   const sessionId = session.id;
   const productId = session.metadata?.product_id;
   const customerEmail = session.customer_details?.email || session.customer_email;
-
-  // Marketplace: route to seller's schema if present.
-  // SECURITY: validate schema name before using it — prevents arbitrary schema access.
-  const sellerSchema = session.metadata?.seller_schema;
-  if (sellerSchema && session.metadata?.is_marketplace === 'true') {
-    if (!isValidSellerSchema(sellerSchema)) {
-      console.error(`[Stripe Webhook] Invalid seller_schema in session metadata: ${sellerSchema}`);
-      return { processed: false, message: `Invalid seller_schema: ${sellerSchema}` };
-    }
-    supabase = getServiceClient(sellerSchema);
-  }
 
   if (!productId || !customerEmail) {
     return { processed: false, message: 'Missing product_id or customer_email in session' };
@@ -128,17 +102,18 @@ async function handleCheckoutSessionCompleted(
     : session.payment_intent;
 
   // Process payment using database function (multi-bump aware)
-  const { data: result, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
+  const { data: rawResult, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
     session_id_param: sessionId,
     product_id_param: productId,
     customer_email_param: customerEmail,
     amount_total: session.amount_total || 0,
     currency_param: session.currency || 'usd',
-    stripe_payment_intent_id: stripePaymentIntentId || null,
-    user_id_param: userId && userId !== '' ? userId : null,
-    bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : null,
-    coupon_id_param: hasCoupon && couponId ? couponId : null,
+    stripe_payment_intent_id: stripePaymentIntentId || undefined,
+    user_id_param: userId && userId !== '' ? userId : undefined,
+    bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
+    coupon_id_param: hasCoupon && couponId ? couponId : undefined,
   });
+  const result = rawResult as Record<string, unknown> | null;
 
   if (error) {
     console.error(
@@ -155,7 +130,7 @@ async function handleCheckoutSessionCompleted(
       sessionId, productId, customerEmail, couponId ?? 'none',
       session.amount_total, result?.error ?? 'unknown'
     );
-    return { processed: false, message: result?.error || 'Payment processing failed' };
+    return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
   // Trigger internal webhook for purchase.completed
@@ -172,7 +147,7 @@ async function handleCheckoutSessionCompleted(
       sessionId,
       paymentIntentId: stripePaymentIntentId,
       couponId: hasCoupon && couponId ? couponId : null,
-      isGuest: result.is_guest_purchase,
+      isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
     });
 
@@ -206,25 +181,13 @@ async function handleCheckoutSessionCompleted(
 
 /**
  * Process successful payment from payment intent (direct payment flow).
- * For marketplace payments (metadata.is_marketplace='true'), uses the seller's schema.
  */
 async function handlePaymentIntentSucceeded(
   paymentIntent: Stripe.PaymentIntent,
-  supabase: ReturnType<typeof getServiceClient>
+  supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   const productId = paymentIntent.metadata?.product_id;
   const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.email;
-
-  // Marketplace: route to seller's schema if present.
-  // SECURITY: validate schema name before using it — prevents arbitrary schema access.
-  const sellerSchema = paymentIntent.metadata?.seller_schema;
-  if (sellerSchema && paymentIntent.metadata?.is_marketplace === 'true') {
-    if (!isValidSellerSchema(sellerSchema)) {
-      console.error(`[Stripe Webhook] Invalid seller_schema in payment intent metadata: ${sellerSchema}`);
-      return { processed: false, message: `Invalid seller_schema: ${sellerSchema}` };
-    }
-    supabase = getServiceClient(sellerSchema);
-  }
 
   if (!productId || !customerEmail) {
     return { processed: false, message: 'Missing product_id or email in payment intent' };
@@ -278,17 +241,18 @@ async function handlePaymentIntentSucceeded(
   }
 
   // Process payment using database function (multi-bump aware)
-  const { data: result, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
+  const { data: rawResult2, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
     session_id_param: paymentIntent.id,
     product_id_param: productId,
     customer_email_param: customerEmail,
     amount_total: paymentIntent.amount,
     currency_param: paymentIntent.currency,
     stripe_payment_intent_id: paymentIntent.id,
-    user_id_param: userId && userId !== '' ? userId : null,
-    bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : null,
-    coupon_id_param: couponId || null,
+    user_id_param: userId && userId !== '' ? userId : undefined,
+    bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
+    coupon_id_param: couponId || undefined,
   });
+  const result = rawResult2 as Record<string, unknown> | null;
 
   if (error) {
     console.error(
@@ -305,7 +269,7 @@ async function handlePaymentIntentSucceeded(
       paymentIntent.id, productId, customerEmail, couponId ?? 'none',
       paymentIntent.amount, result?.error ?? 'unknown'
     );
-    return { processed: false, message: result?.error || 'Payment processing failed' };
+    return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
   // Trigger internal webhook for purchase.completed
@@ -321,7 +285,7 @@ async function handlePaymentIntentSucceeded(
       currency: paymentIntent.currency,
       paymentIntentId: paymentIntent.id,
       couponId: couponId || null,
-      isGuest: result.is_guest_purchase,
+      isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
     });
 
@@ -357,7 +321,7 @@ async function handlePaymentIntentSucceeded(
  */
 async function handleChargeRefunded(
   charge: Stripe.Charge,
-  supabase: ReturnType<typeof getServiceClient>
+  supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   const paymentIntentId = typeof charge.payment_intent === 'string'
     ? charge.payment_intent
@@ -365,21 +329,6 @@ async function handleChargeRefunded(
 
   if (!paymentIntentId) {
     return { processed: false, message: 'No payment_intent in charge' };
-  }
-
-  // Marketplace: resolve seller schema from PaymentIntent metadata
-  try {
-    const stripe = await getStripeServer();
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (pi.metadata?.is_marketplace === 'true' && pi.metadata.seller_schema) {
-      if (isValidSellerSchema(pi.metadata.seller_schema)) {
-        supabase = getServiceClient(pi.metadata.seller_schema);
-      } else {
-        console.error('[Stripe Webhook] Invalid seller_schema in refund PI metadata: %s', pi.metadata.seller_schema);
-      }
-    }
-  } catch (piErr) {
-    console.error('[Stripe Webhook] Failed to retrieve PI for refund seller routing:', piErr);
   }
 
   // Find transaction by payment intent ID (include session_id for guest cleanup)
@@ -410,7 +359,7 @@ async function handleChargeRefunded(
 async function processRefundForTransaction(
   transaction: { id: string; user_id: string | null; product_id: string; status: string; session_id: string | null },
   charge: Stripe.Charge,
-  supabase: ReturnType<typeof getServiceClient>
+  supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   // Idempotency: Skip if already refunded
   if (transaction.status === 'refunded') {
@@ -463,7 +412,7 @@ async function processRefundForTransaction(
  */
 async function handleChargeDisputeCreated(
   dispute: Stripe.Dispute,
-  supabase: ReturnType<typeof getServiceClient>
+  supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   const chargeId = typeof dispute.charge === 'string'
     ? dispute.charge
@@ -494,20 +443,6 @@ async function handleChargeDisputeCreated(
 
   if (!paymentIntentId) {
     return { processed: false, message: 'No payment_intent in disputed charge' };
-  }
-
-  // Marketplace: resolve seller schema from PaymentIntent metadata
-  try {
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (pi.metadata?.is_marketplace === 'true' && pi.metadata.seller_schema) {
-      if (isValidSellerSchema(pi.metadata.seller_schema)) {
-        supabase = getServiceClient(pi.metadata.seller_schema);
-      } else {
-        console.error('[Stripe Webhook] Invalid seller_schema in dispute PI metadata: %s', pi.metadata.seller_schema);
-      }
-    }
-  } catch (piErr) {
-    console.error('[Stripe Webhook] Failed to retrieve PI for dispute seller routing:', piErr);
   }
 
   // Find transaction (include session_id for guest cleanup)
@@ -601,9 +536,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Initialize Supabase client
-  let supabase: ReturnType<typeof getServiceClient>;
+  let supabase: ReturnType<typeof createAdminClient>;
   try {
-    supabase = getServiceClient();
+    supabase = createAdminClient();
   } catch (err) {
     console.error('[Stripe Webhook] Failed to initialize Supabase:', err);
     return NextResponse.json(
@@ -659,25 +594,6 @@ export async function POST(request: NextRequest) {
       case 'charge.dispute.created': {
         const dispute = event.data.object as Stripe.Dispute;
         result = await handleChargeDisputeCreated(dispute, supabase);
-        break;
-      }
-
-      // ===== STRIPE CONNECT EVENTS =====
-
-      case 'account.updated': {
-        const account = event.data.object as Stripe.Account;
-        result = await handleAccountUpdated(account);
-        break;
-      }
-
-      case 'account.application.deauthorized': {
-        // event.account contains the connected account ID that deauthorized
-        const connectedAccountId = event.account;
-        if (connectedAccountId) {
-          result = await handleAccountDeauthorized(connectedAccountId);
-        } else {
-          result = { processed: true, message: 'No account ID in deauthorization event' };
-        }
         break;
       }
 

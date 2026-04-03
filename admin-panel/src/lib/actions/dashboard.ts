@@ -1,9 +1,9 @@
 'use server'
 
-import { withAdminOrSellerAuth } from '@/lib/actions/admin-auth'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 
 export async function getDashboardStats() {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient.rpc('get_dashboard_stats')
 
     if (error) {
@@ -19,7 +19,7 @@ export async function getDashboardStats() {
 }
 
 export async function getRecentActivity() {
-  const result = await withAdminOrSellerAuth(async ({ dataClient }) => {
+  const result = await withAdminClient(async ({ dataClient }) => {
     // 1. Get recent access grants
     const { data: accessGrants } = await dataClient
       .from('user_product_access')
