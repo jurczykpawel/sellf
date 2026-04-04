@@ -192,7 +192,7 @@ test.describe('Tracking Events - DataLayer & FB Pixel', () => {
     }
 
     // Reset integrations config
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test('should fire view_item and begin_checkout events on paid product checkout page', async ({ page }) => {
@@ -347,7 +347,7 @@ test.describe('Tracking Events - FB CAPI Integration', () => {
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test.beforeEach(async () => {
@@ -459,7 +459,7 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test('should initialize Google Consent Mode V2 defaults', async ({ page }) => {
@@ -613,7 +613,7 @@ test.describe('Tracking Events - Server-Side Conversions Without Consent', () =>
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test.beforeEach(async () => {
@@ -825,7 +825,7 @@ test.describe('Tracking Events - Server-Side Conversions Disabled', () => {
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test.beforeEach(async () => {
@@ -913,7 +913,7 @@ test.describe('Tracking Events - Partial Consent', () => {
     if (testProduct) {
       await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
     }
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test.beforeEach(async () => {
@@ -1105,7 +1105,7 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
     // Clean up consent_logs entries created by tests
     await supabaseAdmin.from('consent_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     // Reset integrations config
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   test('consent acceptance logged to database via API', async ({ request }) => {
@@ -1330,7 +1330,7 @@ test.describe('Tracking Events - Payment Flow Events', () => {
     if (freeProduct) {
       await supabaseAdmin.from('products').delete().eq('id', freeProduct.id);
     }
-    await supabaseAdmin.from('integrations_config').delete().eq('id', 1);
+    await supabaseAdmin.from('integrations_config').update({ gtm_container_id: null, facebook_pixel_id: null, umami_website_id: null, umami_script_url: null, facebook_capi_access_token_encrypted: null, facebook_capi_access_token_iv: null, facebook_capi_access_token_tag: null }).eq('id', 1);
   });
 
   // -----------------------------------------------------------------------
