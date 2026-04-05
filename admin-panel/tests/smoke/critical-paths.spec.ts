@@ -187,7 +187,8 @@ test.describe('Public Pages', () => {
     await page.goto(`/p/${freeProduct.slug}`);
 
     // Free product should redirect to checkout with email form
-    await expect(page).toHaveURL(new RegExp(`/checkout/${freeProduct.slug}`), { timeout: 10000 });
+    // Client-side redirect via router.push — needs time for auth context + useProductAccess
+    await expect(page).toHaveURL(new RegExp(`/checkout/${freeProduct.slug}`), { timeout: 15000 });
     await expect(page.locator('body')).not.toContainText('Application error');
   });
 

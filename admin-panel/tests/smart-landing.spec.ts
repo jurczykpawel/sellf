@@ -149,30 +149,26 @@ test.describe('Smart Landing Page', () => {
       .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all
 
     await loginAsAdmin(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
 
-    // Check if we see admin onboarding
-    const hasOnboarding = await page.locator('[data-testid="admin-onboarding"]').count();
-    console.log('Has admin onboarding:', hasOnboarding);
+    // Retry navigation — RSC may need a refresh to pick up product state change
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.locator('[data-testid="admin-onboarding"]')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
 
-    // Take screenshot for debugging
-    await page.screenshot({ path: 'test-results/scenario1-debug.png' });
-
-    // Should see admin onboarding
     const onboarding = page.locator('[data-testid="admin-onboarding"]');
-    await expect(onboarding).toBeVisible({ timeout: 15000 });
 
-    // Should see "Add Your First Product" button (EN or PL) - should link to products with ?open=new
-    const addProductButton = page.locator('a[href="/dashboard/products?open=new"], a:has-text("Add Your First Product"), a:has-text("Dodaj pierwszy produkt")');
-    await expect(addProductButton.first()).toBeVisible({ timeout: 10000 });
+    // Should see "Add Your First Product" button linking to products with ?open=new
+    const addProductButton = onboarding.locator('a[href="/dashboard/products?open=new"]');
+    await expect(addProductButton.first()).toBeVisible({ timeout: 5000 });
 
     // Should see setup checklist items
-    const checklistItems = page.locator('text=/Shop configured|Sklep skonfigurowany|Add first product|Dodaj pierwszy produkt/i');
-    await expect(checklistItems.first()).toBeVisible({ timeout: 10000 });
+    const checklistItems = onboarding.locator('text=/Shop configured|Sklep skonfigurowany|Add first product|Dodaj pierwszy produkt/i');
+    await expect(checklistItems.first()).toBeVisible({ timeout: 5000 });
 
-    // Should see quick links to dashboard sections
-    const quickLinks = page.locator('a[href*="/dashboard"]');
+    // Should see quick links to dashboard sections (scoped to onboarding, not sidebar)
+    const quickLinks = onboarding.locator('a[href*="/dashboard"]');
     const count = await quickLinks.count();
     expect(count).toBeGreaterThan(0);
   });
@@ -185,13 +181,17 @@ test.describe('Smart Landing Page', () => {
       .neq('id', '00000000-0000-0000-0000-000000000000');
 
     await acceptAllCookies(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Retry navigation — RSC may cache product state
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.locator('[data-testid="coming-soon"]')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
 
     // Should see coming soon state
     const comingSoon = page.locator('[data-testid="coming-soon"]');
-    await expect(comingSoon).toBeVisible({ timeout: 10000 });
+    await expect(comingSoon).toBeVisible({ timeout: 5000 });
 
     // Should see large rocket emoji (the main animated one, not in marketing links)
     const rocket = comingSoon.locator('.text-8xl', { hasText: '🚀' });
@@ -322,31 +322,30 @@ test.describe('Smart Landing Page', () => {
       .update({ is_active: false })
       .neq('id', '00000000-0000-0000-0000-000000000000');
 
-    await page.waitForTimeout(1000);
-
     await loginAsAdmin(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
-    // Verify quick links exist in onboarding component (not sidebar)
-    const onboardingSection = page.locator('div.max-w-4xl, div:has-text("Setup Progress")');
+    // Retry navigation — RSC may cache product state
+    await expect(async () => {
+      await page.goto('/');
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.locator('[data-testid="admin-onboarding"]')).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
+
+    // Scope all locators to onboarding section (not sidebar which has same hrefs)
+    const onboarding = page.locator('[data-testid="admin-onboarding"]');
 
     // Check that Products quick link exists
-    const productsLink = onboardingSection.locator('a[href="/dashboard/products"]').first();
-    await expect(productsLink).toBeVisible({ timeout: 5000 });
+    await expect(onboarding.locator('a[href="/dashboard/products"]')).toBeVisible({ timeout: 5000 });
 
     // Check that Stripe/Settings quick link exists
-    const stripeLink = onboardingSection.locator('a[href="/dashboard/settings"]').first();
-    await expect(stripeLink).toBeVisible({ timeout: 5000 });
+    await expect(onboarding.locator('a[href="/dashboard/settings"]')).toBeVisible({ timeout: 5000 });
 
     // Check that Dashboard quick link exists
-    const dashboardLink = onboardingSection.locator('a[href="/dashboard"]').first();
-    await expect(dashboardLink).toBeVisible({ timeout: 5000 });
+    await expect(onboarding.locator('a[href="/dashboard"]')).toBeVisible({ timeout: 5000 });
 
     // Click main "Add Your First Product" CTA and verify navigation with modal
-    const mainCTA = page.locator('a[href="/dashboard/products?open=new"]').first();
-    await expect(mainCTA).toBeVisible({ timeout: 10000 });
+    const mainCTA = onboarding.locator('a[href="/dashboard/products?open=new"]').first();
+    await expect(mainCTA).toBeVisible({ timeout: 5000 });
 
     // Click CTA — retry because RSC refetch can swallow the click
     await expect(async () => {

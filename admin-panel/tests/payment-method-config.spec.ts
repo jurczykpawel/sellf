@@ -258,6 +258,10 @@ test.describe('Payment Method Configuration - Admin UI', () => {
       timeout: 10000,
     });
 
+    // Reload to clear toast and confirm automatic was saved
+    await reloadPaymentsSettings(page);
+    await expect(automaticRadio).toBeChecked();
+
     // Switch to custom mode
     const customRadio = page.locator('input[name="config_mode"]').nth(2);
     await customRadio.check();
@@ -303,6 +307,10 @@ test.describe('Payment Method Configuration - Admin UI', () => {
       timeout: 10000,
     });
 
+    // Reload to clear toast and confirm custom was saved
+    await reloadPaymentsSettings(page);
+    await expect(customRadio).toBeChecked();
+
     // Switch to automatic
     const automaticRadio = page.locator('input[type="radio"][value="automatic"]').first();
     await automaticRadio.check();
@@ -322,16 +330,21 @@ test.describe('Payment Method Configuration - Admin UI', () => {
   test('E2E-ADMIN-008: Reset configuration', async ({ page }) => {
     await gotoPaymentsSettings(page);
 
+    // Confirm current saved state (automatic from E2E-ADMIN-007)
+    const automaticRadio = page.locator('input[type="radio"][value="automatic"]').first();
+    await expect(automaticRadio).toBeChecked({ timeout: 5000 });
+
     // Make some changes without saving
     const customRadio = page.locator('input[name="config_mode"]').nth(2);
     await customRadio.check();
+    await expect(customRadio).toBeChecked();
 
-    // Click reset button
+    // Click reset button (reverts to last saved state)
     const resetButton = page.getByRole('button', { name: 'Resetuj', exact: true });
+    await expect(resetButton).toBeVisible({ timeout: 5000 });
     await resetButton.click();
 
-    // Check if automatic mode is selected again (default)
-    const automaticRadio = page.locator('input[type="radio"][value="automatic"]').first();
+    // Check if automatic mode is selected again (last saved state)
     await expect(automaticRadio).toBeChecked({ timeout: 5000 });
   });
 
