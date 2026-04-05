@@ -1426,5 +1426,33 @@ GRANT ALL ON public.rate_limits TO service_role;
 REVOKE ALL ON public.application_rate_limits FROM anon, authenticated;
 GRANT ALL ON public.application_rate_limits TO service_role;
 
+-- =====================================================
+-- PostgREST: expose seller_main schema via API
+-- =====================================================
+-- On local dev, config.toml handles this. On hosted Supabase, we need
+-- a pre_config function so PostgREST knows to serve seller_main.
+-- @see https://docs.postgrest.org/en/v14/references/configuration.html#in-database-configuration
+CREATE SCHEMA IF NOT EXISTS postgrest;
+GRANT USAGE ON SCHEMA postgrest TO authenticator;
+
+CREATE OR REPLACE FUNCTION postgrest.pre_config()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT set_config(
+    'pgrst.db_schemas',
+    'seller_main, public, storage, graphql_public',
+    true
+  );
+$$;
+
+REVOKE EXECUTE ON FUNCTION postgrest.pre_config() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION postgrest.pre_config() TO authenticator;
+ALTER ROLE authenticator SET pgrst.db_pre_config = 'postgrest.pre_config';
+NOTIFY pgrst, 'reload config';
+NOTIFY pgrst, 'reload schema';
+
 COMMIT;
 
