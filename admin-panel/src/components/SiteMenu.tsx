@@ -24,7 +24,7 @@ export default function SiteMenu({
   const locale = useLocale()
   const router = useRouter()
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, signOut, loading: authLoading } = useAuth()
   const t = useTranslations('navigation')
   const { theme, setTheme, isLocked } = useTheme()
   const [isPending, startTransition] = useTransition()
@@ -123,8 +123,8 @@ export default function SiteMenu({
 
       <div className="border-t border-sf-border mx-2" />
 
-      {/* User section */}
-      <div className="p-2">
+      {/* User section — hidden while auth is loading to prevent false "Login" */}
+      {!authLoading && <div className="p-2">
         {user ? (
           <>
             <div className="px-3 py-1.5 text-xs text-sf-muted truncate">{user.email}</div>
@@ -161,7 +161,7 @@ export default function SiteMenu({
             {t('login')}
           </button>
         )}
-      </div>
+      </div>}
 
       {/* Theme section */}
       {!isLocked && (

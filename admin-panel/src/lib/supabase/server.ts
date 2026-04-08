@@ -31,7 +31,9 @@ export async function createClient() {
               const needsCrossDomain = isProduction
               cookieStore.set(name, value, {
                 ...(options as object),
-                httpOnly: true,
+                // httpOnly must be false — @supabase/ssr browser client reads tokens
+                // via document.cookie. Setting httpOnly breaks client-side auth entirely.
+                httpOnly: false,
                 sameSite: needsCrossDomain ? 'none' : ((options?.sameSite as 'lax' | 'strict' | 'none' | undefined) ?? 'lax'),
                 secure: isProduction ? true : ((options?.secure as boolean | undefined) ?? false),
               })

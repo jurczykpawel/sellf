@@ -616,7 +616,7 @@ async function checkCookieSecure(siteUrl: string): Promise<SecurityCheckResult> 
         'The NEXT_LOCALE cookie (from next-intl) is typically the cause — it lacks the Secure flag by default.',
         'If your site enforces HTTPS everywhere (recommended), this is low-risk in practice.',
         'To fix: in your Next.js middleware, manually override the NEXT_LOCALE cookie with the Secure flag after next-intl sets it.',
-        'Auth cookies from Supabase use HttpOnly + Secure in production by default — verify in browser DevTools → Application → Cookies.',
+        'Auth cookies from Supabase use Secure in production. They are NOT HttpOnly — the @supabase/ssr browser client needs document.cookie access.',
       ],
     };
   } catch {

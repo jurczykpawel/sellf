@@ -142,8 +142,9 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
   const pathname = usePathname()
   const router = useRouter()
 
-  // Single source of truth: AuthContext. SSR props are fallback for initial render only.
-  const user = authUser ?? userProp
+  // Single source of truth: AuthContext. SSR props are fallback only while auth is loading.
+  // After loading, authUser is the truth — even if null (means session expired).
+  const user = authLoading ? userProp : authUser
   const isAdmin = authRole !== 'user' || (isAdminProp !== undefined ? isAdminProp : false)
 
   // Auto-redirect to login when session expires on protected routes.
