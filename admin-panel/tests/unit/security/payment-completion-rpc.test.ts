@@ -2327,6 +2327,150 @@ describe('Existing user guest checkout (auto-grant access)', () => {
       .in('product_id', [mainProduct.id, bumpProducts[0].id]);
     expect(accesses!.length).toBe(2);
   });
+
+  it('PWYW: grants access immediately to existing user (no bumps)', async () => {
+    // PWYW product min = $5 → 500 cents minimum
+    const sid = `cs_test_existing_pwyw_${TS}`;
+    createdSessionIds.push(sid);
+    const email = `existing-pwyw-${TS}@example.com`;
+
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    // Customer chose to pay $15 (above minimum $5)
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: pwywProduct.id,
+      customer_email_param: email,
+      amount_total: 1500,
+      currency_param: 'USD',
+    });
+
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    expect(data?.access_granted).toBe(true);
+    expect(data?.is_guest_purchase).toBe(false);
+    expect(data?.send_magic_link).toBe(true);
+    expect(data?.requires_login).toBe(true);
+
+    // Access record exists for the existing user
+    const { data: access } = await supabaseAdmin
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', userData.user.id)
+      .eq('product_id', pwywProduct.id)
+      .single();
+    expect(access).toBeTruthy();
+
+    // Transaction recorded with the existing user_id, amount as paid
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('user_id, amount')
+      .eq('session_id', sid)
+      .single();
+    expect(tx?.user_id).toBe(userData.user.id);
+    expect(tx?.amount).toBe(1500);
+
+    // No guest_purchases row (matched user is owner, not guest)
+    const { data: gp } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(gp).toBeNull();
+  });
+
+  it('PWYW: grants access for both main and bump products to existing user', async () => {
+    // PWYW min $5 + bump $8 = $13 minimum → 1300 cents
+    const sid = `cs_test_existing_pwyw_bumps_${TS}`;
+    createdSessionIds.push(sid);
+    const email = `existing-pwyw-bumps-${TS}@example.com`;
+
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    // Customer paid $20 + bump $8 = $28 (above minimum)
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: pwywProduct.id,
+      customer_email_param: email,
+      amount_total: 2800,
+      currency_param: 'USD',
+      bump_product_ids_param: [pwywBumpProduct.id],
+    });
+
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    expect(data?.access_granted).toBe(true);
+
+    // Both main and bump granted
+    const { data: accesses } = await supabaseAdmin
+      .from('user_product_access')
+      .select('product_id')
+      .eq('user_id', userData.user.id)
+      .in('product_id', [pwywProduct.id, pwywBumpProduct.id]);
+    expect(accesses!.length).toBe(2);
+  });
+});
+
+// ============================================================================
+// 13b. Pure guest checkout (email NOT registered) — PWYW coverage
+// ============================================================================
+//
+// Explicit coverage that PWYW with a brand-new email follows the standard
+// guest_purchase flow: no access granted yet, magic link sent, guest_purchase
+// row created and ready for handle_new_user_registration trigger to claim.
+// ============================================================================
+
+describe('Pure guest checkout (PWYW)', () => {
+  it('PWYW: creates guest_purchase row and waits for registration', async () => {
+    const sid = `cs_test_guest_pwyw_${TS}`;
+    createdSessionIds.push(sid);
+    const email = `guest-pwyw-${TS}@example.com`;
+
+    // PWYW min $5 → pay $10
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: pwywProduct.id,
+      customer_email_param: email,
+      amount_total: 1000,
+      currency_param: 'USD',
+    });
+
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    expect(data?.access_granted).toBe(false);
+    expect(data?.is_guest_purchase).toBe(true);
+    expect(data?.send_magic_link).toBe(true);
+    expect(data?.scenario).toBe('guest_purchase_new_user_with_bump');
+
+    // Transaction with no user_id (true guest)
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('user_id, amount')
+      .eq('session_id', sid)
+      .single();
+    expect(tx?.user_id).toBeNull();
+    expect(tx?.amount).toBe(1000);
+
+    // guest_purchase row exists, unclaimed
+    const { data: gp } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('claimed_by_user_id')
+      .eq('session_id', sid)
+      .single();
+    expect(gp?.claimed_by_user_id).toBeNull();
+  });
 });
 
 // ============================================================================
