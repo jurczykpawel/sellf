@@ -2215,3 +2215,256 @@ describe('Anon role access', () => {
     expect(data.success).toBe(true);
   });
 });
+
+// ============================================================================
+// 13. Existing user guest checkout — auto-grant access (BUG #1 fix)
+// ============================================================================
+//
+// When a registered user does a guest checkout (without logging in first),
+// the RPC must grant access immediately to that user (matched by email).
+// Magic link is still sent so they can log in to view the product.
+//
+// Regression: previously the RPC only created a guest_purchases row and waited
+// for the user to "register" to claim it via handle_new_user_registration trigger.
+// But for already-registered users, that trigger never fires on subsequent logins,
+// so the product was never granted.
+//
+// @see vault/brands/_shared/reference/sellf-production-readiness-tests.md (P0 #1)
+// ============================================================================
+
+describe('Existing user guest checkout (auto-grant access)', () => {
+  it('grants access immediately when guest checkout email matches existing user', async () => {
+    const sid = `cs_test_existing_user_${TS}`;
+    createdSessionIds.push(sid);
+    const email = `existing-guest-${TS}@example.com`;
+
+    // 1. Create user FIRST (simulates pre-existing customer)
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    // 2. Guest checkout (no user_id_param — user is not logged in browser)
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: 5000,
+      currency_param: 'USD',
+    });
+
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    // KEY: access granted to existing user even though current_user_id was NULL
+    expect(data?.access_granted).toBe(true);
+    // User still needs to log in to view product → magic link
+    expect(data?.send_magic_link).toBe(true);
+    expect(data?.requires_login).toBe(true);
+    // is_guest_purchase=false because email matched an existing account
+    expect(data?.is_guest_purchase).toBe(false);
+
+    // Verify access record was created for the existing user
+    const { data: access } = await supabaseAdmin
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', userData.user.id)
+      .eq('product_id', mainProduct.id)
+      .single();
+    expect(access).toBeTruthy();
+
+    // Verify transaction is recorded with the existing user_id (not NULL)
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('user_id')
+      .eq('session_id', sid)
+      .single();
+    expect(tx?.user_id).toBe(userData.user.id);
+
+    // No guest_purchases row should exist (it's not a guest — user matched)
+    const { data: gp } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('id')
+      .eq('session_id', sid)
+      .maybeSingle();
+    expect(gp).toBeNull();
+  });
+
+  it('also grants access for bump products to existing user', async () => {
+    const sid = `cs_test_existing_user_bumps_${TS}`;
+    createdSessionIds.push(sid);
+    const email = `existing-guest-bumps-${TS}@example.com`;
+
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    // Main $50 + bump $10 = $60 → 6000 cents
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: 6000,
+      currency_param: 'USD',
+      bump_product_ids_param: [bumpProducts[0].id],
+    });
+
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    expect(data?.access_granted).toBe(true);
+
+    // Both main and bump products granted
+    const { data: accesses } = await supabaseAdmin
+      .from('user_product_access')
+      .select('product_id')
+      .eq('user_id', userData.user.id)
+      .in('product_id', [mainProduct.id, bumpProducts[0].id]);
+    expect(accesses!.length).toBe(2);
+  });
+});
+
+// ============================================================================
+// 14. Retroactive claim for logged-in user (BUG #2 fix)
+// ============================================================================
+//
+// Scenario: user does guest checkout BEFORE registration, then registers and
+// later revisits payment-status while logged in. The RPC's idempotency path
+// previously returned is_guest_purchase=true regardless of current login state.
+//
+// Now: when current_user_id IS NOT NULL and email matches that user, the RPC
+// claims the unclaimed guest_purchase, grants access, and returns access_granted=true.
+// ============================================================================
+
+describe('Retroactive claim for logged-in user', () => {
+  it('claims guest_purchase when logged-in user revisits with matching email', async () => {
+    const sid = `cs_test_retroactive_${TS}`;
+    createdSessionIds.push(sid);
+    const email = `retroactive-${TS}@example.com`;
+
+    // Step 1: Guest checkout BEFORE user exists
+    const { data: first, error: firstErr } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: 5000,
+      currency_param: 'USD',
+    });
+    expect(firstErr).toBeNull();
+    expect(first?.is_guest_purchase).toBe(true);
+    expect(first?.access_granted).toBe(false);
+
+    // Step 2: User registers AFTER the guest purchase exists
+    // We disable the auto-claim trigger effect by NOT testing it here — we test
+    // the RPC's own retroactive-claim path which fires when user revisits payment-status.
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    // The trigger handle_new_user_registration may have already claimed it.
+    // To test the RPC's retroactive path independently, undo the claim if present.
+    await supabaseAdmin
+      .from('guest_purchases')
+      .update({ claimed_by_user_id: null, claimed_at: null })
+      .eq('session_id', sid);
+    await supabaseAdmin
+      .from('user_product_access')
+      .delete()
+      .eq('user_id', userData.user.id)
+      .eq('product_id', mainProduct.id);
+
+    // Step 3: User (now logged in) revisits payment-status → RPC called with user_id_param
+    const { data: second, error: secondErr } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: 5000,
+      currency_param: 'USD',
+      user_id_param: userData.user.id,
+    });
+
+    expect(secondErr).toBeNull();
+    expect(second?.success).toBe(true);
+    expect(second?.access_granted).toBe(true);
+    expect(second?.is_guest_purchase).toBe(false);
+
+    // Access exists for the now-logged-in user
+    const { data: access } = await supabaseAdmin
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', userData.user.id)
+      .eq('product_id', mainProduct.id)
+      .maybeSingle();
+    expect(access).toBeTruthy();
+
+    // guest_purchase row marked as claimed
+    const { data: gp } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('claimed_by_user_id, claimed_at')
+      .eq('session_id', sid)
+      .single();
+    expect(gp?.claimed_by_user_id).toBe(userData.user.id);
+    expect(gp?.claimed_at).toBeTruthy();
+  });
+
+  it('SECURITY: does NOT claim guest_purchase if email does not match logged-in user', async () => {
+    const sid = `cs_test_retro_security_${TS}`;
+    createdSessionIds.push(sid);
+    const guestEmail = `victim-${TS}@example.com`;
+    const attackerEmail = `attacker-${TS}@example.com`;
+
+    // Victim's guest purchase
+    await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: guestEmail,
+      amount_total: 5000,
+      currency_param: 'USD',
+    });
+
+    // Attacker's account
+    const { data: attackerData, error: attackerErr } = await supabaseAdmin.auth.admin.createUser({
+      email: attackerEmail,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (attackerErr) throw attackerErr;
+    createdUserIds.push(attackerData.user.id);
+
+    // Attacker tries to claim victim's purchase by passing victim's email but their own user_id
+    await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: guestEmail, // victim's email
+      amount_total: 5000,
+      currency_param: 'USD',
+      user_id_param: attackerData.user.id, // attacker's user_id
+    });
+
+    // Attacker MUST NOT receive access
+    const { data: attackerAccess } = await supabaseAdmin
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', attackerData.user.id)
+      .eq('product_id', mainProduct.id)
+      .maybeSingle();
+    expect(attackerAccess).toBeNull();
+
+    // guest_purchase remains unclaimed
+    const { data: gp } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('claimed_by_user_id')
+      .eq('session_id', sid)
+      .single();
+    expect(gp?.claimed_by_user_id).toBeNull();
+  });
+});

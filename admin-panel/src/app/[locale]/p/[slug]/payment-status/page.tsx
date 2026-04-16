@@ -73,8 +73,10 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
           accessGranted = true;
           paymentStatus = 'completed';
 
-          if (result.scenario === 'existing_user_email' && result.requires_login && result.send_magic_link) {
-            // User exists but needs to login - let frontend handle magic link
+          // Access was granted in DB, but the buyer is not logged in (e.g., a
+          // pre-existing user did guest checkout). Show magic link UI so they
+          // can sign in and view the product.
+          if (result.requires_login && result.send_magic_link) {
             paymentStatus = 'magic_link_sent';
           }
         } else if (result.scenario === 'email_validation_failed_server_side') {
@@ -112,8 +114,10 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
           accessGranted = true;
           paymentStatus = 'completed';
 
-          if (result.scenario === 'existing_user_email' && result.requires_login && result.send_magic_link) {
-            // User exists but needs to login - let frontend handle magic link
+          // Access was granted in DB, but the buyer is not logged in (e.g., a
+          // pre-existing user did guest checkout). Show magic link UI so they
+          // can sign in and view the product.
+          if (result.requires_login && result.send_magic_link) {
             paymentStatus = 'magic_link_sent';
           }
         } else if (result.scenario === 'email_validation_failed_server_side') {

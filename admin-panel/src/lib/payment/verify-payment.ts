@@ -201,7 +201,16 @@ async function getProcessedPaymentFromDatabase(
     : { data: null };
 
   const hasAccess = !!accessRecord;
-  const isGuestPurchase = !transaction.user_id;
+  // Distinguish a true guest purchase from one that was claimed by the current
+  // (logged-in) user. If the caller is authenticated, owns the transaction email,
+  // and has access, treat the purchase as owned (not guest) so the frontend does
+  // not re-display the magic link UI.
+  const isClaimedByCurrentUser = !!user
+    && hasAccess
+    && !!transaction.customer_email
+    && !!user.email
+    && transaction.customer_email.toLowerCase() === user.email.toLowerCase();
+  const isGuestPurchase = !transaction.user_id && !isClaimedByCurrentUser;
 
   // Generate OTO info if applicable
   let otoInfo: OtoInfo = { has_oto: false };
@@ -238,7 +247,8 @@ async function getProcessedPaymentFromDatabase(
     is_guest_purchase: isGuestPurchase,
     scenario: isGuestPurchase ? 'guest_purchase_cached' : 'logged_in_purchase_cached',
     access_expires_at: accessRecord?.access_expires_at || null,
-    send_magic_link: isGuestPurchase,
+    // Only send magic link if user actually needs to log in
+    send_magic_link: isGuestPurchase && !user,
     oto_info: otoInfo
   };
 }
