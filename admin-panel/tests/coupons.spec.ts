@@ -182,22 +182,28 @@ test.describe('Smart Coupons System', () => {
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${productSlug}?coupon=${couponCode}&show_promo=true`);
 
+    const orderSummary = page.locator('div').filter({
+      has: page.getByText(/^Razem$/),
+    }).filter({
+      has: page.getByText(new RegExp(`Rabat \\(${couponCode}\\)`)),
+    }).first();
+
     await expect(page.getByText(/zniżkę|discount applied/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(new RegExp(`Rabat \\(${couponCode}\\)`))).toBeVisible();
-    await expect(page.getByText('-$20.00 USD')).toBeVisible();
-    await expect(page.getByText('$80.00 USD')).toBeVisible();
+    await expect(orderSummary.getByText('-$20.00 USD', { exact: true })).toBeVisible();
+    await expect(orderSummary.locator('div.text-2xl.font-bold')).toHaveText('$80.00 USD');
 
     const addButton = page.getByRole('button', { name: /Dodaj|Add to order/i });
     await addButton.click();
 
-    await expect(page.getByText('-$24.00 USD')).toBeVisible();
-    await expect(page.getByText('$96.00 USD')).toBeVisible();
+    await expect(orderSummary.getByText('-$24.00 USD', { exact: true })).toBeVisible();
+    await expect(orderSummary.locator('div.text-2xl.font-bold')).toHaveText('$96.00 USD');
 
     const removeButton = page.getByRole('button', { name: /Dodano|Added/i });
     await removeButton.click();
 
-    await expect(page.getByText('-$20.00 USD')).toBeVisible();
-    await expect(page.getByText('$80.00 USD')).toBeVisible();
+    await expect(orderSummary.getByText('-$20.00 USD', { exact: true })).toBeVisible();
+    await expect(orderSummary.locator('div.text-2xl.font-bold')).toHaveText('$80.00 USD');
   });
 
 });
