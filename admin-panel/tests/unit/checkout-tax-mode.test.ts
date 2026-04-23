@@ -128,6 +128,14 @@ describe('CheckoutService.createStripeSession — tax mode', () => {
     ...overrides,
   })
 
+  const buildBumpProduct = (id: string, price: number): ProductForCheckout => ({
+    ...baseProduct,
+    id,
+    name: `Bump ${id}`,
+    price,
+    vat_rate: null,
+  })
+
   describe('local tax mode', () => {
     it('should attach tax_rates to line item when product has vat_rate', async () => {
       mockedGetCheckoutConfig.mockResolvedValue({
@@ -330,6 +338,147 @@ describe('CheckoutService.createStripeSession — tax mode', () => {
       expect(sessionArg.line_items[0].tax_rates).toBeUndefined()
       expect(sessionArg.line_items[1].tax_rates).toBeUndefined()
       expect(sessionArg.line_items[1].price_data.tax_behavior).toBe('exclusive')
+    })
+  })
+
+  describe('coupon pricing in embedded checkout', () => {
+    beforeEach(() => {
+      mockedGetCheckoutConfig.mockResolvedValue({
+        ...baseCheckoutConfig,
+        tax_mode: 'local',
+        automatic_tax: { enabled: false },
+      })
+    })
+
+    it('should apply global percentage coupon to main product and all bumps when exclude_order_bumps is false', async () => {
+      await service.createStripeSession(buildOptions({
+        bumpProducts: [
+          buildBumpProduct('bump_1', 20),
+          buildBumpProduct('bump_2', 30),
+        ],
+        coupon: {
+          id: 'coupon_1',
+          code: 'SAVE20',
+          discount_type: 'percentage',
+          discount_value: 20,
+          exclude_order_bumps: false,
+          allowed_product_ids: [],
+        },
+      }))
+
+      const sessionArg = mockStripeCreate.mock.calls[0][0]
+      expect(sessionArg.line_items[0].price_data.unit_amount).toBe(8000)
+      expect(sessionArg.line_items[1].price_data.unit_amount).toBe(1600)
+      expect(sessionArg.line_items[2].price_data.unit_amount).toBe(2400)
+    })
+
+    it('should apply global percentage coupon only to main product when exclude_order_bumps is true', async () => {
+      await service.createStripeSession(buildOptions({
+        bumpProducts: [
+          buildBumpProduct('bump_1', 20),
+          buildBumpProduct('bump_2', 30),
+        ],
+        coupon: {
+          id: 'coupon_2',
+          code: 'SAVE20MAIN',
+          discount_type: 'percentage',
+          discount_value: 20,
+          exclude_order_bumps: true,
+          allowed_product_ids: [],
+        },
+      }))
+
+      const sessionArg = mockStripeCreate.mock.calls[0][0]
+      expect(sessionArg.line_items[0].price_data.unit_amount).toBe(8000)
+      expect(sessionArg.line_items[1].price_data.unit_amount).toBe(2000)
+      expect(sessionArg.line_items[2].price_data.unit_amount).toBe(3000)
+    })
+
+    it('should distribute global fixed coupon across eligible main and bump items when exclude_order_bumps is false', async () => {
+      await service.createStripeSession(buildOptions({
+        bumpProducts: [
+          buildBumpProduct('bump_1', 20),
+          buildBumpProduct('bump_2', 30),
+        ],
+        coupon: {
+          id: 'coupon_3',
+          code: 'FLAT40',
+          discount_type: 'fixed',
+          discount_value: 40,
+          exclude_order_bumps: false,
+          allowed_product_ids: [],
+        },
+      }))
+
+      const sessionArg = mockStripeCreate.mock.calls[0][0]
+      expect(sessionArg.line_items[0].price_data.unit_amount).toBe(7333)
+      expect(sessionArg.line_items[1].price_data.unit_amount).toBe(1467)
+      expect(sessionArg.line_items[2].price_data.unit_amount).toBe(2200)
+    })
+
+    it('should not discount bumps for product-scoped coupon unless bump ids are explicitly allowed', async () => {
+      await service.createStripeSession(buildOptions({
+        bumpProducts: [
+          buildBumpProduct('bump_1', 20),
+          buildBumpProduct('bump_2', 30),
+        ],
+        coupon: {
+          id: 'coupon_4',
+          code: 'COURSE10',
+          discount_type: 'percentage',
+          discount_value: 10,
+          exclude_order_bumps: false,
+          allowed_product_ids: ['prod_1'],
+        },
+      }))
+
+      const sessionArg = mockStripeCreate.mock.calls[0][0]
+      expect(sessionArg.line_items[0].price_data.unit_amount).toBe(9000)
+      expect(sessionArg.line_items[1].price_data.unit_amount).toBe(2000)
+      expect(sessionArg.line_items[2].price_data.unit_amount).toBe(3000)
+    })
+
+    it('should never discount bumps for a product-scoped coupon even if bump ids are listed', async () => {
+      await service.createStripeSession(buildOptions({
+        bumpProducts: [
+          buildBumpProduct('bump_1', 20),
+          buildBumpProduct('bump_2', 30),
+        ],
+        coupon: {
+          id: 'coupon_5',
+          code: 'COURSE10PLUS',
+          discount_type: 'percentage',
+          discount_value: 10,
+          exclude_order_bumps: false,
+          allowed_product_ids: ['prod_1', 'bump_1'],
+        },
+      }))
+
+      const sessionArg = mockStripeCreate.mock.calls[0][0]
+      expect(sessionArg.line_items[0].price_data.unit_amount).toBe(9000)
+      expect(sessionArg.line_items[1].price_data.unit_amount).toBe(2000)
+      expect(sessionArg.line_items[2].price_data.unit_amount).toBe(3000)
+    })
+
+    it('should enforce Stripe minimum charge after fixed coupon across multiple items', async () => {
+      const product = { ...baseProduct, price: 0.4, currency: 'USD' }
+
+      await service.createStripeSession(buildOptions({
+        product,
+        bumpProducts: [buildBumpProduct('bump_1', 0.4)],
+        coupon: {
+          id: 'coupon_6',
+          code: 'FLAT40CENTS',
+          discount_type: 'fixed',
+          discount_value: 0.4,
+          exclude_order_bumps: false,
+          allowed_product_ids: [],
+        },
+      }))
+
+      const sessionArg = mockStripeCreate.mock.calls[0][0]
+      expect(sessionArg.line_items[0].price_data.unit_amount).toBe(30)
+      expect(sessionArg.line_items[1].price_data.unit_amount).toBe(20)
     })
   })
 })

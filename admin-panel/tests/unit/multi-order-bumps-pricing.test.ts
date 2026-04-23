@@ -150,6 +150,7 @@ describe('calculatePricing — multi order bumps', () => {
 
     it('should apply percentage coupon only to base price when exclude_order_bumps is true', () => {
       const result = calculatePricing({
+        baseProductId: 'main-product',
         productPrice: 100,
         productCurrency: baseCurrency,
         bumps: [
@@ -166,6 +167,50 @@ describe('calculatePricing — multi order bumps', () => {
 
       // subtotal = 100 + 20 + 30 = 150
       // discount = 100 * 10% = 10 (only base price)
+      expect(result.subtotal).toBe(150);
+      expect(result.discountAmount).toBe(10);
+      expect(result.totalGross).toBe(140);
+    });
+
+    it('should not discount bumps for product-scoped coupon unless bump product is explicitly allowed', () => {
+      const result = calculatePricing({
+        baseProductId: 'main-product',
+        productPrice: 100,
+        productCurrency: baseCurrency,
+        bumps: [
+          { id: 'bump-a', price: 20, selected: true },
+          { id: 'bump-b', price: 30, selected: true },
+        ],
+        coupon: {
+          discount_type: 'percentage',
+          discount_value: 10,
+          code: 'COURSE10',
+          allowed_product_ids: ['main-product'],
+        },
+      });
+
+      expect(result.subtotal).toBe(150);
+      expect(result.discountAmount).toBe(10);
+      expect(result.totalGross).toBe(140);
+    });
+
+    it('should never discount bumps for a product-scoped coupon even if bump ids are listed', () => {
+      const result = calculatePricing({
+        baseProductId: 'main-product',
+        productPrice: 100,
+        productCurrency: baseCurrency,
+        bumps: [
+          { id: 'bump-a', price: 20, selected: true },
+          { id: 'bump-b', price: 30, selected: true },
+        ],
+        coupon: {
+          discount_type: 'percentage',
+          discount_value: 10,
+          code: 'COURSE10PLUS',
+          allowed_product_ids: ['main-product', 'bump-a'],
+        },
+      });
+
       expect(result.subtotal).toBe(150);
       expect(result.discountAmount).toBe(10);
       expect(result.totalGross).toBe(140);
@@ -227,6 +272,24 @@ describe('calculatePricing — multi order bumps', () => {
       });
 
       // subtotal = 10, discount = 9.90, total = 0.10 → clamped to STRIPE_MINIMUM_AMOUNT
+      expect(result.totalGross).toBe(STRIPE_MINIMUM_AMOUNT);
+      expect(result.isFreeWithCoupon).toBe(false);
+    });
+
+    it('should enforce Stripe minimum amount after fixed coupon on multi-bump', () => {
+      const result = calculatePricing({
+        productPrice: 0.4,
+        productCurrency: baseCurrency,
+        bumps: [{ price: 0.4, selected: true }],
+        coupon: {
+          discount_type: 'fixed',
+          discount_value: 0.4,
+          code: 'FLAT40CENTS',
+        },
+      });
+
+      expect(result.subtotal).toBe(0.8);
+      expect(result.discountAmount).toBe(0.3);
       expect(result.totalGross).toBe(STRIPE_MINIMUM_AMOUNT);
       expect(result.isFreeWithCoupon).toBe(false);
     });

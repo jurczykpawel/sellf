@@ -1,76 +1,69 @@
 /**
- * Unit Tests: grantFreeProductAccess service
+ * Unit Tests: grantFreeProductAccess — TS-layer orchestration only
  *
- * Covers:
- * 1. New user — access granted + OTO generated
- * 2. User already has valid access — no re-grant, OTO still generated (idempotent)
- * 3. User had expired access — re-grant + OTO generated
- * 4. RPC grant fails → error returned, no OTO attempt
- * 5. RPC returns false (not free/not active) → error returned
- * 6. OTO generation fails → access still granted, otoInfo is null (graceful degradation)
- * 7. OTO not configured → accessGranted true, otoInfo null
- * 8. PWYW-free product (price > 0, custom_price_min = 0) → uses grant_pwyw_free_access RPC
- * 9. Regular free product (price = 0) → uses grant_free_product_access RPC
+ * SCOPE: this file tests the TypeScript glue inside grantFreeProductAccess —
+ * the existing-access check, the alreadyHadAccess flag, OTO graceful
+ * degradation. It does NOT test the RPC contract itself (that lives in the
+ * integration suite `tests/unit/integration/free-product-access-service.test.ts`
+ * which runs against real Supabase).
+ *
+ * WHY both suites:
+ *   - Mock-based (here): fast, deterministic, covers error paths that are hard
+ *     to trigger against a real DB (e.g. "OTO RPC throws").
+ *   - Integration: catches any drift between the service and the real DB
+ *     contract — the thing mocks CAN'T catch, and the reason an earlier
+ *     mock-only version of this file missed a production bug.
+ *
+ * RULE: mocks here must assert only on TS behaviour (branching, flag setting,
+ * try/catch coverage). Anything that claims "the RPC does X" belongs in the
+ * integration suite, not here.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 
 // ---------------------------------------------------------------------------
-// Mock Supabase client builders
+// Mock builders
 // ---------------------------------------------------------------------------
 
-function makeQueryBuilder(result: { data: unknown; error: unknown }) {
-  const builder: Record<string, unknown> = {};
-  builder.select = vi.fn().mockReturnValue(builder);
-  builder.eq = vi.fn().mockReturnValue(builder);
-  builder.single = vi.fn().mockResolvedValue(result);
-  return builder;
-}
-
-/**
- * Creates a mock for the userClient (used for grant RPC via auth.uid())
- */
-function makeUserClient({
-  grantResult = true as unknown,
-  grantError = null as unknown,
-} = {}) {
+function makeUserClient({ grantResult = true as unknown, grantError = null as unknown } = {}) {
   return {
     rpc: vi.fn().mockResolvedValue({ data: grantResult, error: grantError }),
   };
 }
 
-/**
- * Creates a mock for the adminClient (service role):
- * - .from('user_product_access') for access check
- * - .rpc('generate_oto_coupon') for OTO generation
- */
 function makeAdminClient({
   existingAccess = null as { access_expires_at: string | null } | null,
-  existingAccessError = null as unknown,
   otoResult = null as Record<string, unknown> | null,
   otoError = null as unknown,
+  otoThrows = false,
 } = {}) {
-  const builder = makeQueryBuilder({ data: existingAccess, error: existingAccessError });
+  const selectChain: Record<string, unknown> = {};
+  selectChain.select = vi.fn().mockReturnValue(selectChain);
+  selectChain.eq = vi.fn().mockReturnValue(selectChain);
+  selectChain.single = vi.fn().mockResolvedValue({ data: existingAccess, error: null });
+
+  const rpc = otoThrows
+    ? vi.fn().mockRejectedValue(new Error('OTO RPC network error'))
+    : vi.fn().mockResolvedValue({ data: otoResult, error: otoError });
+
   return {
-    from: vi.fn().mockReturnValue(builder),
-    rpc: vi.fn().mockResolvedValue({ data: otoResult, error: otoError }),
-    _builder: builder,
+    from: vi.fn().mockReturnValue(selectChain),
+    rpc,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Test fixtures
+// Fixtures
 // ---------------------------------------------------------------------------
 
-const FREE_PRODUCT = { id: 'prod-1', slug: 'my-free-product', price: 0, isPwywFree: false };
-const PWYW_PRODUCT = { id: 'prod-2', slug: 'my-pwyw-product', price: 500, isPwywFree: true };
-const TEST_USER = { id: 'user-1', email: 'test@example.com' };
+const PRODUCT = { id: 'prod-1', slug: 'my-product' };
+const USER = { id: 'user-1', email: 'user@example.com' };
 const OTO_RESULT = {
   has_oto: true,
-  oto_product_slug: 'upsell-product',
+  oto_product_slug: 'upsell',
   oto_product_name: 'Upsell',
-  coupon_code: 'OTO-ABC123',
+  coupon_code: 'OTO-ABC',
   discount_type: 'percentage',
   discount_value: 30,
   expires_at: new Date(Date.now() + 3600_000).toISOString(),
@@ -80,161 +73,130 @@ const OTO_RESULT = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('grantFreeProductAccess()', () => {
-  describe('new user (no existing access)', () => {
-    it('grants access and returns otoInfo when OTO is configured', async () => {
-      const userClient = makeUserClient({ grantResult: true });
-      const adminClient = makeAdminClient({ existingAccess: null, otoResult: OTO_RESULT });
-
-      const result = await grantFreeProductAccess(
-        userClient as any,
-        adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
-      );
-
-      expect(result.accessGranted).toBe(true);
-      expect(result.alreadyHadAccess).toBe(false);
-      expect(result.otoInfo).toEqual(OTO_RESULT);
-      expect(result.error).toBeUndefined();
-
-      // Verify grant RPC was called on userClient
-      expect(userClient.rpc).toHaveBeenCalledWith('grant_free_product_access', {
-        product_slug_param: FREE_PRODUCT.slug,
-      });
-
-      // Verify OTO RPC was called on adminClient
-      expect(adminClient.rpc).toHaveBeenCalledWith('generate_oto_coupon', {
-        source_product_id_param: FREE_PRODUCT.id,
-        customer_email_param: TEST_USER.email,
-      });
-    });
-
-    it('grants access with otoInfo null when no OTO is configured', async () => {
-      const userClient = makeUserClient({ grantResult: true });
-      const adminClient = makeAdminClient({ existingAccess: null, otoResult: { has_oto: false } });
-
-      const result = await grantFreeProductAccess(
-        userClient as any,
-        adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
-      );
-
-      expect(result.accessGranted).toBe(true);
-      expect(result.otoInfo).toBeNull();
-    });
-  });
-
-  describe('user already has valid access', () => {
-    it('skips re-grant but still generates OTO (idempotent)', async () => {
-      const userClient = makeUserClient({ grantResult: true });
+describe('grantFreeProductAccess — TS orchestration', () => {
+  describe('existing-access detection', () => {
+    it('marks alreadyHadAccess=true when a non-expired UPA row exists and skips the RPC', async () => {
+      const userClient = makeUserClient();
       const adminClient = makeAdminClient({
-        existingAccess: { access_expires_at: null }, // permanent access
+        existingAccess: { access_expires_at: null }, // permanent
         otoResult: OTO_RESULT,
       });
 
       const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
       expect(result.accessGranted).toBe(true);
       expect(result.alreadyHadAccess).toBe(true);
-      expect(result.otoInfo).toEqual(OTO_RESULT);
-
-      // Grant RPC must NOT be called
+      // The grant RPC must NOT be called — access is already granted.
       expect(userClient.rpc).not.toHaveBeenCalled();
-
-      // OTO RPC must still be called
+      // But OTO is still generated (idempotent upsell hook).
       expect(adminClient.rpc).toHaveBeenCalledWith('generate_oto_coupon', expect.any(Object));
     });
 
-    it('skips re-grant for non-expired timed access', async () => {
-      const futureDate = new Date(Date.now() + 86_400_000).toISOString();
-      const userClient = makeUserClient();
-      const adminClient = makeAdminClient({
-        existingAccess: { access_expires_at: futureDate },
-        otoResult: OTO_RESULT,
-      });
-
-      const result = await grantFreeProductAccess(
-        userClient as any,
-        adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
-      );
-
-      expect(result.alreadyHadAccess).toBe(true);
-      expect(userClient.rpc).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('user has expired access', () => {
-    it('re-grants access and generates OTO', async () => {
+    it('treats expired access as missing and calls the grant RPC', async () => {
       const pastDate = new Date(Date.now() - 86_400_000).toISOString();
       const userClient = makeUserClient({ grantResult: true });
       const adminClient = makeAdminClient({
         existingAccess: { access_expires_at: pastDate },
-        otoResult: OTO_RESULT,
       });
 
       const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
       expect(result.accessGranted).toBe(true);
       expect(result.alreadyHadAccess).toBe(false);
-      expect(userClient.rpc).toHaveBeenCalledWith('grant_free_product_access', expect.any(Object));
+      expect(userClient.rpc).toHaveBeenCalledWith(
+        'grant_free_product_access',
+        expect.objectContaining({ product_slug_param: PRODUCT.slug }),
+      );
     });
   });
 
-  describe('grant RPC failure', () => {
-    it('returns error when RPC returns a DB error', async () => {
-      const userClient = makeUserClient({ grantResult: null, grantError: { message: 'DB error' } });
-      const adminClient = makeAdminClient({ existingAccess: null, otoResult: OTO_RESULT });
+  describe('RPC call shape', () => {
+    it('passes couponCode through to the unified RPC when supplied', async () => {
+      const userClient = makeUserClient({ grantResult: true });
+      const adminClient = makeAdminClient({ existingAccess: null });
+
+      await grantFreeProductAccess(
+        userClient as any,
+        adminClient as any,
+        { product: PRODUCT, user: USER, couponCode: 'VIP100' },
+      );
+
+      expect(userClient.rpc).toHaveBeenCalledWith('grant_free_product_access', {
+        product_slug_param: PRODUCT.slug,
+        coupon_code_param: 'VIP100',
+      });
+    });
+
+    it('passes coupon_code_param: null when no coupon is supplied', async () => {
+      const userClient = makeUserClient({ grantResult: true });
+      const adminClient = makeAdminClient({ existingAccess: null });
+
+      await grantFreeProductAccess(
+        userClient as any,
+        adminClient as any,
+        { product: PRODUCT, user: USER },
+      );
+
+      expect(userClient.rpc).toHaveBeenCalledWith('grant_free_product_access', {
+        product_slug_param: PRODUCT.slug,
+        coupon_code_param: null,
+      });
+    });
+  });
+
+  describe('RPC failure', () => {
+    it('returns error and does NOT attempt OTO when the grant RPC reports a DB error', async () => {
+      const userClient = makeUserClient({ grantResult: null, grantError: { message: 'boom' } });
+      const adminClient = makeAdminClient({ existingAccess: null });
 
       const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
       expect(result.accessGranted).toBe(false);
       expect(result.error).toBe('Failed to grant access');
-
-      // OTO must not be attempted after a grant failure
+      // OTO must not be attempted after a grant failure.
       expect(adminClient.rpc).not.toHaveBeenCalled();
     });
 
-    it('returns error when RPC returns false (product not free/active)', async () => {
-      const userClient = makeUserClient({ grantResult: false, grantError: null });
-      const adminClient = makeAdminClient({ existingAccess: null, otoResult: OTO_RESULT });
+    it('returns error when the grant RPC returns false (not eligible)', async () => {
+      const userClient = makeUserClient({ grantResult: false });
+      const adminClient = makeAdminClient({ existingAccess: null });
 
       const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER, couponCode: 'INVALID' },
       );
 
       expect(result.accessGranted).toBe(false);
-      expect(result.error).toMatch(/not be free or active/);
+      expect(result.error).toMatch(/product may not be free or the coupon is invalid/);
       expect(adminClient.rpc).not.toHaveBeenCalled();
     });
   });
 
-  describe('OTO generation failure (graceful degradation)', () => {
-    it('still returns accessGranted=true when OTO RPC errors', async () => {
+  describe('OTO graceful degradation', () => {
+    it('still returns accessGranted=true when OTO RPC reports an error', async () => {
       const userClient = makeUserClient({ grantResult: true });
       const adminClient = makeAdminClient({
         existingAccess: null,
-        otoError: { message: 'OTO RPC error' },
+        otoError: { message: 'oto failure' },
       });
 
       const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
       expect(result.accessGranted).toBe(true);
@@ -244,59 +206,50 @@ describe('grantFreeProductAccess()', () => {
 
     it('still returns accessGranted=true when OTO RPC throws', async () => {
       const userClient = makeUserClient({ grantResult: true });
-      const adminClient = makeAdminClient({ existingAccess: null });
-      // Override rpc to throw
-      adminClient.rpc = vi.fn().mockRejectedValue(new Error('Network error'));
+      const adminClient = makeAdminClient({ existingAccess: null, otoThrows: true });
 
       const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: FREE_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
       expect(result.accessGranted).toBe(true);
       expect(result.otoInfo).toBeNull();
     });
-  });
 
-  describe('RPC selection', () => {
-    it('uses grant_free_product_access for regular free product (price=0)', async () => {
+    it('returns otoInfo=null when OTO RPC returns has_oto=false', async () => {
       const userClient = makeUserClient({ grantResult: true });
-      const adminClient = makeAdminClient({ existingAccess: null });
+      const adminClient = makeAdminClient({
+        existingAccess: null,
+        otoResult: { has_oto: false },
+      });
 
-      await grantFreeProductAccess(
+      const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: { ...FREE_PRODUCT, price: 0, isPwywFree: false }, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
-      expect(userClient.rpc).toHaveBeenCalledWith('grant_free_product_access', expect.any(Object));
+      expect(result.accessGranted).toBe(true);
+      expect(result.otoInfo).toBeNull();
     });
 
-    it('uses grant_pwyw_free_access for PWYW product with price > 0', async () => {
+    it('returns otoInfo payload when OTO is configured', async () => {
       const userClient = makeUserClient({ grantResult: true });
-      const adminClient = makeAdminClient({ existingAccess: null });
+      const adminClient = makeAdminClient({
+        existingAccess: null,
+        otoResult: OTO_RESULT,
+      });
 
-      await grantFreeProductAccess(
+      const result = await grantFreeProductAccess(
         userClient as any,
         adminClient as any,
-        { product: PWYW_PRODUCT, user: TEST_USER },
+        { product: PRODUCT, user: USER },
       );
 
-      expect(userClient.rpc).toHaveBeenCalledWith('grant_pwyw_free_access', expect.any(Object));
-    });
-
-    it('uses grant_free_product_access for PWYW product with price = 0', async () => {
-      const userClient = makeUserClient({ grantResult: true });
-      const adminClient = makeAdminClient({ existingAccess: null });
-
-      await grantFreeProductAccess(
-        userClient as any,
-        adminClient as any,
-        { product: { ...PWYW_PRODUCT, price: 0 }, user: TEST_USER },
-      );
-
-      expect(userClient.rpc).toHaveBeenCalledWith('grant_free_product_access', expect.any(Object));
+      expect(result.accessGranted).toBe(true);
+      expect(result.otoInfo).toEqual(OTO_RESULT);
     });
   });
 });

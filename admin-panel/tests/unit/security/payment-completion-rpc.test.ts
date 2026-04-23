@@ -806,6 +806,85 @@ describe('Idempotency', () => {
       .eq('transaction_id', txCount![0].id);
     expect(lineItemCount!.length).toBe(1); // 1 main_product, no bumps
   });
+
+  it('should keep user_product_access at 1 row per product after 5 Stripe-retry calls (main + bumps)', async () => {
+    // Simulates Stripe retrying the same webhook 5x. P0 checkbox:
+    // "User nie ma dwóch wpisów w user_product_access dla tego samego produktu"
+    const sid = `cs_test_upa_idemp_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email: `upa-idemp-${TS}@example.com`,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    const bumpIds = bumpProducts.map(b => b.id);
+    // amount_total = product.price + SUM(order_bumps.bump_price) in cents.
+    // order_bumps.bump_price (not product.price) is the authoritative bump cost.
+    const { data: obRows, error: obErr } = await supabaseAdmin
+      .from('order_bumps')
+      .select('bump_price')
+      .in('id', orderBumpIds);
+    if (obErr) throw obErr;
+    const bumpsTotalCents = obRows!.reduce((sum, r) => sum + Math.round(r.bump_price * 100), 0);
+    const amount = Math.round(mainProduct.price * 100) + bumpsTotalCents;
+
+    const rpcParams = {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: `upa-idemp-${TS}@example.com`,
+      amount_total: amount,
+      currency_param: 'USD',
+      user_id_param: userData.user.id,
+      bump_product_ids_param: bumpIds,
+    };
+
+    // First call: grants access to main + 2 bumps
+    const { data: first, error: firstErr } = await callRpc(supabaseAdmin, rpcParams);
+    expect(firstErr).toBeNull();
+    expect(first?.success).toBe(true);
+
+    // 4 more identical calls simulating Stripe retry storm
+    for (let i = 0; i < 4; i++) {
+      const { data: retry, error: retryErr } = await callRpc(supabaseAdmin, rpcParams);
+      expect(retryErr).toBeNull();
+      expect(retry?.success).toBe(true);
+      expect(retry?.scenario).toBe('already_processed_idempotent');
+      expect(retry?.already_had_access).toBe(true);
+    }
+
+    // Exactly 1 transaction for this session_id (UNIQUE constraint + idempotency path)
+    const { data: txRows } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id')
+      .eq('session_id', sid);
+    expect(txRows!.length).toBe(1);
+
+    // Exactly 3 line items (1 main + 2 bumps), no duplicates from retries
+    const { data: liRows } = await supabaseAdmin
+      .from('payment_line_items')
+      .select('id, item_type, product_id')
+      .eq('transaction_id', txRows![0].id);
+    expect(liRows!.length).toBe(3);
+    expect(liRows!.filter(li => li.item_type === 'main_product').length).toBe(1);
+    expect(liRows!.filter(li => li.item_type === 'order_bump').length).toBe(2);
+
+    // CRITICAL: exactly 1 user_product_access row per product (3 total).
+    // UNIQUE (user_id, product_id) constraint + idempotency path must prevent duplicates.
+    const allProductIds = [mainProduct.id, ...bumpIds];
+    const { data: upaRows } = await supabaseAdmin
+      .from('user_product_access')
+      .select('product_id')
+      .eq('user_id', userData.user.id)
+      .in('product_id', allProductIds);
+    expect(upaRows!.length).toBe(3);
+    for (const pid of allProductIds) {
+      expect(upaRows!.filter(r => r.product_id === pid).length).toBe(1);
+    }
+  });
 });
 
 // ============================================================================

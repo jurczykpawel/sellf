@@ -139,4 +139,65 @@ test.describe('Smart Coupons System', () => {
     await expect(page.getByText(/discount applied|Zastosowano zniżkę/i)).toBeVisible({ timeout: 10000 });
   });
 
+  test('should recalculate discount and total when order bump is added and removed after coupon is applied', async ({ page }) => {
+    const timestamp = Date.now();
+    const productSlug = `coupon-bump-ui-${timestamp}`;
+    const couponCode = `BUMPUI${timestamp}`;
+
+    const { data: product } = await supabaseAdmin.from('products').insert({
+      name: 'Coupon + Bump UI Product',
+      slug: productSlug,
+      price: 100,
+      currency: 'USD',
+      is_active: true,
+    }).select().single();
+
+    const { data: bumpProduct } = await supabaseAdmin.from('products').insert({
+      name: 'Coupon + Bump UI Addon',
+      slug: `coupon-bump-addon-${timestamp}`,
+      price: 50,
+      currency: 'USD',
+      is_active: true,
+    }).select().single();
+
+    await supabaseAdmin.from('order_bumps').insert({
+      main_product_id: product!.id,
+      bump_product_id: bumpProduct!.id,
+      bump_title: 'UI Bump Offer',
+      bump_price: 20,
+      is_active: true,
+      display_order: 1,
+    });
+
+    await supabaseAdmin.from('coupons').insert({
+      code: couponCode,
+      name: '20 percent global',
+      discount_type: 'percentage',
+      discount_value: 20,
+      exclude_order_bumps: false,
+      is_active: true,
+      allowed_product_ids: [],
+    });
+
+    await acceptAllCookies(page);
+    await page.goto(`/pl/checkout/${productSlug}?coupon=${couponCode}&show_promo=true`);
+
+    await expect(page.getByText(/zniżkę|discount applied/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(new RegExp(`Rabat \\(${couponCode}\\)`))).toBeVisible();
+    await expect(page.getByText('-$20.00 USD')).toBeVisible();
+    await expect(page.getByText('$80.00 USD')).toBeVisible();
+
+    const addButton = page.getByRole('button', { name: /Dodaj|Add to order/i });
+    await addButton.click();
+
+    await expect(page.getByText('-$24.00 USD')).toBeVisible();
+    await expect(page.getByText('$96.00 USD')).toBeVisible();
+
+    const removeButton = page.getByRole('button', { name: /Dodano|Added/i });
+    await removeButton.click();
+
+    await expect(page.getByText('-$20.00 USD')).toBeVisible();
+    await expect(page.getByText('$80.00 USD')).toBeVisible();
+  });
+
 });

@@ -47,6 +47,8 @@ test.describe('Coupon × Multi-Bump', () => {
   let fixedInclude: any;  // $40 off, exclude_order_bumps=false
   let bigFixed: any;      // $900 off, exclude_order_bumps=false (tests Stripe minimum floor)
   let productSpecific: any; // 10% off, limited to mainProduct only
+  let bumpSpecific: any; // 15% off, limited to bumpProduct1 only
+  let mixedScopeSpecific: any; // 10% off, limited to mainProduct and bumpProduct1 ids, but should still affect main only
 
   test.beforeAll(async () => {
     // Main product: $100 USD
@@ -220,16 +222,44 @@ test.describe('Coupon × Multi-Bump', () => {
     }).select().single();
     productSpecific = c6;
 
+    const { data: c7 } = await supabaseAdmin.from('coupons').insert({
+      code: `BUMP-SPEC-${ts}`,
+      name: '15% bump-specific',
+      discount_type: 'percentage',
+      discount_value: 15,
+      exclude_order_bumps: false,
+      allowed_product_ids: [bumpProduct1.id],
+      is_active: true,
+      starts_at: new Date().toISOString(),
+      usage_limit_global: null,
+      usage_limit_per_user: 100,
+    }).select().single();
+    bumpSpecific = c7;
+
+    const { data: c8 } = await supabaseAdmin.from('coupons').insert({
+      code: `MIXED-SPEC-${ts}`,
+      name: '10% mixed scope',
+      discount_type: 'percentage',
+      discount_value: 10,
+      exclude_order_bumps: false,
+      allowed_product_ids: [mainProduct.id, bumpProduct1.id],
+      is_active: true,
+      starts_at: new Date().toISOString(),
+      usage_limit_global: null,
+      usage_limit_per_user: 100,
+    }).select().single();
+    mixedScopeSpecific = c8;
+
     console.log('[coupon-multi-bump] Created test data:', {
       main: mainProduct.id,
       bumps: [bumpProduct1.id, bumpProduct2.id, bumpProduct3.id],
-      coupons: [pctExclude.code, pctInclude.code, fixedExclude.code, fixedInclude.code, bigFixed.code, productSpecific.code],
+      coupons: [pctExclude.code, pctInclude.code, fixedExclude.code, fixedInclude.code, bigFixed.code, productSpecific.code, bumpSpecific.code, mixedScopeSpecific.code],
     });
   });
 
   test.afterAll(async () => {
     console.log('[coupon-multi-bump] Cleaning up...');
-    const couponIds = [pctExclude, pctInclude, fixedExclude, fixedInclude, bigFixed, productSpecific]
+    const couponIds = [pctExclude, pctInclude, fixedExclude, fixedInclude, bigFixed, productSpecific, bumpSpecific, mixedScopeSpecific]
       .filter(Boolean).map(c => c.id);
     if (couponIds.length > 0) {
       await supabaseAdmin.from('coupon_reservations').delete().in('coupon_id', couponIds);
@@ -491,8 +521,8 @@ test.describe('Coupon × Multi-Bump', () => {
   test('product-specific coupon + multi-bump: works when product matches', async ({ request }) => {
     // Main $100, Bump1 $20, Bump3 $50 → subtotal $170
     // Coupon: 10% off, allowed_product_ids=[mainProduct]
-    // Discount: 10% of $170 = $17
-    // Total: $170 - $17 = $153 = 15300 cents
+    // Discount applies only to the main product: 10% of $100 = $10
+    // Total: $170 - $10 = $160 = 16000 cents
 
     const res = await request.post('/api/create-payment-intent', {
       data: {
@@ -507,7 +537,39 @@ test.describe('Coupon × Multi-Bump', () => {
     const { paymentIntentId } = await res.json();
     const pi = await getStripePaymentIntent(paymentIntentId);
 
-    expect(pi.amount).toBe(15300);
+    expect(pi.amount).toBe(16000);
+  });
+
+  test('product-specific coupon does not activate when matching product is only selected as an order bump', async ({ request }) => {
+    const res = await request.post('/api/create-payment-intent', {
+      data: {
+        productId: mainProduct.id,
+        email: 'cmb-test@example.com',
+        bumpProductIds: [bumpProduct1.id],
+        couponCode: bumpSpecific.code,
+      }
+    });
+
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/not valid|specific product|no longer valid/i);
+  });
+
+  test('product-specific coupon still discounts only the main product even if a bump id is also listed', async ({ request }) => {
+    const res = await request.post('/api/create-payment-intent', {
+      data: {
+        productId: mainProduct.id,
+        email: 'cmb-test@example.com',
+        bumpProductIds: [bumpProduct1.id, bumpProduct3.id],
+        couponCode: mixedScopeSpecific.code,
+      }
+    });
+
+    expect(res.status()).toBe(200);
+    const { paymentIntentId } = await res.json();
+    const pi = await getStripePaymentIntent(paymentIntentId);
+
+    expect(pi.amount).toBe(16000);
   });
 
   // =====================================================================

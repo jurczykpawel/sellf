@@ -539,6 +539,50 @@ describe('grant_free_product_access', () => {
     expect(diffMs).toBeLessThan(60_000); // within 1 minute
   });
 
+  it('re-grants access when the previous grant has expired (updates row in place)', async () => {
+    // Fresh user + product so we can control the expiration state deterministically.
+    const email = `free-regrant-${TEST_ID}@example.com`;
+    const uid = await createTestUser(email, PASSWORD);
+    createdUserIds.push(uid);
+    const product = await createTestProduct({ price: 0 });
+    createdProductIds.push(product.id);
+    const client = await createAuthenticatedClient(email, PASSWORD);
+
+    // First grant establishes the baseline row.
+    await client.rpc('grant_free_product_access', { product_slug_param: product.slug });
+    const before = await getUserAccess(uid, product.id);
+    expect(before).not.toBeNull();
+
+    // Simulate an expired access window + older granted_at by editing the row directly.
+    const pastExpiry = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const oldGrantedAt = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    await supabaseAdmin
+      .schema('seller_main' as any)
+      .from('user_product_access')
+      .update({ access_expires_at: pastExpiry, access_granted_at: oldGrantedAt })
+      .eq('user_id', uid)
+      .eq('product_id', product.id);
+
+    // Second grant must proceed past the early-return and UPSERT the row.
+    const { data, error } = await client.rpc('grant_free_product_access', {
+      product_slug_param: product.slug,
+    });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+
+    const after = await getUserAccess(uid, product.id);
+    // Row still unique (ON CONFLICT updated, not duplicated)
+    const { data: rows } = await supabaseAdmin
+      .schema('seller_main' as any)
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', uid)
+      .eq('product_id', product.id);
+    expect(rows).toHaveLength(1);
+    // granted_at is refreshed (ON CONFLICT DO UPDATE SET access_granted_at = NOW())
+    expect(new Date(after!.access_granted_at).getTime()).toBeGreaterThan(new Date(oldGrantedAt).getTime());
+  });
+
   it('rate limits after exceeding threshold', async () => {
     // Create a separate user to avoid polluting other tests
     const rlEmail = `free-rl-${TEST_ID}@example.com`;
@@ -618,7 +662,10 @@ describe('grant_free_product_access', () => {
 // grant_pwyw_free_access
 // ============================================================================
 
-describe('grant_pwyw_free_access', () => {
+// After consolidation, the PWYW-free eligibility branch lives INSIDE the unified
+// grant_free_product_access RPC. The contract stays the same (PWYW product with
+// custom_price_min=0 grants access without a coupon) — only the RPC name differs.
+describe('grant_free_product_access — PWYW-free branch', () => {
   const EMAIL_PWYW = `pwyw-test-${TEST_ID}@example.com`;
   const PASSWORD = 'test-password-123';
   let userId: string;
@@ -628,7 +675,7 @@ describe('grant_pwyw_free_access', () => {
   let nonPwywProduct: { id: string; slug: string };
 
   beforeAll(async () => {
-    await cleanupRateLimits('grant_pwyw_free_access');
+    await cleanupRateLimits('grant_free_product_access');
     userId = await createTestUser(EMAIL_PWYW, PASSWORD);
     createdUserIds.push(userId);
     authenticatedClient = await createAuthenticatedClient(EMAIL_PWYW, PASSWORD);
@@ -640,14 +687,14 @@ describe('grant_pwyw_free_access', () => {
       custom_price_min: 0,
     });
 
-    // PWYW product with custom_price_min > 0 (free access NOT allowed)
+    // PWYW product with custom_price_min > 0 (free access NOT allowed without coupon)
     pwywPaidMinProduct = await createTestProduct({
       price: 20,
       allow_custom_price: true,
       custom_price_min: 5,
     });
 
-    // Regular product (not PWYW)
+    // Regular paid product (not PWYW). Without a coupon the unified RPC rejects it.
     nonPwywProduct = await createTestProduct({
       price: 15,
       allow_custom_price: false,
@@ -657,11 +704,11 @@ describe('grant_pwyw_free_access', () => {
   });
 
   afterAll(async () => {
-    await cleanupRateLimits('grant_pwyw_free_access');
+    await cleanupRateLimits('grant_free_product_access');
   });
 
   it('grants access for PWYW product with allow_custom_price=true AND custom_price_min=0', async () => {
-    const { data, error } = await authenticatedClient.rpc('grant_pwyw_free_access', {
+    const { data, error } = await authenticatedClient.rpc('grant_free_product_access', {
       product_slug_param: pwywFreeProduct.slug,
     });
 
@@ -672,8 +719,8 @@ describe('grant_pwyw_free_access', () => {
     expect(access).not.toBeNull();
   });
 
-  it('rejects PWYW product with custom_price_min > 0', async () => {
-    const { data, error } = await authenticatedClient.rpc('grant_pwyw_free_access', {
+  it('rejects PWYW product with custom_price_min > 0 (partial-price, no coupon)', async () => {
+    const { data, error } = await authenticatedClient.rpc('grant_free_product_access', {
       product_slug_param: pwywPaidMinProduct.slug,
     });
 
@@ -684,8 +731,8 @@ describe('grant_pwyw_free_access', () => {
     expect(access).toBeNull();
   });
 
-  it('rejects non-PWYW product (allow_custom_price=false)', async () => {
-    const { data, error } = await authenticatedClient.rpc('grant_pwyw_free_access', {
+  it('rejects non-PWYW paid product without a coupon', async () => {
+    const { data, error } = await authenticatedClient.rpc('grant_free_product_access', {
       product_slug_param: nonPwywProduct.slug,
     });
 
@@ -694,6 +741,155 @@ describe('grant_pwyw_free_access', () => {
 
     const access = await getUserAccess(userId, nonPwywProduct.id);
     expect(access).toBeNull();
+  });
+
+  it('is idempotent — second grant returns true without duplicating the access row', async () => {
+    const email = `pwyw-idem-${TEST_ID}@example.com`;
+    const uid = await createTestUser(email, PASSWORD);
+    createdUserIds.push(uid);
+    const product = await createTestProduct({
+      price: 10,
+      allow_custom_price: true,
+      custom_price_min: 0,
+    });
+    createdProductIds.push(product.id);
+    const client = await createAuthenticatedClient(email, PASSWORD);
+
+    const first = await client.rpc('grant_free_product_access', { product_slug_param: product.slug });
+    expect(first.error).toBeNull();
+    expect(first.data).toBe(true);
+
+    const second = await client.rpc('grant_free_product_access', { product_slug_param: product.slug });
+    expect(second.error).toBeNull();
+    expect(second.data).toBe(true);
+
+    const { data: rows } = await supabaseAdmin
+      .schema('seller_main' as any)
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', uid)
+      .eq('product_id', product.id);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('re-grants access when the previous grant has expired', async () => {
+    const email = `pwyw-regrant-${TEST_ID}@example.com`;
+    const uid = await createTestUser(email, PASSWORD);
+    createdUserIds.push(uid);
+    const product = await createTestProduct({
+      price: 10,
+      allow_custom_price: true,
+      custom_price_min: 0,
+    });
+    createdProductIds.push(product.id);
+    const client = await createAuthenticatedClient(email, PASSWORD);
+
+    await client.rpc('grant_free_product_access', { product_slug_param: product.slug });
+
+    const pastExpiry = new Date(Date.now() - 60_000).toISOString();
+    const oldGrantedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+    await supabaseAdmin
+      .schema('seller_main' as any)
+      .from('user_product_access')
+      .update({ access_expires_at: pastExpiry, access_granted_at: oldGrantedAt })
+      .eq('user_id', uid)
+      .eq('product_id', product.id);
+
+    const { data, error } = await client.rpc('grant_free_product_access', {
+      product_slug_param: product.slug,
+    });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+
+    const after = await getUserAccess(uid, product.id);
+    expect(new Date(after!.access_granted_at).getTime()).toBeGreaterThan(new Date(oldGrantedAt).getTime());
+
+    const { data: rows } = await supabaseAdmin
+      .schema('seller_main' as any)
+      .from('user_product_access')
+      .select('id')
+      .eq('user_id', uid)
+      .eq('product_id', product.id);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('respects auto_grant_duration_days for PWYW products', async () => {
+    const email = `pwyw-dur-${TEST_ID}@example.com`;
+    const uid = await createTestUser(email, PASSWORD);
+    createdUserIds.push(uid);
+    const product = await createTestProduct({
+      price: 50,
+      allow_custom_price: true,
+      custom_price_min: 0,
+      auto_grant_duration_days: 7,
+    });
+    createdProductIds.push(product.id);
+    const client = await createAuthenticatedClient(email, PASSWORD);
+
+    const { data, error } = await client.rpc('grant_free_product_access', {
+      product_slug_param: product.slug,
+    });
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+
+    const access = await getUserAccess(uid, product.id);
+    expect(access!.access_duration_days).toBe(7);
+    expect(access!.access_expires_at).not.toBeNull();
+    const expiresAt = new Date(access!.access_expires_at);
+    const expectedExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    expect(Math.abs(expiresAt.getTime() - expectedExpiry.getTime())).toBeLessThan(60_000);
+  });
+
+  it('rate limits (shared bucket with regular free path) after exceeding threshold', async () => {
+    const rlEmail = `pwyw-rl-${TEST_ID}@example.com`;
+    const rlUser = await createTestUser(rlEmail, PASSWORD);
+    createdUserIds.push(rlUser);
+
+    const rlProduct = await createTestProduct({
+      price: 5,
+      allow_custom_price: true,
+      custom_price_min: 0,
+      auto_grant_duration_days: 1,
+    });
+    createdProductIds.push(rlProduct.id);
+    const rlClient = await createAuthenticatedClient(rlEmail, PASSWORD);
+
+    const baseline = await rlClient.rpc('grant_free_product_access', {
+      product_slug_param: rlProduct.slug,
+    });
+    expect(baseline.error).toBeNull();
+    expect(baseline.data).toBe(true);
+
+    await supabaseAdmin
+      .schema('seller_main' as any)
+      .from('user_product_access')
+      .delete()
+      .eq('user_id', rlUser)
+      .eq('product_id', rlProduct.id);
+
+    const windowStart = new Date();
+    windowStart.setMinutes(0, 0, 0);
+    await supabaseAdmin.from('rate_limits').upsert(
+      {
+        user_id: rlUser,
+        function_name: 'grant_free_product_access',
+        window_start: windowStart.toISOString(),
+        call_count: RATE_LIMIT_THRESHOLD,
+      },
+      { onConflict: 'user_id,function_name,window_start' },
+    );
+
+    const { data, error } = await rlClient.rpc('grant_free_product_access', {
+      product_slug_param: rlProduct.slug,
+    });
+    expect(error).toBeNull();
+    expect(data).toBe(false);
+
+    await supabaseAdmin
+      .from('rate_limits')
+      .delete()
+      .eq('user_id', rlUser)
+      .eq('function_name', 'grant_free_product_access');
   });
 });
 

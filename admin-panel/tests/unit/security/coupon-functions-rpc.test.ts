@@ -220,6 +220,61 @@ describe('find_auto_apply_coupon', () => {
     expect(data.found).toBe(false);
   });
 
+  it('respects usage_limit_per_user (already redeemed coupon not returned)', async () => {
+    const email = `usage-per-user-${TS}@example.com`;
+    const product = await createProduct();
+    const coupon = await createCoupon({
+      allowed_emails: [email],
+      allowed_product_ids: [product.id],
+      usage_limit_per_user: 1,
+    });
+
+    const { error: redemptionErr } = await supabaseAdmin.from('coupon_redemptions').insert({
+      coupon_id: coupon.id,
+      customer_email: email,
+      discount_amount: 20,
+    });
+
+    expect(redemptionErr).toBeNull();
+
+    const { data, error } = await supabaseAdmin.rpc('find_auto_apply_coupon', {
+      customer_email_param: email,
+      product_id_param: product.id,
+    });
+
+    expect(error).toBeNull();
+    expect(data.found).toBe(false);
+  });
+
+  it('respects active reservations when checking global availability', async () => {
+    const email = `reserved-slot-${TS}@example.com`;
+    const reservedEmail = `reserved-other-${TS}@example.com`;
+    const product = await createProduct();
+    const coupon = await createCoupon({
+      allowed_emails: [email, reservedEmail],
+      allowed_product_ids: [product.id],
+      usage_limit_global: 1,
+      current_usage_count: 0,
+    });
+
+    const { error: reservationErr } = await supabaseAdmin.from('coupon_reservations').insert({
+      coupon_id: coupon.id,
+      customer_email: reservedEmail,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      session_id: `auto-apply-reserved-${TS}`,
+    });
+
+    expect(reservationErr).toBeNull();
+
+    const { data, error } = await supabaseAdmin.rpc('find_auto_apply_coupon', {
+      customer_email_param: email,
+      product_id_param: product.id,
+    });
+
+    expect(error).toBeNull();
+    expect(data.found).toBe(false);
+  });
+
   it('respects usage_limit_global=null (unlimited usage)', async () => {
     const email = `unlimited-${TS}@example.com`;
     const product = await createProduct();
