@@ -7,7 +7,7 @@ import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import TermsCheckbox from '@/components/TermsCheckbox';
 
-/** Narrow props — only what PwywSection actually needs from usePwywFreeAccess */
+/** Narrow props — only what PwywSection actually needs from useFreeAccess */
 interface PwywFreeAccessProps {
   pwywFreeEmail: string;
   setPwywFreeEmail: (email: string) => void;
@@ -33,7 +33,11 @@ interface PwywSectionProps {
   customAmount: number;
   customAmountInput: string;
   customAmountError: string | null;
-  isPwywFree: boolean;
+  /** True when the user can claim this product for free — PWYW=0 OR a 100% coupon applied. */
+  isFreeAccess: boolean;
+  /** True only for the coupon-driven free flow. Controls copy (e.g. "redeem coupon"
+   *  instead of "get for free") and hides the custom-amount picker. */
+  isFullDiscountCoupon: boolean;
   hasAccess: boolean;
   error: string | null;
   pwyw: PwywFreeAccessProps;
@@ -48,7 +52,8 @@ export default function PwywSection({
   customAmount,
   customAmountInput,
   customAmountError,
-  isPwywFree,
+  isFreeAccess,
+  isFullDiscountCoupon,
   hasAccess,
   error,
   pwyw,
@@ -61,8 +66,9 @@ export default function PwywSection({
 
   return (
     <>
-      {/* Custom Price Selection */}
-      {product.allow_custom_price && !hasAccess && !error && (
+      {/* Custom Price Selection — hide when a full-discount coupon is active
+          (the amount is forced to 0, there's nothing to pick). */}
+      {product.allow_custom_price && !isFullDiscountCoupon && !hasAccess && !error && (
         <div className="mb-6 p-5 bg-sf-raised backdrop-blur-sm rounded-2xl border border-sf-border">
           <h3 className="text-lg font-semibold text-sf-heading mb-3">{t('customPrice.title')}</h3>
 
@@ -130,8 +136,8 @@ export default function PwywSection({
         </div>
       )}
 
-      {/* PWYW Free Access */}
-      {isPwywFree && !hasAccess && !error && (
+      {/* Free-access section — shared by PWYW=0 and 100% coupon flows */}
+      {isFreeAccess && !hasAccess && !error && (
         <div className="mb-6 p-5 bg-sf-success-soft rounded-2xl border border-sf-success/20">
           {user ? (
             <button
@@ -140,11 +146,17 @@ export default function PwywSection({
               disabled={pwyw.pwywFreeLoading}
               className="w-full py-3 px-6 bg-sf-success hover:bg-sf-success/90 disabled:opacity-50 text-sf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
             >
-              {pwyw.pwywFreeLoading ? '...' : t('customPrice.getForFree')}
+              {pwyw.pwywFreeLoading
+                ? '...'
+                : isFullDiscountCoupon
+                  ? t('customPrice.redeemCoupon')
+                  : t('customPrice.getForFree')}
             </button>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-sf-heading">{t('customPrice.getForFree')}</p>
+              <p className="text-sm font-medium text-sf-heading">
+                {isFullDiscountCoupon ? t('customPrice.redeemCoupon') : t('customPrice.getForFree')}
+              </p>
               <input
                 type="email"
                 value={pwyw.pwywFreeEmail}

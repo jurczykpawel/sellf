@@ -69,7 +69,8 @@
       "belowMinimum": "Amount must be at least {minimum}",
       "aboveMaximum": "Amount must be no more than {maximum}",
       "freePreset": "Free",
-      "getForFree": "Get for Free"
+      "getForFree": "Get for Free",
+      "redeemCoupon": "Redeem coupon for free access"
     },
     "enterEmail": "Enter your email address",
     "sendMagicLink": "Send magic link",

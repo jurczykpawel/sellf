@@ -17,7 +17,7 @@ import { useTranslations } from 'next-intl';
 import { useTracking } from '@/hooks/useTracking';
 import { useCoupon } from '@/hooks/useCoupon';
 import { useOto } from '@/hooks/useOto';
-import { usePwywFreeAccess } from '@/hooks/usePwywFreeAccess';
+import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
@@ -148,12 +148,23 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     funnelTestOtoSlug: oto.funnelTestOtoSlug,
   });
 
-  // PWYW free access
-  const pwyw = usePwywFreeAccess({
+  // A 100% coupon zeros the price; we treat the flow identically to PWYW=0
+  // (email → magic link → grant), the only difference is that the coupon code
+  // rides along so the server can record the redemption.
+  const isFullDiscountCoupon =
+    !!coupon.appliedCoupon &&
+    coupon.appliedCoupon.discount_type === 'percentage' &&
+    coupon.appliedCoupon.discount_value >= 100;
+
+  const isFreeAccess = isPwywFree || isFullDiscountCoupon;
+
+  // Free-access flow (shared by PWYW=0 and full-discount coupons)
+  const pwyw = useFreeAccess({
     user,
     product,
     onAccessGranted: grantAccess,
     onError: setError,
+    couponCode: isFullDiscountCoupon ? coupon.appliedCoupon?.code ?? null : null,
   });
 
   // Track view_item and begin_checkout on mount
@@ -180,7 +191,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const fetchClientSecret = useCallback(async () => {
     if (isFunnelTest) return;
 
-    if (product.allow_custom_price && customAmount === 0 && (product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) === 0) {
+    // Free-access paths (PWYW=0 or 100% coupon) bypass Stripe entirely — the
+    // free-access section handles grant + magic-link flows.
+    if (isFreeAccess) {
       setClientSecret(null);
       return;
     }
@@ -189,43 +202,51 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       return;
     }
 
-    try {
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          email: email || undefined,
-          bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
-          couponCode: coupon.appliedCoupon?.code,
-          successUrl: searchParams.get('success_url') || undefined,
-          customAmount: product.allow_custom_price ? customAmount : undefined,
-        }),
-      });
+    const response = await fetch('/api/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: product.id,
+        email: email || undefined,
+        bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
+        couponCode: coupon.appliedCoupon?.code,
+        successUrl: searchParams.get('success_url') || undefined,
+        customAmount: product.allow_custom_price ? customAmount : undefined,
+      }),
+    }).catch(() => null);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.error === 'You already have access to this product') {
-          grantAccess();
-          return;
-        }
-        setError(errorData.error || t('createSessionError'));
-        throw new Error(errorData.error || t('createSessionError'));
-      }
+    if (!response) {
+      setError(t('loadError'));
+      return;
+    }
 
-      const data = await response.json();
-
-      // 100% coupon: server granted free access
-      if (data.freeAccess) {
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error === 'You already have access to this product') {
         grantAccess();
         return;
       }
-
-      setClientSecret(data.clientSecret);
-    } catch {
-      setError(t('loadError'));
+      // Surface the server's error verbatim. Previously a throw+catch fallthrough
+      // replaced this with a generic "Failed to load checkout" which masked
+      // actionable server messages (e.g. 401 "Please log in to use this coupon").
+      setError(errorData.error || t('createSessionError'));
+      return;
     }
-  }, [product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t, customAmount, validateCustomAmount, isFunnelTest, grantAccess]);
+
+    const data = await response.json().catch(() => null);
+    if (!data) {
+      setError(t('loadError'));
+      return;
+    }
+
+    // 100% coupon: server granted free access
+    if (data.freeAccess) {
+      grantAccess();
+      return;
+    }
+
+    setClientSecret(data.clientSecret);
+  }, [product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t, customAmount, validateCustomAmount, isFunnelTest, isFreeAccess, grantAccess]);
 
   useEffect(() => {
     if (!hasAccess && !error && !authLoading) {
@@ -277,7 +298,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         customAmount={customAmount}
         customAmountInput={customAmountInput}
         customAmountError={customAmountError}
-        isPwywFree={isPwywFree}
+        isFreeAccess={isFreeAccess}
+        isFullDiscountCoupon={isFullDiscountCoupon}
         hasAccess={hasAccess}
         error={error}
         pwyw={pwyw}
@@ -297,7 +319,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       />
 
       {/* Order Bumps */}
-      {!hasAccess && !error && !isPwywFree && searchParams.get('hide_bump') !== 'true' && (
+      {!hasAccess && !error && !isFreeAccess && searchParams.get('hide_bump') !== 'true' && (
         <OrderBumpList
           bumps={availableBumps}
           selectedBumpIds={selectedBumpIds}
@@ -305,7 +327,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         />
       )}
 
-      {/* Coupon Field */}
+      {/* Coupon Field — still shown for full-discount coupons so the user can
+          review/remove the applied code before confirming free access. */}
       {!hasAccess && !error && !isPwywFree && (
         <CouponField
           couponCode={coupon.couponCode}
@@ -321,7 +344,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       )}
 
       {/* Checkout Card */}
-      {!(isPwywFree && !error && !hasAccess) && (
+      {!(isFreeAccess && !error && !hasAccess) && (
         <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border relative overflow-hidden">
           {coupon.isVerifyingCoupon && (
             <div className="absolute top-0 left-0 h-0.5 bg-sf-accent-bg animate-pulse w-full" />
@@ -402,7 +425,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             </button>
           )}
 
-          {!isFunnelTest && !error && !hasAccess && !isPwywFree && stripePromise && clientSecret && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
             <Elements
               key={`${product.id}-${clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}

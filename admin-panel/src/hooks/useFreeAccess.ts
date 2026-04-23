@@ -10,14 +10,28 @@ import { useTracking } from '@/hooks/useTracking';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { createClient } from '@/lib/supabase/client';
 
-interface UsePwywFreeAccessOptions {
+/**
+ * Hook for the "get product for free" flow used by checkout pages.
+ *
+ * Drives two interchangeable free-access paths:
+ *   1. PWYW with custom_price_min = 0 (no coupon needed).
+ *   2. A full-discount (100%) coupon on an otherwise paid product.
+ *
+ * Both paths share the same UI and user flow: for logged-in users it calls
+ * `grant-access` directly, for guests it sends a magic link whose callback
+ * finalises the grant.
+ */
+interface UseFreeAccessOptions {
   user: User | null;
   product: Product;
   onAccessGranted: () => void;
   onError: (msg: string) => void;
+  /** When set, this is a full-discount coupon flow. The code is attached to
+   *  the grant-access request and to the magic-link redirect URL. */
+  couponCode?: string | null;
 }
 
-interface UsePwywFreeAccessReturn {
+interface UseFreeAccessReturn {
   pwywFreeEmail: string;
   setPwywFreeEmail: (email: string) => void;
   pwywFreeTermsAccepted: boolean;
@@ -29,12 +43,13 @@ interface UsePwywFreeAccessReturn {
   handlePwywFreeMagicLink: () => Promise<void>;
 }
 
-export function usePwywFreeAccess({
+export function useFreeAccess({
   user,
   product,
   onAccessGranted,
   onError,
-}: UsePwywFreeAccessOptions): UsePwywFreeAccessReturn {
+  couponCode,
+}: UseFreeAccessOptions): UseFreeAccessReturn {
   const t = useTranslations('checkout');
   const tCompliance = useTranslations('compliance');
   const searchParams = useSearchParams();
@@ -53,6 +68,7 @@ export function usePwywFreeAccess({
       const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(couponCode ? { couponCode } : {}),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -75,7 +91,7 @@ export function usePwywFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [user, product, track, onAccessGranted, onError, t]);
+  }, [user, product, couponCode, track, onAccessGranted, onError, t]);
 
   const handlePwywFreeMagicLink = useCallback(async () => {
     if (!pwywFreeEmail) {
@@ -113,7 +129,10 @@ export function usePwywFreeAccess({
     try {
       const supabase = await createClient();
       const successUrl = searchParams.get('success_url');
-      const authRedirectPath = `/auth/product-access?product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+      const couponPart = couponCode ? `&coupon=${encodeURIComponent(couponCode)}` : '';
+      const authRedirectPath =
+        `/auth/product-access?product=${product.slug}${couponPart}` +
+        (successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : '');
       const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
 
       const { error: authError } = await supabase.auth.signInWithOtp({
@@ -125,7 +144,7 @@ export function usePwywFreeAccess({
         },
       });
       if (authError) {
-        console.error('[usePwywFreeAccess] PWYW auth error:', authError.message);
+        console.error('[useFreeAccess] Magic link error:', authError.message);
         setPwywFreeMessage({ type: 'error', text: t('unexpectedError') });
         captcha.reset();
         return;
@@ -142,7 +161,7 @@ export function usePwywFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, searchParams, t, tCompliance, track]);
+  }, [pwywFreeEmail, pwywFreeTermsAccepted, captcha, product, couponCode, searchParams, t, tCompliance, track]);
 
   return {
     pwywFreeEmail,

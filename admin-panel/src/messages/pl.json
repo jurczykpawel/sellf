@@ -69,7 +69,8 @@
       "belowMinimum": "Kwota musi wynosić co najmniej {minimum}",
       "aboveMaximum": "Kwota nie może przekraczać {maximum}",
       "freePreset": "Za darmo",
-      "getForFree": "Odbierz za darmo"
+      "getForFree": "Odbierz za darmo",
+      "redeemCoupon": "Odbierz produkt z kodem rabatowym"
     },
     "enterEmail": "Podaj adres email",
     "sendMagicLink": "Wyślij magiczny link",
