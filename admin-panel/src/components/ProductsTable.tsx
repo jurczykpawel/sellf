@@ -268,6 +268,15 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
                           {t('free')}
                         </span>
+                      ) : product.allow_custom_price ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
+                            {t('pwyw')}
+                          </span>
+                          <div className="text-xs text-sf-muted">
+                            {t('pwywFromLabel', { amount: formatPrice(product.custom_price_min, product.currency) })}
+                          </div>
+                        </div>
                       ) : (
                         <div className="text-sm text-sf-heading">{formatPrice(product.price, product.currency)}</div>
                       )}
