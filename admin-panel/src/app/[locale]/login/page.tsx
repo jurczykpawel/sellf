@@ -14,6 +14,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const t = useTranslations()
   const { demoMode } = useConfig()
+  const [errorTitle, setErrorTitle] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -26,15 +27,33 @@ export default function LoginPage() {
   useEffect(() => {
     const error = searchParams.get('error')
     const message = searchParams.get('message')
-    
-    if (error === 'oauth_failed') {
+
+    if (error === 'magic_link_expired') {
+      setErrorTitle(t('auth.magicLinkExpiredTitle'))
+      setErrorMessage(t('auth.magicLinkExpired'))
+    } else if (error === 'session_lost') {
+      setErrorTitle(t('auth.sessionLostTitle'))
+      setErrorMessage(t('auth.sessionLost'))
+    } else if (error === 'oauth_failed') {
+      setErrorTitle('')
       setErrorMessage(t('auth.oauthFailed'))
     } else if (error === 'disposable_email') {
+      setErrorTitle('')
       setErrorMessage(t('auth.disposableEmailBlocked'))
     } else if (message === 'payment_completed_login_required') {
       setSuccessMessage(t('auth.paymentCompletedLoginRequired'))
     }
   }, [searchParams, t])
+
+  // Focus email field when the user arrives with a recoverable error so they
+  // can immediately request a new magic link without extra clicks.
+  useEffect(() => {
+    if (!errorMessage) return
+    const id = window.setTimeout(() => {
+      document.getElementById('email')?.focus()
+    }, 100)
+    return () => window.clearTimeout(id)
+  }, [errorMessage])
 
   if (loading) {
     return (
@@ -124,12 +143,15 @@ export default function LoginPage() {
           
           {/* Error message */}
           {errorMessage && (
-            <div className="mt-4 p-4 rounded-xl text-sm bg-red-500/10 text-red-400 border border-red-500/20 animate-fade-in-shake">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mt-4 p-4 rounded-xl text-sm bg-red-500/10 text-red-400 border border-red-500/20 animate-fade-in-shake text-left">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-                <div>{errorMessage}</div>
+                <div>
+                  {errorTitle && <div className="font-medium text-red-300 mb-1">{errorTitle}</div>}
+                  <div>{errorMessage}</div>
+                </div>
               </div>
             </div>
           )}

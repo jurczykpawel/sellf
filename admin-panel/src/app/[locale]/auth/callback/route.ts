@@ -40,11 +40,18 @@ export async function GET(request: NextRequest) {
   
   const origin = getOrigin()
 
-  // OAuth provider returned an error (e.g. user denied access, token expired)
+  // Upstream error from Supabase verify or OAuth provider.
+  // Distinguish magic link expiry (common UX pitfall: clicking link in different browser)
+  // from genuine OAuth failures (user denied access, provider error).
   const oauthError = requestUrl.searchParams.get('error')
   if (oauthError) {
+    const errorCode = requestUrl.searchParams.get('error_code')
     const loginUrl = new URL('/login', origin)
-    loginUrl.searchParams.set('error', 'oauth_failed')
+    if (errorCode === 'otp_expired') {
+      loginUrl.searchParams.set('error', 'magic_link_expired')
+    } else {
+      loginUrl.searchParams.set('error', 'oauth_failed')
+    }
     return NextResponse.redirect(loginUrl)
   }
 
@@ -101,7 +108,13 @@ export async function GET(request: NextRequest) {
   
   
   if (error || !session) {
-    return NextResponse.redirect(new URL('/login', origin))
+    // Typical cause: code_verifier cookie missing at exchange time.
+    // Happens when user clicks the magic link in a different browser/incognito session
+    // than where they requested it — PKCE verifier is stored in a first-party cookie
+    // on this origin and must be present when exchangeCodeForSession runs.
+    const loginUrl = new URL('/login', origin)
+    loginUrl.searchParams.set('error', 'session_lost')
+    return NextResponse.redirect(loginUrl)
   }
 
   // Validate email for disposable domains (security check)
