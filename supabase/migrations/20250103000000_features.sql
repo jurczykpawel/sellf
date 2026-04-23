@@ -1028,6 +1028,7 @@ BEGIN
         'discount_type', coupon_record.discount_type,
         'discount_value', coupon_record.discount_value,
         'exclude_order_bumps', coupon_record.exclude_order_bumps,
+        'allowed_product_ids', coupon_record.allowed_product_ids,
         'already_reserved', true,
         'reservation_id', existing_reservation_id
       );
@@ -1074,6 +1075,7 @@ BEGIN
     'discount_type', coupon_record.discount_type,
     'discount_value', coupon_record.discount_value,
     'exclude_order_bumps', coupon_record.exclude_order_bumps,
+    'allowed_product_ids', coupon_record.allowed_product_ids,
     'reserved', true,
     'expires_in_minutes', 15
   );
@@ -1087,18 +1089,41 @@ CREATE OR REPLACE FUNCTION seller_main.find_auto_apply_coupon(
 DECLARE
   coupon_record RECORD;
 BEGIN
+  -- Keep lookup consistent with verify_coupon by ignoring expired reservations.
+  DELETE FROM seller_main.coupon_reservations
+  WHERE expires_at < NOW();
+
   -- SECURITY FIX: Add FOR UPDATE SKIP LOCKED to prevent race conditions
   SELECT * INTO coupon_record
-  FROM seller_main.coupons
-  WHERE is_active = true
-    AND (allowed_emails @> to_jsonb(customer_email_param))
+  FROM seller_main.coupons c
+  WHERE c.is_active = true
+    AND (c.allowed_emails @> to_jsonb(customer_email_param))
     AND (
-      jsonb_array_length(allowed_product_ids) = 0 OR
-      allowed_product_ids @> to_jsonb(product_id_param)
+      jsonb_array_length(c.allowed_product_ids) = 0 OR
+      c.allowed_product_ids @> to_jsonb(product_id_param)
     )
-    AND (expires_at IS NULL OR expires_at > NOW())
-    AND (starts_at <= NOW())
-    AND (usage_limit_global IS NULL OR current_usage_count < usage_limit_global)
+    AND (c.expires_at IS NULL OR c.expires_at > NOW())
+    AND (c.starts_at <= NOW())
+    AND (
+      c.usage_limit_global IS NULL OR
+      (
+        c.current_usage_count + (
+          SELECT COUNT(*)
+          FROM seller_main.coupon_reservations r
+          WHERE r.coupon_id = c.id
+            AND r.expires_at > NOW()
+        )
+      ) < c.usage_limit_global
+    )
+    AND (
+      c.usage_limit_per_user IS NULL OR
+      (
+        SELECT COUNT(*)
+        FROM seller_main.coupon_redemptions cr
+        WHERE cr.coupon_id = c.id
+          AND cr.customer_email = customer_email_param
+      ) < c.usage_limit_per_user
+    )
   ORDER BY created_at DESC
   LIMIT 1
   FOR UPDATE SKIP LOCKED;

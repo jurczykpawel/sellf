@@ -146,13 +146,13 @@ export async function GET(request: NextRequest) {
  * - discount_value: number (required) - Percentage (0-100) or fixed amount in cents
  * - currency: string (optional) - Required for fixed discounts
  * - is_active: boolean (default true)
- * - is_public: boolean (default false) - If true, shows in auto-apply
+ * - is_public: boolean (default false) - Reserved field; currently not used by runtime logic
  * - starts_at: string ISO date (optional, default now)
  * - expires_at: string ISO date (optional)
  * - usage_limit_global: number (optional) - Max total uses
  * - usage_limit_per_user: number (default 1) - Max uses per email
  * - allowed_emails: string[] (optional) - Restrict to specific emails
- * - allowed_product_ids: string[] (optional) - Restrict to specific products
+ * - allowed_product_ids: string[] (optional) - Restrict to specific main checkout products; a matching order bump alone does not activate the coupon
  * - exclude_order_bumps: boolean (default false)
  */
 export async function POST(request: NextRequest) {

@@ -12,6 +12,7 @@ import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
+import { allocateCouponDiscount, toMinorUnits } from '@/lib/pricing/coupon-allocation';
 import { normalizeBumpIds } from '@/lib/validations/product';
 
 
@@ -151,38 +152,22 @@ export class CheckoutService {
   async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string }> {
     try {
       const { coupon, customAmount } = options;
+      const bumpList = options.bumpProducts && options.bumpProducts.length > 0
+        ? options.bumpProducts
+        : options.bumpProduct ? [options.bumpProduct] : [];
 
       // Calculate base price - use customAmount if provided (Pay What You Want)
-      let mainProductPrice = options.product.price;
+      let pricedMainProduct = options.product;
       if (customAmount !== undefined && customAmount > 0) {
-        const minPrice = options.product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
+        const minPrice = pricedMainProduct.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
         if (customAmount < minPrice) {
           throw new CheckoutError(
             CheckoutErrorType.VALIDATION_ERROR,
-            `Amount must be at least ${minPrice} ${options.product.currency}`,
+            `Amount must be at least ${minPrice} ${pricedMainProduct.currency}`,
             HTTP_STATUS.BAD_REQUEST
           );
         }
-        mainProductPrice = customAmount;
-      }
-
-      // Apply coupon discount
-      if (coupon) {
-        if (coupon.discount_type === 'percentage') {
-          mainProductPrice = mainProductPrice * (1 - coupon.discount_value / 100);
-        } else if (coupon.discount_type === 'fixed') {
-          mainProductPrice = Math.max(0, mainProductPrice - coupon.discount_value);
-        }
-      }
-
-      // If coupon reduces total to zero, this path cannot handle free access
-      // (embedded checkout requires Stripe). Enforce minimum.
-      if (mainProductPrice <= 0 && coupon) {
-        throw new CheckoutError(
-          CheckoutErrorType.VALIDATION_ERROR,
-          'This coupon covers the full price. Please use the standard checkout for free access.',
-          HTTP_STATUS.BAD_REQUEST
-        );
+        pricedMainProduct = { ...pricedMainProduct, price: customAmount };
       }
 
       // Resolve checkout config: DB > env var > default
@@ -217,12 +202,12 @@ export class CheckoutService {
       const lineItems: Record<string, unknown>[] = [
         {
           price_data: {
-            currency: options.product.currency.toLowerCase(),
+            currency: pricedMainProduct.currency.toLowerCase(),
             product_data: {
-              name: options.product.name,
-              description: options.product.description || undefined,
+              name: pricedMainProduct.name,
+              description: pricedMainProduct.description || undefined,
             },
-            unit_amount: Math.round(mainProductPrice * 100),
+            unit_amount: 0,
             ...(mainTaxBehavior && { tax_behavior: mainTaxBehavior }),
           },
           ...(mainTaxRates && { tax_rates: mainTaxRates }),
@@ -230,17 +215,32 @@ export class CheckoutService {
         },
       ];
 
-      // Add bump products as additional line items (multi-bump support)
-      const bumpList = options.bumpProducts && options.bumpProducts.length > 0
-        ? options.bumpProducts
-        : options.bumpProduct ? [options.bumpProduct] : [];
+      const allocation = allocateCouponDiscount({
+        items: [
+          { kind: 'base', id: pricedMainProduct.id, price: pricedMainProduct.price },
+          ...bumpList.map((bp) => ({ kind: 'bump' as const, id: bp.id, price: bp.price })),
+        ],
+        baseProductId: pricedMainProduct.id,
+        coupon,
+        applyMinimumFloor: true,
+        minimumAmount: STRIPE_MINIMUM_AMOUNT,
+      });
 
-      for (const bp of bumpList) {
-        let bpPrice = bp.price;
-        // Percentage discounts apply to bumps unless excluded
-        if (coupon && coupon.discount_type === 'percentage' && !coupon.exclude_order_bumps) {
-          bpPrice = bpPrice * (1 - coupon.discount_value / 100);
-        }
+      if (coupon && allocation.isFree) {
+        throw new CheckoutError(
+          CheckoutErrorType.VALIDATION_ERROR,
+          'This coupon covers the full price. Please use the standard checkout for free access.',
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+
+      lineItems[0].price_data = {
+        ...(lineItems[0].price_data as Record<string, unknown>),
+        unit_amount: toMinorUnits(allocation.items[0].finalPrice),
+      };
+
+      for (const [index, bp] of bumpList.entries()) {
+        const discountedBump = allocation.items[index + 1];
 
         // Resolve tax for each bump individually
         let bpTaxRates: string[] | undefined;
@@ -264,7 +264,7 @@ export class CheckoutService {
               description: bp.description || undefined,
               metadata: { product_id: bp.id, is_bump: 'true' },
             },
-            unit_amount: Math.round(bpPrice * 100),
+            unit_amount: toMinorUnits(discountedBump.finalPrice),
             ...(bpTaxBehavior && { tax_behavior: bpTaxBehavior }),
           },
           ...(bpTaxRates && { tax_rates: bpTaxRates }),
@@ -461,6 +461,7 @@ export class CheckoutService {
       discount_type: 'percentage' | 'fixed';
       discount_value: number;
       exclude_order_bumps?: boolean;
+      allowed_product_ids?: string[];
     } | undefined = undefined;
     if (request.couponCode) {
       try {
@@ -486,7 +487,8 @@ export class CheckoutService {
             code: vResult.code,
             discount_type: vResult.discount_type,
             discount_value: vResult.discount_value,
-            exclude_order_bumps: vResult.exclude_order_bumps
+            exclude_order_bumps: vResult.exclude_order_bumps,
+            allowed_product_ids: vResult.allowed_product_ids || [],
           };
         } else {
           // Don't silently ignore invalid coupon — user expects a discount

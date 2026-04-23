@@ -278,6 +278,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
             {/* Products */}
             <div>
               <label className="block text-sm font-medium text-sf-body mb-2">{t('form.productRestriction')}</label>
+              <p className="text-xs text-sf-muted mb-2">{t('form.productRestrictionHelp')}</p>
               <div className="border-2 border-sf-border-medium p-3 max-h-40 overflow-y-auto space-y-2 bg-sf-deep/50">
                 {products.length === 0 ? (
                   <p className="text-sm text-sf-muted">{t('noActiveProducts')}</p>

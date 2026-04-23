@@ -4,16 +4,19 @@
  */
 
 import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { allocateCouponDiscount } from '@/lib/pricing/coupon-allocation';
 
 // Re-export for backward compatibility
 export { STRIPE_MINIMUM_AMOUNT };
 
 export interface BumpPricingItem {
+  id?: string;
   price: number;
   selected: boolean;
 }
 
 export interface PricingInput {
+  baseProductId?: string;
   productPrice: number;
   productCurrency: string;
   productVatRate?: number;
@@ -30,6 +33,7 @@ export interface PricingInput {
     discount_value: number;
     code: string;
     exclude_order_bumps?: boolean;
+    allowed_product_ids?: string[];
   } | null;
 }
 
@@ -67,6 +71,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     productCurrency,
     productVatRate = 0,
     priceIncludesVat = false,
+    baseProductId,
     customAmount,
     bumpPrice = 0,
     bumpSelected = false,
@@ -77,33 +82,26 @@ export function calculatePricing(input: PricingInput): PricingResult {
   // Determine base price (PWYW or regular)
   const isPwyw = customAmount !== undefined && customAmount > 0;
   const basePrice = isPwyw ? customAmount : productPrice;
+  const selectedBumps: BumpPricingItem[] = bumps !== undefined
+    ? bumps.filter((bump) => bump.selected)
+    : bumpSelected ? [{ id: undefined, price: bumpPrice, selected: true }] : [];
 
-  // Calculate bump amount: bumps[] takes precedence over legacy bumpPrice/bumpSelected
-  let bumpAmount: number;
-  if (bumps !== undefined) {
-    bumpAmount = bumps.reduce((sum, b) => sum + (b.selected ? b.price : 0), 0);
-  } else {
-    bumpAmount = bumpSelected ? bumpPrice : 0;
-  }
-  const subtotal = basePrice + bumpAmount;
+  const allocation = allocateCouponDiscount({
+    items: [
+      { kind: 'base', id: baseProductId, price: basePrice },
+      ...selectedBumps.map((bump) => ({ kind: 'bump' as const, id: bump.id, price: bump.price })),
+    ],
+    baseProductId,
+    coupon,
+    applyMinimumFloor: true,
+    minimumAmount: STRIPE_MINIMUM_AMOUNT,
+  });
 
-  // Apply coupon discount
-  // If exclude_order_bumps is true, discount applies only to basePrice (not bump)
-  let discountAmount = 0;
-  if (coupon) {
-    const discountBase = coupon.exclude_order_bumps ? basePrice : subtotal;
-    if (coupon.discount_type === 'percentage') {
-      discountAmount = discountBase * (coupon.discount_value / 100);
-    } else {
-      discountAmount = Math.min(coupon.discount_value, discountBase);
-    }
-  }
-
-  // Calculate totals
-  // When a coupon covers the full price, total is genuinely $0 — don't floor to Stripe minimum
-  const rawTotal = subtotal - discountAmount;
-  const isFreeWithCoupon = coupon !== null && coupon !== undefined && rawTotal <= 0;
-  const totalGross = isFreeWithCoupon ? 0 : Math.max(rawTotal, STRIPE_MINIMUM_AMOUNT);
+  const bumpAmount = selectedBumps.reduce((sum, bump) => sum + bump.price, 0);
+  const subtotal = allocation.subtotal;
+  const discountAmount = allocation.discountAmount;
+  const isFreeWithCoupon = allocation.isFree;
+  const totalGross = allocation.total;
 
   // VAT calculation
   const vatRate = productVatRate || 0;

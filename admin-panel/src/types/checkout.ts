@@ -83,6 +83,7 @@ export interface CheckoutSessionOptions {
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
     exclude_order_bumps?: boolean;
+    allowed_product_ids?: string[];
   };
   customAmount?: number; // Pay What You Want - customer-chosen price
 }

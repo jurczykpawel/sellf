@@ -100,13 +100,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * - discount_value: number
  * - currency: string
  * - is_active: boolean
- * - is_public: boolean
+ * - is_public: boolean (reserved field; currently not used by runtime logic)
  * - starts_at: string ISO date
  * - expires_at: string ISO date (or null to remove)
  * - usage_limit_global: number (or null to remove)
  * - usage_limit_per_user: number
  * - allowed_emails: string[]
- * - allowed_product_ids: string[]
+ * - allowed_product_ids: string[] (main checkout products only; a matching order bump alone does not activate the coupon)
  * - exclude_order_bumps: boolean
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {

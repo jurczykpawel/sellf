@@ -269,7 +269,16 @@ export async function POST(request: NextRequest) {
         customer_email_param: finalEmail || null,
         currency_param: product.currency,
       });
-      const couponResult = couponRaw as { valid: boolean; id: string; code: string; discount_type: 'percentage' | 'fixed'; discount_value: number; exclude_order_bumps: boolean; error?: string } | null;
+      const couponResult = couponRaw as {
+        valid: boolean;
+        id: string;
+        code: string;
+        discount_type: 'percentage' | 'fixed';
+        discount_value: number;
+        exclude_order_bumps: boolean;
+        allowed_product_ids?: string[];
+        error?: string;
+      } | null;
 
       if (couponError) {
         console.error('Coupon verification error:', couponError);
@@ -284,6 +293,7 @@ export async function POST(request: NextRequest) {
           discount_type: couponResult.discount_type,
           discount_value: couponResult.discount_value,
           exclude_order_bumps: couponResult.exclude_order_bumps,
+          allowed_product_ids: couponResult.allowed_product_ids || [],
         };
       } else {
         // SECURITY: Don't silently ignore invalid coupon - user expects discount!
@@ -297,15 +307,17 @@ export async function POST(request: NextRequest) {
 
     // 6. Calculate pricing using centralized function (multi-bump aware)
     const pricing = calculatePricing({
+      baseProductId: product.id,
       productPrice: product.price,
       productCurrency: product.currency,
       customAmount,
-      bumps: validatedBumps.map(vb => ({ price: vb.bumpPrice, selected: true })),
+      bumps: validatedBumps.map(vb => ({ id: vb.product.id, price: vb.bumpPrice, selected: true })),
       coupon: appliedCoupon ? {
         discount_type: appliedCoupon.discount_type,
         discount_value: appliedCoupon.discount_value,
         code: appliedCoupon.code,
         exclude_order_bumps: appliedCoupon.exclude_order_bumps,
+        allowed_product_ids: appliedCoupon.allowed_product_ids,
       } : null,
     });
 
