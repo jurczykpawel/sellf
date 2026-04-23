@@ -154,12 +154,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
       const adminClient = createAdminClient();
       const freeAccessResult = await grantFreeProductAccess(supabase, adminClient, {
-        product: {
-          id: product.id,
-          slug: resolvedParams.slug,
-          price: product.price,
-          isPwywFree: !!(product.allow_custom_price && product.custom_price_min === 0),
-        },
+        product: { id: product.id, slug: resolvedParams.slug },
         user: { id: user.id, email: customerEmail },
       });
 

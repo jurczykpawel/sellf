@@ -4,13 +4,18 @@ export interface FreeProductInput {
   product: {
     id: string;
     slug: string;
-    price: number;
-    isPwywFree: boolean;
   };
   user: {
     id: string;
     email: string;
   };
+  /**
+   * When set, this grant is driven by a full-discount coupon on a paid product.
+   * The unified grant_free_product_access RPC validates the coupon internally
+   * (via verify_coupon), enforces the full-discount rule, and records the
+   * redemption + bumps the usage counter atomically with the UPA upsert.
+   */
+  couponCode?: string;
 }
 
 export interface FreeProductAccessResult {
@@ -21,21 +26,29 @@ export interface FreeProductAccessResult {
 }
 
 /**
- * Grants access to a free (or PWYW-free) product and generates an OTO coupon if one is configured.
+ * Grants free access to a product and generates an OTO coupon if configured.
+ *
+ * The unified seller_main.grant_free_product_access RPC handles eligibility
+ * across all three paths (price=0 / PWYW-free / full-discount coupon) in a
+ * single atomic transaction, so the service stays thin: detect "already had
+ * access", call the RPC, generate OTO.
  *
  * Called from:
- * - /api/public/products/[slug]/grant-access  (primary path via FreeProductForm)
- * - /p/[slug]/payment-status                  (fallback when user arrives without session_id)
+ *   - /api/public/products/[slug]/grant-access  (FreeProductForm + coupon redeem)
+ *   - /auth/product-access                       (magic-link callback)
+ *   - /p/[slug]/payment-status                  (fallback when user arrives without session_id)
  *
- * @param userClient   Authenticated user client (for RPC calls that use auth.uid())
- * @param adminClient  Service role client (for access check + generate_oto_coupon which bypass RLS)
+ * @param userClient   Authenticated user client (RPC uses auth.uid())
+ * @param adminClient  Service role client (for access check + OTO generation)
  */
 export async function grantFreeProductAccess(
   userClient: SupabaseClient<any, any>,
   adminClient: SupabaseClient<any, any>,
-  { product, user }: FreeProductInput,
+  { product, user, couponCode }: FreeProductInput,
 ): Promise<FreeProductAccessResult> {
-  // 1. Check whether user already has valid (non-expired) access
+  // 1. Pre-check for existing active access so callers can distinguish a fresh
+  //    grant from a repeat click. The RPC would also short-circuit, but it
+  //    returns plain TRUE either way — we need the flag for UI + analytics.
   const { data: existingAccess } = await adminClient
     .from('user_product_access')
     .select('access_expires_at')
@@ -44,29 +57,28 @@ export async function grantFreeProductAccess(
     .single();
 
   let alreadyHadAccess = false;
-
   if (existingAccess) {
     const expiresAt = existingAccess.access_expires_at
       ? new Date(existingAccess.access_expires_at)
       : null;
     const isExpired = expiresAt && expiresAt < new Date();
-
-    if (!isExpired) {
-      alreadyHadAccess = true;
-    }
+    if (!isExpired) alreadyHadAccess = true;
   }
 
-  // 2. Grant access only if not already granted
+  // 2. Call the unified grant RPC. It handles:
+  //    - coupon validation (via verify_coupon) + full-discount assertion
+  //    - price=0 / PWYW-free eligibility
+  //    - UPA upsert
+  //    - coupon_redemptions insert + usage counter bump + reservation cleanup
+  //    all in one transaction.
   if (!alreadyHadAccess) {
-    // PWYW-free: product has a non-zero list price but custom_price_min = 0 → use dedicated RPC
-    const rpcName =
-      product.isPwywFree && product.price > 0
-        ? 'grant_pwyw_free_access'
-        : 'grant_free_product_access';
-
-    const { data: grantResult, error: grantError } = await userClient.rpc(rpcName, {
-      product_slug_param: product.slug,
-    });
+    const { data: grantResult, error: grantError } = await userClient.rpc(
+      'grant_free_product_access',
+      {
+        product_slug_param: product.slug,
+        coupon_code_param: couponCode ?? null,
+      },
+    );
 
     if (grantError) {
       console.error('[grantFreeProductAccess] RPC error:', grantError);
@@ -78,7 +90,7 @@ export async function grantFreeProductAccess(
         alreadyHadAccess: false,
         accessGranted: false,
         otoInfo: null,
-        error: 'Failed to grant access - product may not be free or active',
+        error: 'Failed to grant access - product may not be free or the coupon is invalid',
       };
     }
   }

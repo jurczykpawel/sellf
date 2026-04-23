@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 
 /** Block redirects to internal/private network hosts */
 function isBlockedHost(hostname: string): boolean {
@@ -49,6 +51,10 @@ export async function GET(request: Request) {
   const slug = searchParams.get('product');
   const returnUrl = searchParams.get('return_url');
   const successUrl = searchParams.get('success_url');
+  const rawCoupon = searchParams.get('coupon');
+  const couponCode = rawCoupon && rawCoupon.trim().length > 0
+    ? rawCoupon.trim().toUpperCase()
+    : null;
 
   if (!slug) {
     safeRedirect('/');
@@ -68,10 +74,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Single product fetch (avoids redundant query)
+    // Single product fetch (avoids redundant query).
+    // Eligibility (price=0 / PWYW-free / full-discount coupon) is decided inside
+    // the unified grant RPC, so this route only needs product + access state.
     const { data: product } = await supabase
       .from('products')
-      .select('id, price, is_active, allow_custom_price, custom_price_min, content_delivery_type, content_config')
+      .select('id, is_active, content_delivery_type, content_config')
       .eq('slug', slug)
       .single();
 
@@ -81,53 +89,38 @@ export async function GET(request: Request) {
     }
 
     // Check existing access
-    let existingAccess = null;
-    const { data } = await supabase
+    const { data: existingAccess } = await supabase
       .from('user_product_access')
-      .select('*')
+      .select('id')
       .eq('user_id', user.id)
       .eq('product_id', product.id)
       .maybeSingle();
-    existingAccess = data;
 
-    // No access yet - check if product is free and grant
+    // No access yet — delegate to the service. It decides eligibility + validates
+    // the coupon (if any) + records the redemption + generates OTO, all atomically.
     if (!existingAccess) {
       if (!product.is_active) {
         safeRedirect('/', returnUrl);
         return;
       }
 
-      const isPwywFree = product.allow_custom_price && product.custom_price_min === 0;
-      const isFreeEligible = product.price === 0 || isPwywFree;
+      const adminClient = createAdminClient();
+      const result = await grantFreeProductAccess(supabase, adminClient, {
+        product: { id: product.id, slug },
+        user: { id: user.id, email: user.email ?? '' },
+        couponCode: couponCode ?? undefined,
+      });
 
-      if (isFreeEligible) {
-        const rpcName = isPwywFree && product.price > 0 ? 'grant_pwyw_free_access' : 'grant_free_product_access';
-        // Use the user's session client for RPC - service_role loses auth.uid() context
-        const { data: accessResult, error: grantError } = await supabase
-          .rpc(rpcName, {
-            product_slug_param: slug,
-            access_duration_days_param: null,
-          });
-
-        if (grantError) {
-          console.error(`[ProductAccess] Error granting access:`, grantError);
-          safeRedirect(prodUrl, returnUrl);
-          return;
-        }
-
-        if (accessResult) {
-          const qs = successUrl ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(successUrl)}` : '';
-          safeRedirect(`${statusUrl}${qs}`, returnUrl);
-          return;
-        }
-
-        console.error(`[ProductAccess] ${rpcName} returned false`);
+      if (!result.accessGranted) {
+        // Product is paid and no valid full-discount coupon was supplied (or the
+        // coupon was rejected). Send them to the product page so they can buy.
+        console.error(`[ProductAccess] Grant failed: ${result.error}`);
         safeRedirect(prodUrl, returnUrl);
         return;
       }
 
-      // Paid product - redirect to product/checkout page
-      safeRedirect(prodUrl, returnUrl);
+      const qs = successUrl ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(successUrl)}` : '';
+      safeRedirect(`${statusUrl}${qs}`, returnUrl);
       return;
     }
 

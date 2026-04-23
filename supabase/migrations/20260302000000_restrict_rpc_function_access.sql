@@ -124,7 +124,6 @@ GRANT EXECUTE ON FUNCTION seller_main.validate_payment_transaction TO service_ro
 
 -- User-facing actions
 GRANT EXECUTE ON FUNCTION seller_main.grant_free_product_access TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION seller_main.grant_pwyw_free_access TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION seller_main.create_refund_request TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION seller_main.check_refund_eligibility TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION seller_main.get_user_payment_history TO authenticated, service_role;

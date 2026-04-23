@@ -31,10 +31,26 @@ export async function POST(
       );
     }
 
+    // Optional coupon payload. Body is best-effort: grant-access is also called with
+    // no body from the free/PWYW path, so parse leniently and treat any failure as "no coupon".
+    let couponCode: string | null = null;
+    try {
+      const contentType = request.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const body = await request.json().catch(() => null);
+        const raw = body && typeof body === 'object' ? (body as { couponCode?: unknown }).couponCode : null;
+        if (typeof raw === 'string' && raw.trim().length > 0) {
+          couponCode = raw.trim().toUpperCase();
+        }
+      }
+    } catch {
+      couponCode = null;
+    }
+
     // Get product
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('id, name, slug, price, currency, icon, is_active, available_from, available_until, allow_custom_price, custom_price_min')
+      .select('id, name, slug, price, currency, icon, is_active, available_from, available_until')
       .eq('slug', slug)
       .single();
 
@@ -46,31 +62,25 @@ export async function POST(
     const now = new Date();
     const availableFrom = product.available_from ? new Date(product.available_from) : null;
     const availableUntil = product.available_until ? new Date(product.available_until) : null;
-    
+
     const isTemporallyAvailable = (!availableFrom || availableFrom <= now) && (!availableUntil || availableUntil > now);
-    
+
     if (!product.is_active || !isTemporallyAvailable) {
       return NextResponse.json({ error: 'Product not available for purchase' }, { status: 400 });
     }
 
-    // Check if this is a PWYW product with free option (custom_price_min = 0)
-    // SECURITY: Only explicit 0 qualifies — null is NOT treated as free (fail-closed)
-    const isPwywFree = product.allow_custom_price && product.custom_price_min === 0;
-
-    // Only allow free products or PWYW-free products
-    if (product.price > 0 && !isPwywFree) {
-      return NextResponse.json({ error: 'Payment required' }, { status: 400 });
-    }
-
+    // The unified grant_free_product_access RPC decides eligibility itself
+    // (price=0 / PWYW-free / full-discount coupon) and validates the coupon
+    // via verify_coupon internally. We just pass it through.
     const adminClient = createAdminClient();
     const accessResult = await grantFreeProductAccess(supabase, adminClient, {
-      product: { id: product.id, slug, price: product.price, isPwywFree },
+      product: { id: product.id, slug },
       user: { id: user.id, email: user.email ?? '' },
+      couponCode: couponCode ?? undefined,
     });
 
     if (!accessResult.accessGranted) {
-      const status = accessResult.error?.includes('not be free or active') ? 400 : 500;
-      return NextResponse.json({ error: accessResult.error }, { status });
+      return NextResponse.json({ error: accessResult.error }, { status: 400 });
     }
 
     // Trigger webhook and tracking only for new grants (not repeat calls)

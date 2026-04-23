@@ -291,12 +291,19 @@ AS $$
 $$;
 
 -- ===== grant_free_product_access =====
-CREATE OR REPLACE FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer DEFAULT NULL::integer)
+-- Drop legacy 2-param proxy so the new 3-param signature below is unambiguous.
+DROP FUNCTION IF EXISTS public.grant_free_product_access(text, integer);
+
+CREATE OR REPLACE FUNCTION public.grant_free_product_access(
+  product_slug_param text,
+  access_duration_days_param integer DEFAULT NULL::integer,
+  coupon_code_param text DEFAULT NULL::text
+)
 RETURNS boolean
 LANGUAGE sql VOLATILE SECURITY INVOKER
 SET search_path = ''
 AS $$
-  SELECT seller_main.grant_free_product_access(product_slug_param, access_duration_days_param);
+  SELECT seller_main.grant_free_product_access(product_slug_param, access_duration_days_param, coupon_code_param);
 $$;
 
 -- ===== grant_product_access_service_role =====
@@ -308,14 +315,9 @@ AS $$
   SELECT seller_main.grant_product_access_service_role(user_id_param, product_id_param, max_retries);
 $$;
 
--- ===== grant_pwyw_free_access =====
-CREATE OR REPLACE FUNCTION public.grant_pwyw_free_access(product_slug_param text, access_duration_days_param integer DEFAULT NULL::integer)
-RETURNS boolean
-LANGUAGE sql VOLATILE SECURITY INVOKER
-SET search_path = ''
-AS $$
-  SELECT seller_main.grant_pwyw_free_access(product_slug_param, access_duration_days_param);
-$$;
+-- grant_pwyw_free_access is gone — its behaviour lives inside the unified
+-- grant_free_product_access RPC (see 20260306170242_add_rate_limit_to_grant_free_access.sql).
+DROP FUNCTION IF EXISTS public.grant_pwyw_free_access(text, integer);
 
 -- ===== increment_sale_quantity_sold =====
 CREATE OR REPLACE FUNCTION public.increment_sale_quantity_sold(p_product_id uuid)
@@ -462,7 +464,6 @@ REVOKE ALL ON FUNCTION public.get_user_payment_history FROM anon;
 REVOKE ALL ON FUNCTION public.get_user_profile FROM anon;
 REVOKE ALL ON FUNCTION public.get_user_purchases_with_refund_status FROM anon;
 REVOKE ALL ON FUNCTION public.grant_free_product_access FROM anon;
-REVOKE ALL ON FUNCTION public.grant_pwyw_free_access FROM anon;
 REVOKE ALL ON FUNCTION public.process_refund_request FROM anon;
 REVOKE ALL ON FUNCTION public.set_revenue_goal FROM anon;
 REVOKE ALL ON FUNCTION public.update_video_progress FROM anon;
