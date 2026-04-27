@@ -9,6 +9,7 @@ import {
   CreateCheckoutRequest,
 } from '@/types/checkout';
 import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
+import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
@@ -512,27 +513,11 @@ export class CheckoutService {
 
     // Validate custom amount for Pay What You Want
     if (request.customAmount !== undefined) {
-      if (typeof request.customAmount !== 'number' || !Number.isFinite(request.customAmount) || request.customAmount <= 0) {
+      const v = validateCustomAmount(request.customAmount, product);
+      if (!v.ok) {
         throw new CheckoutError(
           CheckoutErrorType.VALIDATION_ERROR,
-          'Custom amount must be a positive number',
-          HTTP_STATUS.BAD_REQUEST
-        );
-      }
-
-      if (!product.allow_custom_price) {
-        throw new CheckoutError(
-          CheckoutErrorType.VALIDATION_ERROR,
-          'This product does not allow custom pricing',
-          HTTP_STATUS.BAD_REQUEST
-        );
-      }
-
-      const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
-      if (request.customAmount < minPrice) {
-        throw new CheckoutError(
-          CheckoutErrorType.VALIDATION_ERROR,
-          `Amount must be at least ${minPrice} ${product.currency}`,
+          v.error,
           HTTP_STATUS.BAD_REQUEST
         );
       }

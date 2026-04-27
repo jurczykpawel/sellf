@@ -3,7 +3,8 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { calculatePricing, toStripeCents, STRIPE_MINIMUM_AMOUNT } from '@/hooks/usePricing';
+import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
+import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
@@ -166,47 +167,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Validate PWYW (Pay What You Want) custom pricing
-    const STRIPE_MAX_AMOUNT = 999999.99; // Stripe's maximum amount limit
     if (customAmount !== undefined) {
-      // SECURITY: Reject non-numeric, NaN, or Infinity values (consistent with checkout.ts)
-      if (typeof customAmount !== 'number' || !Number.isFinite(customAmount)) {
-        return NextResponse.json(
-          { error: 'Custom amount must be a valid number' },
-          { status: 400 }
-        );
-      }
-
-      // SECURITY: Explicitly reject zero or negative amounts
-      if (customAmount <= 0) {
-        return NextResponse.json(
-          { error: 'Custom amount must be greater than zero' },
-          { status: 400 }
-        );
-      }
-
-      // Security: Reject customAmount if product doesn't allow custom pricing
-      if (!product.allow_custom_price) {
-        return NextResponse.json(
-          { error: 'This product does not allow custom pricing' },
-          { status: 400 }
-        );
-      }
-
-      // Validate minimum price
-      const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
-      if (customAmount < minPrice) {
-        return NextResponse.json(
-          { error: `Amount must be at least ${minPrice} ${product.currency}` },
-          { status: 400 }
-        );
-      }
-
-      // Validate maximum price (Stripe limit)
-      if (customAmount > STRIPE_MAX_AMOUNT) {
-        return NextResponse.json(
-          { error: `Amount must be no more than ${STRIPE_MAX_AMOUNT} ${product.currency}` },
-          { status: 400 }
-        );
+      const v = validateCustomAmount(customAmount, product);
+      if (!v.ok) {
+        return NextResponse.json({ error: v.error }, { status: 400 });
       }
     }
 
