@@ -280,6 +280,11 @@ describe('Area 4: API Route Authentication & Authorization', () => {
       /createPlatformClient|createAdminClient/.test(cron.source),
       'cron route should use service-role client for DB operations'
     ).toBe(true);
+
+    expect(
+      /searchParams\.get\(\s*['"]secret['"]/.test(cron.source),
+      'cron route must accept the secret only via Authorization: Bearer'
+    ).toBe(false);
   });
 
   it('service-role client must not be initialized before auth verification in admin routes', () => {

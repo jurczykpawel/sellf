@@ -3,11 +3,7 @@
  *
  * Secured with CRON_SECRET env var. Platform-admin infrastructure only.
  *
- *   # Preferred (secret not in logs):
  *   curl -H "Authorization: Bearer $CRON_SECRET" "https://yourdomain.com/api/cron?job=access-expired"
- *
- *   # Fallback (secret in URL — visible in access logs, avoid in production):
- *   curl "https://yourdomain.com/api/cron?job=access-expired&secret=$CRON_SECRET"
  *
  * Jobs:
  *   access-expired        — dispatch access.expired webhooks for newly expired access records
@@ -37,12 +33,9 @@ function isAuthorized(request: NextRequest): boolean {
     return false;
   }
 
-  // Prefer Authorization: Bearer <secret> (not logged by proxies/CDNs)
   const authHeader = request.headers.get('Authorization');
-  const candidate = authHeader?.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : request.nextUrl.searchParams.get('secret'); // URL fallback
-
+  if (!authHeader?.startsWith('Bearer ')) return false;
+  const candidate = authHeader.slice(7);
   if (!candidate) return false;
 
   // Timing-safe comparison (prevents secret length/content oracle attacks)

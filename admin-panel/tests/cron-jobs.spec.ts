@@ -36,8 +36,13 @@ test.describe('Cron endpoint: security', () => {
     expect(res.status()).toBe(401);
   });
 
-  test('returns 401 with wrong URL secret (fallback)', async ({ request }) => {
+  test('returns 401 with wrong URL secret', async ({ request }) => {
     const res = await request.get(`${BASE_URL}/api/cron?job=access-expired&secret=wrong-secret`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('rejects URL secret even when value is correct (no query-string fallback)', async ({ request }) => {
+    const res = await request.get(`${BASE_URL}/api/cron?job=access-expired&secret=${encodeURIComponent(CRON_SECRET)}`);
     expect(res.status()).toBe(401);
   });
 
