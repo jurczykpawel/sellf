@@ -626,6 +626,218 @@ describe('Order Bumps API v1', () => {
     });
   });
 
+  describe('access_duration_days — 3-state encoding', () => {
+    // The order bump form (OrderBumpFormModal.tsx) writes one of three values:
+    //   null → "Use default for product"   (fall back to bump product's auto_grant_duration_days)
+    //      0 → "Unlimited override"        (force NULL access_expires_at on grant)
+    //    N>0 → "Custom override (N days)"
+    // The API must accept all three on POST and PATCH.
+
+    it('POST accepts access_duration_days: 0 (Unlimited override)', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraBump } = await supabase
+        .from('products')
+        .insert({
+          name: `Unlimited Bump POST ${randomStr}`,
+          slug: `unlimited-bump-post-${randomStr}`,
+          price: 1500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      try {
+        const { status, data } = await post<ApiResponse<OrderBump>>('/api/v1/order-bumps', {
+          main_product_id: mainProductId,
+          bump_product_id: extraBump!.id,
+          bump_title: 'Unlimited Override Test',
+          access_duration_days: 0,
+        });
+
+        expect(status).toBe(201);
+        expect(data.data!.access_duration_days).toBe(0);
+
+        if (data.data?.id) {
+          await supabase.from('order_bumps').delete().eq('id', data.data.id);
+        }
+      } finally {
+        await supabase.from('products').delete().eq('id', extraBump!.id);
+      }
+    });
+
+    it('POST accepts access_duration_days: null (Use default for product)', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraBump } = await supabase
+        .from('products')
+        .insert({
+          name: `Default Bump POST ${randomStr}`,
+          slug: `default-bump-post-${randomStr}`,
+          price: 1500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      try {
+        const { status, data } = await post<ApiResponse<OrderBump>>('/api/v1/order-bumps', {
+          main_product_id: mainProductId,
+          bump_product_id: extraBump!.id,
+          bump_title: 'Default Mode Test',
+          access_duration_days: null,
+        });
+
+        expect(status).toBe(201);
+        expect(data.data!.access_duration_days).toBeNull();
+
+        if (data.data?.id) {
+          await supabase.from('order_bumps').delete().eq('id', data.data.id);
+        }
+      } finally {
+        await supabase.from('products').delete().eq('id', extraBump!.id);
+      }
+    });
+
+    it('POST rejects access_duration_days: -1 (negative invalid)', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraBump } = await supabase
+        .from('products')
+        .insert({
+          name: `Negative Bump POST ${randomStr}`,
+          slug: `negative-bump-post-${randomStr}`,
+          price: 1500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      try {
+        const { status, data } = await post<ApiResponse<OrderBump>>('/api/v1/order-bumps', {
+          main_product_id: mainProductId,
+          bump_product_id: extraBump!.id,
+          bump_title: 'Negative Test',
+          access_duration_days: -1,
+        });
+
+        expect(status).toBe(400);
+        expect(data.error!.code).toBe('VALIDATION_ERROR');
+      } finally {
+        await supabase.from('products').delete().eq('id', extraBump!.id);
+      }
+    });
+
+    it('POST rejects access_duration_days: 3651 (above max)', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraBump } = await supabase
+        .from('products')
+        .insert({
+          name: `OverMax Bump POST ${randomStr}`,
+          slug: `overmax-bump-post-${randomStr}`,
+          price: 1500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      try {
+        const { status, data } = await post<ApiResponse<OrderBump>>('/api/v1/order-bumps', {
+          main_product_id: mainProductId,
+          bump_product_id: extraBump!.id,
+          bump_title: 'OverMax Test',
+          access_duration_days: 3651,
+        });
+
+        expect(status).toBe(400);
+        expect(data.error!.code).toBe('VALIDATION_ERROR');
+      } finally {
+        await supabase.from('products').delete().eq('id', extraBump!.id);
+      }
+    });
+
+    it('PATCH accepts access_duration_days: 0 (Unlimited override)', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraBump } = await supabase
+        .from('products')
+        .insert({
+          name: `Unlimited Bump PATCH ${randomStr}`,
+          slug: `unlimited-bump-patch-${randomStr}`,
+          price: 1500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      const { data: ob } = await supabase
+        .from('order_bumps')
+        .insert({
+          main_product_id: mainProductId,
+          bump_product_id: extraBump!.id,
+          bump_title: 'Patch Unlimited Test',
+          is_active: true,
+          access_duration_days: 30,
+        })
+        .select()
+        .single();
+
+      try {
+        const { status, data } = await patch<ApiResponse<OrderBump>>(
+          `/api/v1/order-bumps/${ob!.id}`,
+          { access_duration_days: 0 }
+        );
+
+        expect(status).toBe(200);
+        expect(data.data!.access_duration_days).toBe(0);
+      } finally {
+        await supabase.from('order_bumps').delete().eq('id', ob!.id);
+        await supabase.from('products').delete().eq('id', extraBump!.id);
+      }
+    });
+
+    it('PATCH accepts access_duration_days: null (Use default for product)', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: extraBump } = await supabase
+        .from('products')
+        .insert({
+          name: `Default Bump PATCH ${randomStr}`,
+          slug: `default-bump-patch-${randomStr}`,
+          price: 1500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      const { data: ob } = await supabase
+        .from('order_bumps')
+        .insert({
+          main_product_id: mainProductId,
+          bump_product_id: extraBump!.id,
+          bump_title: 'Patch Default Test',
+          is_active: true,
+          access_duration_days: 30,
+        })
+        .select()
+        .single();
+
+      try {
+        const { status, data } = await patch<ApiResponse<OrderBump>>(
+          `/api/v1/order-bumps/${ob!.id}`,
+          { access_duration_days: null }
+        );
+
+        expect(status).toBe(200);
+        expect(data.data!.access_duration_days).toBeNull();
+      } finally {
+        await supabase.from('order_bumps').delete().eq('id', ob!.id);
+        await supabase.from('products').delete().eq('id', extraBump!.id);
+      }
+    });
+  });
+
   describe('IDOR Tests', () => {
     it('both admins can view order bumps (shared resource)', async () => {
       // In Sellf, order bumps are global admin resources, not per-user

@@ -159,11 +159,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    // Validate access_duration_days if provided
+    // Validate access_duration_days if provided. 3-state encoding:
+    //   null → use bump product's default; 0 → unlimited override; N>0 → N-day override.
     if (access_duration_days !== undefined && access_duration_days !== null) {
-      if (typeof access_duration_days !== 'number' || !Number.isInteger(access_duration_days) || access_duration_days < 1 || access_duration_days > 3650) {
+      if (typeof access_duration_days !== 'number' || !Number.isInteger(access_duration_days) || access_duration_days < 0 || access_duration_days > 3650) {
         return apiError(request, 'VALIDATION_ERROR', 'Invalid access duration', {
-          access_duration_days: ['Access duration must be an integer between 1 and 3650 days']
+          access_duration_days: ['Access duration must be an integer between 0 and 3650 days (0 = unlimited)']
         });
       }
     }
