@@ -37,9 +37,7 @@ export async function POST(request: NextRequest) {
     // Get authenticated user (optional - can be null for guest purchases)
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Rate limiting - use user ID if available, otherwise use client IP
-    const rateLimitIdentifier = user?.id || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const rateLimitOk = await checkRateLimit('verify_payment', 10, 60, rateLimitIdentifier);
+    const rateLimitOk = await checkRateLimit('verify_payment', 10, 60, user?.id);
     
     if (!rateLimitOk) {
       return NextResponse.json(
