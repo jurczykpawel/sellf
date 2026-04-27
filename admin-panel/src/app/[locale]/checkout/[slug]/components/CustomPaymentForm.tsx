@@ -71,7 +71,11 @@ export default function CustomPaymentForm({
     productVatRate: product.vat_rate ?? undefined,
     priceIncludesVat: product.price_includes_vat ?? undefined,
     customAmount,
-    bumps: bumpProducts.map(bp => ({ price: bp.bump_price, selected: selectedBumpIds.has(bp.bump_product_id) })),
+    bumps: bumpProducts.map(bp => ({
+      id: bp.bump_product_id,
+      price: bp.bump_price,
+      selected: selectedBumpIds.has(bp.bump_product_id),
+    })),
     coupon: appliedCoupon,
   });
 

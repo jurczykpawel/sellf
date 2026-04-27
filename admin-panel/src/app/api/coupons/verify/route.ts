@@ -35,11 +35,22 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('currency')
+      .eq('id', productId)
+      .single();
+
+    if (productError || !product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
     // Use the secure DB function to verify coupon
     const { data, error } = await supabase.rpc('verify_coupon', {
       code_param: code.toUpperCase(),
       product_id_param: productId,
-      customer_email_param: email || null
+      customer_email_param: email || null,
+      currency_param: product.currency,
     });
 
     if (error) {

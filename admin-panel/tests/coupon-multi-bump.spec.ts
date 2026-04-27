@@ -498,6 +498,78 @@ test.describe('Coupon × Multi-Bump', () => {
     expect(body.error).toContain('log in');
   });
 
+  test('OTO product-scoped coupon preview does not discount selected order bumps', async ({ page }) => {
+    const otoEmail = `oto-bump-preview-${ts}@example.com`;
+    const { data: sourceProduct } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `CMB OTO Source ${ts}`,
+        slug: `cmb-oto-source-${ts}`,
+        price: 40,
+        currency: 'USD',
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    const { data: transaction } = await supabaseAdmin
+      .from('payment_transactions')
+      .insert({
+        session_id: `cs_oto_bump_preview_${ts}`,
+        product_id: sourceProduct!.id,
+        customer_email: otoEmail,
+        amount: 40,
+        currency: 'USD',
+        status: 'completed',
+      })
+      .select()
+      .single();
+
+    const { data: otoOffer } = await supabaseAdmin
+      .from('oto_offers')
+      .insert({
+        source_product_id: sourceProduct!.id,
+        oto_product_id: mainProduct.id,
+        discount_type: 'percentage',
+        discount_value: 10,
+        duration_minutes: 15,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    const { data: otoResult } = await supabaseAdmin.rpc('generate_oto_coupon', {
+      source_product_id_param: sourceProduct!.id,
+      customer_email_param: otoEmail,
+      transaction_id_param: transaction!.id,
+    });
+
+    expect(otoResult.has_oto).toBe(true);
+
+    await page.goto(`/checkout/${mainProduct.slug}?email=${encodeURIComponent(otoEmail)}&coupon=${otoResult.coupon_code}&oto=1`);
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.locator('input[placeholder*="code"], input[placeholder*="kod"]'))
+      .toHaveValue(otoResult.coupon_code, { timeout: 15000 });
+
+    await page.getByRole('button', { name: /Add to order|Dodaj do zamówienia/i }).first().click();
+
+    const orderSummary = page.locator('div').filter({
+      has: page.getByText(/^Total$|^Razem$/),
+    }).filter({
+      has: page.getByText(new RegExp(`Discount \\(${otoResult.coupon_code}\\)|Rabat \\(${otoResult.coupon_code}\\)`)),
+    }).first();
+
+    await expect(orderSummary.getByText('-$10.00 USD', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(orderSummary.getByText('$110.00 USD', { exact: true })).toBeVisible();
+
+    await supabaseAdmin.from('coupon_reservations').delete().eq('coupon_id', otoResult.coupon_id);
+    await supabaseAdmin.from('coupons').delete().eq('id', otoResult.coupon_id);
+    await supabaseAdmin.from('oto_offers').delete().eq('id', otoOffer!.id);
+    await supabaseAdmin.from('payment_transactions').delete().eq('id', transaction!.id);
+    await supabaseAdmin.from('products').delete().eq('id', sourceProduct!.id);
+  });
+
   test('no bumps selected + percentage coupon: discount on main only', async ({ request }) => {
     // Main $100, no bumps
     // Discount: 25% of $100 = $25

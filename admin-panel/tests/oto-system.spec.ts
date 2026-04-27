@@ -600,6 +600,99 @@ test.describe('OTO Coupon Restrictions', () => {
     await supabaseAdmin.from('products').delete().eq('id', sourceProduct.id);
     await supabaseAdmin.from('products').delete().eq('id', otoProduct.id);
   });
+
+  test('generate_oto_coupon should not return an existing expired paid OTO coupon as active', async () => {
+    const sourceProduct = await createTestProduct('ExpiredExistingSource');
+    const otoProduct = await createTestProduct('ExpiredExistingOTO');
+    const testEmail = `expired-existing-${Date.now()}@example.com`;
+
+    const { data: otoOffer } = await supabaseAdmin
+      .from('oto_offers')
+      .insert({
+        source_product_id: sourceProduct.id,
+        oto_product_id: otoProduct.id,
+        discount_type: 'percentage',
+        discount_value: 20,
+        duration_minutes: 15,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    const transaction = await createTestTransaction(sourceProduct.id, testEmail);
+
+    const { data: firstResult } = await supabaseAdmin.rpc('generate_oto_coupon', {
+      source_product_id_param: sourceProduct.id,
+      customer_email_param: testEmail,
+      transaction_id_param: transaction.id,
+    });
+
+    await supabaseAdmin
+      .from('coupons')
+      .update({ expires_at: new Date(Date.now() - 60_000).toISOString() })
+      .eq('code', firstResult.coupon_code);
+
+    const { data: secondResult, error: secondError } = await supabaseAdmin.rpc('generate_oto_coupon', {
+      source_product_id_param: sourceProduct.id,
+      customer_email_param: testEmail,
+      transaction_id_param: transaction.id,
+    });
+
+    expect(secondError).toBeNull();
+    expect(secondResult.has_oto).toBe(false);
+    expect(secondResult.reason).toBe('existing_oto_coupon_unavailable');
+
+    await supabaseAdmin.from('coupons').delete().eq('code', firstResult.coupon_code);
+    await supabaseAdmin.from('oto_offers').delete().eq('id', otoOffer!.id);
+    await supabaseAdmin.from('payment_transactions').delete().eq('id', transaction.id);
+    await supabaseAdmin.from('products').delete().eq('id', sourceProduct.id);
+    await supabaseAdmin.from('products').delete().eq('id', otoProduct.id);
+  });
+
+  test('generate_oto_coupon should not return an existing used free-product OTO coupon as active', async () => {
+    const sourceProduct = await createTestProduct('UsedFreeExistingSource', 0);
+    const otoProduct = await createTestProduct('UsedFreeExistingOTO');
+    const testEmail = `used-free-existing-${Date.now()}@example.com`;
+
+    const { data: otoOffer } = await supabaseAdmin
+      .from('oto_offers')
+      .insert({
+        source_product_id: sourceProduct.id,
+        oto_product_id: otoProduct.id,
+        discount_type: 'fixed',
+        discount_value: 10,
+        duration_minutes: 15,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    const { data: firstResult } = await supabaseAdmin.rpc('generate_oto_coupon', {
+      source_product_id_param: sourceProduct.id,
+      customer_email_param: testEmail,
+      transaction_id_param: null,
+    });
+
+    await supabaseAdmin
+      .from('coupons')
+      .update({ current_usage_count: 1 })
+      .eq('code', firstResult.coupon_code);
+
+    const { data: secondResult, error: secondError } = await supabaseAdmin.rpc('generate_oto_coupon', {
+      source_product_id_param: sourceProduct.id,
+      customer_email_param: testEmail,
+      transaction_id_param: null,
+    });
+
+    expect(secondError).toBeNull();
+    expect(secondResult.has_oto).toBe(false);
+    expect(secondResult.reason).toBe('existing_oto_coupon_unavailable');
+
+    await supabaseAdmin.from('coupons').delete().eq('code', firstResult.coupon_code);
+    await supabaseAdmin.from('oto_offers').delete().eq('id', otoOffer!.id);
+    await supabaseAdmin.from('products').delete().eq('id', sourceProduct.id);
+    await supabaseAdmin.from('products').delete().eq('id', otoProduct.id);
+  });
 });
 
 test.describe('OTO API Edge Cases', () => {

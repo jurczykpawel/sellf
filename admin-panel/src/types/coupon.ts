@@ -32,12 +32,15 @@ export interface CouponVerificationResult {
   discount_type?: 'percentage' | 'fixed';
   discount_value?: number;
   exclude_order_bumps?: boolean;
+  allowed_product_ids?: string[];
 }
 
 /** Shape of a successfully applied coupon used in checkout UI */
 export interface AppliedCoupon {
+  id?: string;
   code: string;
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
   exclude_order_bumps?: boolean;
+  allowed_product_ids?: string[];
 }

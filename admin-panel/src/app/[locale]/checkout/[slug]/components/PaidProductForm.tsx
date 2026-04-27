@@ -19,6 +19,7 @@ import { useCoupon } from '@/hooks/useCoupon';
 import { useOto } from '@/hooks/useOto';
 import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
+import { calculatePricing } from '@/hooks/usePricing';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
@@ -148,13 +149,22 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     funnelTestOtoSlug: oto.funnelTestOtoSlug,
   });
 
-  // A 100% coupon zeros the price; we treat the flow identically to PWYW=0
-  // (email → magic link → grant), the only difference is that the coupon code
-  // rides along so the server can record the redemption.
-  const isFullDiscountCoupon =
-    !!coupon.appliedCoupon &&
-    coupon.appliedCoupon.discount_type === 'percentage' &&
-    coupon.appliedCoupon.discount_value >= 100;
+  const freeAccessPricing = calculatePricing({
+    baseProductId: product.id,
+    productPrice: product.price,
+    productCurrency: product.currency,
+    customAmount: product.allow_custom_price ? customAmount : undefined,
+    bumps: availableBumps.map(bump => ({
+      id: bump.bump_product_id,
+      price: bump.bump_price,
+      selected: selectedBumpIds.has(bump.bump_product_id),
+    })),
+    coupon: coupon.appliedCoupon,
+  });
+
+  // Any coupon that reduces the whole selected checkout total to zero uses the
+  // same grant flow as PWYW=0. If selected bumps remain payable, keep Stripe.
+  const isFullDiscountCoupon = !!coupon.appliedCoupon && freeAccessPricing.isFreeWithCoupon;
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
 

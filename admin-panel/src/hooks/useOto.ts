@@ -8,9 +8,13 @@ import { createClient } from '@/lib/supabase/client';
 
 export interface OtoInfo {
   valid: boolean;
+  coupon_id?: string;
+  code?: string;
   expires_at?: string;
   discount_type?: 'percentage' | 'fixed';
   discount_value?: number;
+  exclude_order_bumps?: boolean;
+  allowed_product_ids?: string[];
   seconds_remaining?: number;
 }
 
@@ -51,7 +55,9 @@ export function useOto({
 
   // Ref for callback to avoid re-triggering effect on parent re-renders
   const onCouponReadyRef = useRef(onCouponReady);
-  onCouponReadyRef.current = onCouponReady;
+  useEffect(() => {
+    onCouponReadyRef.current = onCouponReady;
+  }, [onCouponReady]);
 
   // Fetch OTO info from URL params
   useEffect(() => {
@@ -72,11 +78,14 @@ export function useOto({
           setOtoInfo(data);
           onCouponReadyRef.current(
             {
-              code: urlCoupon,
+              id: data.coupon_id,
+              code: data.code ?? urlCoupon,
               discount_type: data.discount_type,
               discount_value: data.discount_value,
+              exclude_order_bumps: data.exclude_order_bumps,
+              allowed_product_ids: data.allowed_product_ids,
             },
-            urlCoupon
+            data.code ?? urlCoupon
           );
         } else {
           setOtoExpired(true);

@@ -46,6 +46,7 @@ BEGIN
   IF transaction_id_param IS NOT NULL THEN
     -- Paid product: transaction is the idempotency key
     SELECT c.id, c.code, c.discount_type, c.discount_value, c.expires_at,
+           c.is_active, c.current_usage_count, c.usage_limit_global,
            o.oto_product_id, p.slug AS oto_product_slug, p.name AS oto_product_name,
            p.price AS oto_product_price, p.currency AS oto_product_currency,
            o.duration_minutes
@@ -59,6 +60,7 @@ BEGIN
   ELSE
     -- Free product: (oto_offer_id, allowed_emails) is the idempotency key
     SELECT c.id, c.code, c.discount_type, c.discount_value, c.expires_at,
+           c.is_active, c.current_usage_count, c.usage_limit_global,
            o.oto_product_id, p.slug AS oto_product_slug, p.name AS oto_product_name,
            p.price AS oto_product_price, p.currency AS oto_product_currency,
            o.duration_minutes
@@ -76,6 +78,18 @@ BEGIN
 
   -- Return existing coupon if already generated (idempotent)
   IF existing_coupon IS NOT NULL THEN
+    IF existing_coupon.is_active IS DISTINCT FROM true
+      OR existing_coupon.expires_at <= NOW()
+      OR existing_coupon.current_usage_count >= COALESCE(existing_coupon.usage_limit_global, 999999)
+    THEN
+      RETURN jsonb_build_object(
+        'has_oto', false,
+        'reason', 'existing_oto_coupon_unavailable',
+        'coupon_code', existing_coupon.code,
+        'coupon_id', existing_coupon.id
+      );
+    END IF;
+
     RETURN jsonb_build_object(
       'has_oto', true,
       'coupon_code', existing_coupon.code,
@@ -185,6 +199,7 @@ BEGIN
       -- Re-query to return the winner.
       IF transaction_id_param IS NOT NULL THEN
         SELECT c.id, c.code, c.discount_type, c.discount_value, c.expires_at,
+               c.is_active, c.current_usage_count, c.usage_limit_global,
                o.oto_product_id, p.slug AS oto_product_slug, p.name AS oto_product_name,
                p.price AS oto_product_price, p.currency AS oto_product_currency,
                o.duration_minutes
@@ -197,6 +212,7 @@ BEGIN
         LIMIT 1;
       ELSE
         SELECT c.id, c.code, c.discount_type, c.discount_value, c.expires_at,
+               c.is_active, c.current_usage_count, c.usage_limit_global,
                o.oto_product_id, p.slug AS oto_product_slug, p.name AS oto_product_name,
                p.price AS oto_product_price, p.currency AS oto_product_currency,
                o.duration_minutes
@@ -213,6 +229,18 @@ BEGIN
       END IF;
 
       IF existing_coupon IS NOT NULL THEN
+        IF existing_coupon.is_active IS DISTINCT FROM true
+          OR existing_coupon.expires_at <= NOW()
+          OR existing_coupon.current_usage_count >= COALESCE(existing_coupon.usage_limit_global, 999999)
+        THEN
+          RETURN jsonb_build_object(
+            'has_oto', false,
+            'reason', 'existing_oto_coupon_unavailable',
+            'coupon_code', existing_coupon.code,
+            'coupon_id', existing_coupon.id
+          );
+        END IF;
+
         RETURN jsonb_build_object(
           'has_oto', true,
           'coupon_code', existing_coupon.code,
