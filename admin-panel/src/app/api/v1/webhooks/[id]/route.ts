@@ -19,7 +19,7 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
-import { isValidWebhookUrl, validateEventTypes } from '@/lib/validations/webhook';
+import { validateWebhookUrlAsync, validateEventTypes } from '@/lib/validations/webhook';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -121,7 +121,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Validate and set URL if provided
     if (body.url !== undefined) {
-      const urlValidation = isValidWebhookUrl(body.url);
+      const urlValidation = await validateWebhookUrlAsync(body.url);
       if (!urlValidation.valid) {
         return apiError(request, 'INVALID_INPUT', urlValidation.error || 'Invalid webhook URL');
       }

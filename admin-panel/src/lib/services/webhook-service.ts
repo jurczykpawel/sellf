@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
+import { getSsrfSafeAgent } from '@/lib/security/safe-fetch';
+import { fetch as undiciFetch } from 'undici';
 import crypto from 'crypto';
 
 interface WebhookPayload {
@@ -156,7 +158,7 @@ export class WebhookService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(endpoint.url, {
+      const response = await undiciFetch(endpoint.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +169,8 @@ export class WebhookService {
         },
         body: payloadString,
         signal: controller.signal,
-        redirect: 'error',  // SECURITY: block redirect-based SSRF
+        redirect: 'error',
+        dispatcher: getSsrfSafeAgent(),
       });
 
       clearTimeout(timeoutId);

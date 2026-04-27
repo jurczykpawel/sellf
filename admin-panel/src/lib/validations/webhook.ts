@@ -1,9 +1,33 @@
 /**
- * Webhook URL validation
- *
- * SECURITY: Validates webhook URLs to prevent SSRF attacks.
- * Rejects: internal IPs, localhost, private networks, cloud metadata endpoints.
+ * Webhook URL validation.
+ *   isValidWebhookUrl(url)         — sync hostname/IP-pattern checks.
+ *   validateWebhookUrlAsync(url)   — sync checks + DNS resolution. Use this
+ *                                    when persisting an endpoint URL.
  */
+
+import dns from 'node:dns/promises';
+import { isPrivateOrReservedIp } from '@/lib/security/ip-blocklist';
+
+async function resolveAuthoritative(hostname: string): Promise<string[]> {
+  const [v4, v6] = await Promise.allSettled([
+    dns.resolve4(hostname),
+    dns.resolve6(hostname),
+  ]);
+  const addrs: string[] = [];
+  if (v4.status === 'fulfilled') addrs.push(...v4.value);
+  if (v6.status === 'fulfilled') addrs.push(...v6.value);
+  return addrs;
+}
+
+const INTERNAL_HOSTNAMES = [
+  'localhost',
+  'metadata.google.internal',
+  'metadata.goog',
+  'kubernetes.default',
+  'kubernetes.default.svc',
+];
+
+const IPV4_REGEX = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 
 export function isValidWebhookUrl(urlString: string): { valid: boolean; error?: string } {
   try {
@@ -22,65 +46,48 @@ export function isValidWebhookUrl(urlString: string): { valid: boolean; error?: 
 
     const hostname = url.hostname.toLowerCase();
 
-    // Block localhost
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1') {
+    if (hostname === 'localhost') {
       return { valid: false, error: 'URL cannot point to localhost' };
     }
 
-    // Block private/internal hostnames
-    const blockedHostnames = [
-      'metadata.google.internal',
-      'metadata.goog',
-      'kubernetes.default',
-      'kubernetes.default.svc',
-    ];
-    if (blockedHostnames.some(blocked => hostname === blocked || hostname.endsWith('.' + blocked))) {
+    if (INTERNAL_HOSTNAMES.some(blocked => hostname === blocked || hostname.endsWith('.' + blocked))) {
       return { valid: false, error: 'URL cannot point to internal services' };
     }
 
-    // Check if hostname is an IP address
-    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-    const ipv4Match = hostname.match(ipv4Regex);
-
+    const ipv4Match = hostname.match(IPV4_REGEX);
     if (ipv4Match) {
       const [, a, b, c, d] = ipv4Match.map(Number);
 
-      // Block private IPv4 ranges (RFC 1918)
-      // 10.0.0.0 - 10.255.255.255
       if (a === 10) {
         return { valid: false, error: 'URL cannot point to private IP addresses (10.x.x.x)' };
       }
-      // 172.16.0.0 - 172.31.255.255
       if (a === 172 && b >= 16 && b <= 31) {
         return { valid: false, error: 'URL cannot point to private IP addresses (172.16-31.x.x)' };
       }
-      // 192.168.0.0 - 192.168.255.255
       if (a === 192 && b === 168) {
         return { valid: false, error: 'URL cannot point to private IP addresses (192.168.x.x)' };
       }
-      // 127.0.0.0 - 127.255.255.255 (loopback)
       if (a === 127) {
         return { valid: false, error: 'URL cannot point to loopback addresses' };
       }
-      // 169.254.0.0 - 169.254.255.255 (link-local, includes AWS metadata)
       if (a === 169 && b === 254) {
         return { valid: false, error: 'URL cannot point to link-local addresses (cloud metadata)' };
       }
-      // 0.0.0.0
       if (a === 0 && b === 0 && c === 0 && d === 0) {
         return { valid: false, error: 'URL cannot point to 0.0.0.0' };
       }
+      if (isPrivateOrReservedIp(hostname)) {
+        return { valid: false, error: 'URL cannot point to reserved IPv4 addresses' };
+      }
     }
 
-    // Block IPv6 loopback and link-local (basic check for bracketed format)
     if (hostname.startsWith('[')) {
       const ipv6 = hostname.slice(1, -1).toLowerCase();
-      if (ipv6 === '::1' || ipv6.startsWith('fe80:') || ipv6.startsWith('fc') || ipv6.startsWith('fd')) {
-        return { valid: false, error: 'URL cannot point to IPv6 loopback or private addresses' };
-      }
-      // Block IPv4-mapped IPv6 addresses (e.g., ::ffff:127.0.0.1 → bypasses IPv4 checks)
       if (ipv6.startsWith('::ffff:')) {
         return { valid: false, error: 'URL cannot use IPv4-mapped IPv6 addresses' };
+      }
+      if (isPrivateOrReservedIp(ipv6)) {
+        return { valid: false, error: 'URL cannot point to IPv6 loopback or private addresses' };
       }
     }
 
@@ -88,6 +95,48 @@ export function isValidWebhookUrl(urlString: string): { valid: boolean; error?: 
   } catch {
     return { valid: false, error: 'Invalid URL format' };
   }
+}
+
+/** Async URL validator with DNS resolution. Run before persisting endpoints. */
+export async function validateWebhookUrlAsync(
+  urlString: string
+): Promise<{ valid: boolean; error?: string }> {
+  const sync = isValidWebhookUrl(urlString);
+  if (!sync.valid) return sync;
+
+  let url: URL;
+  try {
+    url = new URL(urlString);
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+
+  const hostname = url.hostname.toLowerCase();
+
+  // Literal IPs already covered by the sync path — only resolve hostnames.
+  const isLiteralIp = IPV4_REGEX.test(hostname) || hostname.startsWith('[');
+  if (isLiteralIp) return { valid: true };
+
+  let addresses: string[];
+  try {
+    addresses = await resolveAuthoritative(hostname);
+  } catch {
+    return { valid: false, error: 'Hostname could not be resolved' };
+  }
+
+  if (addresses.length === 0) {
+    return { valid: false, error: 'Hostname has no A/AAAA records' };
+  }
+
+  const blocked = addresses.find((addr) => isPrivateOrReservedIp(addr));
+  if (blocked) {
+    return {
+      valid: false,
+      error: `Hostname resolves to a private/reserved address (${blocked})`,
+    };
+  }
+
+  return { valid: true };
 }
 
 /**

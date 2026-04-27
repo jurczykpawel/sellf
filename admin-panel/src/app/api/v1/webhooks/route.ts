@@ -16,7 +16,7 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { isValidWebhookUrl, validateEventTypes } from '@/lib/validations/webhook';
+import { validateWebhookUrlAsync, validateEventTypes } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 
 export async function OPTIONS(request: NextRequest) {
@@ -136,8 +136,8 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'INVALID_INPUT', 'Events array is required');
     }
 
-    // Validate URL (SSRF protection)
-    const urlValidation = isValidWebhookUrl(url);
+    // Validate URL (SSRF protection — sync hostname checks + DNS resolution)
+    const urlValidation = await validateWebhookUrlAsync(url);
     if (!urlValidation.valid) {
       return apiError(request, 'INVALID_INPUT', urlValidation.error || 'Invalid webhook URL');
     }
