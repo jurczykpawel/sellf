@@ -68,6 +68,31 @@ describe('Integrations Validation', () => {
         const result = validateIntegrations({ gtm_server_container_url: 'not-a-url' });
         expect(result.isValid).toBe(false);
       });
+
+      it('rejects URL containing quotes that could break out of an inline-JS string', () => {
+        const result = validateIntegrations({
+          gtm_server_container_url: "https://gtm.example.com/x');alert(1);//",
+        });
+        expect(result.isValid).toBe(false);
+      });
+
+      it('rejects URL containing whitespace, backtick, angle bracket, backslash', () => {
+        for (const bad of [
+          'https://gtm.example.com/ space',
+          'https://gtm.example.com/`tick',
+          'https://gtm.example.com/<tag>',
+          'https://gtm.example.com/back\\slash',
+        ]) {
+          expect(validateIntegrations({ gtm_server_container_url: bad }).isValid).toBe(false);
+        }
+      });
+
+      it('rejects URL with embedded credentials (userinfo)', () => {
+        const result = validateIntegrations({
+          gtm_server_container_url: 'https://x:y@gtm.example.com/',
+        });
+        expect(result.isValid).toBe(false);
+      });
     });
 
     describe('Google Ads Conversion ID', () => {
@@ -126,6 +151,16 @@ describe('Integrations Validation', () => {
         const result = validateIntegrations({ umami_script_url: 'not-a-url' });
         expect(result.isValid).toBe(false);
         expect(result.errors.umami_script_url).toContain('Invalid Script URL');
+      });
+
+      it('rejects URL with quotes / whitespace / userinfo', () => {
+        for (const bad of [
+          "https://example.com/x'+y+'.js",
+          'https://example.com/x .js',
+          'https://x:y@example.com/script.js',
+        ]) {
+          expect(validateIntegrations({ umami_script_url: bad }).isValid).toBe(false);
+        }
       });
     });
 

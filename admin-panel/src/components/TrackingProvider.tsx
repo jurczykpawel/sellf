@@ -17,11 +17,17 @@ function isValidUmamiId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
 }
 
-/** Validate URL for script sources */
+/** Validate URL for script sources. HTTPS only, no userinfo, no auth, no whitespace, no quotes. */
 function isValidScriptUrl(url: string): boolean {
+  // Reject characters that have no business in a script src and could break out of
+  // an inline-JS string context if the URL is interpolated. URL parser tolerates
+  // them in path, but for our use case any of them is a red flag.
+  if (/[\s'"`<>\\]/.test(url)) return false
   try {
     const parsed = new URL(url)
-    return parsed.protocol === 'https:'
+    if (parsed.protocol !== 'https:') return false
+    if (parsed.username || parsed.password) return false
+    return true
   } catch {
     return false
   }
@@ -251,11 +257,13 @@ klaroConfig.callback = function(consent, service) {
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "google-tag-manager" : undefined}
           dangerouslySetInnerHTML={{
+            // Pass dynamic values via JSON.stringify so any unexpected character
+            // is escaped at the JS-string-literal layer, not just at validation.
             __html: `(function(w,d,s,l,i,u){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
             j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             u+'/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','${gtm_container_id}','${gtmBaseUrl}');`
+            })(window,document,'script','dataLayer',${JSON.stringify(gtm_container_id)},${JSON.stringify(gtmBaseUrl)});`
           }}
         />
       )}
@@ -275,7 +283,7 @@ klaroConfig.callback = function(consent, service) {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${facebook_pixel_id}');
+            fbq('init', ${JSON.stringify(facebook_pixel_id)});
             fbq('track', 'PageView');`
           }}
         />

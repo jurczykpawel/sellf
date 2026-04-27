@@ -26,6 +26,23 @@ export interface IntegrationsInput {
   sellf_license?: string | null;
 }
 
+/**
+ * Tracking-script source URLs are interpolated into client-side <Script> tags.
+ * Validate strictly at the persistence boundary so anything that could break
+ * out of an attribute or inline-JS string context is rejected up front.
+ */
+function isValidTrackingUrl(url: string, allowHttp: boolean): boolean {
+  if (/[\s'"`<>\\]/.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' && !(allowHttp && parsed.protocol === 'http:')) return false;
+    if (parsed.username || parsed.password) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function validateIntegrations(data: IntegrationsInput): ValidationResult {
   const errors: Record<string, string[]> = {};
 
@@ -40,7 +57,7 @@ export function validateIntegrations(data: IntegrationsInput): ValidationResult 
   }
 
   // GTM Server Container URL validation
-  if (data.gtm_server_container_url && !/^https:\/\/.+/.test(data.gtm_server_container_url)) {
+  if (data.gtm_server_container_url && !isValidTrackingUrl(data.gtm_server_container_url, false)) {
     addError('gtm_server_container_url', 'GTM Server URL must be a valid HTTPS URL');
   }
 
@@ -49,7 +66,7 @@ export function validateIntegrations(data: IntegrationsInput): ValidationResult 
     addError('umami_website_id', 'Invalid Website ID (must be a UUID)');
   }
 
-  if (data.umami_script_url && !/^https?:\/\/.+/.test(data.umami_script_url)) {
+  if (data.umami_script_url && !isValidTrackingUrl(data.umami_script_url, true)) {
     addError('umami_script_url', 'Invalid Script URL');
   }
 
