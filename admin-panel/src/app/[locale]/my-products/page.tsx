@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations, useLocale } from 'next-intl';
 import DashboardLayout from '@/components/DashboardLayout';
+import { filterActiveAccess } from '@/lib/access/filter-active';
 
 interface Product {
   id: string;
@@ -104,12 +105,9 @@ export default function MyProductsPage() {
 
       if (accessError) throw accessError;
 
-      const transformedUserProducts: UserProductAccess[] = (accessData || [])
-        .filter((a: { access_expires_at: string | null; product: unknown }) => {
-          if (a.access_expires_at && new Date(a.access_expires_at) < new Date()) return false;
-          return a.product !== null;
-        })
-        .map((a: { product: unknown; access_granted_at: string }) => ({
+      type RawAccess = { access_expires_at: string | null; product: unknown; access_granted_at: string };
+      const transformedUserProducts: UserProductAccess[] = filterActiveAccess<RawAccess>((accessData || []) as RawAccess[])
+        .map((a) => ({
           id: (a.product as unknown as Product).id,
           granted_at: a.access_granted_at,
           product: a.product as unknown as Product,
