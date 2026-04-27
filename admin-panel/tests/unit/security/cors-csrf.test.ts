@@ -128,6 +128,19 @@ describe('CORS/CSRF Security', () => {
         const result = validateCrossOriginRequest(request);
         expect(result).toBeNull();
       });
+
+      it('rejection response must not reflect an unverified Origin with credentials', async () => {
+        const request = createMockRequest({
+          origin: 'https://attacker.example',
+          xRequestedWith: null,
+        });
+
+        const result = validateCrossOriginRequest(request);
+        expect(result?.status).toBe(403);
+
+        const allowOrigin = result?.headers.get('Access-Control-Allow-Origin');
+        expect(allowOrigin).not.toBe('https://attacker.example');
+      });
     });
   });
 

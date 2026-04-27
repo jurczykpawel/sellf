@@ -22,8 +22,6 @@ export const CROSS_ORIGIN_ALLOWED_PATHS = [
  */
 export function validateCrossOriginRequest(request: Request): NextResponse | null {
   const requestedWith = request.headers.get('X-Requested-With')
-  const origin = request.headers.get('origin')
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
 
   // Require X-Requested-With header to prevent simple CSRF attacks
   if (requestedWith !== 'XMLHttpRequest') {
@@ -34,11 +32,8 @@ export function validateCrossOriginRequest(request: Request): NextResponse | nul
       },
       {
         status: 403,
-        headers: {
-          // Use validated origin or SITE_URL, never wildcard with credentials
-          'Access-Control-Allow-Origin': origin || siteUrl || 'null',
-          'Access-Control-Allow-Credentials': 'true',
-        }
+        // Allowlist-aware headers — never reflect an unverified Origin with credentials.
+        headers: getCrossOriginHeaders(request),
       }
     )
   }
