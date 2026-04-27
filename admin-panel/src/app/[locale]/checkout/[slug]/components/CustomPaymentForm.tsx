@@ -9,7 +9,7 @@ import { formatPrice } from '@/lib/constants';
 import { useTranslations } from 'next-intl';
 import { validateTaxId } from '@/lib/validation/nip';
 import { useTracking } from '@/hooks/useTracking';
-import { usePricing } from '@/hooks/usePricing';
+import type { PricingResult } from '@/hooks/usePricing';
 import { useInvoiceData } from '@/hooks/useInvoiceData';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import InvoiceFields from '@/components/checkout/InvoiceFields';
@@ -28,6 +28,7 @@ interface CustomPaymentFormProps {
   customAmount?: number;
   customAmountError?: string | null;
   clientSecret?: string;
+  pricing: PricingResult;
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
@@ -44,6 +45,7 @@ export default function CustomPaymentForm({
   customAmount,
   customAmountError,
   clientSecret,
+  pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
   taxMode,
@@ -63,21 +65,6 @@ export default function CustomPaymentForm({
 
   // Invoice / NIP logic
   const invoice = useInvoiceData(email);
-
-  // Centralized pricing calculation
-  const pricing = usePricing({
-    productPrice: product.price,
-    productCurrency: product.currency,
-    productVatRate: product.vat_rate ?? undefined,
-    priceIncludesVat: product.price_includes_vat ?? undefined,
-    customAmount,
-    bumps: bumpProducts.map(bp => ({
-      id: bp.bump_product_id,
-      price: bp.bump_price,
-      selected: selectedBumpIds.has(bp.bump_product_id),
-    })),
-    coupon: appliedCoupon,
-  });
 
   const { basePrice, discountAmount, totalGross, totalNet, vatRate } = pricing;
 

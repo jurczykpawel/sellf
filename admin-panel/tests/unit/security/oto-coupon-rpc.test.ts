@@ -387,7 +387,8 @@ describe('Valid OTO coupon lookup', () => {
     // Assert no unexpected extra fields in response
     const expectedTopLevelKeys = [
       'valid', 'coupon_id', 'code', 'discount_type', 'discount_value',
-      'expires_at', 'seconds_remaining', 'duration_minutes', 'product',
+      'allowed_product_ids', 'exclude_order_bumps', 'expires_at',
+      'seconds_remaining', 'duration_minutes', 'product',
     ];
     expect(Object.keys(data).sort()).toEqual(expectedTopLevelKeys.sort());
 

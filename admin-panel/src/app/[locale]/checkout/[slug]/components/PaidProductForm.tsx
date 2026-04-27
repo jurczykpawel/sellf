@@ -149,10 +149,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     funnelTestOtoSlug: oto.funnelTestOtoSlug,
   });
 
-  const freeAccessPricing = calculatePricing({
+  const pricing = calculatePricing({
     baseProductId: product.id,
     productPrice: product.price,
     productCurrency: product.currency,
+    productVatRate: product.vat_rate ?? undefined,
+    priceIncludesVat: product.price_includes_vat ?? undefined,
     customAmount: product.allow_custom_price ? customAmount : undefined,
     bumps: availableBumps.map(bump => ({
       id: bump.bump_product_id,
@@ -164,7 +166,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // Any coupon that reduces the whole selected checkout total to zero uses the
   // same grant flow as PWYW=0. If selected bumps remain payable, keep Stripe.
-  const isFullDiscountCoupon = !!coupon.appliedCoupon && freeAccessPricing.isFreeWithCoupon;
+  const isFullDiscountCoupon = !!coupon.appliedCoupon && pricing.isFreeWithCoupon;
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
 
@@ -467,6 +469,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customAmount={product.allow_custom_price ? customAmount : undefined}
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
+                pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}
                 taxMode={taxMode}
