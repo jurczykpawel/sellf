@@ -215,6 +215,51 @@ async function authenticateViaSession(request: NextRequest): Promise<SessionAuth
 /**
  * Authenticate via API key
  */
+/**
+ * Short-lived negative cache for hashes the DB has already classified as invalid.
+ * Trims a class of repeat misuse (misconfigured client retrying, naive replay)
+ * without touching the database for every retry. Bounded to keep memory safe.
+ */
+const INVALID_KEY_CACHE_TTL_MS = 5 * 60_000;
+const INVALID_KEY_CACHE_MAX_SIZE = 5_000;
+const invalidKeyCache = new Map<string, { expiresAt: number; reason: string }>();
+
+function evictIfFull() {
+  if (invalidKeyCache.size < INVALID_KEY_CACHE_MAX_SIZE) return;
+  const now = Date.now();
+  for (const [k, v] of invalidKeyCache) {
+    if (v.expiresAt <= now) invalidKeyCache.delete(k);
+  }
+  if (invalidKeyCache.size >= INVALID_KEY_CACHE_MAX_SIZE) {
+    // Last resort: drop oldest insertion (Map iteration order = insertion order).
+    const firstKey = invalidKeyCache.keys().next().value;
+    if (firstKey !== undefined) invalidKeyCache.delete(firstKey);
+  }
+}
+
+function rememberInvalidKey(keyHash: string, reason: string) {
+  evictIfFull();
+  invalidKeyCache.set(keyHash, {
+    expiresAt: Date.now() + INVALID_KEY_CACHE_TTL_MS,
+    reason,
+  });
+}
+
+function recallInvalidKey(keyHash: string): string | null {
+  const entry = invalidKeyCache.get(keyHash);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    invalidKeyCache.delete(keyHash);
+    return null;
+  }
+  return entry.reason;
+}
+
+/** Test-only helper. Do not call from application code. */
+export function _resetApiKeyAuthCacheForTests() {
+  invalidKeyCache.clear();
+}
+
 async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthResult | null> {
   // Check for API key in Authorization header or X-API-Key header
   const authHeader = request.headers.get('authorization');
@@ -226,7 +271,21 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     return null;
   }
 
+  const verifyAttemptAllowed = await checkRateLimit('api_key_verify', 120, 1);
+  if (!verifyAttemptAllowed) {
+    throw new ApiAuthError(
+      'RATE_LIMITED',
+      'Too many API key verification attempts. Try again in a minute.'
+    );
+  }
+
   const keyHash = hashApiKey(apiKey);
+
+  const cachedReason = recallInvalidKey(keyHash);
+  if (cachedReason) {
+    throw new ApiAuthError('INVALID_TOKEN', cachedReason);
+  }
+
   // Use platform client for public-schema operations (api_keys, admin_users, verify_api_key)
   const platformClient = createPlatformClient();
 
@@ -240,13 +299,16 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   }
 
   if (!verifyResult || verifyResult.length === 0) {
+    rememberInvalidKey(keyHash, 'Invalid API key');
     return null;
   }
 
   const keyData = verifyResult[0];
 
   if (!keyData.is_valid) {
-    throw new ApiAuthError('INVALID_TOKEN', keyData.rejection_reason || 'Invalid API key');
+    const reason = keyData.rejection_reason || 'Invalid API key';
+    rememberInvalidKey(keyHash, reason);
+    throw new ApiAuthError('INVALID_TOKEN', reason);
   }
 
   // Get key owner details
