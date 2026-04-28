@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
 import { getSsrfSafeAgent } from '@/lib/security/safe-fetch';
+import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
 import { fetch as undiciFetch } from 'undici';
 import crypto from 'crypto';
 
@@ -155,6 +156,20 @@ export class WebhookService {
     const startTime = Date.now();
 
     try {
+      // Re-resolve the hostname at dispatch time. Two reasons:
+      //   1) DNS rebinding: an endpoint that resolved to a public IP at save
+      //      time may resolve to a private IP later — the saved row alone is
+      //      not a sufficient guarantee.
+      //   2) The undici dispatcher's connect.lookup hook (defense-in-depth
+      //      below) is a no-op under Bun, where Agent.prototype.dispatch is
+      //      undefined and fetch ignores the dispatcher option entirely. So
+      //      this pre-flight check is the only SSRF guard at dispatch time
+      //      in the production runtime.
+      const guard = await validateWebhookUrlAsync(endpoint.url);
+      if (!guard.valid) {
+        throw new Error(`Webhook URL rejected: ${guard.error || 'failed validation'}`);
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -170,6 +185,7 @@ export class WebhookService {
         body: payloadString,
         signal: controller.signal,
         redirect: 'error',
+        // Defense-in-depth on Node; ignored by Bun (Agent has no dispatch method there).
         dispatcher: getSsrfSafeAgent(),
       });
 
