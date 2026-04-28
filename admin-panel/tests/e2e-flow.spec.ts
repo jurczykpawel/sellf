@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
 test.describe('E2E Critical Flows', () => {
 
@@ -58,19 +59,43 @@ test.describe('E2E Critical Flows', () => {
 
   // 4. Coupon API Logic (Negative Test)
   test('should reject invalid coupons gracefully', async ({ request }) => {
-    const response = await request.post('/api/coupons/verify', {
-      data: {
-        code: 'INVALID-CODE-123',
-        productId: '00000000-0000-0000-0000-000000000000',
-        email: 'test@example.com'
-      }
-    });
+    // The API short-circuits with 404 if the product doesn't exist, so we need
+    // a real product to actually exercise the verify_coupon RPC path.
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing Supabase env variables for testing');
+    }
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+    const { data: product, error: productErr } = await admin
+      .from('products')
+      .insert({
+        name: 'invalid-coupon e2e probe',
+        slug: `invalid-coupon-${Date.now()}`,
+        price: 100,
+        currency: 'USD',
+        is_active: true,
+      })
+      .select('id')
+      .single();
+    if (productErr) throw productErr;
 
-    const body = await response.json();
-    expect(body).toBeDefined();
-    // Assuming API returns result object
-    expect(response.ok()).toBe(true);
-    expect(body.valid).toBeFalsy();
+    try {
+      const response = await request.post('/api/coupons/verify', {
+        data: {
+          code: 'INVALID-CODE-123',
+          productId: product.id,
+          email: 'test@example.com',
+        },
+      });
+
+      const body = await response.json();
+      expect(body).toBeDefined();
+      expect(response.ok()).toBe(true);
+      expect(body.valid).toBeFalsy();
+    } finally {
+      await admin.from('products').delete().eq('id', product.id);
+    }
   });
 
 });

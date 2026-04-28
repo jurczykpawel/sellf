@@ -230,9 +230,9 @@ test.describe('Full-discount coupon flow', () => {
     await page.goto(`/pl/checkout/${productSlug}`); // no ?coupon
     await page.waitForLoadState('domcontentloaded');
 
-    // Stripe payment form iframe presence is the easiest positive signal.
-    // We wait up to 15s because create-payment-intent + Stripe Elements boot take time.
-    await expect(page.frameLocator('iframe[name^="__privateStripeFrame"]').first().locator('body'))
-      .toBeVisible({ timeout: 15_000 });
+    // The first __privateStripeFrame is Stripe's controller iframe (body has display:none by design),
+    // so we check attachment, not visibility — matches payment-method-config-checkout.spec.ts.
+    await expect(page.locator('iframe[name^="__privateStripeFrame"]').first())
+      .toBeAttached({ timeout: 15_000 });
   });
 });

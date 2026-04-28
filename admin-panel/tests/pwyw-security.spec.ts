@@ -207,7 +207,7 @@ test.describe('PWYW Security - Bypass Prevention', () => {
     // Attackers cannot bypass payment by sending customAmount=0
     expect(response.status()).toBe(400);
     const json = await response.json();
-    expect(json.error).toContain('greater than zero');
+    expect(json.error).toContain('positive number');
   });
 
   test('SECURITY: Reject negative customAmount', async ({ request }) => {
@@ -223,7 +223,7 @@ test.describe('PWYW Security - Bypass Prevention', () => {
     // Attackers cannot bypass payment validation by sending negative amounts
     expect(response.status()).toBe(400);
     const json = await response.json();
-    expect(json.error).toContain('greater than zero');
+    expect(json.error).toContain('positive number');
   });
 
   test('SECURITY: Handle string customAmount (type coercion attempt)', async ({ request }) => {
