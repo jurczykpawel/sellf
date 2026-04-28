@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-import { Github } from 'lucide-react';
 import Link from 'next/link';
+
+import { GithubIcon } from '@/components/ui/GithubIcon';
 
 export async function LandingFooter() {
   const t = await getTranslations('landing');
@@ -21,7 +22,7 @@ export async function LandingFooter() {
               rel="noopener noreferrer"
               className="inline-flex text-sf-muted hover:text-sf-heading transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
             >
-              <Github className="h-5 w-5" />
+              <GithubIcon className="h-5 w-5" />
             </a>
           </div>
 

@@ -132,7 +132,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Update old key - always deactivate, but set grace period if requested
     // The verify_api_key function checks rotation_grace_until when is_active = false
-    const oldKeyUpdate: Record<string, unknown> = graceUntil
+    const oldKeyUpdate = graceUntil
       ? { is_active: false, rotation_grace_until: graceUntil }
       : { is_active: false, revoked_at: new Date().toISOString(), revoked_reason: 'Rotated' };
 

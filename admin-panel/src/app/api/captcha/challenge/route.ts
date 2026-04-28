@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createChallenge } from 'altcha-lib';
+import { createChallenge } from 'altcha-lib/v1';
 
 /**
  * ALTCHA challenge generation endpoint

@@ -5,17 +5,23 @@
  * let TypeScript/JSX accept <altcha-widget> with its props.
  */
 
-declare namespace JSX {
-  interface IntrinsicElements {
-    'altcha-widget': React.DetailedHTMLProps<
-      React.HTMLAttributes<HTMLElement> & {
-        challengeurl?: string;
-        hidelogo?: boolean | '';
-        hidefooter?: boolean | '';
-        strings?: string;
-        style?: React.CSSProperties;
-      },
-      HTMLElement
-    >;
+import 'react';
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'altcha-widget': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          challengeurl?: string;
+          auto?: 'off' | 'onload' | 'onsubmit';
+          floating?: 'top' | 'bottom' | 'auto' | boolean | '';
+          hidelogo?: boolean | '';
+          hidefooter?: boolean | '';
+          strings?: string;
+          style?: React.CSSProperties;
+        },
+        HTMLElement
+      >;
+    }
   }
 }

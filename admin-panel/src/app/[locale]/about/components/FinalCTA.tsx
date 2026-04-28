@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-import { ArrowRight, Github, Clock, Code, Scale } from 'lucide-react';
+import { ArrowRight, Clock, Code, Scale } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { GithubIcon } from '@/components/ui/GithubIcon';
 
 export async function FinalCTA() {
   const t = await getTranslations('landing');
@@ -41,7 +42,7 @@ export async function FinalCTA() {
             rel="noopener noreferrer"
             className="inline-flex items-center px-8 py-4 rounded-full text-lg font-bold text-sf-heading border-2 border-sf-border hover:border-sf-border-accent bg-sf-raised/80 transition-[border-color,background-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent gap-3"
           >
-            <Github className="h-5 w-5" />
+            <GithubIcon className="h-5 w-5" />
             {t('finalCta.ctaGithub')}
           </a>
 

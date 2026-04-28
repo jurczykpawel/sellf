@@ -8,7 +8,7 @@
  * @see config.ts — getCaptchaProvider()
  */
 
-import { verifySolution } from 'altcha-lib';
+import { verifySolution } from 'altcha-lib/v1';
 
 import type { CaptchaProvider, CaptchaVerifyResult } from './types';
 import { getCaptchaProvider } from './config';

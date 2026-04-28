@@ -419,9 +419,9 @@ export default function RevenueChart() {
                   border: '1px solid #E5E7EB',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                 }}
-                formatter={(value: any, name: string | undefined) => {
+                formatter={(value, name) => {
                   const numericValue = typeof value === 'number' ? value : 0;
-                  const currencyName = name || 'USD';
+                  const currencyName = typeof name === 'string' ? name : 'USD';
                   return [formatCurrency(numericValue, currencyName), currencyName];
                 }}
                 labelFormatter={(label) => {
