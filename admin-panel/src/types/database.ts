@@ -985,6 +985,7 @@ export type Database = {
       }
       payment_line_items: {
         Row: {
+          access_duration_override: number | null
           created_at: string | null
           currency: string | null
           id: string | null
@@ -999,6 +1000,7 @@ export type Database = {
           unit_price: number | null
         }
         Insert: {
+          access_duration_override?: number | null
           created_at?: string | null
           currency?: string | null
           id?: string | null
@@ -1013,6 +1015,7 @@ export type Database = {
           unit_price?: number | null
         }
         Update: {
+          access_duration_override?: number | null
           created_at?: string | null
           currency?: string | null
           id?: string | null
@@ -2552,6 +2555,7 @@ export type Database = {
       grant_free_product_access: {
         Args: {
           access_duration_days_param?: number
+          coupon_code_param?: string
           product_slug_param: string
         }
         Returns: boolean
@@ -2559,17 +2563,11 @@ export type Database = {
       grant_product_access_service_role: {
         Args: {
           max_retries?: number
+          override_duration_days_param?: number
           product_id_param: string
           user_id_param: string
         }
         Returns: Json
-      }
-      grant_pwyw_free_access: {
-        Args: {
-          access_duration_days_param?: number
-          product_slug_param: string
-        }
-        Returns: boolean
       }
       increment_coupon_usage: {
         Args: { coupon_id_param: string }
@@ -3262,6 +3260,7 @@ export type Database = {
       }
       payment_line_items: {
         Row: {
+          access_duration_override: number | null
           created_at: string
           currency: string
           id: string
@@ -3276,6 +3275,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          access_duration_override?: number | null
           created_at?: string
           currency: string
           id?: string
@@ -3290,6 +3290,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          access_duration_override?: number | null
           created_at?: string
           currency?: string
           id?: string
@@ -4759,6 +4760,7 @@ export type Database = {
       grant_free_product_access: {
         Args: {
           access_duration_days_param?: number
+          coupon_code_param?: string
           product_slug_param: string
         }
         Returns: boolean
@@ -4766,17 +4768,11 @@ export type Database = {
       grant_product_access_service_role: {
         Args: {
           max_retries?: number
+          override_duration_days_param?: number
           product_id_param: string
           user_id_param: string
         }
         Returns: Json
-      }
-      grant_pwyw_free_access: {
-        Args: {
-          access_duration_days_param?: number
-          product_slug_param: string
-        }
-        Returns: boolean
       }
       increment_coupon_usage: {
         Args: { coupon_id_param: string }

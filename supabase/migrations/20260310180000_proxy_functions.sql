@@ -307,12 +307,12 @@ AS $$
 $$;
 
 -- ===== grant_product_access_service_role =====
-CREATE OR REPLACE FUNCTION public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer DEFAULT 3)
+CREATE OR REPLACE FUNCTION public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer DEFAULT 3, override_duration_days_param integer DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE sql VOLATILE SECURITY INVOKER
 SET search_path = ''
 AS $$
-  SELECT seller_main.grant_product_access_service_role(user_id_param, product_id_param, max_retries);
+  SELECT seller_main.grant_product_access_service_role(user_id_param, product_id_param, max_retries, override_duration_days_param);
 $$;
 
 -- grant_pwyw_free_access is gone — its behaviour lives inside the unified

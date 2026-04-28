@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS seller_main.payment_line_items (
   product_name TEXT,
   -- For order_bump: link back to the order_bumps row (nullable for main_product / cart_item)
   order_bump_id UUID REFERENCES seller_main.order_bumps(id) ON DELETE SET NULL,
+  -- Snapshot of order_bumps.access_duration_days at purchase time. NULL = use bump
+  -- product default; 0 = unlimited override; N>0 = N-day override. Read by
+  -- claim_guest_purchases_for_user when retroactively granting bump access — decouples
+  -- the claim path from later edits/deletes of the order_bumps row.
+  access_duration_override INTEGER CHECK (access_duration_override IS NULL OR (access_duration_override >= 0 AND access_duration_override <= 3650)),
   metadata JSONB DEFAULT '{}' NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 
@@ -608,16 +613,23 @@ BEGIN
         NULL;
     END;
 
-    -- Grant access for bump products from payment_line_items
+    -- Grant access for bump products from payment_line_items.
+    -- Use the snapshotted access_duration_override per line item so the claim
+    -- path resolves the bump's UI override without re-querying order_bumps
+    -- (the bump row may have been edited or deleted since the purchase).
     IF guest_purchase_record.transaction_id IS NOT NULL THEN
       FOR line_item_rec IN
-        SELECT pli.product_id
+        SELECT pli.product_id, pli.access_duration_override
         FROM seller_main.payment_line_items pli
         WHERE pli.transaction_id = guest_purchase_record.transaction_id
           AND pli.item_type = 'order_bump'
       LOOP
         BEGIN
-          PERFORM seller_main.grant_product_access_service_role(p_user_id, line_item_rec.product_id);
+          PERFORM seller_main.grant_product_access_service_role(
+            p_user_id,
+            line_item_rec.product_id,
+            override_duration_days_param => line_item_rec.access_duration_override
+          );
           claimed_count := claimed_count + 1;
         EXCEPTION WHEN OTHERS THEN
           PERFORM public.log_admin_action(

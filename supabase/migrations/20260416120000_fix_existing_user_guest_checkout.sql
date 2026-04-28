@@ -116,14 +116,21 @@ BEGIN
           -- Grant access for the main product
           PERFORM seller_main.grant_product_access_service_role(current_user_id, product_id_param);
 
-          -- Grant access for any bump products recorded as line items
+          -- Grant access for any bump products recorded as line items.
+          -- Use the snapshotted access_duration_override per line item so the
+          -- retroactive claim resolves the bump's UI override even if the
+          -- order_bumps row has since been edited or deleted.
           FOR bump_rec IN
-            SELECT pli.product_id
+            SELECT pli.product_id, pli.access_duration_override
             FROM seller_main.payment_line_items pli
             WHERE pli.transaction_id = existing_transaction_id
               AND pli.item_type = 'order_bump'
           LOOP
-            PERFORM seller_main.grant_product_access_service_role(current_user_id, bump_rec.product_id);
+            PERFORM seller_main.grant_product_access_service_role(
+              current_user_id,
+              bump_rec.product_id,
+              override_duration_days_param => bump_rec.access_duration_override
+            );
           END LOOP;
 
           -- Mark guest_purchase as claimed
@@ -330,12 +337,16 @@ BEGIN
       upper(currency_param), product_record.name
     );
 
+    -- Snapshot access_duration_override per bump line item so the retroactive
+    -- guest-claim path resolves the bump's UI override even if the order_bumps
+    -- row is later edited or deleted.
     IF bump_count > 0 THEN
       FOR bump_rec IN
         SELECT
           p.id,
           p.name,
           ob.id as order_bump_id,
+          ob.access_duration_days as access_duration_override,
           COALESCE(ob.bump_price, p.price) as price,
           p.currency
         FROM unnest(bump_ids_found) AS bid(id)
@@ -345,12 +356,12 @@ BEGIN
       LOOP
         INSERT INTO seller_main.payment_line_items (
           transaction_id, product_id, item_type, quantity, unit_price, total_price,
-          currency, product_name, order_bump_id
+          currency, product_name, order_bump_id, access_duration_override
         ) VALUES (
           transaction_id_var, bump_rec.id, 'order_bump', 1,
           bump_rec.price, bump_rec.price,
           upper(COALESCE(bump_rec.currency, currency_param)), bump_rec.name,
-          bump_rec.order_bump_id
+          bump_rec.order_bump_id, bump_rec.access_duration_override
         );
       END LOOP;
     END IF;
@@ -391,11 +402,21 @@ BEGIN
     IF current_user_id IS NOT NULL THEN
       PERFORM seller_main.grant_product_access_service_role(current_user_id, product_id_param);
 
+      -- Pass each bump's access_duration_days as override to the helper so
+      -- renewal/extension uses the bump's UI override (NULL = use bump
+      -- product default; 0 = unlimited; N>0 = N days).
       IF bump_count > 0 THEN
         FOR bump_rec IN
-          SELECT unnest(bump_ids_found) AS bid
+          SELECT u.bid AS product_id, ob.access_duration_days AS access_duration_override
+          FROM unnest(bump_ids_found) AS u(bid)
+          JOIN seller_main.order_bumps ob
+            ON ob.bump_product_id = u.bid AND ob.main_product_id = product_id_param
         LOOP
-          PERFORM seller_main.grant_product_access_service_role(current_user_id, bump_rec.bid);
+          PERFORM seller_main.grant_product_access_service_role(
+            current_user_id,
+            bump_rec.product_id,
+            override_duration_days_param => bump_rec.access_duration_override
+          );
         END LOOP;
       END IF;
 

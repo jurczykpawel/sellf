@@ -344,10 +344,12 @@ END $$;
 CREATE OR REPLACE FUNCTION seller_main.grant_product_access_service_role(
     user_id_param UUID,
     product_id_param UUID,
-    max_retries INTEGER DEFAULT 3
+    max_retries INTEGER DEFAULT 3,
+    override_duration_days_param INTEGER DEFAULT NULL
 ) RETURNS JSONB AS $$
 DECLARE
     product_auto_duration INTEGER;
+    effective_duration INTEGER;
     existing_record RECORD;
     new_expires_at TIMESTAMPTZ := NULL;
     final_duration INTEGER := NULL;
@@ -361,11 +363,23 @@ BEGIN
             'error', 'User ID and Product ID are required'
         );
     END IF;
-    
+
+    -- override_duration_days_param encoding (matches order_bumps.access_duration_days):
+    --   NULL → fall back to the product's auto_grant_duration_days
+    --      0 → force unlimited (NULL effective duration)
+    --    N>0 → use N as the duration, ignoring the product's default
+    IF override_duration_days_param IS NOT NULL
+       AND (override_duration_days_param < 0 OR override_duration_days_param > 3650) THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'error', 'Invalid override duration'
+        );
+    END IF;
+
     -- Get product configuration
-    SELECT auto_grant_duration_days 
+    SELECT auto_grant_duration_days
     INTO product_auto_duration
-    FROM seller_main.products 
+    FROM seller_main.products
     WHERE id = product_id_param AND is_active = true;
 
     -- If product doesn't exist, return error
@@ -374,6 +388,15 @@ BEGIN
             'success', false,
             'error', 'Product not found or inactive'
         );
+    END IF;
+
+    -- Resolve the effective duration once; downstream branches use this value.
+    IF override_duration_days_param IS NULL THEN
+        effective_duration := product_auto_duration;
+    ELSIF override_duration_days_param = 0 THEN
+        effective_duration := NULL;
+    ELSE
+        effective_duration := override_duration_days_param;
     END IF;
 
     -- Retry loop for optimistic locking
@@ -397,10 +420,10 @@ BEGIN
                 final_duration := NULL;
             ELSIF existing_record.has_active_access THEN
                 -- User has active LIMITED access
-                IF product_auto_duration IS NOT NULL THEN
+                IF effective_duration IS NOT NULL THEN
                     -- Extend existing access
-                    new_expires_at := existing_record.access_expires_at + (product_auto_duration || ' days')::INTERVAL;
-                    final_duration := product_auto_duration;
+                    new_expires_at := existing_record.access_expires_at + (effective_duration || ' days')::INTERVAL;
+                    final_duration := effective_duration;
                 ELSE
                     -- Upgrade to permanent
                     new_expires_at := NULL;
@@ -408,9 +431,9 @@ BEGIN
                 END IF;
             ELSE
                 -- User's access expired - standard logic
-                IF product_auto_duration IS NOT NULL THEN
-                    new_expires_at := NOW() + (product_auto_duration || ' days')::INTERVAL;
-                    final_duration := product_auto_duration;
+                IF effective_duration IS NOT NULL THEN
+                    new_expires_at := NOW() + (effective_duration || ' days')::INTERVAL;
+                    final_duration := effective_duration;
                 ELSE
                     new_expires_at := NULL;
                     final_duration := NULL;
@@ -459,9 +482,9 @@ BEGIN
             END IF;
         ELSE
             -- No existing record - create new with version = 1
-            IF product_auto_duration IS NOT NULL THEN
-                new_expires_at := NOW() + (product_auto_duration || ' days')::INTERVAL;
-                final_duration := product_auto_duration;
+            IF effective_duration IS NOT NULL THEN
+                new_expires_at := NOW() + (effective_duration || ' days')::INTERVAL;
+                final_duration := effective_duration;
             ELSE
                 new_expires_at := NULL;
                 final_duration := NULL;
