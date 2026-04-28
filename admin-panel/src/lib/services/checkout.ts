@@ -275,7 +275,7 @@ export class CheckoutService {
 
       // Prepare session configuration
       const sessionConfig: Record<string, unknown> = {
-        ui_mode: 'embedded' as const,
+        ui_mode: 'embedded_page' as const,
         line_items: lineItems,
         mode: 'payment' as const,
         return_url: options.returnUrl,

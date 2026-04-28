@@ -44,24 +44,26 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
   }), [addRefreshListener, removeRefreshListener]);
 
   useEffect(() => {
-    let channel: any = null;
+    // Unique channel name avoids collisions when React 19 Strict Mode double-invokes the effect
+    // (or HMR remounts) — supabase-js 2.105 rejects re-binding `.on()` to an already-subscribed channel.
+    const channelName = `global-admin-realtime-${Math.random().toString(36).slice(2)}`;
+    let cancelled = false;
+    let channel: ReturnType<Awaited<ReturnType<typeof createClient>>['channel']> | null = null;
 
     const setupSubscription = async () => {
       const client = await createClient();
-      
+      if (cancelled) return;
+
       channel = client
-        .channel('global-admin-realtime')
+        .channel(channelName)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'payment_transactions' },
-          (payload: any) => {
+          (payload: { new?: { status?: string; amount?: number; currency?: string; id?: string } }) => {
             if (payload.new?.status === 'completed') {
-              // 1. Notify all components to refresh their data
-              // Access current listeners from ref
               listenersRef.current.forEach(listener => listener());
 
-              // 2. Trigger the visual notification
-              const amount = (payload.new.amount / 100).toLocaleString('en-US', {
+              const amount = ((payload.new.amount ?? 0) / 100).toLocaleString('en-US', {
                 style: 'currency',
                 currency: payload.new.currency || 'USD',
               });
@@ -79,11 +81,10 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
     setupSubscription();
 
     return () => {
-      if (channel) {
-        createClient().then(client => client.removeChannel(channel));
-      }
+      cancelled = true;
+      channel?.unsubscribe();
     };
-  }, []); // Only run once on mount
+  }, []);
 
   return (
     <RealtimeContext.Provider value={contextValue}>

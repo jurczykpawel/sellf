@@ -62,7 +62,7 @@ export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions):
 
     // Prepare session configuration
     const sessionConfig: Record<string, unknown> = {
-      ui_mode: 'embedded' as const,
+      ui_mode: 'embedded_page' as const,
       customer_email: email || user?.email || undefined,
       line_items: [
         {
