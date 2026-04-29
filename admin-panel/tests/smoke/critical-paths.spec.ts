@@ -131,6 +131,18 @@ test.beforeAll(async () => {
   }
 });
 
+test.beforeEach(async () => {
+  // Other test suites (e.g. storefront-landing) bulk-deactivate every product via
+  // `.update({ is_active: false }).neq('id', '0000...')` to assert empty-state UIs.
+  // Re-activate ours before each smoke test so we don't inherit a poisoned state.
+  const ids = [paidProduct, freeProduct, redirectProduct, contentProduct]
+    .filter(Boolean)
+    .map(p => p.id);
+  if (ids.length > 0) {
+    await supabaseAdmin.from('products').update({ is_active: true }).in('id', ids);
+  }
+});
+
 test.afterAll(async () => {
   // Cleanup products
   const slugs = [paidProduct, freeProduct, redirectProduct, contentProduct]
@@ -157,9 +169,7 @@ async function login(page: Page) {
 
 test.describe('Public Pages', () => {
   test('storefront shows product listing', async ({ page }) => {
-    // Re-activate our test product (other test suites may have deactivated ALL products)
-    await supabaseAdmin.from('products').update({ is_active: true }).eq('id', paidProduct.id);
-
+    // Per-test reactivation now lives in beforeEach (covers all 4 smoke products).
     await acceptAllCookies(page);
 
     // Retry: SSR may serve stale data right after DB write
