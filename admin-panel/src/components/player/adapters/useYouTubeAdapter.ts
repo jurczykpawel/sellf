@@ -159,7 +159,9 @@ export function useYouTubeAdapter(
   // DOM ref — updated via callback ref (iframeRef below)
   const containerElRef = useRef<HTMLElement | null>(null);
   const playerRef      = useRef<YT.Player | null>(null);
-  const containerIdRef = useRef(`yt-player-${videoId}-${Math.random().toString(36).slice(2, 7)}`);
+  // Lazy init keeps Math.random() out of the render body. The id is captured
+  // once per hook instance and is stable across re-renders.
+  const [containerId] = useState(() => `yt-player-${videoId}-${Math.random().toString(36).slice(2, 7)}`);
 
   // Gate flags — tryInit runs only when both are true
   const apiReadyRef    = useRef(false);
@@ -205,11 +207,11 @@ export function useYouTubeAdapter(
     if (!apiReadyRef.current || !containerElRef.current || playerRef.current) return;
 
     const container = containerElRef.current;
-    container.id = containerIdRef.current;
+    container.id = containerId;
 
     const opts = optionsRef.current;
 
-    playerRef.current = new window.YT.Player(containerIdRef.current, {
+    playerRef.current = new window.YT.Player(containerId, {
       videoId,
       playerVars: {
         controls: opts.controls ? 1 : 0,
@@ -254,7 +256,7 @@ export function useYouTubeAdapter(
         },
       },
     });
-  }, [videoId]); // videoId is stable per player instance; options read via optionsRef
+  }, [videoId, containerId]); // both stable per player instance; options read via optionsRef
 
   /**
    * Callback ref — React calls this whenever the container <div> mounts or unmounts.

@@ -62,16 +62,19 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
   // Selected products for info display
   const selectedBumpProduct = products.find(p => p.id === bumpProductId);
 
-  // Initialize form with editing data
-  useEffect(() => {
+  // Initialize form when parent swaps editingBump.
+  // setState-during-render replaces useEffect+setState cascade.
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [trackedEditingBump, setTrackedEditingBump] = useState(editingBump);
+  if (editingBump !== trackedEditingBump) {
+    setTrackedEditingBump(editingBump);
     if (editingBump) {
       setMainProductId(editingBump.main_product_id);
       setBumpProductId(editingBump.bump_product_id);
       setBumpTitle(editingBump.bump_title);
       setBumpDescription(editingBump.bump_description || '');
       setIsActive(editingBump.is_active);
-      
-      // Initialize Access Duration Type
+
       if (editingBump.access_duration_days === null || editingBump.access_duration_days === undefined) {
         setAccessDurationType('default');
         setAccessDuration('');
@@ -83,7 +86,6 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
         setAccessDuration(editingBump.access_duration_days.toString());
       }
 
-      // Initialize urgency timer
       if (editingBump.urgency_duration_minutes != null && editingBump.urgency_duration_minutes > 0) {
         setUseUrgencyTimer(true);
         setUrgencyMinutes(editingBump.urgency_duration_minutes.toString());
@@ -92,7 +94,6 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
         setUrgencyMinutes('');
       }
 
-      // Check if custom price is set
       if (editingBump.bump_price !== null) {
         setUseCustomPrice(true);
         setBumpPrice(editingBump.bump_price.toString());
@@ -101,21 +102,22 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
         setBumpPrice('');
       }
     }
-  }, [editingBump]);
+  }
 
-  // Auto-generate bump title when bump product changes
-  useEffect(() => {
+  // Auto-generate bump title when the user picks a new bump product (and only
+  // when there's no existing title to overwrite). Same setState-during-render
+  // pattern — the bumpProductId change triggers the recompute.
+  const [trackedBumpProductId, setTrackedBumpProductId] = useState(bumpProductId);
+  if (bumpProductId !== trackedBumpProductId) {
+    setTrackedBumpProductId(bumpProductId);
     if (bumpProductId && !editingBump && !bumpTitle) {
       const product = products.find(p => p.id === bumpProductId);
       if (product) {
-        const priceDisplay = useCustomPrice && bumpPrice
-          ? `${bumpPrice}`
-          : `${product.price}`;
-        // Note: Simple template, could be moved to i18n if needed but title is usually custom
+        const priceDisplay = useCustomPrice && bumpPrice ? `${bumpPrice}` : `${product.price}`;
         setBumpTitle(t('form.defaultTitle', { name: product.name, price: priceDisplay, currency: product.currency }));
       }
     }
-  }, [bumpProductId, useCustomPrice, bumpPrice, products, editingBump, bumpTitle]);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

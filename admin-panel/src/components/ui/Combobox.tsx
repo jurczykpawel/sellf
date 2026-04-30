@@ -33,10 +33,14 @@ export const Combobox = ({ options, placeholder, selectedValue, onSelect, classN
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Reset searchTerm when selectedValue changes externally
-  useEffect(() => {
+  // Reset searchTerm when the parent swaps selectedValue. setState-during-render
+  // replaces the previous useEffect cascade.
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [trackedSelectedValue, setTrackedSelectedValue] = useState(selectedValue);
+  if (selectedValue !== trackedSelectedValue) {
+    setTrackedSelectedValue(selectedValue);
     setSearchTerm('');
-  }, [selectedValue]);
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

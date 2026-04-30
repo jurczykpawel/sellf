@@ -769,17 +769,14 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
     const allEndpoints = await stripe.webhookEndpoints.list({ limit: 100 })
     const existing = findExistingWebhookEndpoint(allEndpoints.data, webhookUrl)
 
-    let endpointId: string
-    let signingSecret: string | undefined
-
     // Always delete existing endpoint and recreate — ensures we always get a fresh
     // signing secret that can be saved (Stripe only exposes the secret at creation time)
     if (existing) {
       await stripe.webhookEndpoints.del(existing.id)
     }
     const created = await stripe.webhookEndpoints.create(params)
-    endpointId = created.id
-    signingSecret = created.secret
+    const endpointId = created.id
+    const signingSecret = created.secret
 
     // Persist to DB
     const update: Record<string, string | null> = { webhook_endpoint_id: endpointId }

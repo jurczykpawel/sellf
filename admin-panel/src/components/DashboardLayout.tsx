@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -135,7 +135,11 @@ const Icons = {
 
 export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isPinned, setIsPinned] = useState(false)
+  // Lazy init reads localStorage on first render — no useEffect+setState cascade.
+  const [isPinned, setIsPinned] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('sf_sidebar_pinned') === 'true'
+  })
   const [isHovered, setIsHovered] = useState(false)
   const { signOut, role: authRole, user: authUser, loading: authLoading } = useAuth()
   const t = useTranslations('navigation')
@@ -166,12 +170,6 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     }
   }, [authUser, authLoading, router, pathname])
   const isExpanded = isPinned || isHovered
-
-  // Load pin state from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('sf_sidebar_pinned')
-    if (stored === 'true') setIsPinned(true)
-  }, [])
 
   const togglePin = () => {
     setIsPinned(prev => {
@@ -215,8 +213,9 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     { href: '/about', label: t('about'), icon: Icons.about },
   ];
 
-  // Sidebar nav item with collapsible text
-  const SidebarNavItem = ({ href, label, icon, exact, expanded }: {
+  // Sidebar nav item with collapsible text. Render-fn (lowercase) instead of
+  // an inline component so React doesn't unmount/remount it on each parent render.
+  const renderSidebarNavItem = ({ href, label, icon, exact, expanded }: {
     href: string, label: string, icon: React.ReactNode, exact?: boolean, expanded: boolean
   }) => {
     const active = exact ? pathname === href || pathname === href + '/' : pathname.includes(href);
@@ -249,8 +248,11 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     );
   };
 
-  // Shared sidebar navigation content
-  const SidebarNav = ({ expanded }: { expanded: boolean }) => (
+  // Shared sidebar navigation content. Lowercase render function (not a
+  // component) keeps the JSX inline without forcing React to remount the
+  // subtree on every parent render — which is what an inline `const X = () =>`
+  // component would do.
+  const renderSidebarNav = (expanded: boolean) => (
     <>
       {user && isAdmin && (
         <div className="pt-5 pb-2">
@@ -266,7 +268,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
           </div>
           <nav className="flex flex-col gap-0.5 px-2">
             {adminLinks.map(link => (
-              <SidebarNavItem key={link.href} {...link} expanded={expanded} />
+              <React.Fragment key={link.href}>{renderSidebarNavItem({ ...link, expanded })}</React.Fragment>
             ))}
           </nav>
         </div>
@@ -284,15 +286,15 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
         </div>
         <nav className="flex flex-col gap-0.5 px-2">
           {userLinks.map(link => (
-            <SidebarNavItem key={link.href} {...link} expanded={expanded} />
+            <React.Fragment key={link.href}>{renderSidebarNavItem({ ...link, expanded })}</React.Fragment>
           ))}
         </nav>
       </div>
     </>
   );
 
-  // Sidebar footer with user info
-  const SidebarFooter = ({ expanded, mobile }: { expanded: boolean, mobile?: boolean }) => (
+  // Sidebar footer with user info. Same pattern as renderSidebarNav above.
+  const renderSidebarFooter = (expanded: boolean, mobile?: boolean) => (
     <div className="mt-auto p-4 border-t border-sf-border-subtle flex-shrink-0">
       <div className="flex items-center gap-3 mb-3">
         <div className="w-9 h-9 bg-sf-accent/20 flex items-center justify-center text-sf-accent text-sm font-bold flex-shrink-0">
@@ -562,10 +564,10 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <SidebarNav expanded={isExpanded} />
+          {renderSidebarNav(isExpanded)}
         </div>
 
-        <SidebarFooter expanded={isExpanded} />
+        {renderSidebarFooter(isExpanded)}
       </aside>
 
       {/* Mobile Sidebar Overlay */}
@@ -603,10 +605,10 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <SidebarNav expanded={true} />
+              {renderSidebarNav(true)}
             </div>
 
-            <SidebarFooter expanded={true} mobile />
+            {renderSidebarFooter(true, true)}
           </div>
         </div>
       )}

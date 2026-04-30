@@ -58,12 +58,16 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const urlEmail = searchParams.get('email');
   const [email, setEmail] = useState<string | undefined>(user?.email || urlEmail || undefined);
 
-  // Sync email with user when they log in
-  useEffect(() => {
+  // Sync email with user when they log in. setState-during-render replaces the
+  // previous useEffect+setState cascade.
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [trackedUserEmail, setTrackedUserEmail] = useState(user?.email);
+  if (user?.email !== trackedUserEmail) {
+    setTrackedUserEmail(user?.email);
     if (user?.email && !email) {
       setEmail(user.email);
     }
-  }, [user?.email, email]);
+  }
 
   // Custom price state (Pay What You Want)
   const getInitialAmount = () => {
@@ -80,20 +84,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [customAmountInput, setCustomAmountInput] = useState<string>(getInitialAmount().toString());
   const [customAmountError, setCustomAmountError] = useState<string | null>(null);
 
-  // Validate custom amount
-  const validateCustomAmount = useCallback((amount: number): boolean => {
-    if (!product.allow_custom_price) return true;
+  // Pure validator — returns the error message (or null) without touching state.
+  // The caller decides when to commit the error to UI state, which keeps this
+  // function safe to call from useEffect bodies (no setState cascade).
+  const checkCustomAmount = useCallback((amount: number): string | null => {
+    if (!product.allow_custom_price) return null;
     const minPrice = product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
     if (amount < minPrice) {
-      setCustomAmountError(t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency) }));
-      return false;
+      return t('customPrice.belowMinimum', { minimum: formatPrice(minPrice, product.currency) });
     }
     if (amount > STRIPE_MAX_AMOUNT) {
-      setCustomAmountError(t('customPrice.aboveMaximum', { maximum: formatPrice(STRIPE_MAX_AMOUNT, product.currency) }));
-      return false;
+      return t('customPrice.aboveMaximum', { maximum: formatPrice(STRIPE_MAX_AMOUNT, product.currency) });
     }
-    setCustomAmountError(null);
-    return true;
+    return null;
   }, [product, t]);
 
   // Compute isPwywFree once — shared with PwywSection
@@ -199,24 +202,30 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     track('begin_checkout', trackingData);
   }, [product, track]);
 
-  // Fetch Stripe client secret
-  const fetchClientSecret = useCallback(async () => {
+  // Fetch Stripe client secret. Inlined inside the effect (rather than a
+  // useCallback) so React Compiler doesn't flag the call site as
+  // "setState-in-effect" — every setState here lands in an async then-callback,
+  // not synchronously in the effect body.
+  useEffect(() => {
+    if (hasAccess || error || authLoading) return;
     if (isFunnelTest) return;
 
     // Free-access paths (PWYW=0 or 100% coupon) bypass Stripe entirely — the
-    // free-access section handles grant + magic-link flows.
-    if (isFreeAccess) {
-      setClientSecret(null);
+    // free-access section handles grant + magic-link flows. The render
+    // gate checks `!isFreeAccess` before mounting the embedded checkout, so
+    // we don't need to clear clientSecret here.
+    if (isFreeAccess) return;
+
+    if (product.allow_custom_price && checkCustomAmount(customAmount) !== null) {
       return;
     }
 
-    if (product.allow_custom_price && !validateCustomAmount(customAmount)) {
-      return;
-    }
+    const controller = new AbortController();
 
-    const response = await fetch('/api/create-payment-intent', {
+    fetch('/api/create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         productId: product.id,
         email: email || undefined,
@@ -225,46 +234,47 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         successUrl: searchParams.get('success_url') || undefined,
         customAmount: product.allow_custom_price ? customAmount : undefined,
       }),
-    }).catch(() => null);
+    })
+      .then(async response => {
+        if (controller.signal.aborted) return;
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          if (controller.signal.aborted) return;
+          if (errorData.error === 'You already have access to this product') {
+            grantAccess();
+            return;
+          }
+          // Surface the server's error verbatim — previously a throw+catch
+          // fallthrough replaced this with a generic "Failed to load checkout"
+          // which masked actionable server messages (e.g. 401 coupon errors).
+          setError(errorData.error || t('createSessionError'));
+          return;
+        }
+        const data = await response.json().catch(() => null);
+        if (controller.signal.aborted) return;
+        if (!data) {
+          setError(t('loadError'));
+          return;
+        }
+        // 100% coupon: server granted free access
+        if (data.freeAccess) {
+          grantAccess();
+          return;
+        }
+        setClientSecret(data.clientSecret);
+      })
+      .catch(err => {
+        if (controller.signal.aborted) return;
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(t('loadError'));
+      });
 
-    if (!response) {
-      setError(t('loadError'));
-      return;
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (errorData.error === 'You already have access to this product') {
-        grantAccess();
-        return;
-      }
-      // Surface the server's error verbatim. Previously a throw+catch fallthrough
-      // replaced this with a generic "Failed to load checkout" which masked
-      // actionable server messages (e.g. 401 "Please log in to use this coupon").
-      setError(errorData.error || t('createSessionError'));
-      return;
-    }
-
-    const data = await response.json().catch(() => null);
-    if (!data) {
-      setError(t('loadError'));
-      return;
-    }
-
-    // 100% coupon: server granted free access
-    if (data.freeAccess) {
-      grantAccess();
-      return;
-    }
-
-    setClientSecret(data.clientSecret);
-  }, [product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t, customAmount, validateCustomAmount, isFunnelTest, isFreeAccess, grantAccess]);
-
-  useEffect(() => {
-    if (!hasAccess && !error && !authLoading) {
-      fetchClientSecret();
-    }
-  }, [fetchClientSecret, hasAccess, error, authLoading]);
+    return () => controller.abort();
+  }, [
+    hasAccess, error, authLoading,
+    product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
+    customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
+  ]);
 
   const handleSignOutAndCheckout = async () => {
     try {
@@ -320,7 +330,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           const value = parseFloat(customAmountInput) || 0;
           setCustomAmount(value);
           if (value > 0) setCustomAmountInput(value.toString());
-          validateCustomAmount(value);
+          setCustomAmountError(checkCustomAmount(value));
         }}
         onPresetClick={(preset) => {
           setCustomAmount(preset);

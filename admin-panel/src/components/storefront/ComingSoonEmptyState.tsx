@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 interface ComingSoonEmptyStateProps {
@@ -43,14 +44,14 @@ export default function ComingSoonEmptyState({ shopName, contactEmail }: ComingS
 
         {/* Learn More Link */}
         <div className="mb-12">
-          <a 
-            href="/about" 
+          <Link
+            href="/about"
             className="inline-flex items-center px-6 py-3 rounded-full bg-sf-accent-soft text-sf-accent font-bold hover:bg-sf-accent-soft transition-all group border border-sf-border-accent"
           >
             <span className="mr-2">🚀</span>
             {t('learnMore')}
             <span className="ml-2 transform transition-transform group-hover:translate-x-1">→</span>
-          </a>
+          </Link>
         </div>
 
         {/* Contact Information */}

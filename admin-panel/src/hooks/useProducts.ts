@@ -61,7 +61,7 @@ interface ProductCreateData {
   oto_duration_minutes?: number | null;
 }
 
-interface ProductUpdateData extends Partial<ProductCreateData> {}
+type ProductUpdateData = Partial<ProductCreateData>;
 
 /**
  * Hook for products CRUD operations using v1 API

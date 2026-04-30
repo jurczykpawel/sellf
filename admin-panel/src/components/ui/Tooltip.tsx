@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, cloneElement, isValidElement } from 'react';
+import { useState, cloneElement, isValidElement } from 'react';
 import type { ReactNode, ReactElement } from 'react';
 import {
   useFloating,
@@ -39,7 +39,9 @@ export function Tooltip({
   maxWidth = 240,
 }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const arrowRef = useRef(null);
+  // Callback-ref-as-state pattern: passing the element itself (not a ref)
+  // to floating-ui middleware keeps the access out of the render body.
+  const [arrowEl, setArrowEl] = useState<SVGSVGElement | null>(null);
 
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
@@ -49,9 +51,13 @@ export function Tooltip({
       offset(8),
       flip({ padding: 8 }),
       shift({ padding: 8 }),
-      arrow({ element: arrowRef }),
+      arrow({ element: arrowEl }),
     ],
   });
+
+  // Destructure callback refs at the top of the component so JSX doesn't
+  // do property access on `refs` during render (React Compiler flags that).
+  const { setReference, setFloating } = refs;
 
   const hover = useHover(context, { delay: { open: delay, close: 0 } });
   const focus = useFocus(context);
@@ -71,20 +77,20 @@ export function Tooltip({
     <>
       {isValidElement(children) &&
         cloneElement(children, {
-          ref: refs.setReference,
+          ref: setReference,
           ...getReferenceProps(),
         } as Record<string, unknown>)}
       {isOpen && (
         <FloatingPortal>
           <div
-            ref={refs.setFloating}
+            ref={setFloating}
             style={{ ...floatingStyles, maxWidth, zIndex: 9999 }}
             className="rounded-md bg-sf-tooltip-bg text-sf-tooltip-text px-2.5 py-1.5 text-xs leading-relaxed shadow-lg transition-opacity duration-150"
             {...getFloatingProps()}
           >
             {content}
             <FloatingArrow
-              ref={arrowRef}
+              ref={setArrowEl}
               context={context}
               className="fill-sf-tooltip-bg"
               width={10}

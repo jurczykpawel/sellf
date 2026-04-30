@@ -60,36 +60,33 @@ export default function ApiKeyFormModal({
     { id: 'usersOnly', name: t('presets.usersOnly'), scopes: ['users:read', 'users:write'] },
   ];
 
-  const [formData, setFormData] = useState({
-    name: '',
-    scopes: ['*'] as string[],
-    rate_limit_per_minute: 60,
-    expires_at: '',
-  });
-
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      if (initialData) {
-        setFormData({
-          name: initialData.name,
-          scopes: initialData.scopes,
-          rate_limit_per_minute: initialData.rate_limit_per_minute,
-          expires_at: '',
-        });
-        setShowAdvanced(initialData.rate_limit_per_minute !== 60);
-      } else {
-        setFormData({
-          name: '',
-          scopes: ['*'],
-          rate_limit_per_minute: 60,
-          expires_at: '',
-        });
-        setShowAdvanced(false);
+  const buildFormData = (data: ApiKeyInitialData | undefined): ApiKeyFormData => data
+    ? {
+        name: data.name,
+        scopes: data.scopes,
+        rate_limit_per_minute: data.rate_limit_per_minute,
+        expires_at: '',
       }
-    }
-  }, [isOpen, initialData]);
+    : {
+        name: '',
+        scopes: ['*'],
+        rate_limit_per_minute: 60,
+        expires_at: '',
+      };
+
+  const [formData, setFormData] = useState<ApiKeyFormData>(() => buildFormData(initialData));
+  const [showAdvanced, setShowAdvanced] = useState(() => (initialData?.rate_limit_per_minute ?? 60) !== 60);
+
+  // Re-sync local form when the parent passes a different `initialData` record.
+  // setState-during-render is React's documented pattern for "adjusting state
+  // when a prop changes" and avoids the effect-cascade the compiler flags.
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [trackedInitialData, setTrackedInitialData] = useState(initialData);
+  if (initialData !== trackedInitialData) {
+    setTrackedInitialData(initialData);
+    setFormData(buildFormData(initialData));
+    setShowAdvanced((initialData?.rate_limit_per_minute ?? 60) !== 60);
+  }
 
   const toggleScope = (scope: string) => {
     if (scope === '*') {

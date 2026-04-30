@@ -8,3 +8,13 @@ repos:
         language: golang
         pass_filenames: false
         stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: lint-admin-panel
+        name: ESLint (admin-panel)
+        entry: bash -c 'cd admin-panel && bun run lint'
+        language: system
+        files: ^admin-panel/src/.+\.(ts|tsx)$
+        pass_filenames: false
+        stages: [pre-commit]

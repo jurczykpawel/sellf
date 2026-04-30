@@ -23,13 +23,20 @@ export default function WebhookTestModal({
 }: WebhookTestModalProps) {
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
-  const [selectedEvent, setSelectedEvent] = useState<string>('');
+  const [selectedEvent, setSelectedEvent] = useState<string>(() =>
+    endpoint?.events[0] || 'test.event'
+  );
 
-  useEffect(() => {
+  // Re-sync when parent swaps the endpoint or re-opens the modal.
+  // setState-during-render avoids the effect-cascade (https://react.dev/learn/you-might-not-need-an-effect).
+  const syncKey = isOpen ? endpoint : null;
+  const [trackedSyncKey, setTrackedSyncKey] = useState(syncKey);
+  if (syncKey !== trackedSyncKey) {
+    setTrackedSyncKey(syncKey);
     if (endpoint) {
       setSelectedEvent(endpoint.events[0] || 'test.event');
     }
-  }, [endpoint, isOpen]);
+  }
 
   const getEventLabel = (eventValue: string) => {
     if (eventValue === 'test.event') return t('testModal.genericTestEvent');

@@ -1,19 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lock, ArrowLeft, Home, LayoutDashboard, Package, Users, LogIn, Info } from 'lucide-react';
 
+// Stable mount detection that's safe for SSR hydration without the
+// useState + useEffect cascade pattern.
+const noopSubscribe = () => () => {};
+const getMounted = () => true;
+const getServerMounted = () => false;
+
 export default function NotFound() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(noopSubscribe, getMounted, getServerMounted);
   const { user, isAdmin, loading } = useAuth();
   const t = useTranslations('notFound');
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   if (!mounted || loading) {
     return null;

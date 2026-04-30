@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
@@ -13,7 +13,9 @@ interface OrderBumpListProps {
 
 export default function OrderBumpList({ bumps, selectedBumpIds, onToggle }: OrderBumpListProps) {
   const t = useTranslations('checkout');
-  const pageLoadTime = useRef(Date.now());
+  // Lazy init keeps the impure Date.now() call out of the render body while
+  // still preserving the value across re-renders (same semantics as useRef).
+  const [pageLoadTime] = useState(() => Date.now());
   const [, setTimerTick] = useState(0);
 
   const hasUrgencyBumps = bumps.some(
@@ -129,7 +131,7 @@ export default function OrderBumpList({ bumps, selectedBumpIds, onToggle }: Orde
 
               {/* Urgency countdown timer */}
               {bump.urgency_duration_minutes != null && bump.urgency_duration_minutes > 0 && (() => {
-                const elapsedSec = Math.floor((Date.now() - pageLoadTime.current) / 1000);
+                const elapsedSec = Math.floor((Date.now() - pageLoadTime) / 1000);
                 const totalSec = bump.urgency_duration_minutes * 60;
                 const remainingSec = Math.max(totalSec - elapsedSec, 0);
                 if (remainingSec <= 0) return null;
