@@ -611,6 +611,8 @@ export type Database = {
           current_usage_count: number | null
           discount_type: string | null
           discount_value: number | null
+          duration: string | null
+          duration_in_months: number | null
           exclude_order_bumps: boolean | null
           expires_at: string | null
           id: string | null
@@ -634,6 +636,8 @@ export type Database = {
           current_usage_count?: number | null
           discount_type?: string | null
           discount_value?: number | null
+          duration?: string | null
+          duration_in_months?: number | null
           exclude_order_bumps?: boolean | null
           expires_at?: string | null
           id?: string | null
@@ -657,6 +661,8 @@ export type Database = {
           current_usage_count?: number | null
           discount_type?: string | null
           discount_value?: number | null
+          duration?: string | null
+          duration_in_months?: number | null
           exclude_order_bumps?: boolean | null
           expires_at?: string | null
           id?: string | null
@@ -1147,6 +1153,7 @@ export type Database = {
           customer_email: string | null
           expires_at: string | null
           id: string | null
+          invoice_sequence_number: number | null
           metadata: Json | null
           product_id: string | null
           refund_id: string | null
@@ -1156,7 +1163,9 @@ export type Database = {
           refunded_by: string | null
           session_id: string | null
           status: string | null
+          stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
+          subscription_id: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -1168,6 +1177,7 @@ export type Database = {
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
+          invoice_sequence_number?: number | null
           metadata?: Json | null
           product_id?: string | null
           refund_id?: string | null
@@ -1177,7 +1187,9 @@ export type Database = {
           refunded_by?: string | null
           session_id?: string | null
           status?: string | null
+          stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1189,6 +1201,7 @@ export type Database = {
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
+          invoice_sequence_number?: number | null
           metadata?: Json | null
           product_id?: string | null
           refund_id?: string | null
@@ -1198,7 +1211,9 @@ export type Database = {
           refunded_by?: string | null
           session_id?: string | null
           status?: string | null
+          stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1223,6 +1238,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "payment_transactions_user_id_fkey"
@@ -1424,6 +1446,8 @@ export type Database = {
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
+          billing_interval: string | null
+          billing_interval_count: number | null
           content_config: Json | null
           content_delivery_type: string | null
           created_at: string | null
@@ -1448,6 +1472,8 @@ export type Database = {
           preview_video_url: string | null
           price: number | null
           price_includes_vat: boolean | null
+          product_type: string | null
+          recurring_price: number | null
           refund_period_days: number | null
           sale_price: number | null
           sale_price_until: string | null
@@ -1457,6 +1483,7 @@ export type Database = {
           slug: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
+          trial_days: number | null
           updated_at: string | null
           vat_rate: number | null
         }
@@ -1465,6 +1492,8 @@ export type Database = {
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
+          billing_interval?: string | null
+          billing_interval_count?: number | null
           content_config?: Json | null
           content_delivery_type?: string | null
           created_at?: string | null
@@ -1489,6 +1518,8 @@ export type Database = {
           preview_video_url?: string | null
           price?: number | null
           price_includes_vat?: boolean | null
+          product_type?: string | null
+          recurring_price?: number | null
           refund_period_days?: number | null
           sale_price?: number | null
           sale_price_until?: string | null
@@ -1498,6 +1529,7 @@ export type Database = {
           slug?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
+          trial_days?: number | null
           updated_at?: string | null
           vat_rate?: number | null
         }
@@ -1506,6 +1538,8 @@ export type Database = {
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
+          billing_interval?: string | null
+          billing_interval_count?: number | null
           content_config?: Json | null
           content_delivery_type?: string | null
           created_at?: string | null
@@ -1530,6 +1564,8 @@ export type Database = {
           preview_video_url?: string | null
           price?: number | null
           price_includes_vat?: boolean | null
+          product_type?: string | null
+          recurring_price?: number | null
           refund_period_days?: number | null
           sale_price?: number | null
           sale_price_until?: string | null
@@ -1539,6 +1575,7 @@ export type Database = {
           slug?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
+          trial_days?: number | null
           updated_at?: string | null
           vat_rate?: number | null
         }
@@ -1915,6 +1952,121 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_customers: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          stripe_customer_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          stripe_customer_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "stripe_customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          canceled_at: string | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string | null
+          latest_invoice_id: string | null
+          metadata: Json | null
+          product_id: string | null
+          status: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string | null
+          latest_invoice_id?: string | null
+          metadata?: Json | null
+          product_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string | null
+          latest_invoice_id?: string | null
+          metadata?: Json | null
+          product_id?: string | null
+          status?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       tags: {
         Row: {
           created_at: string | null
@@ -1960,6 +2112,7 @@ export type Database = {
           expiry_notified_at: string | null
           id: string | null
           product_id: string | null
+          subscription_id: string | null
           user_id: string | null
           version: number | null
         }
@@ -1971,6 +2124,7 @@ export type Database = {
           expiry_notified_at?: string | null
           id?: string | null
           product_id?: string | null
+          subscription_id?: string | null
           user_id?: string | null
           version?: number | null
         }
@@ -1982,6 +2136,7 @@ export type Database = {
           expiry_notified_at?: string | null
           id?: string | null
           product_id?: string | null
+          subscription_id?: string | null
           user_id?: string | null
           version?: number | null
         }
@@ -1991,6 +2146,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_product_access_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
           {
@@ -2886,6 +3048,8 @@ export type Database = {
           current_usage_count: number
           discount_type: string
           discount_value: number
+          duration: string
+          duration_in_months: number | null
           exclude_order_bumps: boolean
           expires_at: string | null
           id: string
@@ -2909,6 +3073,8 @@ export type Database = {
           current_usage_count?: number
           discount_type: string
           discount_value: number
+          duration?: string
+          duration_in_months?: number | null
           exclude_order_bumps?: boolean
           expires_at?: string | null
           id?: string
@@ -2932,6 +3098,8 @@ export type Database = {
           current_usage_count?: number
           discount_type?: string
           discount_value?: number
+          duration?: string
+          duration_in_months?: number | null
           exclude_order_bumps?: boolean
           expires_at?: string | null
           id?: string
@@ -3409,6 +3577,7 @@ export type Database = {
           customer_email: string
           expires_at: string | null
           id: string
+          invoice_sequence_number: number
           metadata: Json
           product_id: string
           refund_id: string | null
@@ -3418,7 +3587,9 @@ export type Database = {
           refunded_by: string | null
           session_id: string
           status: string
+          stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
+          subscription_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -3430,6 +3601,7 @@ export type Database = {
           customer_email: string
           expires_at?: string | null
           id?: string
+          invoice_sequence_number?: number
           metadata?: Json
           product_id: string
           refund_id?: string | null
@@ -3439,7 +3611,9 @@ export type Database = {
           refunded_by?: string | null
           session_id: string
           status?: string
+          stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3451,6 +3625,7 @@ export type Database = {
           customer_email?: string
           expires_at?: string | null
           id?: string
+          invoice_sequence_number?: number
           metadata?: Json
           product_id?: string
           refund_id?: string | null
@@ -3460,7 +3635,9 @@ export type Database = {
           refunded_by?: string | null
           session_id?: string
           status?: string
+          stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3485,6 +3662,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "payment_transactions_user_id_fkey"
@@ -3686,6 +3870,8 @@ export type Database = {
           auto_grant_duration_days: number | null
           available_from: string | null
           available_until: string | null
+          billing_interval: string | null
+          billing_interval_count: number | null
           content_config: Json
           content_delivery_type: string
           created_at: string
@@ -3710,6 +3896,8 @@ export type Database = {
           preview_video_url: string | null
           price: number
           price_includes_vat: boolean
+          product_type: string
+          recurring_price: number | null
           refund_period_days: number | null
           sale_price: number | null
           sale_price_until: string | null
@@ -3719,6 +3907,7 @@ export type Database = {
           slug: string
           success_redirect_url: string | null
           thumbnail_url: string | null
+          trial_days: number | null
           updated_at: string
           vat_rate: number | null
         }
@@ -3727,6 +3916,8 @@ export type Database = {
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
+          billing_interval?: string | null
+          billing_interval_count?: number | null
           content_config?: Json
           content_delivery_type?: string
           created_at?: string
@@ -3751,6 +3942,8 @@ export type Database = {
           preview_video_url?: string | null
           price?: number
           price_includes_vat?: boolean
+          product_type?: string
+          recurring_price?: number | null
           refund_period_days?: number | null
           sale_price?: number | null
           sale_price_until?: string | null
@@ -3760,6 +3953,7 @@ export type Database = {
           slug: string
           success_redirect_url?: string | null
           thumbnail_url?: string | null
+          trial_days?: number | null
           updated_at?: string
           vat_rate?: number | null
         }
@@ -3768,6 +3962,8 @@ export type Database = {
           auto_grant_duration_days?: number | null
           available_from?: string | null
           available_until?: string | null
+          billing_interval?: string | null
+          billing_interval_count?: number | null
           content_config?: Json
           content_delivery_type?: string
           created_at?: string
@@ -3792,6 +3988,8 @@ export type Database = {
           preview_video_url?: string | null
           price?: number
           price_includes_vat?: boolean
+          product_type?: string
+          recurring_price?: number | null
           refund_period_days?: number | null
           sale_price?: number | null
           sale_price_until?: string | null
@@ -3801,6 +3999,7 @@ export type Database = {
           slug?: string
           success_redirect_url?: string | null
           thumbnail_url?: string | null
+          trial_days?: number | null
           updated_at?: string
           vat_rate?: number | null
         }
@@ -4151,6 +4350,121 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_customers: {
+        Row: {
+          created_at: string
+          id: string
+          stripe_customer_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          stripe_customer_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "stripe_customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          latest_invoice_id: string | null
+          metadata: Json
+          product_id: string
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          trial_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          latest_invoice_id?: string | null
+          metadata?: Json
+          product_id: string
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          trial_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          latest_invoice_id?: string | null
+          metadata?: Json
+          product_id?: string
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       tags: {
         Row: {
           created_at: string
@@ -4181,6 +4495,7 @@ export type Database = {
           expiry_notified_at: string | null
           id: string
           product_id: string
+          subscription_id: string | null
           user_id: string
           version: number
         }
@@ -4192,6 +4507,7 @@ export type Database = {
           expiry_notified_at?: string | null
           id?: string
           product_id: string
+          subscription_id?: string | null
           user_id: string
           version?: number
         }
@@ -4203,6 +4519,7 @@ export type Database = {
           expiry_notified_at?: string | null
           id?: string
           product_id?: string
+          subscription_id?: string | null
           user_id?: string
           version?: number
         }
@@ -4212,6 +4529,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_product_access_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
           {
@@ -5140,6 +5464,7 @@ export type Database = {
           id: string
           in_progress_size: number
           key: string
+          metadata: Json | null
           owner_id: string | null
           upload_signature: string
           user_metadata: Json | null
@@ -5151,6 +5476,7 @@ export type Database = {
           id: string
           in_progress_size?: number
           key: string
+          metadata?: Json | null
           owner_id?: string | null
           upload_signature: string
           user_metadata?: Json | null
@@ -5162,6 +5488,7 @@ export type Database = {
           id?: string
           in_progress_size?: number
           key?: string
+          metadata?: Json | null
           owner_id?: string | null
           upload_signature?: string
           user_metadata?: Json | null
@@ -5280,6 +5607,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      allow_any_operation: {
+        Args: { expected_operations: string[] }
+        Returns: boolean
+      }
+      allow_only_operation: {
+        Args: { expected_operation: string }
+        Returns: boolean
+      }
       can_insert_object: {
         Args: { bucketid: string; metadata: Json; name: string; owner: string }
         Returns: undefined
