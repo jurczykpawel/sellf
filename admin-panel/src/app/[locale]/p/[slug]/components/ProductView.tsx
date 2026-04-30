@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Product } from '@/types';
 import { useProductAccess } from '@/hooks/useProductAccess';
@@ -24,48 +24,39 @@ interface ProductViewProps {
 export default function ProductView({ product, licenseValid, previewMode = false }: ProductViewProps) {
   const t = useTranslations('productView');
   const { accessData, loading, error: accessError } = useProductAccess(product, { previewMode });
-  const [redirecting, setRedirecting] = useState(false);
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Loading safety timeout — if still loading after N seconds, show error state
+  // Reset the timeout flag when `loading` flips. setState-during-render is the
+  // documented pattern for "adjusting state when a prop changes" without a
+  // useEffect+setState cascade.
+  const [timeoutFired, setTimeoutFired] = useState(false);
+  const [trackedLoading, setTrackedLoading] = useState(loading);
+  if (loading !== trackedLoading) {
+    setTrackedLoading(loading);
+    if (!loading) setTimeoutFired(false);
+  }
+  const loadingTimedOut = loading && timeoutFired;
+
   useEffect(() => {
-    if (loading) {
-      timeoutRef.current = setTimeout(() => {
-        setLoadingTimedOut(true);
-      }, LOADING_SAFETY_TIMEOUT_MS);
-    } else {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      setLoadingTimedOut(false);
-    }
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
+    if (!loading) return;
+    const handle = setTimeout(() => setTimeoutFired(true), LOADING_SAFETY_TIMEOUT_MS);
+    return () => clearTimeout(handle);
   }, [loading]);
 
-  // For redirect products with access — redirect immediately without extra content fetch.
-  // The redirect URL is already in the product props from the server.
-  // In preview mode, skip redirect — ProductAccessView shows a non-redirecting redirect screen.
+  // Whether this render should drive a redirect — derived, no state.
+  const shouldRedirect = !previewMode
+    && !!accessData?.hasAccess
+    && product.content_delivery_type === 'redirect';
+  const redirectUrlFromProduct = product.content_config?.redirect_url;
+
+  // Redirect side-effect: only reads state, never sets it (no cascade).
   useEffect(() => {
-    if (previewMode) return;
-    if (accessData?.hasAccess && product.content_delivery_type === 'redirect') {
-      const redirectUrl = product.content_config?.redirect_url;
-      if (redirectUrl) {
-        const isRelative = redirectUrl.startsWith('/') && !redirectUrl.startsWith('//');
-        const isHttp = redirectUrl.startsWith('https://') || redirectUrl.startsWith('http://');
-        if (isRelative || isHttp) {
-          setRedirecting(true);
-          window.location.href = redirectUrl;
-        }
-      }
+    if (!shouldRedirect || !redirectUrlFromProduct) return;
+    const isRelative = redirectUrlFromProduct.startsWith('/') && !redirectUrlFromProduct.startsWith('//');
+    const isHttp = redirectUrlFromProduct.startsWith('https://') || redirectUrlFromProduct.startsWith('http://');
+    if (isRelative || isHttp) {
+      window.location.href = redirectUrlFromProduct;
     }
-  }, [previewMode, accessData, product.content_delivery_type, product.content_config?.redirect_url]);
+  }, [shouldRedirect, redirectUrlFromProduct]);
 
   // Loading timed out or access check error — show error with retry
   if (loadingTimedOut || accessError) {
@@ -92,13 +83,13 @@ export default function ProductView({ product, licenseValid, previewMode = false
     return <ProductLoadingState />;
   }
 
-  // Redirect in progress — show redirect UI instead of mounting ProductAccessView
-  // In preview mode, skip this block — let ProductAccessView render and handle it
-  if (!previewMode && (redirecting || (accessData?.hasAccess && product.content_delivery_type === 'redirect'))) {
-    const redirectUrl = product.content_config?.redirect_url;
+  // Redirect in progress — show redirect UI instead of mounting ProductAccessView.
+  // In preview mode, skip this block — let ProductAccessView render and handle it.
+  if (shouldRedirect) {
+    const redirectUrl = redirectUrlFromProduct;
 
     // Missing redirect URL — show error instead of spinner forever
-    if (!redirectUrl && !redirecting) {
+    if (!redirectUrl) {
       return (
         <div className="flex justify-center items-center min-h-screen bg-sf-deep">
           <FloatingToolbar position="top-right" />

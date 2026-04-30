@@ -33,40 +33,46 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   isSubmitting,
 }) => {
   const t = useTranslations('admin.coupons');
-  const [formData, setFormData] = useState<Partial<CouponFormData>>({
-    code: '',
-    name: '',
-    discount_type: 'percentage',
-    discount_value: 0,
-    currency: 'USD',
-    is_active: true,
-    usage_limit_global: null,
-    usage_limit_per_user: 1,
-    allowed_product_ids: [],
-    allowed_emails: [],
-    exclude_order_bumps: false
-  });
 
+  const buildFormData = (coupon: typeof editingCoupon): Partial<CouponFormData> => coupon
+    ? {
+        code: coupon.code,
+        name: coupon.name || '',
+        discount_type: coupon.discount_type as 'percentage' | 'fixed',
+        discount_value: coupon.discount_value,
+        currency: coupon.currency || 'USD',
+        is_active: coupon.is_active,
+        exclude_order_bumps: coupon.exclude_order_bumps || false,
+        usage_limit_global: coupon.usage_limit_global,
+        usage_limit_per_user: coupon.usage_limit_per_user || 1,
+        allowed_product_ids: (coupon.allowed_product_ids as string[]) || [],
+        allowed_emails: (coupon.allowed_emails as string[]) || [],
+        expires_at: coupon.expires_at ? new Date(coupon.expires_at).toISOString().split('T')[0] : null,
+      }
+    : {
+        code: '',
+        name: '',
+        discount_type: 'percentage',
+        discount_value: 0,
+        currency: 'USD',
+        is_active: true,
+        usage_limit_global: null,
+        usage_limit_per_user: 1,
+        allowed_product_ids: [],
+        allowed_emails: [],
+        exclude_order_bumps: false,
+      };
+
+  const [formData, setFormData] = useState<Partial<CouponFormData>>(() => buildFormData(editingCoupon));
   const [emailInput, setEmailInput] = useState('');
 
-  useEffect(() => {
-    if (editingCoupon) {
-      setFormData({
-        code: editingCoupon.code,
-        name: editingCoupon.name || '',
-        discount_type: editingCoupon.discount_type as 'percentage' | 'fixed',
-        discount_value: editingCoupon.discount_value,
-        currency: editingCoupon.currency || 'USD',
-        is_active: editingCoupon.is_active,
-        exclude_order_bumps: editingCoupon.exclude_order_bumps || false,
-        usage_limit_global: editingCoupon.usage_limit_global,
-        usage_limit_per_user: editingCoupon.usage_limit_per_user || 1,
-        allowed_product_ids: (editingCoupon.allowed_product_ids as string[]) || [],
-        allowed_emails: (editingCoupon.allowed_emails as string[]) || [],
-        expires_at: editingCoupon.expires_at ? new Date(editingCoupon.expires_at).toISOString().split('T')[0] : null
-      });
-    }
-  }, [editingCoupon]);
+  // Re-sync local form when parent swaps `editingCoupon`. setState-during-render
+  // replaces the previous useEffect+setState cascade (https://react.dev/learn/you-might-not-need-an-effect).
+  const [trackedCoupon, setTrackedCoupon] = useState(editingCoupon);
+  if (editingCoupon !== trackedCoupon) {
+    setTrackedCoupon(editingCoupon);
+    setFormData(buildFormData(editingCoupon));
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

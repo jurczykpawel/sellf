@@ -147,7 +147,7 @@ export interface CategoriesSectionProps extends SectionProps {
   loadingCategories: boolean;
 }
 
-export interface RefundSectionProps extends SectionProps {}
+export type RefundSectionProps = SectionProps;
 
 export interface AdvancedSectionProps extends SectionProps {
   omnibusEnabled: boolean;
@@ -157,7 +157,7 @@ export interface AvailabilitySectionProps extends SectionProps {
   hasWaitlistWebhook: boolean | null;
 }
 
-export interface AccessSectionProps extends SectionProps {}
+export type AccessSectionProps = SectionProps;
 
 // Initial form data
 export const initialFormData: ProductFormData = {

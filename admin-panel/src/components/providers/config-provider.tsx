@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useSyncExternalStore } from 'react'
 
 interface AppConfig {
   supabaseUrl: string
@@ -44,23 +44,32 @@ function setCachedConfig(data: AppConfig): void {
   }
 }
 
+// useSyncExternalStore subscribers — no-op because sessionStorage doesn't change
+// between renders within the same tab (we only read it once after hydration).
+const noopSubscribe = () => () => {}
+
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
-  // Start with null/true to match server render - check cache only after mount
-  const [config, setConfig] = useState<AppConfig | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Cached config from sessionStorage. Returns null on SSR + first client render
+  // (preventing hydration mismatch), then surfaces the cached value on the
+  // second client render. This replaces the previous useEffect+setState cascade.
+  const cachedConfig = useSyncExternalStore<AppConfig | null>(
+    noopSubscribe,
+    () => getCachedConfig(),
+    () => null,
+  )
+
+  const [fetchedConfig, setFetchedConfig] = useState<AppConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fetchSettled, setFetchSettled] = useState(false)
+
+  // Effective config: server response wins over cache once it arrives.
+  const config = fetchedConfig ?? cachedConfig
+  const loading = !config && !error && !fetchSettled
 
   useEffect(() => {
     const controller = new AbortController()
+    const hadCache = getCachedConfig() !== null
 
-    // Check cache first on client side
-    const cached = getCachedConfig()
-    if (cached) {
-      setConfig(cached)
-      setLoading(false)
-    }
-
-    // Always fetch fresh config
     fetch('/api/runtime-config', { signal: controller.signal })
       .then(res => {
         if (!res.ok) {
@@ -70,17 +79,18 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       })
       .then(data => {
         if (controller.signal.aborted) return
-        setConfig(data)
+        setFetchedConfig(data)
         setCachedConfig(data)
-        setLoading(false)
+        setFetchSettled(true)
       })
       .catch(err => {
         if (controller.signal.aborted) return
-        // Only show error if we don't have cached config
-        if (!cached) {
+        // Only surface error when cache wasn't available — otherwise the user
+        // keeps the cached config and a network blip stays invisible.
+        if (!hadCache) {
           setError(err.message)
         }
-        setLoading(false)
+        setFetchSettled(true)
       })
 
     return () => controller.abort()

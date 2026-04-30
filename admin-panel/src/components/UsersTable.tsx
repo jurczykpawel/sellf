@@ -5,6 +5,33 @@ import { UserWithAccess } from '@/types';
 import Pagination from './Pagination';
 import { useTranslations } from 'next-intl';
 
+interface SortableHeaderProps {
+  column: string;
+  title: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  onSort: (column: string) => void;
+}
+
+function SortableHeader({ column, title, sortBy, sortOrder, onSort }: SortableHeaderProps) {
+  return (
+    <th
+      scope="col"
+      className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider cursor-pointer"
+      onClick={() => onSort(column)}
+    >
+      <div className="flex items-center">
+        <span>{title}</span>
+        {sortBy === column && (
+          <span className="ml-1">
+            {sortOrder === 'asc' ? '▲' : '▼'}
+          </span>
+        )}
+      </div>
+    </th>
+  );
+}
+
 interface UsersTableProps {
   users: UserWithAccess[];
   loading: boolean;
@@ -53,22 +80,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
     });
   };
 
-  const SortableHeader = ({ column, title }: { column: string; title: string }) => (
-    <th
-      scope="col"
-      className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider cursor-pointer"
-      onClick={() => onSort(column)}
-    >
-      <div className="flex items-center">
-        <span>{title}</span>
-        {sortBy === column && (
-          <span className="ml-1">
-            {sortOrder === 'asc' ? '▲' : '▼'}
-          </span>
-        )}
-      </div>
-    </th>
-  );
+  const sortProps = { sortBy, sortOrder, onSort };
 
   if (loading) {
     return (
@@ -106,13 +118,13 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <table className="min-w-full divide-y divide-sf-border-subtle">
               <thead className="bg-sf-raised">
                 <tr>
-                  <SortableHeader column="email" title={t('user')} />
-                  <SortableHeader column="last_sign_in_at" title={t('lastSeen')} />
+                  <SortableHeader column="email" title={t('user')} {...sortProps} />
+                  <SortableHeader column="last_sign_in_at" title={t('lastSeen')} {...sortProps} />
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">
                     {t('productAccess')}
                   </th>
-                  <SortableHeader column="total_value" title={t('totalValue')} />
-                  <SortableHeader column="email_confirmed_at" title={t('status')} />
+                  <SortableHeader column="total_value" title={t('totalValue')} {...sortProps} />
+                  <SortableHeader column="email_confirmed_at" title={t('status')} {...sortProps} />
                   <th scope="col" className="relative px-6 py-3">
                     <span className="sr-only">{t('actions')}</span>
                   </th>

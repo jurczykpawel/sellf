@@ -30,17 +30,16 @@ interface SettingsTabsProps {
   siteUrl: string
 }
 
+function getInitialTab(): TabId {
+  if (typeof window === 'undefined') return 'shop'
+  const params = new URLSearchParams(window.location.search)
+  return params.has('stripe_connected') || params.has('connect_return') ? 'payments' : 'shop'
+}
+
 export default function SettingsTabs({ siteUrl }: SettingsTabsProps) {
   const t = useTranslations('settings')
-  const [active, setActive] = useState<TabId>('shop')
-
-  // Auto-open Payments tab when returning from Stripe Connect redirect
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.has('stripe_connected') || params.has('connect_return')) {
-      setActive('payments')
-    }
-  }, [])
+  // Lazy init reads URL once on first render — no effect, no cascading update.
+  const [active, setActive] = useState<TabId>(getInitialTab)
   const { demoMode } = useConfig()
   const { role } = useAuth()
 

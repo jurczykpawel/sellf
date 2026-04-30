@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import LoginForm from '@/components/LoginForm'
 import SiteMenu from '@/components/SiteMenu'
@@ -14,36 +14,32 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const t = useTranslations()
   const { demoMode } = useConfig()
-  const [errorTitle, setErrorTitle] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
+
+  // Derived from URL params — no state, no effect, no cascading renders.
+  const errorParam = searchParams.get('error')
+  const messageParam = searchParams.get('message')
+  let errorTitle = ''
+  let errorMessage = ''
+  let successMessage = ''
+  if (errorParam === 'magic_link_expired') {
+    errorTitle = t('auth.magicLinkExpiredTitle')
+    errorMessage = t('auth.magicLinkExpired')
+  } else if (errorParam === 'session_lost') {
+    errorTitle = t('auth.sessionLostTitle')
+    errorMessage = t('auth.sessionLost')
+  } else if (errorParam === 'oauth_failed') {
+    errorMessage = t('auth.oauthFailed')
+  } else if (errorParam === 'disposable_email') {
+    errorMessage = t('auth.disposableEmailBlocked')
+  } else if (messageParam === 'payment_completed_login_required') {
+    successMessage = t('auth.paymentCompletedLoginRequired')
+  }
 
   useEffect(() => {
     if (!loading && user) {
       router.push('/dashboard')
     }
   }, [user, loading, router])
-
-  useEffect(() => {
-    const error = searchParams.get('error')
-    const message = searchParams.get('message')
-
-    if (error === 'magic_link_expired') {
-      setErrorTitle(t('auth.magicLinkExpiredTitle'))
-      setErrorMessage(t('auth.magicLinkExpired'))
-    } else if (error === 'session_lost') {
-      setErrorTitle(t('auth.sessionLostTitle'))
-      setErrorMessage(t('auth.sessionLost'))
-    } else if (error === 'oauth_failed') {
-      setErrorTitle('')
-      setErrorMessage(t('auth.oauthFailed'))
-    } else if (error === 'disposable_email') {
-      setErrorTitle('')
-      setErrorMessage(t('auth.disposableEmailBlocked'))
-    } else if (message === 'payment_completed_login_required') {
-      setSuccessMessage(t('auth.paymentCompletedLoginRequired'))
-    }
-  }, [searchParams, t])
 
   // Focus email field when the user arrives with a recoverable error so they
   // can immediately request a new magic link without extra clicks.

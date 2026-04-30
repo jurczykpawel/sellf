@@ -24,26 +24,26 @@ export default function WebhookFormModal({
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
 
-  const [formData, setFormData] = useState({
-    url: '',
-    description: '',
-    events: [] as string[]
-  });
+  const buildFormData = (endpoint: typeof editingEndpoint) => endpoint
+    ? {
+        url: endpoint.url,
+        description: endpoint.description || '',
+        events: endpoint.events,
+      }
+    : { url: '', description: '', events: [] as string[] };
 
+  const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
   const [showSecret, setShowSecret] = useState(false);
 
-  useEffect(() => {
-    if (editingEndpoint) {
-      setFormData({
-        url: editingEndpoint.url,
-        description: editingEndpoint.description || '',
-        events: editingEndpoint.events
-      });
-    } else {
-      setFormData({ url: '', description: '', events: [] });
-    }
+  // Re-sync when parent swaps the endpoint or re-opens the modal.
+  // setState-during-render avoids the effect-cascade (https://react.dev/learn/you-might-not-need-an-effect).
+  const syncKey = isOpen ? editingEndpoint : null;
+  const [trackedSyncKey, setTrackedSyncKey] = useState(syncKey);
+  if (syncKey !== trackedSyncKey) {
+    setTrackedSyncKey(syncKey);
+    setFormData(buildFormData(editingEndpoint));
     setShowSecret(false);
-  }, [editingEndpoint, isOpen]);
+  }
 
   const toggleEvent = (event: string) => {
     setFormData(prev => ({

@@ -11,6 +11,34 @@ import { useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { Tooltip } from '@/components/ui/Tooltip';
 
+interface SortableHeaderProps {
+  column: string;
+  title: string;
+  className?: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  onSort: (column: string) => void;
+}
+
+function SortableHeader({ column, title, className = '', sortBy, sortOrder, onSort }: SortableHeaderProps) {
+  return (
+    <th
+      scope="col"
+      className={`px-3 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider cursor-pointer whitespace-nowrap ${className}`}
+      onClick={() => onSort(column)}
+    >
+      <div className="flex items-center">
+        <span>{title}</span>
+        {sortBy === column && (
+          <span className="ml-1 flex-shrink-0">
+            {sortOrder === 'asc' ? '▲' : '▼'}
+          </span>
+        )}
+      </div>
+    </th>
+  );
+}
+
 interface ProductsTableProps {
   products: Product[];
   loading: boolean;
@@ -140,22 +168,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   };
   const endIndex = Math.min(startIndex + products.length - 1, totalItems);
 
-  const SortableHeader = ({ column, title, className = "" }: { column: string; title: string; className?: string }) => (
-    <th
-      scope="col"
-      className={`px-3 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider cursor-pointer whitespace-nowrap ${className}`}
-      onClick={() => onSort(column)}
-    >
-      <div className="flex items-center">
-        <span>{title}</span>
-        {sortBy === column && (
-          <span className="ml-1 flex-shrink-0">
-            {sortOrder === 'asc' ? '▲' : '▼'}
-          </span>
-        )}
-      </div>
-    </th>
-  );
+  const sortProps = { sortBy, sortOrder, onSort };
 
   if (loading) {
     return (
@@ -193,13 +206,13 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
             <table className="min-w-full divide-y divide-sf-border-subtle">
               <thead className="bg-sf-raised">
                 <tr>
-                  <SortableHeader column="name" title={t('name')} />
-                  <SortableHeader column="price" title={t('price')} />
-                  <SortableHeader column="is_active" title={t('status')} />
-                  <SortableHeader column="available_from" title={t('availableFrom')} className="hidden 2xl:table-cell" />
-                  <SortableHeader column="available_until" title={t('availableUntil')} className="hidden 2xl:table-cell" />
-                  <SortableHeader column="auto_grant_duration_days" title={t('autoDuration')} className="hidden 2xl:table-cell" />
-                  <SortableHeader column="created_at" title={t('createdAt')} className="hidden xl:table-cell" />
+                  <SortableHeader column="name" title={t('name')} {...sortProps} />
+                  <SortableHeader column="price" title={t('price')} {...sortProps} />
+                  <SortableHeader column="is_active" title={t('status')} {...sortProps} />
+                  <SortableHeader column="available_from" title={t('availableFrom')} className="hidden 2xl:table-cell" {...sortProps} />
+                  <SortableHeader column="available_until" title={t('availableUntil')} className="hidden 2xl:table-cell" {...sortProps} />
+                  <SortableHeader column="auto_grant_duration_days" title={t('autoDuration')} className="hidden 2xl:table-cell" {...sortProps} />
+                  <SortableHeader column="created_at" title={t('createdAt')} className="hidden xl:table-cell" {...sortProps} />
                   <th scope="col" className="relative px-3 py-3">
                     <span className="sr-only">{t('actions')}</span>
                   </th>

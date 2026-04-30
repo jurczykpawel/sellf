@@ -48,10 +48,13 @@ export function useOto({
 }: UseOtoOptions): UseOtoReturn {
   const t = useTranslations('checkout');
 
-  const [isOtoMode, setIsOtoMode] = useState(false);
   const [otoInfo, setOtoInfo] = useState<OtoInfo | null>(null);
   const [otoExpired, setOtoExpired] = useState(false);
   const [funnelTestOtoSlug, setFunnelTestOtoSlug] = useState<string | null>(null);
+
+  // Derived from URL params + expiration flag — single source of truth, no
+  // setState-in-effect cascade.
+  const isOtoMode = !otoExpired && otoParam === '1' && !!urlCoupon && !!urlEmail;
 
   // Ref for callback to avoid re-triggering effect on parent re-renders
   const onCouponReadyRef = useRef(onCouponReady);
@@ -64,7 +67,6 @@ export function useOto({
     if (otoParam !== '1' || !urlCoupon || !urlEmail) return;
 
     const controller = new AbortController();
-    setIsOtoMode(true);
 
     const fetchOtoInfo = async () => {
       try {
@@ -89,13 +91,11 @@ export function useOto({
           );
         } else {
           setOtoExpired(true);
-          setIsOtoMode(false);
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         console.error('[useOto] Failed to fetch OTO info:', err);
         setOtoExpired(true);
-        setIsOtoMode(false);
       }
     };
 
@@ -140,7 +140,6 @@ export function useOto({
 
   const handleOtoExpire = useCallback(() => {
     setOtoExpired(true);
-    setIsOtoMode(false);
     toast.warning(t('otoExpired'));
   }, [t]);
 

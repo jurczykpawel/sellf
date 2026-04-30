@@ -42,6 +42,15 @@ interface VideoPlayerProps {
 
 export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps) {
   const adapter = useVideoPlayer({ parsed, options });
+  // Pull primitive/ref fields off the adapter once so JSX doesn't repeatedly
+  // do property access on a ref-bearing object (React Compiler flags that).
+  const {
+    iframeRef,
+    supportsControl,
+    useNativeControls = false,
+    error: adapterError,
+    play: adapterPlay,
+  } = adapter;
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Whether the user has clicked play at least once (triggers iframe mount for YT).
@@ -51,22 +60,26 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
 
   const handleThumbnailPlay = () => {
     setStarted(true);
-    adapter.play();
+    adapterPlay();
   };
 
-  // When autoplay is enabled, trigger play() on mount to start API loading
-  const adapterRef = useRef(adapter);
-  adapterRef.current = adapter;
+  // When autoplay is enabled, trigger play() on mount to start API loading.
+  // Read the latest adapter.play through a ref so we don't depend on the
+  // adapter object (whose identity changes on every parent render).
+  const adapterPlayRef = useRef(adapterPlay);
   useEffect(() => {
-    if (autoplay) adapterRef.current.play();
+    adapterPlayRef.current = adapterPlay;
+  });
+  useEffect(() => {
+    if (autoplay) adapterPlayRef.current();
   }, [autoplay]);
 
-  // ── Fallback: plain iframe ──────────────────────────────────────────────── 
+  // ── Fallback: plain iframe ────────────────────────────────────────────────
   // Render plain iframe when adapter has no control API OR when custom player
   // is explicitly disabled via useCustomPlayer === false.
   const forceNativePlayer = options?.useCustomPlayer === false;
 
-  if (!adapter.supportsControl || forceNativePlayer) {
+  if (!supportsControl || forceNativePlayer) {
     const fallbackSrc = parsed.embedUrl
       ? addEmbedOptions(parsed.embedUrl, options ?? {})
       : '';
@@ -85,9 +98,9 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
 
   // ── Controlled player (YouTube) ──────────────────────────────────────────
   const showThumbnail    = !started;
-  const showControls     = started && !adapter.useNativeControls;
+  const showControls     = started && !useNativeControls;
   // When using native controls, don't apply the overscan trick — let YT chrome show
-  const useOverscan      = !adapter.useNativeControls;
+  const useOverscan      = !useNativeControls;
 
   return (
     <div
@@ -96,14 +109,14 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
       data-testid="video-player"
     >
       {/* Error overlay */}
-      {adapter.error && (
+      {adapterError && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80">
           <p className="text-white/70 text-sm text-center px-4">Video unavailable</p>
         </div>
       )}
 
       {/* Thumbnail overlay — shown before first play */}
-      {showThumbnail && parsed.videoId && !adapter.error && (
+      {showThumbnail && parsed.videoId && !adapterError && (
         <div className="absolute inset-0 z-10">
           <PlayerThumbnail
             videoId={parsed.videoId}
@@ -114,7 +127,7 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
       )}
 
       {/* Player container — always mounted once started so the API can attach.
-          YouTube: adapter.iframeRef attaches to this <div>. YT.Player creates its own
+          YouTube: iframeRef attaches to this <div>. YT.Player creates its own
           <iframe> inside it. The YT-created iframe gets overscan styles applied via
           onReady in useYouTubeAdapter (height 200%, top -50%) so YouTube's native
           chrome is clipped. This div fills the outer container (position absolute, full
@@ -123,7 +136,7 @@ export default function VideoPlayer({ parsed, title, options }: VideoPlayerProps
           No sandbox: the YT IFrame API communicates via cross-origin postMessage. */}
       {started && (
         <div
-          ref={adapter.iframeRef as Ref<HTMLDivElement>}
+          ref={iframeRef as Ref<HTMLDivElement>}
           className={`absolute inset-0 overflow-hidden ${useOverscan ? 'pointer-events-none' : ''}`}
           data-testid="player-container"
         />

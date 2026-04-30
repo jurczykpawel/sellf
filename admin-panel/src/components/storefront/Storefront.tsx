@@ -2,11 +2,15 @@
 
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
 import { formatPrice } from '@/lib/constants';
 import type { Product } from '@/types';
+
+const noopSubscribe = () => () => {};
+const getMounted = () => true;
+const getServerMounted = () => false;
 
 interface StorefrontProps {
   products: Product[];
@@ -29,14 +33,11 @@ export default function Storefront({
   productLinkPrefix = '/p',
 }: StorefrontProps) {
   const t = useTranslations('storefront');
-  const [mounted, setMounted] = useState(false);
+  // Hydration-safe mount detection without setState-in-effect cascade.
+  const mounted = useSyncExternalStore(noopSubscribe, getMounted, getServerMounted);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showAllFree, setShowAllFree] = useState(false);
   const [showAllPaid, setShowAllPaid] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const isFreeOnly = freeProducts.length > 0 && paidProducts.length === 0;
   const isPaidOnly = paidProducts.length > 0 && freeProducts.length === 0;
