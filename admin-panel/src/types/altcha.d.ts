@@ -12,8 +12,8 @@ declare module 'react' {
     interface IntrinsicElements {
       'altcha-widget': React.DetailedHTMLProps<
         React.HTMLAttributes<HTMLElement> & {
-          challengeurl?: string;
-          auto?: 'off' | 'onload' | 'onsubmit';
+          challenge?: string;
+          auto?: 'off' | 'onload' | 'onsubmit' | 'onfocus';
           floating?: 'top' | 'bottom' | 'auto' | boolean | '';
           hidelogo?: boolean | '';
           hidefooter?: boolean | '';

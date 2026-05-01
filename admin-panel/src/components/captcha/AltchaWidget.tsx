@@ -94,7 +94,7 @@ export default function AltchaWidget({
   return (
     <altcha-widget
       ref={widgetRef}
-      challengeurl="/api/captcha/challenge"
+      challenge="/api/captcha/challenge"
       auto="onload"
       floating="bottom"
       hidelogo
