@@ -26,24 +26,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { email, productId, productSlug, captchaToken } = body;
-
-    // Validate required fields
-    if (!email || !productId) {
-      return NextResponse.json(
-        { error: 'Email and product ID are required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Invalid email format' },
-        { status: 400 }
-      );
-    }
+    const { email: bodyEmail, productId, productSlug, captchaToken } = body;
 
     // Validate productId is a UUID
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,18 +37,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify captcha in production
-    if (process.env.NODE_ENV === 'production') {
-      const captchaResult = await verifyCaptchaToken(captchaToken);
-      if (!captchaResult.success) {
+    const supabase = await createClient();
+
+    // Authenticated path: use the session email and skip captcha + email
+    // validation. Anonymous path: validate body email + verify captcha.
+    const { data: { user } } = await supabase.auth.getUser();
+    let email: string;
+    if (user?.email) {
+      email = user.email;
+    } else {
+      if (!bodyEmail) {
         return NextResponse.json(
-          { error: captchaResult.error || 'Security verification failed' },
-          { status: 400 },
+          { error: 'Email and product ID are required' },
+          { status: 400 }
         );
       }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(bodyEmail)) {
+        return NextResponse.json(
+          { error: 'Invalid email format' },
+          { status: 400 }
+        );
+      }
+      if (process.env.NODE_ENV === 'production') {
+        const captchaResult = await verifyCaptchaToken(captchaToken);
+        if (!captchaResult.success) {
+          return NextResponse.json(
+            { error: captchaResult.error || 'Security verification failed' },
+            { status: 400 },
+          );
+        }
+      }
+      email = bodyEmail;
     }
-
-    const supabase = await createClient();
 
     // Fetch product details
     const { data: product, error: productError } = await supabase

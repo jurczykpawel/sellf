@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Product } from '@/types';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
+import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface WaitlistFormProps {
   product: Product;
@@ -27,6 +28,26 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
     text: '',
   });
 
+  // `undefined` = still loading, `null` = anonymous, string = signed-in email.
+  // Authenticated users skip the email field, terms checkbox, and captcha
+  // — backend trusts the session and uses user.email.
+  const [signedInEmail, setSignedInEmail] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = await createBrowserSupabaseClient();
+        const { data } = await supabase.auth.getUser();
+        if (!cancelled) setSignedInEmail(data.user?.email ?? null);
+      } catch {
+        if (!cancelled) setSignedInEmail(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const getUnavailableMessage = () => {
     switch (unavailableReason) {
       case 'not_started':
@@ -41,36 +62,38 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isAuthed = !!signedInEmail;
 
-    if (!email) {
-      setMessage({ type: 'error', text: t('pleaseEnterEmail') });
-      captcha.reset();
-      return;
-    }
-
-    if (!termsAccepted) {
-      setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
-      captcha.reset();
-      return;
-    }
-
-    if (!captcha.token && process.env.NODE_ENV === 'production') {
-      setMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
-      return;
-    }
-
-    // Validate email
-    try {
-      const emailValidation = await validateEmailAction(email);
-      if (!emailValidation.isValid) {
-        setMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
+    if (!isAuthed) {
+      if (!email) {
+        setMessage({ type: 'error', text: t('pleaseEnterEmail') });
         captcha.reset();
         return;
       }
-    } catch {
-      setMessage({ type: 'error', text: t('invalidEmail') });
-      captcha.reset();
-      return;
+
+      if (!termsAccepted) {
+        setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
+        captcha.reset();
+        return;
+      }
+
+      if (!captcha.token && process.env.NODE_ENV === 'production') {
+        setMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
+        return;
+      }
+
+      try {
+        const emailValidation = await validateEmailAction(email);
+        if (!emailValidation.isValid) {
+          setMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
+          captcha.reset();
+          return;
+        }
+      } catch {
+        setMessage({ type: 'error', text: t('invalidEmail') });
+        captcha.reset();
+        return;
+      }
     }
 
     setLoading(true);
@@ -80,27 +103,36 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
       const response = await fetch('/api/waitlist/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          productId: product.id,
-          productSlug: product.slug,
-          captchaToken: captcha.token,
-        }),
+        body: JSON.stringify(
+          isAuthed
+            ? {
+                productId: product.id,
+                productSlug: product.slug,
+              }
+            : {
+                email,
+                productId: product.id,
+                productSlug: product.slug,
+                captchaToken: captcha.token,
+              },
+        ),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.error || t('signupFailed') });
-        captcha.reset();
+        if (!isAuthed) captcha.reset();
         return;
       }
 
       setMessage({ type: 'success', text: t('signupSuccess') });
-      setEmail('');
-      setTermsAccepted(false);
+      if (!isAuthed) {
+        setEmail('');
+        setTermsAccepted(false);
+      }
     } catch {
       setMessage({ type: 'error', text: t('signupFailed') });
-      captcha.reset();
+      if (!isAuthed) captcha.reset();
     } finally {
       setLoading(false);
     }
@@ -154,61 +186,80 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
               )}
 
               <form onSubmit={handleWaitlistSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-sf-body mb-2">
-                    {t('emailAddress')}
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3 border border-sf-border rounded-lg bg-sf-input text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
-                    placeholder={t('enterEmailPlaceholder')}
-                    required
+                {signedInEmail ? (
+                  <button
+                    type="submit"
                     disabled={loading}
-                  />
-                </div>
-
-                {/* Terms and Conditions Checkbox */}
-                <TermsCheckbox
-                  checked={termsAccepted}
-                  onChange={setTermsAccepted}
-                  termsUrl="/terms"
-                  privacyUrl="/privacy"
-                />
-
-                <button
-                  type="submit"
-                  disabled={
-                    loading ||
-                    captcha.isLoading ||
-                    !email ||
-                    !termsAccepted ||
-                    (process.env.NODE_ENV === 'production' && !captcha.token)
-                  }
-                  className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
-                >
-                  {loading || captcha.isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                      {captcha.isLoading ? tSecurity('verifying') : t('submitting')}
+                    className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        {t('submitting')}
+                      </div>
+                    ) : (
+                      t('notifyMe')
+                    )}
+                  </button>
+                ) : (
+                  <>
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-sf-body mb-2">
+                        {t('emailAddress')}
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full p-3 border border-sf-border rounded-lg bg-sf-input text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+                        placeholder={t('enterEmailPlaceholder')}
+                        required
+                        disabled={loading}
+                      />
                     </div>
-                  ) : (
-                    t('notifyMe')
-                  )}
-                </button>
 
-                {/* Captcha — auto-detects Turnstile vs ALTCHA */}
-                <div className="mt-3">
-                  <CaptchaWidget
-                    onVerify={captcha.onVerify}
-                    onError={captcha.onError}
-                    onTimeout={captcha.onTimeout}
-                    resetTrigger={captcha.resetTrigger}
-                    compact={true}
-                  />
-                </div>
+                    {/* Terms and Conditions Checkbox */}
+                    <TermsCheckbox
+                      checked={termsAccepted}
+                      onChange={setTermsAccepted}
+                      termsUrl="/terms"
+                      privacyUrl="/privacy"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={
+                        loading ||
+                        captcha.isLoading ||
+                        !email ||
+                        !termsAccepted ||
+                        (process.env.NODE_ENV === 'production' && !captcha.token)
+                      }
+                      className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
+                    >
+                      {loading || captcha.isLoading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          {captcha.isLoading ? tSecurity('verifying') : t('submitting')}
+                        </div>
+                      ) : (
+                        t('notifyMe')
+                      )}
+                    </button>
+
+                    {/* Captcha — auto-detects Turnstile vs ALTCHA */}
+                    <div className="mt-3">
+                      <CaptchaWidget
+                        onVerify={captcha.onVerify}
+                        onError={captcha.onError}
+                        onTimeout={captcha.onTimeout}
+                        resetTrigger={captcha.resetTrigger}
+                        compact={true}
+                      />
+                    </div>
+                  </>
+                )}
               </form>
             </div>
           </div>
