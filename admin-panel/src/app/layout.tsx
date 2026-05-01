@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, DM_Sans, DM_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { ConfigProvider } from "@/components/providers/config-provider";
 import { ThemeProvider, ThemeScript } from "@/components/providers/theme-provider";
@@ -7,6 +8,7 @@ import { TrackingConfigProvider } from "@/components/providers/tracking-config-p
 import { getPublicIntegrationsConfig } from "@/lib/actions/integrations";
 import { getShopConfig } from "@/lib/actions/shop-config";
 import TrackingProvider from "@/components/TrackingProvider";
+import { CSP_NONCE_HEADER } from "@/proxy";
 import { Suspense } from "react";
 
 const geistSans = Geist({
@@ -59,23 +61,25 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [config, shopConfig] = await Promise.all([
+  const [config, shopConfig, hdrs] = await Promise.all([
     getPublicIntegrationsConfig().catch(() => null),
     getShopConfig().catch(() => null),
+    headers(),
   ]);
   const adminTheme = shopConfig?.checkout_theme || undefined;
+  const cspNonce = hdrs.get(CSP_NONCE_HEADER) ?? undefined;
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <ThemeScript adminTheme={adminTheme} />
+        <ThemeScript adminTheme={adminTheme} nonce={cspNonce} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dmSans.variable} ${dmMono.variable} antialiased`}
       >
         {/* Tracking Scripts (GTM, Pixel, Klaro, Custom Scripts) */}
         <Suspense fallback={null}>
-          <TrackingProvider config={config} />
+          <TrackingProvider config={config} nonce={cspNonce} />
         </Suspense>
 
         <ThemeProvider adminTheme={adminTheme}>

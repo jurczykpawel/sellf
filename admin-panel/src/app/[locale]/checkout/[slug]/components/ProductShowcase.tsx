@@ -155,7 +155,6 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
       {/* Long Description with Markdown Support */}
       {product.long_description && (
         <div className="mb-8 prose dark:prose-invert prose-sm max-w-none">
-          {/* SECURITY: rehype-sanitize strips dangerous HTML/JS from markdown */}
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}

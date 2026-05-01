@@ -69,9 +69,15 @@ const CONSENT_TRANSLATIONS: Record<string, {
 
 interface TrackingProviderProps {
   config: PublicIntegrationsConfig | null
+  /**
+   * Per-request CSP nonce supplied by the root layout. Forwarded to every
+   * inline <Script> so the browser accepts them under the
+   * `script-src 'nonce-...'` directive set by middleware.
+   */
+  nonce?: string
 }
 
-export default function TrackingProvider({ config }: TrackingProviderProps) {
+export default function TrackingProvider({ config, nonce }: TrackingProviderProps) {
   if (!config) return null
 
   const {
@@ -216,6 +222,7 @@ klaroConfig.callback = function(consent, service) {
         <Script
           id="consent-mode-defaults"
           strategy="beforeInteractive"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: consentModeDefaults }}
         />
       )}
@@ -228,6 +235,7 @@ klaroConfig.callback = function(consent, service) {
             <Script
               id="consent-logging-flag"
               strategy="beforeInteractive"
+              nonce={nonce}
               dangerouslySetInnerHTML={{
                 __html: `window.__gfConsentLogging = true;`
               }}
@@ -236,6 +244,7 @@ klaroConfig.callback = function(consent, service) {
           <Script
             id="klaro-config"
             strategy="beforeInteractive"
+            nonce={nonce}
             dangerouslySetInnerHTML={{
               // Escape </script> sequences to prevent HTML parser from closing the tag early (XSS via DB)
               __html: `var klaroConfig = ${JSON.stringify(klaroConfig).replace(/<\//g, '<\\/')};\nklaroConfig.lang = document.documentElement.lang || 'en';\n${klaroCallbackJs}`
@@ -245,6 +254,7 @@ klaroConfig.callback = function(consent, service) {
             id="klaro-script"
             src="https://cdn.kiprotect.com/klaro/v0.7/klaro.js"
             strategy="afterInteractive"
+            nonce={nonce}
           />
         </>
       )}
@@ -256,6 +266,7 @@ klaroConfig.callback = function(consent, service) {
           type={cookie_consent_enabled ? "text/plain" : "text/javascript"}
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "google-tag-manager" : undefined}
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             // Pass dynamic values via JSON.stringify so any unexpected character
             // is escaped at the JS-string-literal layer, not just at validation.
@@ -274,6 +285,7 @@ klaroConfig.callback = function(consent, service) {
           type={cookie_consent_enabled ? "text/plain" : "text/javascript"}
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "facebook-pixel" : undefined}
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `!function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -298,6 +310,7 @@ klaroConfig.callback = function(consent, service) {
           type={cookie_consent_enabled ? "text/plain" : "text/javascript"}
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "umami-analytics" : undefined}
+          nonce={nonce}
         />
       )}
 
