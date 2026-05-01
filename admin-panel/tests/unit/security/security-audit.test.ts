@@ -210,6 +210,12 @@ describe('Security Audit', () => {
       process.env.APP_ENCRYPTION_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
       process.env.CRON_SECRET = 'test-cron-secret';
       process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret';
+      // Force-clear any Turnstile vars from .env.local — the captcha check
+      // is in 'fail' state when SITE_KEY is set but SECRET_KEY is missing,
+      // and we're testing the ALTCHA-only configuration here.
+      delete process.env.CLOUDFLARE_TURNSTILE_SITE_KEY;
+      delete process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
+      delete process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
 
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/graphql/v1')) {
