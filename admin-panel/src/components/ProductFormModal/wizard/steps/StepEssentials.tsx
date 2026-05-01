@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BasicInfoSection, PriceVatInline } from '../../sections';
+import { BasicInfoSection, PriceVatInline, SubscriptionSection } from '../../sections';
 import type { ProductFormData, TranslationFunction } from '../../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
@@ -20,6 +20,9 @@ interface StepEssentialsProps {
   setPriceDisplayValue: (value: string) => void;
   shopDefaultVatRate: number | null;
   taxMode?: TaxMode;
+  /** True when editing an existing product — UI lock on product_type. Backend
+   * (PATCH /api/v1/products/[id]) is the authoritative gate. */
+  isEditing?: boolean;
 }
 
 export const StepEssentials: React.FC<StepEssentialsProps> = ({
@@ -37,6 +40,7 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   setPriceDisplayValue,
   shopDefaultVatRate,
   taxMode,
+  isEditing,
 }) => {
   return (
     <div className="space-y-6">
@@ -52,17 +56,26 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         fieldErrors={fieldErrors}
       />
 
-      <PriceVatInline
+      <SubscriptionSection
         formData={formData}
         setFormData={setFormData}
         t={t}
-        priceDisplayValue={priceDisplayValue}
-        setPriceDisplayValue={setPriceDisplayValue}
-        shopDefaultVatRate={shopDefaultVatRate}
-        taxMode={taxMode}
-        fieldErrors={fieldErrors}
-        setFieldErrors={setFieldErrors}
+        hasSales={isEditing}
       />
+
+      {formData.product_type !== 'subscription' && (
+        <PriceVatInline
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          priceDisplayValue={priceDisplayValue}
+          setPriceDisplayValue={setPriceDisplayValue}
+          shopDefaultVatRate={shopDefaultVatRate}
+          taxMode={taxMode}
+          fieldErrors={fieldErrors}
+          setFieldErrors={setFieldErrors}
+        />
+      )}
     </div>
   );
 };

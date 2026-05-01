@@ -9,3 +9,4 @@ export { PostPurchaseSection } from './PostPurchaseSection';
 export { CategoriesSection } from './CategoriesSection';
 export { RefundSection } from './RefundSection';
 export { AdvancedSection } from './AdvancedSection';
+export { SubscriptionSection } from './SubscriptionSection';

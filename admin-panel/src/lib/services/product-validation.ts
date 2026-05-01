@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase/server';
 import type { User } from '@supabase/supabase-js';
 import { DisposableEmailService } from './disposable-email';
 
+export type ProductType = 'one_time' | 'subscription';
+export type BillingInterval = 'day' | 'week' | 'month' | 'year';
+
 export interface ValidatedProduct {
   id: string;
   slug: string;
@@ -24,6 +27,14 @@ export interface ValidatedProduct {
   // VAT/Tax fields
   vat_rate: number | null;
   price_includes_vat: boolean;
+  // Subscription fields (Phase 2 — Subscriptions MVP)
+  product_type: ProductType;
+  billing_interval: BillingInterval | null;
+  billing_interval_count: number | null;
+  recurring_price: number | null;
+  trial_days: number | null;
+  // durable Stripe Price binding (Phase 6 hardening)
+  stripe_price_id: string | null;
 }
 
 export interface UserAccessInfo {
@@ -49,7 +60,7 @@ export class ProductValidationService {
 
     const { data: product, error } = await this.supabase
       .from('products')
-      .select('id, slug, name, description, price, currency, is_active, available_from, available_until, auto_grant_duration_days, allow_custom_price, custom_price_min, vat_rate, price_includes_vat')
+      .select('id, slug, name, description, price, currency, is_active, available_from, available_until, auto_grant_duration_days, allow_custom_price, custom_price_min, vat_rate, price_includes_vat, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, stripe_price_id')
       .eq('id', productId)
       .eq('is_active', true)
       .single();
@@ -58,12 +69,23 @@ export class ProductValidationService {
       throw new Error('Product not found or inactive');
     }
 
-    // Validate product price (skip for Pay What You Want products)
-    if (product.price <= 0 && !product.allow_custom_price) {
+    if (product.product_type === 'subscription') {
+      const recurring = product.recurring_price;
+      if (
+        recurring === null ||
+        recurring === undefined ||
+        Number(recurring) <= 0 ||
+        !product.billing_interval ||
+        !product.billing_interval_count
+      ) {
+        throw new Error('Subscription product is misconfigured');
+      }
+    } else if (product.price <= 0 && !product.allow_custom_price) {
+      // Validate one-time product price (skip for Pay What You Want products)
       throw new Error('Invalid product price');
     }
 
-    return product;
+    return product as ValidatedProduct;
   }
 
   /**

@@ -24,7 +24,16 @@ ALTER TABLE seller_main.products
   ADD COLUMN recurring_price NUMERIC(10,2)
     CHECK (recurring_price IS NULL OR recurring_price >= 0),
   ADD COLUMN trial_days INTEGER
-    CHECK (trial_days IS NULL OR (trial_days >= 0 AND trial_days <= 730));
+    CHECK (trial_days IS NULL OR (trial_days >= 0 AND trial_days <= 730)),
+  -- durable Stripe Price binding. Created lazily on first checkout
+  -- by getOrCreateStripePriceForProduct, then reused. Webhook handlers verify
+  -- sub.items.data[0].price.id against this column to prove product identity
+  -- before granting access — defends against mutable subscription metadata.
+  ADD COLUMN stripe_price_id TEXT;
+
+CREATE UNIQUE INDEX idx_products_stripe_price_id_unique
+  ON seller_main.products(stripe_price_id)
+  WHERE stripe_price_id IS NOT NULL;
 
 -- Cross-field constraint: subscription products require full recurring config.
 ALTER TABLE seller_main.products
@@ -94,6 +103,11 @@ CREATE TABLE seller_main.subscriptions (
   product_id UUID NOT NULL REFERENCES seller_main.products(id) ON DELETE RESTRICT,
   stripe_customer_id TEXT NOT NULL,
   stripe_subscription_id TEXT NOT NULL UNIQUE,
+  -- per-subscription Stripe Price id (immutable, set at first webhook).
+  -- The webhook handler validates incoming sub.items.data[0].price.id against this
+  -- column rather than the mutable products.stripe_price_id, so admin price drift
+  -- never blocks revocation of an existing subscription.
+  stripe_price_id TEXT,
   status TEXT NOT NULL CHECK (status IN (
     'incomplete', 'incomplete_expired', 'trialing', 'active',
     'past_due', 'canceled', 'unpaid', 'paused'
@@ -118,6 +132,9 @@ CREATE INDEX idx_subscriptions_status
 CREATE INDEX idx_subscriptions_period_end_active
   ON seller_main.subscriptions(current_period_end)
   WHERE status IN ('active', 'trialing');
+CREATE INDEX idx_subscriptions_stripe_price_id
+  ON seller_main.subscriptions(stripe_price_id)
+  WHERE stripe_price_id IS NOT NULL;
 
 ALTER TABLE seller_main.subscriptions ENABLE ROW LEVEL SECURITY;
 
@@ -142,9 +159,7 @@ CREATE POLICY "Users read own subscriptions"
 ALTER TABLE seller_main.payment_transactions
   ADD COLUMN subscription_id UUID
     REFERENCES seller_main.subscriptions(id) ON DELETE SET NULL,
-  ADD COLUMN stripe_invoice_id TEXT,
-  ADD COLUMN invoice_sequence_number INTEGER NOT NULL DEFAULT 0
-    CHECK (invoice_sequence_number >= 0);
+  ADD COLUMN stripe_invoice_id TEXT;
 
 CREATE UNIQUE INDEX idx_payment_transactions_stripe_invoice_unique
   ON seller_main.payment_transactions(stripe_invoice_id)
@@ -197,3 +212,92 @@ CREATE OR REPLACE VIEW public.stripe_customers
 CREATE OR REPLACE VIEW public.subscriptions
   WITH (security_invoker = on)
   AS SELECT * FROM seller_main.subscriptions;
+
+-- ---------------------------------------------------------------------------
+-- 8. Helper: find_user_id_by_email
+-- ---------------------------------------------------------------------------
+-- Used by the subscription webhook handlers (invoice.paid) to map a Stripe
+-- customer email to an existing auth.users row when a passwordless create
+-- attempt collides with an existing account. Service-role only.
+
+CREATE OR REPLACE FUNCTION public.find_user_id_by_email(p_email TEXT)
+RETURNS UUID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT id FROM auth.users
+  WHERE lower(email) = lower(p_email)
+  LIMIT 1;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.find_user_id_by_email(TEXT) FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.find_user_id_by_email(TEXT) TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 9. payment_transactions.session_id: allow Stripe invoice IDs
+-- ---------------------------------------------------------------------------
+-- Subscription renewal invoices don't have a Stripe Checkout Session — we
+-- store the invoice id (in_*) directly. Extend the existing prefix whitelist
+-- so 'in_' is valid alongside 'cs_' and 'pi_'.
+
+ALTER TABLE seller_main.payment_transactions
+  DROP CONSTRAINT IF EXISTS payment_transactions_session_id_check;
+
+ALTER TABLE seller_main.payment_transactions
+  ADD CONSTRAINT payment_transactions_session_id_check
+  CHECK (
+    length(session_id) >= 1
+    AND length(session_id) <= 255
+    AND session_id ~* '^(cs_|pi_|in_)[a-zA-Z0-9_]+$'
+  );
+
+-- ---------------------------------------------------------------------------
+-- 10. product_type immutability after first sale
+-- ---------------------------------------------------------------------------
+-- DB-level invariant: product_type cannot change once the product has any
+-- payment_transactions / user_product_access / subscriptions row.
+-- Application-level enforcement lives in
+-- admin-panel/src/lib/validations/product-type-guard.ts; this trigger holds
+-- the invariant for every writer — direct DB access, future API routes, and
+-- any path that bypasses the application guard.
+
+CREATE OR REPLACE FUNCTION seller_main.enforce_product_type_immutable_after_sale()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  -- No-op when product_type is unchanged. Cheap path for the common case
+  -- (price/name/description edits).
+  IF OLD.product_type IS NOT DISTINCT FROM NEW.product_type THEN
+    RETURN NEW;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM seller_main.payment_transactions WHERE product_id = NEW.id LIMIT 1
+  ) OR EXISTS (
+    SELECT 1 FROM seller_main.user_product_access WHERE product_id = NEW.id LIMIT 1
+  ) OR EXISTS (
+    SELECT 1 FROM seller_main.subscriptions WHERE product_id = NEW.id LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'product_type cannot be changed after the product has any payment, access, or subscription record'
+      USING ERRCODE = '23514'; -- check_violation
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION seller_main.enforce_product_type_immutable_after_sale() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION seller_main.enforce_product_type_immutable_after_sale() TO service_role;
+
+DROP TRIGGER IF EXISTS enforce_product_type_immutable_after_sale ON seller_main.products;
+CREATE TRIGGER enforce_product_type_immutable_after_sale
+  BEFORE UPDATE OF product_type ON seller_main.products
+  FOR EACH ROW
+  EXECUTE FUNCTION seller_main.enforce_product_type_immutable_after_sale();
+
+COMMENT ON FUNCTION seller_main.enforce_product_type_immutable_after_sale() IS
+  'BEFORE UPDATE trigger on seller_main.products: rejects product_type changes once any payment_transactions / user_product_access / subscriptions row references the product.';

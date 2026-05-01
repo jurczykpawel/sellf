@@ -15,7 +15,7 @@ import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -585,6 +585,51 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
   }
 
+  // Subscription fields validation
+  errors.push(...validateSubscriptionFields(input).errors);
+
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateSubscriptionFields(input: Record<string, unknown>): ValidationResult {
+  const errors: string[] = [];
+  const productType = input.product_type;
+
+  if (productType !== undefined && productType !== 'one_time' && productType !== 'subscription') {
+    errors.push("product_type must be 'one_time' or 'subscription'");
+    return { isValid: false, errors };
+  }
+
+  if (productType === 'subscription') {
+    const recurring = input.recurring_price;
+    if (recurring == null || Number(recurring) <= 0) {
+      errors.push('Subscription requires recurring_price > 0');
+    }
+    const interval = input.billing_interval;
+    if (typeof interval !== 'string' || !['day', 'week', 'month', 'year'].includes(interval)) {
+      errors.push("billing_interval must be one of: day, week, month, year");
+    }
+    const count = input.billing_interval_count;
+    if (count == null || !Number.isInteger(Number(count)) || Number(count) < 1) {
+      errors.push('billing_interval_count must be a positive integer');
+    }
+    const trial = input.trial_days;
+    if (trial !== undefined && trial !== null) {
+      const t = Number(trial);
+      if (!Number.isInteger(t) || t < 0 || t > 730) {
+        errors.push('trial_days must be an integer between 0 and 730');
+      }
+    }
+  } else if (productType === 'one_time' || productType === undefined) {
+    // For one-time products, recurring fields must be null/absent.
+    if (input.recurring_price != null && Number(input.recurring_price) > 0) {
+      errors.push('recurring_price is only valid for subscription products');
+    }
+    if (input.billing_interval != null && input.billing_interval !== '') {
+      errors.push('billing_interval is only valid for subscription products');
+    }
+  }
+
   return { isValid: errors.length === 0, errors };
 }
 
@@ -690,6 +735,17 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
   }
 
+  // Subscription fields validation (only when caller provides at least one of them)
+  if (
+    input.product_type !== undefined ||
+    input.recurring_price !== undefined ||
+    input.billing_interval !== undefined ||
+    input.billing_interval_count !== undefined ||
+    input.trial_days !== undefined
+  ) {
+    errors.push(...validateSubscriptionFields(input).errors);
+  }
+
   return { isValid: errors.length === 0, errors };
 }
 
@@ -778,10 +834,37 @@ export function sanitizeProductData(data: Record<string, unknown>, setDefaults: 
     }
   }
 
+  // Subscription fields normalization
+  if (sanitizedData.product_type !== 'subscription') {
+    // For non-subscription products: clear all recurring fields.
+    if (sanitizedData.product_type !== undefined) sanitizedData.product_type = 'one_time';
+    if ('recurring_price' in sanitizedData) sanitizedData.recurring_price = null;
+    if ('billing_interval' in sanitizedData) sanitizedData.billing_interval = null;
+    if ('billing_interval_count' in sanitizedData) sanitizedData.billing_interval_count = null;
+    if ('trial_days' in sanitizedData) sanitizedData.trial_days = null;
+  } else {
+    if (sanitizedData.recurring_price !== undefined && sanitizedData.recurring_price !== null) {
+      sanitizedData.recurring_price = parseFloat(String(sanitizedData.recurring_price));
+    }
+    if (sanitizedData.billing_interval_count !== undefined && sanitizedData.billing_interval_count !== null) {
+      sanitizedData.billing_interval_count = parseInt(String(sanitizedData.billing_interval_count), 10) || 1;
+    } else if (setDefaults) {
+      sanitizedData.billing_interval_count = 1;
+    }
+    if (sanitizedData.trial_days === '' || sanitizedData.trial_days === undefined) {
+      sanitizedData.trial_days = null;
+    } else if (sanitizedData.trial_days !== null) {
+      sanitizedData.trial_days = parseInt(String(sanitizedData.trial_days), 10);
+    }
+  }
+
   // Set defaults only for CREATE operations (not partial updates)
   if (setDefaults) {
     if (sanitizedData.currency === undefined) {
       sanitizedData.currency = 'USD';
+    }
+    if (sanitizedData.product_type === undefined) {
+      sanitizedData.product_type = 'one_time';
     }
 
     if (sanitizedData.icon === undefined) {

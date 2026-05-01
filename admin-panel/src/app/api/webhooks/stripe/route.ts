@@ -22,7 +22,16 @@ import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import {
+  handleSubscriptionCreated,
+  handleSubscriptionUpdated,
+  handleSubscriptionDeleted,
+  handleSubscriptionTrialWillEnd,
+  handleInvoicePaid,
+  handleInvoicePaymentFailed,
+} from './subscription-handlers';
+import { RETRIABLE_EVENTS } from './retriable-events';
 
 /**
  * Process successful payment from checkout session.
@@ -31,6 +40,14 @@ async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
+  // Subscription checkouts are handled end-to-end by the
+  // customer.subscription.created + invoice.paid handlers in
+  // subscription-handlers.ts. This handler stays scoped to the
+  // one-time-payment surface.
+  if (session.mode === 'subscription') {
+    return { processed: true, message: 'Skipped: subscription mode (handled by invoice.paid)' };
+  }
+
   const sessionId = session.id;
   const productId = session.metadata?.product_id;
   const customerEmail = session.customer_details?.email || session.customer_email;
@@ -553,12 +570,6 @@ export async function POST(request: NextRequest) {
   // Handle events
   let result: { processed: boolean; message: string };
 
-  // Events where failure to process means we MUST retry (access revocation is critical)
-  const RETRIABLE_EVENTS = new Set([
-    'charge.refunded',
-    'charge.dispute.created',
-  ]);
-
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -597,12 +608,90 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'customer.subscription.created': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        result = await handleSubscriptionCreated(sub, supabase, createPlatformClient(), stripe);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        const previousAttributes =
+          (event.data.previous_attributes as Partial<Stripe.Subscription>) ?? undefined;
+        result = await handleSubscriptionUpdated(
+          sub,
+          supabase,
+          createPlatformClient(),
+          stripe,
+          previousAttributes
+        );
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        result = await handleSubscriptionDeleted(sub, supabase, createPlatformClient(), stripe);
+        break;
+      }
+
+      case 'customer.subscription.trial_will_end': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        result = await handleSubscriptionTrialWillEnd(
+          sub,
+          supabase,
+          createPlatformClient(),
+          stripe
+        );
+        break;
+      }
+
+      case 'customer.subscription.paused':
+      case 'customer.subscription.resumed': {
+        // MVP: no-op (we don't expose pause/resume yet).
+        result = { processed: true, message: `No-op for ${event.type} (MVP)` };
+        break;
+      }
+
+      case 'invoice.paid':
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripe = await getStripeServer();
+        result = await handleInvoicePaid(invoice, supabase, createPlatformClient(), stripe);
+        break;
+      }
+
+      case 'invoice.payment_failed':
+      case 'invoice.payment_action_required': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripe = await getStripeServer();
+        result = await handleInvoicePaymentFailed(
+          invoice,
+          supabase,
+          createPlatformClient(),
+          stripe
+        );
+        break;
+      }
+
       default:
         // Acknowledge unhandled events without error
         result = { processed: true, message: `Unhandled event type: ${event.type}` };
     }
 
     console.log(`[Stripe Webhook] ${event.type}: ${result.message}`);
+
+    // Force a Stripe retry on retriable events that returned processed:false
+    // — by returning 500 the next webhook delivery re-attempts the work.
+    if (!result.processed && RETRIABLE_EVENTS.has(event.type)) {
+      return NextResponse.json(
+        { error: 'Processing failed; will retry' },
+        { status: 500 }
+      );
+    }
 
     // Always return 200 for valid webhooks to prevent retries
     // SECURITY: Minimal response — don't leak event details or internal processing info
@@ -612,8 +701,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[Stripe Webhook] Error processing ${event.type}:`, message);
 
-    // SECURITY: For refund/dispute events, return 500 so Stripe retries.
-    // A transient DB outage during revocation could cause permanent access retention.
+    // Retriable events return 500 so Stripe re-attempts delivery on transient errors.
     if (RETRIABLE_EVENTS.has(event.type)) {
       return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
     }

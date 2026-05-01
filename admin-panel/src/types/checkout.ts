@@ -59,6 +59,14 @@ export interface ProductForCheckout {
   // VAT/Tax fields
   vat_rate: number | null;
   price_includes_vat: boolean;
+  // Subscription fields (Phase 2 — Subscriptions MVP)
+  product_type: 'one_time' | 'subscription';
+  billing_interval: 'day' | 'week' | 'month' | 'year' | null;
+  billing_interval_count: number | null;
+  recurring_price: number | null;
+  trial_days: number | null;
+  // durable Stripe Price binding
+  stripe_price_id: string | null;
 }
 
 // User access types

@@ -230,4 +230,19 @@ export const RATE_LIMITS = {
     windowMinutes: 1,
     actionType: 'stripe_webhook',
   },
+  // Customer self-service: cancel/resume their own subscription. Each call hits Stripe.
+  // Tight to prevent flapping; legitimate users only need a couple of clicks.
+  SUBSCRIPTION_MUTATION: {
+    maxRequests: 10,
+    windowMinutes: 5,
+    actionType: 'subscription_mutation',
+  },
+  // Customer self-service read of their own subscriptions. Roomy enough
+  // for normal client polling but bounded so a misbehaving client (or
+  // hijacked-cookie attacker) cannot spam the DB read path.
+  SUBSCRIPTION_READ: {
+    maxRequests: 60,
+    windowMinutes: 1,
+    actionType: 'subscription_read',
+  },
 } as const;

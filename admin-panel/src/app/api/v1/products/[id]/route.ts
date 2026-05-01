@@ -26,6 +26,7 @@ import {
   sanitizeProductData,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
+import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -167,12 +168,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id')
+      .select('id, product_type')
       .eq('id', id)
       .single();
 
     if (existsError || !existingCheck) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
+    }
+
+    // forbid product_type changes once a product has any sale, access
+    // grant, or subscription. Existing receipts/access rows would silently
+    // misrepresent what was delivered to the customer.
+    if (
+      typeof sanitizedData.product_type === 'string' &&
+      sanitizedData.product_type !== existingCheck.product_type
+    ) {
+      const sold = await hasProductBeenSold(supabase, id);
+      if (sold) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: [
+            'product_type cannot be changed after the product has any payment, access, or subscription record',
+          ],
+        });
+      }
     }
 
     // Update product (only if there are fields to update)

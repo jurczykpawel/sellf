@@ -11,7 +11,7 @@
  * Requires: local Supabase running, DB reset with subscriptions_mvp migration applied.
  */
 
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterAll, beforeAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -21,11 +21,18 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   throw new Error('Missing Supabase env variables for testing');
 }
 
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+if (!ANON_KEY) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY for permission tests');
+}
+
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY);
 
 const createdProductIds: string[] = [];
 const createdSubscriptionIds: string[] = [];
 const createdStripeCustomerIds: string[] = [];
+const createdAuthUserIds: string[] = [];
 
 afterAll(async () => {
   if (createdSubscriptionIds.length > 0) {
@@ -36,6 +43,11 @@ afterAll(async () => {
   }
   if (createdProductIds.length > 0) {
     await supabaseAdmin.from('products').delete().in('id', createdProductIds);
+  }
+  if (createdAuthUserIds.length > 0) {
+    await Promise.allSettled(
+      createdAuthUserIds.map((id) => supabaseAdmin.auth.admin.deleteUser(id))
+    );
   }
 });
 
@@ -411,7 +423,7 @@ describe('Subscriptions schema: subscriptions table', () => {
 });
 
 describe('Subscriptions schema: payment_transactions extensions', () => {
-  it('accepts subscription_id, stripe_invoice_id, invoice_sequence_number', async () => {
+  it('accepts subscription_id and stripe_invoice_id', async () => {
     const { data: { user } } = await supabaseAdmin.auth.admin.createUser({
       email: `pt-sub-${Date.now()}@example.com`,
       email_confirm: true,
@@ -458,14 +470,12 @@ describe('Subscriptions schema: payment_transactions extensions', () => {
         status: 'completed',
         subscription_id: sub!.id,
         stripe_invoice_id: `in_test_${Date.now()}`,
-        invoice_sequence_number: 1,
       })
       .select()
       .single();
 
     expect(error).toBeNull();
     expect(pt?.subscription_id).toBe(sub!.id);
-    expect(pt?.invoice_sequence_number).toBe(1);
 
     if (pt?.id) await supabaseAdmin.from('payment_transactions').delete().eq('id', pt.id);
     await supabaseAdmin.auth.admin.deleteUser(user!.id);
@@ -502,7 +512,6 @@ describe('Subscriptions schema: payment_transactions extensions', () => {
         currency: 'PLN',
         status: 'completed',
         stripe_invoice_id: invoiceId,
-        invoice_sequence_number: 1,
       })
       .select()
       .single();
@@ -516,7 +525,6 @@ describe('Subscriptions schema: payment_transactions extensions', () => {
       currency: 'PLN',
       status: 'completed',
       stripe_invoice_id: invoiceId,
-      invoice_sequence_number: 1,
     });
 
     expect(error).not.toBeNull();
@@ -578,5 +586,140 @@ describe('Subscriptions schema: user_product_access extensions', () => {
 
     if (upa?.id) await supabaseAdmin.from('user_product_access').delete().eq('id', upa.id);
     await supabaseAdmin.auth.admin.deleteUser(user!.id);
+  });
+});
+
+
+describe('Subscriptions schema: find_user_id_by_email RPC', () => {
+  it('service_role can resolve a user by email', async () => {
+    const email = `rpc-svc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
+    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    expect(createErr).toBeNull();
+    if (created?.user?.id) createdAuthUserIds.push(created.user.id);
+
+    const { data, error } = await supabaseAdmin.rpc('find_user_id_by_email', {
+      p_email: email,
+    });
+    expect(error).toBeNull();
+    expect(data).toBe(created!.user!.id);
+  });
+
+  it('returns null for unknown email under service_role', async () => {
+    const { data, error } = await supabaseAdmin.rpc('find_user_id_by_email', {
+      p_email: `nobody-${Date.now()}@sellf-test.local`,
+    });
+    expect(error).toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it('matches case-insensitively (upper vs lower)', async () => {
+    const email = `Mixed-Case-${Date.now()}@sellf-test.local`;
+    const { data: created } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (created?.user?.id) createdAuthUserIds.push(created.user.id);
+
+    const { data: lower } = await supabaseAdmin.rpc('find_user_id_by_email', {
+      p_email: email.toLowerCase(),
+    });
+    const { data: upper } = await supabaseAdmin.rpc('find_user_id_by_email', {
+      p_email: email.toUpperCase(),
+    });
+    expect(lower).toBe(created!.user!.id);
+    expect(upper).toBe(created!.user!.id);
+  });
+
+  it('SECURITY: anonymous role cannot execute the RPC', async () => {
+    const { error } = await supabaseAnon.rpc('find_user_id_by_email', {
+      p_email: 'anyone@sellf-test.local',
+    });
+    expect(error).not.toBeNull();
+    // PostgREST returns 404 / 403 for missing-grant — either is fine, just NOT 200.
+    expect(error?.code).toMatch(/^(42501|PGRST202|PGRST203|404)$|^4/);
+  });
+});
+
+describe('Subscriptions schema: payment_transactions session_id constraint', () => {
+  let productId: string | undefined;
+
+  beforeAll(async () => {
+    const { data } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `Sess Test ${Date.now()}`,
+        slug: `sess-test-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        price: 49,
+        currency: 'PLN',
+      })
+      .select('id')
+      .single();
+    productId = data?.id;
+    if (productId) createdProductIds.push(productId);
+  });
+
+  it('accepts session_id with cs_ prefix (legacy Checkout Session)', async () => {
+    const { error } = await supabaseAdmin.from('payment_transactions').insert({
+      session_id: `cs_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      product_id: productId!,
+      customer_email: 'sess-cs@sellf-test.local',
+      amount: 49,
+      currency: 'PLN',
+      status: 'completed',
+    });
+    expect(error).toBeNull();
+  });
+
+  it('accepts session_id with pi_ prefix (PaymentIntent)', async () => {
+    const { error } = await supabaseAdmin.from('payment_transactions').insert({
+      session_id: `pi_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      product_id: productId!,
+      customer_email: 'sess-pi@sellf-test.local',
+      amount: 49,
+      currency: 'PLN',
+      status: 'completed',
+    });
+    expect(error).toBeNull();
+  });
+
+  it('accepts session_id with in_ prefix (subscription invoice — Phase 6)', async () => {
+    const { error } = await supabaseAdmin.from('payment_transactions').insert({
+      session_id: `in_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      product_id: productId!,
+      customer_email: 'sess-in@sellf-test.local',
+      amount: 49,
+      currency: 'PLN',
+      status: 'completed',
+    });
+    expect(error).toBeNull();
+  });
+
+  it('rejects session_id with disallowed prefix', async () => {
+    const { error } = await supabaseAdmin.from('payment_transactions').insert({
+      session_id: `evil_${Date.now()}`,
+      product_id: productId!,
+      customer_email: 'sess-bad@sellf-test.local',
+      amount: 49,
+      currency: 'PLN',
+      status: 'completed',
+    });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('23514');
+  });
+
+  it('rejects bare prefix without identifier body', async () => {
+    const { error } = await supabaseAdmin.from('payment_transactions').insert({
+      session_id: 'in_',
+      product_id: productId!,
+      customer_email: 'sess-empty@sellf-test.local',
+      amount: 49,
+      currency: 'PLN',
+      status: 'completed',
+    });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe('23514');
   });
 });

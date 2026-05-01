@@ -15,6 +15,9 @@ import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
 import { allocateCouponDiscount, toMinorUnits } from '@/lib/pricing/coupon-allocation';
 import { normalizeBumpIds } from '@/lib/validations/product';
+import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
+import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
+import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 
 
 // Remove the local ProductForCheckout interface since we now use ValidatedProduct
@@ -152,6 +155,11 @@ export class CheckoutService {
    */
   async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string }> {
     try {
+      // Subscription products bypass bumps / coupons / PWYW (MVP scope).
+      if (options.product.product_type === 'subscription') {
+        return await this.createSubscriptionStripeSession(options);
+      }
+
       const { coupon, customAmount } = options;
       const bumpList = options.bumpProducts && options.bumpProducts.length > 0
         ? options.bumpProducts
@@ -358,13 +366,73 @@ export class CheckoutService {
       
       // Log the actual Stripe error for debugging
       console.error('Stripe session creation error:', error);
-      
+
       throw new CheckoutError(
         CheckoutErrorType.STRIPE_ERROR,
         'Failed to create checkout session. Please try again or contact support.',
         HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+  /**
+   * Subscription-mode checkout session. MVP scope: no bumps / coupons / PWYW.
+   * @see buildSubscriptionSessionConfig
+   */
+  private async createSubscriptionStripeSession(
+    options: CheckoutSessionOptions
+  ): Promise<{ clientSecret: string; sessionId: string }> {
+    const { product, returnUrl, email, userId } = options;
+    const customerEmail = email?.trim();
+    if (!customerEmail) {
+      throw new CheckoutError(
+        CheckoutErrorType.VALIDATION_ERROR,
+        'Email is required for subscription checkout',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    const checkoutConfig = await getCheckoutConfig();
+
+    const customerId = await getOrCreateStripeCustomer({ email: customerEmail, userId });
+
+    let taxRateId: string | undefined;
+    if (checkoutConfig.tax_mode === 'local' && product.vat_rate && product.vat_rate > 0) {
+      taxRateId = await getOrCreateStripeTaxRate({
+        percentage: product.vat_rate,
+        inclusive: product.price_includes_vat,
+      });
+    }
+
+    // durable Stripe Price binding (created lazily, persisted on
+    // products.stripe_price_id). Webhook handlers verify sub.items.data[0].price.id
+    // against this id to prove product identity.
+    const stripePriceId = await getOrCreateStripePriceForProduct(this.stripe, product);
+
+    const sessionConfig = buildSubscriptionSessionConfig({
+      product,
+      customerId,
+      stripePriceId,
+      returnUrl,
+      email: customerEmail,
+      userId,
+      checkoutConfig,
+      taxRateId,
+    });
+
+    const session = await this.stripe.checkout.sessions.create(sessionConfig);
+
+    if (!session.client_secret) {
+      throw new CheckoutError(
+        CheckoutErrorType.STRIPE_ERROR,
+        CHECKOUT_ERRORS.STRIPE_SESSION_FAILED,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
+    }
+    return {
+      clientSecret: session.client_secret,
+      sessionId: session.id,
+    };
   }
 
   /**

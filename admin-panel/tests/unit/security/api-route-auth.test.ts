@@ -121,6 +121,10 @@ const AUTH_REQUIRED_ROUTES = new Set([
   'users/[id]/profile/route.ts',
   'users/route.ts',
   'refund-requests/route.ts',
+  // Subscriptions MVP (Phase 5): user-scoped subscription self-service
+  'subscriptions/route.ts',
+  'subscriptions/[id]/cancel/route.ts',
+  'subscriptions/[id]/resume/route.ts',
 ]);
 
 // ============================================================================

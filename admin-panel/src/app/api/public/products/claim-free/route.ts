@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
+import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 
 /**
  * Helper to create CORS-enabled responses
@@ -154,9 +155,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send magic link via Supabase
+    // Send magic link via Supabase. Slug-only redirect handles post-login UX.
     const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const redirectUrl = `${siteUrl}/auth/callback?redirect_to=${encodeURIComponent(`/auth/product-access?product=${productSlug}`)}`;
+    const redirectUrl = buildFreeProductMagicLinkRedirect({
+      origin: siteUrl,
+      productSlug,
+    });
 
     const { error: magicLinkError } = await supabase.auth.signInWithOtp({
       email,

@@ -96,6 +96,12 @@ export default function WebhookFormModal({
                 className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"
                 placeholder={t('urlPlaceholder')}
               />
+              <p className="mt-1.5 text-xs text-amber-600">
+                {t('urlSensitiveDataWarning', {
+                  defaultValue:
+                    'Outbound payloads contain customer email, Stripe identifiers, and invoice URLs. Use a domain you control.',
+                })}
+              </p>
             </div>
 
             <div>

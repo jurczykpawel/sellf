@@ -1025,14 +1025,19 @@ describe('get_abandoned_cart_stats', () => {
     expect(wide.total_value).toBeGreaterThanOrEqual(narrow.total_value);
   });
 
-  it('admin user can call get_abandoned_cart_stats', async () => {
+  it('rejects authenticated admin user (function is service_role-only)', async () => {
+    // After migration 20260501110000 revoked EXECUTE FROM PUBLIC, neither
+    // admin nor regular authenticated users can invoke this RPC directly.
+    // Production callers must go through a server-side admin endpoint that
+    // uses createAdminClient() (service_role) — the in-function admin gate
+    // never runs because permission denial happens before the function body.
     const { data, error } = await adminUser.client.rpc('get_abandoned_cart_stats', {
       days_ago: 7,
     });
 
-    expect(error).toBeNull();
-    expect(data).toBeDefined();
-    expect(data).toHaveProperty('total_abandoned');
+    expect(data).toBeNull();
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe('42501');
   });
 
   it('rejects non-admin authenticated user', async () => {
@@ -1040,12 +1045,9 @@ describe('get_abandoned_cart_stats', () => {
       days_ago: 7,
     });
 
-    // get_abandoned_cart_stats raises 'Access denied' for non-admin users
-    // (P0001 = RAISE EXCEPTION in the function body, not 42501 permission denied)
-    expect(error).not.toBeNull();
-    expect(error!.code).toBe('P0001');
-    expect(error!.message).toContain('Access denied');
     expect(data).toBeNull();
+    expect(error).not.toBeNull();
+    expect(error!.code).toBe('42501');
   });
 
   it('rejects anon user', async () => {

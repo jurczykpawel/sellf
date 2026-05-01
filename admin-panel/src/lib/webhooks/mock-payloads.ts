@@ -82,12 +82,75 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       icon: '🚀'
     }
   },
-  'subscription.started': {
-    email: 'subscriber@example.com',
-    planId: 'price_monthly_123',
-    amount: 2900,
-    currency: 'usd',
-    status: 'active'
+  'subscription.created': {
+    customer: { email: 'subscriber@example.com', userId: null },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: {
+      stripeSubscriptionId: 'sub_test_123',
+      stripeCustomerId: 'cus_test_123',
+      status: 'trialing',
+      billingInterval: 'month',
+      billingIntervalCount: 1,
+      recurringPrice: 49.00,
+      trialEnd: '2026-05-14T00:00:00.000Z',
+      currentPeriodEnd: '2026-05-30T00:00:00.000Z',
+      cancelAtPeriodEnd: false,
+    },
+  },
+  'subscription.updated': {
+    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: {
+      stripeSubscriptionId: 'sub_test_123',
+      status: 'active',
+      cancelAtPeriodEnd: false,
+      previousAttributes: { status: 'trialing' },
+    },
+  },
+  'subscription.canceled': {
+    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: {
+      stripeSubscriptionId: 'sub_test_123',
+      status: 'canceled',
+      canceledAt: new Date().toISOString(),
+      cancelAtPeriodEnd: true,
+      endsAt: '2026-05-30T00:00:00.000Z',
+    },
+  },
+  'subscription.trial_ending': {
+    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: {
+      stripeSubscriptionId: 'sub_test_123',
+      trialEnd: '2026-05-07T00:00:00.000Z',
+    },
+  },
+  'invoice.paid': {
+    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: { stripeSubscriptionId: 'sub_test_123' },
+    invoice: {
+      stripeInvoiceId: 'in_test_123',
+      amountPaid: 49.00,
+      currency: 'PLN',
+      hostedInvoiceUrl: 'https://invoice.stripe.com/i/...',
+      invoicePdfUrl: 'https://invoice.stripe.com/.../pdf',
+      paidAt: new Date().toISOString(),
+    },
+  },
+  'invoice.payment_failed': {
+    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: { stripeSubscriptionId: 'sub_test_123', status: 'past_due' },
+    invoice: {
+      stripeInvoiceId: 'in_test_123',
+      amountDue: 49.00,
+      currency: 'PLN',
+      attemptCount: 1,
+      nextPaymentAttempt: '2026-05-03T00:00:00.000Z',
+      hostedInvoiceUrl: 'https://invoice.stripe.com/i/...',
+    },
   },
   'refund.issued': {
     email: 'customer@example.com',

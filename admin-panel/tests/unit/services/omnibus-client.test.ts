@@ -53,7 +53,7 @@ function makeOmnibusClient({
           }),
         };
       }
-      if (table === 'product_price_history') {
+      if (table === 'omnibus_price_history') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -100,7 +100,7 @@ describe('Omnibus service — client parameter', () => {
     expect(client.from).toHaveBeenCalledWith('products');
   });
 
-  it('uses the passed client for product_price_history query', async () => {
+  it('uses the passed client for omnibus_price_history query', async () => {
     const now = new Date();
     const tenDaysAgo = new Date(now.getTime() - 10 * 86_400_000);
 
@@ -122,7 +122,7 @@ describe('Omnibus service — client parameter', () => {
     expect(result).not.toBeNull();
     expect(result!.lowestPrice).toBe(79);
     expect(result!.currency).toBe('PLN');
-    expect(client.from).toHaveBeenCalledWith('product_price_history');
+    expect(client.from).toHaveBeenCalledWith('omnibus_price_history');
   });
 
   it('returns null when Omnibus is disabled in the schema', async () => {
@@ -208,7 +208,7 @@ describe('Omnibus service — client parameter', () => {
     const fromCalls = client.from.mock.calls.map((call: unknown[]) => call[0]);
     expect(fromCalls).toContain('shop_config');
     expect(fromCalls).toContain('products');
-    expect(fromCalls).toContain('product_price_history');
+    expect(fromCalls).toContain('omnibus_price_history');
 
     // Every from() call should be on the same client reference
     expect(client.from).toHaveBeenCalledTimes(3);

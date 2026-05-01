@@ -9,6 +9,7 @@ import { useCaptcha } from '@/hooks/useCaptcha';
 import { useTracking } from '@/hooks/useTracking';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { createClient } from '@/lib/supabase/client';
+import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 
 /**
  * Hook for the "get product for free" flow used by checkout pages.
@@ -129,11 +130,12 @@ export function useFreeAccess({
     try {
       const supabase = await createClient();
       const successUrl = searchParams.get('success_url');
-      const couponPart = couponCode ? `&coupon=${encodeURIComponent(couponCode)}` : '';
-      const authRedirectPath =
-        `/auth/product-access?product=${product.slug}${couponPart}` +
-        (successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : '');
-      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
+      const redirectUrl = buildFreeProductMagicLinkRedirect({
+        origin: window.location.origin,
+        productSlug: product.slug,
+        couponCode,
+        successUrl,
+      });
 
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: pwywFreeEmail,

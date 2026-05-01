@@ -452,7 +452,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
 
     // Get initial price history count
     const { data: initialHistory } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId);
 
@@ -478,7 +478,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
 
     // Verify new price history entry was created
     const { data: newHistory } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .order('effective_from', { ascending: false });

@@ -875,6 +875,24 @@ export type Database = {
         }
         Relationships: []
       }
+      omnibus_price_history: {
+        Row: {
+          currency: string | null
+          effective_from: string | null
+          price: number | null
+          product_id: string | null
+          sale_price: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_bumps: {
         Row: {
           access_duration_days: number | null
@@ -1153,7 +1171,6 @@ export type Database = {
           customer_email: string | null
           expires_at: string | null
           id: string | null
-          invoice_sequence_number: number | null
           metadata: Json | null
           product_id: string | null
           refund_id: string | null
@@ -1177,7 +1194,6 @@ export type Database = {
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
-          invoice_sequence_number?: number | null
           metadata?: Json | null
           product_id?: string | null
           refund_id?: string | null
@@ -1201,7 +1217,6 @@ export type Database = {
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
-          invoice_sequence_number?: number | null
           metadata?: Json | null
           product_id?: string | null
           refund_id?: string | null
@@ -1288,73 +1303,6 @@ export type Database = {
           },
           {
             foreignKeyName: "product_categories_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      product_price_history: {
-        Row: {
-          change_reason: string | null
-          changed_by: string | null
-          created_at: string | null
-          currency: string | null
-          effective_from: string | null
-          effective_until: string | null
-          id: string | null
-          price: number | null
-          price_includes_vat: boolean | null
-          product_id: string | null
-          sale_price: number | null
-          vat_rate: number | null
-        }
-        Insert: {
-          change_reason?: string | null
-          changed_by?: string | null
-          created_at?: string | null
-          currency?: string | null
-          effective_from?: string | null
-          effective_until?: string | null
-          id?: string | null
-          price?: number | null
-          price_includes_vat?: boolean | null
-          product_id?: string | null
-          sale_price?: number | null
-          vat_rate?: number | null
-        }
-        Update: {
-          change_reason?: string | null
-          changed_by?: string | null
-          created_at?: string | null
-          currency?: string | null
-          effective_from?: string | null
-          effective_until?: string | null
-          id?: string | null
-          price?: number | null
-          price_includes_vat?: boolean | null
-          product_id?: string | null
-          sale_price?: number | null
-          vat_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "product_price_history_changed_by_fkey"
-            columns: ["changed_by"]
-            isOneToOne: false
-            referencedRelation: "seller_customer_stats"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "product_price_history_changed_by_fkey"
-            columns: ["changed_by"]
-            isOneToOne: false
-            referencedRelation: "user_access_stats"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "product_price_history_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
@@ -1481,6 +1429,7 @@ export type Database = {
           sale_quantity_sold: number | null
           show_price_presets: boolean | null
           slug: string | null
+          stripe_price_id: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
           trial_days: number | null
@@ -1527,6 +1476,7 @@ export type Database = {
           sale_quantity_sold?: number | null
           show_price_presets?: boolean | null
           slug?: string | null
+          stripe_price_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -1573,6 +1523,7 @@ export type Database = {
           sale_quantity_sold?: number | null
           show_price_presets?: boolean | null
           slug?: string | null
+          stripe_price_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -2004,6 +1955,7 @@ export type Database = {
           product_id: string | null
           status: string | null
           stripe_customer_id: string | null
+          stripe_price_id: string | null
           stripe_subscription_id: string | null
           trial_end: string | null
           updated_at: string | null
@@ -2021,6 +1973,7 @@ export type Database = {
           product_id?: string | null
           status?: string | null
           stripe_customer_id?: string | null
+          stripe_price_id?: string | null
           stripe_subscription_id?: string | null
           trial_end?: string | null
           updated_at?: string | null
@@ -2038,6 +1991,7 @@ export type Database = {
           product_id?: string | null
           status?: string | null
           stripe_customer_id?: string | null
+          stripe_price_id?: string | null
           stripe_subscription_id?: string | null
           trial_end?: string | null
           updated_at?: string | null
@@ -2522,6 +2476,7 @@ export type Database = {
         Args: { customer_email_param: string; product_id_param: string }
         Returns: Json
       }
+      find_user_id_by_email: { Args: { p_email: string }; Returns: string }
       generate_oto_coupon: {
         Args: {
           customer_email_param: string
@@ -3577,7 +3532,6 @@ export type Database = {
           customer_email: string
           expires_at: string | null
           id: string
-          invoice_sequence_number: number
           metadata: Json
           product_id: string
           refund_id: string | null
@@ -3601,7 +3555,6 @@ export type Database = {
           customer_email: string
           expires_at?: string | null
           id?: string
-          invoice_sequence_number?: number
           metadata?: Json
           product_id: string
           refund_id?: string | null
@@ -3625,7 +3578,6 @@ export type Database = {
           customer_email?: string
           expires_at?: string | null
           id?: string
-          invoice_sequence_number?: number
           metadata?: Json
           product_id?: string
           refund_id?: string | null
@@ -3905,6 +3857,7 @@ export type Database = {
           sale_quantity_sold: number
           show_price_presets: boolean
           slug: string
+          stripe_price_id: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
           trial_days: number | null
@@ -3951,6 +3904,7 @@ export type Database = {
           sale_quantity_sold?: number
           show_price_presets?: boolean
           slug: string
+          stripe_price_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -3997,6 +3951,7 @@ export type Database = {
           sale_quantity_sold?: number
           show_price_presets?: boolean
           slug?: string
+          stripe_price_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -4402,6 +4357,7 @@ export type Database = {
           product_id: string
           status: string
           stripe_customer_id: string
+          stripe_price_id: string | null
           stripe_subscription_id: string
           trial_end: string | null
           updated_at: string
@@ -4419,6 +4375,7 @@ export type Database = {
           product_id: string
           status: string
           stripe_customer_id: string
+          stripe_price_id?: string | null
           stripe_subscription_id: string
           trial_end?: string | null
           updated_at?: string
@@ -4436,6 +4393,7 @@ export type Database = {
           product_id?: string
           status?: string
           stripe_customer_id?: string
+          stripe_price_id?: string | null
           stripe_subscription_id?: string
           trial_end?: string | null
           updated_at?: string

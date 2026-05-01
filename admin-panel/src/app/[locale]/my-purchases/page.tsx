@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import MySubscriptions from '@/components/MySubscriptions';
 import type { UserPurchase } from '@/types';
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
@@ -250,6 +251,10 @@ export default function MyPurchasesPage() {
               {error}
             </div>
           )}
+
+          <div className="mb-8">
+            <MySubscriptions />
+          </div>
 
           {purchases.length === 0 ? (
             <div className="text-center py-20">

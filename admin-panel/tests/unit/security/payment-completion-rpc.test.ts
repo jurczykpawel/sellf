@@ -614,8 +614,10 @@ describe('Input validation', () => {
 // ============================================================================
 
 describe('Authorization bypass', () => {
-  it('should reject user_id_param that does not match authenticated user', async () => {
-    // Create a test user to authenticate as
+  it('rejects authenticated client direct call entirely', async () => {
+    // This RPC is service_role-only. Production callers use
+    // createAdminClient() and pass user_id explicitly, so the in-function
+    // user_id mismatch branch is unreachable from anon/authenticated paths.
     const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
       email: `auth-bypass-${TS}@example.com`,
       password: 'test123456',
@@ -624,18 +626,8 @@ describe('Authorization bypass', () => {
     if (authErr) throw authErr;
     createdUserIds.push(authData.user.id);
 
-    // Create another user whose ID we'll try to impersonate
-    const { data: victimData, error: victimErr } = await supabaseAdmin.auth.admin.createUser({
-      email: `auth-victim-${TS}@example.com`,
-      password: 'test123456',
-      email_confirm: true,
-    });
-    if (victimErr) throw victimErr;
-    createdUserIds.push(victimData.user.id);
-
-    // Sign in as the attacker user with anon client
     const anonClient = createClient(SUPABASE_URL, ANON_KEY);
-    const { data: signInData, error: signInErr } = await anonClient.auth.signInWithPassword({
+    const { error: signInErr } = await anonClient.auth.signInWithPassword({
       email: `auth-bypass-${TS}@example.com`,
       password: 'test123456',
     });
@@ -644,20 +636,17 @@ describe('Authorization bypass', () => {
     const sid = `cs_test_auth_bypass_${TS}`;
     createdSessionIds.push(sid);
 
-    // Try to call RPC as attacker but pass victim's user_id
     const { data, error } = await callRpc(anonClient, {
       session_id_param: sid,
       product_id_param: mainProduct.id,
       customer_email_param: `auth-bypass-${TS}@example.com`,
       amount_total: 5000,
       currency_param: 'USD',
-      user_id_param: victimData.user.id, // Try to impersonate victim
+      user_id_param: authData.user.id,
     });
 
-    // Should be rejected with "Unauthorized"
-    expect(error).toBeNull();
-    expect(data?.success).toBe(false);
-    expect(data?.error).toContain('Unauthorized');
+    expect(data).toBeNull();
+    expect(error?.code).toBe('42501');
   });
 
   it('should allow service_role to pass any user_id_param', async () => {
@@ -2207,9 +2196,10 @@ describe('Line items verification', () => {
 // ============================================================================
 
 describe('Authenticated user positive path', () => {
-  it('should process payment successfully when called by authenticated user (not service_role)', async () => {
-    // All other positive-path tests use service_role. This test verifies the function
-    // works correctly when called by an actual authenticated user via anon client.
+  it('rejects authenticated callers via anon-keyed client', async () => {
+    // Production callers use createAdminClient() (service_role) — see
+    // src/lib/payment/verify-payment.ts. Authenticated users do not invoke
+    // this RPC directly.
     const email = `auth-user-${TS}@example.com`;
     const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -2219,7 +2209,6 @@ describe('Authenticated user positive path', () => {
     if (userErr) throw userErr;
     createdUserIds.push(userData.user.id);
 
-    // Sign in with anon client
     const anonClient = createClient(SUPABASE_URL, ANON_KEY);
     const { error: signInErr } = await anonClient.auth.signInWithPassword({
       email,
@@ -2239,22 +2228,44 @@ describe('Authenticated user positive path', () => {
       user_id_param: userData.user.id,
     });
 
+    expect(data).toBeNull();
+    expect(error?.code).toBe('42501');
+  });
+
+  it('processes payment successfully via service_role (production flow)', async () => {
+    const email = `svc-positive-${TS}@example.com`;
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'test123456',
+      email_confirm: true,
+    });
+    if (userErr) throw userErr;
+    createdUserIds.push(userData.user.id);
+
+    const sid = `cs_test_svc_positive_${TS}`;
+    createdSessionIds.push(sid);
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: 5000,
+      currency_param: 'USD',
+      user_id_param: userData.user.id,
+    });
+
     expect(error).toBeNull();
     expect(data?.success).toBe(true);
     expect(data?.access_granted).toBe(true);
-    expect(data?.scenario).toBe('logged_in_user_with_bump');
 
-    // Verify transaction was created
     const { data: tx } = await supabaseAdmin
       .from('payment_transactions')
       .select('id, status, user_id')
       .eq('session_id', sid)
       .single();
-    expect(tx).toBeTruthy();
     expect(tx!.status).toBe('completed');
     expect(tx!.user_id).toBe(userData.user.id);
 
-    // Verify user_product_access was granted
     const { data: access } = await supabaseAdmin
       .from('user_product_access')
       .select('id')
@@ -2266,14 +2277,13 @@ describe('Authenticated user positive path', () => {
 });
 
 // ============================================================================
-// 19. Anon role cannot call service-role-only function
+// 19. Anon role cannot call this RPC directly
 // ============================================================================
 
 describe('Anon role access', () => {
-  it('allows anon calls but still validates inputs (function is PUBLIC for guest checkout)', async () => {
-    // NOTE: This function intentionally has PUBLIC execute permission because it
-    // supports guest checkout (unauthenticated users purchasing products).
-    // Security is enforced via input validation and rate limiting, not role restriction.
+  it('rejects anon callers (function is service_role-only)', async () => {
+    // Production flow: /api/verify-payment uses createAdminClient()
+    // (service_role) to call this RPC. Anon does not invoke it directly.
     const anonClient = createClient(SUPABASE_URL, ANON_KEY);
 
     const sid = `cs_test_anon_access_${TS}`;
@@ -2287,11 +2297,9 @@ describe('Anon role access', () => {
       currency_param: 'USD',
     });
 
-    // Function is callable by anon (no 42501 permission error).
-    // With a valid product, it processes the payment and returns success.
-    expect(error).toBeNull();
-    expect(data).toBeDefined();
-    expect(data.success).toBe(true);
+    expect(data).toBeNull();
+    expect(error?.code).toBe('42501');
+    expect(error?.message).toMatch(/permission denied/i);
   });
 });
 
