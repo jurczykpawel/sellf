@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useSyncExternalStore } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 
 interface AppConfig {
   supabaseUrl: string
@@ -44,18 +44,14 @@ function setCachedConfig(data: AppConfig): void {
   }
 }
 
-// useSyncExternalStore subscribers — no-op because sessionStorage doesn't change
-// between renders within the same tab (we only read it once after hydration).
-const noopSubscribe = () => () => {}
-
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
-  // Cached config from sessionStorage. Returns null on SSR + first client render
-  // (preventing hydration mismatch), then surfaces the cached value on the
-  // second client render. This replaces the previous useEffect+setState cascade.
-  const cachedConfig = useSyncExternalStore<AppConfig | null>(
-    noopSubscribe,
-    () => getCachedConfig(),
-    () => null,
+  // Cached config from sessionStorage. SSR: null (avoids hydration mismatch).
+  // Client: read once on mount via useState lazy init, kept stable across
+  // renders. Previous useSyncExternalStore wiring re-parsed JSON on every
+  // getSnapshot call, which returned a fresh object reference and forced
+  // React into an infinite re-render loop (Minified React error #185).
+  const [cachedConfig] = useState<AppConfig | null>(() =>
+    typeof window !== 'undefined' ? getCachedConfig() : null,
   )
 
   const [fetchedConfig, setFetchedConfig] = useState<AppConfig | null>(null)
