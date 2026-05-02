@@ -431,9 +431,11 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     const termsLabel = freeCard.getByText(/Zgadzam się z/i);
     await expect(termsLabel).toBeVisible();
 
-    // Should show captcha widget area (Turnstile iframe, ALTCHA widget, or "no captcha" dev msg)
+    // Captcha widget area is mounted. ALTCHA runs in display="invisible"
+    // mode and Turnstile is offscreen on managed mode, so the wrapper has
+    // zero pixel height — assert attachment, not pixel-visibility.
     const captchaArea = freeCard.locator('div.mt-3').last();
-    await expect(captchaArea).toBeVisible();
+    await expect(captchaArea).toBeAttached();
   });
 
   test('anonymous $0 magic link button should be disabled without terms accepted', async ({ page }) => {

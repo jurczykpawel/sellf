@@ -135,8 +135,10 @@ test.describe('License Settings', () => {
     const domainText = page.getByText('localhost', { exact: true });
     await expect(domainText).toBeVisible();
 
-    // Should show "Never" for unlimited
-    const neverText = page.locator('text=/Never|Nigdy/i');
+    // Should show "Never" for unlimited. Scope inside the license card to
+    // avoid matching unrelated dev-overlay text that mentions "never".
+    const licenseCard = page.locator('text=/License Details|Szczegóły licencji/i').locator('..');
+    const neverText = licenseCard.getByText(/^Never|^Nigdy/);
     await expect(neverText).toBeVisible();
   });
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import Script from 'next/script'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -143,5 +144,15 @@ export function ThemeScript({ adminTheme }: { adminTheme?: string }) {
       } catch(e) {}
     })();
   `
-  return <script dangerouslySetInnerHTML={{ __html: script }} />
+  // Use next/script so React 19 doesn't warn about a raw <script> in JSX
+  // ("Encountered a script tag while rendering React component"). The
+  // beforeInteractive strategy emits the inline script in <head> before
+  // hydration, preserving FOUC prevention.
+  return (
+    <Script
+      id="sf-theme-init"
+      strategy="beforeInteractive"
+      dangerouslySetInnerHTML={{ __html: script }}
+    />
+  )
 }
