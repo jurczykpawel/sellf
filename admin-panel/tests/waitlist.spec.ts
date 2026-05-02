@@ -303,7 +303,7 @@ test.describe('Waitlist Feature', () => {
     test('should reject signup without email', async ({ request }) => {
       const response = await request.post('/api/waitlist/signup', {
         data: {
-          productId: 'test-product-id'
+          productId: testProductWithWaitlistId
         }
       });
 
@@ -316,7 +316,7 @@ test.describe('Waitlist Feature', () => {
       const response = await request.post('/api/waitlist/signup', {
         data: {
           email: 'not-an-email',
-          productId: 'test-product-id'
+          productId: testProductWithWaitlistId
         }
       });
 
