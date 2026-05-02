@@ -62,10 +62,16 @@ const OrderBumpFormModal: React.FC<OrderBumpFormModalProps> = ({
   // Selected products for info display
   const selectedBumpProduct = products.find(p => p.id === bumpProductId);
 
-  // Initialize form when parent swaps editingBump.
+  // Initialize form when parent provides or swaps editingBump.
   // setState-during-render replaces useEffect+setState cascade.
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  const [trackedEditingBump, setTrackedEditingBump] = useState(editingBump);
+  // Sentinel `undefined` initial state ensures the comparison fires on the
+  // first render too — using `useState(editingBump)` made it skip mount-time
+  // initialization when the modal opened straight into edit mode (the dropdowns
+  // never selected the editing bump's products).
+  const [trackedEditingBump, setTrackedEditingBump] = useState<
+    OrderBumpWithDetails | null | undefined
+  >(undefined);
   if (editingBump !== trackedEditingBump) {
     setTrackedEditingBump(editingBump);
     if (editingBump) {
