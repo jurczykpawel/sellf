@@ -453,6 +453,15 @@ async function handleChargeDisputeCreated(
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[Stripe Webhook] Failed to retrieve charge ${chargeId}:`, msg);
+    // Stripe raises StripeInvalidRequestError when the charge id is unknown
+    // — that is a permanent state, retrying is pointless. Other error kinds
+    // (network, rate limit, 5xx) are transient and should escalate to retry.
+    const isUnknownResource =
+      err instanceof Error &&
+      (err as { type?: string }).type === 'StripeInvalidRequestError';
+    if (isUnknownResource) {
+      return { processed: true, message: `Charge ${chargeId} not found, skipping` };
+    }
     return { processed: false, message: `Failed to retrieve charge: ${msg}` };
   }
 

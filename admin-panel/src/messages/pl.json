@@ -1467,7 +1467,26 @@
         "longDescriptionPlaceholder": "## Co zawiera?\n- Funkcja 1\n- Funkcja 2",
         "slugPlaceholder": "adres-url-produktu",
         "imageUrlPlaceholder": "https://i.ibb.co/...",
-        "salePricePlaceholder": "0,00"
+        "salePricePlaceholder": "0,00",
+        "subscription": {
+          "title": "Subskrypcja",
+          "help": "Subskrypcje rozliczają się cyklicznie. Produkty jednorazowe są naliczane raz.",
+          "oneTime": "Jednorazowo",
+          "recurring": "Subskrypcja",
+          "lockedAfterSale": "Typ produktu jest zablokowany po pierwszej sprzedaży, żeby zachować spójność rozliczeń.",
+          "recurringPrice": "Cena cykliczna",
+          "recurringPriceHelp": "Kwota pobierana w każdym okresie rozliczeniowym.",
+          "billingInterval": "Okres rozliczeniowy",
+          "billingIntervalHelp": "Co ile czasu klient jest obciążany.",
+          "trialDays": "Okres próbny (dni)",
+          "trialDaysHelp": "Dni darmowego dostępu przed pierwszym pobraniem opłaty. Pozostaw puste, żeby wyłączyć.",
+          "interval": {
+            "day": "Dzień",
+            "week": "Tydzień",
+            "month": "Miesiąc",
+            "year": "Rok"
+          }
+        }
       }
     },
     "categories": {

@@ -1452,7 +1452,26 @@
         "longDescriptionPlaceholder": "## What's included?\n- Feature 1\n- Feature 2",
         "slugPlaceholder": "product-url-slug",
         "imageUrlPlaceholder": "https://i.ibb.co/...",
-        "salePricePlaceholder": "0.00"
+        "salePricePlaceholder": "0.00",
+        "subscription": {
+          "title": "Subscription",
+          "help": "Subscription products bill on a recurring schedule. One-time products charge once.",
+          "oneTime": "One-time",
+          "recurring": "Subscription",
+          "lockedAfterSale": "Product type is locked after the first sale to keep billing consistent.",
+          "recurringPrice": "Recurring price",
+          "recurringPriceHelp": "Amount charged in each billing period.",
+          "billingInterval": "Billing interval",
+          "billingIntervalHelp": "How often the customer is charged.",
+          "trialDays": "Trial period (days)",
+          "trialDaysHelp": "Days of free access before the first charge. Leave empty to disable.",
+          "interval": {
+            "day": "Day",
+            "week": "Week",
+            "month": "Month",
+            "year": "Year"
+          }
+        }
       }
     },
     "categories": {
