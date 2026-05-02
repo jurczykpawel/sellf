@@ -45,14 +45,13 @@ function setCachedConfig(data: AppConfig): void {
 }
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
-  // Cached config from sessionStorage. SSR: null (avoids hydration mismatch).
-  // Client: read once on mount via useState lazy init, kept stable across
-  // renders. Previous useSyncExternalStore wiring re-parsed JSON on every
-  // getSnapshot call, which returned a fresh object reference and forced
-  // React into an infinite re-render loop (Minified React error #185).
-  const [cachedConfig] = useState<AppConfig | null>(() =>
-    typeof window !== 'undefined' ? getCachedConfig() : null,
-  )
+  // Cached config from sessionStorage. Both server and client first render
+  // start with null so hydration matches; the cache is read in useEffect
+  // after mount. Previous lazy useState init read sessionStorage during the
+  // very first client render, which produced a hydration mismatch on pages
+  // where the cache was populated (server renders loading shell, client
+  // renders children — Next.js dev overlay then surfaces the mismatch).
+  const [cachedConfig, setCachedConfigState] = useState<AppConfig | null>(null)
 
   const [fetchedConfig, setFetchedConfig] = useState<AppConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -63,8 +62,20 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const loading = !config && !error && !fetchSettled
 
   useEffect(() => {
+    // Hydrate from sessionStorage after mount so SSR and client first paint
+    // match. If the cache is fresh we surface it immediately while the live
+    // fetch reconciles in the background. The setState-in-effect lint rule
+    // is intentionally relaxed here: we cannot read sessionStorage during
+    // render without recreating the previous hydration mismatch (lazy
+    // useState init returned different values on server vs client when the
+    // cache was populated), and useSyncExternalStore re-parses JSON on each
+    // getSnapshot call which previously caused a Minified React #185 loop.
+    const cached = getCachedConfig()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (cached) setCachedConfigState(cached)
+
     const controller = new AbortController()
-    const hadCache = getCachedConfig() !== null
+    const hadCache = cached !== null
 
     fetch('/api/runtime-config', { signal: controller.signal })
       .then(res => {
