@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
-import Script from 'next/script'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -124,10 +123,6 @@ export function useTheme() {
  * Inline script to prevent FOUC — inject into <head> before React hydration.
  * Reads localStorage and applies .dark class immediately.
  * Falls back to adminTheme from shop config when no user preference exists.
- *
- * `nonce` is forwarded by the root layout from the per-request CSP nonce
- * generated in middleware so the inline script is authorized without
- * `'unsafe-inline'`.
  */
 export function ThemeScript({ adminTheme, nonce }: { adminTheme?: string; nonce?: string }) {
   const forced = adminTheme === 'light' || adminTheme === 'dark'
@@ -148,17 +143,11 @@ export function ThemeScript({ adminTheme, nonce }: { adminTheme?: string; nonce?
       } catch(e) {}
     })();
   `
-  // Use next/script so React 19 doesn't warn about a raw <script> in JSX
-  // ("Encountered a script tag while rendering React component"). The
-  // beforeInteractive strategy emits the inline script in <head> before
-  // hydration, preserving FOUC prevention. The CSP nonce is forwarded
-  // from the root layout (set per request in middleware) so the inline
-  // script is authorized without `'unsafe-inline'`.
   return (
-    <Script
+    <script
       id="sf-theme-init"
-      strategy="beforeInteractive"
       nonce={nonce}
+      suppressHydrationWarning
       dangerouslySetInnerHTML={{ __html: script }}
     />
   )
