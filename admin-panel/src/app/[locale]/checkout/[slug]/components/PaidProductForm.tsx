@@ -150,6 +150,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     bumpSelected,
     isFunnelTest,
     funnelTestOtoSlug: oto.funnelTestOtoSlug,
+    getFunnelTestOtoReady: oto.getFunnelTestOtoReady,
+    getFunnelTestOtoSlug: oto.getFunnelTestOtoSlug,
   });
 
   const pricing = calculatePricing({

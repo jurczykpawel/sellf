@@ -13,6 +13,19 @@ interface UseCheckoutRedirectOptions {
   bumpSelected: boolean;
   isFunnelTest: boolean;
   funnelTestOtoSlug: string | null;
+  /**
+   * Returns the active "OTO lookup settled" Promise. A getter (not the
+   * promise itself) so the handler always awaits the current in-flight
+   * fetch — useOto mutates the underlying ref on each (productId,
+   * isFunnelTest) cycle, and a stale plain reference would block forever.
+   */
+  getFunnelTestOtoReady?: () => Promise<void>;
+  /**
+   * Returns the latest OTO slug bypassing the React closure. Required so the
+   * post-await read sees the value the fetch wrote, even when this hook's
+   * memoized callback still closes over the prior render's null.
+   */
+  getFunnelTestOtoSlug?: () => string | null;
 }
 
 interface UseCheckoutRedirectReturn {
@@ -28,6 +41,8 @@ export function useCheckoutRedirect({
   bumpSelected,
   isFunnelTest,
   funnelTestOtoSlug,
+  getFunnelTestOtoReady,
+  getFunnelTestOtoSlug,
 }: UseCheckoutRedirectOptions): UseCheckoutRedirectReturn {
   const t = useTranslations('checkout');
   const router = useRouter();
@@ -40,7 +55,7 @@ export function useCheckoutRedirect({
     setHasAccess(true);
   }, []);
 
-  const handleRedirectToProduct = useCallback(() => {
+  const handleRedirectToProduct = useCallback(async () => {
     // Priority 1: ?success_url param override — validated to prevent open redirect
     const successUrl = searchParams.get('success_url');
     if (successUrl && isSafeRedirectUrl(successUrl)) {
@@ -55,9 +70,20 @@ export function useCheckoutRedirect({
       return;
     }
 
+    // In funnel-test mode the OTO lookup is asynchronous; wait for it to
+    // settle so priority 3 fires deterministically when an OTO is configured.
+    // The promise resolves once fetch finishes (success, failure, or no OTO).
+    if (isFunnelTest && getFunnelTestOtoReady) {
+      await getFunnelTestOtoReady();
+    }
+    // Read the latest slug via the getter so we don't pick up the closure's
+    // pre-await snapshot — useOto writes the ref the moment the fetch yields
+    // a slug, before React schedules the next render.
+    const otoSlug = getFunnelTestOtoSlug ? getFunnelTestOtoSlug() : funnelTestOtoSlug;
+
     // Priority 3: OTO — funnel test mode simulates post-purchase OTO flow
-    if (isFunnelTest && funnelTestOtoSlug) {
-      router.push(`/checkout/${funnelTestOtoSlug}?funnel_test=1`);
+    if (isFunnelTest && otoSlug) {
+      router.push(`/checkout/${otoSlug}?funnel_test=1`);
       return;
     }
 
@@ -76,7 +102,7 @@ export function useCheckoutRedirect({
 
     // Priority 6: default — product page
     router.push(productUrl(product.slug));
-  }, [product.slug, product.success_redirect_url, router, bumpSelected, searchParams, isFunnelTest, funnelTestOtoSlug, t]);
+  }, [product.slug, product.success_redirect_url, router, bumpSelected, searchParams, isFunnelTest, funnelTestOtoSlug, getFunnelTestOtoReady, getFunnelTestOtoSlug, t]);
 
   // Countdown and auto-redirect after access granted
   useEffect(() => {
@@ -84,7 +110,7 @@ export function useCheckoutRedirect({
       const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
       return () => clearTimeout(timer);
     } else if (hasAccess && countdown === 0) {
-      handleRedirectToProduct();
+      void handleRedirectToProduct();
     }
   }, [hasAccess, countdown, handleRedirectToProduct]);
 
