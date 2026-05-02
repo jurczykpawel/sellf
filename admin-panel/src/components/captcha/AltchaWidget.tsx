@@ -96,7 +96,7 @@ export default function AltchaWidget({
       ref={widgetRef}
       challenge="/api/captcha/challenge"
       auto="onload"
-      floating="bottom"
+      display="invisible"
       hidelogo
       hidefooter
       strings={strings}

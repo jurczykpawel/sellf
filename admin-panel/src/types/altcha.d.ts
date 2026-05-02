@@ -14,7 +14,7 @@ declare module 'react' {
         React.HTMLAttributes<HTMLElement> & {
           challenge?: string;
           auto?: 'off' | 'onload' | 'onsubmit' | 'onfocus';
-          floating?: 'top' | 'bottom' | 'auto' | boolean | '';
+          display?: 'standard' | 'bar' | 'floating' | 'overlay' | 'invisible';
           hidelogo?: boolean | '';
           hidefooter?: boolean | '';
           strings?: string;
