@@ -89,10 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentUser)
         setError(null)
 
-        // Reset role immediately to prevent stale role from rendering wrong components
-        setRole('user')
-
-        // Resolve user role
+        // Resolve user role. Keep the previous `role` value in place until
+        // the lookup resolves — flipping to `'user'` first opened a brief
+        // window where admin-only UI demoted itself, so a fast click could
+        // observe isAdmin=false during a same-user token refresh. On
+        // logout the explicit `else` branch below resets to `'user'`; on a
+        // real role change the RPC result is authoritative.
         if (currentUser) {
           const resolvedRole = await resolveUserRole(currentUser.id)
 
