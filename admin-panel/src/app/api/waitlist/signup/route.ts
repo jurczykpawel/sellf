@@ -39,11 +39,15 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // Authenticated path: use the session email and skip captcha + email
-    // validation. Anonymous path: validate body email + verify captcha.
+    // Three paths:
+    //   1. Signed-in + no body email → trust session.email, skip captcha.
+    //   2. Signed-in + body email   → user is opting to be notified at a
+    //      different address; treat it as untrusted input — validate format
+    //      and verify captcha just like the anonymous path.
+    //   3. Anonymous → require body email + captcha.
     const { data: { user } } = await supabase.auth.getUser();
     let email: string;
-    if (user?.email) {
+    if (user?.email && !bodyEmail) {
       email = user.email;
     } else {
       if (!bodyEmail) {

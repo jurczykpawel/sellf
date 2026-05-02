@@ -1,7 +1,11 @@
 /**
  * `/api/waitlist/signup` skips captcha + body email validation when the
- * caller is authenticated and falls back to session email. Anonymous
- * callers retain the email + captcha contract.
+ * caller is authenticated AND no body email is provided — falls back to
+ * session email. Authenticated callers can opt into a different
+ * notification address by passing body.email, in which case the request
+ * is treated as untrusted input (format check + captcha verification),
+ * exactly like the anonymous path. Anonymous callers retain the email
+ * + captcha contract.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -86,7 +90,52 @@ describe('POST /api/waitlist/signup — authenticated user', () => {
     expect(verifyCaptchaToken).not.toHaveBeenCalled();
   });
 
-  it('ignores body email and trusts session email even if body sends a different one', async () => {
+  it('treats body email as an opt-in override and verifies captcha for it', async () => {
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      buildSupabase({
+        userEmail: 'authed@example.com',
+        product: { enable_waitlist: true },
+      }) as never,
+    );
+    (verifyCaptchaToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: true,
+    });
+
+    const res = await POST(
+      buildRequest({
+        email: 'override@example.com',
+        productId: VALID_PRODUCT_ID,
+        captchaToken: 'valid',
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(verifyCaptchaToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects opt-in override when captcha verification fails', async () => {
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      buildSupabase({
+        userEmail: 'authed@example.com',
+        product: { enable_waitlist: true },
+      }) as never,
+    );
+    (verifyCaptchaToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: 'Security verification failed',
+    });
+
+    const res = await POST(
+      buildRequest({
+        email: 'override@example.com',
+        productId: VALID_PRODUCT_ID,
+        captchaToken: 'bad',
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(verifyCaptchaToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects override with malformed email before consulting captcha', async () => {
     (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
       buildSupabase({
         userEmail: 'authed@example.com',
@@ -96,11 +145,12 @@ describe('POST /api/waitlist/signup — authenticated user', () => {
 
     const res = await POST(
       buildRequest({
-        email: 'spoofed@evil.example',
+        email: 'not-an-email',
         productId: VALID_PRODUCT_ID,
+        captchaToken: 'valid',
       }),
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     expect(verifyCaptchaToken).not.toHaveBeenCalled();
   });
 });

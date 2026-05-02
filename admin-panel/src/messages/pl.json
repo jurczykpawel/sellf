@@ -126,7 +126,10 @@
     "signupFailed": "Nie udało się zapisać. Spróbuj ponownie.",
     "pleaseEnterEmail": "Podaj swój adres email",
     "invalidEmail": "Podaj poprawny adres email",
-    "submitting": "Zapisywanie..."
+    "submitting": "Zapisywanie...",
+    "willNotifyAt": "Otrzymasz powiadomienie na:",
+    "useDifferentEmail": "Użyj innego adresu",
+    "useAccountEmail": "Użyj adresu z konta"
   },
   "oto": {
     "exclusiveOffer": "Ekskluzywna oferta jednorazowa!",

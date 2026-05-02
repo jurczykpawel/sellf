@@ -30,8 +30,11 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
 
   // `undefined` = still loading, `null` = anonymous, string = signed-in email.
   // Authenticated users skip the email field, terms checkbox, and captcha
-  // — backend trusts the session and uses user.email.
+  // — backend trusts the session and uses user.email. They can opt into
+  // overriding via `useDifferentEmail`, which falls through to the anonymous
+  // validation path (body email + captcha verified server-side).
   const [signedInEmail, setSignedInEmail] = useState<string | null | undefined>(undefined);
+  const [useDifferentEmail, setUseDifferentEmail] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -62,16 +65,22 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isAuthed = !!signedInEmail;
+    // useSessionEmail: send no body email, backend uses session.email and skips captcha.
+    // Anything else (anonymous OR signed-in user opting into a different address)
+    // goes through the anon path: body email + captcha verified server-side.
+    const useSessionEmail = !!signedInEmail && !useDifferentEmail;
 
-    if (!isAuthed) {
+    if (!useSessionEmail) {
       if (!email) {
         setMessage({ type: 'error', text: t('pleaseEnterEmail') });
         captcha.reset();
         return;
       }
 
-      if (!termsAccepted) {
+      // Terms gate applies only to truly anonymous visitors. Signed-in users
+      // overriding the notification address have already accepted terms when
+      // they registered, so don't force them through it again.
+      if (!signedInEmail && !termsAccepted) {
         setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
         captcha.reset();
         return;
@@ -104,7 +113,7 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          isAuthed
+          useSessionEmail
             ? {
                 productId: product.id,
                 productSlug: product.slug,
@@ -121,18 +130,18 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
       if (!response.ok) {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.error || t('signupFailed') });
-        if (!isAuthed) captcha.reset();
+        if (!useSessionEmail) captcha.reset();
         return;
       }
 
       setMessage({ type: 'success', text: t('signupSuccess') });
-      if (!isAuthed) {
+      if (!useSessionEmail) {
         setEmail('');
         setTermsAccepted(false);
       }
     } catch {
       setMessage({ type: 'error', text: t('signupFailed') });
-      if (!isAuthed) captcha.reset();
+      if (!useSessionEmail) captcha.reset();
     } finally {
       setLoading(false);
     }
@@ -186,22 +195,44 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
               )}
 
               <form onSubmit={handleWaitlistSubmit} className="space-y-4">
-                {signedInEmail ? (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
-                  >
-                    {loading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                        {t('submitting')}
+                {signedInEmail && !useDifferentEmail && (
+                  <>
+                    <div className="text-sm text-sf-body bg-sf-input/40 border border-sf-border rounded-lg px-3 py-2">
+                      <div>
+                        {t('willNotifyAt')}{' '}
+                        <span className="font-semibold text-sf-heading break-all">{signedInEmail}</span>
                       </div>
-                    ) : (
-                      t('notifyMe')
-                    )}
-                  </button>
-                ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUseDifferentEmail(true);
+                          setEmail(signedInEmail);
+                          setMessage({ type: null, text: '' });
+                        }}
+                        className="mt-1 text-xs text-sf-accent hover:underline focus:outline-none focus:underline"
+                      >
+                        {t('useDifferentEmail')}
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"
+                    >
+                      {loading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          {t('submitting')}
+                        </div>
+                      ) : (
+                        t('notifyMe')
+                      )}
+                    </button>
+                  </>
+                )}
+
+                {(!signedInEmail || useDifferentEmail) && (
                   <>
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-sf-body mb-2">
@@ -217,15 +248,32 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
                         required
                         disabled={loading}
                       />
+                      {signedInEmail && useDifferentEmail && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUseDifferentEmail(false);
+                            setEmail('');
+                            captcha.reset();
+                            setMessage({ type: null, text: '' });
+                          }}
+                          className="mt-2 text-xs text-sf-accent hover:underline focus:outline-none focus:underline"
+                        >
+                          {t('useAccountEmail')}
+                        </button>
+                      )}
                     </div>
 
-                    {/* Terms and Conditions Checkbox */}
-                    <TermsCheckbox
-                      checked={termsAccepted}
-                      onChange={setTermsAccepted}
-                      termsUrl="/terms"
-                      privacyUrl="/privacy"
-                    />
+                    {/* Terms checkbox only for truly anonymous visitors —
+                        signed-in users already accepted at registration. */}
+                    {!signedInEmail && (
+                      <TermsCheckbox
+                        checked={termsAccepted}
+                        onChange={setTermsAccepted}
+                        termsUrl="/terms"
+                        privacyUrl="/privacy"
+                      />
+                    )}
 
                     <button
                       type="submit"
@@ -233,7 +281,7 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
                         loading ||
                         captcha.isLoading ||
                         !email ||
-                        !termsAccepted ||
+                        (!signedInEmail && !termsAccepted) ||
                         (process.env.NODE_ENV === 'production' && !captcha.token)
                       }
                       className="w-full bg-sf-accent-bg hover:bg-sf-accent-hover disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-accent focus:ring-offset-2 active:scale-[0.98]"

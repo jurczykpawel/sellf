@@ -120,7 +120,10 @@
     "signupFailed": "Failed to sign up. Please try again.",
     "pleaseEnterEmail": "Please enter your email address",
     "invalidEmail": "Please enter a valid email address",
-    "submitting": "Signing up..."
+    "submitting": "Signing up...",
+    "willNotifyAt": "We'll notify you at:",
+    "useDifferentEmail": "Use a different email",
+    "useAccountEmail": "Use my account email"
   },
   "oto": {
     "exclusiveOffer": "Exclusive one-time offer!",
