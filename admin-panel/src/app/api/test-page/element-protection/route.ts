@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { CSP_NONCE_HEADER } from '@/proxy';
 
 /**
  * Serves element-protection.html test page from the SAME origin as Next.js.
@@ -24,6 +25,8 @@ export async function GET(request: NextRequest) {
   }
   const baseUrl = `http://${rawHost}`;
 
+  const nonce = request.headers.get(CSP_NONCE_HEADER) ?? '';
+
   try {
     const htmlPath = join(process.cwd(), '..', 'examples', 'test-pages', 'element-protection.html');
     let html = readFileSync(htmlPath, 'utf-8');
@@ -39,6 +42,14 @@ export async function GET(request: NextRequest) {
       "urlParams.get('testProduct') || 'test-product'",
       `'${testProduct}'`
     );
+
+    if (nonce) {
+      html = html.replace(/<script>/g, `<script nonce="${nonce}">`);
+      html = html.replace(
+        "document.body.appendChild(script);",
+        `script.nonce = ${JSON.stringify(nonce)}; document.body.appendChild(script);`,
+      );
+    }
 
     return new NextResponse(html, {
       headers: { 'Content-Type': 'text/html' },

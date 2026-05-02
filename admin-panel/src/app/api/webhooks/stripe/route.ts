@@ -345,7 +345,8 @@ async function handleChargeRefunded(
     : charge.payment_intent?.id;
 
   if (!paymentIntentId) {
-    return { processed: false, message: 'No payment_intent in charge' };
+    // Malformed event payload — there is nothing to retry, acknowledge.
+    return { processed: true, message: 'No payment_intent in charge, skipping' };
   }
 
   // Find transaction by payment intent ID (include session_id for guest cleanup)
@@ -364,7 +365,8 @@ async function handleChargeRefunded(
       .maybeSingle();
 
     if (!txBySession) {
-      return { processed: false, message: 'Transaction not found for refund' };
+      // Charge is not from this account — acknowledge so Stripe stops retrying.
+      return { processed: true, message: 'Transaction not found for refund, skipping' };
     }
 
     return await processRefundForTransaction(txBySession, charge, supabase);
@@ -436,7 +438,7 @@ async function handleChargeDisputeCreated(
     : dispute.charge?.id;
 
   if (!chargeId) {
-    return { processed: false, message: 'No charge in dispute' };
+    return { processed: true, message: 'No charge in dispute, skipping' };
   }
 
   // Get charge details to find payment intent
@@ -459,7 +461,7 @@ async function handleChargeDisputeCreated(
     : charge.payment_intent?.id;
 
   if (!paymentIntentId) {
-    return { processed: false, message: 'No payment_intent in disputed charge' };
+    return { processed: true, message: 'No payment_intent in disputed charge, skipping' };
   }
 
   // Find transaction (include session_id for guest cleanup)
@@ -470,7 +472,8 @@ async function handleChargeDisputeCreated(
     .maybeSingle();
 
   if (!transaction) {
-    return { processed: false, message: 'Transaction not found for dispute' };
+    // Charge is not from this account — acknowledge so Stripe stops retrying.
+    return { processed: true, message: 'Transaction not found for dispute, skipping' };
   }
 
   // Update transaction status to disputed
