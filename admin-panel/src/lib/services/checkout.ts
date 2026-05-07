@@ -318,6 +318,9 @@ export class CheckoutService {
             custom_amount: customAmount.toString(),
             is_pwyw: 'true'
           }),
+          ...(options.embedSessionId && {
+            embed_session_id: options.embedSessionId,
+          }),
         },
         expires_at: Math.floor(Date.now() / 1000) + (checkoutConfig.expires_hours * 60 * 60),
         automatic_tax: checkoutConfig.automatic_tax,
@@ -441,7 +444,8 @@ export class CheckoutService {
   async createCheckoutSession(
     request: CreateCheckoutRequest,
     returnUrl: string,
-    userId?: string
+    userId?: string,
+    options?: { embedSessionId?: string }
   ): Promise<{ clientSecret: string; sessionId: string }> {
     // Initialize service
     await this.initialize();
@@ -599,6 +603,7 @@ export class CheckoutService {
       email: request.email,
       userId,
       returnUrl,
+      embedSessionId: options?.embedSessionId,
       coupon: couponInfo,
       customAmount: request.customAmount,
     });

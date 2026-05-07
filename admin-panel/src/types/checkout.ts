@@ -85,6 +85,7 @@ export interface CheckoutSessionOptions {
   email?: string;
   userId?: string;
   returnUrl: string;
+  embedSessionId?: string;
   coupon?: {
     id: string;
     code: string;

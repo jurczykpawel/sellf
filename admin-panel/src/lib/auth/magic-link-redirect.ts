@@ -52,7 +52,7 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
 
 /**
  * Magic-link callback URL for the free-product flow (`useFreeAccess`,
- * `FreeProductForm`, `claim-free` API). Coupon and success_url are passed
+ * `FreeProductForm`, embed free-access API). Coupon and success_url are passed
  * through; the product slug + coupon are non-secret values already available
  * to the client building this URL.
  */

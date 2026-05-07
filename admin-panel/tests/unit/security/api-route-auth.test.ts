@@ -77,7 +77,6 @@ const PUBLIC_ROUTES = new Set([
   'health/route.ts',
   'runtime-config/route.ts',
   'sellf/route.ts',
-  'sellf-embed/route.ts',
   'consent/route.ts',
   'config/route.ts',                           // config.js generator — public, rate-limited
   'status/route.ts',                           // system status — public, rate-limited
@@ -86,6 +85,8 @@ const PUBLIC_ROUTES = new Set([
   'coupons/auto-apply/route.ts',
   'coupons/verify/route.ts',
   'create-embedded-checkout/route.ts',
+  'embed/checkout-session/route.ts',
+  'embed/free-access/route.ts',
   'create-payment-intent/route.ts',
   'products/[id]/lowest-price/route.ts',
   'products/[id]/route.ts',
@@ -93,7 +94,6 @@ const PUBLIC_ROUTES = new Set([
   'public/products/[slug]/access/route.ts',
   'public/products/[slug]/content/route.ts',
   'public/products/[slug]/grant-access/route.ts',
-  'public/products/claim-free/route.ts',
   'public/refund-request/route.ts',
   'order-bumps/route.ts',
   'oto/info/route.ts',

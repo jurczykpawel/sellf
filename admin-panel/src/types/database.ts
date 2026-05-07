@@ -1403,6 +1403,7 @@ export type Database = {
           custom_price_min: number | null
           custom_price_presets: Json | null
           description: string | null
+          embed_enabled: boolean | null
           enable_waitlist: boolean | null
           features: Json | null
           icon: string | null
@@ -1427,6 +1428,7 @@ export type Database = {
           sale_price_until: string | null
           sale_quantity_limit: number | null
           sale_quantity_sold: number | null
+          seller_id: string | null
           show_price_presets: boolean | null
           slug: string | null
           stripe_price_id: string | null
@@ -1450,6 +1452,7 @@ export type Database = {
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
+          embed_enabled?: boolean | null
           enable_waitlist?: boolean | null
           features?: Json | null
           icon?: string | null
@@ -1474,6 +1477,7 @@ export type Database = {
           sale_price_until?: string | null
           sale_quantity_limit?: number | null
           sale_quantity_sold?: number | null
+          seller_id?: string | null
           show_price_presets?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
@@ -1497,6 +1501,7 @@ export type Database = {
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
+          embed_enabled?: boolean | null
           enable_waitlist?: boolean | null
           features?: Json | null
           icon?: string | null
@@ -1521,6 +1526,7 @@ export type Database = {
           sale_price_until?: string | null
           sale_quantity_limit?: number | null
           sale_quantity_sold?: number | null
+          seller_id?: string | null
           show_price_presets?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
@@ -3119,6 +3125,53 @@ export type Database = {
         }
         Relationships: []
       }
+      embed_checkout_log: {
+        Row: {
+          action: string
+          created_at: string
+          email: string | null
+          embed_session_id: string | null
+          id: string
+          origin: string | null
+          product_id: string | null
+          product_slug: string
+          status: string
+          stripe_session_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          email?: string | null
+          embed_session_id?: string | null
+          id?: string
+          origin?: string | null
+          product_id?: string | null
+          product_slug: string
+          status: string
+          stripe_session_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          email?: string | null
+          embed_session_id?: string | null
+          id?: string
+          origin?: string | null
+          product_id?: string | null
+          product_slug?: string
+          status?: string
+          stripe_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "embed_checkout_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_purchases: {
         Row: {
           claimed_at: string | null
@@ -3831,6 +3884,7 @@ export type Database = {
           custom_price_min: number | null
           custom_price_presets: Json | null
           description: string | null
+          embed_enabled: boolean
           enable_waitlist: boolean
           features: Json | null
           icon: string | null
@@ -3855,6 +3909,7 @@ export type Database = {
           sale_price_until: string | null
           sale_quantity_limit: number | null
           sale_quantity_sold: number
+          seller_id: string | null
           show_price_presets: boolean
           slug: string
           stripe_price_id: string | null
@@ -3878,6 +3933,7 @@ export type Database = {
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
+          embed_enabled?: boolean
           enable_waitlist?: boolean
           features?: Json | null
           icon?: string | null
@@ -3902,6 +3958,7 @@ export type Database = {
           sale_price_until?: string | null
           sale_quantity_limit?: number | null
           sale_quantity_sold?: number
+          seller_id?: string | null
           show_price_presets?: boolean
           slug: string
           stripe_price_id?: string | null
@@ -3925,6 +3982,7 @@ export type Database = {
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
+          embed_enabled?: boolean
           enable_waitlist?: boolean
           features?: Json | null
           icon?: string | null
@@ -3949,6 +4007,7 @@ export type Database = {
           sale_price_until?: string | null
           sale_quantity_limit?: number | null
           sale_quantity_sold?: number
+          seller_id?: string | null
           show_price_presets?: boolean
           slug?: string
           stripe_price_id?: string | null
@@ -4166,6 +4225,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      seller_embed_settings: {
+        Row: {
+          allowed_embed_origins: string[]
+          created_at: string
+          seller_id: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_embed_origins?: string[]
+          created_at?: string
+          seller_id: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_embed_origins?: string[]
+          created_at?: string
+          seller_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       shop_config: {
         Row: {
@@ -5833,4 +5913,3 @@ export const Constants = {
     },
   },
 } as const
-

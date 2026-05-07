@@ -111,12 +111,13 @@
 
             // Set up the Sellf widget container
             const widgetContainer = document.getElementById('sellf-widget');
-            widgetContainer.setAttribute('data-sellf-product', productSlug);
+            widgetContainer.setAttribute('data-sellf-embed', '');
+            widgetContainer.setAttribute('data-product-slug', productSlug);
+            widgetContainer.setAttribute('data-sellf-mode', 'free');
 
             // Load the embed script
             const script = document.createElement('script');
-            script.src = `${apiBaseUrl}/sellf-embed.js`;
-            script.setAttribute('data-api-url', apiBaseUrl);
+            script.src = `${apiBaseUrl}/embed/v1/checkout.js`;
             document.body.appendChild(script);
         } else {
             document.body.innerHTML = '<p style="color: red;">Error: No product slug provided. Use ?product=your-slug</p>';

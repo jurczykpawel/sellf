@@ -39,7 +39,7 @@ describe('Security headers', () => {
     const headerMap = new Map(headers.map((h) => [h.key, h.value]));
 
     it('sets Cross-Origin-Resource-Policy to cross-origin for embeddable endpoints', () => {
-      // sellf.js + runtime config + sellf-embed must remain loadable from external origins.
+      // sellf.js + runtime config + checkout embed loader must remain loadable from external origins.
       expect(headerMap.get('Cross-Origin-Resource-Policy')).toBe('cross-origin');
     });
 
@@ -52,7 +52,7 @@ describe('Security headers', () => {
   describe('EMBEDDABLE_RESOURCE_PATHS', () => {
     it('contains the public SDK + runtime config endpoints', () => {
       expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/api/sellf');
-      expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/api/sellf-embed');
+      expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/embed/v1/checkout.js');
       expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/api/runtime-config');
     });
 

@@ -1,14 +1,13 @@
 /**
  * Tests for script-cache.ts
- * Testing: MemoryCache, ScriptCache, generateHash, embedCache
+ * Testing: MemoryCache, ScriptCache, generateHash
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   generateHash,
   MemoryCache,
   ScriptCache,
-  embedCache,
 } from '@/lib/script-cache';
 
 describe('generateHash', () => {
@@ -301,24 +300,5 @@ describe('ScriptCache', () => {
 
       expect(response.headers.get('X-Custom')).toBe('value');
     });
-  });
-});
-
-describe('embedCache singleton', () => {
-  beforeEach(() => {
-    embedCache.clear();
-  });
-
-  afterEach(() => {
-    embedCache.clear();
-  });
-
-  it('is instance of ScriptCache', () => {
-    expect(embedCache).toBeInstanceOf(ScriptCache);
-  });
-
-  it('persists across imports', () => {
-    embedCache.set('test-key', 'test-value');
-    expect(embedCache.get('test-key')?.data).toBe('test-value');
   });
 });

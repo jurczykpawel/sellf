@@ -167,6 +167,29 @@ export async function checkRateLimit(
   }
 }
 
+export async function checkRateLimitForIdentifier(
+  actionType: string,
+  maxRequests: number,
+  windowMinutes: number,
+  identifier: string
+): Promise<boolean> {
+  const isTestMode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  if (isTestMode && process.env.RATE_LIMIT_TEST_MODE !== 'true') {
+    return true;
+  }
+
+  try {
+    if (getUpstashClient()) {
+      return await checkRateLimitUpstash(actionType, maxRequests, windowMinutes, identifier);
+    }
+
+    return await checkRateLimitDatabase(actionType, maxRequests, windowMinutes, identifier);
+  } catch (error) {
+    console.error('Rate limit check exception:', error);
+    return false;
+  }
+}
+
 /**
  * Standard rate limiting configurations
  */

@@ -59,7 +59,7 @@ const DEMO_MUTATION_ALLOWED = [
   '/api/tracking/',
   '/api/waitlist/',
   '/api/sellf',
-  '/api/sellf-embed',
+  '/api/embed/',
   '/api/oto/',
   '/api/products/',
   '/api/access',

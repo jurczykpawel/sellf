@@ -2,7 +2,7 @@
  * Script Cache Helper
  *
  * Provides in-memory caching with ETag support for serving JavaScript files.
- * Used by /api/sellf, /api/sellf-embed, and /api/config endpoints.
+ * Used by /api/sellf and /api/config endpoints.
  */
 
 import { NextResponse } from 'next/server';
@@ -26,8 +26,6 @@ export interface HttpCacheOptions {
 }
 
 const DEFAULT_TTL = 60 * 60 * 1000; // 1 hour
-const DEFAULT_MAX_AGE = 3600; // 1 hour
-const DEFAULT_SWR = 86400; // 24 hours
 
 /**
  * Generate a simple hash (djb2 algorithm)
@@ -231,8 +229,3 @@ export class ScriptCache extends MemoryCache<string> {
     return createScriptResponse(cached.data, cached.hash, additionalHeaders);
   }
 }
-
-/**
- * Singleton instance for embed widget
- */
-export const embedCache = new ScriptCache();

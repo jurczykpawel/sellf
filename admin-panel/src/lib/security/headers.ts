@@ -7,7 +7,7 @@
  * - `buildContentSecurityPolicyWithNonce`: per-request CSP, attached by
  *   middleware (`src/proxy.ts`).
  * - `buildEmbeddableResourceHeaders`: relaxed CORP override for endpoints
- *   that must load from external seller domains (sellf.js, runtime config).
+ *   that must load from external seller domains (sellf.js, checkout embed loader, runtime config).
  */
 
 interface HeaderEntry {
@@ -21,7 +21,7 @@ interface HeaderEntry {
  */
 export const EMBEDDABLE_RESOURCE_PATHS = [
   '/api/sellf',
-  '/api/sellf-embed',
+  '/embed/v1/checkout.js',
   '/api/runtime-config',
 ] as const;
 
