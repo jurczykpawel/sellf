@@ -2865,7 +2865,7 @@
       "badge": "Open Source · Self-Hosted · Gotowe dla Firm",
       "headlineTop": "Twoje Produkty.",
       "headlineBottom": "Twoje Zasady.",
-      "metaDescription": "Sprzedawaj produkty cyfrowe na własnych zasadach. Self-hosted, bezpieczna i w pełni Twoja. Bez opłat miesięcznych, bez pośredników.",
+      "metaDescription": "Sprzedawaj produkty cyfrowe i subskrypcje na własnych zasadach. Self-hosted, bezpieczna i w pełni Twoja. Bez opłat miesięcznych, bez pośredników.",
       "subtitle": "Sprzedawaj produkty cyfrowe na własnych zasadach - bez oddawania przychodów platformom. <selfHosted>Self-hosted</selfHosted>, <secure>bezpieczna</secure> i <yours>w pełni Twoja</yours>.",
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "bezpieczna",
@@ -2915,6 +2915,10 @@
         "title": "Przyjmuj płatności z całego świata",
         "desc": "Klienci płacą bez opuszczania Twojej strony. 20+ walut, zakupy bez zakładania konta, szyfrowanie na poziomie banków."
       },
+      "subscriptions": {
+        "title": "Pobieraj opłaty cyklicznie",
+        "desc": "Sprzedawaj członkostwa i dostęp cykliczny obok produktów jednorazowych. Okresy próbne, kupony Stripe (raz, N cykli, na zawsze) i webhooki na każde zdarzenie cyklu życia."
+      },
       "orderBumps": {
         "title": "Zarabiaj 30% więcej na zamówieniu",
         "desc": "Przy płatności zaproponuj dodatkowy produkt. Klient klika 'Dodaj' i wartość zamówienia rośnie o 30-50%."
@@ -2930,6 +2934,10 @@
       "leads": {
         "title": "Buduj listę mailingową za darmo",
         "desc": "Oferuj darmowy produkt i zbieraj emaile. Klienci logują się jednym kliknięciem z maila, bez haseł. Potem sprzedawaj im płatne treści."
+      },
+      "waitlist": {
+        "title": "Sprawdź zainteresowanie zanim zbudujesz",
+        "desc": "Dodaj waitlistę do produktu w przygotowaniu. Zbieraj maile przed startem, każde zapisanie wysyła webhook do twojego mailera (n8n, Make, Listmonk). Zalogowanym pre-fill maila z konta, jednym klikiem nadpisanie."
       },
       "delivery": {
         "title": "Dostarczaj treści po swojemu",
@@ -3088,6 +3096,13 @@
         "feature1": "Śledzenie postępu wideo (Wkrótce)",
         "feature2": "Dostęp na 30 lub 90 dni",
         "feature3": "Szybkie wideo przez Bunny.net"
+      },
+      "subscriptions": {
+        "title": "Subskrypcje i członkostwa",
+        "desc": "Sprzedawaj dostęp cykliczny zamiast jednorazowego. Miesięcznie, rocznie, z okresem próbnym lub bez. Klient anuluje sam, faktury wpadają automatycznie.",
+        "feature1": "Płatności cykliczne (miesiąc, rok, dowolny interwał Stripe)",
+        "feature2": "Opcjonalny okres próbny per produkt",
+        "feature3": "Panel klienta: anuluj, wznów, zmień kartę"
       },
       "digital": {
         "title": "Produkty Cyfrowe",

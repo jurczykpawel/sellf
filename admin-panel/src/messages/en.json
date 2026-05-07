@@ -2850,7 +2850,7 @@
       "badge": "Open Source · Self-Hosted · Enterprise-Ready",
       "headlineTop": "Your Products.",
       "headlineBottom": "Your Rules.",
-      "metaDescription": "Sell digital products on your own terms. Self-hosted, secure, and fully yours. No monthly fees, no middlemen.",
+      "metaDescription": "Sell digital products and subscriptions on your own terms. Self-hosted, secure, and fully yours. No monthly fees, no middlemen.",
       "subtitle": "Sell digital products on your own terms - without giving away revenue to platforms. <selfHosted>Self-hosted</selfHosted>, <secure>secure</secure>, and <yours>fully yours</yours>.",
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "secure",
@@ -2900,6 +2900,10 @@
         "title": "Accept payments everywhere",
         "desc": "Customers pay without leaving your page. 20+ currencies, guest checkout, bank-level encryption."
       },
+      "subscriptions": {
+        "title": "Charge customers on a schedule",
+        "desc": "Sell memberships and recurring access alongside one-time products. Free trials, Stripe-native coupon duration (once, N cycles, forever), and webhooks on every lifecycle event."
+      },
       "orderBumps": {
         "title": "Earn 30% more per order",
         "desc": "Show an extra offer at checkout. Buyer clicks 'Add' and the order value grows 30-50%."
@@ -2915,6 +2919,10 @@
       "leads": {
         "title": "Build your audience for free",
         "desc": "Offer a free product and collect emails. Buyers log in with one click from email, no passwords. Then sell them premium content."
+      },
+      "waitlist": {
+        "title": "Validate before you build",
+        "desc": "Add a waitlist to upcoming products. Capture emails before launch, signups fire a webhook to your mailer (n8n, Make, Listmonk). Signed-in users see their email pre-filled with one-click override."
       },
       "delivery": {
         "title": "Deliver content your way",
@@ -3073,6 +3081,13 @@
         "feature1": "Video progress tracking (Coming Soon)",
         "feature2": "Access for 30 or 90 days",
         "feature3": "Fast video via Bunny.net"
+      },
+      "subscriptions": {
+        "title": "Subscriptions & Memberships",
+        "desc": "Sell recurring access instead of one-time. Monthly, yearly, with or without a trial. Customers cancel themselves and invoices arrive automatically.",
+        "feature1": "Recurring billing on month, year, or any Stripe interval",
+        "feature2": "Optional free trial per product",
+        "feature3": "Customer portal: cancel, resume, update card"
       },
       "digital": {
         "title": "Digital Products",

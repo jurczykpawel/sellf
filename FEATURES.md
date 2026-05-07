@@ -120,6 +120,52 @@
 
 ---
 
+## 4a. Subscriptions & Recurring Billing
+
+### Product Configuration
+- **Product type toggle** - `one_time` or `subscription` per product
+- **Billing interval** - `day` / `week` / `month` / `year` + interval count (e.g., every 2 months)
+- **Recurring price** - Separate `recurring_price` column with multi-currency support
+- **Free trial** - Optional `trial_days` per product (0–730), card collected upfront, first charge after trial
+- **Stripe Price binding** - Lazy-created Stripe `Price` per product, reused across checkouts; cross-checked in webhook handlers to defend product identity against mutable subscription metadata
+
+### Customer Lifecycle
+- **Anonymous checkout** - Same flow as one-time. No forced login. Account materializes via webhook on first successful payment
+- **Customer portal** - Built into Sellf (`/my-purchases`):
+  - Cancel at period end
+  - Resume canceled subscription before period ends
+  - View past invoices (Stripe-hosted PDF links)
+  - Update payment method via Stripe `<PaymentElement>` + SetupIntent
+  - No redirect to a separate Stripe-hosted portal (UX consistency with embedded checkout)
+- **Cancel policy** - Always at period end; customer keeps access until paid period expires
+- **Refund policy** - Honors product `refund_period_days`. First-invoice refund auto-cancels at period end
+- **Stripe customer mapping** - `stripe_customers` table links Sellf user → Stripe Customer with unique constraints
+
+### Coupons for Subscriptions
+- **Stripe-native duration** - `once` / `repeating N cycles` / `forever` on `coupons` table
+- **Repeating cycles** - `duration_in_months` for fixed promotional windows (e.g., 50% off for first 3 months)
+
+### Webhook Events (Outgoing)
+Sellf does not send transactional emails for subscription events. It dispatches signed outgoing webhooks so sellers can route them to n8n, Make, Listmonk, or any mailer:
+- `subscription.created` - First successful charge / activation
+- `subscription.updated` - Plan change, payment method update, etc.
+- `subscription.canceled` - Cancellation effective (period end)
+- `subscription.trial_ending` - 3-day heads-up before trial converts
+- `invoice.paid` - Recurring renewal succeeded
+- `invoice.payment_failed` - Dunning trigger
+
+### Stripe Webhooks Handled
+- `customer.subscription.created` / `updated` / `deleted`
+- `invoice.payment_succeeded` / `payment_failed`
+- `customer.subscription.trial_will_end`
+
+### Database
+- `stripe_customers` (UUID PK, `user_id` FK, `stripe_customer_id`, RLS enabled)
+- `subscriptions` (subscription state mirrored from Stripe, FK to `payment_transactions` and `user_product_access`)
+- Cross-field constraint on `products`: subscription type requires `billing_interval` + `billing_interval_count` + `recurring_price` all set
+
+---
+
 ## 5. Coupons and Discounts
 
 ### Coupon Types
@@ -207,17 +253,27 @@
 ### Configuration
 - **enable_waitlist** - Toggle per product
 - **Inactive + waitlist = form** - Form for inactive products
-- **Inactive + no waitlist = 404** - Standard error
+- **Inactive + no waitlist = 404** - Standard error (no information leak about hidden work-in-progress products)
 
 ### Signup Flow
 - **Email capture** - Collecting emails
 - **Terms acceptance** - Mandatory consent
 - **Turnstile CAPTCHA** - Bot protection
-- **Webhook trigger** - `waitlist.signup` event
+- **Disposable email blocking** - Same validator as checkout (`isDisposableEmail()`)
+- **Webhook trigger** - `waitlist.signup` event with HMAC-SHA256 signature
+
+### Signed-In User UX (v2026.4.1)
+- **Pre-filled notification email** - Logged-in users see their account email pre-filled, no re-typing
+- **Override option** - "Use a different email" link reveals a captcha-gated form for users who want notifications elsewhere (shared account, work email, etc.)
+- **Three signup paths** in `/api/waitlist/signup`:
+  1. Signed-in + no body email → uses session email, no captcha required
+  2. Signed-in + body email override → captcha required, body email validated and used
+  3. Anonymous → captcha required, body email mandatory
 
 ### Admin Features
-- **Webhook configuration warnings** - Alert when webhook is missing
-- **Products count** - How many products have waitlist enabled
+- **Webhook configuration warnings** - Alert when webhook is missing for `waitlist.signup` event
+- **Products count** - How many products have waitlist enabled (per webhook)
+- **Last-webhook warning** - Modal when deleting the only webhook handling waitlist signups, listing affected products
 - **Dashboard warning** - Notification about missing configuration
 
 ---
@@ -746,13 +802,13 @@ configured hostname or a direct subdomain qualifies. Source of truth:
   - Automated follow-up
   - Dynamic coupon code
 
-### 12. Stripe Subscriptions
-- **Status**: Planned
+### 12. Subscription Upgrades / Downgrades & MRR Dashboard
+- **Status**: Planned (subscriptions MVP shipped, see section 4a)
 - **Features**:
-  - Stripe Billing integration
-  - Subscription lifecycle events
-  - "My Subscription" portal
-  - Dunning management
+  - Plan switching (upgrade/downgrade with prorated billing)
+  - Pause subscription
+  - MRR / churn / LTV dashboard
+  - Cohort retention curves
 
 ### 13. Polish Payment Gateways
 - **Status**: Planned
