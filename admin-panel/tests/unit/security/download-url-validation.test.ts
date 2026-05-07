@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { validateCreateProduct, validateUpdateProduct } from '@/lib/validations/product';
+import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
+
+const ENV_KEY = 'NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS';
 
 /**
  * ============================================================================
@@ -232,6 +235,123 @@ describe('Download URL Validation Security', () => {
       };
       const result = validateUpdateProduct(data);
       expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('Env-extended host list (NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS)', () => {
+    const originalEnv = process.env[ENV_KEY];
+
+    beforeEach(() => {
+      delete process.env[ENV_KEY];
+    });
+
+    afterEach(() => {
+      if (originalEnv === undefined) {
+        delete process.env[ENV_KEY];
+      } else {
+        process.env[ENV_KEY] = originalEnv;
+      }
+    });
+
+    it('accepts a hostname added via env var', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy/lead-magnet.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('accepts a direct subdomain of an env-added hostname', () => {
+      process.env[ENV_KEY] = 'techskills.academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy/lead-magnet.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('accepts multiple comma-separated env hostnames', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy, assets.example.com';
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/file.pdf')).toBe(true);
+      expect(isTrustedDownloadUrl('https://assets.example.com/file.pdf')).toBe(true);
+    });
+
+    it('rejects a hostname that merely ends with the env-added value as a subdomain of an unrelated host', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy.other.example/x.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('rejects a hostname that shares the env-added value as a prefix without a dot boundary', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy-other.example/x.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('still requires HTTPS for env-added hostnames', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy';
+      const data = createProductWithDownloadUrl('http://lm.techskills.academy/file.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('drops env entries that include a protocol prefix', () => {
+      process.env[ENV_KEY] = 'https://lm.techskills.academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy/file.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('drops env entries that include a path segment', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy/path';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy/file.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('drops env entries that include wildcard characters', () => {
+      process.env[ENV_KEY] = '*.techskills.academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy/file.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('drops env entries that contain whitespace inside the value', () => {
+      process.env[ENV_KEY] = 'lm techskills academy';
+      const data = createProductWithDownloadUrl('https://lm.techskills.academy/file.pdf');
+      const result = validateCreateProduct(data);
+      expect(result.isValid).toBe(false);
+    });
+
+    it('ignores empty list entries from leading, trailing, or double commas', () => {
+      process.env[ENV_KEY] = ',,lm.techskills.academy,,';
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/file.pdf')).toBe(true);
+      expect(isTrustedDownloadUrl('https://bucket.s3.amazonaws.com/file.zip')).toBe(true);
+    });
+
+    it('normalizes env entries to lowercase before matching', () => {
+      process.env[ENV_KEY] = 'LM.TECHSKILLS.ACADEMY';
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/file.pdf')).toBe(true);
+    });
+
+    it('falls back to the baseline list when env var is empty', () => {
+      process.env[ENV_KEY] = '';
+      expect(isTrustedDownloadUrl('https://bucket.s3.amazonaws.com/file.zip')).toBe(true);
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/file.pdf')).toBe(false);
+    });
+
+    it('falls back to the baseline list when env var is unset', () => {
+      delete process.env[ENV_KEY];
+      expect(isTrustedDownloadUrl('https://bucket.s3.amazonaws.com/file.zip')).toBe(true);
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/file.pdf')).toBe(false);
+    });
+
+    it('exposes env additions to both validateCreateProduct and isTrustedDownloadUrl', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy';
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/x')).toBe(true);
+      const result = validateCreateProduct(
+        createProductWithDownloadUrl('https://lm.techskills.academy/x')
+      );
+      expect(result.isValid).toBe(true);
     });
   });
 

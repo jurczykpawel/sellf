@@ -571,6 +571,18 @@ bruno/environments/local.bru.example → local.bru
 - **Redirect** - Redirect to external URL
 - **Video embed** - Embedded video
 
+### Download URL Allowlist
+Download URLs must point to one of the supported storage providers (S3, Cloudflare R2,
+Google Drive, Dropbox, OneDrive, Bunny CDN, etc.) and use HTTPS.
+
+Operators can add their own hostnames via env var:
+```
+NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS=lm.example.com,assets.example.com
+```
+Subdomain match is automatic — `example.com` also accepts `cdn.example.com`. Only the
+configured hostname or a direct subdomain qualifies. Source of truth:
+`src/lib/trustedDownloadProviders.ts`.
+
 ### Video Features
 - **Bunny.net support** - Video streaming
 - **Progress tracking** - `video_progress` table

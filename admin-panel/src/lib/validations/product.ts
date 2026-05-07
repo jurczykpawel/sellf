@@ -6,6 +6,7 @@
 
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 
 /**
  * Explicit field list for Products API v1 responses.
@@ -436,44 +437,10 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
                 errors.push(`Content item ${index + 1}: Download URL must use HTTPS`);
               }
 
-              // Check for trusted storage providers
-              // SECURITY FIX (V15): Use endsWith() instead of includes() to prevent domain spoofing
-              // e.g., cdn.attacker.com should NOT match just because it contains 'cdn.'
-              const trustedDomains = [
-                // AWS
-                'amazonaws.com',        // AWS S3
-                'cloudfront.net',       // AWS CloudFront
-                // Google
-                'googleapis.com',       // Google Cloud Storage
-                'drive.google.com',     // Google Drive
-                'docs.google.com',      // Google Docs
-                // Microsoft
-                'onedrive.live.com',    // OneDrive
-                '1drv.ms',              // OneDrive short links
-                'sharepoint.com',       // Microsoft SharePoint
-                'azureedge.net',        // Azure CDN
-                // Supabase
-                'supabase.co',          // Supabase Storage
-                // Bunny CDN
-                'bunny.net',            // Bunny CDN
-                'b-cdn.net',            // Bunny CDN alt domain
-                // Dropbox
-                'dropbox.com',          // Dropbox
-                'dropboxusercontent.com', // Dropbox direct links
-                // Cloudflare
-                'cloudflarestorage.com', // Cloudflare R2
-                // Other trusted providers
-                'box.com',              // Box
-                'mega.nz',              // Mega
-                'mediafire.com',        // MediaFire
-                'wetransfer.com',       // WeTransfer
-                'sendspace.com',        // SendSpace
-                'cloudinary.com',       // Cloudinary
-                'imgix.net',            // Imgix CDN
-                'fastly.net',           // Fastly CDN
-              ];
-
+              // Source of truth: src/lib/trustedDownloadProviders.ts (baseline +
+              // sanitized NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS env additions).
               const hostname = urlObj.hostname.toLowerCase();
+              const trustedDomains = getTrustedDownloadProviders();
               const isTrustedStorage = trustedDomains.some(domain =>
                 hostname === domain || hostname.endsWith('.' + domain)
               );
