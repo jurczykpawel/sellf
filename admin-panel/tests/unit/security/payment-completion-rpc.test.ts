@@ -373,10 +373,13 @@ describe('PWYW + Bumps combination', () => {
     // Verify line items: 1 main + 1 bump
     const { data: lineItems } = await supabaseAdmin
       .from('payment_line_items')
-      .select('item_type, product_id')
+      .select('item_type, product_id, unit_price, total_price')
       .eq('transaction_id', tx!.id);
     expect(lineItems!.length).toBe(2);
-    expect(lineItems!.find(li => li.item_type === 'main_product')).toBeTruthy();
+    const mainLineItem = lineItems!.find(li => li.item_type === 'main_product');
+    expect(mainLineItem).toBeTruthy();
+    expect(Number(mainLineItem!.unit_price)).toBe(15);
+    expect(Number(mainLineItem!.total_price)).toBe(15);
     expect(lineItems!.find(li => li.item_type === 'order_bump' && li.product_id === pwywBumpProduct.id)).toBeTruthy();
 
     // Verify guest_purchase was created (no user_id passed)

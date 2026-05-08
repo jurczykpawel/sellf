@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
         products!inner(name, slug),
         user_id,
         session_id,
+        metadata,
         refund_id,
         refunded_amount,
         refunded_at,
@@ -215,6 +216,7 @@ export async function GET(request: NextRequest) {
       line_items: lineItemsByTransactionId.get(p.id) ?? [],
       user_id: p.user_id,
       session_id: p.session_id,
+      metadata: p.metadata ?? {},
       refunded_amount: p.refunded_amount ?? 0,
       refund: p.refund_id ? {
         id: p.refund_id,

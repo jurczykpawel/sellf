@@ -60,6 +60,13 @@ export default function PaymentTransactionsTable({
     }).format(amount / 100);
   };
 
+  const formatMajorCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+    }).format(amount);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -71,8 +78,10 @@ export default function PaymentTransactionsTable({
   };
 
   const getTransactionDisplayItems = (transaction: PaymentTransaction): PaymentTransactionLineItem[] => {
-    if (transaction.line_items?.length) {
-      return transaction.line_items;
+    const storedItems = transaction.line_items ?? [];
+
+    if (storedItems.length) {
+      return storedItems;
     }
 
     return [{
@@ -82,8 +91,8 @@ export default function PaymentTransactionsTable({
       item_type: 'main_product',
       product_name: transaction.product?.name ?? null,
       quantity: 1,
-      unit_price: transaction.amount,
-      total_price: transaction.amount,
+      unit_price: transaction.amount / 100,
+      total_price: transaction.amount / 100,
       currency: transaction.currency,
     }];
   };
@@ -224,9 +233,15 @@ export default function PaymentTransactionsTable({
       </div>
 
       {/* Details Modal */}
-      {detailsTransaction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-sf-base p-6 max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto">
+      {detailsTransaction && (() => {
+        const displayItems = getTransactionDisplayItems(detailsTransaction);
+        const lineItemsSubtotal = displayItems.reduce((sum, item) => sum + item.total_price, 0);
+        const paidTotal = detailsTransaction.amount / 100;
+        const showSubtotal = Math.abs(lineItemsSubtotal - paidTotal) > 0.009;
+
+        return (
+        <div className="fixed inset-0 bg-sf-deep/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-sf-raised/95 border border-sf-border shadow-2xl rounded-2xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
                 <h3 className="text-lg font-semibold text-sf-heading">
@@ -238,7 +253,7 @@ export default function PaymentTransactionsTable({
               </div>
               <button
                 onClick={() => setDetailsTransaction(null)}
-                className="text-sf-muted hover:text-sf-heading"
+                className="h-9 w-9 rounded-full bg-sf-base/70 border border-sf-border text-sf-muted hover:text-sf-heading hover:bg-sf-hover transition-colors"
                 aria-label={t('close')}
               >
                 &times;
@@ -292,12 +307,12 @@ export default function PaymentTransactionsTable({
               )}
             </div>
 
-            <div className="border border-sf-border overflow-hidden">
-              <div className="px-4 py-3 bg-sf-raised text-sm font-semibold text-sf-heading">
+            <div className="border border-sf-border bg-sf-base/60 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 bg-sf-float/60 text-sm font-semibold text-sf-heading">
                 {t('items')}
               </div>
               <div className="divide-y divide-sf-border-subtle">
-                {getTransactionDisplayItems(detailsTransaction).map((item) => (
+                {displayItems.map((item) => (
                   <div key={`${item.id}-${item.item_type}`} className="px-4 py-3 flex items-start justify-between gap-4">
                     <div>
                       <div className="text-sm font-medium text-sf-heading">
@@ -310,7 +325,7 @@ export default function PaymentTransactionsTable({
                       </div>
                     </div>
                     <div className="text-sm font-medium text-sf-heading whitespace-nowrap">
-                      {formatCurrency(item.total_price, item.currency || detailsTransaction.currency)}
+                      {formatMajorCurrency(item.total_price, item.currency || detailsTransaction.currency)}
                     </div>
                   </div>
                 ))}
@@ -318,8 +333,16 @@ export default function PaymentTransactionsTable({
             </div>
 
             <div className="mt-5 space-y-2 text-sm">
+              {showSubtotal && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-sf-muted">{t('subtotal')}</span>
+                  <span className="font-medium text-sf-heading">
+                    {formatMajorCurrency(lineItemsSubtotal, detailsTransaction.currency)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between gap-4">
-                <span className="text-sf-muted">{t('total')}</span>
+                <span className="text-sf-muted">{showSubtotal ? t('paid') : t('total')}</span>
                 <span className="font-medium text-sf-heading">
                   {formatCurrency(detailsTransaction.amount, detailsTransaction.currency)}
                 </span>
@@ -345,19 +368,20 @@ export default function PaymentTransactionsTable({
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setDetailsTransaction(null)}
-                className="bg-sf-accent hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 transition-colors"
+                className="bg-sf-accent-bg hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 rounded-lg transition-colors"
               >
                 {t('close')}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Refund Modal */}
       {showRefundModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-sf-base p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-sf-deep/75 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-sf-raised/95 border border-sf-border shadow-2xl rounded-2xl p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-sf-heading mb-4">
               {tRefund('title')}
             </h3>
@@ -381,7 +405,7 @@ export default function PaymentTransactionsTable({
                 <button
                   onClick={() => handleRefund(showRefundModal)}
                   disabled={!refundReason || refundingId === showRefundModal}
-                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 transition-colors"
+                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
                   {refundingId === showRefundModal ? tRefund('processing') : tRefund('fullRefund')}
                 </button>
@@ -390,7 +414,7 @@ export default function PaymentTransactionsTable({
                     setShowRefundModal(null);
                     setRefundReason('');
                   }}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 transition-colors"
+                  className="flex-1 bg-sf-base hover:bg-sf-hover border border-sf-border text-sf-heading font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
                   {tRefund('cancel')}
                 </button>

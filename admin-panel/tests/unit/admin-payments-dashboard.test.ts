@@ -86,6 +86,15 @@ describe('admin payments dashboard', () => {
     expect(transactionsTableSource).toContain('getTransactionDisplayItems');
   });
 
+  it('formats transaction line items as current major-unit amounts, not minor-unit transaction totals', () => {
+    expect(transactionsTableSource).toContain('formatMajorCurrency');
+    expect(transactionsTableSource).toContain('total_price: transaction.amount / 100');
+    expect(transactionsTableSource).toContain('formatMajorCurrency(item.total_price');
+    expect(transactionsTableSource).not.toContain('formatCurrency(item.total_price');
+    expect(transactionsTableSource).not.toContain('areLineItemAmountsStoredAsMinorUnits');
+    expect(transactionsTableSource).not.toContain('metadata?.is_pwyw');
+  });
+
   it('stores subscription payment transaction amounts in minor units like one-time payments', () => {
     expect(subscriptionHandlersSource).toContain('amount: invoice.amount_paid ?? 0');
     expect(subscriptionHandlersSource).not.toContain('amount: (invoice.amount_paid ?? 0) / 100');
