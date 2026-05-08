@@ -10,6 +10,8 @@ import type { ShopConfig } from '@/lib/actions/shop-config'
 import DemoBanner from './DemoBanner'
 import { useUpdateCheck } from '@/hooks/useUpdateCheck'
 import UpdateNotificationModal from './UpdateNotificationModal'
+import { api } from '@/lib/api/client'
+import { formatSidebarBadgeCount, isSidebarLinkActive } from '@/lib/navigation/sidebar'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -135,6 +137,10 @@ const Icons = {
 
 export default function DashboardLayout({ children, user: userProp, isAdmin: isAdminProp, shopConfig, showSellfCTA, adminRole }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [sidebarBadges, setSidebarBadges] = useState({
+    pendingRefunds: 0,
+    failedWebhooks: 0,
+  })
   // Lazy init reads localStorage on first render — no useEffect+setState cascade.
   const [isPinned, setIsPinned] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -189,6 +195,40 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     signOut()
   }
 
+  useEffect(() => {
+    if (!user || !isAdmin) {
+      return
+    }
+
+    let cancelled = false
+
+    const fetchSidebarBadges = async () => {
+      try {
+        const [refunds, webhooks] = await Promise.all([
+          api.list<unknown>('refund-requests', { status: 'pending', limit: 100 }),
+          api.list<unknown>('webhooks/logs', { status: 'failed', limit: 100 }),
+        ])
+
+        if (cancelled) return
+
+        setSidebarBadges({
+          pendingRefunds: (refunds.data?.length || 0) + (refunds.pagination?.has_more ? 1 : 0),
+          failedWebhooks: (webhooks.data?.length || 0) + (webhooks.pagination?.has_more ? 1 : 0),
+        })
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[DashboardLayout] Failed to fetch sidebar badges:', err)
+        }
+      }
+    }
+
+    fetchSidebarBadges()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, isAdmin])
+
   // Navigation Items Config — all admin links visible for both platform and seller admins
   const adminLinks = [
     { href: '/dashboard', label: t('dashboard'), icon: Icons.dashboard, exact: true },
@@ -197,8 +237,18 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     { href: '/dashboard/categories', label: t('categories'), icon: Icons.categories },
     { href: '/dashboard/order-bumps', label: t('orderBumps'), icon: Icons.orderBumps },
     { href: '/dashboard/coupons', label: t('coupons'), icon: Icons.coupons },
-    { href: '/dashboard/refund-requests', label: t('refundRequests', { defaultValue: 'Refund Requests' }), icon: Icons.refunds },
-    { href: '/dashboard/webhooks', label: t('webhooks'), icon: Icons.webhooks },
+    {
+      href: '/dashboard/refund-requests',
+      label: t('refundRequests', { defaultValue: 'Refund Requests' }),
+      icon: Icons.refunds,
+      badge: formatSidebarBadgeCount(sidebarBadges.pendingRefunds),
+    },
+    {
+      href: '/dashboard/webhooks',
+      label: t('webhooks'),
+      icon: Icons.webhooks,
+      badge: formatSidebarBadgeCount(sidebarBadges.failedWebhooks),
+    },
     { href: '/dashboard/integrations', label: t('integrations'), icon: Icons.integrations },
     { href: '/dashboard/api-keys', label: t('apiKeys', { defaultValue: 'API Keys' }), icon: Icons.apiKeys },
     { href: '/dashboard/users', label: t('users'), icon: Icons.users },
@@ -215,27 +265,32 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
 
   // Sidebar nav item with collapsible text. Render-fn (lowercase) instead of
   // an inline component so React doesn't unmount/remount it on each parent render.
-  const renderSidebarNavItem = ({ href, label, icon, exact, expanded }: {
-    href: string, label: string, icon: React.ReactNode, exact?: boolean, expanded: boolean
+  const renderSidebarNavItem = ({ href, label, icon, exact, expanded, badge }: {
+    href: string, label: string, icon: React.ReactNode, exact?: boolean, expanded: boolean, badge?: string | null
   }) => {
-    const active = exact ? pathname === href || pathname === href + '/' : pathname.includes(href);
+    const active = isSidebarLinkActive(pathname, href, exact);
     return (
       <Link
         href={href}
         onClick={() => setIsSidebarOpen(false)}
-        className={`flex items-center gap-3 py-2.5 px-4 border-l-[3px] whitespace-nowrap transition-colors duration-150 group ${
+        className={`relative flex items-center gap-3 py-2.5 px-4 border-l-[3px] whitespace-nowrap transition-colors duration-150 group ${
           active
             ? 'border-sf-accent bg-sf-sidebar-accent text-sf-sidebar-text-active font-semibold'
             : 'border-transparent text-sf-sidebar-text hover:bg-sf-hover hover:text-sf-sidebar-text-active'
         }`}
       >
-        <span className={`flex-shrink-0 transition-opacity duration-150 ${
+        <span className={`relative flex-shrink-0 transition-opacity duration-150 ${
           active ? 'text-sf-accent' : 'opacity-60 group-hover:opacity-100'
         }`}>
           {icon}
+          {badge && !expanded && (
+            <span className="absolute -right-2 -top-2 min-w-4 h-4 px-1 rounded-full bg-sf-danger text-white text-[10px] leading-4 text-center font-bold">
+              {badge}
+            </span>
+          )}
         </span>
         <span
-          className="transition-opacity"
+          className="min-w-0 flex-1 overflow-hidden text-ellipsis transition-opacity"
           style={{
             opacity: expanded ? 1 : 0,
             transitionDuration: 'var(--sf-duration-normal, 250ms)',
@@ -244,6 +299,11 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
         >
           {label}
         </span>
+        {badge && expanded && (
+          <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-sf-danger px-1.5 text-[11px] font-bold leading-none text-white">
+            {badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -632,9 +692,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
           { href: '/dashboard/settings', label: t('settings'), icon: Icons.settings },
           { href: '/profile', label: t('profile'), icon: Icons.profile },
         ].map(tab => {
-          const active = tab.exact
-            ? pathname === tab.href || pathname === tab.href + '/'
-            : pathname.includes(tab.href);
+          const active = isSidebarLinkActive(pathname, tab.href, tab.exact);
           return (
             <Link
               key={tab.href}

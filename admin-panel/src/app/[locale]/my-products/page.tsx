@@ -26,6 +26,7 @@ interface UserProductAccess {
   id: string;
   product: Product;
   granted_at: string;
+  expires_at: string | null;
 }
 
 function ProductImage({ src, alt, icon }: { src: string; alt: string; icon: string }) {
@@ -54,6 +55,16 @@ function formatDateLocalized(dateString: string, locale: string) {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+  });
+}
+
+function formatDateTimeLocalized(dateString: string, locale: string) {
+  return new Date(dateString).toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
@@ -110,6 +121,7 @@ export default function MyProductsPage() {
         .map((a) => ({
           id: (a.product as unknown as Product).id,
           granted_at: a.access_granted_at,
+          expires_at: a.access_expires_at,
           product: a.product as unknown as Product,
         }));
 
@@ -202,7 +214,9 @@ export default function MyProductsPage() {
   const freeProducts = availableProducts.filter(p => p.price === 0);
   const paidProducts = availableProducts.filter(p => p.price > 0);
 
-  const renderOwnedProductCard = (product: Product, grantedAt: string) => (
+  const renderOwnedProductCard = (access: UserProductAccess) => {
+    const { product, granted_at: grantedAt, expires_at: expiresAt } = access;
+    return (
     <div
       key={product.id}
       className="group bg-sf-raised/80 backdrop-blur-md border border-sf-success/30 rounded-2xl overflow-hidden hover:bg-sf-hover transition-all duration-300 active:scale-[0.98] relative"
@@ -234,8 +248,15 @@ export default function MyProductsPage() {
           {product.description}
         </p>
 
-        <div className="text-sm text-sf-muted mb-4">
-          {t('accessSince', { date: formatDateLocalized(grantedAt, locale) })}
+        <div className="space-y-1 text-sm text-sf-muted mb-4">
+          {expiresAt && (
+            <div className="font-medium text-sf-warning">
+              {t('accessExpires', { date: formatDateTimeLocalized(expiresAt, locale) })}
+            </div>
+          )}
+          <div>
+            {t('accessSince', { date: formatDateLocalized(grantedAt, locale) })}
+          </div>
         </div>
 
         <Link
@@ -246,7 +267,8 @@ export default function MyProductsPage() {
         </Link>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderAvailableProductCard = (product: Product) => (
     <div
@@ -338,7 +360,7 @@ export default function MyProductsPage() {
               <p className="text-sf-body mt-1">{t('yourProductsDescription')}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userProducts.map((userProduct) => renderOwnedProductCard(userProduct.product, userProduct.granted_at))}
+              {userProducts.map((userProduct) => renderOwnedProductCard(userProduct))}
             </div>
           </section>
         )}

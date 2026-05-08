@@ -16,20 +16,7 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { validateProductId, validateUUID } from '@/lib/validations/product';
-
-interface RefundListProductRelation {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-interface RefundListTransactionRelation {
-  id: string;
-  customer_email: string;
-  amount: number;
-  currency: string;
-  created_at: string;
-}
+import { transformRefundRequestListItem } from '@/lib/refunds/api-transform';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -143,29 +130,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform response
-    const transformedItems = requests.map(req => ({
-      id: req.id,
-      user_id: req.user_id,
-      product_id: req.product_id,
-      transaction_id: req.transaction_id,
-      customer_email: req.customer_email,
-      requested_amount: req.requested_amount,
-      currency: req.currency,
-      reason: req.reason,
-      status: req.status,
-      admin_response: req.admin_response,
-      processed_at: req.processed_at,
-      created_at: req.created_at,
-      updated_at: req.updated_at,
-      product: req.product ? (() => {
-        const p = req.product as unknown as RefundListProductRelation;
-        return { id: p.id, name: p.name, slug: p.slug };
-      })() : null,
-      transaction: req.transaction ? (() => {
-        const t = req.transaction as unknown as RefundListTransactionRelation;
-        return { id: t.id, customer_email: t.customer_email, amount: t.amount, currency: t.currency, created_at: t.created_at };
-      })() : null,
-    }));
+    const transformedItems = requests.map(req => transformRefundRequestListItem(req));
 
     const { items, pagination } = createPaginationResponse(
       transformedItems,

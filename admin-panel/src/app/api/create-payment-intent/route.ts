@@ -6,6 +6,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
+import { extractPaymentIntentIdSecure } from '@/lib/stripe/security';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       productId,
+      clientSecret,
       email,
       firstName,
       lastName,
@@ -363,7 +365,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7b. Create PaymentIntent
+    // 7b. Create or update PaymentIntent
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: totalAmount,
       currency: product.currency.toLowerCase(),
@@ -509,6 +511,78 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+
+    const existingPaymentIntentId =
+      typeof clientSecret === 'string' ? extractPaymentIntentIdSecure(clientSecret) : null;
+
+    if (clientSecret && !existingPaymentIntentId) {
+      return NextResponse.json(
+        { error: 'Invalid payment intent format' },
+        { status: 400 }
+      );
+    }
+
+    if (existingPaymentIntentId) {
+      const existingPaymentIntent = await stripe.paymentIntents.retrieve(existingPaymentIntentId);
+
+      if (!['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(existingPaymentIntent.status)) {
+        return NextResponse.json(
+          { error: 'Payment intent is not in a modifiable state' },
+          { status: 400 }
+        );
+      }
+
+      if (existingPaymentIntent.currency.toUpperCase() !== product.currency.toUpperCase()) {
+        return NextResponse.json(
+          { error: 'Payment intent currency mismatch' },
+          { status: 400 }
+        );
+      }
+
+      if (existingPaymentIntent.metadata?.product_id !== productId) {
+        return NextResponse.json(
+          { error: 'Payment intent product mismatch' },
+          { status: 400 }
+        );
+      }
+
+      const updatedPaymentIntent = await stripe.paymentIntents.update(existingPaymentIntentId, {
+        amount: totalAmount,
+        metadata: paymentIntentParams.metadata,
+        receipt_email: finalEmail || undefined,
+      });
+
+      try {
+        const { error: updateError } = await dataClient
+          .from('payment_transactions')
+          .update({
+            user_id: user?.id || null,
+            product_id: productId,
+            customer_email: finalEmail || 'pending@sellf.app',
+            amount: totalAmount,
+            currency: product.currency,
+            metadata: {
+              ...paymentIntentParams.metadata,
+              bump_product_ids_full: validatedBumps.map(vb => vb.product.id),
+            },
+          })
+          .eq('stripe_payment_intent_id', existingPaymentIntentId)
+          .eq('status', 'pending');
+
+        if (updateError) {
+          console.error('Failed to update pending transaction:', updateError);
+        }
+      } catch (dbError) {
+        console.error('Error updating pending transaction:', dbError);
+      }
+
+      return NextResponse.json({
+        clientSecret: updatedPaymentIntent.client_secret || clientSecret,
+        paymentIntentId: updatedPaymentIntent.id,
+        paymentIntentUpdated: true,
+      });
+    }
+
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
     // Save pending payment transaction for abandoned cart recovery

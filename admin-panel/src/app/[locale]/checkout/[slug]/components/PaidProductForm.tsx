@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { Elements } from '@stripe/react-stripe-js';
+import { Elements, useElements } from '@stripe/react-stripe-js';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
@@ -34,6 +34,21 @@ interface PaidProductFormProps {
   taxMode?: TaxMode;
 }
 
+function ElementsUpdateBridge({ revision }: { revision: number }) {
+  const elements = useElements();
+  const lastRevision = useRef(0);
+
+  useEffect(() => {
+    if (!elements || revision <= lastRevision.current) return;
+    lastRevision.current = revision;
+    elements.fetchUpdates().catch(error => {
+      console.warn('[PaidProductForm] Failed to refresh Stripe Elements after checkout update:', error);
+    });
+  }, [elements, revision]);
+
+  return null;
+}
+
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const { user, isAdmin, loading: authLoading } = useAuth();
@@ -53,6 +68,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [elementsUpdateRevision, setElementsUpdateRevision] = useState(0);
+  const lastPaymentIntentSignature = useRef<string | null>(null);
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
@@ -174,6 +191,14 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFullDiscountCoupon = !!coupon.appliedCoupon && pricing.isFreeWithCoupon;
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
+  const paymentIntentSignature = JSON.stringify({
+    productId: product.id,
+    email: email || null,
+    bumpProductIds: Array.from(selectedBumpIds).sort(),
+    couponCode: coupon.appliedCoupon?.code ?? null,
+    successUrl: searchParams.get('success_url') || null,
+    customAmount: product.allow_custom_price ? customAmount : null,
+  });
 
   // Free-access flow (shared by PWYW=0 and full-discount coupons)
   const pwyw = useFreeAccess({
@@ -222,6 +247,15 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       return;
     }
 
+    const shouldUpdateExistingIntent =
+      !!clientSecret &&
+      !!lastPaymentIntentSignature.current &&
+      lastPaymentIntentSignature.current !== paymentIntentSignature;
+
+    if (clientSecret && !shouldUpdateExistingIntent) {
+      return;
+    }
+
     const controller = new AbortController();
 
     fetch('/api/create-payment-intent', {
@@ -230,6 +264,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       signal: controller.signal,
       body: JSON.stringify({
         productId: product.id,
+        clientSecret: shouldUpdateExistingIntent ? clientSecret : undefined,
         email: email || undefined,
         bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
         couponCode: coupon.appliedCoupon?.code,
@@ -263,7 +298,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           grantAccess();
           return;
         }
+        lastPaymentIntentSignature.current = paymentIntentSignature;
         setClientSecret(data.clientSecret);
+        if (data.paymentIntentUpdated) {
+          setElementsUpdateRevision(revision => revision + 1);
+        }
       })
       .catch(err => {
         if (controller.signal.aborted) return;
@@ -276,6 +315,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
+    clientSecret, paymentIntentSignature,
   ]);
 
   const handleSignOutAndCheckout = async () => {
@@ -451,7 +491,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
             <Elements
-              key={`${product.id}-${clientSecret}-${resolvedTheme}`}
+              key={`${product.id}-${resolvedTheme}`}
               stripe={stripePromise}
               options={{
                 clientSecret,
@@ -470,6 +510,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 },
               } as StripeElementsOptions}
             >
+              <ElementsUpdateBridge revision={elementsUpdateRevision} />
               <CustomPaymentForm
                 product={product}
                 email={email}

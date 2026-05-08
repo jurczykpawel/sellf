@@ -19,6 +19,7 @@ import {
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { buildRefundApprovalLog, canProcessRefundRequest } from '@/lib/refunds/flow';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -200,18 +201,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'NOT_FOUND', 'Refund request not found');
     }
 
-    if (refundRequest.status !== 'pending') {
+    if (!canProcessRefundRequest(refundRequest.status, action as 'approve' | 'reject')) {
       return apiError(
         request,
         'INVALID_INPUT',
-        `Cannot process refund request with status '${refundRequest.status}'. Only pending requests can be processed.`
+        `Cannot ${action} refund request with status '${refundRequest.status}'.`
       );
     }
 
     // Get transaction details for Stripe refund
     const { data: transaction, error: txError } = await adminClient
       .from('payment_transactions')
-      .select('id, stripe_payment_intent_id, amount, refunded_amount, user_id, product_id, session_id')
+      .select('id, stripe_payment_intent_id, amount, refunded_amount, currency, user_id, product_id, session_id')
       .eq('id', refundRequest.transaction_id)
       .single();
 
@@ -244,7 +245,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       try {
         const stripe = await getStripeServer();
 
-        await stripe.refunds.create({
+        const stripeRefund = await stripe.refunds.create({
           payment_intent: transaction.stripe_payment_intent_id,
           amount: Math.round(refundRequest.requested_amount),
           reason: 'requested_by_customer',
@@ -257,6 +258,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Update the transaction status
         const totalRefunded = (transaction.refunded_amount || 0) + refundRequest.requested_amount;
         const isFullRefund = totalRefunded >= transaction.amount;
+        let revocationResult: Awaited<ReturnType<typeof revokeTransactionAccess>> | null = null;
 
         const { data: updatedRows } = await adminClient
           .from('payment_transactions')
@@ -280,6 +282,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             productId: transaction.product_id,
             sessionId: transaction.session_id,
           });
+          revocationResult = revocation;
 
           if (revocation.warnings.length > 0) {
             console.error('[refund-request] Revocation warnings:', revocation.warnings);
@@ -299,6 +302,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             request
           );
         }
+
+        console.info('[refund-request] approved', buildRefundApprovalLog({
+          refundRequestId: id,
+          transactionId: transaction.id,
+          paymentIntentId: transaction.stripe_payment_intent_id,
+          productId: transaction.product_id,
+          userId: transaction.user_id,
+          sessionId: transaction.session_id,
+          adminId: adminUserId,
+          currency: transaction.currency,
+          requestedAmount: refundRequest.requested_amount,
+          transactionAmount: transaction.amount,
+          refundedBefore: transaction.refunded_amount || 0,
+          refundedAfter: totalRefunded,
+          isFullRefund,
+          stripeRefundId: stripeRefund.id,
+          stripeRefundStatus: stripeRefund.status,
+          revocation: revocationResult
+            ? {
+                mainProductRevoked: revocationResult.mainProductRevoked,
+                mainGuestPurchaseRevoked: revocationResult.mainGuestRevoked,
+                bumpProductsRevoked: revocationResult.bumpProductsRevoked,
+                warnings: revocationResult.warnings,
+              }
+            : null,
+        }));
 
         return jsonResponse(
           successResponse({
@@ -330,6 +359,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           'Failed to process refund with Stripe. Request has been reverted to pending.'
         );
       }
+    }
+
+    if (action === 'reject') {
+      console.info('[refund-request] rejected', {
+        event: 'refund_request_rejected',
+        refund_request_id: id,
+        transaction_id: transaction.id,
+        payment_intent_id: transaction.stripe_payment_intent_id,
+        product_id: transaction.product_id,
+        user_id: transaction.user_id,
+        session_id: transaction.session_id,
+        admin_id: adminUserId,
+        requested_amount: refundRequest.requested_amount,
+        transaction_amount: transaction.amount,
+        refunded_amount_before: transaction.refunded_amount || 0,
+      });
     }
 
     // Return success for rejection or approval without Stripe
