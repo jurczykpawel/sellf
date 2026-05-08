@@ -21,8 +21,11 @@ describe('customer product and purchase pages', () => {
 
   it('loads payment line items so bundled purchases show their composition', () => {
     expect(myPurchasesSource).toContain(".from('payment_line_items')");
+    expect(myPurchasesSource).toContain(".from('payment_transactions')");
     expect(myPurchasesSource).toContain('normalizePurchaseLineItems');
     expect(myPurchasesSource).toContain('requiresManualRefundReview');
     expect(myPurchasesSource).toContain('mixedRefundPolicyNotice');
+    expect(myPurchasesSource).toContain('discountApplied');
+    expect(myPurchasesSource).toContain('subtotal');
   });
 });

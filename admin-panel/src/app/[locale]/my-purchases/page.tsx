@@ -9,6 +9,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import MySubscriptions from '@/components/MySubscriptions';
 import type { UserPurchase } from '@/types';
 import { getCustomerRefundAction } from '@/lib/refunds/flow';
+import { buildPurchaseDiscountSummary } from '@/lib/purchases/discounts';
 import {
   hasMixedRefundPolicies,
   normalizePurchaseLineItems,
@@ -17,6 +18,10 @@ import {
   type PurchaseLineItem,
   type PurchaseLineItemProduct,
 } from '@/lib/purchases/line-items';
+
+interface PurchaseTransactionMetadata {
+  coupon_discount?: string | null;
+}
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
@@ -42,6 +47,7 @@ export default function MyPurchasesPage() {
   const t = useTranslations('myPurchases');
   const [purchases, setPurchases] = useState<UserPurchase[]>([]);
   const [lineItemsByTransaction, setLineItemsByTransaction] = useState<Record<string, NormalizedPurchaseLineItem[]>>({});
+  const [transactionMetadataById, setTransactionMetadataById] = useState<Record<string, PurchaseTransactionMetadata | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -74,17 +80,34 @@ export default function MyPurchasesPage() {
       const transactionIds = visiblePurchases.map((purchase: UserPurchase) => purchase.transaction_id);
       if (transactionIds.length === 0) {
         setLineItemsByTransaction({});
+        setTransactionMetadataById({});
         return;
       }
 
-      const { data: rawLineItems, error: lineItemsError } = await supabase
-        .from('payment_line_items')
-        .select('id, transaction_id, product_id, item_type, product_name, quantity, total_price, currency')
-        .in('transaction_id', transactionIds);
+      const [{ data: rawLineItems, error: lineItemsError }, { data: transactionMetadata, error: transactionMetadataError }] = await Promise.all([
+        supabase
+          .from('payment_line_items')
+          .select('id, transaction_id, product_id, item_type, product_name, quantity, total_price, currency')
+          .in('transaction_id', transactionIds),
+        supabase
+          .from('payment_transactions')
+          .select('id, metadata')
+          .in('id', transactionIds),
+      ]);
 
       if (lineItemsError) throw lineItemsError;
 
       const lineItems = (rawLineItems || []) as PurchaseLineItem[];
+      const metadataMap: Record<string, PurchaseTransactionMetadata | null> = {};
+
+      if (!transactionMetadataError) {
+        for (const transaction of transactionMetadata || []) {
+          metadataMap[transaction.id] = transaction.metadata as PurchaseTransactionMetadata | null;
+        }
+      } else {
+        console.warn('[my-purchases] Failed to load transaction metadata:', transactionMetadataError);
+      }
+
       const productIds = Array.from(new Set(lineItems.map(item => item.product_id)));
       const productsById = new Map<string, PurchaseLineItemProduct>();
 
@@ -115,6 +138,7 @@ export default function MyPurchasesPage() {
       }
 
       setLineItemsByTransaction(grouped);
+      setTransactionMetadataById(metadataMap);
     } catch (err) {
       const error = err as Error;
       setError(error.message || 'Failed to load purchases.');
@@ -277,6 +301,35 @@ export default function MyPurchasesPage() {
     return t('lineItemNotRefundable', { defaultValue: 'Not refundable' });
   };
 
+  const getPurchaseDiscountSummary = (purchase: UserPurchase, lineItems: NormalizedPurchaseLineItem[]) => {
+    const subtotal = lineItems.reduce((sum, item) => sum + item.total_price, 0);
+    const transactionMetadata = transactionMetadataById[purchase.transaction_id];
+
+    return buildPurchaseDiscountSummary({
+      subtotal,
+      totalPaid: purchase.amount / 100,
+      couponDiscount: transactionMetadata?.coupon_discount || null,
+    });
+  };
+
+  const getDiscountLabel = (summary: NonNullable<ReturnType<typeof buildPurchaseDiscountSummary>>, currency: string) => {
+    if (summary.couponDiscount?.kind === 'percentage') {
+      return t('discountPercentage', {
+        value: summary.couponDiscount.value,
+        defaultValue: `${summary.couponDiscount.value}%`,
+      });
+    }
+
+    if (summary.couponDiscount?.kind === 'fixed') {
+      return t('discountFixedAmount', {
+        amount: formatPrice(summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
+        defaultValue: formatPrice(summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
+      });
+    }
+
+    return t('discountApplied', { defaultValue: 'Discount applied' });
+  };
+
   if (authLoading || loading) {
     return (
       <DashboardLayout user={user ? { email: user.email || '', id: user.id || '' } : null}>
@@ -364,6 +417,27 @@ export default function MyPurchasesPage() {
                       <div className="text-lg font-bold text-sf-accent">
                         {formatPrice(purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                       </div>
+                      {(() => {
+                        const discountSummary = getPurchaseDiscountSummary(purchase, lineItems);
+                        if (!discountSummary) return null;
+
+                        return (
+                          <div className="mt-2 space-y-1 text-xs text-sf-muted">
+                            <div className="flex items-center justify-between gap-3">
+                              <span>{t('subtotal', { defaultValue: 'Subtotal' })}</span>
+                              <span>{formatPrice(discountSummary.subtotal, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-sf-success">
+                              <span>{getDiscountLabel(discountSummary, purchase.currency)}</span>
+                              <span>-{formatPrice(discountSummary.discountAmount, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 font-semibold text-sf-heading">
+                              <span>{t('paid', { defaultValue: 'Paid' })}</span>
+                              <span>{formatPrice(discountSummary.totalPaid, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
                         <div className="text-sm text-sf-muted">
                           {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPrice(purchase.refunded_amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
