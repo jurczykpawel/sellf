@@ -78,6 +78,8 @@ export const STRIPE_WEBHOOK_EVENTS = [
   'checkout.session.async_payment_succeeded',
   'payment_intent.succeeded',
   'charge.refunded',
+  'refund.created',
+  'refund.updated',
   'charge.dispute.created',
   // Subscriptions MVP (Phase 3)
   'customer.subscription.created',

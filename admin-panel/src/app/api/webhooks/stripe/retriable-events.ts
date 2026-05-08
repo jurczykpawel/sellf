@@ -23,6 +23,8 @@
  */
 export const RETRIABLE_EVENTS: ReadonlySet<string> = new Set<string>([
   'charge.refunded',
+  'refund.created',
+  'refund.updated',
   'charge.dispute.created',
   // Subscription cancellations revoke access. Don't silently 200 if the
   // handler couldn't complete — let Stripe retry.

@@ -1979,9 +1979,14 @@
           "completed": "Completed",
           "pending": "Pending",
           "failed": "Failed",
-          "refunded": "Refunded"
+          "refunded": "Refunded",
+          "partialRefunded": "Partially refunded"
         },
-        "refunded": "Refunded: {amount}"
+        "refunded": "Refunded: {amount}",
+        "partialRefunded": "Partially refunded: {amount}",
+        "partialRefundWarning": "Partial refund detected. Review whether additional access revocation or follow-up is needed.",
+        "remainingRefundable": "Remaining refundable: {amount}",
+        "fullRefunded": "Fully refunded"
       },
       "sessions": {
         "title": "Checkout Sessions"

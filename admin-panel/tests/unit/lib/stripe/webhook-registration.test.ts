@@ -133,6 +133,11 @@ describe('buildWebhookParams', () => {
     const params = buildWebhookParams(URL);
     expect(params.url).toBe(URL);
   });
+
+  it('registers platform-account webhooks for platform checkout events', () => {
+    const params = buildWebhookParams(URL);
+    expect(params).not.toHaveProperty('connect');
+  });
 });
 
 // ── getWebhookRegistrationStatus ─────────────────────────────────────────

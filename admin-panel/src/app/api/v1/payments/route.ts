@@ -162,6 +162,7 @@ export async function GET(request: NextRequest) {
       },
       user_id: p.user_id,
       session_id: p.session_id,
+      refunded_amount: p.refunded_amount ?? 0,
       refund: p.refund_id ? {
         id: p.refund_id,
         amount: p.refunded_amount,

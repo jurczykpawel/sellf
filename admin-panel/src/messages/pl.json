@@ -1994,9 +1994,14 @@
           "completed": "Zakończona",
           "pending": "Oczekująca",
           "failed": "Nieudana",
-          "refunded": "Zwrócona"
+          "refunded": "Zwrócona",
+          "partialRefunded": "Częściowo zwrócona"
         },
-        "refunded": "Zwrot: {amount}"
+        "refunded": "Zwrot: {amount}",
+        "partialRefunded": "Częściowo zwrócono: {amount}",
+        "partialRefundWarning": "Wykryto częściowy zwrot. Sprawdź, czy potrzebne są dodatkowe działania lub cofnięcie dostępu.",
+        "remainingRefundable": "Pozostało do zwrotu: {amount}",
+        "fullRefunded": "Zwrócono w całości"
       },
       "sessions": {
         "title": "Sesje checkout"

@@ -10,6 +10,8 @@
  * - checkout.session.completed: Process successful checkout payments
  * - payment_intent.succeeded: Process successful direct payments
  * - charge.refunded: Revoke access when refund is processed externally
+ * - refund.created / refund.updated: Revoke access when dashboard refunds
+ *   are created or changed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
  */
 
@@ -375,18 +377,41 @@ async function handleChargeRefunded(
   return await processRefundForTransaction(transaction, charge, supabase);
 }
 
+/**
+ * Handle Stripe refund objects by resolving the underlying charge and
+ * delegating to the charge-based refund processor.
+ */
+async function handleRefundEvent(
+  refund: Stripe.Refund,
+  stripe: Stripe,
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<{ processed: boolean; message: string }> {
+  const chargeId = typeof refund.charge === 'string'
+    ? refund.charge
+    : refund.charge?.id;
+
+  if (!chargeId) {
+    return { processed: true, message: 'No charge in refund event, skipping' };
+  }
+
+  const charge = await stripe.charges.retrieve(chargeId);
+  return handleChargeRefunded(charge, supabase);
+}
+
 async function processRefundForTransaction(
   transaction: { id: string; user_id: string | null; product_id: string; status: string; session_id: string | null },
   charge: Stripe.Charge,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
-  // Idempotency: Skip if already refunded
-  if (transaction.status === 'refunded') {
-    return { processed: true, message: 'Already refunded' };
-  }
-
   // Determine if this is a full or partial refund
   const isFullRefund = charge.amount_refunded >= charge.amount;
+
+  // A repeated partial refund event after a full refund should not downgrade state.
+  // A repeated full refund event still attempts revocation so failed access cleanup
+  // can be repaired by Stripe retries or manual event replays.
+  if (transaction.status === 'refunded' && !isFullRefund) {
+    return { processed: true, message: 'Already fully refunded' };
+  }
 
   // Update transaction status
   const { error: updateError } = await supabase
@@ -611,6 +636,14 @@ export async function POST(request: NextRequest) {
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge;
         result = await handleChargeRefunded(charge, supabase);
+        break;
+      }
+
+      case 'refund.created':
+      case 'refund.updated': {
+        const refund = event.data.object as Stripe.Refund;
+        const stripe = await getStripeServer();
+        result = await handleRefundEvent(refund, stripe, supabase);
         break;
       }
 

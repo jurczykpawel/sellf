@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { processRefund } from '@/lib/actions/payment';
+import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { toast } from 'sonner';
 import type { PaymentTransaction } from '@/types/payment';
 
@@ -101,59 +102,91 @@ export default function PaymentTransactionsTable({
             </tr>
           </thead>
           <tbody className="bg-sf-base divide-y divide-sf-border-subtle">
-            {transactions.map((transaction, index) => (
-              <tr key={transaction.id} className={index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-sf-heading">
-                    {transaction.id.slice(0, 8)}...
-                  </div>
-                  <div className="text-sm text-sf-muted">
-                    {transaction.stripe_payment_intent_id?.slice(0, 20)}...
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-sf-heading">
-                    {transaction.user_id?.slice(0, 8) ?? '—'}...
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-sf-heading">
-                    {formatCurrency(transaction.amount, transaction.currency)}
-                  </div>
-                  {transaction.refunded_amount > 0 && (
-                    <div className="text-sm text-sf-danger">
-                      {t('refunded', { amount: formatCurrency(transaction.refunded_amount, transaction.currency) })}
+            {transactions.map((transaction, index) => {
+              const refundProgress = getTransactionRefundProgress({
+                amount: transaction.amount,
+                refundedAmount: transaction.refunded_amount,
+                status: transaction.status,
+              });
+
+              return (
+                <tr key={transaction.id} className={index % 2 === 1 ? 'bg-sf-row-alt' : ''}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-sf-heading">
+                      {transaction.id.slice(0, 8)}...
                     </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold ${
-                    transaction.status === 'completed'
-                      ? 'bg-sf-success-soft text-sf-success'
-                      : transaction.status === 'refunded'
-                      ? 'bg-sf-danger-soft text-sf-danger'
-                      : 'bg-sf-warning-soft text-sf-warning'
-                  }`}>
-                    {t(`statuses.${transaction.status}`)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
-                  {formatDate(transaction.created_at)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  {transaction.status === 'completed' && 
-                   transaction.amount > transaction.refunded_amount && (
-                    <button
-                      onClick={() => setShowRefundModal(transaction.id)}
-                      disabled={refundingId === transaction.id}
-                      className="text-sf-danger hover:text-sf-danger disabled:opacity-50"
-                    >
-                      {refundingId === transaction.id ? tRefund('processing') : t('refund')}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+                    <div className="text-sm text-sf-muted">
+                      {transaction.stripe_payment_intent_id?.slice(0, 20)}...
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-sf-heading">
+                      {transaction.user_id?.slice(0, 8) ?? '—'}...
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-sf-heading">
+                      {formatCurrency(transaction.amount, transaction.currency)}
+                    </div>
+                    {refundProgress.state === 'full' && (
+                      <div className="text-sm text-sf-danger">
+                        {t('fullRefunded', { defaultValue: 'Fully refunded' })}
+                      </div>
+                    )}
+                    {refundProgress.state === 'partial' && (
+                      <div className="space-y-1">
+                        <div className="text-sm text-amber-600">
+                          {t('partialRefunded', {
+                            amount: formatCurrency(refundProgress.refundedAmount, transaction.currency),
+                            defaultValue: `Partially refunded: ${formatCurrency(refundProgress.refundedAmount, transaction.currency)}`,
+                          })}
+                        </div>
+                        <div className="text-xs text-sf-muted">
+                          {t('partialRefundWarning', {
+                            defaultValue: 'Partial refund detected. Review whether additional access revocation or follow-up is needed.',
+                          })}
+                        </div>
+                        <div className="text-xs text-sf-muted">
+                          {t('remainingRefundable', {
+                            amount: formatCurrency(refundProgress.remainingAmount, transaction.currency),
+                            defaultValue: `Remaining refundable: ${formatCurrency(refundProgress.remainingAmount, transaction.currency)}`,
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold ${
+                      refundProgress.state === 'partial'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : transaction.status === 'completed'
+                        ? 'bg-sf-success-soft text-sf-success'
+                        : transaction.status === 'refunded'
+                        ? 'bg-sf-danger-soft text-sf-danger'
+                        : 'bg-sf-warning-soft text-sf-warning'
+                    }`}>
+                      {refundProgress.state === 'partial'
+                        ? t('statuses.partialRefunded', { defaultValue: 'Partially refunded' })
+                        : t(`statuses.${transaction.status}`)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sf-muted">
+                    {formatDate(transaction.created_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {transaction.status === 'completed' && transaction.amount > transaction.refunded_amount && (
+                      <button
+                        onClick={() => setShowRefundModal(transaction.id)}
+                        disabled={refundingId === transaction.id}
+                        className="text-sf-danger hover:text-sf-danger disabled:opacity-50"
+                      >
+                        {refundingId === transaction.id ? tRefund('processing') : t('refund')}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
