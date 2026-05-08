@@ -16,6 +16,17 @@ import {
 } from '@/lib/api';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 
+type CurrencyAmount = Record<string, number>;
+
+function normalizeCurrency(currency: string | null | undefined): string {
+  return (currency || 'USD').toUpperCase();
+}
+
+function addCurrencyAmount(target: CurrencyAmount, currency: string | null | undefined, amount: number | null | undefined): void {
+  const normalizedCurrency = normalizeCurrency(currency);
+  target[normalizedCurrency] = (target[normalizedCurrency] || 0) + (amount || 0);
+}
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -66,43 +77,57 @@ export async function GET(request: NextRequest) {
       .eq('status', 'completed');
 
     const totalRevenue = revenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+    const totalRevenueByCurrency: CurrencyAmount = {};
 
     // Build by_currency breakdown
     const byCurrency: Record<string, { total_revenue: number; transaction_count: number }> = {};
     for (const t of revenueData || []) {
-      const cur = t.currency || 'USD';
+      const cur = normalizeCurrency(t.currency);
       if (!byCurrency[cur]) {
         byCurrency[cur] = { total_revenue: 0, transaction_count: 0 };
       }
       byCurrency[cur].total_revenue += t.amount;
       byCurrency[cur].transaction_count += 1;
+      addCurrencyAmount(totalRevenueByCurrency, cur, t.amount);
     }
 
     // Get refunded amount
     const { data: refundData } = await adminClient
       .from('payment_transactions')
-      .select('refunded_amount')
+      .select('refunded_amount, currency')
       .gt('refunded_amount', 0);
 
     const refundedAmount = refundData?.reduce((sum, transaction) => sum + (transaction.refunded_amount || 0), 0) || 0;
+    const refundedAmountByCurrency: CurrencyAmount = {};
+    for (const t of refundData || []) {
+      addCurrencyAmount(refundedAmountByCurrency, t.currency, t.refunded_amount);
+    }
 
     // Get today's revenue
     const { data: todayRevenueData } = await adminClient
       .from('payment_transactions')
-      .select('amount')
+      .select('amount, currency')
       .eq('status', 'completed')
       .gte('created_at', todayStart.toISOString());
 
     const todayRevenue = todayRevenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+    const todayRevenueByCurrency: CurrencyAmount = {};
+    for (const t of todayRevenueData || []) {
+      addCurrencyAmount(todayRevenueByCurrency, t.currency, t.amount);
+    }
 
     // Get this month's revenue
     const { data: monthRevenueData } = await adminClient
       .from('payment_transactions')
-      .select('amount')
+      .select('amount, currency')
       .eq('status', 'completed')
       .gte('created_at', monthStart.toISOString());
 
     const thisMonthRevenue = monthRevenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
+    const thisMonthRevenueByCurrency: CurrencyAmount = {};
+    for (const t of monthRevenueData || []) {
+      addCurrencyAmount(thisMonthRevenueByCurrency, t.currency, t.amount);
+    }
 
     // Get pending transactions count
     const { count: pendingCount } = await adminClient
@@ -117,6 +142,10 @@ export async function GET(request: NextRequest) {
       refunded_amount: refundedAmount,
       today_revenue: todayRevenue,
       this_month_revenue: thisMonthRevenue,
+      total_revenue_by_currency: totalRevenueByCurrency,
+      refunded_amount_by_currency: refundedAmountByCurrency,
+      today_revenue_by_currency: todayRevenueByCurrency,
+      this_month_revenue_by_currency: thisMonthRevenueByCurrency,
       by_currency: byCurrency,
     };
 

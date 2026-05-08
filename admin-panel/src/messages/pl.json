@@ -2031,7 +2031,13 @@
         "normal": "Normalny",
         "thisMonthRevenue": "Ten miesiąc",
         "refundedAmount": "Zwroty",
-        "vsLastPeriod": "vs poprzedni okres"
+        "grossCompleted": "Zakończone płatności brutto",
+        "completedTransactions": "Zakończone transakcje",
+        "completedToday": "Zakończone dzisiaj",
+        "completedThisMonth": "Zakończone w tym miesiącu",
+        "awaitingPayment": "Oczekują na zakończenie",
+        "nonePending": "Brak oczekujących płatności",
+        "totalRefunds": "Zarejestrowane zwroty"
       },
       "cancelSession": {
         "label": "Anuluj",

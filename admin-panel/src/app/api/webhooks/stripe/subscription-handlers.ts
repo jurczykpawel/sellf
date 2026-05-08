@@ -802,9 +802,9 @@ export async function handleInvoicePaid(
     // directly (allowed by the extended session_id regex in subscriptions_mvp migration).
     session_id: invoice.id!,
     stripe_payment_intent_id: paymentIntentId,
-    // payment_transactions.amount is stored in major units (e.g. 49.00 PLN)
-    // to match existing one-time-payment rows. Stripe invoice.amount_paid is in cents.
-    amount: (invoice.amount_paid ?? 0) / 100,
+    // payment_transactions.amount is stored in minor units to match one-time
+    // payment rows. Stripe invoice.amount_paid is already in minor units.
+    amount: invoice.amount_paid ?? 0,
     currency: (invoice.currency ?? 'usd').toUpperCase(),
     status: 'completed',
     customer_email: ctx.email,

@@ -237,6 +237,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     { href: '/dashboard/categories', label: t('categories'), icon: Icons.categories },
     { href: '/dashboard/order-bumps', label: t('orderBumps'), icon: Icons.orderBumps },
     { href: '/dashboard/coupons', label: t('coupons'), icon: Icons.coupons },
+    { href: '/dashboard/payments', label: t('payments'), icon: Icons.payments },
     {
       href: '/dashboard/refund-requests',
       label: t('refundRequests', { defaultValue: 'Refund Requests' }),

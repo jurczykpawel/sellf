@@ -2016,7 +2016,13 @@
         "normal": "Normal",
         "thisMonthRevenue": "This Month",
         "refundedAmount": "Refunded",
-        "vsLastPeriod": "vs last period"
+        "grossCompleted": "Completed payments, gross",
+        "completedTransactions": "Completed transactions",
+        "completedToday": "Completed today",
+        "completedThisMonth": "Completed this month",
+        "awaitingPayment": "Awaiting completion",
+        "nonePending": "No pending payments",
+        "totalRefunds": "Recorded refunds"
       },
       "cancelSession": {
         "label": "Cancel",

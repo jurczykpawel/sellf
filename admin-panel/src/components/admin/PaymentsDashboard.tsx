@@ -12,14 +12,33 @@ import PaymentSessionsTable from './PaymentSessionsTable';
 import PaymentFilters from './PaymentFilters';
 import type { PaymentTransaction, PaymentSession } from '@/types/payment';
 import { api } from '@/lib/api/client';
+import CurrencySelector from '@/components/dashboard/CurrencySelector';
+import type { CurrencyAmount } from '@/lib/actions/analytics';
 
 interface PaymentStats {
   totalTransactions: number;
-  totalRevenue: number;
+  totalRevenue: CurrencyAmount;
   pendingSessions: number;
-  refundedAmount: number;
-  todayRevenue: number;
-  thisMonthRevenue: number;
+  refundedAmount: CurrencyAmount;
+  todayRevenue: CurrencyAmount;
+  thisMonthRevenue: CurrencyAmount;
+}
+
+interface PaymentStatsResponse {
+  total_transactions: number;
+  total_revenue: number;
+  pending_count: number;
+  refunded_amount: number;
+  today_revenue: number;
+  this_month_revenue: number;
+  total_revenue_by_currency?: CurrencyAmount;
+  refunded_amount_by_currency?: CurrencyAmount;
+  today_revenue_by_currency?: CurrencyAmount;
+  this_month_revenue_by_currency?: CurrencyAmount;
+}
+
+function fieldMatchesSearch(value: unknown, searchLower: string): boolean {
+  return typeof value === 'string' && value.toLowerCase().includes(searchLower);
 }
 
 export default function PaymentsDashboard() {
@@ -42,7 +61,7 @@ export default function PaymentsDashboard() {
       const [transactionsRes, sessionsRes, statsRes] = await Promise.all([
         api.list<PaymentTransaction>('payments', { limit: 500 }),
         fetch('/api/admin/payments/sessions'), // sessions still use old API - no dedicated v1 endpoint
-        api.getCustom<{ total_transactions: number; total_revenue: number; pending_count: number; refunded_amount: number; today_revenue: number; this_month_revenue: number }>('payments/stats'),
+        api.getCustom<PaymentStatsResponse>('payments/stats'),
       ]);
 
       // Transactions from v1 API
@@ -58,18 +77,18 @@ export default function PaymentsDashboard() {
       const statsData = statsRes;
       setStats({
         totalTransactions: statsData.total_transactions,
-        totalRevenue: statsData.total_revenue,
+        totalRevenue: statsData.total_revenue_by_currency || {},
         pendingSessions: statsData.pending_count,
-        refundedAmount: statsData.refunded_amount,
-        todayRevenue: statsData.today_revenue,
-        thisMonthRevenue: statsData.this_month_revenue,
+        refundedAmount: statsData.refunded_amount_by_currency || {},
+        todayRevenue: statsData.today_revenue_by_currency || {},
+        thisMonthRevenue: statsData.this_month_revenue_by_currency || {},
       });
     } catch {
       toast.error(t('loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchPaymentData();
@@ -84,9 +103,11 @@ export default function PaymentsDashboard() {
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
       return (
-        transaction.id.toLowerCase().includes(searchLower) ||
-        transaction.user_id.toLowerCase().includes(searchLower) ||
-        transaction.stripe_payment_intent_id?.toLowerCase().includes(searchLower)
+        fieldMatchesSearch(transaction.id, searchLower) ||
+        fieldMatchesSearch(transaction.user_id, searchLower) ||
+        fieldMatchesSearch(transaction.stripe_payment_intent_id, searchLower) ||
+        fieldMatchesSearch((transaction as PaymentTransaction & { customer_email?: string | null }).customer_email, searchLower) ||
+        fieldMatchesSearch((transaction as PaymentTransaction & { product?: { name?: string | null } }).product?.name, searchLower)
       );
     }
     
@@ -102,8 +123,8 @@ export default function PaymentsDashboard() {
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
       return (
-        session.session_id.toLowerCase().includes(searchLower) ||
-        session.customer_email.toLowerCase().includes(searchLower)
+        fieldMatchesSearch(session.session_id, searchLower) ||
+        fieldMatchesSearch(session.customer_email, searchLower)
       );
     }
     
@@ -121,13 +142,16 @@ export default function PaymentsDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-sf-heading">
-          {t('title')}
-        </h1>
-        <p className="text-sf-body">
-          {t('subtitle')}
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-sf-heading">
+            {t('title')}
+          </h1>
+          <p className="text-sf-body">
+            {t('subtitle')}
+          </p>
+        </div>
+        <CurrencySelector />
       </div>
 
       {/* Payment Statistics */}
