@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { processRefund } from '@/lib/actions/payment';
 import { getTransactionRefundProgress } from '@/lib/refunds/transaction-refund-progress';
 import { toast } from 'sonner';
-import type { PaymentTransaction } from '@/types/payment';
+import type { PaymentTransaction, PaymentTransactionLineItem } from '@/types/payment';
 
 interface PaymentTransactionsTableProps {
   transactions: PaymentTransaction[];
@@ -24,6 +24,7 @@ export default function PaymentTransactionsTable({
   const [refundingId, setRefundingId] = useState<string | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [showRefundModal, setShowRefundModal] = useState<string | null>(null);
+  const [detailsTransaction, setDetailsTransaction] = useState<PaymentTransaction | null>(null);
 
   const handleRefund = async (transactionId: string, amount?: number) => {
     if (refundingId) return;
@@ -67,6 +68,24 @@ export default function PaymentTransactionsTable({
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const getTransactionDisplayItems = (transaction: PaymentTransaction): PaymentTransactionLineItem[] => {
+    if (transaction.line_items?.length) {
+      return transaction.line_items;
+    }
+
+    return [{
+      id: transaction.id,
+      transaction_id: transaction.id,
+      product_id: transaction.product_id,
+      item_type: 'main_product',
+      product_name: transaction.product?.name ?? null,
+      quantity: 1,
+      unit_price: transaction.amount,
+      total_price: transaction.amount,
+      currency: transaction.currency,
+    }];
   };
 
   return (
@@ -120,8 +139,13 @@ export default function PaymentTransactionsTable({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-sf-heading">
-                      {transaction.user_id?.slice(0, 8) ?? '—'}...
+                    <div className="text-sm font-medium text-sf-heading">
+                      {transaction.customer_email ?? t('unknownCustomer')}
+                    </div>
+                    <div className="text-xs text-sf-muted">
+                      {transaction.user_id
+                        ? `${t('userId')}: ${transaction.user_id.slice(0, 8)}...`
+                        : t('guestUser')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -174,7 +198,14 @@ export default function PaymentTransactionsTable({
                     {formatDate(transaction.created_at)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {transaction.status === 'completed' && transaction.amount > transaction.refunded_amount && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setDetailsTransaction(transaction)}
+                        className="text-sf-accent hover:text-sf-accent-hover"
+                      >
+                        {t('details')}
+                      </button>
+                      {transaction.status === 'completed' && transaction.amount > transaction.refunded_amount && (
                       <button
                         onClick={() => setShowRefundModal(transaction.id)}
                         disabled={refundingId === transaction.id}
@@ -182,7 +213,8 @@ export default function PaymentTransactionsTable({
                       >
                         {refundingId === transaction.id ? tRefund('processing') : t('refund')}
                       </button>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -190,6 +222,137 @@ export default function PaymentTransactionsTable({
           </tbody>
         </table>
       </div>
+
+      {/* Details Modal */}
+      {detailsTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-sf-base p-6 max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-lg font-semibold text-sf-heading">
+                  {t('transactionDetails')}
+                </h3>
+                <p className="text-sm text-sf-muted">
+                  {detailsTransaction.id}
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailsTransaction(null)}
+                className="text-sf-muted hover:text-sf-heading"
+                aria-label={t('close')}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 mb-6">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wider text-sf-muted">
+                  {t('customer')}
+                </div>
+                <div className="text-sm text-sf-heading">
+                  {detailsTransaction.customer_email ?? t('unknownCustomer')}
+                </div>
+                <div className="text-xs text-sf-muted">
+                  {detailsTransaction.user_id
+                    ? `${t('userId')}: ${detailsTransaction.user_id}`
+                    : t('guestUser')}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wider text-sf-muted">
+                  {t('payment')}
+                </div>
+                <div className="text-sm text-sf-heading">
+                  {formatCurrency(detailsTransaction.amount, detailsTransaction.currency)}
+                </div>
+                <div className="text-xs text-sf-muted">
+                  {t(`statuses.${detailsTransaction.status}`)}
+                </div>
+              </div>
+              {detailsTransaction.stripe_payment_intent_id && (
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-sf-muted">
+                    {t('stripePaymentIntent')}
+                  </div>
+                  <div className="text-sm text-sf-heading break-all">
+                    {detailsTransaction.stripe_payment_intent_id}
+                  </div>
+                </div>
+              )}
+              {detailsTransaction.session_id && (
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-sf-muted">
+                    {t('stripeSession')}
+                  </div>
+                  <div className="text-sm text-sf-heading break-all">
+                    {detailsTransaction.session_id}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border border-sf-border overflow-hidden">
+              <div className="px-4 py-3 bg-sf-raised text-sm font-semibold text-sf-heading">
+                {t('items')}
+              </div>
+              <div className="divide-y divide-sf-border-subtle">
+                {getTransactionDisplayItems(detailsTransaction).map((item) => (
+                  <div key={`${item.id}-${item.item_type}`} className="px-4 py-3 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-sf-heading">
+                        {item.product_name ?? detailsTransaction.product?.name ?? t('unknownProduct')}
+                      </div>
+                      <div className="text-xs text-sf-muted">
+                        {item.item_type === 'order_bump' ? t('orderBump') : t('mainProduct')}
+                        {' - '}
+                        {t('quantity')}: {item.quantity}
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium text-sf-heading whitespace-nowrap">
+                      {formatCurrency(item.total_price, item.currency || detailsTransaction.currency)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-sf-muted">{t('total')}</span>
+                <span className="font-medium text-sf-heading">
+                  {formatCurrency(detailsTransaction.amount, detailsTransaction.currency)}
+                </span>
+              </div>
+              {detailsTransaction.refunded_amount > 0 && (
+                <>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-sf-muted">{t('refundedTotal')}</span>
+                    <span className="font-medium text-sf-danger">
+                      {formatCurrency(detailsTransaction.refunded_amount, detailsTransaction.currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-sf-muted">{t('remaining')}</span>
+                    <span className="font-medium text-sf-heading">
+                      {formatCurrency(Math.max(detailsTransaction.amount - detailsTransaction.refunded_amount, 0), detailsTransaction.currency)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setDetailsTransaction(null)}
+                className="bg-sf-accent hover:bg-sf-accent-hover text-white font-semibold py-2 px-4 transition-colors"
+              >
+                {t('close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Refund Modal */}
       {showRefundModal && (

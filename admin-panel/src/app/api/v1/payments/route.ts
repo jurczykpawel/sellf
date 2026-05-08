@@ -16,6 +16,7 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
+import type { PaymentTransactionLineItem } from '@/types/payment';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -147,8 +148,59 @@ export async function GET(request: NextRequest) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payments');
     }
 
+    const paymentRows = payments ?? [];
+    const transactionIds = paymentRows.map(p => p.id);
+    const lineItemsByTransactionId = new Map<string, PaymentTransactionLineItem[]>();
+
+    if (transactionIds.length > 0) {
+      const { data: lineItems, error: lineItemsError } = await adminClient
+        .from('payment_line_items')
+        .select(`
+          id,
+          transaction_id,
+          product_id,
+          item_type,
+          product_name,
+          quantity,
+          unit_price,
+          total_price,
+          currency,
+          metadata
+        `)
+        .in('transaction_id', transactionIds)
+        .order('created_at', { ascending: true });
+
+      if (lineItemsError) {
+        console.error('Error fetching payment line items:', lineItemsError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment line items');
+      }
+
+      for (const item of lineItems ?? []) {
+        if (!item.transaction_id || !item.id || !item.item_type) {
+          continue;
+        }
+
+        const normalizedItem: PaymentTransactionLineItem = {
+          id: item.id,
+          transaction_id: item.transaction_id,
+          product_id: item.product_id,
+          item_type: item.item_type,
+          product_name: item.product_name,
+          quantity: item.quantity ?? 1,
+          unit_price: item.unit_price ?? 0,
+          total_price: item.total_price ?? 0,
+          currency: item.currency ?? 'usd',
+          metadata: item.metadata,
+        };
+
+        const existingItems = lineItemsByTransactionId.get(item.transaction_id) ?? [];
+        existingItems.push(normalizedItem);
+        lineItemsByTransactionId.set(item.transaction_id, existingItems);
+      }
+    }
+
     // Transform response
-    const transformedItems = payments.map(p => ({
+    const transformedItems = paymentRows.map(p => ({
       id: p.id,
       customer_email: p.customer_email,
       amount: p.amount,
@@ -160,6 +212,7 @@ export async function GET(request: NextRequest) {
         name: (p.products as unknown as { name: string; slug: string })?.name,
         slug: (p.products as unknown as { name: string; slug: string })?.slug,
       },
+      line_items: lineItemsByTransactionId.get(p.id) ?? [],
       user_id: p.user_id,
       session_id: p.session_id,
       refunded_amount: p.refunded_amount ?? 0,

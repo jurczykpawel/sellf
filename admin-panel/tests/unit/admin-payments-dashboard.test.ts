@@ -17,6 +17,11 @@ const transactionsTableSource = readFileSync(
   'utf-8'
 );
 
+const paymentsRouteSource = readFileSync(
+  resolve(__dirname, '../../src/app/api/v1/payments/route.ts'),
+  'utf-8'
+);
+
 const paymentsDashboardSource = readFileSync(
   resolve(__dirname, '../../src/components/admin/PaymentsDashboard.tsx'),
   'utf-8'
@@ -71,6 +76,14 @@ describe('admin payments dashboard', () => {
   it('formats minor-unit transaction amounts as major-unit currency values', () => {
     expect(transactionsTableSource).toContain('format(amount / 100)');
     expect(statsCardsSource).toContain('format(amount / 100)');
+  });
+
+  it('shows readable customers and transaction line item details in the payments table', () => {
+    expect(paymentsRouteSource).toContain(".from('payment_line_items')");
+    expect(paymentsRouteSource).toContain('line_items: lineItemsByTransactionId.get(p.id) ?? []');
+    expect(transactionsTableSource).toContain('transaction.customer_email');
+    expect(transactionsTableSource).toContain('detailsTransaction');
+    expect(transactionsTableSource).toContain('getTransactionDisplayItems');
   });
 
   it('stores subscription payment transaction amounts in minor units like one-time payments', () => {
