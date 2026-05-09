@@ -37,6 +37,16 @@ const subscriptionHandlersSource = readFileSync(
   'utf-8'
 );
 
+const plMessagesSource = readFileSync(
+  resolve(__dirname, '../../src/messages/pl.json'),
+  'utf-8'
+);
+
+const enMessagesSource = readFileSync(
+  resolve(__dirname, '../../src/messages/en.json'),
+  'utf-8'
+);
+
 describe('admin payments dashboard', () => {
   it('exposes the payments dashboard from the admin sidebar', () => {
     expect(sidebarSource).toContain("href: '/dashboard/payments'");
@@ -93,6 +103,15 @@ describe('admin payments dashboard', () => {
     expect(transactionsTableSource).not.toContain('formatCurrency(item.total_price');
     expect(transactionsTableSource).not.toContain('areLineItemAmountsStoredAsMinorUnits');
     expect(transactionsTableSource).not.toContain('metadata?.is_pwyw');
+  });
+
+  it('defines all payment transaction detail labels used by the modal', () => {
+    const requiredKeys = ['"subtotal"', '"paid"', '"total"', '"refundedTotal"', '"remaining"'];
+
+    for (const key of requiredKeys) {
+      expect(plMessagesSource).toContain(key);
+      expect(enMessagesSource).toContain(key);
+    }
   });
 
   it('stores subscription payment transaction amounts in minor units like one-time payments', () => {

@@ -1989,6 +1989,8 @@
         "mainProduct": "Main product",
         "orderBump": "Order bump",
         "quantity": "Quantity",
+        "subtotal": "Subtotal",
+        "paid": "Paid",
         "total": "Total",
         "refundedTotal": "Refunded",
         "remaining": "Remaining",

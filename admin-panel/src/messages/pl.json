@@ -2004,6 +2004,8 @@
         "mainProduct": "Produkt główny",
         "orderBump": "Order bump",
         "quantity": "Ilość",
+        "subtotal": "Suma częściowa",
+        "paid": "Zapłacono",
         "total": "Razem",
         "refundedTotal": "Zwrócono",
         "remaining": "Pozostało",
