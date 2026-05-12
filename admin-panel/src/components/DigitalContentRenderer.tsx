@@ -3,8 +3,9 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ContentItem } from '@/types';
-import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
-import { VideoPlayer } from '@/components/player';
+import { parseVideoUrl } from '@/lib/videoUtils';
+import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
+import { getVideoValidationMessage, isPlayerstackPlatform } from '@/lib/playerstack';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
 
 interface DigitalContentRendererProps {
@@ -29,9 +30,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   youtube:     'YouTube',
   vimeo:       'Vimeo',
   bunny:       'Bunny.net',
-  loom:        'Loom',
   wistia:      'Wistia',
-  dailymotion: 'DailyMotion',
   twitch:      'Twitch',
 };
 
@@ -51,7 +50,8 @@ export default function DigitalContentRenderer({ contentItems, productName }: Di
         const url = item.config.embed_url;
         const parsed = url ? parseVideoUrl(url) : null;
         const platformLabel = parsed?.platform ? PLATFORM_LABELS[parsed.platform] : null;
-        const embedUrl = parsed?.isValid ? parsed.embedUrl : null;
+        const canRenderPlayerstack = Boolean(parsed?.isValid && isPlayerstackPlatform(parsed.platform));
+        const validationMessage = url ? getVideoValidationMessage(url) : 'invalidVideoUrl';
 
         return (
           <div key={item.id} className="rounded-xl border border-sf-border bg-sf-float overflow-hidden">
@@ -89,26 +89,21 @@ export default function DigitalContentRenderer({ contentItems, productName }: Di
             {url && (
               <div className="px-5 pb-5">
                 <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                  {embedUrl && parsed ? (
-                    <VideoPlayer
-                      parsed={parsed}
+                  {canRenderPlayerstack ? (
+                    <PlayerstackEmbed
+                      url={url}
                       title={item.title}
-                      options={{
-                        autoplay: item.config.autoplay,
-                        loop: item.config.loop,
-                        muted: item.config.muted,
-                        preload: item.config.preload,
-                        controls: item.config.controls,
-                        useCustomPlayer: item.config.useCustomPlayer,
-                      }}
+                      config={item.config}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full gap-2 text-center p-6">
                       <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
                       <p className="text-sm font-medium text-sf-body">
-                        {!url || (parsed && !isTrustedVideoPlatform(url))
-                          ? t('trustedPlatformsOnly')
-                          : t('unableToParseUrl')}
+                        {validationMessage === 'bunnyIframeUnsupported'
+                          ? t('bunnyIframeUnsupported')
+                          : validationMessage === 'unsupportedVideoPlatform'
+                            ? t('trustedPlatformsOnly')
+                            : t('unableToParseUrl')}
                       </p>
                     </div>
                   )}
@@ -116,15 +111,6 @@ export default function DigitalContentRenderer({ contentItems, productName }: Di
               </div>
             )}
 
-            {item.config.embed_code && !url && (
-              <div className="px-5 pb-5">
-                <div className="aspect-video bg-sf-raised rounded-lg flex flex-col items-center justify-center gap-2 text-center p-6">
-                  <svg className="w-8 h-8 text-sf-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                  <p className="text-sm font-medium text-sf-body">{t('securityEmbedDisabled')}</p>
-                  <p className="text-xs text-sf-body">{t('useIframeInstead')}</p>
-                </div>
-              </div>
-            )}
           </div>
         );
       }

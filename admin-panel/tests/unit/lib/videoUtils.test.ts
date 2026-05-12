@@ -8,7 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   extractYouTubeVideoId,
   extractVimeoVideoId,
-  extractBunnyVideoId,
+  isBunnyStreamUrl,
+  parseTwitchVideoId,
   parseVideoUrl,
   isTrustedVideoPlatform,
   addEmbedOptions,
@@ -71,24 +72,35 @@ describe('Video Utilities', () => {
     });
   });
 
-  describe('extractBunnyVideoId', () => {
-    it('should extract IDs from embed URL', () => {
-      const result = extractBunnyVideoId('https://iframe.mediadelivery.net/embed/12345/abc-def-ghi');
-      expect(result).toEqual({ libraryId: '12345', videoGuid: 'abc-def-ghi' });
+  describe('isBunnyStreamUrl', () => {
+    it('should accept Bunny Stream HLS URLs', () => {
+      expect(isBunnyStreamUrl('https://vz-12345678-abc.b-cdn.net/abc-def/playlist.m3u8')).toBe(true);
     });
 
-    it('should extract IDs from play URL', () => {
-      const result = extractBunnyVideoId('https://iframe.mediadelivery.net/play/12345/abc-def-ghi');
-      expect(result).toEqual({ libraryId: '12345', videoGuid: 'abc-def-ghi' });
+    it('should accept Bunny pull zone MP4 URLs', () => {
+      expect(isBunnyStreamUrl('https://videos.example.b-cdn.net/course/lesson-1.mp4')).toBe(true);
     });
 
-    it('should return null for non-bunny URLs', () => {
-      expect(extractBunnyVideoId('https://youtube.com/watch?v=abc')).toBe(null);
+    it('should reject Bunny iframe embeds', () => {
+      expect(isBunnyStreamUrl('https://iframe.mediadelivery.net/embed/12345/abc-def-ghi')).toBe(false);
     });
 
-    it('should return null for invalid URLs', () => {
-      expect(extractBunnyVideoId('not-a-url')).toBe(null);
-      expect(extractBunnyVideoId('')).toBe(null);
+    it('should reject non-Bunny URLs', () => {
+      expect(isBunnyStreamUrl('https://youtube.com/watch?v=abc')).toBe(false);
+    });
+  });
+
+  describe('parseTwitchVideoId', () => {
+    it('should parse Twitch VOD URLs', () => {
+      expect(parseTwitchVideoId('https://www.twitch.tv/videos/2321733225')).toBe('2321733225');
+    });
+
+    it('should parse Twitch channel URLs', () => {
+      expect(parseTwitchVideoId('https://www.twitch.tv/somestreamer')).toBe('somestreamer');
+    });
+
+    it('should parse Twitch clip URLs', () => {
+      expect(parseTwitchVideoId('https://clips.twitch.tv/PoliteSlugHere')).toBe('PoliteSlugHere');
     });
   });
 
@@ -109,19 +121,21 @@ describe('Video Utilities', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('should parse Bunny.net URLs', () => {
-      const result = parseVideoUrl('https://iframe.mediadelivery.net/embed/12345/abc-def');
+    it('should parse Bunny.net HLS URLs', () => {
+      const url = 'https://vz-12345678-abc.b-cdn.net/abc-def/playlist.m3u8';
+      const result = parseVideoUrl(url);
       expect(result.platform).toBe('bunny');
-      expect(result.videoId).toBe('12345/abc-def');
-      expect(result.embedUrl).toBe('https://iframe.mediadelivery.net/embed/12345/abc-def');
+      expect(result.videoId).toBe('abc-def/playlist.m3u8');
+      expect(result.embedUrl).toBe(url);
       expect(result.isValid).toBe(true);
     });
 
-    it('should parse Loom URLs', () => {
-      const result = parseVideoUrl('https://www.loom.com/share/abc123xyz');
-      expect(result.platform).toBe('loom');
-      expect(result.videoId).toBe('abc123xyz');
-      expect(result.embedUrl).toBe('https://www.loom.com/embed/abc123xyz');
+    it('should parse Bunny.net MP4 URLs', () => {
+      const url = 'https://videos.example.b-cdn.net/course/lesson-1.mp4';
+      const result = parseVideoUrl(url);
+      expect(result.platform).toBe('bunny');
+      expect(result.videoId).toBe('course/lesson-1.mp4');
+      expect(result.embedUrl).toBe(url);
       expect(result.isValid).toBe(true);
     });
 
@@ -129,16 +143,37 @@ describe('Video Utilities', () => {
       const result = parseVideoUrl('https://company.wistia.com/medias/abc123');
       expect(result.platform).toBe('wistia');
       expect(result.videoId).toBe('abc123');
-      expect(result.embedUrl).toBe('https://fast.wistia.net/embed/iframe/abc123');
+      expect(result.embedUrl).toBe('https://company.wistia.com/medias/abc123');
       expect(result.isValid).toBe(true);
     });
 
-    it('should parse DailyMotion URLs', () => {
-      const result = parseVideoUrl('https://www.dailymotion.com/video/x8abc123');
-      expect(result.platform).toBe('dailymotion');
-      expect(result.videoId).toBe('x8abc123');
-      expect(result.embedUrl).toBe('https://www.dailymotion.com/embed/video/x8abc123');
+    it('should parse Twitch URLs', () => {
+      const result = parseVideoUrl('https://www.twitch.tv/videos/2321733225');
+      expect(result.platform).toBe('twitch');
+      expect(result.videoId).toBe('2321733225');
+      expect(result.embedUrl).toBe('https://www.twitch.tv/videos/2321733225');
       expect(result.isValid).toBe(true);
+    });
+
+    it('should reject Bunny iframe embeds with a specific reason', () => {
+      const result = parseVideoUrl('https://iframe.mediadelivery.net/embed/12345/abc-def');
+      expect(result.platform).toBe('bunny');
+      expect(result.isValid).toBe(false);
+      expect(result.rejectionReason).toBe('bunny_iframe_unsupported');
+    });
+
+    it('should reject Loom URLs', () => {
+      const result = parseVideoUrl('https://www.loom.com/share/abc123xyz');
+      expect(result.platform).toBe('unknown');
+      expect(result.isValid).toBe(false);
+      expect(result.rejectionReason).toBe('unsupported_platform');
+    });
+
+    it('should reject DailyMotion URLs', () => {
+      const result = parseVideoUrl('https://www.dailymotion.com/video/x8abc123');
+      expect(result.platform).toBe('unknown');
+      expect(result.isValid).toBe(false);
+      expect(result.rejectionReason).toBe('unsupported_platform');
     });
 
     it('should return invalid for empty URL', () => {
@@ -168,17 +203,28 @@ describe('Video Utilities', () => {
       expect(isTrustedVideoPlatform('https://vimeo.com/123')).toBe(true);
     });
 
-    it('should return true for Bunny.net', () => {
-      expect(isTrustedVideoPlatform('https://iframe.mediadelivery.net/embed/123/abc')).toBe(true);
+    it('should return true for Bunny.net stream files', () => {
+      expect(isTrustedVideoPlatform('https://vz-12345678.b-cdn.net/video/playlist.m3u8')).toBe(true);
+      expect(isTrustedVideoPlatform('https://videos.example.b-cdn.net/video.mp4')).toBe(true);
     });
 
-    it('should return true for Loom', () => {
-      expect(isTrustedVideoPlatform('https://www.loom.com/share/abc')).toBe(true);
+    it('should return false for Bunny iframe embeds', () => {
+      expect(isTrustedVideoPlatform('https://iframe.mediadelivery.net/embed/123/abc')).toBe(false);
     });
 
     it('should return true for Wistia', () => {
       expect(isTrustedVideoPlatform('https://company.wistia.com/medias/abc')).toBe(true);
       expect(isTrustedVideoPlatform('https://fast.wistia.net/embed/iframe/abc')).toBe(true);
+    });
+
+    it('should return true for Twitch', () => {
+      expect(isTrustedVideoPlatform('https://www.twitch.tv/videos/2321733225')).toBe(true);
+      expect(isTrustedVideoPlatform('https://clips.twitch.tv/PoliteSlugHere')).toBe(true);
+    });
+
+    it('should return false for removed providers', () => {
+      expect(isTrustedVideoPlatform('https://www.loom.com/share/abc')).toBe(false);
+      expect(isTrustedVideoPlatform('https://www.dailymotion.com/video/x8abc123')).toBe(false);
     });
 
     it('should return false for untrusted domains', () => {
@@ -205,22 +251,17 @@ describe('Video Utilities', () => {
       expect(url).toContain('loop=1');
     });
 
-    it('should add Bunny options', () => {
-      const url = addEmbedOptions('https://iframe.mediadelivery.net/embed/123/abc', {
+    it('should leave non-iframe Playerstack sources unchanged', () => {
+      const url = addEmbedOptions('https://vz-12345678.b-cdn.net/video/playlist.m3u8', {
         autoplay: true,
         muted: true,
-        preload: true
       });
-      expect(url).toContain('autoplay=true');
-      expect(url).toContain('muted=true');
-      expect(url).toContain('preload=true');
-      expect(url).toContain('responsive=true');
+      expect(url).toBe('https://vz-12345678.b-cdn.net/video/playlist.m3u8');
     });
 
-    it('should add Wistia options', () => {
+    it('should leave Wistia options to Playerstack config', () => {
       const url = addEmbedOptions('https://fast.wistia.net/embed/iframe/abc', { autoplay: true, muted: true });
-      expect(url).toContain('autoPlay=true');
-      expect(url).toContain('muted=true');
+      expect(url).toBe('https://fast.wistia.net/embed/iframe/abc');
     });
 
     it('should return original URL for empty input', () => {
@@ -254,6 +295,10 @@ describe('Video Utilities', () => {
     it('should return null for invalid URL', () => {
       expect(getEmbedUrl('not-a-url')).toBe(null);
       expect(getEmbedUrl('')).toBe(null);
+    });
+
+    it('should return null for rejected Bunny iframe embeds', () => {
+      expect(getEmbedUrl('https://iframe.mediadelivery.net/embed/12345/abc-def')).toBe(null);
     });
 
     it('should return null for non-video platforms', () => {

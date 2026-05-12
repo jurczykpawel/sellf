@@ -87,15 +87,11 @@ export interface ContentItem {
 export interface ContentItemConfig {
   // For video_embed
   embed_url?: string
-  embed_code?: string
   // Video embed options
   autoplay?: boolean
   loop?: boolean
   muted?: boolean
-  preload?: boolean
   controls?: boolean
-  /** When false, skip custom player and render a plain iframe with native platform UI */
-  useCustomPlayer?: boolean
   // For download_link
   download_url?: string
   file_name?: string

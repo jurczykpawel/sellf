@@ -43,6 +43,21 @@ describe('CSP with nonce — production posture', () => {
     expect(scriptSrc).toContain('www.youtube.com');
   });
 
+  it('does NOT allow third-party script CDNs that would expand the supply-chain surface', () => {
+    const scriptSrc = csp.split(';').find((d) => d.trim().startsWith('script-src')) ?? '';
+    expect(scriptSrc).not.toContain('cdn.jsdelivr.net');
+    expect(scriptSrc).not.toContain('unpkg.com');
+  });
+
+  it('allows Playerstack media sources and Bunny streams without an https: wildcard', () => {
+    const mediaSrc = csp.split(';').find((d) => d.trim().startsWith('media-src')) ?? '';
+    expect(mediaSrc).toContain("'self'");
+    expect(mediaSrc).toContain('blob:');
+    expect(mediaSrc).toContain('*.b-cdn.net');
+    expect(mediaSrc).not.toMatch(/\bhttps:\B|\bhttps:\s/);
+    expect(csp).toMatch(/object-src 'none'/);
+  });
+
   it('keeps style-src unsafe-inline (Tailwind v4 critical CSS)', () => {
     expect(csp).toMatch(/style-src[^;]*'unsafe-inline'/);
   });

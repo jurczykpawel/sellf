@@ -4,9 +4,7 @@ import React, { useState } from 'react';
 import { ModalSection } from '@/components/ui/Modal';
 import IconSelector from '@/components/IconSelector';
 import { PricingSectionProps } from '../types';
-import { parseVideoUrl } from '@/lib/videoUtils';
-
-const SUPPORTED_PLATFORMS = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'] as const;
+import { getVideoValidationMessage } from '@/lib/playerstack';
 
 interface VisualSectionProps {
   formData: PricingSectionProps['formData'];
@@ -34,9 +32,9 @@ export function PricingSection({
     const value = e.target.value || null;
 
     if (value) {
-      const parsed = parseVideoUrl(value);
-      if (!SUPPORTED_PLATFORMS.includes(parsed.platform as typeof SUPPORTED_PLATFORMS[number])) {
-        setVideoUrlError(t('previewVideoUrlUnsupported', { defaultValue: 'Unsupported platform. Use YouTube, Vimeo, Wistia, Bunny, or Loom.' }));
+      const validationMessage = getVideoValidationMessage(value);
+      if (validationMessage !== 'ok') {
+        setVideoUrlError(t('previewVideoUrlUnsupported', { defaultValue: 'Unsupported platform. Use YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch.' }));
         setFormData(prev => ({ ...prev, preview_video_url: null }));
         return;
       }
@@ -102,7 +100,7 @@ export function PricingSection({
           </p>
         )}
         <p className="mt-2 text-xs text-sf-muted">
-          {t('previewVideoUrlHelp', { defaultValue: 'Video shown on checkout page. Takes priority over image. Supports YouTube, Vimeo, Bunny, Loom.' })}
+          {t('previewVideoUrlHelp', { defaultValue: 'Video shown on checkout page. Takes priority over image. Supports YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, and Twitch.' })}
         </p>
       </div>
     </ModalSection>

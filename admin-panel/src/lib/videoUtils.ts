@@ -11,10 +11,11 @@ function isHostnameMatch(hostname: string, domain: string): boolean {
 }
 
 export interface ParsedVideoUrl {
-  platform: 'youtube' | 'vimeo' | 'loom' | 'wistia' | 'dailymotion' | 'twitch' | 'bunny' | 'unknown';
+  platform: 'youtube' | 'vimeo' | 'wistia' | 'twitch' | 'bunny' | 'unknown';
   videoId: string | null;
   embedUrl: string | null;
   isValid: boolean;
+  rejectionReason?: 'bunny_iframe_unsupported' | 'unsupported_platform';
 }
 
 /**
@@ -88,25 +89,46 @@ export function extractVimeoVideoId(url: string): string | null {
   }
 }
 
-/**
- * Extract Bunny.net video ID and library ID
- *
- * Supports:
- * - https://iframe.mediadelivery.net/embed/LIBRARY_ID/VIDEO_GUID
- * - https://iframe.mediadelivery.net/play/LIBRARY_ID/VIDEO_GUID
- */
-export function extractBunnyVideoId(url: string): { libraryId: string; videoGuid: string } | null {
+export function isBunnyStreamUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname.toLowerCase();
 
-    if (urlObj.hostname === 'iframe.mediadelivery.net') {
-      const match = urlObj.pathname.match(/\/(embed|play)\/([^/]+)\/([^/?]+)/);
-      if (match) {
-        return {
-          libraryId: match[2],
-          videoGuid: match[3]
-        };
-      }
+    return (
+      hostname.endsWith('.b-cdn.net') &&
+      (pathname.endsWith('.m3u8') || pathname.endsWith('.mp4') || pathname.endsWith('.webm'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function parseTwitchVideoId(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+
+    if (isHostnameMatch(hostname, 'twitch.tv')) {
+      const videoMatch = urlObj.pathname.match(/^\/videos\/(\d+)\/?$/);
+      if (videoMatch) return videoMatch[1];
+
+      const channelClipMatch = urlObj.pathname.match(/^\/[^/]+\/clip\/([A-Za-z0-9_-]+)\/?$/);
+      if (channelClipMatch) return channelClipMatch[1];
+
+      const channelMatch = urlObj.pathname.match(/^\/([A-Za-z0-9_]{3,25})\/?$/);
+      if (channelMatch) return channelMatch[1];
+    }
+
+    if (hostname === 'clips.twitch.tv') {
+      const slug = urlObj.pathname.replace(/^\/+/, '').split('/')[0];
+      return slug || null;
+    }
+
+    if (hostname === 'player.twitch.tv') {
+      return urlObj.searchParams.get('video')
+        ?? urlObj.searchParams.get('channel')
+        ?? urlObj.searchParams.get('clip');
     }
 
     return null;
@@ -158,31 +180,24 @@ export function parseVideoUrl(url: string): ParsedVideoUrl {
       }
     }
 
-    // Bunny.net
+    // Bunny Stream: use HLS or MP4/WebM from a Bunny CDN pull zone.
     if (hostname === 'iframe.mediadelivery.net') {
-      const bunnyIds = extractBunnyVideoId(url);
-      if (bunnyIds) {
-        return {
-          platform: 'bunny',
-          videoId: `${bunnyIds.libraryId}/${bunnyIds.videoGuid}`,
-          embedUrl: `https://iframe.mediadelivery.net/embed/${bunnyIds.libraryId}/${bunnyIds.videoGuid}`,
-          isValid: true
-        };
-      }
+      return {
+        platform: 'bunny',
+        videoId: null,
+        embedUrl: null,
+        isValid: false,
+        rejectionReason: 'bunny_iframe_unsupported'
+      };
     }
 
-    // Loom
-    if (isHostnameMatch(hostname, 'loom.com')) {
-      const match = urlObj.pathname.match(/\/share\/([a-zA-Z0-9]+)/);
-      if (match) {
-        const videoId = match[1];
-        return {
-          platform: 'loom',
-          videoId,
-          embedUrl: `https://www.loom.com/embed/${videoId}`,
-          isValid: true
-        };
-      }
+    if (isBunnyStreamUrl(url)) {
+      return {
+        platform: 'bunny',
+        videoId: urlObj.pathname.replace(/^\/+/, ''),
+        embedUrl: url,
+        isValid: true
+      };
     }
 
     // Wistia
@@ -200,7 +215,6 @@ export function parseVideoUrl(url: string): ParsedVideoUrl {
         }
       }
 
-      // Standard Wistia share URL: https://companyname.wistia.com/medias/VIDEO_ID
       if (urlObj.pathname.includes('/medias/')) {
         const match = urlObj.pathname.match(/\/medias\/([a-zA-Z0-9]+)/);
         if (match) {
@@ -208,49 +222,40 @@ export function parseVideoUrl(url: string): ParsedVideoUrl {
           return {
             platform: 'wistia',
             videoId,
-            embedUrl: `https://fast.wistia.net/embed/iframe/${videoId}`,
+            embedUrl: url,
             isValid: true
           };
         }
       }
 
-      // Legacy embed format check
-      if (urlObj.pathname.includes('/embed/')) {
-        return {
-          platform: 'wistia',
-          videoId: null,
-          embedUrl: url,
-          isValid: true
-        };
-      }
-    }
-
-    // DailyMotion
-    if (isHostnameMatch(hostname, 'dailymotion.com')) {
-      const match = urlObj.pathname.match(/\/video\/([a-zA-Z0-9]+)/);
-      if (match) {
-        const videoId = match[1];
-        return {
-          platform: 'dailymotion',
-          videoId,
-          embedUrl: `https://www.dailymotion.com/embed/video/${videoId}`,
-          isValid: true
-        };
-      }
+      return {
+        platform: 'wistia',
+        videoId: null,
+        embedUrl: null,
+        isValid: false,
+        rejectionReason: 'unsupported_platform'
+      };
     }
 
     // Twitch
-    if (isHostnameMatch(hostname, 'twitch.tv')) {
-      const match = urlObj.pathname.match(/\/videos\/(\d+)/);
-      if (match) {
-        const videoId = match[1];
-        return {
-          platform: 'twitch',
-          videoId,
-          embedUrl: `https://player.twitch.tv/?video=${videoId}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}`,
-          isValid: true
-        };
-      }
+    if (isHostnameMatch(hostname, 'twitch.tv') || hostname === 'clips.twitch.tv' || hostname === 'player.twitch.tv') {
+      const videoId = parseTwitchVideoId(url);
+      return {
+        platform: 'twitch',
+        videoId,
+        embedUrl: url,
+        isValid: Boolean(videoId)
+      };
+    }
+
+    if (isHostnameMatch(hostname, 'loom.com') || isHostnameMatch(hostname, 'dailymotion.com')) {
+      return {
+        platform: 'unknown',
+        videoId: null,
+        embedUrl: null,
+        isValid: false,
+        rejectionReason: 'unsupported_platform'
+      };
     }
 
     // If URL matches allowed embed domains but we couldn't parse a video ID,
@@ -258,10 +263,7 @@ export function parseVideoUrl(url: string): ParsedVideoUrl {
     const allowedEmbedPatterns = [
       { domain: 'youtube.com', pathPrefix: '/embed' },
       { domain: 'player.vimeo.com', pathPrefix: '' },
-      { domain: 'iframe.mediadelivery.net', pathPrefix: '' },
-      { domain: 'loom.com', pathPrefix: '/embed' },
       { domain: 'fast.wistia.com', pathPrefix: '' },
-      { domain: 'dailymotion.com', pathPrefix: '/embed' },
       { domain: 'player.twitch.tv', pathPrefix: '' },
     ];
 
@@ -298,17 +300,20 @@ export function isTrustedVideoPlatform(url: string): boolean {
     'youtube.com',
     'youtu.be',
     'vimeo.com',
-    'iframe.mediadelivery.net', // Bunny.net
-    'loom.com',
+    'b-cdn.net', // Bunny Stream HLS/MP4 pull zones
     'wistia.com',
     'wistia.net',
-    'dailymotion.com',
     'twitch.tv',
-    'streamable.com'
+    'clips.twitch.tv',
+    'player.twitch.tv'
   ];
 
   try {
     const urlObj = new URL(url);
+    if (isHostnameMatch(urlObj.hostname, 'b-cdn.net')) {
+      return isBunnyStreamUrl(url);
+    }
+
     return trustedDomains.some(domain => isHostnameMatch(urlObj.hostname, domain));
   } catch {
     return false;
@@ -322,7 +327,6 @@ export interface VideoEmbedOptions {
   autoplay?: boolean;
   loop?: boolean;
   muted?: boolean;
-  preload?: boolean;
   controls?: boolean;
 }
 
@@ -336,18 +340,8 @@ export function addEmbedOptions(embedUrl: string, options: VideoEmbedOptions = {
     const url = new URL(embedUrl);
     const hostname = url.hostname.toLowerCase();
 
-    // Bunny.net parameters
-    if (hostname === 'iframe.mediadelivery.net') {
-      if (options.autoplay) url.searchParams.set('autoplay', 'true');
-      if (options.loop) url.searchParams.set('loop', 'true');
-      if (options.muted) url.searchParams.set('muted', 'true');
-      if (options.preload) url.searchParams.set('preload', 'true');
-      // Bunny always has responsive, but we can set it explicitly
-      url.searchParams.set('responsive', 'true');
-    }
-
     // YouTube parameters
-    else if (isHostnameMatch(hostname, 'youtube.com')) {
+    if (isHostnameMatch(hostname, 'youtube.com')) {
       if (options.autoplay) url.searchParams.set('autoplay', '1');
       if (options.loop) url.searchParams.set('loop', '1');
       if (options.muted) url.searchParams.set('mute', '1');
@@ -360,20 +354,6 @@ export function addEmbedOptions(embedUrl: string, options: VideoEmbedOptions = {
       if (options.loop) url.searchParams.set('loop', '1');
       if (options.muted) url.searchParams.set('muted', '1');
       if (options.controls === false) url.searchParams.set('controls', '0');
-    }
-
-    // Wistia parameters
-    else if (isHostnameMatch(hostname, 'wistia.com') || isHostnameMatch(hostname, 'wistia.net')) {
-      if (options.autoplay) url.searchParams.set('autoPlay', 'true');
-      if (options.muted) url.searchParams.set('muted', 'true');
-      if (options.controls === false) url.searchParams.set('controlsVisibleOnLoad', 'false');
-    }
-
-    // DailyMotion parameters
-    else if (isHostnameMatch(hostname, 'dailymotion.com')) {
-      if (options.autoplay) url.searchParams.set('autoplay', '1');
-      if (options.muted) url.searchParams.set('mute', '1');
-      if (options.controls === false) url.searchParams.set('controls', 'false');
     }
 
     return url.toString();

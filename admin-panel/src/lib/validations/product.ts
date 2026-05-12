@@ -402,19 +402,20 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
           if (typeof embedUrl !== 'string') {
             errors.push(`Content item ${index + 1}: Video embed URL must be a string`);
           } else {
-            // Must use HTTPS
             if (!embedUrl.startsWith('https://')) {
               errors.push(`Content item ${index + 1}: Video embed URL must use HTTPS`);
-            } else if (!isTrustedVideoPlatform(embedUrl)) {
-              // Check if it's from a trusted platform
-              errors.push(
-                `Content item ${index + 1}: Video URL must be from a trusted platform (YouTube, Vimeo, Bunny.net, Loom, Wistia, DailyMotion, Twitch)`
-              );
             } else {
-              // Validate that it's a parseable video URL
               const parsed = parseVideoUrl(embedUrl);
               if (!parsed.isValid) {
-                errors.push(`Content item ${index + 1}: Invalid video URL format`);
+                if (parsed.rejectionReason === 'bunny_iframe_unsupported') {
+                  errors.push(`Content item ${index + 1}: Bunny iframe embeds are not supported. Use a Bunny Stream HLS playlist (.m3u8) or MP4/WebM URL from your pull zone.`);
+                } else if (!isTrustedVideoPlatform(embedUrl)) {
+                  errors.push(
+                    `Content item ${index + 1}: Video URL must be from a trusted platform (YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, Twitch)`
+                  );
+                } else {
+                  errors.push(`Content item ${index + 1}: Invalid video URL format`);
+                }
               }
             }
           }
@@ -531,9 +532,9 @@ export function validateCreateProduct(data: unknown): ValidationResult {
       errors.push('Preview video URL must use HTTPS');
     } else {
       const parsed = parseVideoUrl(input.preview_video_url);
-      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
-      if (!allowedPlatforms.includes(parsed.platform)) {
-        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'twitch'];
+      if (!parsed.isValid || !allowedPlatforms.includes(parsed.platform)) {
+        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch');
       }
     }
   }
@@ -680,9 +681,9 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
       errors.push('Preview video URL must use HTTPS');
     } else {
       const parsed = parseVideoUrl(input.preview_video_url);
-      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
-      if (!allowedPlatforms.includes(parsed.platform)) {
-        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'twitch'];
+      if (!parsed.isValid || !allowedPlatforms.includes(parsed.platform)) {
+        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch');
       }
     }
   }

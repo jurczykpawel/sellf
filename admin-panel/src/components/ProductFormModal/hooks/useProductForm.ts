@@ -8,6 +8,7 @@ import { getCategories, getProductCategories, Category } from '@/lib/actions/cat
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
+import { getVideoValidationMessage } from '@/lib/playerstack';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
 import { createClient } from '@/lib/supabase/client';
 import { api } from '@/lib/api/client';
@@ -281,7 +282,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
   // Returns i18n message keys in `message` field — translated in ContentDeliverySection
   const platformLabels: Record<string, string> = {
     youtube: 'YouTube', vimeo: 'Vimeo', bunny: 'Bunny.net',
-    loom: 'Loom', wistia: 'Wistia', dailymotion: 'DailyMotion', twitch: 'Twitch',
+    wistia: 'Wistia', twitch: 'Twitch',
   };
 
   const validateContentItemUrl = useCallback((url: string, type: 'video_embed' | 'download_link'): UrlValidation => {
@@ -292,10 +293,14 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     if (type === 'video_embed') {
       const parsed = parseVideoUrl(url);
       if (!parsed.isValid) {
+        const message = getVideoValidationMessage(url);
+        if (message === 'bunnyIframeUnsupported') {
+          return { isValid: false, message: 'bunnyIframeUnsupported', platform: 'Bunny.net' };
+        }
         if (!isTrustedVideoPlatform(url)) {
           return { isValid: false, message: 'untrustedPlatform' };
         }
-        return { isValid: false, message: 'invalidVideoUrl' };
+        return { isValid: false, message: message === 'unsupportedVideoPlatform' ? 'untrustedPlatform' : 'invalidVideoUrl' };
       }
       const label = platformLabels[parsed.platform] ?? parsed.platform;
       return {

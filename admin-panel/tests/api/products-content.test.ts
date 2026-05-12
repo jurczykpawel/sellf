@@ -2,7 +2,7 @@
  * API Integration Tests: Products — Digital Content Config
  *
  * Tests creating and updating products with all supported content types:
- * - video_embed: all 7 platforms (YouTube, Vimeo, Bunny, Loom, Wistia, DailyMotion, Twitch)
+ * - video_embed: all supported Playerstack sources (YouTube, Vimeo, Wistia, Bunny HLS/MP4, Twitch)
  * - download_link: all trusted storage providers (AWS S3, GCS, Supabase, Google Drive,
  *   Google Docs, Dropbox, OneDrive, Box, SharePoint, Bunny CDN, Cloudinary, Mega,
  *   MediaFire, WeTransfer, SendSpace)
@@ -82,21 +82,21 @@ const VIDEO_ITEMS: ContentItem[] = [
     id: 'test-vid-bunny',
     type: 'video_embed',
     order: 4,
-    title: 'Bunny.net Stream',
+    title: 'Bunny Stream HLS',
     is_active: true,
     config: {
-      embed_url: 'https://iframe.mediadelivery.net/embed/123456/a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      embed_url: 'https://vz-12345678.b-cdn.net/course/playlist.m3u8',
       autoplay: false,
     },
   },
   {
-    id: 'test-vid-loom',
+    id: 'test-vid-bunny-mp4',
     type: 'video_embed',
     order: 5,
-    title: 'Loom — Nagranie ekranu',
+    title: 'Bunny Pull Zone MP4',
     is_active: true,
     config: {
-      embed_url: 'https://www.loom.com/share/a1b2c3d4e5f6478a9b0c1d2e3f4a5b6c',
+      embed_url: 'https://videos.example.b-cdn.net/course/lesson-1.mp4',
     },
   },
   {
@@ -110,23 +110,23 @@ const VIDEO_ITEMS: ContentItem[] = [
     },
   },
   {
-    id: 'test-vid-dailymotion',
+    id: 'test-vid-twitch-vod',
     type: 'video_embed',
     order: 7,
-    title: 'DailyMotion — Webinar',
-    is_active: true,
-    config: {
-      embed_url: 'https://www.dailymotion.com/video/x7tgad0',
-    },
-  },
-  {
-    id: 'test-vid-twitch',
-    type: 'video_embed',
-    order: 8,
     title: 'Twitch — VOD z Q&A',
     is_active: true,
     config: {
-      embed_url: 'https://player.twitch.tv/?video=2321733225&parent=localhost',
+      embed_url: 'https://www.twitch.tv/videos/2321733225',
+    },
+  },
+  {
+    id: 'test-vid-twitch-channel',
+    type: 'video_embed',
+    order: 8,
+    title: 'Twitch — Channel',
+    is_active: true,
+    config: {
+      embed_url: 'https://www.twitch.tv/somestreamer',
     },
   },
 ];
@@ -417,11 +417,12 @@ describe('Products API v1 — Digital Content Config', () => {
       ['YouTube embed URL',    'https://www.youtube.com/embed/dQw4w9WgXcQ'],
       ['Vimeo watch URL',      'https://vimeo.com/76979871'],
       ['Vimeo player URL',     'https://player.vimeo.com/video/76979871'],
-      ['Bunny Stream embed',   'https://iframe.mediadelivery.net/embed/123456/a1b2c3d4-e5f6-7890-abcd-ef1234567890'],
-      ['Loom share URL',       'https://www.loom.com/share/a1b2c3d4e5f6478a9b0c1d2e3f4a5b6c'],
+      ['Bunny Stream HLS',     'https://vz-12345678.b-cdn.net/course/playlist.m3u8'],
+      ['Bunny Pull Zone MP4',  'https://videos.example.b-cdn.net/course/lesson-1.mp4'],
       ['Wistia medias URL',    'https://support.wistia.com/medias/e4a27b971d'],
-      ['DailyMotion video URL','https://www.dailymotion.com/video/x7tgad0'],
-      ['Twitch player embed',  'https://player.twitch.tv/?video=2321733225&parent=localhost'],
+      ['Twitch VOD URL',       'https://www.twitch.tv/videos/2321733225'],
+      ['Twitch channel URL',   'https://www.twitch.tv/somestreamer'],
+      ['Twitch clip URL',      'https://clips.twitch.tv/PoliteSlugHere'],
     ])('should accept %s', async (label, embed_url) => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', getProductWith([
         { id: `test-${Date.now()}`, type: 'video_embed', order: 1, title: label, is_active: true, config: { embed_url } },
@@ -435,7 +436,9 @@ describe('Products API v1 — Digital Content Config', () => {
       ['HTTP YouTube (not HTTPS)',    'http://www.youtube.com/watch?v=dQw4w9WgXcQ'],
       ['untrusted domain',            'https://evil.com/video/abc'],
       ['random HTTPS URL',            'https://example.com/video.mp4'],
-      ['Twitch channel (not a video)','https://www.twitch.tv/somestreamer'],
+      ['Bunny iframe embed',           'https://iframe.mediadelivery.net/embed/123456/a1b2c3d4-e5f6-7890-abcd-ef1234567890'],
+      ['Loom share URL',               'https://www.loom.com/share/a1b2c3d4e5f6478a9b0c1d2e3f4a5b6c'],
+      ['DailyMotion video URL',        'https://www.dailymotion.com/video/x7tgad0'],
     ])('should reject %s', async (label, embed_url) => {
       const { status } = await post<ApiResponse<Product>>('/api/v1/products', getProductWith([
         { id: `test-${Date.now()}`, type: 'video_embed', order: 1, title: label, is_active: true, config: { embed_url } },

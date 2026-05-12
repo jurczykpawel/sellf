@@ -17,6 +17,7 @@
     "test:api": "vitest run --config vitest.config.api.ts",
     "test:api:watch": "vitest --config vitest.config.api.ts",
     "test:config": "vitest run --config vitest.config.config.ts",
+    "sync:playerstack": "scripts/sync-playerstack.sh",
     "test:a11y": "playwright test --project=accessibility",
     "test:visual": "playwright test --project=visual-mobile --project=visual-tablet --project=visual-laptop --project=visual-wide --project=visual-qhd --project=visual-4k",
     "test:visual:review": "playwright test --project=visual-mobile --project=visual-tablet --project=visual-laptop --project=visual-wide --project=visual-qhd --project=visual-4k && ../../../scripts/dev/visual-review",
