@@ -146,6 +146,99 @@ export interface PaymentVerificationResult {
  * This avoids unnecessary Stripe API calls for already-processed payments.
  * Returns null if payment not found in database (needs Stripe verification).
  */
+export type PaymentStatusKind =
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'expired'
+  | 'magic_link_sent'
+  | 'email_validation_failed';
+
+interface VerifiedPaymentShape {
+  access_granted?: boolean;
+  scenario?: string;
+  is_guest_purchase?: boolean;
+  send_magic_link?: boolean;
+  requires_login?: boolean;
+  error?: string;
+}
+
+interface MappedPaymentStatus {
+  paymentStatus: PaymentStatusKind;
+  accessGranted: boolean;
+  errorMessage: string;
+}
+
+/**
+ * Translates the success-shape of a verified payment result into the user-facing
+ * status the payment-status page renders. Centralized here so both the Stripe
+ * session and PaymentIntent branches share one source of truth and regressions
+ * in the contract are caught by unit tests.
+ */
+export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): MappedPaymentStatus {
+  if (result.access_granted) {
+    const requiresMagicLink = !!(result.requires_login && result.send_magic_link);
+    return {
+      paymentStatus: requiresMagicLink ? 'magic_link_sent' : 'completed',
+      accessGranted: true,
+      errorMessage: '',
+    };
+  }
+
+  if (result.scenario === 'email_validation_failed_server_side') {
+    return {
+      paymentStatus: 'email_validation_failed',
+      accessGranted: false,
+      errorMessage: result.error || 'Invalid email address detected.',
+    };
+  }
+
+  if (result.is_guest_purchase && result.send_magic_link) {
+    return { paymentStatus: 'magic_link_sent', accessGranted: false, errorMessage: '' };
+  }
+
+  return {
+    paymentStatus: 'failed',
+    accessGranted: false,
+    errorMessage: result.error || 'Unknown error occurred',
+  };
+}
+
+interface CachedPaymentAuthInput {
+  visitor: { id: string; email: string | null } | null;
+  transactionUserId: string | null;
+  transactionEmail: string | null;
+  hasAccess: boolean;
+}
+
+interface CachedPaymentAuthOutput {
+  isStructuralGuestPurchase: boolean;
+  isClaimedByCurrentUser: boolean;
+  currentVisitorNeedsLogin: boolean;
+}
+
+export function classifyCachedPaymentAuth({
+  visitor,
+  transactionUserId,
+  transactionEmail,
+  hasAccess,
+}: CachedPaymentAuthInput): CachedPaymentAuthOutput {
+  const isClaimedByCurrentUser = !!visitor
+    && hasAccess
+    && !!transactionEmail
+    && !!visitor.email
+    && transactionEmail.toLowerCase() === visitor.email.toLowerCase();
+
+  const isStructuralGuestPurchase = !transactionUserId;
+  const currentVisitorNeedsLogin = !isClaimedByCurrentUser;
+
+  return {
+    isStructuralGuestPurchase,
+    isClaimedByCurrentUser,
+    currentVisitorNeedsLogin,
+  };
+}
+
 async function getProcessedPaymentFromDatabase(
   sessionId: string,
   serviceClient: AdminClient,
@@ -201,16 +294,13 @@ async function getProcessedPaymentFromDatabase(
     : { data: null };
 
   const hasAccess = !!accessRecord;
-  // Distinguish a true guest purchase from one that was claimed by the current
-  // (logged-in) user. If the caller is authenticated, owns the transaction email,
-  // and has access, treat the purchase as owned (not guest) so the frontend does
-  // not re-display the magic link UI.
-  const isClaimedByCurrentUser = !!user
-    && hasAccess
-    && !!transaction.customer_email
-    && !!user.email
-    && transaction.customer_email.toLowerCase() === user.email.toLowerCase();
-  const isGuestPurchase = !transaction.user_id && !isClaimedByCurrentUser;
+  const { isStructuralGuestPurchase, isClaimedByCurrentUser, currentVisitorNeedsLogin } =
+    classifyCachedPaymentAuth({
+      visitor: user ? { id: user.id, email: user.email || null } : null,
+      transactionUserId: transaction.user_id,
+      transactionEmail: transaction.customer_email,
+      hasAccess,
+    });
 
   // Generate OTO info if applicable
   let otoInfo: OtoInfo = { has_oto: false };
@@ -243,12 +333,13 @@ async function getProcessedPaymentFromDatabase(
     created: Math.floor(new Date(transaction.created_at).getTime() / 1000),
     access_granted: hasAccess,
     already_had_access: false, // Can't determine from cache
-    requires_login: isGuestPurchase && !user,
-    is_guest_purchase: isGuestPurchase,
-    scenario: isGuestPurchase ? 'guest_purchase_cached' : 'logged_in_purchase_cached',
+    requires_login: currentVisitorNeedsLogin,
+    is_guest_purchase: isStructuralGuestPurchase,
+    scenario: isClaimedByCurrentUser
+      ? 'logged_in_purchase_cached'
+      : (isStructuralGuestPurchase ? 'guest_purchase_cached' : 'existing_user_guest_checkout_cached'),
     access_expires_at: accessRecord?.access_expires_at || null,
-    // Only send magic link if user actually needs to log in
-    send_magic_link: isGuestPurchase && !user,
+    send_magic_link: currentVisitorNeedsLogin,
     oto_info: otoInfo
   };
 }
