@@ -58,14 +58,16 @@ async function handleCheckoutSessionCompleted(
     return { processed: false, message: 'Missing product_id or customer_email in session' };
   }
 
-  // Idempotency check: Skip if already processed
+  // Idempotency check: Skip only if already completed (not pending).
+  // Checkout Sessions Elements creates a pending row before payment; the webhook
+  // must still process it and attach the eventual PaymentIntent ID.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status')
     .eq('session_id', sessionId)
     .maybeSingle();
 
-  if (existingTransaction) {
+  if (existingTransaction?.status === 'completed') {
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
@@ -75,13 +77,29 @@ async function handleCheckoutSessionCompleted(
   const hasBump = session.metadata?.has_bump === 'true';
   const couponId = session.metadata?.coupon_id || null;
   const hasCoupon = session.metadata?.has_coupon === 'true';
-  const discountAmount = parseFloat(session.metadata?.discount_amount || '0') || 0;
   const userId = session.metadata?.user_id || null;
 
   // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
   let bumpProductIds: string[] = bumpProductIdsStr
     ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
     : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+  // Get payment intent ID
+  const stripePaymentIntentId = typeof session.payment_intent === 'object'
+    ? session.payment_intent?.id
+    : session.payment_intent;
+
+  if (existingTransaction?.status === 'pending' && stripePaymentIntentId) {
+    const { error: updatePendingError } = await supabase
+      .from('payment_transactions')
+      .update({ stripe_payment_intent_id: stripePaymentIntentId })
+      .eq('id', existingTransaction.id)
+      .eq('status', 'pending');
+
+    if (updatePendingError) {
+      console.error('[stripe-webhook] Failed to attach PaymentIntent ID to pending Checkout Session row:', updatePendingError);
+    }
+  }
 
   // Detect metadata truncation: bump_count tells us how many bumps were selected
   const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
@@ -113,12 +131,20 @@ async function handleCheckoutSessionCompleted(
     } catch (lineItemErr) {
       console.error('[stripe-webhook] Failed to recover bump IDs from Stripe line items:', lineItemErr);
     }
-  }
 
-  // Get payment intent ID
-  const stripePaymentIntentId = typeof session.payment_intent === 'object'
-    ? session.payment_intent?.id
-    : session.payment_intent;
+    if (bumpProductIds.length < expectedBumpCount && existingTransaction) {
+      const { data: pendingTx } = await supabase
+        .from('payment_transactions')
+        .select('metadata')
+        .eq('id', existingTransaction.id)
+        .single();
+      const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
+      if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
+        bumpProductIds = fullBumpIds as string[];
+        console.info('[stripe-webhook] Recovered %d bump IDs from pending Checkout Session metadata', fullBumpIds.length);
+      }
+    }
+  }
 
   // Process payment using database function (multi-bump aware)
   const { data: rawResult, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {

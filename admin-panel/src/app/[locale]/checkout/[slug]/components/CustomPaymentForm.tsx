@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { PaymentElement, LinkAuthenticationElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
+import type { StripeCheckoutContact } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
@@ -42,7 +43,6 @@ export default function CustomPaymentForm({
   appliedCoupon,
   successUrl,
   onChangeAccount,
-  customAmount,
   customAmountError,
   clientSecret,
   pricing,
@@ -51,11 +51,10 @@ export default function CustomPaymentForm({
   taxMode,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
-  const stripe = useStripe();
-  const elements = useElements();
+  const checkoutResult = useCheckoutElements();
   const { track } = useTracking();
 
-  const [linkEmail, setLinkEmail] = useState('');
+  const [linkEmail, setLinkEmail] = useState(email || '');
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const emailMismatch = !!(email && linkEmail && linkEmail.toLowerCase() !== email.toLowerCase());
 
@@ -71,7 +70,8 @@ export default function CustomPaymentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stripe || !elements) return;
+    if (checkoutResult.type !== 'success') return;
+    const checkout = checkoutResult.checkout;
 
     const finalEmail = linkEmail || email;
     if (!finalEmail) {
@@ -107,13 +107,6 @@ export default function CustomPaymentForm({
 
     try {
       if (clientSecret) {
-        const { error: submitError } = await elements.submit();
-        if (submitError) {
-          setErrorMessage(submitError.message || t('failedToPreparePayment'));
-          setIsProcessing(false);
-          return;
-        }
-
         const hasValidTaxId = invoice.nip && invoice.nip.trim().length > 0 && validateTaxId(invoice.nip, false).isValid;
         const updateResponse = await fetch('/api/update-payment-metadata', {
           method: 'POST',
@@ -138,6 +131,13 @@ export default function CustomPaymentForm({
         }
       }
 
+      const emailUpdate = await checkout.updateEmail(finalEmail);
+      if (emailUpdate.type === 'error') {
+        setErrorMessage(emailUpdate.error.message || t('emailRequired', { defaultValue: 'Email is required' }));
+        setIsProcessing(false);
+        return;
+      }
+
       // Track add_payment_info
       const items = [{
         item_id: product.id,
@@ -160,22 +160,24 @@ export default function CustomPaymentForm({
         userEmail: finalEmail,
       });
 
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/payment/success?product_id=${product.id}&product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`,
-          receipt_email: finalEmail,
-          payment_method_data: {
-            billing_details: {
-              email: finalEmail,
-              name: invoice.fullName,
-            },
-          },
+      const billingAddress: StripeCheckoutContact = {
+        name: invoice.fullName,
+        address: {
+          country: invoice.country || 'PL',
+          line1: invoice.address || undefined,
+          city: invoice.city || undefined,
+          postal_code: invoice.postalCode || undefined,
         },
+      };
+
+      const result = await checkout.confirm({
+        returnUrl: `${window.location.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${product.id}&product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`,
+        email: finalEmail,
+        billingAddress,
       });
 
-      if (error) {
-        setErrorMessage(error.message || t('paymentFailed'));
+      if (result.type === 'error') {
+        setErrorMessage(result.error.message || t('paymentFailed'));
         setIsProcessing(false);
       }
     } catch (err) {
@@ -188,7 +190,7 @@ export default function CustomPaymentForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <DemoCheckoutNotice />
 
-      {/* Email — LinkAuthenticationElement */}
+      {/* Email */}
       <div data-test-email={linkEmail || email || ''}>
         {email && onChangeAccount && (
           <div className="flex justify-end mb-1">
@@ -201,9 +203,17 @@ export default function CustomPaymentForm({
             </button>
           </div>
         )}
-        <LinkAuthenticationElement
-          options={{ defaultValues: { email: email || '' } }}
-          onChange={(e) => setLinkEmail(e.value.email)}
+        <label htmlFor="checkoutEmail" className="block text-sm font-medium text-sf-body mb-2">
+          Email
+        </label>
+        <input
+          type="email"
+          id="checkoutEmail"
+          value={linkEmail}
+          onChange={(e) => setLinkEmail(e.target.value)}
+          placeholder="you@example.com"
+          required
+          className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
         />
       </div>
 
@@ -275,11 +285,6 @@ export default function CustomPaymentForm({
             layout: {
               type: 'tabs',
               defaultCollapsed: false,
-            },
-            defaultValues: {
-              billingDetails: {
-                name: invoice.fullName || undefined,
-              },
             },
             paymentMethodOrder: (() => {
               const baseOrder = paymentMethodOrder && paymentMethodOrder.length > 0
@@ -353,7 +358,7 @@ export default function CustomPaymentForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={!stripe || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
+        disabled={checkoutResult.type !== 'success' || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
         className={`w-full px-6 py-4 text-white font-bold rounded-full shadow-[var(--sf-shadow-accent)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] ${
           customAmountError
             ? 'bg-sf-muted/30 cursor-not-allowed'

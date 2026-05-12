@@ -5,14 +5,14 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 /**
  * POST /api/update-payment-metadata
  *
- * Updates Payment Intent metadata with invoice/company data
+ * Updates Payment Intent or Checkout Session metadata with invoice/company data
  * before the payment is confirmed.
  *
  * SECURITY:
  * - CORS protection: only same-origin requests allowed
  * - Rate limiting: 10 requests per minute per IP (higher than GUS because this is critical for payment flow)
  *
- * This is necessary because the PaymentIntent is created before
+ * This is necessary because the payment object is created before
  * the user fills in invoice details.
  */
 export async function POST(request: NextRequest) {
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     // 1. CORS Protection - Only allow same-origin requests
     const origin = request.headers.get('origin');
     const referer = request.headers.get('referer');
-    const host = request.headers.get('host');
 
     // Use SITE_URL (server-side runtime env) — NEXT_PUBLIC_SITE_URL is baked at build time
     const allowedOrigins = [
@@ -95,12 +94,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract and validate Payment Intent ID from client secret
-    const paymentIntentId = clientSecret.split('_secret_')[0];
+    const stripeObjectId = clientSecret.split('_secret_')[0];
+    const isPaymentIntent = /^pi_[a-zA-Z0-9]+$/.test(stripeObjectId);
+    const isCheckoutSession = /^cs_(test|live)_[a-zA-Z0-9]+$/.test(stripeObjectId);
 
-    if (!/^pi_[a-zA-Z0-9]+$/.test(paymentIntentId)) {
+    if (!isPaymentIntent && !isCheckoutSession) {
       return NextResponse.json(
-        { success: false, error: 'Invalid payment intent format' },
+        { success: false, error: 'Invalid payment object format' },
         { status: 400 }
       );
     }
@@ -121,10 +121,36 @@ export async function POST(request: NextRequest) {
     }
 
     const stripe = await getStripeServer();
+    const metadata = {
+      first_name: finalFirstName,
+      last_name: finalLastName,
+      full_name: fullName || `${finalFirstName} ${finalLastName}`.trim(), // Store full name too for reference
+      terms_accepted: termsAccepted ? 'true' : '',
+      needs_invoice: needsInvoice ? 'true' : 'false',
+      nip: nip || '',
+      company_name: companyName || '',
+      address: address || '',
+      city: city || '',
+      postal_code: postalCode || '',
+      country: country || '',
+    };
+
+    if (isCheckoutSession) {
+      const session = await stripe.checkout.sessions.retrieve(stripeObjectId);
+      if (!session || session.status !== 'open') {
+        return NextResponse.json(
+          { success: false, error: 'Checkout session is not in a modifiable state' },
+          { status: 400 }
+        );
+      }
+
+      await stripe.checkout.sessions.update(stripeObjectId, { metadata });
+      return NextResponse.json({ success: true });
+    }
 
     // Verify the PaymentIntent exists and is still in a modifiable state
     // This prevents metadata updates on already-completed or cancelled payments
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const pi = await stripe.paymentIntents.retrieve(stripeObjectId);
     if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
       return NextResponse.json(
         { success: false, error: 'Payment intent is not in a modifiable state' },
@@ -133,21 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update Payment Intent with customer and invoice metadata
-    await stripe.paymentIntents.update(paymentIntentId, {
-      metadata: {
-        first_name: finalFirstName,
-        last_name: finalLastName,
-        full_name: fullName || `${finalFirstName} ${finalLastName}`.trim(), // Store full name too for reference
-        terms_accepted: termsAccepted ? 'true' : '',
-        needs_invoice: needsInvoice ? 'true' : 'false',
-        nip: nip || '',
-        company_name: companyName || '',
-        address: address || '',
-        city: city || '',
-        postal_code: postalCode || '',
-        country: country || '',
-      },
-    });
+    await stripe.paymentIntents.update(stripeObjectId, { metadata });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

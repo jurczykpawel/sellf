@@ -6,28 +6,22 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
-import { extractPaymentIntentIdSecure } from '@/lib/stripe/security';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import type { PaymentMethodConfig } from '@/types/payment-config';
 
-/**
- * Apply automatic payment methods configuration to PaymentIntent params.
- * Used as fallback when no custom config is set or config is invalid.
- *
- * IMPORTANT: Cleans up mutually exclusive fields to prevent Stripe errors.
- * Stripe rejects requests that combine automatic_payment_methods with
- * payment_method_types or payment_method_configuration.
- */
-function applyAutomaticPaymentMethods(params: Stripe.PaymentIntentCreateParams): void {
-  params.automatic_payment_methods = {
-    enabled: true,
-    allow_redirects: 'always',
-  };
-  delete params.payment_method_types;
-  delete params.payment_method_configuration;
+type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>;
+type CheckoutPaymentMethodType = NonNullable<CheckoutSessionCreateParams['payment_method_types']>[number];
+
+function extractCheckoutSessionId(clientSecret: string): string | null {
+  const sessionId = clientSecret.split('_secret_')[0];
+  return /^cs_(test|live)_[a-zA-Z0-9]+$/.test(sessionId) ? sessionId : null;
+}
+
+function stripeMetadataValue(value: unknown): string {
+  return value === null || value === undefined ? '' : String(value);
 }
 
 export async function POST(request: NextRequest) {
@@ -181,7 +175,6 @@ export async function POST(request: NextRequest) {
     type ProductRow = typeof product;
     interface ValidatedBump { product: ProductRow; bumpPrice: number }
     const validatedBumps: ValidatedBump[] = [];
-    let totalBumpPrice = 0;
 
     if (requestedBumpIds.length > 0) {
       // Use the same RPC function that frontend uses to get valid bumps
@@ -211,7 +204,6 @@ export async function POST(request: NextRequest) {
           for (const bump of bumpProducts) {
             const price = validBumpMap.get(bump.id)!;
             validatedBumps.push({ product: bump, bumpPrice: price });
-            totalBumpPrice += price;
           }
         }
       }
@@ -219,7 +211,6 @@ export async function POST(request: NextRequest) {
 
     // Backward compat: expose first bump as bumpProduct for downstream code
     const bumpProduct = validatedBumps.length > 0 ? validatedBumps[0].product : null;
-    const bumpPrice = validatedBumps.length > 0 ? validatedBumps[0].bumpPrice : 0;
 
     // 5. Fetch and validate coupon using secure DB function
     // SECURITY: Must use verify_coupon RPC which checks all constraints:
@@ -365,48 +356,74 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7b. Create or update PaymentIntent
-    const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-      amount: totalAmount,
-      currency: product.currency.toLowerCase(),
-      // NOTE: automatic_payment_methods is set by the config switch below.
-      // Do NOT set it here - it's mutually exclusive with payment_method_types
-      // and payment_method_configuration.
-      metadata: {
-        product_id: productId,
-        product_name: product.name,
-        user_id: user?.id || '',
-        email: finalEmail || '',
-        first_name: firstName || '',
-        last_name: lastName || '',
-        terms_accepted: termsAccepted ? 'true' : '',
-        // Multi-bump: comma-separated IDs (truncated to stay within Stripe 500-char metadata limit)
-        bump_product_ids: (() => {
-          const ids = validatedBumps.map(vb => vb.product.id).join(',');
-          if (ids.length > 500) {
-            // Truncate to fit — webhook will fall back to payment_line_items for full list
-            const truncated = ids.slice(0, 500);
-            return truncated.slice(0, truncated.lastIndexOf(','));
-          }
-          return ids;
-        })(),
-        bump_product_id: bumpProduct?.id || '',  // Legacy: first bump for backward compat
-        bump_product_name: bumpProduct?.name || '',
-        has_bump: validatedBumps.length > 0 ? 'true' : '',
-        bump_count: validatedBumps.length.toString(),
-        coupon_code: appliedCoupon?.code || '',
-        coupon_id: appliedCoupon?.id || '',
-        coupon_discount: appliedCoupon ? `${appliedCoupon.discount_value}${appliedCoupon.discount_type === 'percentage' ? '%' : product.currency}` : '',
-        needs_invoice: needsInvoice ? 'true' : 'false',
-        nip: nip || '',
-        company_name: companyName || '',
-        address: address || '',
-        city: city || '',
-        postal_code: postalCode || '',
-        country: country || '',
-        success_url: successUrl || '',
-        custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
-        is_pwyw: pricing.isPwyw ? 'true' : 'false',
+    // 7b. Create Checkout Session for Elements
+    const bumpIds = validatedBumps.map(vb => vb.product.id);
+    const truncatedBumpIds = (() => {
+      const ids = bumpIds.join(',');
+      if (ids.length > 500) {
+        const truncated = ids.slice(0, 500);
+        return truncated.slice(0, truncated.lastIndexOf(','));
+      }
+      return ids;
+    })();
+    const checkoutMetadata: Record<string, string> = {
+      product_id: productId,
+      product_name: product.name,
+      user_id: user?.id || '',
+      email: finalEmail || '',
+      first_name: stripeMetadataValue(firstName),
+      last_name: stripeMetadataValue(lastName),
+      terms_accepted: termsAccepted ? 'true' : '',
+      // Multi-bump: comma-separated IDs (truncated to stay within Stripe 500-char metadata limit)
+      bump_product_ids: truncatedBumpIds,
+      bump_product_id: bumpProduct?.id || '',  // Legacy: first bump for backward compat
+      bump_product_name: bumpProduct?.name || '',
+      has_bump: validatedBumps.length > 0 ? 'true' : '',
+      bump_count: validatedBumps.length.toString(),
+      coupon_code: appliedCoupon?.code || '',
+      coupon_id: appliedCoupon?.id || '',
+      has_coupon: appliedCoupon ? 'true' : 'false',
+      coupon_discount: appliedCoupon ? `${appliedCoupon.discount_value}${appliedCoupon.discount_type === 'percentage' ? '%' : product.currency}` : '',
+      discount_amount: pricing.discountAmount.toString(),
+      needs_invoice: needsInvoice ? 'true' : 'false',
+      nip: stripeMetadataValue(nip),
+      company_name: stripeMetadataValue(companyName),
+      address: stripeMetadataValue(address),
+      city: stripeMetadataValue(city),
+      postal_code: stripeMetadataValue(postalCode),
+      country: stripeMetadataValue(country),
+      success_url: successUrl || '',
+      custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
+      is_pwyw: pricing.isPwyw ? 'true' : 'false',
+    };
+
+    const returnUrl = `${request.nextUrl.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+    const checkoutSessionParams: CheckoutSessionCreateParams = {
+      mode: 'payment',
+      ui_mode: 'elements',
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: product.currency.toLowerCase(),
+          unit_amount: totalAmount,
+          product_data: {
+            name: product.name,
+            description: validatedBumps.length > 0
+              ? `Includes: ${validatedBumps.map(vb => vb.product.name).join(', ')}`
+              : undefined,
+            metadata: {
+              product_id: product.id,
+            },
+          },
+        },
+      }],
+      return_url: returnUrl,
+      customer_email: finalEmail || undefined,
+      client_reference_id: user?.id || finalEmail || undefined,
+      metadata: checkoutMetadata,
+      payment_intent_data: {
+        metadata: checkoutMetadata,
+        receipt_email: finalEmail || undefined,
       },
     };
 
@@ -426,28 +443,16 @@ export async function POST(request: NextRequest) {
     if (paymentConfig) {
       switch (paymentConfig.config_mode) {
         case 'automatic':
-          // Use Stripe's automatic payment methods (default behavior)
-          applyAutomaticPaymentMethods(paymentIntentParams);
-          // Enable Link saved payment methods for one-click checkout
-          paymentIntentParams.payment_method_options = {
-            link: { setup_future_usage: 'off_session' },
-          };
+          // Checkout Sessions use Stripe automatic payment methods by default.
           break;
 
         case 'stripe_preset':
           // Use specific Stripe Payment Method Configuration
           if (paymentConfig.stripe_pmc_id) {
-            paymentIntentParams.payment_method_configuration = paymentConfig.stripe_pmc_id;
-            delete paymentIntentParams.automatic_payment_methods;
-            delete paymentIntentParams.payment_method_types;
-            // Enable Link saved payment methods for one-click checkout
-            paymentIntentParams.payment_method_options = {
-              link: { setup_future_usage: 'off_session' },
-            };
+            checkoutSessionParams.payment_method_configuration = paymentConfig.stripe_pmc_id;
           } else {
             // Fallback to automatic if PMC ID is missing
             console.warn('[create-payment-intent] stripe_preset mode but no PMC ID, falling back to automatic');
-            applyAutomaticPaymentMethods(paymentIntentParams);
           }
           break;
 
@@ -458,14 +463,6 @@ export async function POST(request: NextRequest) {
             product.currency
           );
 
-          // Add express checkout types to payment_method_types.
-          // Placed before the length check so express-checkout-only configs work
-          // (e.g. only Link enabled, no custom payment methods selected).
-          //
-          // Link: needed for LinkAuthenticationElement inline autofill
-          if (paymentConfig.enable_link && !enabledMethods.includes('link')) {
-            enabledMethods.push('link');
-          }
           // Apple Pay & Google Pay are card wallets — they require 'card' in
           // payment_method_types to appear in ExpressCheckoutElement.
           if (paymentConfig.enable_express_checkout &&
@@ -474,21 +471,13 @@ export async function POST(request: NextRequest) {
             enabledMethods.push('card');
           }
 
-          if (enabledMethods.length > 0) {
-            paymentIntentParams.payment_method_types = enabledMethods;
-            delete paymentIntentParams.automatic_payment_methods;
-            delete paymentIntentParams.payment_method_configuration;
-            // Enable Link saved payment methods (same as automatic/stripe_preset modes)
-            if (paymentConfig.enable_link) {
-              paymentIntentParams.payment_method_options = {
-                ...paymentIntentParams.payment_method_options,
-                link: { setup_future_usage: 'off_session' },
-              };
-            }
+          const checkoutPaymentMethods = enabledMethods.filter(method => method !== 'link');
+          if (checkoutPaymentMethods.length > 0) {
+            checkoutSessionParams.payment_method_types =
+              checkoutPaymentMethods as CheckoutPaymentMethodType[];
           } else {
             // Fallback if no methods match currency and no express checkout
             console.warn('[create-payment-intent] No payment methods match currency, falling back to automatic');
-            applyAutomaticPaymentMethods(paymentIntentParams);
           }
           break;
       }
@@ -496,12 +485,6 @@ export async function POST(request: NextRequest) {
       // Fallback if config is missing (shouldn't happen due to migration seed)
       // This ensures checkout always works even if config table is empty/corrupted
       console.warn('[create-payment-intent] Payment config not found, using automatic mode');
-      applyAutomaticPaymentMethods(paymentIntentParams);
-    }
-
-    // Only set receipt_email if we have an email
-    if (finalEmail) {
-      paymentIntentParams.receipt_email = finalEmail;
     }
 
     const stripe = await getStripeServer();
@@ -512,112 +495,71 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingPaymentIntentId =
-      typeof clientSecret === 'string' ? extractPaymentIntentIdSecure(clientSecret) : null;
+    const existingCheckoutSessionId =
+      typeof clientSecret === 'string' ? extractCheckoutSessionId(clientSecret) : null;
 
-    if (clientSecret && !existingPaymentIntentId) {
+    if (clientSecret && !existingCheckoutSessionId) {
       return NextResponse.json(
-        { error: 'Invalid payment intent format' },
+        { error: 'Invalid checkout session format' },
         { status: 400 }
       );
     }
 
-    if (existingPaymentIntentId) {
-      const existingPaymentIntent = await stripe.paymentIntents.retrieve(existingPaymentIntentId);
-
-      if (!['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(existingPaymentIntent.status)) {
-        return NextResponse.json(
-          { error: 'Payment intent is not in a modifiable state' },
-          { status: 400 }
-        );
-      }
-
-      if (existingPaymentIntent.currency.toUpperCase() !== product.currency.toUpperCase()) {
-        return NextResponse.json(
-          { error: 'Payment intent currency mismatch' },
-          { status: 400 }
-        );
-      }
-
-      if (existingPaymentIntent.metadata?.product_id !== productId) {
-        return NextResponse.json(
-          { error: 'Payment intent product mismatch' },
-          { status: 400 }
-        );
-      }
-
-      const updatedPaymentIntent = await stripe.paymentIntents.update(existingPaymentIntentId, {
-        amount: totalAmount,
-        metadata: paymentIntentParams.metadata,
-        receipt_email: finalEmail || undefined,
-      });
-
+    if (existingCheckoutSessionId) {
       try {
-        const { error: updateError } = await dataClient
-          .from('payment_transactions')
-          .update({
-            user_id: user?.id || null,
-            product_id: productId,
-            customer_email: finalEmail || 'pending@sellf.app',
-            amount: totalAmount,
-            currency: product.currency,
-            metadata: {
-              ...paymentIntentParams.metadata,
-              bump_product_ids_full: validatedBumps.map(vb => vb.product.id),
-            },
-          })
-          .eq('stripe_payment_intent_id', existingPaymentIntentId)
-          .eq('status', 'pending');
-
-        if (updateError) {
-          console.error('Failed to update pending transaction:', updateError);
+        const existingSession = await stripe.checkout.sessions.retrieve(existingCheckoutSessionId);
+        if (existingSession.status === 'open') {
+          await stripe.checkout.sessions.expire(existingCheckoutSessionId);
         }
-      } catch (dbError) {
-        console.error('Error updating pending transaction:', dbError);
+      } catch (expireError) {
+        console.warn('[create-payment-intent] Failed to expire previous Checkout Session:', expireError);
       }
-
-      return NextResponse.json({
-        clientSecret: updatedPaymentIntent.client_secret || clientSecret,
-        paymentIntentId: updatedPaymentIntent.id,
-        paymentIntentUpdated: true,
-      });
     }
 
-    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+    const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams);
+
+    if (!checkoutSession.client_secret) {
+      console.error('[create-payment-intent] Checkout Session missing client_secret', checkoutSession.id);
+      return NextResponse.json(
+        { error: 'Failed to initialize checkout session' },
+        { status: 500 }
+      );
+    }
 
     // Save pending payment transaction for abandoned cart recovery
     try {
       const { error: insertError } = await dataClient
         .from('payment_transactions')
         .insert({
-          session_id: paymentIntent.id, // Use Payment Intent ID as session_id
+          session_id: checkoutSession.id,
           user_id: user?.id || null,
           product_id: productId,
           customer_email: finalEmail || 'pending@sellf.app', // Fallback for guests without email
           amount: totalAmount,
           currency: product.currency,
-          stripe_payment_intent_id: paymentIntent.id,
+          stripe_payment_intent_id: null,
           status: 'pending',
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
           metadata: {
-            ...paymentIntentParams.metadata,
+            ...checkoutMetadata,
             // Full bump list (not subject to Stripe's 500-char metadata limit)
-            bump_product_ids_full: validatedBumps.map(vb => vb.product.id),
+            bump_product_ids_full: bumpIds,
           }
         });
 
       if (insertError) {
-        // Log error but don't fail the payment intent creation
+        // Log error but don't fail the Checkout Session creation
         console.error('Failed to save pending transaction:', insertError);
       }
     } catch (dbError) {
-      // Don't fail payment intent creation if DB insert fails
+      // Don't fail Checkout Session creation if DB insert fails
       console.error('Error saving pending transaction:', dbError);
     }
 
     return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      clientSecret: checkoutSession.client_secret,
+      checkoutSessionId: checkoutSession.id,
+      paymentIntentId: null,
     });
   } catch (error) {
     console.error('Error creating payment intent:', error);

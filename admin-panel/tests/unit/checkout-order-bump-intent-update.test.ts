@@ -12,16 +12,21 @@ const createPaymentIntentSource = readFileSync(
   'utf-8'
 );
 
-describe('checkout order bump PaymentIntent updates', () => {
-  it('does not key Stripe Elements by clientSecret', () => {
-    expect(paidProductFormSource).not.toContain('key={`${product.id}-${clientSecret}-${resolvedTheme}`');
-    expect(paidProductFormSource).toContain('key={`${product.id}-${resolvedTheme}`');
+describe('checkout order bump Checkout Session refresh', () => {
+  it('uses CheckoutElementsProvider and remounts when a new Checkout Session is created', () => {
+    expect(paidProductFormSource).toContain('CheckoutElementsProvider');
+    expect(paidProductFormSource).toContain('checkoutSessionId');
+    expect(paidProductFormSource).toContain('key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`');
+    expect(paidProductFormSource).not.toContain('<Elements');
   });
 
-  it('updates the existing PaymentIntent when checkout composition changes', () => {
-    expect(paidProductFormSource).toContain('clientSecret: shouldUpdateExistingIntent ? clientSecret : undefined');
-    expect(paidProductFormSource).toContain('elementsUpdateRevision');
-    expect(paidProductFormSource).toContain('fetchUpdates');
-    expect(createPaymentIntentSource).toContain('paymentIntents.update(existingPaymentIntentId');
+  it('creates a fresh Checkout Session when checkout composition changes', () => {
+    expect(paidProductFormSource).toContain('lastCheckoutSessionSignature');
+    expect(paidProductFormSource).toContain('setCheckoutSessionId(data.checkoutSessionId)');
+    expect(paidProductFormSource).not.toContain('elementsUpdateRevision');
+    expect(paidProductFormSource).not.toContain('fetchUpdates');
+
+    expect(createPaymentIntentSource).toContain('checkout.sessions.create(checkoutSessionParams)');
+    expect(createPaymentIntentSource).not.toContain('paymentIntents.update(existingPaymentIntentId');
   });
 });

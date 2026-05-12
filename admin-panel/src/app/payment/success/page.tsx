@@ -1,5 +1,5 @@
 // app/payment/success/page.tsx
-// Payment success page - handles both Embedded Checkout and PaymentIntent flows
+// Payment success page - handles Checkout Sessions and legacy PaymentIntent flows
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
@@ -23,13 +23,13 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
   const locale = await getLocale();
   const t = await getTranslations({ locale, namespace: 'payment.success' });
 
-  // Handle new PaymentIntent flow
+  // Handle legacy PaymentIntent flow
   const paymentIntent = params.payment_intent;
   const productId = params.product_id;
   const redirectStatus = params.redirect_status;
   const successUrl = params.success_url;
 
-  // Handle old Embedded Checkout flow
+  // Handle Checkout Sessions flow
   const sessionId = params.session_id;
   const productSlug = params.product;
 
@@ -38,7 +38,13 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
     redirect(successUrl);
   }
 
-  // NEW FLOW: If we have payment_intent, use the new Payment Intent flow
+  if (sessionId && productSlug) {
+    let url = `/${locale}${paymentStatusUrl(productSlug)}?session_id=${encodeURIComponent(sessionId)}`;
+    if (successUrl) url += `&success_url=${encodeURIComponent(successUrl)}`;
+    redirect(url);
+  }
+
+  // LEGACY FLOW: If we have payment_intent, use the Payment Intent flow
   if (paymentIntent && redirectStatus === 'succeeded') {
     let resolvedSlug = productSlug;
     if (!resolvedSlug && productId && /^[0-9a-f-]{36}$/i.test(productId)) {

@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { Elements, useElements } from '@stripe/react-stripe-js';
-import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
+import { loadStripe, type StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -34,21 +34,6 @@ interface PaidProductFormProps {
   taxMode?: TaxMode;
 }
 
-function ElementsUpdateBridge({ revision }: { revision: number }) {
-  const elements = useElements();
-  const lastRevision = useRef(0);
-
-  useEffect(() => {
-    if (!elements || revision <= lastRevision.current) return;
-    lastRevision.current = revision;
-    elements.fetchUpdates().catch(error => {
-      console.warn('[PaidProductForm] Failed to refresh Stripe Elements after checkout update:', error);
-    });
-  }, [elements, revision]);
-
-  return null;
-}
-
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const { user, isAdmin, loading: authLoading } = useAuth();
@@ -68,8 +53,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [elementsUpdateRevision, setElementsUpdateRevision] = useState(0);
-  const lastPaymentIntentSignature = useRef<string | null>(null);
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
+  const lastCheckoutSessionSignature = useRef<string | null>(null);
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
@@ -191,7 +176,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFullDiscountCoupon = !!coupon.appliedCoupon && pricing.isFreeWithCoupon;
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
-  const paymentIntentSignature = JSON.stringify({
+  const checkoutSessionSignature = JSON.stringify({
     productId: product.id,
     email: email || null,
     bumpProductIds: Array.from(selectedBumpIds).sort(),
@@ -247,12 +232,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       return;
     }
 
-    const shouldUpdateExistingIntent =
+    const shouldRefreshExistingSession =
       !!clientSecret &&
-      !!lastPaymentIntentSignature.current &&
-      lastPaymentIntentSignature.current !== paymentIntentSignature;
+      !!lastCheckoutSessionSignature.current &&
+      lastCheckoutSessionSignature.current !== checkoutSessionSignature;
 
-    if (clientSecret && !shouldUpdateExistingIntent) {
+    if (clientSecret && !shouldRefreshExistingSession) {
       return;
     }
 
@@ -264,7 +249,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       signal: controller.signal,
       body: JSON.stringify({
         productId: product.id,
-        clientSecret: shouldUpdateExistingIntent ? clientSecret : undefined,
+        clientSecret: shouldRefreshExistingSession ? clientSecret : undefined,
         email: email || undefined,
         bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
         couponCode: coupon.appliedCoupon?.code,
@@ -298,11 +283,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           grantAccess();
           return;
         }
-        lastPaymentIntentSignature.current = paymentIntentSignature;
+        lastCheckoutSessionSignature.current = checkoutSessionSignature;
         setClientSecret(data.clientSecret);
-        if (data.paymentIntentUpdated) {
-          setElementsUpdateRevision(revision => revision + 1);
-        }
+        setCheckoutSessionId(data.checkoutSessionId);
       })
       .catch(err => {
         if (controller.signal.aborted) return;
@@ -315,7 +298,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
-    clientSecret, paymentIntentSignature,
+    clientSecret, checkoutSessionSignature,
   ]);
 
   const handleSignOutAndCheckout = async () => {
@@ -490,27 +473,28 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
-            <Elements
-              key={`${product.id}-${resolvedTheme}`}
+            <CheckoutElementsProvider
+              key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}
               options={{
                 clientSecret,
-                appearance: {
-                  theme: resolvedTheme === 'dark' ? 'night' : 'stripe',
-                  variables: {
-                    colorPrimary: '#3b82f6',
-                    ...(resolvedTheme === 'dark' ? {
-                      colorBackground: '#1e293b',
-                      colorText: '#ffffff',
-                    } : {}),
-                    colorDanger: '#ef4444',
-                    fontFamily: 'system-ui, sans-serif',
-                    borderRadius: '8px',
+                elementsOptions: {
+                  appearance: {
+                    theme: resolvedTheme === 'dark' ? 'night' : 'stripe',
+                    variables: {
+                      colorPrimary: '#3b82f6',
+                      ...(resolvedTheme === 'dark' ? {
+                        colorBackground: '#1e293b',
+                        colorText: '#ffffff',
+                      } : {}),
+                      colorDanger: '#ef4444',
+                      fontFamily: 'system-ui, sans-serif',
+                      borderRadius: '8px',
+                    },
                   },
                 },
-              } as StripeElementsOptions}
+              } satisfies StripeCheckoutElementsSdkOptions}
             >
-              <ElementsUpdateBridge revision={elementsUpdateRevision} />
               <CustomPaymentForm
                 product={product}
                 email={email}
@@ -527,7 +511,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 expressCheckoutConfig={expressCheckoutConfig}
                 taxMode={taxMode}
               />
-            </Elements>
+            </CheckoutElementsProvider>
           )}
         </div>
       )}

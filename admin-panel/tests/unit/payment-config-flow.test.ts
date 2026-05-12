@@ -4,7 +4,7 @@
  * Tests the full payment configuration flow:
  * - extractExpressCheckoutConfig: DB config -> frontend props (imported, tested directly)
  * - getEffectivePaymentConfig: product override -> global config resolution (imported, tested directly)
- * - create-payment-intent route: source verification that config_mode -> Stripe PaymentIntent params
+ * - create-payment-intent route: source verification that config_mode -> Stripe Checkout Session params
  *
  * ============================================================================
  * SOURCE VERIFICATION PATTERN
@@ -181,50 +181,56 @@ describe('getEffectivePaymentConfig', () => {
 // ---------------------------------------------------------------------------
 
 describe('create-payment-intent route source verification', () => {
-  it('automatic mode: applyAutomaticPaymentMethods helper with mutual exclusivity cleanup', () => {
-    expect(paymentIntentRouteSource).toContain('function applyAutomaticPaymentMethods');
-    expect(paymentIntentRouteSource).toContain('automatic_payment_methods');
-    expect(paymentIntentRouteSource).toContain("allow_redirects: 'always'");
-    expect(paymentIntentRouteSource).toContain("case 'automatic':");
-    expect(paymentIntentRouteSource).toContain('applyAutomaticPaymentMethods(paymentIntentParams)');
+  it('creates Checkout Sessions with Elements UI mode and PaymentIntent metadata', () => {
+    expect(paymentIntentRouteSource).toContain('checkout.sessions.create(checkoutSessionParams)');
+    expect(paymentIntentRouteSource).toContain("ui_mode: 'elements'");
+    expect(paymentIntentRouteSource).toContain("mode: 'payment'");
+    expect(paymentIntentRouteSource).toContain('line_items');
+    expect(paymentIntentRouteSource).toContain('return_url');
+    expect(paymentIntentRouteSource).toContain('payment_intent_data');
+    expect(paymentIntentRouteSource).not.toContain('stripe.paymentIntents.create(paymentIntentParams)');
   });
 
-  it('stripe_preset mode: sets PMC ID with fallback to automatic', () => {
+  it('stripe_preset mode: sets PMC ID with fallback to automatic Checkout behavior', () => {
     expect(paymentIntentRouteSource).toContain("case 'stripe_preset':");
-    expect(paymentIntentRouteSource).toContain('paymentIntentParams.payment_method_configuration = paymentConfig.stripe_pmc_id');
+    expect(paymentIntentRouteSource).toContain('checkoutSessionParams.payment_method_configuration = paymentConfig.stripe_pmc_id');
     expect(paymentIntentRouteSource).toMatch(/stripe_preset.*stripe_pmc_id/s);
     expect(paymentIntentRouteSource).toContain("falling back to automatic");
   });
 
-  it('custom mode: uses getEnabledPaymentMethodsForCurrency with link append and fallback', () => {
+  it('custom mode: uses getEnabledPaymentMethodsForCurrency with card wallet fallback', () => {
     expect(paymentIntentRouteSource).toContain("case 'custom':");
     expect(paymentIntentRouteSource).toContain('getEnabledPaymentMethodsForCurrency');
-    expect(paymentIntentRouteSource).toContain('paymentIntentParams.payment_method_types = enabledMethods');
-    expect(paymentIntentRouteSource).toContain("paymentConfig.enable_link && !enabledMethods.includes('link')");
+    expect(paymentIntentRouteSource).toMatch(/checkoutSessionParams\.payment_method_types\s*=\s*checkoutPaymentMethods/s);
     expect(paymentIntentRouteSource).toContain('No payment methods match currency, falling back to automatic');
   });
 
   it('null config falls back to automatic mode', () => {
     expect(paymentIntentRouteSource).toContain('Payment config not found, using automatic mode');
-    expect(paymentIntentRouteSource).toMatch(/\} else \{[\s\S]*?applyAutomaticPaymentMethods/);
+    expect(paymentIntentRouteSource).toContain('Checkout Sessions use Stripe automatic payment methods by default');
   });
 
-  it('mutual exclusivity: each branch deletes competing Stripe payment param fields', () => {
-    const deleteAutomatic = (paymentIntentRouteSource.match(/delete.*automatic_payment_methods/g) || []).length;
-    const deleteMethodTypes = (paymentIntentRouteSource.match(/delete.*payment_method_types/g) || []).length;
-    const deleteMethodConfig = (paymentIntentRouteSource.match(/delete.*payment_method_configuration/g) || []).length;
-
-    expect(deleteAutomatic).toBeGreaterThanOrEqual(2);
-    expect(deleteMethodTypes).toBeGreaterThanOrEqual(2);
-    expect(deleteMethodConfig).toBeGreaterThanOrEqual(2);
+  it('stores pending Checkout Session rows without blocking completion webhooks', () => {
+    expect(paymentIntentRouteSource).toContain('session_id: checkoutSession.id');
+    expect(paymentIntentRouteSource).toContain('stripe_payment_intent_id: null');
+    expect(paymentIntentRouteSource).toContain('bump_product_ids_full');
   });
 
-  it('imports required dependencies and prevents accidental dual-setting', () => {
+  it('imports required dependencies and avoids the legacy PaymentIntent-only flow', () => {
     expect(paymentIntentRouteSource).toContain("import { getEnabledPaymentMethodsForCurrency }");
     expect(paymentIntentRouteSource).toContain('PaymentMethodConfig');
-    expect(paymentIntentRouteSource).toContain(
-      'NOTE: automatic_payment_methods is set by the config switch below'
-    );
+    expect(paymentIntentRouteSource).not.toContain('extractPaymentIntentIdSecure');
+  });
+});
+
+describe('custom checkout form source verification', () => {
+  it('uses Checkout Sessions React hooks and checkout.confirm', () => {
+    expect(customPaymentFormSource).toContain("@stripe/react-stripe-js/checkout");
+    expect(customPaymentFormSource).toContain('useCheckoutElements');
+    expect(customPaymentFormSource).toContain('checkout.confirm');
+    expect(customPaymentFormSource).not.toContain('stripe.confirmPayment');
+    expect(customPaymentFormSource).not.toContain('useStripe');
+    expect(customPaymentFormSource).not.toContain('useElements');
   });
 });
 
