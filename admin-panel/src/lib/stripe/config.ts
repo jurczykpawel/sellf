@@ -3,9 +3,9 @@
  * 
  * 🎯 HOW TO USE:
  * 
- * For PaymentElement:
- *   import { StripeConfig } from '@/lib/stripe/config'
- *   <Elements options={StripeConfig.elementsOptions(clientSecret)}>
+ * For Checkout Sessions Elements:
+ *   Use CheckoutElementsProvider from @stripe/react-stripe-js/checkout with
+ *   a Checkout Session client_secret returned by /api/create-payment-intent.
  * 
  * For EmbeddedCheckout with fetchClientSecret:
  *   import { StripeConfig } from '@/lib/stripe/config'
@@ -342,8 +342,8 @@ export function getPaymentElementOptions(layout: 'tabs' | 'accordion' = 'tabs') 
  */
 export const StripeConfig = {
   /**
-   * Get Elements options for PaymentElement
-   * Usage: <Elements options={StripeConfig.elementsOptions(clientSecret)}>
+   * Get legacy Elements options for PaymentElement/SetupIntent flows.
+   * Checkout payments use CheckoutElementsProvider directly.
    */
   elementsOptions,
 

@@ -1,11 +1,11 @@
 /**
- * Integration Tests: Payment Intent API Integration
+ * Integration Tests: Checkout Session Payment Configuration
  *
- * Test ID: IT-PI-001 to IT-PI-009
- * Coverage: create-payment-intent route with payment method configuration
- * Focus: Payment Intent parameter generation based on config mode
+ * Test ID: IT-CS-001 to IT-CS-009
+ * Coverage: Checkout Session payment method configuration
+ * Focus: payment method selection based on config mode
  *
- * Tests verify config -> PaymentIntent parameter mapping logic using real
+ * Tests verify config -> Checkout Session parameter mapping logic using real
  * exported functions from @/lib/utils/payment-method-helpers.
  */
 
@@ -35,9 +35,9 @@ function makeConfig(overrides: Partial<PaymentMethodConfig> = {}): PaymentMethod
   };
 }
 
-describe('Payment Intent API - Config Integration', () => {
-  describe('Payment Intent parameter generation', () => {
-    // IT-PI-001: Custom mode
+describe('Checkout Session API - Config Integration', () => {
+  describe('Checkout Session payment method generation', () => {
+    // IT-CS-001: Custom mode
     it('should use payment_method_types for custom mode', () => {
       const config = makeConfig({
         config_mode: 'custom',
@@ -56,7 +56,7 @@ describe('Payment Intent API - Config Integration', () => {
       expect(enabledMethods).toContain('blik');
     });
 
-    // IT-PI-002: Custom mode with currency filter
+    // IT-CS-002: Custom mode with currency filter
     it('should filter payment methods by currency in custom mode', () => {
       const config = makeConfig({
         config_mode: 'custom',
@@ -74,14 +74,14 @@ describe('Payment Intent API - Config Integration', () => {
       expect(enabledMethodsUSD).not.toContain('blik');
     });
 
-    // IT-PI-003: Automatic mode returns empty array
+    // IT-CS-003: Automatic mode returns empty array
     it('should return empty array for automatic mode', () => {
       const config = makeConfig({ config_mode: 'automatic' });
       const result = getEnabledPaymentMethodsForCurrency(config, 'USD');
       expect(result).toEqual([]);
     });
 
-    // IT-PI-004: Stripe preset mode returns empty array
+    // IT-CS-004: Stripe preset mode returns empty array
     it('should return empty array for stripe_preset mode', () => {
       const config = makeConfig({
         config_mode: 'stripe_preset',
@@ -91,7 +91,7 @@ describe('Payment Intent API - Config Integration', () => {
       expect(result).toEqual([]);
     });
 
-    // IT-PI-005: Custom mode with currency_overrides filters correctly
+    // IT-CS-005: Custom mode with currency_overrides filters correctly
     it('should filter by currency_overrides when present', () => {
       const config = makeConfig({
         config_mode: 'custom',
@@ -118,7 +118,7 @@ describe('Payment Intent API - Config Integration', () => {
   });
 
   describe('RECOMMENDED_CONFIG', () => {
-    // IT-PI-006: Recommended config has expected shape
+    // IT-CS-006: Recommended config has expected shape
     it('should have expected shape', () => {
       expect(RECOMMENDED_CONFIG.config_mode).toBe('custom');
       expect(Array.isArray(RECOMMENDED_CONFIG.custom_payment_methods)).toBe(true);
@@ -132,7 +132,7 @@ describe('Payment Intent API - Config Integration', () => {
   });
 
   describe('Payment method ordering', () => {
-    // IT-PI-007: getEffectivePaymentMethodOrder returns ordered list
+    // IT-CS-007: getEffectivePaymentMethodOrder returns ordered list
     it('should return payment_method_order from config', () => {
       const config = makeConfig({
         config_mode: 'custom',
@@ -143,7 +143,7 @@ describe('Payment Intent API - Config Integration', () => {
       expect(order).toEqual(['blik', 'p24', 'card']);
     });
 
-    // IT-PI-008: getEffectivePaymentMethodOrder with currency override
+    // IT-CS-008: getEffectivePaymentMethodOrder with currency override
     it('should use currency override order when available', () => {
       const config = makeConfig({
         config_mode: 'custom',
@@ -175,7 +175,7 @@ describe('Payment Intent API - Config Integration', () => {
   });
 
   describe('Error handling', () => {
-    // IT-PI-009: Empty custom_payment_methods
+    // IT-CS-009: Empty custom_payment_methods
     it('should handle empty custom_payment_methods array', () => {
       const config = makeConfig({
         config_mode: 'custom',

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin, loginAsAdmin, createTestAdmin, getAdminBearerToken } from './helpers/admin-auth';
 import crypto from 'crypto';
+import { STRIPE_API_VERSION } from '@/lib/constants';
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -218,7 +219,7 @@ test.describe('Webhook Dispatch System', () => {
     const stripePayload = {
       id: `evt_${Date.now()}`,
       object: 'event',
-      api_version: '2023-10-16',
+      api_version: STRIPE_API_VERSION,
       created: Math.floor(Date.now() / 1000),
       type: 'checkout.session.completed',
       data: {

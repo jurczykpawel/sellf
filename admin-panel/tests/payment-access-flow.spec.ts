@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { setAuthSession } from './helpers/admin-auth';
+import { STRIPE_API_VERSION } from '@/lib/constants';
 
 // Enforce single worker to avoid race conditions
 test.describe.configure({ mode: 'serial' });
@@ -20,7 +21,7 @@ if (!STRIPE_SECRET_KEY) {
 }
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-12-18.acacia' });
+const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION });
 
 /**
  * Helper: Grant product access (simulates successful payment webhook)

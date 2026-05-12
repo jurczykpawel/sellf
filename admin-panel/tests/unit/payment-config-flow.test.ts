@@ -50,6 +50,12 @@ const customPaymentFormPath = resolve(
 );
 const customPaymentFormSource = readFileSync(customPaymentFormPath, 'utf-8');
 
+const stripeConfigActionPath = resolve(
+  __dirname,
+  '../../src/lib/actions/stripe-config.ts'
+);
+const stripeConfigActionSource = readFileSync(stripeConfigActionPath, 'utf-8');
+
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
@@ -231,6 +237,13 @@ describe('custom checkout form source verification', () => {
     expect(customPaymentFormSource).not.toContain('stripe.confirmPayment');
     expect(customPaymentFormSource).not.toContain('useStripe');
     expect(customPaymentFormSource).not.toContain('useElements');
+  });
+});
+
+describe('Stripe configuration source verification', () => {
+  it('uses the shared Stripe API version constant in server-side Stripe clients', () => {
+    expect(stripeConfigActionSource).toContain("import { STRIPE_API_VERSION } from '@/lib/constants'");
+    expect(stripeConfigActionSource).not.toContain("apiVersion: '2026-04-22.dahlia'");
   });
 });
 

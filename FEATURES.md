@@ -96,7 +96,7 @@
 ### Stripe Integration
 - **Stripe Elements** - Custom payment form (PCI DSS compliant)
 - **Embedded Checkout** - Stripe checkout session
-- **Payment Intent** - PaymentIntent API with idempotency
+- **Checkout Sessions Elements** - Checkout Sessions API with custom Elements UI and idempotent session tracking
 - **Stripe Configuration Wizard** - 5-step wizard for configuration:
   1. Welcome
   2. Mode Selection (Test/Live)
