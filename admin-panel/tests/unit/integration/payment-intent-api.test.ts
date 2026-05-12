@@ -119,15 +119,14 @@ describe('Checkout Session API - Config Integration', () => {
 
   describe('RECOMMENDED_CONFIG', () => {
     // IT-CS-006: Recommended config has expected shape
-    it('should have expected shape', () => {
-      expect(RECOMMENDED_CONFIG.config_mode).toBe('custom');
+    it('defaults to Stripe dynamic payment methods', () => {
+      expect(RECOMMENDED_CONFIG.config_mode).toBe('automatic');
       expect(Array.isArray(RECOMMENDED_CONFIG.custom_payment_methods)).toBe(true);
-      expect(RECOMMENDED_CONFIG.custom_payment_methods.length).toBeGreaterThan(0);
+      expect(RECOMMENDED_CONFIG.custom_payment_methods).toEqual([]);
       expect(typeof RECOMMENDED_CONFIG.enable_express_checkout).toBe('boolean');
       expect(RECOMMENDED_CONFIG.enable_express_checkout).toBe(true);
       expect(Array.isArray(RECOMMENDED_CONFIG.payment_method_order)).toBe(true);
-      expect(RECOMMENDED_CONFIG.payment_method_order).toContain('blik');
-      expect(RECOMMENDED_CONFIG.payment_method_order).toContain('card');
+      expect(RECOMMENDED_CONFIG.payment_method_order).toEqual([]);
     });
   });
 

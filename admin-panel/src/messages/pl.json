@@ -2544,10 +2544,10 @@
       },
       "recommended": {
         "title": "Rekomendowana Konfiguracja",
-        "description": "Optymalna konfiguracja dla polskiego rynku, bazująca na najlepszych praktykach e-commerce",
+        "description": "Dynamiczne metody płatności Stripe, zarządzane z poziomu Stripe Dashboard",
         "reset": "Przywróć Rekomendowane",
         "resetConfirm": "Czy na pewno chcesz przywrócić rekomendowaną konfigurację? Bieżące ustawienia zostaną zastąpione.",
-        "features": "Zawiera: BLIK, Przelewy24, Karta + Express Checkout (Link, Apple Pay, Google Pay)"
+        "features": "Stripe automatycznie pokazuje i sortuje kwalifikujące się metody dla każdego klienta"
       },
       "buttons": {
         "save": "Zapisz Konfigurację",

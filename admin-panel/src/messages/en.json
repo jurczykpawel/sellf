@@ -2529,10 +2529,10 @@
       },
       "recommended": {
         "title": "Recommended Configuration",
-        "description": "Optimal configuration for Polish market, based on e-commerce best practices",
+        "description": "Stripe Dynamic Payment Methods, managed from your Stripe Dashboard",
         "reset": "Reset to Recommended",
         "resetConfirm": "Are you sure you want to reset to recommended configuration? Current settings will be replaced.",
-        "features": "Includes: BLIK, Przelewy24, Card + Express Checkout (Link, Apple Pay, Google Pay)"
+        "features": "Stripe automatically displays and orders eligible methods for each customer"
       },
       "buttons": {
         "save": "Save Configuration",

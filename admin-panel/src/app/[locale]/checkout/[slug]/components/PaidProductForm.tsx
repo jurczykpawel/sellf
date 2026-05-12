@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
-import { loadStripe, type StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
+import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -26,6 +26,7 @@ import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import OrderBumpList from './OrderBumpList';
 import CouponField from './CouponField';
 import PwywSection from './PwywSection';
+import { getStripeClient } from '@/lib/stripe/client';
 
 interface PaidProductFormProps {
   product: Product;
@@ -48,7 +49,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // Safe loading of Stripe to prevent crashes if key is missing
   const stripePromise = config.stripePublishableKey
-    ? loadStripe(config.stripePublishableKey)
+    ? getStripeClient(config.stripePublishableKey)
     : null;
 
   const [error, setError] = useState<string | null>(null);

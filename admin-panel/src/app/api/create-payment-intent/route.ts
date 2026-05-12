@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
     // SECURITY: Payment method configuration is applied server-side only.
     // Client cannot override which payment methods are available.
     // FALLBACK STRATEGY: If config is missing/invalid, we fallback to Stripe's
-    // automatic_payment_methods to ensure checkout always works. This is logged
+    // Dynamic payment methods to ensure checkout always works. This is logged
     // for monitoring but doesn't expose any sensitive information.
     if (paymentConfig) {
       switch (paymentConfig.config_mode) {

@@ -8,18 +8,17 @@
 import type { PaymentMethodConfig, PaymentMethodMetadata } from '@/types/payment-config';
 
 /**
- * Default recommended payment configuration optimized for Polish market
- * Order: BLIK -> Przelewy24 -> Card + Express Checkout enabled
+ * Default recommended payment configuration.
+ *
+ * Stripe Dynamic Payment Methods are the default recommendation: don't pass
+ * explicit payment_method_types unless an admin intentionally selects custom
+ * mode. Stripe then orders eligible methods from Dashboard settings.
  */
 export const RECOMMENDED_CONFIG = {
-  config_mode: 'custom' as const,
+  config_mode: 'automatic' as const,
   stripe_pmc_id: null,
-  custom_payment_methods: [
-    { type: 'blik', enabled: true, display_order: 0, currency_restrictions: ['PLN'], label: 'BLIK' },
-    { type: 'p24', enabled: true, display_order: 1, currency_restrictions: ['PLN', 'EUR'], label: 'Przelewy24' },
-    { type: 'card', enabled: true, display_order: 2, currency_restrictions: [], label: 'Card' },
-  ],
-  payment_method_order: ['blik', 'p24', 'card'],
+  custom_payment_methods: [],
+  payment_method_order: [],
   currency_overrides: {},
   enable_express_checkout: true,
   enable_apple_pay: true,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
-import type { StripeCheckoutContact } from '@stripe/stripe-js';
+import type { StripeCheckoutContact, StripePaymentElementOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
@@ -66,6 +66,25 @@ export default function CustomPaymentForm({
   const invoice = useInvoiceData(email);
 
   const { basePrice, discountAmount, totalGross, totalNet, vatRate } = pricing;
+  const paymentElementOptions: StripePaymentElementOptions = {
+    layout: {
+      type: 'tabs',
+      defaultCollapsed: false,
+    },
+    ...(paymentMethodOrder && paymentMethodOrder.length > 0
+      ? { paymentMethodOrder: paymentMethodOrder.filter(m => m !== 'link') }
+      : {}),
+    wallets: {
+      applePay: expressCheckoutConfig?.applePay !== false ? 'auto' : 'never',
+      googlePay: expressCheckoutConfig?.googlePay !== false ? 'auto' : 'never',
+    },
+    fields: {
+      billingDetails: {
+        email: 'never',
+        name: 'never',
+      },
+    },
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,36 +299,7 @@ export default function CustomPaymentForm({
 
       {/* Payment Element */}
       <div>
-        <PaymentElement
-          options={{
-            layout: {
-              type: 'tabs',
-              defaultCollapsed: false,
-            },
-            paymentMethodOrder: (() => {
-              const baseOrder = paymentMethodOrder && paymentMethodOrder.length > 0
-                ? paymentMethodOrder
-                : product.currency === 'PLN'
-                ? ['blik', 'p24', 'card']
-                : product.currency === 'EUR'
-                ? ['sepa_debit', 'ideal', 'card', 'klarna']
-                : product.currency === 'USD'
-                ? ['card', 'cashapp', 'affirm']
-                : undefined;
-              return baseOrder?.filter(m => m !== 'link');
-            })(),
-            wallets: {
-              applePay: expressCheckoutConfig?.applePay !== false ? 'auto' : 'never',
-              googlePay: expressCheckoutConfig?.googlePay !== false ? 'auto' : 'never',
-            },
-            fields: {
-              billingDetails: {
-                email: 'never',
-                name: 'never',
-              },
-            },
-          }}
-        />
+        <PaymentElement options={paymentElementOptions} />
       </div>
 
       {/* Error Message */}

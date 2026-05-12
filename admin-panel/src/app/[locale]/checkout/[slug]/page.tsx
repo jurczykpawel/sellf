@@ -85,7 +85,7 @@ export default async function CheckoutPage({ params }: PageProps) {
     .select('*')
     .eq('id', 1)
     .single() as { data: PaymentMethodConfig | null };
-  const paymentMethodOrder = paymentConfig
+  const paymentMethodOrder = paymentConfig?.config_mode === 'custom'
     ? getEffectivePaymentMethodOrder(paymentConfig, product.currency)
     : undefined;
   const expressCheckoutConfig = extractExpressCheckoutConfig(paymentConfig);

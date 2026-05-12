@@ -50,6 +50,24 @@ const customPaymentFormPath = resolve(
 );
 const customPaymentFormSource = readFileSync(customPaymentFormPath, 'utf-8');
 
+const paidProductFormPath = resolve(
+  __dirname,
+  '../../src/app/[locale]/checkout/[slug]/components/PaidProductForm.tsx'
+);
+const paidProductFormSource = readFileSync(paidProductFormPath, 'utf-8');
+
+const checkoutPagePath = resolve(
+  __dirname,
+  '../../src/app/[locale]/checkout/[slug]/page.tsx'
+);
+const checkoutPageSource = readFileSync(checkoutPagePath, 'utf-8');
+
+const stripeClientPath = resolve(
+  __dirname,
+  '../../src/lib/stripe/client.ts'
+);
+const stripeClientSource = readFileSync(stripeClientPath, 'utf-8');
+
 const stripeConfigActionPath = resolve(
   __dirname,
   '../../src/lib/actions/stripe-config.ts'
@@ -216,6 +234,12 @@ describe('create-payment-intent route source verification', () => {
     expect(paymentIntentRouteSource).toContain('Checkout Sessions use Stripe automatic payment methods by default');
   });
 
+  it('automatic mode delegates payment method selection to Stripe dynamic payment methods', () => {
+    expect(paymentIntentRouteSource).toContain("case 'automatic':");
+    expect(paymentIntentRouteSource).toContain('Checkout Sessions use Stripe automatic payment methods by default');
+    expect(paymentIntentRouteSource).not.toContain('automatic_payment_methods');
+  });
+
   it('stores pending Checkout Session rows without blocking completion webhooks', () => {
     expect(paymentIntentRouteSource).toContain('session_id: checkoutSession.id');
     expect(paymentIntentRouteSource).toContain('stripe_payment_intent_id: null');
@@ -237,6 +261,21 @@ describe('custom checkout form source verification', () => {
     expect(customPaymentFormSource).not.toContain('stripe.confirmPayment');
     expect(customPaymentFormSource).not.toContain('useStripe');
     expect(customPaymentFormSource).not.toContain('useElements');
+  });
+
+  it('does not force currency fallback payment method ordering for dynamic mode', () => {
+    expect(customPaymentFormSource).toContain('paymentMethodOrder && paymentMethodOrder.length > 0');
+    expect(customPaymentFormSource).not.toContain("product.currency === 'PLN'");
+    expect(checkoutPageSource).toContain("paymentConfig?.config_mode === 'custom'");
+  });
+});
+
+describe('Stripe.js singleton source verification', () => {
+  it('loads Stripe through a publishable-key cache outside component render construction', () => {
+    expect(stripeClientSource).toContain('stripePromiseCache');
+    expect(stripeClientSource).toContain('loadStripe(publishableKey)');
+    expect(paidProductFormSource).toContain('getStripeClient(config.stripePublishableKey)');
+    expect(paidProductFormSource).not.toContain('loadStripe(config.stripePublishableKey)');
   });
 });
 
@@ -351,13 +390,13 @@ describe('full checkout config pipeline', () => {
 // ---------------------------------------------------------------------------
 
 describe('paymentMethodOrder — Link filtered out (CustomPaymentForm source verification)', () => {
-  it('should filter out link from paymentMethodOrder and include currency-specific defaults', () => {
+  it('filters link only from explicit custom order and does not include currency fallback ordering', () => {
     expect(customPaymentFormSource).toContain("'link'");
     expect(customPaymentFormSource).toMatch(/filter.*link/);
-    expect(customPaymentFormSource).toContain("'PLN'");
-    expect(customPaymentFormSource).toContain("'EUR'");
-    expect(customPaymentFormSource).toContain("'USD'");
-    expect(customPaymentFormSource).toContain("'blik'");
+    expect(customPaymentFormSource).not.toContain("'PLN'");
+    expect(customPaymentFormSource).not.toContain("'EUR'");
+    expect(customPaymentFormSource).not.toContain("'USD'");
+    expect(customPaymentFormSource).not.toContain("'blik'");
   });
 
   it('extractExpressCheckoutConfig still reports link enabled state', () => {

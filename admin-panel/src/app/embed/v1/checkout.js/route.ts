@@ -44,6 +44,8 @@ export async function GET() {
     });
   }
 
+  var stripeInstances = {};
+
   function showMessage(root, message) {
     root.textContent = message;
   }
@@ -124,7 +126,7 @@ export async function GET() {
       email: email || undefined,
     }).then(function (body) {
       return loadStripeJs().then(function (Stripe) {
-        var stripe = Stripe(publishableKey);
+        var stripe = stripeInstances[publishableKey] || (stripeInstances[publishableKey] = Stripe(publishableKey));
         return stripe.initEmbeddedCheckout({ clientSecret: body.clientSecret });
       });
     }).then(function (checkout) {
