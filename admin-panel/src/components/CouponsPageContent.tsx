@@ -25,6 +25,10 @@ const isOtoCoupon = (coupon: Coupon): boolean => {
   return coupon.code.startsWith('OTO-');
 };
 
+const canDeleteCoupon = (coupon: Coupon): boolean => {
+  return coupon.current_usage_count === 0;
+};
+
 // Helper to get expiry status for OTO coupons
 const getOtoExpiryStatus = (coupon: Coupon): {
   isExpired: boolean;
@@ -105,12 +109,14 @@ const CouponsPageContent: React.FC = () => {
     const isOto = isOtoCoupon(coupon);
     return typeFilter === 'oto' ? isOto : !isOto;
   });
+  const deletableFilteredCoupons = filteredCoupons.filter(canDeleteCoupon);
 
   // Get expired coupons (OTO coupons with expires_at in the past)
   const expiredCoupons = coupons.filter((coupon) => {
     if (!coupon.expires_at) return false;
     return new Date(coupon.expires_at) < new Date();
   });
+  const deletableExpiredCoupons = expiredCoupons.filter(canDeleteCoupon);
 
   // CRUD Handlers using v1 API
   const handleCreate = async (formData: any) => {
@@ -161,7 +167,11 @@ const CouponsPageContent: React.FC = () => {
       setCouponToDelete(null);
       toast.success(t('deleteSuccess'));
     } catch (err) {
-      toast.error(t('deleteError'));
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error(t('deleteError'));
+      }
     }
   };
 
@@ -171,21 +181,24 @@ const CouponsPageContent: React.FC = () => {
 
       await fetchData();
       toast.success(t('toggleSuccess', { status: t(!coupon.is_active ? 'activated' : 'deactivated') }));
-    } catch (err) {
+    } catch {
       toast.error(t('statusError'));
     }
   };
 
   // Selection handlers
   const handleSelectAll = () => {
-    if (selectedIds.size === filteredCoupons.length) {
+    if (selectedIds.size === deletableFilteredCoupons.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredCoupons.map(c => c.id)));
+      setSelectedIds(new Set(deletableFilteredCoupons.map(c => c.id)));
     }
   };
 
   const handleSelectOne = (id: string) => {
+    const coupon = coupons.find(c => c.id === id);
+    if (coupon && !canDeleteCoupon(coupon)) return;
+
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -197,7 +210,9 @@ const CouponsPageContent: React.FC = () => {
 
   const handleBulkDelete = async () => {
     try {
-      const ids = Array.from(selectedIds);
+      const deletableIds = new Set(coupons.filter(canDeleteCoupon).map(c => c.id));
+      const ids = Array.from(selectedIds).filter(id => deletableIds.has(id));
+      const skipped = selectedIds.size - ids.length;
       let failed = 0;
 
       // Delete sequentially to avoid race conditions
@@ -213,13 +228,17 @@ const CouponsPageContent: React.FC = () => {
       setSelectedIds(new Set());
       setShowBulkDeleteConfirm(false);
 
-      if (failed > 0) {
-        toast.warning(t('bulkDeletePartial', { deleted: ids.length - failed, failed }));
+      if (failed > 0 || skipped > 0) {
+        toast.warning(t('bulkDeletePartial', { deleted: ids.length - failed, failed: failed + skipped }));
       } else {
         toast.success(t('bulkDeleteSuccess', { count: ids.length }));
       }
     } catch (err) {
-      toast.error(t('bulkDeleteError'));
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error(t('bulkDeleteError'));
+      }
     }
   };
 
@@ -228,7 +247,7 @@ const CouponsPageContent: React.FC = () => {
       let failed = 0;
 
       // Delete sequentially to avoid race conditions
-      for (const coupon of expiredCoupons) {
+      for (const coupon of deletableExpiredCoupons) {
         try {
           await api.delete('coupons', coupon.id);
         } catch {
@@ -241,12 +260,16 @@ const CouponsPageContent: React.FC = () => {
       setShowDeleteExpiredConfirm(false);
 
       if (failed > 0) {
-        toast.warning(t('deleteExpiredPartial', { deleted: expiredCoupons.length - failed, failed }));
+        toast.warning(t('deleteExpiredPartial', { deleted: deletableExpiredCoupons.length - failed, failed }));
       } else {
-        toast.success(t('deleteExpiredSuccess', { count: expiredCoupons.length }));
+        toast.success(t('deleteExpiredSuccess', { count: deletableExpiredCoupons.length }));
       }
     } catch (err) {
-      toast.error(t('deleteExpiredError'));
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error(t('deleteExpiredError'));
+      }
     }
   };
 
@@ -288,7 +311,7 @@ const CouponsPageContent: React.FC = () => {
         </div>
 
         <div className="flex gap-2">
-          {expiredCoupons.length > 0 && (
+          {deletableExpiredCoupons.length > 0 && (
             <button
               onClick={() => setShowDeleteExpiredConfirm(true)}
               className="px-3 py-1.5 text-sm font-medium bg-amber-700 text-white hover:bg-amber-700 transition-colors flex items-center gap-2"
@@ -296,7 +319,7 @@ const CouponsPageContent: React.FC = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {t('deleteExpired', { count: expiredCoupons.length })}
+              {t('deleteExpired', { count: deletableExpiredCoupons.length })}
             </button>
           )}
 
@@ -332,10 +355,11 @@ const CouponsPageContent: React.FC = () => {
                   <th className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
-                      checked={filteredCoupons.length > 0 && selectedIds.size === filteredCoupons.length}
+                      checked={deletableFilteredCoupons.length > 0 && selectedIds.size === deletableFilteredCoupons.length}
                       onChange={handleSelectAll}
+                      disabled={deletableFilteredCoupons.length === 0}
                       aria-label={t('selectAll', { defaultValue: 'Select all coupons' })}
-                      className="w-4 h-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent"
+                      className="w-4 h-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent disabled:opacity-40"
                     />
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-sf-muted uppercase">{t('code')}</th>
@@ -350,6 +374,7 @@ const CouponsPageContent: React.FC = () => {
                   const isOto = isOtoCoupon(coupon);
                   const otoStatus = isOto ? getOtoExpiryStatus(coupon) : null;
                   const restrictedProducts = getRestrictedProducts(coupon, products);
+                  const isDeletable = canDeleteCoupon(coupon);
 
                   return (
                     <tr key={coupon.id} className={`hover:bg-sf-hover ${selectedIds.has(coupon.id) ? 'bg-sf-accent-soft' : index % 2 === 1 ? 'bg-sf-row-alt' : ''}`}>
@@ -358,8 +383,9 @@ const CouponsPageContent: React.FC = () => {
                           type="checkbox"
                           checked={selectedIds.has(coupon.id)}
                           onChange={() => handleSelectOne(coupon.id)}
+                          disabled={!isDeletable}
                           aria-label={`${t('select', { defaultValue: 'Select' })} ${coupon.code}`}
-                          className="w-4 h-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent"
+                          className="w-4 h-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent disabled:opacity-40"
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -423,8 +449,11 @@ const CouponsPageContent: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
-                        {isOto ? (
-                          // OTO coupons can only be deleted, not edited
+                        {!isDeletable ? (
+                          <span className="text-xs text-sf-muted" title={t('usedCouponLockedHint')}>
+                            {t('usedCouponLocked')}
+                          </span>
+                        ) : isOto ? (
                           <button onClick={() => setCouponToDelete(coupon)} className="text-sf-danger hover:opacity-80">{t('delete')}</button>
                         ) : (
                           <>
@@ -491,7 +520,7 @@ const CouponsPageContent: React.FC = () => {
           <div className="bg-sf-base p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-4 text-sf-heading">{t('confirmDeleteExpired')}</h3>
             <p className="text-sf-body mb-6">
-              {t('deleteExpiredMessage', { count: expiredCoupons.length })}
+              {t('deleteExpiredMessage', { count: deletableExpiredCoupons.length })}
             </p>
             <div className="flex justify-end space-x-3">
               <button onClick={() => setShowDeleteExpiredConfirm(false)} className="px-4 py-2 text-sf-body hover:bg-sf-hover">{t('form.cancel')}</button>

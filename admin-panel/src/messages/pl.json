@@ -1809,6 +1809,8 @@
       "usageUnlimited": "{current} / ∞",
       "confirmDelete": "Usunąć kupon?",
       "deleteMessage": "Czy na pewno chcesz usunąć kod {code}?",
+      "usedCouponLocked": "Użyty - zachowany w historii",
+      "usedCouponLockedHint": "Ten kupon ma historię użycia, więc nie można go usunąć. Dezaktywuj go, jeśli nie powinien być dalej używany.",
       "createSuccess": "Kupon utworzony pomyślnie",
       "updateSuccess": "Kupon zaktualizowany pomyślnie",
       "deleteSuccess": "Kupon usunięty pomyślnie",

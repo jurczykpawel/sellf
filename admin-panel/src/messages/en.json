@@ -1794,6 +1794,8 @@
       "usageUnlimited": "{current} / ∞",
       "confirmDelete": "Delete Coupon?",
       "deleteMessage": "Are you sure you want to delete {code}?",
+      "usedCouponLocked": "Used - kept for history",
+      "usedCouponLockedHint": "This coupon has redemption history, so it cannot be deleted. Deactivate it if it should no longer be used.",
       "createSuccess": "Coupon created successfully",
       "updateSuccess": "Coupon updated successfully",
       "deleteSuccess": "Coupon deleted successfully",
