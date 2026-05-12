@@ -78,10 +78,27 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts
 
-      - name: Clone playerstack repo
+      - name: Extract pinned playerstack commit SHA from sellf
+        id: pin
+        shell: bash
         run: |
-          git clone --depth 1 git@github.com:jurczykpawel/playerstack.git /tmp/playerstack
-          echo "playerstack commit: $(cd /tmp/playerstack && git rev-parse HEAD)"
+          set -euo pipefail
+          SELLF_SRC_FILE="admin-panel/src/lib/playerstack.ts"
+          PS_SHA=$(grep -aoE "PLAYERSTACK_COMMIT_SHA = '[a-f0-9]{40}'" "$SELLF_SRC_FILE" | grep -oE "[a-f0-9]{40}" || true)
+          if [[ -z "$PS_SHA" ]]; then
+            echo "::error::could not extract PLAYERSTACK_COMMIT_SHA from $SELLF_SRC_FILE" >&2
+            exit 1
+          fi
+          echo "ps_sha=$PS_SHA" >> "$GITHUB_OUTPUT"
+          echo "pinned playerstack commit: $PS_SHA"
+
+      - name: Clone playerstack repo at pinned SHA
+        run: |
+          set -euo pipefail
+          git clone --no-checkout git@github.com:jurczykpawel/playerstack.git /tmp/playerstack
+          cd /tmp/playerstack
+          git checkout --detach ${{ steps.pin.outputs.ps_sha }}
+          echo "checked out: $(git rev-parse HEAD)"
 
       - name: Install playerstack dependencies
         working-directory: /tmp/playerstack
@@ -129,14 +146,14 @@ jobs:
           fi
 
           if [[ "$UPSTREAM_SRI" != "$SELLF_SRI" ]]; then
-            echo "::error::bundle in sellf is stale relative to playerstack@HEAD" >&2
-            echo "::error::upstream (rebuilt): $UPSTREAM_SRI ($UPSTREAM_SHORT)" >&2
+            echo "::error::bundle in sellf is stale relative to pinned playerstack commit" >&2
+            echo "::error::upstream (rebuilt at ${{ steps.pin.outputs.ps_sha }}): $UPSTREAM_SRI ($UPSTREAM_SHORT)" >&2
             echo "::error::sellf (declared):   $SELLF_SRI" >&2
             echo "::error::fix: cd admin-panel && bun run sync:playerstack && git add -A && git commit" >&2
             exit 1
           fi
 
-          echo "✓ bundle matches playerstack@HEAD"
+          echo "✓ bundle matches playerstack@${{ steps.pin.outputs.ps_sha }}"
           echo "  bundle: $SELLF_BUNDLE_PATH_REL"
           echo "  sri:    $SELLF_SRI"
 
