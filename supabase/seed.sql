@@ -70,6 +70,42 @@ INSERT INTO shop_config (
 )
 ON CONFLICT DO NOTHING;
 
+-- Test/local default: use Stripe Dynamic Payment Methods.
+-- Production deployments must not rewrite existing admin payment settings.
+INSERT INTO seller_main.payment_method_config (
+  id,
+  config_mode,
+  custom_payment_methods,
+  payment_method_order,
+  currency_overrides,
+  enable_express_checkout,
+  enable_apple_pay,
+  enable_google_pay,
+  enable_link,
+  available_payment_methods
+) VALUES (
+  1,
+  'automatic',
+  '[]'::jsonb,
+  '[]'::jsonb,
+  '{}'::jsonb,
+  true,
+  true,
+  true,
+  true,
+  '[]'::jsonb
+) ON CONFLICT (id) DO UPDATE SET
+  config_mode = EXCLUDED.config_mode,
+  custom_payment_methods = EXCLUDED.custom_payment_methods,
+  payment_method_order = EXCLUDED.payment_method_order,
+  currency_overrides = EXCLUDED.currency_overrides,
+  enable_express_checkout = EXCLUDED.enable_express_checkout,
+  enable_apple_pay = EXCLUDED.enable_apple_pay,
+  enable_google_pay = EXCLUDED.enable_google_pay,
+  enable_link = EXCLUDED.enable_link,
+  available_payment_methods = EXCLUDED.available_payment_methods,
+  updated_at = NOW();
+
 -- Insert sample products for testing
 INSERT INTO products (
   name,
