@@ -157,6 +157,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'subscription.trial_ending',
   'invoice.paid',
   'invoice.payment_failed',
+  'refund.issued',
   // Legacy/future events
   'payment.completed',
   'payment.refunded',

@@ -460,7 +460,7 @@ test.describe('Refund Requests API v1', () => {
         .select('id')
         .single();
 
-      // Create and reject a request
+      // Create an already approved request
       const { data: processedRequest } = await supabaseAdmin
         .from('refund_requests')
         .insert({
@@ -471,8 +471,8 @@ test.describe('Refund Requests API v1', () => {
           requested_amount: 5000,
           currency: 'PLN',
           reason: 'Already processed',
-          status: 'rejected',
-          admin_response: 'Already rejected',
+          status: 'approved',
+          admin_response: 'Already approved',
           processed_at: new Date().toISOString(),
         })
         .select('id')
@@ -488,7 +488,7 @@ test.describe('Refund Requests API v1', () => {
         expect(response.status()).toBe(400);
         const body = await response.json();
         expect(body.error.code).toBe('INVALID_INPUT');
-        expect(body.error.message).toContain('pending');
+        expect(body.error.message).toContain("status 'approved'");
       } finally {
         await supabaseAdmin.from('refund_requests').delete().eq('id', processedRequest!.id);
         await supabaseAdmin.from('payment_transactions').delete().eq('id', newTransaction!.id);

@@ -19,6 +19,7 @@ import {
 import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { buildRefundApprovalLog, canProcessRefundRequest } from '@/lib/refunds/flow';
 
 interface RouteParams {
@@ -212,7 +213,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Get transaction details for Stripe refund
     const { data: transaction, error: txError } = await adminClient
       .from('payment_transactions')
-      .select('id, stripe_payment_intent_id, amount, refunded_amount, currency, user_id, product_id, session_id')
+      .select('id, stripe_payment_intent_id, amount, refunded_amount, currency, user_id, product_id, session_id, status, customer_email')
       .eq('id', refundRequest.transaction_id)
       .single();
 
@@ -258,14 +259,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Update the transaction status
         const totalRefunded = (transaction.refunded_amount || 0) + refundRequest.requested_amount;
         const isFullRefund = totalRefunded >= transaction.amount;
+        const nextStatus = isFullRefund ? 'refunded' : 'completed';
+        const refundedAt = new Date().toISOString();
         let revocationResult: Awaited<ReturnType<typeof revokeTransactionAccess>> | null = null;
 
         const { data: updatedRows } = await adminClient
           .from('payment_transactions')
           .update({
             refunded_amount: totalRefunded,
-            status: isFullRefund ? 'refunded' : 'completed',
-            refunded_at: new Date().toISOString(),
+            status: nextStatus,
+            refunded_at: refundedAt,
             refunded_by: adminUserId,
             refund_reason: admin_response || 'Customer request approved',
             updated_at: new Date().toISOString(),
@@ -302,6 +305,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             request
           );
         }
+
+        await emitRefundIssuedWebhook({
+          supabaseClient: adminClient,
+          transaction,
+          stripeRefundId: stripeRefund.id,
+          refundAmount: stripeRefund.amount ?? Math.round(refundRequest.requested_amount),
+          refundCurrency: stripeRefund.currency,
+          refundReason: stripeRefund.reason || 'requested_by_customer',
+          refundStatus: stripeRefund.status,
+          previousRefundedAmount: transaction.refunded_amount || 0,
+          totalRefunded,
+          isFullRefund,
+          statusBefore: transaction.status,
+          statusAfter: nextStatus,
+          refundedAt,
+          initiatedByAdminId: adminUserId,
+          refundRequestId: id,
+          source: 'refund_request',
+        });
 
         console.info('[refund-request] approved', buildRefundApprovalLog({
           refundRequestId: id,

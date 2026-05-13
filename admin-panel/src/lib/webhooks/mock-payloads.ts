@@ -153,10 +153,35 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
     },
   },
   'refund.issued': {
-    email: 'customer@example.com',
-    amount: 4999,
-    currency: 'usd',
-    reason: 'requested_by_customer'
+    customer: { email: 'customer@example.com', userId: 'user_123abc' },
+    product: {
+      id: 'prod_12345678',
+      name: 'Premium Course',
+      slug: 'premium-course',
+      price: 4999,
+      currency: 'USD',
+      icon: '🎓'
+    },
+    payment: {
+      id: 'pay_12345678',
+      amount: 4999,
+      currency: 'USD',
+      sessionId: 'cs_test_a1b2c3d4e5f6g7h8i9j0',
+      paymentIntentId: 'pi_test_123',
+      statusBefore: 'completed',
+      statusAfter: 'refunded'
+    },
+    refund: {
+      stripeRefundId: 're_test_123',
+      amount: 4999,
+      currency: 'USD',
+      reason: 'requested_by_customer',
+      status: 'succeeded',
+      isFullRefund: true,
+      totalRefunded: 4999,
+      refundedAt: new Date().toISOString(),
+      source: 'admin'
+    }
   },
   'test.event': {
     message: 'This is a test event from Sellf',

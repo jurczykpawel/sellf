@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 
 export async function POST(request: NextRequest) {
   try {
@@ -119,15 +120,17 @@ export async function POST(request: NextRequest) {
     // Determine if this is a full or partial refund
     const totalRefunded = alreadyRefunded + (refund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= transaction.amount;
+    const nextStatus = isFullRefund ? 'refunded' : 'completed';
+    const refundedAt = new Date().toISOString();
 
     // Update transaction status in database (optimistic lock on refunded_amount)
     const { data: updated, error: updateError } = await supabase
       .from('payment_transactions')
       .update({
-        status: isFullRefund ? 'refunded' : 'completed',
+        status: nextStatus,
         refund_id: refund.id,
         refunded_amount: totalRefunded,
-        refunded_at: new Date().toISOString(),
+        refunded_at: refundedAt,
         refunded_by: user.id,
         refund_reason: reason || null,
         updated_at: new Date().toISOString(),
@@ -139,6 +142,24 @@ export async function POST(request: NextRequest) {
     const dbUpdateFailed = updateError || !updated || updated.length === 0;
     if (dbUpdateFailed) {
       console.error('Error updating transaction (concurrent refund?):', updateError);
+    } else {
+      await emitRefundIssuedWebhook({
+        supabaseClient: supabase,
+        transaction,
+        stripeRefundId: refund.id,
+        refundAmount: refund.amount ?? refundAmount,
+        refundCurrency: refund.currency,
+        refundReason: refund.reason || reason || null,
+        refundStatus: refund.status,
+        previousRefundedAmount: alreadyRefunded,
+        totalRefunded,
+        isFullRefund,
+        statusBefore: transaction.status,
+        statusAfter: nextStatus,
+        refundedAt,
+        initiatedByAdminId: user.id,
+        source: 'admin',
+      });
     }
 
     // Revoke all product access on full refund (main + bumps, user + guest).

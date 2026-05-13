@@ -43,5 +43,5 @@ export const WEBHOOK_EVENTS = [
   { value: 'subscription.trial_ending', label: 'Subscription Trial Ending' },
   { value: 'invoice.paid', label: 'Invoice Paid (Subscription Renewal)' },
   { value: 'invoice.payment_failed', label: 'Invoice Payment Failed' },
-  // { value: 'refund.issued', label: 'Refund Issued' }, // TODO: Implement when Refunds are ready
+  { value: 'refund.issued', label: 'Refund Issued' },
 ];

@@ -19,6 +19,7 @@ import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import Stripe from 'stripe';
 
 interface RouteParams {
@@ -179,15 +180,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Determine new status - partial or full refund
     const totalRefunded = alreadyRefunded + (stripeRefund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= payment.amount;
+    const nextStatus = isFullRefund ? 'refunded' : 'completed';
+    const refundedAt = new Date().toISOString();
 
     // Update transaction in database with optimistic lock to prevent concurrent refunds
     const { data: updatedRows, error: updateError } = await auth.supabase
       .from('payment_transactions')
       .update({
-        status: isFullRefund ? 'refunded' : 'completed',
+        status: nextStatus,
         refund_id: stripeRefund.id,
         refunded_amount: totalRefunded,
-        refunded_at: new Date().toISOString(),
+        refunded_at: refundedAt,
         refunded_by: auth.admin.userId,
         refund_reason: reason || null,
         updated_at: new Date().toISOString(),
@@ -232,6 +235,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    await emitRefundIssuedWebhook({
+      supabaseClient: auth.supabase,
+      transaction: payment,
+      stripeRefundId: stripeRefund.id,
+      refundAmount: stripeRefund.amount ?? refundAmount,
+      refundCurrency: stripeRefund.currency,
+      refundReason: stripeRefund.reason || reason || null,
+      refundStatus: stripeRefund.status,
+      previousRefundedAmount: alreadyRefunded,
+      totalRefunded,
+      isFullRefund,
+      statusBefore: payment.status,
+      statusAfter: nextStatus,
+      refundedAt,
+      initiatedByAdminId: auth.admin.userId,
+      source: 'api',
+    });
+
     // Log the refund action (admin_actions is in public schema)
     const platformClient = createPlatformClient();
     await platformClient.from('admin_actions').insert({
@@ -259,7 +280,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           status: stripeRefund.status,
           reason: stripeRefund.reason,
         },
-        payment_status: isFullRefund ? 'refunded' : 'completed',
+        payment_status: nextStatus,
         total_refunded: totalRefunded,
         created_at: new Date().toISOString(),
         ...(accessRevocationFailed && {

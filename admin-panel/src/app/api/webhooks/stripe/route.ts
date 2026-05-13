@@ -21,6 +21,7 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
@@ -380,7 +381,7 @@ async function handleChargeRefunded(
   // Find transaction by payment intent ID (include session_id for guest cleanup)
   const { data: transaction, error: txError } = await supabase
     .from('payment_transactions')
-    .select('id, user_id, product_id, status, session_id')
+    .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount')
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle();
 
@@ -388,7 +389,7 @@ async function handleChargeRefunded(
     // Also try finding by session_id (for payment intent flow)
     const { data: txBySession } = await supabase
       .from('payment_transactions')
-      .select('id, user_id, product_id, status, session_id')
+      .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount')
       .eq('session_id', paymentIntentId)
       .maybeSingle();
 
@@ -425,12 +426,27 @@ async function handleRefundEvent(
 }
 
 async function processRefundForTransaction(
-  transaction: { id: string; user_id: string | null; product_id: string; status: string; session_id: string | null },
+  transaction: {
+    id: string;
+    user_id: string | null;
+    product_id: string;
+    status: string;
+    session_id: string | null;
+    stripe_payment_intent_id: string | null;
+    amount: number;
+    currency: string;
+    customer_email: string | null;
+    refunded_amount: number | null;
+  },
   charge: Stripe.Charge,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   // Determine if this is a full or partial refund
   const isFullRefund = charge.amount_refunded >= charge.amount;
+  const previousRefundedAmount = transaction.refunded_amount || 0;
+  const nextStatus = isFullRefund ? 'refunded' : 'completed';
+  const refundedAt = new Date().toISOString();
+  const latestRefund = charge.refunds?.data?.[0];
 
   // A repeated partial refund event after a full refund should not downgrade state.
   // A repeated full refund event still attempts revocation so failed access cleanup
@@ -443,10 +459,10 @@ async function processRefundForTransaction(
   const { error: updateError } = await supabase
     .from('payment_transactions')
     .update({
-      status: isFullRefund ? 'refunded' : 'completed',
-      refund_id: charge.refunds?.data?.[0]?.id || null,
+      status: nextStatus,
+      refund_id: latestRefund?.id || null,
       refunded_amount: charge.amount_refunded,
-      refunded_at: new Date().toISOString(),
+      refunded_at: refundedAt,
       updated_at: new Date().toISOString(),
     })
     .eq('id', transaction.id);
@@ -455,6 +471,23 @@ async function processRefundForTransaction(
     console.error('[Stripe Webhook] Failed to update refund status:', updateError);
     return { processed: false, message: 'Failed to update transaction status' };
   }
+
+  await emitRefundIssuedWebhook({
+    supabaseClient: supabase,
+    transaction,
+    stripeRefundId: latestRefund?.id || null,
+    refundAmount: latestRefund?.amount ?? Math.max(charge.amount_refunded - previousRefundedAmount, 0),
+    refundCurrency: latestRefund?.currency || charge.currency,
+    refundReason: latestRefund?.reason || null,
+    refundStatus: latestRefund?.status || null,
+    previousRefundedAmount,
+    totalRefunded: charge.amount_refunded,
+    isFullRefund,
+    statusBefore: transaction.status,
+    statusAfter: nextStatus,
+    refundedAt,
+    source: 'stripe_webhook',
+  });
 
   // Only revoke access on full refund
   if (!isFullRefund) {

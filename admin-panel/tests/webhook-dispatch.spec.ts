@@ -306,6 +306,252 @@ test.describe('Webhook Dispatch System', () => {
     });
   });
 
+  test('refund.issued: should send correct payload via Stripe charge.refunded without duplicates', async ({ request }) => {
+    test.skip(!STRIPE_WEBHOOK_SECRET, 'STRIPE_WEBHOOK_SECRET environment variable is not set');
+
+    const webhook = await createWebhook(['refund.issued']);
+    const email = `refund-webhook-${Date.now()}@example.com`;
+    const sessionId = `cs_refund_${Date.now()}`;
+    const paymentIntentId = `pi_refund_${Date.now()}`;
+    const refundId = `re_refund_${Date.now()}`;
+
+    const { data: transaction, error: txError } = await supabaseAdmin
+      .from('payment_transactions')
+      .insert({
+        product_id: paidProductId,
+        session_id: sessionId,
+        stripe_payment_intent_id: paymentIntentId,
+        amount: 4999,
+        currency: 'USD',
+        status: 'completed',
+        customer_email: email,
+      })
+      .select()
+      .single();
+
+    if (txError) throw txError;
+    registerCleanup('payment_transactions', transaction.id);
+
+    const stripePayload = {
+      id: `evt_refund_${Date.now()}`,
+      object: 'event',
+      api_version: STRIPE_API_VERSION,
+      created: Math.floor(Date.now() / 1000),
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: `ch_refund_${Date.now()}`,
+          object: 'charge',
+          amount: 4999,
+          amount_refunded: 4999,
+          currency: 'usd',
+          payment_intent: paymentIntentId,
+          refunded: true,
+          refunds: {
+            object: 'list',
+            data: [{
+              id: refundId,
+              object: 'refund',
+              amount: 4999,
+              currency: 'usd',
+              reason: 'requested_by_customer',
+              status: 'succeeded',
+              created: Math.floor(Date.now() / 1000),
+            }],
+          },
+        },
+      },
+    };
+
+    const sendSignedEvent = async () => {
+      const payloadString = JSON.stringify(stripePayload);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = crypto
+        .createHmac('sha256', STRIPE_WEBHOOK_SECRET!)
+        .update(`${timestamp}.${payloadString}`)
+        .digest('hex');
+
+      return request.post('/api/webhooks/stripe', {
+        headers: {
+          'stripe-signature': `t=${timestamp},v1=${signature}`,
+          'Content-Type': 'application/json',
+        },
+        data: payloadString,
+      });
+    };
+
+    const firstResponse = await sendSignedEvent();
+    expect(firstResponse.status()).toBe(200);
+
+    const logs = await getRecentLogs(webhook.id);
+    expect(logs.length).toBe(1);
+    const payload = typeof logs[0].payload === 'string' ? JSON.parse(logs[0].payload) : logs[0].payload;
+
+    expect(payload.event).toBe('refund.issued');
+    expect(payload.timestamp).toBeDefined();
+    expect(payload.data.customer).toEqual({ email, userId: null });
+    expect(payload.data.product.id).toBe(paidProductId);
+    expect(payload.data.product.slug).toBe(paidProductSlug);
+    expect(payload.data.payment).toMatchObject({
+      id: transaction.id,
+      amount: 4999,
+      currency: 'USD',
+      sessionId,
+      paymentIntentId,
+      statusBefore: 'completed',
+      statusAfter: 'refunded',
+    });
+    expect(payload.data.refund).toMatchObject({
+      stripeRefundId: refundId,
+      amount: 4999,
+      currency: 'USD',
+      reason: 'requested_by_customer',
+      status: 'succeeded',
+      isFullRefund: true,
+      totalRefunded: 4999,
+      source: 'stripe_webhook',
+    });
+
+    const secondResponse = await sendSignedEvent();
+    expect(secondResponse.status()).toBe(200);
+    await new Promise(r => setTimeout(r, 2000));
+    const logsAfterDuplicate = await getRecentLogs(webhook.id, 2);
+    expect(logsAfterDuplicate.length).toBe(1);
+  });
+
+  test('refund.issued: should send each incremental Stripe partial refund once', async ({ request }) => {
+    test.skip(!STRIPE_WEBHOOK_SECRET, 'STRIPE_WEBHOOK_SECRET environment variable is not set');
+
+    const webhook = await createWebhook(['refund.issued']);
+    const email = `refund-partial-webhook-${Date.now()}@example.com`;
+    const sessionId = `cs_refund_partial_${Date.now()}`;
+    const paymentIntentId = `pi_refund_partial_${Date.now()}`;
+
+    const { data: transaction, error: txError } = await supabaseAdmin
+      .from('payment_transactions')
+      .insert({
+        product_id: paidProductId,
+        session_id: sessionId,
+        stripe_payment_intent_id: paymentIntentId,
+        amount: 3000,
+        currency: 'PLN',
+        status: 'completed',
+        customer_email: email,
+      })
+      .select()
+      .single();
+
+    if (txError) throw txError;
+    registerCleanup('payment_transactions', transaction.id);
+
+    const sendRefundEvent = async (step: {
+      eventId: string;
+      refundId: string;
+      refundAmount: number;
+      totalRefunded: number;
+    }) => {
+      const payload = {
+        id: step.eventId,
+        object: 'event',
+        api_version: STRIPE_API_VERSION,
+        created: Math.floor(Date.now() / 1000),
+        type: 'charge.refunded',
+        data: {
+          object: {
+            id: `ch_refund_partial_${paymentIntentId}`,
+            object: 'charge',
+            amount: 3000,
+            amount_refunded: step.totalRefunded,
+            currency: 'pln',
+            payment_intent: paymentIntentId,
+            refunded: step.totalRefunded >= 3000,
+            refunds: {
+              object: 'list',
+              data: [{
+                id: step.refundId,
+                object: 'refund',
+                amount: step.refundAmount,
+                currency: 'pln',
+                reason: 'requested_by_customer',
+                status: 'succeeded',
+                created: Math.floor(Date.now() / 1000),
+              }],
+            },
+          },
+        },
+      };
+
+      const payloadString = JSON.stringify(payload);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = crypto
+        .createHmac('sha256', STRIPE_WEBHOOK_SECRET!)
+        .update(`${timestamp}.${payloadString}`)
+        .digest('hex');
+
+      const response = await request.post('/api/webhooks/stripe', {
+        headers: {
+          'stripe-signature': `t=${timestamp},v1=${signature}`,
+          'Content-Type': 'application/json',
+        },
+        data: payloadString,
+      });
+
+      expect(response.status()).toBe(200);
+    };
+
+    const steps = [
+      { eventId: `evt_refund_partial_1_${Date.now()}`, refundId: `re_partial_1_${Date.now()}`, refundAmount: 500, totalRefunded: 500 },
+      { eventId: `evt_refund_partial_2_${Date.now()}`, refundId: `re_partial_2_${Date.now()}`, refundAmount: 1500, totalRefunded: 2000 },
+      { eventId: `evt_refund_partial_3_${Date.now()}`, refundId: `re_partial_3_${Date.now()}`, refundAmount: 1000, totalRefunded: 3000 },
+    ];
+
+    for (let index = 0; index < steps.length; index++) {
+      await sendRefundEvent(steps[index]);
+      const logs = await getRecentLogs(webhook.id, index + 1);
+      expect(logs.length).toBe(index + 1);
+
+      const latestPayload = typeof logs[0].payload === 'string'
+        ? JSON.parse(logs[0].payload)
+        : logs[0].payload;
+
+      expect(latestPayload.event).toBe('refund.issued');
+      expect(latestPayload.data.payment).toMatchObject({
+        id: transaction.id,
+        amount: 3000,
+        currency: 'PLN',
+        sessionId,
+        paymentIntentId,
+      });
+      expect(latestPayload.data.refund).toMatchObject({
+        stripeRefundId: steps[index].refundId,
+        amount: steps[index].refundAmount,
+        currency: 'PLN',
+        totalRefunded: steps[index].totalRefunded,
+        isFullRefund: index === steps.length - 1,
+        source: 'stripe_webhook',
+      });
+      expect(latestPayload.data.refund.refundedAt).toBeDefined();
+    }
+
+    const finalLogs = await getRecentLogs(webhook.id, 3);
+    const totalRefundedValues = finalLogs
+      .map(log => (typeof log.payload === 'string' ? JSON.parse(log.payload) : log.payload).data.refund.totalRefunded)
+      .sort((a, b) => a - b);
+    expect(totalRefundedValues).toEqual([500, 2000, 3000]);
+
+    const { data: updatedTransaction, error: transactionError } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('status, refunded_amount')
+      .eq('id', transaction.id)
+      .single();
+
+    if (transactionError) throw transactionError;
+    expect(updatedTransaction).toMatchObject({
+      status: 'refunded',
+      refunded_amount: 3000,
+    });
+  });
+
   test('should not send webhook if disabled', async ({ request }) => {
     const webhook = await createWebhook(['waitlist.signup'], false); // inactive
 
