@@ -311,7 +311,7 @@ export default function StripeSettings({ siteUrl }: { siteUrl: string }) {
    {/* Events */}
    <div className="mb-3">
      <p className="text-xs text-sf-muted mb-1">{t('webhook.eventsLabel')}</p>
-     <div className="flex flex-wrap gap-1.5">
+     <div data-testid="stripe-webhook-events" className="flex flex-wrap gap-1.5">
        {STRIPE_WEBHOOK_EVENTS.map((event) => (
          <code key={event} className="font-mono text-xs bg-sf-raised px-2 py-1 border border-sf-border-light text-sf-body">
            {event}

@@ -19,6 +19,7 @@ import {
   buildSubscriptionUpdatedPayload,
   buildSubscriptionCanceledPayload,
   buildSubscriptionTrialEndingPayload,
+  buildSubscriptionRenewalUpcomingPayload,
   buildInvoicePaidPayload,
   buildInvoicePaymentFailedPayload,
   type SubProductSummary,
@@ -739,6 +740,50 @@ export async function handleSubscriptionTrialWillEnd(
   await WebhookService.trigger('subscription.trial_ending', payload, supabase);
 
   return { processed: true, message: `Trial ending soon: ${sub.id}` };
+}
+
+// ---------------------------------------------------------------------------
+// invoice.upcoming
+// ---------------------------------------------------------------------------
+
+export async function handleInvoiceUpcoming(
+  invoice: Stripe.Invoice,
+  supabase: AdminClient,
+  platformClient: PlatformClient,
+  stripe: Stripe
+): Promise<HandlerResult> {
+  const subscriptionId = extractSubscriptionId(invoice);
+  if (!subscriptionId) {
+    return { processed: true, message: 'Skipped: upcoming invoice not tied to a subscription' };
+  }
+
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  let email = customerEmailFromInvoiceOrSub(invoice, sub);
+  if (!email) {
+    if (!invoice.customer) return { processed: false, message: 'No customer on upcoming invoice' };
+    const customer = await stripe.customers.retrieve(
+      typeof invoice.customer === 'string' ? invoice.customer : invoice.customer.id
+    );
+    if (customer.deleted) return { processed: false, message: 'Customer is deleted' };
+    email = customer.email ?? null;
+  }
+  if (!email) return { processed: false, message: 'No email on upcoming invoice' };
+
+  const ctxResult = await resolveSubscriptionContext(supabase, platformClient, sub, email);
+  if (!ctxResult.ok) return { processed: false, message: ctxResult.reason };
+  const ctx = ctxResult.ctx;
+
+  await upsertSubscriptionRow(supabase, ctx, sub);
+
+  const payload = buildSubscriptionRenewalUpcomingPayload({
+    customer: customerSummary(ctx.userId, ctx.email),
+    product: ctx.product,
+    subscription: sub,
+    invoice,
+  });
+  await WebhookService.trigger('subscription.renewal_upcoming', payload, supabase);
+
+  return { processed: true, message: `Subscription renewal upcoming: ${subscriptionId}` };
 }
 
 // ---------------------------------------------------------------------------

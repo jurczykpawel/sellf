@@ -446,7 +446,7 @@ These routes are intentionally not part of API-key authenticated `/api/v1`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/webhooks/stripe` | Stripe signature | Process checkout, refund, dispute, subscription, and invoice events |
+| POST | `/api/webhooks/stripe` | Stripe signature | Process checkout, refund, dispute, subscription, upcoming renewal, and invoice events |
 
 Subscribe the Stripe endpoint to the events listed by `STRIPE_WEBHOOK_EVENTS` in `admin-panel/src/lib/constants.ts`.
 

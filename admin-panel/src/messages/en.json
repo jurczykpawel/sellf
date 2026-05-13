@@ -1628,6 +1628,7 @@
         "subscription_updated": "Subscription Updated",
         "subscription_canceled": "Subscription Canceled",
         "subscription_trial_ending": "Subscription Trial Ending",
+        "subscription_renewal_upcoming": "Subscription Renewal Upcoming",
         "invoice_paid": "Invoice Paid",
         "invoice_payment_failed": "Invoice Payment Failed",
         "subscription_started": "Subscription Started",

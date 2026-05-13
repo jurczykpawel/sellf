@@ -210,7 +210,7 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ Customer portal in Sellf: cancel/resume, invoice list, update card via SetupIntent
 - ✅ Cancel always at period end; refund of first invoice auto-cancels
 - ✅ Stripe-native coupon `duration` (once / repeating N cycles / forever)
-- ✅ Outgoing webhooks for full lifecycle (`subscription.created/updated/canceled/trial_ending`, `invoice.paid/payment_failed`)
+- ✅ Outgoing webhooks for full lifecycle (`subscription.created/updated/canceled/trial_ending/renewal_upcoming`, `invoice.paid/payment_failed`)
 - ✅ `stripe_customers` + `subscriptions` tables with RLS, durable Stripe Price binding
 
 ### 📊 Analytics & Integrations
@@ -240,7 +240,7 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 #### Outgoing Webhooks v1.5 (2025-12-19)
 - ✅ HMAC-SHA256 signed delivery, `purchase.completed` and `lead.captured` events
 - ✅ Management UI, test events, retry, detailed logs
-- ✅ `waitlist.signup`, `refund.issued`, subscription lifecycle, and invoice payment events
+- ✅ `waitlist.signup`, `refund.issued`, subscription lifecycle, upcoming renewal, and invoice payment events
 
 #### Cookie Consent — Klaro (2025-12-24)
 - ✅ GDPR-compliant consent manager with TrackingProvider integration

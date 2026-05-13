@@ -31,6 +31,7 @@ import {
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
   handleSubscriptionTrialWillEnd,
+  handleInvoiceUpcoming,
   handleInvoicePaid,
   handleInvoicePaymentFailed,
 } from './subscription-handlers';
@@ -757,6 +758,13 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.resumed': {
         // MVP: no-op (we don't expose pause/resume yet).
         result = { processed: true, message: `No-op for ${event.type} (MVP)` };
+        break;
+      }
+
+      case 'invoice.upcoming': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripe = await getStripeServer();
+        result = await handleInvoiceUpcoming(invoice, supabase, createPlatformClient(), stripe);
         break;
       }
 

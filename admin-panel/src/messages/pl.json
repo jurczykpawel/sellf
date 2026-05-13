@@ -1643,6 +1643,7 @@
         "subscription_updated": "Subskrypcja zaktualizowana",
         "subscription_canceled": "Subskrypcja anulowana",
         "subscription_trial_ending": "Okres próbny subskrypcji dobiega końca",
+        "subscription_renewal_upcoming": "Odnowienie subskrypcji nadchodzi",
         "invoice_paid": "Faktura opłacona",
         "invoice_payment_failed": "Płatność faktury nieudana",
         "subscription_started": "Subskrypcja rozpoczęta",

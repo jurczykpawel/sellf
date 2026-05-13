@@ -155,6 +155,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'subscription.updated',
   'subscription.canceled',
   'subscription.trial_ending',
+  'subscription.renewal_upcoming',
   'invoice.paid',
   'invoice.payment_failed',
   'refund.issued',

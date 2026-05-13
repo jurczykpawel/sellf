@@ -41,6 +41,7 @@ export const WEBHOOK_EVENTS = [
   { value: 'subscription.updated', label: 'Subscription Updated' },
   { value: 'subscription.canceled', label: 'Subscription Canceled' },
   { value: 'subscription.trial_ending', label: 'Subscription Trial Ending' },
+  { value: 'subscription.renewal_upcoming', label: 'Subscription Renewal Upcoming' },
   { value: 'invoice.paid', label: 'Invoice Paid (Subscription Renewal)' },
   { value: 'invoice.payment_failed', label: 'Invoice Payment Failed' },
   { value: 'refund.issued', label: 'Refund Issued' },

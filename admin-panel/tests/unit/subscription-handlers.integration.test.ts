@@ -24,6 +24,7 @@ import {
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
   handleSubscriptionTrialWillEnd,
+  handleInvoiceUpcoming,
   handleInvoicePaid,
   handleInvoicePaymentFailed,
 } from '@/app/api/webhooks/stripe/subscription-handlers';
@@ -479,6 +480,62 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       .eq('stripe_subscription_id', sub.id)
       .maybeSingle();
     expect(row).toBeNull();
+
+    const { data: userId } = await platformClient!.rpc('find_user_id_by_email', {
+      p_email: email.toLowerCase(),
+    });
+    if (typeof userId === 'string') createdAuthUserIds.push(userId);
+  });
+
+  it('handleInvoiceUpcoming mirrors subscription and dispatches renewal warning webhook', async () => {
+    const email = `upcoming-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await stripe!.customers.create({ email });
+    createdStripeCustomerIds.push(customer.id);
+    const sub = makeFakeSubscription(customer.id, product.id, { status: 'active' });
+    const stripeShim = {
+      ...stripe!,
+      subscriptions: { ...stripe!.subscriptions, retrieve: async () => sub },
+      customers: stripe!.customers,
+    } as unknown as Stripe;
+    const invoice = makeFakeInvoice(sub.id, customer.id, email, {
+      billing_reason: 'subscription_cycle',
+      next_payment_attempt: sub.items.data[0]?.current_period_end ?? null,
+    });
+
+    const triggerSpy = vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+
+    const result = await handleInvoiceUpcoming(
+      invoice,
+      supabaseSeller as never,
+      platformClient as never,
+      stripeShim
+    );
+    expect(result.processed).toBe(true);
+
+    const renewalCalls = triggerSpy.mock.calls.filter(
+      ([event]) => event === 'subscription.renewal_upcoming'
+    );
+    expect(renewalCalls).toHaveLength(1);
+    expect(renewalCalls[0]?.[1]).toMatchObject({
+      customer: { email },
+      product: { id: product.id },
+      invoice: {
+        amountDue: 49,
+        currency: 'PLN',
+        billingReason: 'subscription_cycle',
+      },
+    });
+
+    triggerSpy.mockRestore();
+
+    const { data: row } = await supabaseSeller!
+      .from('subscriptions')
+      .select('status, product_id')
+      .eq('stripe_subscription_id', sub.id)
+      .single();
+    expect(row?.status).toBe('active');
+    expect(row?.product_id).toBe(product.id);
 
     const { data: userId } = await platformClient!.rpc('find_user_id_by_email', {
       p_email: email.toLowerCase(),

@@ -152,12 +152,13 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 - `subscription.updated` - Plan change, payment method update, etc.
 - `subscription.canceled` - Cancellation effective (period end)
 - `subscription.trial_ending` - 3-day heads-up before trial converts
+- `subscription.renewal_upcoming` - Upcoming recurring renewal notice from Stripe
 - `invoice.paid` - Recurring renewal succeeded
 - `invoice.payment_failed` - Dunning trigger
 
 ### Stripe Webhooks Handled
 - `customer.subscription.created` / `updated` / `deleted`
-- `invoice.payment_succeeded` / `payment_failed`
+- `invoice.upcoming` / `payment_succeeded` / `payment_failed`
 - `customer.subscription.trial_will_end`
 
 ### Database
@@ -316,6 +317,7 @@ Sellf does not send transactional emails for subscription events. It dispatches 
   - `subscription.updated`
   - `subscription.canceled`
   - `subscription.trial_ending`
+  - `subscription.renewal_upcoming`
   - `invoice.paid`
   - `invoice.payment_failed`
 - **Secret key** - HMAC-SHA256 signature

@@ -66,7 +66,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Cancel always at period end (customer keeps access until paid period expires)
 - Refund policy honors `refund_period_days`. Refund of the first invoice auto-cancels at period end
 - Coupons with Stripe-native `duration` (once / repeating N cycles / forever) for promotional pricing
-- Outgoing webhooks for every lifecycle event (`subscription.created`, `subscription.updated`, `subscription.canceled`, `subscription.trial_ending`, `invoice.paid`, `invoice.payment_failed`). Plug into n8n, Make, Listmonk, or your own mailer
+- Outgoing webhooks for every lifecycle event (`subscription.created`, `subscription.updated`, `subscription.canceled`, `subscription.trial_ending`, `subscription.renewal_upcoming`, `invoice.paid`, `invoice.payment_failed`). Plug into n8n, Make, Listmonk, or your own mailer
 
 </details>
 

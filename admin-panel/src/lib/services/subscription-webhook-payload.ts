@@ -9,6 +9,7 @@
  *   subscription.updated
  *   subscription.canceled
  *   subscription.trial_ending
+ *   subscription.renewal_upcoming
  *   invoice.paid
  *   invoice.payment_failed
  *
@@ -114,6 +115,31 @@ export function buildSubscriptionTrialEndingPayload(input: BaseInput & {
     subscription: {
       stripeSubscriptionId: input.subscription.id,
       trialEnd: toIso(input.subscription.trial_end),
+    },
+  };
+}
+
+export function buildSubscriptionRenewalUpcomingPayload(input: BaseInput & {
+  invoice: Stripe.Invoice;
+  subscription: Stripe.Subscription;
+}) {
+  const inv = input.invoice;
+  const sub = input.subscription;
+  return {
+    customer: input.customer,
+    product: input.product,
+    subscription: {
+      stripeSubscriptionId: sub.id,
+      status: sub.status,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      currentPeriodEnd: toIso(sub.items.data[0]?.current_period_end ?? null),
+    },
+    invoice: {
+      stripeInvoiceId: inv.id ?? null,
+      amountDue: fromMinor(inv.amount_due),
+      currency: (inv.currency || 'usd').toUpperCase(),
+      nextPaymentAttempt: toIso(inv.next_payment_attempt),
+      billingReason: inv.billing_reason,
     },
   };
 }

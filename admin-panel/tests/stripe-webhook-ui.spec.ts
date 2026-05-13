@@ -162,8 +162,7 @@ test.describe('Stripe Webhook Section UI', () => {
     // Wait for events section to load
     await expect(page.locator('code', { hasText: 'checkout.session.completed' })).toBeVisible({ timeout: 10000 });
 
-    // Count event badges — match lowercase-only event names (no hyphens/digits/slashes like URL or API version)
-    const eventCodes = page.locator('code').filter({ hasText: /^[a-z][a-z_.]+$/ });
+    const eventCodes = page.getByTestId('stripe-webhook-events').locator('code');
     await expect(eventCodes).toHaveCount(STRIPE_WEBHOOK_EVENTS.length);
   });
 

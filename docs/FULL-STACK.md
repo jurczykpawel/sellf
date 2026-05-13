@@ -580,6 +580,7 @@ A      api      YOUR_SERVER_IP       3600
    - `customer.subscription.paused`
    - `customer.subscription.resumed`
    - `invoice.paid`
+   - `invoice.upcoming`
    - `invoice.payment_succeeded`
    - `invoice.payment_failed`
    - `invoice.payment_action_required`

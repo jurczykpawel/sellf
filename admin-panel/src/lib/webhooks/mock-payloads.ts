@@ -126,6 +126,23 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       trialEnd: '2026-05-07T00:00:00.000Z',
     },
   },
+  'subscription.renewal_upcoming': {
+    customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
+    product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
+    subscription: {
+      stripeSubscriptionId: 'sub_test_123',
+      status: 'active',
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: '2026-05-30T00:00:00.000Z',
+    },
+    invoice: {
+      stripeInvoiceId: 'in_upcoming_123',
+      amountDue: 49.00,
+      currency: 'PLN',
+      nextPaymentAttempt: '2026-05-30T00:00:00.000Z',
+      billingReason: 'subscription_cycle',
+    },
+  },
   'invoice.paid': {
     customer: { email: 'subscriber@example.com', userId: 'user_123abc' },
     product: { id: 'prod_sub_123', name: 'Monthly Plan', slug: 'monthly-plan', currency: 'PLN' },
