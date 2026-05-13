@@ -1,7 +1,7 @@
 # Sellf - Feature List
 
-> **Generated**: 2026-01-06
-> **Version**: 1.0
+> **Updated**: 2026-05-13
+> **Version**: 2026.5.0
 > **Status**: Production-ready
 
 ---
@@ -94,8 +94,8 @@
 ## 4. Payment System
 
 ### Stripe Integration
-- **Stripe Elements** - Custom payment form (PCI DSS compliant)
-- **Embedded Checkout** - Stripe checkout session
+- **Stripe Checkout Sessions** - Stripe-hosted session state with embedded Elements UI
+- **Embedded Checkout** - Stripe Checkout Session rendered without sending customers away from the page
 - **Checkout Sessions Elements** - Checkout Sessions API with custom Elements UI and idempotent session tracking
 - **Stripe Configuration Wizard** - 5-step wizard for configuration:
   1. Welcome
@@ -117,6 +117,7 @@
 - **Idempotency** - UNIQUE constraints on session_id and stripe_payment_intent_id
 - **Race condition protection** - Optimistic locking with retries
 - **Guest purchases** - Claiming purchases after account registration
+- **Line item accounting** - Main product, order bumps, discounts, sale prices, and refunds are preserved for admin/payment views
 
 ---
 
@@ -245,6 +246,9 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 - **Admin notes** - Notes/responses
 - **Status tracking** - pending → approved/rejected → refunded
 - **Stripe refund processing** - Automatic refund in Stripe
+- **Partial refunds** - Multiple partial refunds are accumulated safely and shown in admin/payment history
+- **External refund sync** - Refunds created directly in Stripe are mirrored back into Sellf
+- **Outgoing refund webhook** - `refund.issued` event is dispatched for manual and Stripe-originated refunds
 
 ---
 
@@ -295,6 +299,7 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 - **sellf.js** - Dynamic script for protection
 - **License validation** - Sellf license verification
 - **Auto-detection** - Automatic detection of protected elements
+- **Embedded checkout handoff** - External pages can open Sellf checkout through the `/embed/v1/checkout.js` script and `/api/embed/*` endpoints
 
 ---
 
@@ -306,6 +311,13 @@ Sellf does not send transactional emails for subscription events. It dispatches 
   - `purchase.completed`
   - `lead.captured`
   - `waitlist.signup`
+  - `refund.issued`
+  - `subscription.created`
+  - `subscription.updated`
+  - `subscription.canceled`
+  - `subscription.trial_ending`
+  - `invoice.paid`
+  - `invoice.payment_failed`
 - **Secret key** - HMAC-SHA256 signature
 - **Active/Inactive** - Toggle
 
@@ -625,7 +637,7 @@ bruno/environments/local.bru.example → local.bru
 - **Digital content** - Embedded content
 - **File download** - Downloadable files
 - **Redirect** - Redirect to external URL
-- **Video embed** - Embedded video
+- **Video embed** - Embedded video through the self-hosted Playerstack bundle
 
 ### Download URL Allowlist
 Download URLs must point to one of the supported storage providers (S3, Cloudflare R2,
@@ -640,7 +652,8 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 `src/lib/trustedDownloadProviders.ts`.
 
 ### Video Features
-- **Bunny.net support** - Video streaming
+- **Playerstack support** - Self-hosted video embed bundle pinned to a reproducible upstream commit
+- **Bunny.net support** - HLS or MP4/WebM streaming through Playerstack-supported URLs
 - **Progress tracking** - `video_progress` table
 - **Event tracking** - play/pause/seek/complete
 - **Resume position** - Remembering position
@@ -663,6 +676,7 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 
 ### Customer Area
 - **My Purchases** - Purchase history
+- **My Subscriptions** - Manage active and canceling recurring access
 - **My Products** - Available products
 - **Profile** - Profile editing
 - **Refund requests** - Refund requests
@@ -698,7 +712,11 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 - Order bumps
 - OTO system
 - Refunds
+- Partial refund accounting
 - Waitlist
+- Subscriptions
+- Embedded checkout
+- Playerstack video embeds
 - Gatekeeper
 - Integrations
 - Branding
@@ -882,8 +900,8 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 ## Database
 | Metric | Value |
 |--------|-------|
-| SQL Migrations | 6 |
-| Tables | 25+ |
+| SQL Migrations | 20+ |
+| Tables | 30+ |
 | RPC Functions | 40+ |
 | Triggers | 20+ |
 | RLS Policies | 50+ |
@@ -896,7 +914,7 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 | REST API v1 endpoints | 50+ |
 | Admin endpoints | 20+ |
 | Public endpoints | 15+ |
-| Webhook events | 3 |
+| Webhook events | 10+ |
 | OpenAPI spec | ✓ |
 
 ## Frontend
@@ -910,12 +928,12 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 ## Testing
 | Metric | Value |
 |--------|-------|
-| E2E Tests | 899+ |
-| Unit Tests | 100+ |
+| E2E Tests | 1,000+ |
+| Unit Tests | 2,714 |
 | API v1 Tests | 232 |
 | Test Files | 60+ |
 | Test Framework | Playwright + Vitest |
-| Pass Rate | 100% |
+| Latest verified unit run | 100% pass |
 
 ## MCP Server
 | Metric | Value |

@@ -1,6 +1,6 @@
 # REST API v1
 
-Sellf provides a full REST API for managing products, users, payments, coupons, webhooks, and more. All endpoints are under `/api/v1/`.
+Sellf provides a full REST API for managing products, users, payments, refunds, coupons, webhooks, and more. Admin API endpoints are under `/api/v1/`.
 
 **Base URL:** `https://your-domain.com/api/v1`
 
@@ -11,6 +11,8 @@ Sellf provides a full REST API for managing products, users, payments, coupons, 
 - Per-key rate limiting (1–1000 req/min)
 - Cursor-based pagination
 - OpenAPI 3.1 specification
+
+Customer checkout, embedded checkout, Stripe webhook, waitlist signup, and subscription self-service routes live outside `/api/v1` because they use browser sessions, public tokens, or Stripe signatures instead of API keys.
 
 ---
 
@@ -339,9 +341,10 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 |--------|------|-------|-------------|
 | GET | `/payments` | `analytics:read` | List payments |
 | GET | `/payments/{id}` | `analytics:read` | Get payment details |
+| PATCH | `/payments/{id}` | `analytics:read` | Update payment metadata |
 | GET | `/payments/stats` | `analytics:read` | Payment statistics |
 | POST | `/payments/export` | `analytics:read` | Export payments (CSV) |
-| POST | `/payments/{id}/refund` | `refund-requests:write` | Refund a payment |
+| POST | `/payments/{id}/refund` | `refund-requests:write` | Refund a payment, including partial refunds |
 
 ### Order Bumps
 
@@ -366,6 +369,8 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 | GET | `/webhooks/logs` | `webhooks:read` | List delivery logs |
 | POST | `/webhooks/logs/{logId}/retry` | `webhooks:write` | Retry failed delivery |
 | POST | `/webhooks/logs/{logId}/archive` | `webhooks:write` | Archive log entry |
+
+Supported outgoing event types include purchases, leads, waitlist signups, refund issued events, subscription lifecycle events, and invoice payment events.
 
 ### Analytics
 
@@ -417,15 +422,43 @@ These endpoints require admin session authentication — API keys cannot manage 
 
 ---
 
+## Public, Session, And Stripe-Signed Routes
+
+These routes are intentionally not part of API-key authenticated `/api/v1`.
+
+### Embedded Checkout
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/embed/checkout-session` | Public origin validation | Create an embedded checkout session for an allowed origin |
+| POST | `/api/embed/free-access` | Public origin validation | Grant access for free embedded products |
+| GET | `/embed/v1/checkout.js` | Public script | Self-hosted checkout embed script for external pages |
+
+### Customer Subscriptions
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/subscriptions` | Session | List the current customer's subscriptions |
+| POST | `/api/subscriptions/{id}/cancel` | Session | Cancel at period end |
+| POST | `/api/subscriptions/{id}/resume` | Session | Resume before the current period ends |
+
+### Stripe Webhook
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/webhooks/stripe` | Stripe signature | Process checkout, refund, dispute, subscription, and invoice events |
+
+Subscribe the Stripe endpoint to the events listed by `STRIPE_WEBHOOK_EVENTS` in `admin-panel/src/lib/constants.ts`.
+
+### Waitlist
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/waitlist/signup` | Public or session | Capture waitlist signups and dispatch `waitlist.signup` outgoing webhooks |
+
+---
+
 ## OpenAPI Specification
 
-The full OpenAPI 3.1 spec is available at:
-
-```
-GET /api/v1/docs/openapi.json
-```
-
-Import it into your favorite tool:
-- **Postman:** Import → Link → paste URL
-- **Swagger UI:** paste the URL in the explore bar
-- **Bruno:** Import Collection → OpenAPI
+The OpenAPI 3.1 registry and generator live in `admin-panel/src/lib/api/schemas/openapi.ts`.
+Use it as the source for generated API docs or Bruno/Postman imports when exposing a spec endpoint in your deployment.

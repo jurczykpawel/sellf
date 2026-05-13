@@ -164,8 +164,22 @@ sudo systemctl restart caddy
 2. Add endpoint: `https://your-domain.com/api/webhooks/stripe`
 3. Events:
    - `checkout.session.completed`
+   - `checkout.session.async_payment_succeeded`
    - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
+   - `charge.refunded`
+   - `refund.created`
+   - `refund.updated`
+   - `charge.dispute.created`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `customer.subscription.trial_will_end`
+   - `customer.subscription.paused`
+   - `customer.subscription.resumed`
+   - `invoice.paid`
+   - `invoice.payment_succeeded`
+   - `invoice.payment_failed`
+   - `invoice.payment_action_required`
 4. Copy the **Signing secret**
 5. Add to `.env` as `STRIPE_WEBHOOK_SECRET`
 6. Restart: `docker compose restart`

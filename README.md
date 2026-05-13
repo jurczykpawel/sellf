@@ -7,7 +7,7 @@
 **An alternative to** Gumroad, LemonSqueezy, Paddle. Zero platform fees.
 
 ![Version](https://img.shields.io/badge/version-2026.5.0-blue)
-![Tests](https://img.shields.io/badge/tests-2,650%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-2,714%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
@@ -36,7 +36,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - **Sales funnels built-in:** One-Time Offers, Order Bumps, Coupons
 - **Validate before you build:** waitlists for upcoming products with webhook delivery to your mailer
 - **EU-compliant:** Omnibus Directive price history, GDPR consent management
-- **Battle-tested:** 2,650 tests (1,127 E2E + 1,523 unit) with 100% pass rate
+- **Battle-tested:** 2,714 unit tests plus broad Playwright E2E coverage
 
 ---
 
@@ -45,14 +45,14 @@ Sellf gives you **complete control** over your digital product business. No mont
 <details>
 <summary><strong>Payments & Checkout</strong></summary>
 
-- Stripe Elements & Checkout integration
+- Stripe Checkout Sessions with embedded Elements UI
 - Guest checkout with Magic Link login
 - 26 currencies with automatic conversion
 - Pay What You Want (PWYW) pricing
 - Coupons (percentage, fixed amount, per-user limits)
 - Order Bumps for upselling
 - One-Time Offers (OTO) post-purchase
-- Refund management with configurable periods
+- Refund management with configurable periods, partial refunds, and outgoing refund webhooks
 
 </details>
 
@@ -98,6 +98,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 
 - Page-level or element-level protection
 - JavaScript SDK for any website
+- Embedded checkout script for protected external pages
 - Custom fallback content for non-buyers
 - Multi-product access on single page
 - License validation
@@ -109,7 +110,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 
 - Google Tag Manager integration
 - Facebook Pixel with Conversions API (CAPI)
-- Webhooks (HMAC-secured) for Zapier, Make, n8n
+- Webhooks (HMAC-secured) for Zapier, Make, n8n: purchases, refunds, waitlists, subscriptions, invoices
 - Revenue dashboard with goals
 - Real-time sales notifications
 
@@ -118,7 +119,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 <details>
 <summary><strong>REST API v1 & Integrations</strong></summary>
 
-- 60+ endpoints covering products, users, payments, coupons, webhooks, analytics, and more
+- 60+ endpoints covering products, users, payments, refunds, coupons, webhooks, analytics, and more
 - Fine-grained API keys with 13 permission scopes (`products:read`, `users:write`, `*`, ...)
 - Zero-downtime key rotation with configurable grace period
 - Per-key rate limiting (1–1000 req/min)
@@ -277,8 +278,8 @@ bun start
 | Language | TypeScript 5.9 |
 | Database | Supabase (PostgreSQL + Auth + Realtime) |
 | Styling | Tailwind CSS 4 |
-| Payments | Stripe (Elements, Checkout, Webhooks) |
-| Testing | Playwright (1,127 E2E) + Vitest (1,523 unit) |
+| Payments | Stripe (Checkout Sessions, Elements, Webhooks) |
+| Testing | Playwright E2E + Vitest/Bun unit tests |
 | i18n | next-intl (EN, PL) |
 
 ---
@@ -373,7 +374,7 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 ## Project Stats
 
 ```
-├── 2,650 tests (1,127 E2E + 1,523 unit, 100% pass rate)
+├── 2,714 unit tests + broad Playwright E2E coverage
 ├── 90+ API routes (v1 REST API + admin + public)
 ├── 36 database tables
 ├── 73 RPC functions

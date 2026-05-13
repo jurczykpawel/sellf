@@ -2981,7 +2981,7 @@
       },
       "webhooks": {
         "title": "Połącz z innymi narzędziami",
-        "desc": "Połącz Sellf z Zapier, Make lub dowolnym narzędziem. Automatyczne powiadomienia po każdej sprzedaży, z ponawianiem przy błędach."
+        "desc": "Połącz Sellf z Zapier, Make, n8n albo swoim mailerem. Wysyłaj podpisane zdarzenia dla zakupów, zwrotów, waitlist, subskrypcji i nieudanych faktur."
       },
       "leads": {
         "title": "Buduj listę mailingową za darmo",
@@ -2993,7 +2993,7 @@
       },
       "delivery": {
         "title": "Dostarczaj treści po swojemu",
-        "desc": "Udostępniaj pliki do pobrania bezpośrednio z Sellf lub przekieruj kupujących na swoją platformę kursową."
+        "desc": "Udostępniaj pliki, przekieruj kupujących na swoją platformę albo osadzaj chronione wideo przez self-hosted Playerstack."
       },
       "omnibus": {
         "title": "Zgodność z UE automatycznie",
@@ -3009,7 +3009,7 @@
       },
       "refunds": {
         "title": "Obsługuj zwroty bez bólu głowy",
-        "desc": "Ustaw zasady zwrotów osobno dla każdego produktu. Klient wypełnia formularz, Ty zatwierdzasz jednym kliknięciem."
+        "desc": "Ustaw zasady zwrotów per produkt, zatwierdzaj wnioski, obsługuj zwroty częściowe i automatycznie wysyłaj podpisane webhooki zwrotów."
       },
       "security": {
         "title": "Twoje klucze nie opuszczają serwera",
@@ -3145,7 +3145,7 @@
       "courses": {
         "title": "Kursy Online",
         "desc": "Udostępniaj kursy wideo z ograniczeniem czasowym. Prosta i skuteczna dostawa treści.",
-        "feature1": "Śledzenie postępu wideo (Wkrótce)",
+        "feature1": "Chronione osadzanie wideo",
         "feature2": "Dostęp na 30 lub 90 dni",
         "feature3": "Szybkie wideo przez Bunny.net"
       },
@@ -3183,7 +3183,7 @@
       "items": [
         {
           "q": "Czy to naprawdę jest darmowe? Jaki jest haczyk?",
-          "a": "Tak. Oprogramowanie jest darmowe na zawsze (licencja MIT). Płacisz tylko za hosting (11-56 zł/mies) i opłaty Stripe (od 1,5% + 1 zł). Bez opłat platformy, bez abonamentów, bez lock-in."
+          "a": "Tak. Oprogramowanie jest darmowe na zawsze na licencji AGPL-3.0. Płacisz tylko za hosting (11-56 zł/mies) i opłaty Stripe (od 1,5% + 1 zł). Bez opłat platformy, bez abonamentów, bez lock-in."
         },
         {
           "q": "Używam Gumroad. Dlaczego miałbym się przesiąść?",
@@ -3199,7 +3199,7 @@
         },
         {
           "q": "Czy mogę dostosować to do mojej marki?",
-          "a": "Tak. Licencja MIT - zmień wszystko: branding, kolory, domenę, kod. To w pełni Twoja platforma."
+          "a": "Tak. AGPL-3.0 pozwala uruchamiać i modyfikować kod. Zmieniaj branding, kolory, domenę i kod; licencja white-label usuwa branding Sellf."
         },
         {
           "q": "Czy jest wystarczająco bezpieczne dla prawdziwych klientów?",

@@ -2966,7 +2966,7 @@
       },
       "webhooks": {
         "title": "Connect with your tools",
-        "desc": "Connect Sellf to Zapier, Make, or any tool. Automatic notifications after every sale, with retries on failure."
+        "desc": "Connect Sellf to Zapier, Make, n8n, or your mailer. Send signed events for purchases, refunds, waitlists, subscriptions, and failed invoices."
       },
       "leads": {
         "title": "Build your audience for free",
@@ -2978,7 +2978,7 @@
       },
       "delivery": {
         "title": "Deliver content your way",
-        "desc": "Serve files for download directly from Sellf, or redirect buyers to your course platform."
+        "desc": "Serve downloads, redirect buyers to your platform, or embed protected video through the self-hosted Playerstack bundle."
       },
       "omnibus": {
         "title": "Stay EU-compliant automatically",
@@ -2994,7 +2994,7 @@
       },
       "refunds": {
         "title": "Handle refunds without headaches",
-        "desc": "Set refund rules separately for each product. Customer fills a form, you approve with one click."
+        "desc": "Set refund rules per product, approve requests, handle partial refunds, and trigger signed refund webhooks automatically."
       },
       "security": {
         "title": "Your keys never leave your server",
@@ -3130,7 +3130,7 @@
       "courses": {
         "title": "Online Courses",
         "desc": "Share video courses with time-limited access. Simple and effective content delivery.",
-        "feature1": "Video progress tracking (Coming Soon)",
+        "feature1": "Protected video embeds",
         "feature2": "Access for 30 or 90 days",
         "feature3": "Fast video via Bunny.net"
       },
@@ -3168,7 +3168,7 @@
       "items": [
         {
           "q": "Is it really free? What's the catch?",
-          "a": "Yes. The software is free forever (MIT license). You pay only for hosting (~$3/mo and up) and Stripe processing (~2.9%). No platform fees, no subscriptions, no lock-in."
+          "a": "Yes. The software is free forever under AGPL-3.0. You pay only for hosting (~$3/mo and up) and Stripe processing (~2.9%). No platform fees, no subscriptions, no lock-in."
         },
         {
           "q": "I already use Gumroad. Why should I switch?",
@@ -3184,7 +3184,7 @@
         },
         {
           "q": "Can I customize it to match my brand?",
-          "a": "Yes. MIT license - change everything: branding, colors, domain, code. It's fully your platform."
+          "a": "Yes. AGPL-3.0 lets you run and modify the source. Change branding, colors, domain, and code; use the white-label license if you want to remove Sellf branding."
         },
         {
           "q": "Is it secure enough for real customers?",

@@ -66,11 +66,11 @@ Generate conversion-focused landing pages using AI. One-click generation from pr
 
 ### Outgoing Webhooks v2.0
 **Status**: 📋 Planned
-Auto-retry with exponential backoff, log retention policy (auto-cleanup), additional events (`subscription.started`, `subscription.ended`, `refund.issued`).
+Auto-retry with exponential backoff, log retention policy (auto-cleanup), delivery analytics, and advanced filtering/transforms. Core refund, waitlist, purchase, subscription, and invoice events are already shipped.
 
-### Public Developer API
+### API Extensions & SDKs
 **Status**: 📋 Planned
-REST API with API key management, scoped access (read-only, write), Swagger/OpenAPI documentation, and rate limiting.
+Typed SDKs, hosted OpenAPI docs endpoint, example apps, and deeper webhook/API recipes. REST API v1 with scoped API keys, rate limiting, and OpenAPI generator is already shipped.
 
 ### GTM Phase 2 (Automated OAuth)
 **Status**: 📋 Planned
@@ -185,6 +185,7 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 #### Advanced Refund Management (Jan 2025)
 - ✅ Per-product config, customer request form, admin dashboard
 - ✅ Stripe auto-refund on approval, period validation
+- ✅ Partial refund accounting, external Stripe refund sync, and signed `refund.issued` outgoing webhooks
 
 #### EU Omnibus Directive Compliance (2025-12-28)
 - ✅ Price history tracking, 30-day lowest price display
@@ -226,6 +227,11 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ 7 tool modules (products, analytics, coupons, payments, users, webhooks, system)
 - ✅ API key auth, Claude Desktop integration, Vitest tests
 
+#### REST API v1 & API Keys (2026-02 — 2026-05)
+- ✅ Scoped API keys with rotation, hashing, per-key rate limits, and audit trail
+- ✅ Products, users, payments, refunds, coupons, webhooks, analytics, variants, order bumps, and system endpoints
+- ✅ OpenAPI 3.1 generator backed by Zod schemas
+
 #### Real-time Sales Dashboard (2025-12-24)
 - ✅ Live updates via Supabase Realtime + polling fallback
 - ✅ Revenue goal with progress bar, hourly & daily charts (Recharts)
@@ -234,6 +240,7 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 #### Outgoing Webhooks v1.5 (2025-12-19)
 - ✅ HMAC-SHA256 signed delivery, `purchase.completed` and `lead.captured` events
 - ✅ Management UI, test events, retry, detailed logs
+- ✅ `waitlist.signup`, `refund.issued`, subscription lifecycle, and invoice payment events
 
 #### Cookie Consent — Klaro (2025-12-24)
 - ✅ GDPR-compliant consent manager with TrackingProvider integration
@@ -300,6 +307,11 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 #### Video Embed Integration (2025-11-27)
 - ✅ YouTube, Bunny.net, Vimeo, Loom, Wistia, DailyMotion, Twitch
 
+#### Playerstack Embed Pipeline (2026-05)
+- ✅ Self-hosted Playerstack bundle pinned to a reproducible upstream commit
+- ✅ Protected video embeds through supported HLS/MP4/WebM URLs
+- ✅ CI freshness gate for the vendored player bundle
+
 ### 📊 Other
 
 #### Public Demo Instance (2026-02)
@@ -327,4 +339,4 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 
 ---
 
-**Last Updated**: 2026-05-03
+**Last Updated**: 2026-05-13

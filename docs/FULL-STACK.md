@@ -567,8 +567,22 @@ A      api      YOUR_SERVER_IP       3600
 3. URL: `https://your-domain.com/api/webhooks/stripe`
 4. Select events:
    - `checkout.session.completed`
+   - `checkout.session.async_payment_succeeded`
    - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
+   - `charge.refunded`
+   - `refund.created`
+   - `refund.updated`
+   - `charge.dispute.created`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `customer.subscription.trial_will_end`
+   - `customer.subscription.paused`
+   - `customer.subscription.resumed`
+   - `invoice.paid`
+   - `invoice.payment_succeeded`
+   - `invoice.payment_failed`
+   - `invoice.payment_action_required`
 5. Save and copy the **Signing secret** (`whsec_...`)
 
 ### 2. Update Environment Variables
