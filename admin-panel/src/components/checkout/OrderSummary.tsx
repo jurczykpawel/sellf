@@ -19,6 +19,11 @@ interface OrderSummaryProps {
   appliedCoupon?: AppliedCoupon;
   bumpProducts?: OrderBumpWithProduct[];
   selectedBumpIds?: Set<string>;
+  /**
+   * If set, the total is rendered as "{price} / {intervalLabel}" (subscription).
+   * Pass output of formatBillingIntervalLabel() — e.g. "mies." / "rok".
+   */
+  intervalLabel?: string;
 }
 
 export default function OrderSummary({
@@ -34,6 +39,7 @@ export default function OrderSummary({
   appliedCoupon,
   bumpProducts = [],
   selectedBumpIds = new Set(),
+  intervalLabel,
 }: OrderSummaryProps) {
   const t = useTranslations('checkout');
 
@@ -47,14 +53,14 @@ export default function OrderSummary({
           {/* Product Price */}
           <div className="flex justify-between text-sm text-sf-muted">
             <span>{productName}</span>
-            <span>{formatPrice(basePrice, currency)} {currency}</span>
+            <span>{formatPrice(basePrice, currency)}</span>
           </div>
 
           {/* Multi-bump line items */}
           {selectedBumpsForSummary.map(bump => (
             <div key={bump.bump_product_id} className="flex justify-between text-sm text-sf-muted">
               <span>{bump.bump_product_name || t('additionalProduct')}</span>
-              <span>{formatPrice(bump.bump_price, currency)} {currency}</span>
+              <span>{formatPrice(bump.bump_price, currency)}</span>
             </div>
           ))}
 
@@ -62,7 +68,7 @@ export default function OrderSummary({
           {appliedCoupon && discountAmount > 0 && (
             <div className="flex justify-between text-sm text-sf-success">
               <span>{t('couponDiscount', { defaultValue: 'Discount' })} ({appliedCoupon.code})</span>
-              <span>-{formatPrice(discountAmount, currency)} {currency}</span>
+              <span>-{formatPrice(discountAmount, currency)}</span>
             </div>
           )}
 
@@ -81,12 +87,13 @@ export default function OrderSummary({
           </div>
           {taxMode !== 'stripe_tax' && !customAmountError && vatRate != null && vatRate > 0 && (
             <div className="text-xs text-sf-muted">
-              {t('netPrice')}: {formatPrice(totalNet, currency)} {currency} + {t('vat')} {vatRate}%
+              {t('netPrice')}: {formatPrice(totalNet, currency)} + {t('vat')} {vatRate}%
             </div>
           )}
         </div>
         <div className={`text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
-          {formatPrice(totalGross, currency)} {currency}
+          {formatPrice(totalGross, currency)}
+          {intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
         </div>
       </div>
     </div>

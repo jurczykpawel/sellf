@@ -230,28 +230,27 @@ describe('end-to-end contract: classifyCachedPaymentAuth -> mapVerifiedPaymentTo
   });
 });
 
-describe('useAuthCheck redirect guard (source-level)', () => {
+describe('useAuthCheck never auto-redirects (server is source of truth)', () => {
   const repoRoot = join(__dirname, '..', '..', '..');
   const hookSource = readFileSync(
     join(repoRoot, 'src/app/[locale]/p/[slug]/payment-status/hooks/useAuthCheck.ts'),
     'utf8'
   );
 
-  it('only redirects to login when paymentStatus is the literal completed string', () => {
-    // The hook redirects unauthenticated visitors to /login. That redirect MUST
-    // NOT fire for paymentStatus values that show in-page magic-link UI
-    // (magic_link_sent, email_validation_failed) — otherwise the buyer ends up
-    // on a generic login page with no way to finish the purchase.
-    expect(hookSource).toMatch(/paymentStatus\s*===\s*['"]completed['"]/);
-    expect(hookSource).not.toMatch(/paymentStatus\s*===\s*['"]magic_link_sent['"]/);
+  // Hard regression guard. Client-side getUser() can race or miss cookies right
+  // after Stripe redirect; auto-redirecting on that would bounce buyers off
+  // their success page. Server-side verify-payment already decided the state.
+  it('does not import useRouter or call router.push', () => {
+    expect(hookSource).not.toMatch(/useRouter/);
+    expect(hookSource).not.toMatch(/router\.push/);
   });
 
-  it('checks accessGranted before deciding to redirect', () => {
+  it('does not reference the post-payment login message', () => {
+    expect(hookSource).not.toContain('payment_completed_login_required');
+  });
+
+  it('still gates the auth probe on paymentStatus=completed + accessGranted', () => {
+    expect(hookSource).toMatch(/paymentStatus\s*!==\s*['"]completed['"]/);
     expect(hookSource).toMatch(/accessGranted/);
-  });
-
-  it('only sends users that failed the auth check to login (never auto-redirects success)', () => {
-    expect(hookSource).toMatch(/router\.push\([^)]*\/login/);
-    expect(hookSource).not.toMatch(/router\.push\([^)]*\/dashboard/);
   });
 });

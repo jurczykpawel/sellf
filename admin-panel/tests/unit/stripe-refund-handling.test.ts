@@ -51,4 +51,9 @@ describe('stripe refund handling', () => {
     expect(revocationIndex).toBeGreaterThan(refundedStatusGuardIndex);
     expect(stripeWebhookSource).not.toContain("if (transaction.status === 'refunded') {\n    return");
   });
+
+  it('schedules subscription cancellation after full subscription refunds from Stripe webhook events', () => {
+    expect(stripeWebhookSource).toContain('scheduleSubscriptionCancelAfterFullRefund');
+    expect(stripeWebhookSource).toContain('subscription_id');
+  });
 });

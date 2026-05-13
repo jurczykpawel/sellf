@@ -80,6 +80,18 @@ export function validateIntegrations(data: IntegrationsInput): ValidationResult 
     addError('facebook_pixel_id', 'Facebook Pixel ID must be numeric');
   }
 
+  if (data.facebook_capi_token && (data.facebook_capi_token.length < 20 || data.facebook_capi_token.length > 4096)) {
+    addError('facebook_capi_token', 'Facebook CAPI token must be between 20 and 4096 characters');
+  }
+
+  if (data.facebook_test_event_code && data.facebook_test_event_code.length > 100) {
+    addError('facebook_test_event_code', 'Facebook test event code must be 100 characters or less');
+  }
+
+  if (data.google_ads_conversion_label && data.google_ads_conversion_label.length > 200) {
+    addError('google_ads_conversion_label', 'Google Ads conversion label must be 200 characters or less');
+  }
+
   // Sellf License format: SF-{domain}-{TIER}-{expiry}-{signature} or legacy SF-{domain}-{expiry}-{signature}
   if (data.sellf_license && !/^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ|MKT)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(data.sellf_license)) {
     addError('sellf_license', 'Invalid license format (expected: SF-domain-TIER-expiry-signature)');

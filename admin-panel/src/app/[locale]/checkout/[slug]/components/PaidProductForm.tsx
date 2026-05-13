@@ -37,6 +37,7 @@ interface PaidProductFormProps {
 
 export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode }: PaidProductFormProps) {
   const t = useTranslations('checkout');
+  const isSubscription = product.product_type === 'subscription';
   const { user, isAdmin, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const config = useConfig();
@@ -159,7 +160,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const pricing = calculatePricing({
     baseProductId: product.id,
-    productPrice: product.price,
+    productPrice: isSubscription ? product.recurring_price ?? 0 : product.price,
     productCurrency: product.currency,
     productVatRate: product.vat_rate ?? undefined,
     priceIncludesVat: product.price_includes_vat ?? undefined,
@@ -201,12 +202,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     trackingFired.current = true;
 
     const trackingData = {
-      value: product.price,
+      value: isSubscription ? product.recurring_price ?? 0 : product.price,
       currency: product.currency,
       items: [{
         item_id: product.id,
         item_name: product.name,
-        price: product.price,
+        price: isSubscription ? product.recurring_price ?? 0 : product.price,
         quantity: 1,
       }],
     };
@@ -222,6 +223,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   useEffect(() => {
     if (hasAccess || error || authLoading) return;
     if (isFunnelTest) return;
+    const checkoutEmail = email?.trim();
 
     // Free-access paths (PWYW=0 or 100% coupon) bypass Stripe entirely — the
     // free-access section handles grant + magic-link flows. The render
@@ -251,7 +253,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       body: JSON.stringify({
         productId: product.id,
         clientSecret: shouldRefreshExistingSession ? clientSecret : undefined,
-        email: email || undefined,
+        email: checkoutEmail || undefined,
         bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
         couponCode: coupon.appliedCoupon?.code,
         successUrl: searchParams.get('success_url') || undefined,
@@ -298,7 +300,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   }, [
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
-    customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
+    customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess, isSubscription,
     clientSecret, checkoutSessionSignature,
   ]);
 
@@ -340,34 +342,36 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       )}
 
       {/* PWYW Section (price picker + free access) */}
-      <PwywSection
-        product={product}
-        user={user}
-        customAmount={customAmount}
-        customAmountInput={customAmountInput}
-        customAmountError={customAmountError}
-        isFreeAccess={isFreeAccess}
-        isFullDiscountCoupon={isFullDiscountCoupon}
-        hasAccess={hasAccess}
-        error={error}
-        pwyw={pwyw}
-        onAmountInputChange={(raw) => setCustomAmountInput(raw)}
-        onAmountBlur={() => {
-          const value = parseFloat(customAmountInput) || 0;
-          setCustomAmount(value);
-          if (value > 0) setCustomAmountInput(value.toString());
-          setCustomAmountError(checkCustomAmount(value));
-        }}
-        onPresetClick={(preset) => {
-          setCustomAmount(preset);
-          setCustomAmountInput(preset.toString());
-          setCustomAmountError(null);
-          setError(null);
-        }}
-      />
+      {!isSubscription && (
+        <PwywSection
+          product={product}
+          user={user}
+          customAmount={customAmount}
+          customAmountInput={customAmountInput}
+          customAmountError={customAmountError}
+          isFreeAccess={isFreeAccess}
+          isFullDiscountCoupon={isFullDiscountCoupon}
+          hasAccess={hasAccess}
+          error={error}
+          pwyw={pwyw}
+          onAmountInputChange={(raw) => setCustomAmountInput(raw)}
+          onAmountBlur={() => {
+            const value = parseFloat(customAmountInput) || 0;
+            setCustomAmount(value);
+            if (value > 0) setCustomAmountInput(value.toString());
+            setCustomAmountError(checkCustomAmount(value));
+          }}
+          onPresetClick={(preset) => {
+            setCustomAmount(preset);
+            setCustomAmountInput(preset.toString());
+            setCustomAmountError(null);
+            setError(null);
+          }}
+        />
+      )}
 
       {/* Order Bumps */}
-      {!hasAccess && !error && !isFreeAccess && searchParams.get('hide_bump') !== 'true' && (
+      {!isSubscription && !hasAccess && !error && !isFreeAccess && searchParams.get('hide_bump') !== 'true' && (
         <OrderBumpList
           bumps={availableBumps}
           selectedBumpIds={selectedBumpIds}
@@ -377,7 +381,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
       {/* Coupon Field — still shown for full-discount coupons so the user can
           review/remove the applied code before confirming free access. */}
-      {!hasAccess && !error && !isPwywFree && (
+      {!isSubscription && !hasAccess && !error && !isPwywFree && (
         <CouponField
           couponCode={coupon.couponCode}
           appliedCoupon={coupon.appliedCoupon}
@@ -502,7 +506,6 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 bumpProducts={availableBumps}
                 selectedBumpIds={selectedBumpIds}
                 appliedCoupon={coupon.appliedCoupon ?? undefined}
-                successUrl={searchParams.get('success_url') || undefined}
                 onChangeAccount={handleSignOutAndCheckout}
                 customAmount={product.allow_custom_price ? customAmount : undefined}
                 customAmountError={product.allow_custom_price ? customAmountError : null}

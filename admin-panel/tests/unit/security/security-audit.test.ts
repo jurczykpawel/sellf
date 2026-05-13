@@ -254,6 +254,54 @@ describe('Security Audit', () => {
       expect(result.checks.every(c => c.status === 'pass')).toBe(true);
       expect(result.checks.every(c => c.fix === undefined)).toBe(true);
     });
+
+    it('warns, not fails, when ALTCHA is active but a stale Turnstile site key is present', async () => {
+      process.env.SITE_URL = 'https://myapp.example.com';
+      process.env.ALLOWED_ORIGINS = 'https://customer.com';
+      process.env.ALTCHA_HMAC_KEY = 'test-hmac-key-for-captcha';
+      process.env.CLOUDFLARE_TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
+      delete process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+      process.env.APP_ENCRYPTION_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+      process.env.CRON_SECRET = 'test-cron-secret';
+      process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret';
+
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/graphql/v1')) {
+          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        }
+        if (url.includes('/mcp')) {
+          return Promise.resolve({ status: 404 });
+        }
+        if (url.includes('/auth/v1/settings')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ mailer_autoconfirm: false }) });
+        }
+        if (url.includes('/rpc/nonexistent')) {
+          return Promise.resolve({ ok: false, json: () => Promise.resolve({ message: 'not found' }) });
+        }
+        if (url.includes('/rest/v1/')) {
+          return Promise.resolve({ ok: true, headers: new Headers({}) });
+        }
+        if (url.startsWith('http://')) {
+          return Promise.resolve({ status: 301, headers: new Headers({ location: url.replace('http://', 'https://') }) });
+        }
+        if (url.startsWith('https://')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'strict-transport-security': 'max-age=31536000; includeSubDomains' }),
+            getSetCookie: () => ['NEXT_LOCALE=en; Path=/; Secure; SameSite=lax'],
+          });
+        }
+        return Promise.resolve({ ok: true, status: 200, headers: new Headers({}), json: () => Promise.resolve({}) });
+      });
+
+      const result = await runSecurityAudit();
+      const check = result.checks.find(c => c.id === 'captcha');
+
+      expect(check?.status).toBe('warn');
+      expect(check?.message).toContain('ALTCHA is configured and active');
+      expect(check?.fix).toContain('Remove CLOUDFLARE_TURNSTILE_SITE_KEY');
+    });
   });
 
   describe('getSecurityAudit (caching)', () => {

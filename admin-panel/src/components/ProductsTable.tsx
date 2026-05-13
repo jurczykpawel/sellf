@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import { formatUTCForDisplay } from '@/lib/timezone';
 import Pagination from './Pagination';
 import { getIconEmoji } from '@/utils/themeUtils';
@@ -277,7 +278,16 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                       </div>
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center">
-                      {product.price === 0 ? (
+                      {product.product_type === 'subscription' ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
+                            {t('subscription')}
+                          </span>
+                          <div className="text-xs text-sf-muted">
+                            {formatRecurringProductPrice(product, locale) ?? '-'}
+                          </div>
+                        </div>
+                      ) : product.price === 0 ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
                           {t('free')}
                         </span>

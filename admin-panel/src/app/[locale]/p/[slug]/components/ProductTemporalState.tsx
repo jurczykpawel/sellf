@@ -2,6 +2,8 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import WaitlistForm from '@/components/WaitlistForm';
+import { formatPrice } from '@/lib/constants';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 
 interface ProductTemporalStateProps {
   product: Product;
@@ -39,9 +41,11 @@ export default function ProductTemporalState({ product }: ProductTemporalStatePr
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {product.price === 0
-            ? t('free')
-            : new Intl.NumberFormat(locale, { style: 'currency', currency: product.currency || 'USD' }).format(product.price)}
+          {product.product_type === 'subscription'
+            ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
+            : product.price === 0
+              ? t('free')
+              : new Intl.NumberFormat(locale, { style: 'currency', currency: product.currency || 'USD' }).format(product.price)}
         </div>
 
         <div className="text-4xl mb-4">⏰</div>

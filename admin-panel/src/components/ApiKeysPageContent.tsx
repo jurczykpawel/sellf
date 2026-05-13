@@ -32,6 +32,7 @@ const SCOPE_KEY_MAP: Record<string, string> = {
   'analytics:read': 'scopes.analyticsRead',
   'webhooks:read': 'scopes.webhooksRead',
   'webhooks:write': 'scopes.webhooksWrite',
+  'integrations:write': 'scopes.integrationsWrite',
 };
 
 export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLocked?: boolean }) {

@@ -7,7 +7,8 @@ import { Product } from '@/types';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
 import { formatPrice } from '@/lib/constants';
-import { useTranslations } from 'next-intl';
+import { formatBillingIntervalLabel } from '@/lib/product-pricing-display';
+import { useTranslations, useLocale } from 'next-intl';
 import { validateTaxId } from '@/lib/validation/nip';
 import { useTracking } from '@/hooks/useTracking';
 import type { PricingResult } from '@/hooks/usePricing';
@@ -24,7 +25,6 @@ interface CustomPaymentFormProps {
   bumpProducts?: OrderBumpWithProduct[];
   selectedBumpIds?: Set<string>;
   appliedCoupon?: AppliedCoupon;
-  successUrl?: string;
   onChangeAccount?: () => void;
   customAmount?: number;
   customAmountError?: string | null;
@@ -35,13 +35,24 @@ interface CustomPaymentFormProps {
   taxMode?: TaxMode;
 }
 
+type EmailValidationResponse = {
+  success: boolean;
+  data?: {
+    isValid: boolean;
+    isDisposable: boolean;
+    error?: string;
+  };
+  error?: {
+    message: string;
+  };
+};
+
 export default function CustomPaymentForm({
   product,
   email,
   bumpProducts = [],
   selectedBumpIds = new Set(),
   appliedCoupon,
-  successUrl,
   onChangeAccount,
   customAmountError,
   clientSecret,
@@ -51,8 +62,14 @@ export default function CustomPaymentForm({
   taxMode,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
   const checkoutResult = useCheckoutElements();
   const { track } = useTracking();
+
+  const isSubscription = product.product_type === 'subscription';
+  const intervalLabel = isSubscription
+    ? formatBillingIntervalLabel(product.billing_interval, product.billing_interval_count, locale)
+    : '';
 
   const [linkEmail, setLinkEmail] = useState(email || '');
   const [emailConfirmed, setEmailConfirmed] = useState(false);
@@ -69,7 +86,6 @@ export default function CustomPaymentForm({
   const paymentElementOptions: StripePaymentElementOptions = {
     layout: {
       type: 'tabs',
-      defaultCollapsed: false,
     },
     ...(paymentMethodOrder && paymentMethodOrder.length > 0
       ? { paymentMethodOrder: paymentMethodOrder.filter(m => m !== 'link') }
@@ -82,6 +98,15 @@ export default function CustomPaymentForm({
       billingDetails: {
         email: 'never',
         name: 'never',
+        // Stripe enforces paired address collection — all or nothing.
+        address: {
+          line1: 'never',
+          line2: 'never',
+          city: 'never',
+          state: 'never',
+          country: 'never',
+          postalCode: 'never',
+        },
       },
     },
   };
@@ -125,6 +150,24 @@ export default function CustomPaymentForm({
     setErrorMessage('');
 
     try {
+      const validationResponse = await fetch('/api/validate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: finalEmail }),
+      });
+      const validation = (await validationResponse
+        .json()
+        .catch(() => null)) as EmailValidationResponse | null;
+      if (!validationResponse.ok || !validation?.success || !validation.data?.isValid) {
+        setErrorMessage(
+          validation?.data?.error ||
+            validation?.error?.message ||
+            'Invalid or disposable email address not allowed'
+        );
+        setIsProcessing(false);
+        return;
+      }
+
       if (clientSecret) {
         const hasValidTaxId = invoice.nip && invoice.nip.trim().length > 0 && validateTaxId(invoice.nip, false).isValid;
         const updateResponse = await fetch('/api/update-payment-metadata', {
@@ -179,21 +222,27 @@ export default function CustomPaymentForm({
         userEmail: finalEmail,
       });
 
-      const billingAddress: StripeCheckoutContact = {
+      // All PaymentElement billing fields are 'never' (paired group), so we
+      // must push them via updateBillingAddress. Optional invoice fields fall
+      // back to null — Stripe accepts nullable address members.
+      const billingAddressUpdate = await checkout.updateBillingAddress({
         name: invoice.fullName,
         address: {
           country: invoice.country || 'PL',
-          line1: invoice.address || undefined,
-          city: invoice.city || undefined,
-          postal_code: invoice.postalCode || undefined,
+          line1: invoice.address || null,
+          line2: null,
+          city: invoice.city || null,
+          state: null,
+          postal_code: invoice.postalCode || null,
         },
-      };
-
-      const result = await checkout.confirm({
-        returnUrl: `${window.location.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${product.id}&product=${product.slug}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`,
-        email: finalEmail,
-        billingAddress,
       });
+      if (billingAddressUpdate.type === 'error') {
+        setErrorMessage(billingAddressUpdate.error.message || t('paymentFailed'));
+        setIsProcessing(false);
+        return;
+      }
+
+      const result = await checkout.confirm();
 
       if (result.type === 'error') {
         setErrorMessage(result.error.message || t('paymentFailed'));
@@ -326,6 +375,7 @@ export default function CustomPaymentForm({
         appliedCoupon={appliedCoupon}
         bumpProducts={bumpProducts}
         selectedBumpIds={selectedBumpIds}
+        intervalLabel={intervalLabel || undefined}
       />
 
       {/* Confirm Email — when logged-in user uses different email */}
@@ -365,8 +415,16 @@ export default function CustomPaymentForm({
           </span>
         ) : customAmountError ? (
           t('fixAmountFirst', { defaultValue: 'Fix the amount above to continue' })
+        ) : isSubscription && intervalLabel ? (
+          t('subscribeButton', {
+            amount: `${formatPrice(totalGross, product.currency)} / ${intervalLabel}`,
+            defaultValue: `Subskrybuj ${formatPrice(totalGross, product.currency)} / ${intervalLabel}`,
+          })
         ) : (
-          t('payButton', { amount: `${formatPrice(totalGross, product.currency)} ${product.currency}`, defaultValue: `Pay ${formatPrice(totalGross, product.currency)} ${product.currency}` })
+          t('payButton', {
+            amount: formatPrice(totalGross, product.currency),
+            defaultValue: `Zapłać ${formatPrice(totalGross, product.currency)}`,
+          })
         )}
       </button>
 

@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { validateCrossOriginRequest } from '@/lib/cors';
@@ -67,6 +68,20 @@ export async function POST(
     const message = err instanceof Error ? err.message : 'Stripe error';
     console.error('[POST /api/subscriptions/[id]/resume] Stripe error:', message);
     return NextResponse.json({ error: 'Failed to resume subscription' }, { status: 500 });
+  }
+
+  // Mirror the change in our DB now so the UI sees it on the next fetch.
+  // RLS only grants SELECT to authenticated users; UPDATE needs service_role.
+  // We already authorized the user above (subscription belongs to user.id).
+  // Webhook customer.subscription.updated idempotently re-upserts later.
+  const adminSupabase = createAdminClient();
+  const { error: updateError } = await adminSupabase
+    .from('subscriptions')
+    .update({ cancel_at_period_end: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (updateError) {
+    console.error('[POST /api/subscriptions/[id]/resume] DB mirror failed:', updateError.message);
   }
 
   return NextResponse.json({ ok: true });

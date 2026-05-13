@@ -4,7 +4,7 @@
     "emailAddress": "Email Address",
     "linkedToAccount": "This purchase will be linked to your account.",
     "changeAccount": "Change account",
-    "emailPlaceholder": "your@email.com",
+    "emailPlaceholder": "name@company.com",
     "emailHelp": "We will send access details to this email address.",
     "daysAccess": "{days} Days Access",
     "lifetimeAccess": "Lifetime Access",
@@ -36,6 +36,7 @@
     "vat": "VAT",
     "includingVat": "including VAT",
     "payButton": "Pay {amount}",
+    "subscribeButton": "Subscribe {amount}",
     "fixAmountFirst": "Fix the amount above to continue",
     "invalidAmount": "invalid amount",
     "processing": "Processing payment...",
@@ -788,6 +789,8 @@
     },
     "product": {
       "free": "FREE",
+      "subscription": "Subscription",
+      "subscribe": "Subscribe",
       "featured": "Featured",
       "premium": "Premium",
       "limited": "Limited",
@@ -978,6 +981,7 @@
     "exploreMoreDescription": "Products available for purchase in the store.",
     "accessSince": "Access since {date}",
     "accessExpires": "Expires {date}",
+    "accessRenews": "Renews {date}",
     "myAccessibleProducts": "My Accessible Products",
     "availableProducts": "Available Products",
     "freeResources": "Free",
@@ -1187,6 +1191,7 @@
       "inactive": "Inactive",
       "featured": "Featured",
       "free": "Free",
+      "subscription": "Subscription",
       "pwyw": "PWYW",
       "pwywFromLabel": "from {amount}",
       "permanent": "Permanent",
@@ -1457,9 +1462,9 @@
           "recurring": "Subscription",
           "lockedAfterSale": "Product type is locked after the first sale to keep billing consistent.",
           "recurringPrice": "Recurring price",
-          "recurringPriceHelp": "Amount charged in each billing period.",
+          "recurringPriceHelp": "Amount charged in each billing period. Uses the product currency.",
           "billingInterval": "Billing interval",
-          "billingIntervalHelp": "How often the customer is charged.",
+          "billingIntervalHelp": "How often the customer is charged. The admin UI supports monthly and yearly billing; API/database remain compatible with Stripe intervals.",
           "trialDays": "Trial period (days)",
           "trialDaysHelp": "Days of free access before the first charge. Leave empty to disable.",
           "interval": {
@@ -1756,7 +1761,8 @@
         "couponsWrite": "Coupons (Write)",
         "analyticsRead": "Analytics (Read)",
         "webhooksRead": "Webhooks (Read)",
-        "webhooksWrite": "Webhooks (Write)"
+        "webhooksWrite": "Webhooks (Write)",
+        "integrationsWrite": "Integrations (Write)"
       },
       "scopeDescriptions": {
         "fullAccess": "Access to all resources",
@@ -1768,7 +1774,8 @@
         "couponsWrite": "Create, update, delete coupons",
         "analyticsRead": "View analytics data",
         "webhooksRead": "View webhook configurations",
-        "webhooksWrite": "Manage webhooks"
+        "webhooksWrite": "Manage webhooks",
+        "integrationsWrite": "Manage integrations configuration"
       },
       "presets": {
         "fullAccess": "Full Access",
@@ -2471,6 +2478,8 @@
       "saveLicense": "Save License",
       "saveSuccess": "License saved successfully",
       "saveError": "Failed to save license",
+      "envConfiguredTitle": "License configured via environment variable",
+      "envConfiguredDescription": "No license is saved in the database, but SELLF_LICENSE_KEY is set in the server environment. Sellf will use that key as a fallback when it is valid for this domain.",
       "howItWorks": "How licensing works",
       "howItWorks1": "The license key is cryptographically signed and verified offline",
       "howItWorks2": "Valid license removes Sellf branding from checkout page",
@@ -2834,7 +2843,38 @@
     "refundedAmount": "Refunded",
     "naLabel": "N/A",
     "invalidPrice": "Invalid Price",
-    "refundSubmitError": "Failed to submit refund request"
+    "refundSubmitError": "Failed to submit refund request",
+    "subscriptions": {
+      "title": "Subscriptions",
+      "loading": "Loading subscriptions...",
+      "loadError": "Could not load subscriptions",
+      "cancelButton": "Cancel subscription",
+      "cancelInProgress": "Cancelling…",
+      "resumeButton": "Resume subscription",
+      "resumeInProgress": "Resuming…",
+      "cancelScheduled": "Cancellation scheduled at period end.",
+      "resumed": "Subscription resumed.",
+      "statusScheduledCancel": "Cancels at period end",
+      "endsAt": "Ends",
+      "renewsAt": "Renews",
+      "trialUntil": "Trial until",
+      "status": {
+        "active": "Active",
+        "trialing": "Trial",
+        "past_due": "Past due",
+        "unpaid": "Unpaid",
+        "canceled": "Canceled",
+        "incomplete": "Incomplete",
+        "incomplete_expired": "Expired",
+        "paused": "Paused"
+      },
+      "interval": {
+        "day": "{count, plural, one {day} other {{count} days}}",
+        "week": "{count, plural, one {week} other {{count} weeks}}",
+        "month": "{count, plural, one {month} other {{count} months}}",
+        "year": "{count, plural, one {year} other {{count} years}}"
+      }
+    }
   },
   "refundRequests": {
     "title": "Refund Requests",

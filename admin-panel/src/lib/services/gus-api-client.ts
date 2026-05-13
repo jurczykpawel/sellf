@@ -79,6 +79,10 @@ export class GUSAPIClient {
         typ: company.Typ || undefined,
       };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : '';
+      // bir1 throws "Empty response" when the NIP has no record — that's a 404, not 500.
+      if (msg === 'Empty response') return null;
+
       console.error('GUS API error:', error);
       throw new Error(
         error instanceof Error

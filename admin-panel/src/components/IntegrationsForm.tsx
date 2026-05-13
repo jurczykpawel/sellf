@@ -16,6 +16,7 @@ interface IntegrationsFormProps {
 export default function IntegrationsForm({ initialData }: IntegrationsFormProps) {
   const t = useTranslations('integrations')
   const [formData, setFormData] = useState<IntegrationsInput>(initialData ?? {} as IntegrationsInput)
+  const [dirtyFields, setDirtyFields] = useState<Set<keyof IntegrationsInput>>(new Set())
 
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'analytics' | 'marketing' | 'consents' | 'currency' | 'gus'>('analytics')
@@ -25,11 +26,16 @@ export default function IntegrationsForm({ initialData }: IntegrationsFormProps)
     e.preventDefault()
     setLoading(true)
     try {
-      const result = await updateIntegrationsConfig(formData)
+      const changedData = Array.from(dirtyFields).reduce<IntegrationsInput>((payload, field) => {
+        payload[field] = formData[field] as never
+        return payload
+      }, {})
+      const result = await updateIntegrationsConfig(changedData)
       if (result.error) {
         toast.error(result.error)
       } else {
         toast.success(t('messages.saveSuccess'))
+        setDirtyFields(new Set())
       }
     } catch {
       toast.error(t('messages.saveError', { error: 'Unknown' }))
@@ -40,6 +46,7 @@ export default function IntegrationsForm({ initialData }: IntegrationsFormProps)
 
   const handleChange = (field: keyof IntegrationsInput, value: IntegrationsInput[keyof IntegrationsInput]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    setDirtyFields(prev => new Set(prev).add(field))
   }
 
   // --- UI COMPONENTS ---

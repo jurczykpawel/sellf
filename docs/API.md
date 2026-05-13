@@ -153,6 +153,7 @@ Each API key has a `scopes` array that controls what it can access.
 | `analytics:read` | View analytics, reports, and payment data |
 | `webhooks:read` | View webhook configurations |
 | `webhooks:write` | Manage webhooks (create, update, delete, test) |
+| `integrations:write` | Manage tracking and consent integrations |
 | `refund-requests:read` | View refund requests |
 | `refund-requests:write` | Process refund requests |
 | `system:read` | View system status and update info |
@@ -369,6 +370,14 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 | GET | `/webhooks/logs` | `webhooks:read` | List delivery logs |
 | POST | `/webhooks/logs/{logId}/retry` | `webhooks:write` | Retry failed delivery |
 | POST | `/webhooks/logs/{logId}/archive` | `webhooks:write` | Archive log entry |
+
+### Integrations
+
+| Method | Path | Scope | Description |
+|--------|------|-------|-------------|
+| PATCH | `/integrations` | `integrations:write` | Update tracking and consent integrations |
+
+Supported fields: `gtm_container_id`, `gtm_server_container_url`, `gtm_ss_enabled`, `google_ads_conversion_id`, `google_ads_conversion_label`, `facebook_pixel_id`, `facebook_capi_token`, `facebook_test_event_code`, `fb_capi_enabled`, `send_conversions_without_consent`, `umami_website_id`, `umami_script_url`, `cookie_consent_enabled`, `consent_logging_enabled`.
 
 Supported outgoing event types include purchases, leads, waitlist signups, refund issued events, subscription lifecycle events, and invoice payment events.
 

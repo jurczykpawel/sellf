@@ -60,8 +60,14 @@ export default function SmartLandingClient({
 
   // SCENARIO 3: Products exist → Show storefront
   const featuredProducts = products.filter((p) => p.is_featured);
-  const freeProducts = products.filter((p) => p.price === 0);
-  const paidProducts = products.filter((p) => p.price > 0);
+  // Subscriptions store the price in recurring_price; products.price=0 for them.
+  // Without this guard a subscription would land in the "free" bucket.
+  const freeProducts = products.filter(
+    (p) => p.product_type !== 'subscription' && p.price === 0,
+  );
+  const paidProducts = products.filter(
+    (p) => p.product_type === 'subscription' || p.price > 0,
+  );
 
   return (
     <DashboardLayout user={user ? { email: user.email || '', id: user.id || '' } : null} shopConfig={shopConfig}>

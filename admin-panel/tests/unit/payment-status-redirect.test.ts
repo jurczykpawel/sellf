@@ -102,8 +102,14 @@ describe('useCountdown — source verification', () => {
 // =============================================================================
 
 describe('PaymentStatusView — source verification', () => {
-  it('shows OTO offer for authenticated user when hasOtoOffer is true', () => {
+  it('renders success branch when paymentStatus=completed AND accessGranted (server is authoritative)', () => {
+    // Previously also required auth.isAuthenticated — that caused a redirect
+    // race when the client-side getUser() hadn't resolved yet after the Stripe
+    // bounce. Server-side verify-payment is now the sole source of truth.
     expect(viewSource).toMatch(
+      /paymentStatus\s*===\s*'completed'\s*&&\s*accessGranted\)/,
+    );
+    expect(viewSource).not.toMatch(
       /paymentStatus\s*===\s*'completed'\s*&&\s*accessGranted\s*&&\s*auth\.isAuthenticated/,
     );
     expect(viewSource).toContain('{hasOtoOffer ? (');

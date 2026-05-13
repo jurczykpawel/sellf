@@ -258,6 +258,10 @@ describe('custom checkout form source verification', () => {
     expect(customPaymentFormSource).toContain("@stripe/react-stripe-js/checkout");
     expect(customPaymentFormSource).toContain('useCheckoutElements');
     expect(customPaymentFormSource).toContain('checkout.confirm');
+    expect(customPaymentFormSource).toContain('checkout.updateEmail');
+    expect(customPaymentFormSource).toContain('checkout.updateBillingAddress');
+    expect(customPaymentFormSource).not.toContain('checkout.confirm({');
+    expect(customPaymentFormSource).not.toContain('returnUrl:');
     expect(customPaymentFormSource).not.toContain('stripe.confirmPayment');
     expect(customPaymentFormSource).not.toContain('useStripe');
     expect(customPaymentFormSource).not.toContain('useElements');
@@ -267,6 +271,64 @@ describe('custom checkout form source verification', () => {
     expect(customPaymentFormSource).toContain('paymentMethodOrder && paymentMethodOrder.length > 0');
     expect(customPaymentFormSource).not.toContain("product.currency === 'PLN'");
     expect(checkoutPageSource).toContain("paymentConfig?.config_mode === 'custom'");
+  });
+
+  // ---- Stripe Custom Checkout contract guards (added after billing/return URL
+  // and double-collect warnings were diagnosed in production) ----
+
+  it('does not pass deprecated layout.defaultCollapsed to the Payment Element', () => {
+    // Stripe logs an "Unrecognized payment.update() parameter" warning when this
+    // is set — the option was removed from the schema. Default is already false.
+    expect(customPaymentFormSource).not.toContain('defaultCollapsed');
+  });
+
+  it('marks email + name as never (we collect them in our own inputs)', () => {
+    expect(customPaymentFormSource).toMatch(/email:\s*'never'/);
+    expect(customPaymentFormSource).toMatch(/name:\s*'never'/);
+  });
+
+  it('marks every address subfield as never (paired-collection rule)', () => {
+    // Stripe enforces paired collection: marking ONE address field 'never'
+    // requires marking ALL of them, or none. We pick all-never and push the
+    // full address via updateBillingAddress.
+    expect(customPaymentFormSource).toMatch(/country:\s*'never'/);
+    expect(customPaymentFormSource).toMatch(/postalCode:\s*'never'/);
+    expect(customPaymentFormSource).toMatch(/line1:\s*'never'/);
+    expect(customPaymentFormSource).toMatch(/line2:\s*'never'/);
+    expect(customPaymentFormSource).toMatch(/city:\s*'never'/);
+    expect(customPaymentFormSource).toMatch(/state:\s*'never'/);
+  });
+
+  it('pushes a full address object via updateBillingAddress (mirrors the never-fields)', () => {
+    const updateCall = customPaymentFormSource.match(
+      /checkout\.updateBillingAddress\(\s*\{([\s\S]+?)\}\s*\)/,
+    );
+    expect(updateCall).not.toBeNull();
+    const args = updateCall![1];
+    expect(args).toMatch(/name:\s*invoice\.fullName/);
+    expect(args).toMatch(/address:\s*\{/);
+    expect(args).toMatch(/country:/);
+    expect(args).toMatch(/postal_code:/);
+    expect(args).toMatch(/line1:/);
+    expect(args).toMatch(/city:/);
+  });
+
+  it('renders subscription Pay button as Subskrybuj (with billing interval)', () => {
+    expect(customPaymentFormSource).toContain('isSubscription && intervalLabel');
+    expect(customPaymentFormSource).toContain("t('subscribeButton'");
+  });
+
+  it('passes intervalLabel to OrderSummary so the total shows "/ mies." for subscriptions', () => {
+    expect(customPaymentFormSource).toMatch(/intervalLabel=\{intervalLabel\s*\|\|\s*undefined\}/);
+    expect(customPaymentFormSource).toContain('formatBillingIntervalLabel(');
+  });
+
+  it('does not duplicate currency code after formatPrice in user-facing checkout strings', () => {
+    // formatPrice() already returns "zł20.00" — concatenating " {currency}" on
+    // top yields "zł20.00 PLN" which looks broken. Catch regressions.
+    expect(customPaymentFormSource).not.toMatch(
+      /\$\{formatPrice\(totalGross, product\.currency\)\} \$\{product\.currency\}/,
+    );
   });
 });
 

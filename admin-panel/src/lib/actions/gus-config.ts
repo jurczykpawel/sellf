@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { withAdminAuth } from '@/lib/actions/admin-auth';
 import type { ActionResponse } from '@/lib/actions/admin-auth';
+import { isValidGUSKeyFormat } from '@/lib/validations/gus-key';
 
 export interface GUSConfig {
   enabled: boolean;
@@ -59,10 +60,10 @@ export async function saveGUSAPIKey(input: SaveGUSKeyInput): Promise<ActionRespo
       };
     }
 
-    if (trimmedKey.length < 10) {
+    if (!isValidGUSKeyFormat(trimmedKey)) {
       return {
         success: false,
-        error: 'API key seems too short',
+        error: 'Invalid GUS API key format (expected 12–40 alphanumeric characters)',
         errorCode: 'INVALID_INPUT'
       };
     }

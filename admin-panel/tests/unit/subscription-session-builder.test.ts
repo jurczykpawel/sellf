@@ -75,6 +75,36 @@ describe('buildSubscriptionSessionConfig', () => {
     expect(lineItem.quantity).toBe(1);
   });
 
+  it('can build an Elements-compatible subscription Checkout Session', () => {
+    const config = buildSubscriptionSessionConfig({
+      product: baseProduct,
+      customerId: 'cus_test',
+      stripePriceId: 'price_durable_xyz',
+      returnUrl: 'https://shop.example/return',
+      checkoutConfig: baseConfig,
+      uiMode: 'elements',
+    });
+
+    expect(config.ui_mode).toBe('elements');
+    expect(config.mode).toBe('subscription');
+    expect(config.redirect_on_completion).toBeUndefined();
+  });
+
+  it('allows guest Elements checkout without a pre-created customer', () => {
+    const config = buildSubscriptionSessionConfig({
+      product: baseProduct,
+      stripePriceId: 'price_durable_xyz',
+      returnUrl: 'https://shop.example/return',
+      checkoutConfig: baseConfig,
+      uiMode: 'elements',
+    });
+
+    expect(config.ui_mode).toBe('elements');
+    expect(config.mode).toBe('subscription');
+    expect(config.customer).toBeUndefined();
+    expect(config.customer_update).toBeUndefined();
+  });
+
   it('throws when stripePriceId is missing', () => {
     expect(() =>
       buildSubscriptionSessionConfig({
@@ -209,6 +239,37 @@ describe('buildSubscriptionSessionConfig', () => {
     });
     const lineItem = (config.line_items as Array<Record<string, unknown>>)[0];
     expect(lineItem.tax_rates).toEqual(['txr_abc']);
+  });
+
+  it('sets customer_update fields when Stripe tax ID collection is enabled', () => {
+    const config = buildSubscriptionSessionConfig({
+      product: baseProduct,
+      customerId: 'cus_x',
+      stripePriceId: 'price_test_fixture',
+      returnUrl: 'https://x.test/r',
+      checkoutConfig: {
+        ...baseConfig,
+        tax_id_collection: { enabled: true },
+      },
+    });
+
+    expect(config.customer_update).toEqual({ address: 'auto', name: 'auto' });
+  });
+
+  it('omits customer_update for guest checkout even when Stripe tax ID collection is enabled', () => {
+    const config = buildSubscriptionSessionConfig({
+      product: baseProduct,
+      stripePriceId: 'price_test_fixture',
+      returnUrl: 'https://x.test/r',
+      checkoutConfig: {
+        ...baseConfig,
+        tax_id_collection: { enabled: true },
+      },
+      uiMode: 'elements',
+    });
+
+    expect(config.customer).toBeUndefined();
+    expect(config.customer_update).toBeUndefined();
   });
 
   it('throws when called on a one-time product', () => {

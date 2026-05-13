@@ -20,6 +20,7 @@ import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 import Stripe from 'stripe';
 
 interface RouteParams {
@@ -211,6 +212,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Revoke all product access on full refund (main + bumps, user + guest)
     // Do this regardless of optimistic lock result because the Stripe refund already succeeded
     let accessRevocationFailed = false;
+    let subscriptionCancelFailed = false;
 
     if (isFullRefund) {
       const revocation = await revokeTransactionAccess(auth.supabase, {
@@ -223,6 +225,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (!revocation.success) {
         accessRevocationFailed = true;
         console.error('[refund] Revocation warnings:', revocation.warnings);
+      }
+
+      const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
+        supabase: auth.supabase,
+        stripe,
+        transaction: payment,
+      });
+      if (!cancelResult.ok) {
+        subscriptionCancelFailed = true;
+        console.error('[refund] Subscription cancel scheduling failed:', cancelResult.reason);
       }
     }
 
@@ -285,6 +297,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         created_at: new Date().toISOString(),
         ...(accessRevocationFailed && {
           warning: 'Refund processed but access revocation failed. Remove user access manually.',
+        }),
+        ...(subscriptionCancelFailed && {
+          subscription_warning: 'Refund processed but subscription cancellation scheduling failed. Cancel the Stripe subscription manually.',
         }),
       }),
       request

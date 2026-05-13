@@ -178,6 +178,14 @@ test.describe('API v1 — Scope Enforcement', () => {
       });
       expect(res.status()).toBe(403);
     });
+
+    test('PATCH /integrations → 403', async ({ request }) => {
+      const res = await request.patch('/api/v1/integrations', {
+        headers: { Authorization: `Bearer ${allReadKey}` },
+        data: { facebook_pixel_id: '1234567890' },
+      });
+      expect(res.status()).toBe(403);
+    });
   });
 
   // ─── Key 3: products:write — write implies read ───────────────────────────

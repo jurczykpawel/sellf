@@ -24,6 +24,7 @@ import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import {
@@ -368,7 +369,8 @@ async function handlePaymentIntentSucceeded(
  */
 async function handleChargeRefunded(
   charge: Stripe.Charge,
-  supabase: ReturnType<typeof createAdminClient>
+  supabase: ReturnType<typeof createAdminClient>,
+  stripe: Stripe
 ): Promise<{ processed: boolean; message: string }> {
   const paymentIntentId = typeof charge.payment_intent === 'string'
     ? charge.payment_intent
@@ -382,7 +384,7 @@ async function handleChargeRefunded(
   // Find transaction by payment intent ID (include session_id for guest cleanup)
   const { data: transaction, error: txError } = await supabase
     .from('payment_transactions')
-    .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount')
+    .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, subscription_id')
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle();
 
@@ -390,7 +392,7 @@ async function handleChargeRefunded(
     // Also try finding by session_id (for payment intent flow)
     const { data: txBySession } = await supabase
       .from('payment_transactions')
-      .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount')
+      .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, subscription_id')
       .eq('session_id', paymentIntentId)
       .maybeSingle();
 
@@ -399,10 +401,10 @@ async function handleChargeRefunded(
       return { processed: true, message: 'Transaction not found for refund, skipping' };
     }
 
-    return await processRefundForTransaction(txBySession, charge, supabase);
+    return await processRefundForTransaction(txBySession, charge, stripe, supabase);
   }
 
-  return await processRefundForTransaction(transaction, charge, supabase);
+  return await processRefundForTransaction(transaction, charge, stripe, supabase);
 }
 
 /**
@@ -423,7 +425,7 @@ async function handleRefundEvent(
   }
 
   const charge = await stripe.charges.retrieve(chargeId);
-  return handleChargeRefunded(charge, supabase);
+  return handleChargeRefunded(charge, supabase, stripe);
 }
 
 async function processRefundForTransaction(
@@ -438,8 +440,10 @@ async function processRefundForTransaction(
     currency: string;
     customer_email: string | null;
     refunded_amount: number | null;
+    subscription_id?: string | null;
   },
   charge: Stripe.Charge,
+  stripe: Stripe,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
   // Determine if this is a full or partial refund
@@ -506,6 +510,16 @@ async function processRefundForTransaction(
 
   if (revocation.warnings.length > 0) {
     console.error('[Stripe Webhook] Revocation warnings after refund:', revocation.warnings);
+  }
+
+  const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
+    supabase: supabase as never,
+    stripe,
+    transaction,
+  });
+  if (!cancelResult.ok) {
+    console.error('[Stripe Webhook] Subscription cancel scheduling failed:', cancelResult.reason);
+    return { processed: false, message: cancelResult.reason };
   }
 
   return { processed: true, message: 'Full refund processed and access revoked (main + bumps)' };
@@ -695,7 +709,8 @@ export async function POST(request: NextRequest) {
 
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge;
-        result = await handleChargeRefunded(charge, supabase);
+        const stripe = await getStripeServer();
+        result = await handleChargeRefunded(charge, supabase, stripe);
         break;
       }
 

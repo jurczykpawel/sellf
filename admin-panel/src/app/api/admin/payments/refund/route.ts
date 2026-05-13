@@ -10,6 +10,7 @@ import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
+import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
 
 export async function POST(request: NextRequest) {
   try {
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
     // Revoke all product access on full refund (main + bumps, user + guest).
     // Always attempt even if DB update failed — Stripe refund already issued.
     let accessRevocationFailed = false;
+    let subscriptionCancelFailed = false;
 
     if (isFullRefund) {
       const revocation = await revokeTransactionAccess(supabase, {
@@ -177,6 +179,16 @@ export async function POST(request: NextRequest) {
       if (!revocation.success) {
         accessRevocationFailed = true;
         console.error('[admin-refund] Revocation warnings:', revocation.warnings);
+      }
+
+      const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
+        supabase,
+        stripe,
+        transaction,
+      });
+      if (!cancelResult.ok) {
+        subscriptionCancelFailed = true;
+        console.error('[admin-refund] Subscription cancel scheduling failed:', cancelResult.reason);
       }
     }
 
@@ -203,6 +215,9 @@ export async function POST(request: NextRequest) {
       },
       ...(accessRevocationFailed && {
         warning: 'Refund processed but access revocation failed. Remove user access manually.',
+      }),
+      ...(subscriptionCancelFailed && {
+        subscription_warning: 'Refund processed but subscription cancellation scheduling failed. Cancel the Stripe subscription manually.',
       }),
     });
 

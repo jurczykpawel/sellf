@@ -1,6 +1,7 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 import { Reveal } from '@/components/motion/Reveal';
@@ -321,8 +322,13 @@ function ProductRow({
   showFreeBadge?: boolean;
   productLinkPrefix?: string;
 }) {
-  const isFree = product.price === 0;
+  const locale = useLocale();
+  const isSubscription = product.product_type === 'subscription';
+  // Subscription products store price in recurring_price; product.price is 0.
+  // Without isSubscription, the storefront would label them as "free".
+  const isFree = !isSubscription && product.price === 0;
   const hasAccessDuration = product.auto_grant_duration_days && product.auto_grant_duration_days > 0;
+  const recurringPriceDisplay = formatRecurringProductPrice(product, locale);
 
   return (
     <Link
@@ -371,6 +377,11 @@ function ProductRow({
                 {t('product.free')}
               </span>
             )}
+            {isSubscription && (
+              <span className="px-2 py-0.5 rounded-full text-[0.58rem] font-semibold uppercase tracking-wide bg-sf-accent-soft text-sf-accent shrink-0">
+                {t('product.subscription', { defaultValue: 'Subscription' })}
+              </span>
+            )}
             {hasAccessDuration && (
               <span className="px-2 py-0.5 rounded-full text-[0.58rem] font-medium bg-sf-accent-soft text-sf-accent shrink-0">
                 {t('product.daysAccessShort', { days: product.auto_grant_duration_days! })}
@@ -389,14 +400,22 @@ function ProductRow({
           <span className={`text-[0.95rem] font-bold whitespace-nowrap ${
             isFree ? 'text-sf-success' : 'text-sf-heading'
           }`}>
-            {isFree ? t('product.free') : formatPrice(product.price, product.currency)}
+            {isFree
+              ? t('product.free')
+              : isSubscription
+                ? (recurringPriceDisplay ?? formatPrice(product.recurring_price ?? 0, product.currency))
+                : formatPrice(product.price, product.currency)}
           </span>
           <span className={`px-4 py-1.5 rounded-lg text-[0.78rem] font-semibold whitespace-nowrap transition-all duration-200 ${
             isFree
               ? 'bg-sf-success hover:bg-sf-success/90 text-sf-inverse'
               : 'bg-sf-accent-bg hover:bg-sf-accent-hover text-white'
           }`}>
-            {isFree ? t('product.getFreeAccess') : t('product.getAccessNow')}
+            {isFree
+              ? t('product.getFreeAccess')
+              : isSubscription
+                ? t('product.subscribe', { defaultValue: 'Subscribe' })
+                : t('product.getAccessNow')}
           </span>
         </div>
       </div>

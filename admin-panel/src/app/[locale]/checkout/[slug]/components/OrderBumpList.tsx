@@ -87,11 +87,11 @@ export default function OrderBumpList({ bumps, selectedBumpIds, onToggle }: Orde
                   <div className="text-left sm:text-right">
                     {bump.original_price > bump.bump_price && (
                       <div className="text-xs text-sf-muted line-through decoration-sf-muted mb-0.5">
-                        {formatPrice(bump.original_price, bump.bump_currency)} {bump.bump_currency}
+                        {formatPrice(bump.original_price, bump.bump_currency)}
                       </div>
                     )}
                     <div className={`text-lg font-bold leading-none tracking-tight ${isSelected ? 'text-sf-warning' : 'text-sf-heading'}`}>
-                      {formatPrice(bump.bump_price, bump.bump_currency)} {bump.bump_currency}
+                      {formatPrice(bump.bump_price, bump.bump_currency)}
                     </div>
                     {bump.original_price > bump.bump_price && (
                       <div className="text-[10px] font-bold text-sf-success mt-1 uppercase tracking-wide">

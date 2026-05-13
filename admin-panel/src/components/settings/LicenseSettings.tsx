@@ -10,6 +10,7 @@ export default function LicenseSettings() {
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [license, setLicense] = useState('');
+ const [envLicenseConfigured, setEnvLicenseConfigured] = useState(false);
 
  useEffect(() => {
  async function loadLicense() {
@@ -19,6 +20,7 @@ export default function LicenseSettings() {
  if (data?.sellf_license) {
  setLicense(data.sellf_license as string);
  }
+ setEnvLicenseConfigured(data?.sellf_license_env_configured === true);
  } catch (error) {
  console.error('Failed to load license:', error);
  } finally {
@@ -136,6 +138,12 @@ export default function LicenseSettings() {
  <p className="mt-2 text-xs text-sf-muted">
  {t('formatHint')}
  </p>
+ {!license && envLicenseConfigured && (
+ <div className="mt-3 border border-sf-warning bg-sf-warning-soft p-3 text-sm text-sf-warning">
+ <p className="font-medium">{t('envConfiguredTitle')}</p>
+ <p className="mt-1 text-xs">{t('envConfiguredDescription')}</p>
+ </div>
+ )}
  {validationError && (
  <p className="mt-2 text-sm text-sf-danger flex items-center gap-1">
  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

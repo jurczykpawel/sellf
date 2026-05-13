@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ModalSection } from '@/components/ui/Modal';
+import { CURRENCIES, getCurrencySymbol } from '@/lib/constants';
 import type { SectionProps } from '../types';
 
 interface SubscriptionSectionProps extends SectionProps {
@@ -9,9 +10,7 @@ interface SubscriptionSectionProps extends SectionProps {
   hasSales?: boolean;
 }
 
-const INTERVALS: Array<{ value: 'day' | 'week' | 'month' | 'year'; label: string }> = [
-  { value: 'day', label: 'day' },
-  { value: 'week', label: 'week' },
+const INTERVALS: Array<{ value: 'month' | 'year'; label: string }> = [
   { value: 'month', label: 'month' },
   { value: 'year', label: 'year' },
 ];
@@ -82,23 +81,44 @@ export function SubscriptionSection({ formData, setFormData, t, hasSales }: Subs
             <label htmlFor="recurring_price" className="block text-sm font-medium text-sf-body mb-1">
               {t('subscription.recurringPrice', { defaultValue: 'Recurring price' })}
             </label>
-            <input
-              type="number"
-              id="recurring_price"
-              min="0"
-              step="0.01"
-              value={formData.recurring_price ?? ''}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  recurring_price: e.target.value === '' ? null : parseFloat(e.target.value),
-                }))
-              }
-              className="w-full px-3 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm"
-            />
+            <div className="relative">
+              {formData.currency !== 'PLN' && formData.currency !== 'CHF' && (
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sf-muted pointer-events-none">
+                  {getCurrencySymbol(formData.currency)}
+                </div>
+              )}
+              <input
+                type="number"
+                id="recurring_price"
+                min="0"
+                step="0.01"
+                value={formData.recurring_price ?? ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    recurring_price: e.target.value === '' ? null : parseFloat(e.target.value),
+                  }))
+                }
+                className={`w-full py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm ${
+                  formData.currency !== 'PLN' && formData.currency !== 'CHF' ? 'pl-9' : 'pl-3'
+                } pr-[4.5rem]`}
+              />
+              <select
+                id="subscription_currency"
+                value={formData.currency}
+                onChange={(e) => setFormData((prev) => ({ ...prev, currency: e.target.value }))}
+                className="absolute right-0 top-0 h-full w-[4.25rem] border-l border-sf-border bg-sf-raised px-2 text-xs font-medium text-sf-body focus:outline-none focus:ring-2 focus:ring-sf-accent"
+              >
+                {CURRENCIES.map((currency) => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.code}
+                  </option>
+                ))}
+              </select>
+            </div>
             <p className="mt-1 text-xs text-sf-muted">
               {t('subscription.recurringPriceHelp', {
-                defaultValue: 'Charged each billing period. Currency follows the product.',
+                defaultValue: 'Charged each billing period. Uses the product currency.',
               })}
             </p>
           </div>
@@ -128,7 +148,7 @@ export function SubscriptionSection({ formData, setFormData, t, hasSales }: Subs
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    billing_interval: e.target.value as 'day' | 'week' | 'month' | 'year',
+                    billing_interval: e.target.value as 'month' | 'year',
                   }))
                 }
                 className="flex-1 px-3 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm"

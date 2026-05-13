@@ -417,6 +417,36 @@ export async function verifyPaymentSession(
       expires_at: session.expires_at,
     };
 
+    // Subscription mode: customer.subscription.* webhooks handle persistence + access.
+    // One-time RPC below would reject trials (amount=0) and paid subs (amount mismatch).
+    if (
+      session.status === 'complete' &&
+      session.payment_status === 'paid' &&
+      session.mode === 'subscription'
+    ) {
+      const metadataUserId = session.metadata?.user_id;
+      const wasLoggedIn = !!user || (!!metadataUserId && metadataUserId !== '' && metadataUserId !== 'null');
+
+      if (wasLoggedIn) {
+        return {
+          ...baseResponse,
+          access_granted: true,
+          scenario: 'subscription',
+        };
+      }
+
+      // Guest subscription: webhook still creates the access record (matched by
+      // email), but the buyer has no session cookie yet — show magic-link UI.
+      return {
+        ...baseResponse,
+        access_granted: false,
+        is_guest_purchase: true,
+        send_magic_link: true,
+        requires_login: true,
+        scenario: 'subscription_guest',
+      };
+    }
+
     // If payment is complete, delegate to database function
     if (session.status === 'complete' && session.payment_status === 'paid') {
       const productId = session.metadata?.product_id;

@@ -17,7 +17,7 @@ import type { CheckoutConfig } from '@/lib/stripe/checkout-config';
 
 export interface SubscriptionSessionInput {
   product: ValidatedProduct;
-  customerId: string;
+  customerId?: string;
   /**
    * durable Stripe Price id pre-created via getOrCreateStripePriceForProduct.
    * The webhook handler verifies sub.items.data[0].price.id matches this exact id
@@ -29,12 +29,14 @@ export interface SubscriptionSessionInput {
   userId?: string;
   checkoutConfig: CheckoutConfig;
   taxRateId?: string;
+  uiMode?: 'embedded_page' | 'elements';
 }
 
 export function buildSubscriptionSessionConfig(
   input: SubscriptionSessionInput
 ): Record<string, unknown> {
   const { product, customerId, stripePriceId, returnUrl, email, userId, checkoutConfig, taxRateId } = input;
+  const uiMode = input.uiMode ?? 'embedded_page';
 
   if (product.product_type !== 'subscription') {
     throw new Error('buildSubscriptionSessionConfig: product is not a subscription');
@@ -47,9 +49,9 @@ export function buildSubscriptionSessionConfig(
   }
 
   const sessionConfig: Record<string, unknown> = {
-    ui_mode: 'embedded_page' as const,
+    ui_mode: uiMode,
     mode: 'subscription' as const,
-    customer: customerId,
+    ...(customerId ? { customer: customerId } : {}),
     line_items: [
       {
         // use the persisted Stripe Price id (durable binding) instead
@@ -60,7 +62,7 @@ export function buildSubscriptionSessionConfig(
       },
     ],
     return_url: returnUrl,
-    redirect_on_completion: 'always' as const,
+    ...(uiMode === 'embedded_page' ? { redirect_on_completion: 'always' as const } : {}),
     metadata: {
       product_id: product.id,
       product_slug: product.slug,
@@ -81,6 +83,14 @@ export function buildSubscriptionSessionConfig(
     automatic_tax: checkoutConfig.automatic_tax,
     tax_id_collection: checkoutConfig.tax_id_collection,
     billing_address_collection: checkoutConfig.billing_address_collection,
+    ...(customerId && checkoutConfig.tax_id_collection.enabled
+      ? {
+          customer_update: {
+            address: 'auto',
+            name: 'auto',
+          },
+        }
+      : {}),
   };
 
   // Stripe rejects customer_email when `customer` is set — Stripe pulls the email from the customer.

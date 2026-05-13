@@ -51,6 +51,7 @@ export default function ApiKeyFormModal({
     { value: 'analytics:read', label: t('scopes.analyticsRead'), description: t('scopeDescriptions.analyticsRead') },
     { value: 'webhooks:read', label: t('scopes.webhooksRead'), description: t('scopeDescriptions.webhooksRead') },
     { value: 'webhooks:write', label: t('scopes.webhooksWrite'), description: t('scopeDescriptions.webhooksWrite') },
+    { value: 'integrations:write', label: t('scopes.integrationsWrite'), description: t('scopeDescriptions.integrationsWrite') },
   ];
 
   const SCOPE_PRESETS = [

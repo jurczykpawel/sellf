@@ -63,6 +63,24 @@ function statusBadgeClass(status: string, cancelAtPeriodEnd: boolean): string {
   return 'bg-emerald-100 text-emerald-700';
 }
 
+function ActionSpinner() {
+  return (
+    <svg
+      className="animate-spin -ml-1 mr-2 h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
 export default function MySubscriptions() {
   const t = useTranslations('myPurchases.subscriptions');
   const [rows, setRows] = useState<SubscriptionRow[]>([]);
@@ -187,9 +205,12 @@ export default function MySubscriptions() {
                     type="button"
                     onClick={() => callAction(row.id, 'cancel')}
                     disabled={isBusy}
-                    className="px-3 py-1.5 text-sm border border-sf-border-medium text-sf-body hover:bg-sf-raised disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-1.5 text-sm border border-sf-border-medium text-sf-body hover:bg-sf-raised disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {t('cancelButton', { defaultValue: 'Cancel' })}
+                    {isBusy && <ActionSpinner />}
+                    {isBusy
+                      ? t('cancelInProgress', { defaultValue: 'Cancelling…' })
+                      : t('cancelButton', { defaultValue: 'Cancel' })}
                   </button>
                 )}
                 {row.cancel_at_period_end && row.status !== 'canceled' && (
@@ -197,9 +218,12 @@ export default function MySubscriptions() {
                     type="button"
                     onClick={() => callAction(row.id, 'resume')}
                     disabled={isBusy}
-                    className="px-3 py-1.5 text-sm border border-sf-accent bg-sf-accent text-white hover:opacity-90 disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-1.5 text-sm border border-sf-accent bg-sf-accent text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {t('resumeButton', { defaultValue: 'Resume' })}
+                    {isBusy && <ActionSpinner />}
+                    {isBusy
+                      ? t('resumeInProgress', { defaultValue: 'Resuming…' })
+                      : t('resumeButton', { defaultValue: 'Resume' })}
                   </button>
                 )}
               </div>

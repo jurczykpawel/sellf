@@ -131,7 +131,7 @@ export default function PwywSection({
           )}
 
           <p className="text-xs text-sf-muted mt-2">
-            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, product.currency)} {product.currency}
+            {t('customPrice.minimum')}: {formatPrice(product.custom_price_min ?? STRIPE_MINIMUM_AMOUNT, product.currency)}
           </p>
         </div>
       )}

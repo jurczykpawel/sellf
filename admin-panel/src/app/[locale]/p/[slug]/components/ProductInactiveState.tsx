@@ -1,7 +1,9 @@
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import WaitlistForm from '@/components/WaitlistForm';
+import { formatPrice } from '@/lib/constants';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 
 interface ProductInactiveStateProps {
   product: Product;
@@ -9,6 +11,13 @@ interface ProductInactiveStateProps {
 
 export default function ProductInactiveState({ product }: ProductInactiveStateProps) {
   const t = useTranslations('productView');
+  const locale = useLocale();
+  const isSubscription = product.product_type === 'subscription';
+  const priceLabel = isSubscription
+    ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
+    : product.price === 0
+      ? t('free', { defaultValue: 'FREE' })
+      : formatPrice(product.price, product.currency);
 
   // If waitlist is enabled, show the waitlist form
   if (product.enable_waitlist) {
@@ -31,7 +40,7 @@ export default function ProductInactiveState({ product }: ProductInactiveStatePr
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {product.price === 0 ? 'FREE' : `$${product.price}`}
+          {priceLabel}
         </div>
 
         <div className="text-4xl mb-4">⚠️</div>

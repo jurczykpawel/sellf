@@ -9,30 +9,73 @@ import { createPublicClient } from '@/lib/supabase/server'
 
 // --- GLOBAL CONFIG ---
 
+const EDITABLE_INTEGRATION_FIELDS: Array<keyof IntegrationsInput> = [
+  'gtm_container_id',
+  'gtm_server_container_url',
+  'gtm_ss_enabled',
+  'google_ads_conversion_id',
+  'google_ads_conversion_label',
+  'facebook_pixel_id',
+  'facebook_capi_token',
+  'facebook_test_event_code',
+  'fb_capi_enabled',
+  'send_conversions_without_consent',
+  'umami_website_id',
+  'umami_script_url',
+  'cookie_consent_enabled',
+  'consent_logging_enabled',
+  'sellf_license',
+]
+
+function pickEditableIntegrations(values: Record<string, unknown>): IntegrationsInput {
+  const picked: IntegrationsInput = {}
+  for (const field of EDITABLE_INTEGRATION_FIELDS) {
+    if (field in values) {
+      picked[field] = values[field] as never
+    }
+  }
+  return picked
+}
+
 export async function getIntegrationsConfig() {
   return withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient.from('integrations_config').select('*').single()
+    const envLicenseConfigured = Boolean(process.env.SELLF_LICENSE_KEY)
 
     if (error && error.code === 'PGRST116') {
-      return { success: true as const, data: { cookie_consent_enabled: true, consent_logging_enabled: false } as Record<string, unknown> }
+      return {
+        success: true as const,
+        data: {
+          cookie_consent_enabled: true,
+          consent_logging_enabled: false,
+          sellf_license_env_configured: envLicenseConfigured,
+        } as Record<string, unknown>,
+      }
     }
     if (error) return { success: false as const, error: error.message }
-    return { success: true as const, data: data as Record<string, unknown> }
+    return {
+      success: true as const,
+      data: {
+        ...(data as Record<string, unknown>),
+        sellf_license_env_configured: envLicenseConfigured,
+      },
+    }
   })
 }
 
 export async function updateIntegrationsConfig(values: IntegrationsInput) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
   return withAdminClient(async ({ dataClient }) => {
-    const validation = validateIntegrations(values)
+    const sanitizedValues = pickEditableIntegrations(values as Record<string, unknown>)
+    const validation = validateIntegrations(sanitizedValues)
     if (!validation.isValid) return { success: false, error: 'Invalid fields', details: validation.errors }
 
     // Validate Sellf license if provided
-    if (values.sellf_license) {
+    if (sanitizedValues.sellf_license) {
       const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
       const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
 
-      const licenseValidation = validateLicense(values.sellf_license, currentDomain || undefined);
+      const licenseValidation = validateLicense(sanitizedValues.sellf_license, currentDomain || undefined);
 
       if (!licenseValidation.valid) {
         return {
@@ -46,7 +89,7 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
     }
 
     const { error } = await dataClient.from('integrations_config')
-      .update({ ...values, updated_at: new Date().toISOString() })
+      .update({ ...sanitizedValues, updated_at: new Date().toISOString() })
       .eq('id', 1)
 
     if (error) return { success: false, error: error.message }

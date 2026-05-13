@@ -20,6 +20,13 @@ interface Product {
   is_active: boolean;
   is_featured: boolean;
   created_at: string;
+  product_type?: string | null;
+}
+
+interface SubscriptionRef {
+  status: string;
+  cancel_at_period_end: boolean;
+  current_period_end: string | null;
 }
 
 interface UserProductAccess {
@@ -27,6 +34,7 @@ interface UserProductAccess {
   product: Product;
   granted_at: string;
   expires_at: string | null;
+  subscription: SubscriptionRef | null;
 }
 
 function ProductImage({ src, alt, icon }: { src: string; alt: string; icon: string }) {
@@ -109,20 +117,29 @@ export default function MyProductsPage() {
           access_expires_at,
           product:products (
             id, name, slug, description, icon, image_url, price, currency,
-            is_active, is_featured, created_at
+            is_active, is_featured, created_at, product_type
+          ),
+          subscription:subscriptions (
+            status, cancel_at_period_end, current_period_end
           )
         `)
         .eq('user_id', user.id);
 
       if (accessError) throw accessError;
 
-      type RawAccess = { access_expires_at: string | null; product: unknown; access_granted_at: string };
+      type RawAccess = {
+        access_expires_at: string | null;
+        product: unknown;
+        access_granted_at: string;
+        subscription: SubscriptionRef | SubscriptionRef[] | null;
+      };
       const transformedUserProducts: UserProductAccess[] = filterActiveAccess<RawAccess>((accessData || []) as RawAccess[])
         .map((a) => ({
           id: (a.product as unknown as Product).id,
           granted_at: a.access_granted_at,
           expires_at: a.access_expires_at,
           product: a.product as unknown as Product,
+          subscription: Array.isArray(a.subscription) ? a.subscription[0] ?? null : a.subscription,
         }));
 
       setUserProducts(transformedUserProducts);
@@ -211,11 +228,28 @@ export default function MyProductsPage() {
 
   const accessibleProductIds = new Set(userProducts.map(up => up.product.id));
   const availableProducts = allProducts.filter(p => !accessibleProductIds.has(p.id));
-  const freeProducts = availableProducts.filter(p => p.price === 0);
-  const paidProducts = availableProducts.filter(p => p.price > 0);
+  // Subscriptions store price in recurring_price; products.price=0 for them.
+  const freeProducts = availableProducts.filter(
+    p => p.product_type !== 'subscription' && p.price === 0,
+  );
+  const paidProducts = availableProducts.filter(
+    p => p.product_type === 'subscription' || p.price > 0,
+  );
 
   const renderOwnedProductCard = (access: UserProductAccess) => {
-    const { product, granted_at: grantedAt, expires_at: expiresAt } = access;
+    const { product, granted_at: grantedAt, expires_at: expiresAt, subscription } = access;
+    // Subscription access window: subscription_id link is the source of truth.
+    // - cancel_at_period_end: dostęp wygasa na current_period_end (final date)
+    // - active/trialing recurring: auto-renews — show "Renews on …" instead
+    const isActiveSub = subscription
+      && (subscription.status === 'active' || subscription.status === 'trialing')
+      && !!subscription.current_period_end;
+    const subEndsAt = isActiveSub && subscription!.cancel_at_period_end
+      ? subscription!.current_period_end
+      : null;
+    const subRenewsAt = isActiveSub && !subscription!.cancel_at_period_end
+      ? subscription!.current_period_end
+      : null;
     return (
     <div
       key={product.id}
@@ -252,6 +286,16 @@ export default function MyProductsPage() {
           {expiresAt && (
             <div className="font-medium text-sf-warning">
               {t('accessExpires', { date: formatDateTimeLocalized(expiresAt, locale) })}
+            </div>
+          )}
+          {subEndsAt && (
+            <div className="font-medium text-sf-warning">
+              {t('accessExpires', { date: formatDateTimeLocalized(subEndsAt, locale) })}
+            </div>
+          )}
+          {subRenewsAt && (
+            <div className="font-medium text-sf-accent">
+              {t('accessRenews', { date: formatDateTimeLocalized(subRenewsAt, locale), defaultValue: 'Renews {date}' })}
             </div>
           )}
           <div>

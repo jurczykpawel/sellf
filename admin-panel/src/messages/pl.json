@@ -4,7 +4,7 @@
     "emailAddress": "Adres Email",
     "linkedToAccount": "Ten zakup zostanie przypisany do twojego konta.",
     "changeAccount": "Zmień konto",
-    "emailPlaceholder": "twoj@email.com",
+    "emailPlaceholder": "jan@firma.pl",
     "emailHelp": "Wyślemy szczegóły dostępu na ten adres email.",
     "daysAccess": "Dostęp na {days} dni",
     "lifetimeAccess": "Dostęp Dożywotni",
@@ -36,6 +36,7 @@
     "vat": "VAT",
     "includingVat": "w tym VAT",
     "payButton": "Zapłać {amount}",
+    "subscribeButton": "Subskrybuj {amount}",
     "fixAmountFirst": "Popraw kwotę powyżej, aby kontynuować",
     "invalidAmount": "nieprawidłowa kwota",
     "processing": "Przetwarzanie płatności...",
@@ -803,6 +804,8 @@
     },
     "product": {
       "free": "DARMOWE",
+      "subscription": "Subskrypcja",
+      "subscribe": "Subskrybuj",
       "featured": "Polecane",
       "premium": "Premium",
       "limited": "Ograniczone",
@@ -993,6 +996,7 @@
     "exploreMoreDescription": "Produkty dostępne do zakupu w sklepie.",
     "accessSince": "Dostęp od {date}",
     "accessExpires": "Wygasa {date}",
+    "accessRenews": "Odnawia się {date}",
     "myAccessibleProducts": "Moje dostępne produkty",
     "availableProducts": "Dostępne produkty",
     "freeResources": "Darmowe",
@@ -1202,6 +1206,7 @@
       "inactive": "Nieaktywny",
       "featured": "Wyróżniony",
       "free": "Darmowy",
+      "subscription": "Subskrypcja",
       "pwyw": "PWYW",
       "pwywFromLabel": "od {amount}",
       "permanent": "Stały",
@@ -1472,9 +1477,9 @@
           "recurring": "Subskrypcja",
           "lockedAfterSale": "Typ produktu jest zablokowany po pierwszej sprzedaży, żeby zachować spójność rozliczeń.",
           "recurringPrice": "Cena cykliczna",
-          "recurringPriceHelp": "Kwota pobierana w każdym okresie rozliczeniowym.",
+          "recurringPriceHelp": "Kwota pobierana w każdym okresie rozliczeniowym. Używa waluty produktu.",
           "billingInterval": "Okres rozliczeniowy",
-          "billingIntervalHelp": "Co ile czasu klient jest obciążany.",
+          "billingIntervalHelp": "Co ile czasu klient jest obciążany. Panel admina obsługuje miesiąc i rok; API oraz baza pozostają zgodne z okresami Stripe.",
           "trialDays": "Okres próbny (dni)",
           "trialDaysHelp": "Dni darmowego dostępu przed pierwszym pobraniem opłaty. Pozostaw puste, żeby wyłączyć.",
           "interval": {
@@ -1771,7 +1776,8 @@
         "couponsWrite": "Kupony (zapis)",
         "analyticsRead": "Analityka (odczyt)",
         "webhooksRead": "Webhooki (odczyt)",
-        "webhooksWrite": "Webhooki (zapis)"
+        "webhooksWrite": "Webhooki (zapis)",
+        "integrationsWrite": "Integracje (zapis)"
       },
       "scopeDescriptions": {
         "fullAccess": "Dostęp do wszystkich zasobów",
@@ -1783,7 +1789,8 @@
         "couponsWrite": "Tworzenie, aktualizacja i usuwanie kuponów",
         "analyticsRead": "Przeglądanie danych analitycznych",
         "webhooksRead": "Przeglądanie konfiguracji webhooków",
-        "webhooksWrite": "Zarządzanie webhookami"
+        "webhooksWrite": "Zarządzanie webhookami",
+        "integrationsWrite": "Zarządzanie konfiguracją integracji"
       },
       "presets": {
         "fullAccess": "Pełny dostęp",
@@ -2486,6 +2493,8 @@
       "saveLicense": "Zapisz licencję",
       "saveSuccess": "Licencja zapisana pomyślnie",
       "saveError": "Nie udało się zapisać licencji",
+      "envConfiguredTitle": "Licencja skonfigurowana w zmiennej środowiskowej",
+      "envConfiguredDescription": "W bazie danych nie ma zapisanej licencji, ale SELLF_LICENSE_KEY jest ustawiony w środowisku serwera. Sellf użyje tego klucza jako fallbacku, jeśli jest ważny dla tej domeny.",
       "howItWorks": "Jak działa licencjonowanie",
       "howItWorks1": "Klucz licencji jest kryptograficznie podpisany i weryfikowany offline",
       "howItWorks2": "Ważna licencja usuwa branding Sellf ze strony koszyka",
@@ -2849,7 +2858,38 @@
     "refundedAmount": "Zwrócono",
     "naLabel": "N/D",
     "invalidPrice": "Nieprawidłowa cena",
-    "refundSubmitError": "Nie udało się wysłać prośby o zwrot"
+    "refundSubmitError": "Nie udało się wysłać prośby o zwrot",
+    "subscriptions": {
+      "title": "Subskrypcje",
+      "loading": "Ładowanie subskrypcji...",
+      "loadError": "Nie udało się załadować subskrypcji",
+      "cancelButton": "Anuluj subskrypcję",
+      "cancelInProgress": "Anulowanie…",
+      "resumeButton": "Wznów subskrypcję",
+      "resumeInProgress": "Wznawianie…",
+      "cancelScheduled": "Anulowanie zaplanowane na koniec okresu rozliczeniowego.",
+      "resumed": "Subskrypcja wznowiona.",
+      "statusScheduledCancel": "Wygasa po okresie",
+      "endsAt": "Kończy się",
+      "renewsAt": "Odnawia się",
+      "trialUntil": "Okres próbny do",
+      "status": {
+        "active": "Aktywna",
+        "trialing": "Okres próbny",
+        "past_due": "Zaległe płatności",
+        "unpaid": "Nieopłacona",
+        "canceled": "Anulowana",
+        "incomplete": "Niekompletna",
+        "incomplete_expired": "Wygasła",
+        "paused": "Wstrzymana"
+      },
+      "interval": {
+        "day": "{count, plural, one {dzień} few {{count} dni} other {{count} dni}}",
+        "week": "{count, plural, one {tydzień} few {{count} tygodnie} other {{count} tygodni}}",
+        "month": "{count, plural, one {miesiąc} few {{count} miesiące} other {{count} miesięcy}}",
+        "year": "{count, plural, one {rok} few {{count} lata} other {{count} lat}}"
+      }
+    }
   },
   "refundRequests": {
     "title": "Prośby o Zwrot",

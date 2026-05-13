@@ -60,7 +60,7 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
 
       {showWaitlist ? (
         <WaitlistForm product={product} unavailableReason={unavailableReason} />
-      ) : product.price === 0 && !product.allow_custom_price ? (
+      ) : product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
         <FreeProductForm product={product} />
       ) : (
         <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} />

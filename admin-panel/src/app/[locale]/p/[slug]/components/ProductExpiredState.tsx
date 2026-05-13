@@ -1,6 +1,8 @@
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
+import { formatPrice } from '@/lib/constants';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 
 interface ProductExpiredStateProps {
   product: Product;
@@ -8,6 +10,13 @@ interface ProductExpiredStateProps {
 
 export default function ProductExpiredState({ product }: ProductExpiredStateProps) {
   const t = useTranslations('productView');
+  const locale = useLocale();
+  const isSubscription = product.product_type === 'subscription';
+  const priceLabel = isSubscription
+    ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
+    : product.price === 0
+      ? t('free', { defaultValue: 'FREE' })
+      : formatPrice(product.price, product.currency);
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-sf-deep">
@@ -20,7 +29,7 @@ export default function ProductExpiredState({ product }: ProductExpiredStateProp
           <p className="text-sf-body mb-6 max-w-2xl mx-auto">{product.description}</p>
         )}
         <div className="text-xl font-semibold text-sf-accent mb-8">
-          {product.price === 0 ? 'FREE' : `$${product.price}`}
+          {priceLabel}
         </div>
 
         <div className="text-4xl mb-4">⏰</div>

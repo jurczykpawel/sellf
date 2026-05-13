@@ -9,8 +9,18 @@ import { getStripeServer } from '@/lib/stripe/server';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
-import { ProductValidationService } from '@/lib/services/product-validation';
+import {
+  ProductValidationService,
+  type BillingInterval,
+  type ValidatedProduct,
+} from '@/lib/services/product-validation';
 import type { PaymentMethodConfig } from '@/types/payment-config';
+import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
+import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
+import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
+import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
+import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
+import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 
 type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>;
 type CheckoutPaymentMethodType = NonNullable<CheckoutSessionCreateParams['payment_method_types']>[number];
@@ -160,6 +170,90 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    if (product.product_type === 'subscription') {
+      const subscriptionProduct: ValidatedProduct = {
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        currency: product.currency,
+        is_active: product.is_active,
+        available_from: product.available_from,
+        available_until: product.available_until,
+        auto_grant_duration_days: product.auto_grant_duration_days,
+        allow_custom_price: product.allow_custom_price,
+        custom_price_min: product.custom_price_min ?? undefined,
+        vat_rate: product.vat_rate,
+        price_includes_vat: product.price_includes_vat,
+        product_type: 'subscription',
+        billing_interval: product.billing_interval as BillingInterval | null,
+        billing_interval_count: product.billing_interval_count,
+        recurring_price: product.recurring_price,
+        trial_days: product.trial_days,
+        stripe_price_id: product.stripe_price_id,
+      };
+
+      if (requestedBumpIds.length > 0 || couponCode || customAmount !== undefined) {
+        return NextResponse.json(
+          { error: 'Coupons, custom amounts, and order bumps are not supported for subscription checkout' },
+          { status: 400 }
+        );
+      }
+
+      const stripe = await getStripeServer();
+      if (!stripe) {
+        return NextResponse.json(
+          { error: 'Payment system not configured. Please configure Stripe in admin settings.' },
+          { status: 503 }
+        );
+      }
+
+      const checkoutConfig = await getCheckoutConfig();
+      const customerId = finalEmail
+        ? await getOrCreateStripeCustomer({
+            email: finalEmail,
+            userId: user?.id,
+          })
+        : undefined;
+
+      let taxRateId: string | undefined;
+      if (checkoutConfig.tax_mode === 'local' && subscriptionProduct.vat_rate && subscriptionProduct.vat_rate > 0) {
+        taxRateId = await getOrCreateStripeTaxRate({
+          percentage: subscriptionProduct.vat_rate,
+          inclusive: subscriptionProduct.price_includes_vat,
+        });
+      }
+
+      const stripePriceId = await getOrCreateStripePriceForProduct(stripe, subscriptionProduct);
+      const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(subscriptionProduct.id)}&product=${encodeURIComponent(subscriptionProduct.slug)}`;
+      const subscriptionSessionParams = buildSubscriptionSessionConfig({
+        product: subscriptionProduct,
+        customerId,
+        stripePriceId,
+        returnUrl,
+        email: finalEmail,
+        userId: user?.id,
+        checkoutConfig,
+        taxRateId,
+        uiMode: 'elements',
+      }) as CheckoutSessionCreateParams;
+
+      const checkoutSession = await stripe.checkout.sessions.create(subscriptionSessionParams);
+      if (!checkoutSession.client_secret) {
+        console.error('[create-payment-intent] Subscription Checkout Session missing client_secret', checkoutSession.id);
+        return NextResponse.json(
+          { error: 'Failed to initialize checkout session' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        clientSecret: checkoutSession.client_secret,
+        checkoutSessionId: checkoutSession.id,
+      });
     }
 
     // 3. Validate PWYW (Pay What You Want) custom pricing
@@ -397,7 +491,7 @@ export async function POST(request: NextRequest) {
       is_pwyw: pricing.isPwyw ? 'true' : 'false',
     };
 
-    const returnUrl = `${request.nextUrl.origin}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+    const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
     const checkoutSessionParams: CheckoutSessionCreateParams = {
       mode: 'payment',
       ui_mode: 'elements',

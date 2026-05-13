@@ -19,6 +19,24 @@ const eslintConfig = defineConfig([
       // `no-namespace` rule blocks this idiom even though it is the canonical way to
       // type third-party globals.
       "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true }],
+
+      // No TypeScript escape hatches in production code. Fix the root cause
+      // (better types, module augmentation, narrower runtime shape) instead.
+      "@typescript-eslint/ban-ts-comment": ["error", {
+        "ts-ignore": true,
+        "ts-nocheck": true,
+        "ts-expect-error": true,
+        "ts-check": false,
+      }],
+    },
+  },
+  {
+    // Tests legitimately use ts-expect-error to assert that invalid inputs are
+    // rejected by the type system (edge-case regression guards) and to mock
+    // partial Stripe SDK surfaces. Production code must not.
+    files: ["tests/**/*.ts", "tests/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/ban-ts-comment": "off",
     },
   },
 ]);

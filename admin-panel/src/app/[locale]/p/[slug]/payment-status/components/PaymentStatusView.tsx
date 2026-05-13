@@ -128,8 +128,9 @@ export default function PaymentStatusView({
     );
   }
 
-  // Handle success state with auth check
-  if (paymentStatus === 'completed' && accessGranted && auth.isAuthenticated) {
+  // Handle success state — server decides accessGranted; client auth is only
+  // used downstream to pick between "go to product" and "send magic link" CTAs.
+  if (paymentStatus === 'completed' && accessGranted) {
     return (
       <>
         {/* Full-page confetti overlay */}

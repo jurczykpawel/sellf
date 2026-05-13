@@ -8,11 +8,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import OmnibusPrice from '@/components/OmnibusPrice';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl } from '@/lib/videoUtils';
 import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
 import { isPlayerstackPlatform } from '@/lib/playerstack';
+import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 
 interface ProductShowcaseProps {
   product: Product;
@@ -21,6 +23,9 @@ interface ProductShowcaseProps {
 
 export default function ProductShowcase({ product, taxMode }: ProductShowcaseProps) {
   const t = useTranslations('checkout');
+  const locale = useLocale();
+  const isSubscription = product.product_type === 'subscription';
+  const recurringPriceDisplay = formatRecurringProductPrice(product, locale);
 
   // Check if sale price is active (considers both time and quantity limits)
   const saleQuantitySold = product.sale_quantity_sold ?? 0;
@@ -28,6 +33,7 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
   const saleQuantityRemaining = saleQuantityLimit !== null ? saleQuantityLimit - saleQuantitySold : null;
 
   const isSaleActive =
+    !isSubscription &&
     product.sale_price &&
     product.sale_price > 0 &&
     (!product.sale_price_until || new Date(product.sale_price_until) > new Date()) &&
@@ -102,12 +108,12 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
           {/* Strikethrough regular price if on sale */}
           {isSaleActive && (
             <div className="text-2xl font-medium text-sf-muted line-through mb-1">
-              {formatPrice(product.price, product.currency)} {product.currency}
+              {formatPrice(product.price, product.currency)}
             </div>
           )}
 
           <div className="text-5xl font-bold text-sf-heading mb-2 tracking-tight">
-            {formatPrice(grossPrice, product.currency)} {product.currency}
+            {recurringPriceDisplay ?? formatPrice(grossPrice, product.currency)}
           </div>
 
           {taxMode !== 'stripe_tax' && product.vat_rate != null && product.vat_rate > 0 && (
@@ -148,13 +154,15 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
           )}
 
           {/* EU Omnibus Directive - Lowest price from last 30 days */}
-          <div className="mt-3">
-            <OmnibusPrice
-              productId={product.id}
-              currentPrice={grossPrice}
-              currency={product.currency}
-            />
-          </div>
+          {!isSubscription && (
+            <div className="mt-3">
+              <OmnibusPrice
+                productId={product.id}
+                currentPrice={grossPrice}
+                currency={product.currency}
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -494,13 +494,25 @@ async function checkCaptcha(): Promise<SecurityCheckResult> {
     };
   }
 
+  // ALTCHA remains active, but a stale Turnstile site key can still be exposed
+  // in runtime config and confuse operators.
+  if (turnstileSiteKey && !turnstileSecretKey && altchaKey) {
+    return {
+      id: 'captcha',
+      name: 'Captcha (bot protection)',
+      status: 'warn',
+      message: 'ALTCHA is configured and active, but a Cloudflare Turnstile site key is also set without the matching secret key.',
+      fix: 'Remove CLOUDFLARE_TURNSTILE_SITE_KEY / NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY from env if you use ALTCHA, or add CLOUDFLARE_TURNSTILE_SECRET_KEY to use Turnstile instead.',
+    };
+  }
+
   // Turnstile site key without secret — broken config
   if (turnstileSiteKey && !turnstileSecretKey) {
     return {
       id: 'captcha',
       name: 'Captcha (bot protection)',
       status: 'fail',
-      message: 'CLOUDFLARE_TURNSTILE_SITE_KEY is set but CLOUDFLARE_TURNSTILE_SECRET_KEY is missing. The widget appears but server-side verification is skipped.',
+      message: 'CLOUDFLARE_TURNSTILE_SITE_KEY is set but CLOUDFLARE_TURNSTILE_SECRET_KEY is missing. Turnstile cannot be verified server-side.',
       fix: 'Add CLOUDFLARE_TURNSTILE_SECRET_KEY to .env.local, or remove the site key and use ALTCHA instead (set ALTCHA_HMAC_KEY).',
     };
   }
