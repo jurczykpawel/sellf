@@ -6,7 +6,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import MySubscriptions from '@/components/MySubscriptions';
 import type { UserPurchase } from '@/types';
+import { getCustomerRefundAction } from '@/lib/refunds/flow';
+import { buildPurchaseDiscountSummary } from '@/lib/purchases/discounts';
+import {
+  hasMixedRefundPolicies,
+  normalizePurchaseLineItems,
+  requiresManualRefundReview,
+  type NormalizedPurchaseLineItem,
+  type PurchaseLineItem,
+  type PurchaseLineItemProduct,
+} from '@/lib/purchases/line-items';
+
+interface PurchaseTransactionMetadata {
+  coupon_discount?: string | null;
+}
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
@@ -31,6 +46,8 @@ export default function MyPurchasesPage() {
   const { user, loading: authLoading } = useAuth();
   const t = useTranslations('myPurchases');
   const [purchases, setPurchases] = useState<UserPurchase[]>([]);
+  const [lineItemsByTransaction, setLineItemsByTransaction] = useState<Record<string, NormalizedPurchaseLineItem[]>>({});
+  const [transactionMetadataById, setTransactionMetadataById] = useState<Record<string, PurchaseTransactionMetadata | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -55,9 +72,73 @@ export default function MyPurchasesPage() {
 
       if (fetchError) throw fetchError;
 
-      setPurchases((data || []).filter((p: UserPurchase) =>
+      const visiblePurchases = (data || []).filter((p: UserPurchase) =>
         p.status !== 'pending' && p.status !== 'abandoned'
-      ));
+      );
+      setPurchases(visiblePurchases);
+
+      const transactionIds = visiblePurchases.map((purchase: UserPurchase) => purchase.transaction_id);
+      if (transactionIds.length === 0) {
+        setLineItemsByTransaction({});
+        setTransactionMetadataById({});
+        return;
+      }
+
+      const [{ data: rawLineItems, error: lineItemsError }, { data: transactionMetadata, error: transactionMetadataError }] = await Promise.all([
+        supabase
+          .from('payment_line_items')
+          .select('id, transaction_id, product_id, item_type, product_name, quantity, total_price, currency')
+          .in('transaction_id', transactionIds),
+        supabase
+          .from('payment_transactions')
+          .select('id, metadata')
+          .in('id', transactionIds),
+      ]);
+
+      if (lineItemsError) throw lineItemsError;
+
+      const lineItems = (rawLineItems || []) as PurchaseLineItem[];
+      const metadataMap: Record<string, PurchaseTransactionMetadata | null> = {};
+
+      if (!transactionMetadataError) {
+        for (const transaction of transactionMetadata || []) {
+          metadataMap[transaction.id] = transaction.metadata as PurchaseTransactionMetadata | null;
+        }
+      } else {
+        console.warn('[my-purchases] Failed to load transaction metadata:', transactionMetadataError);
+      }
+
+      const productIds = Array.from(new Set(lineItems.map(item => item.product_id)));
+      const productsById = new Map<string, PurchaseLineItemProduct>();
+
+      if (productIds.length > 0) {
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id, name, slug, icon, is_refundable, refund_period_days')
+          .in('id', productIds);
+
+        if (productsError) throw productsError;
+
+        for (const product of productsData || []) {
+          productsById.set(product.id, product);
+        }
+      }
+
+      const grouped: Record<string, NormalizedPurchaseLineItem[]> = {};
+      for (const purchase of visiblePurchases) {
+        const purchaseLineItems = lineItems
+          .filter(item => item.transaction_id === purchase.transaction_id)
+          .map(item => ({ ...item, product: productsById.get(item.product_id) || null }));
+
+        grouped[purchase.transaction_id] = normalizePurchaseLineItems(
+          purchaseLineItems,
+          purchase.purchase_date,
+          purchase.status
+        );
+      }
+
+      setLineItemsByTransaction(grouped);
+      setTransactionMetadataById(metadataMap);
     } catch (err) {
       const error = err as Error;
       setError(error.message || 'Failed to load purchases.');
@@ -149,22 +230,27 @@ export default function MyPurchasesPage() {
     );
   };
 
-  const getRefundButton = (purchase: UserPurchase) => {
-    if (purchase.status === 'refunded') return null;
-    if (purchase.refund_request_status === 'pending') return null;
-
-    if (!purchase.is_refundable) {
+  const getRefundButton = (purchase: UserPurchase, lineItems: NormalizedPurchaseLineItem[] = []) => {
+    if (requiresManualRefundReview(lineItems)) {
       return (
-        <span className="text-xs text-sf-muted">
-          {t('notRefundable', { defaultValue: 'Not refundable' })}
+        <span className="max-w-[240px] text-right text-xs text-sf-muted">
+          {t('bundleManualRefundContact', {
+            defaultValue: 'This bundled purchase has mixed refund policies. Contact the seller to review a partial refund.',
+          })}
         </span>
       );
     }
 
-    if (!purchase.refund_eligible) {
+    const action = getCustomerRefundAction(purchase);
+    if (action.type === 'none' || action.type === 'pending') return null;
+    if (action.type === 'not_refundable') return <span className="text-xs text-sf-muted">{t('notRefundable', { defaultValue: 'Not refundable' })}</span>;
+    if (action.type === 'period_expired') return <span className="text-xs text-sf-muted">{t('refundPeriodExpired', { defaultValue: 'Refund period expired' })}</span>;
+    if (action.type === 'rejected_contact') {
       return (
-        <span className="text-xs text-sf-muted">
-          {t('refundPeriodExpired', { defaultValue: 'Refund period expired' })}
+        <span className="max-w-[220px] text-right text-xs text-sf-muted">
+          {t('refundRejectedContactSeller', {
+            defaultValue: 'Refund rejected. Contact the seller directly if you need more help.',
+          })}
         </span>
       );
     }
@@ -201,6 +287,47 @@ export default function MyPurchasesPage() {
         )}
       </div>
     );
+  };
+
+  const getLineItemBadge = (item: NormalizedPurchaseLineItem) => {
+    if (item.item_type === 'main_product') return t('mainProduct', { defaultValue: 'Main product' });
+    if (item.item_type === 'order_bump') return t('orderBump', { defaultValue: 'Order bump' });
+    return item.item_type;
+  };
+
+  const getLineItemRefundLabel = (item: NormalizedPurchaseLineItem) => {
+    if (item.refundState === 'refundable') return t('lineItemRefundable', { defaultValue: 'Refundable' });
+    if (item.refundState === 'period_expired') return t('lineItemRefundPeriodExpired', { defaultValue: 'Refund period expired' });
+    return t('lineItemNotRefundable', { defaultValue: 'Not refundable' });
+  };
+
+  const getPurchaseDiscountSummary = (purchase: UserPurchase, lineItems: NormalizedPurchaseLineItem[]) => {
+    const subtotal = lineItems.reduce((sum, item) => sum + item.total_price, 0);
+    const transactionMetadata = transactionMetadataById[purchase.transaction_id];
+
+    return buildPurchaseDiscountSummary({
+      subtotal,
+      totalPaid: purchase.amount / 100,
+      couponDiscount: transactionMetadata?.coupon_discount || null,
+    });
+  };
+
+  const getDiscountLabel = (summary: NonNullable<ReturnType<typeof buildPurchaseDiscountSummary>>, currency: string) => {
+    if (summary.couponDiscount?.kind === 'percentage') {
+      return t('discountPercentage', {
+        value: summary.couponDiscount.value,
+        defaultValue: `${summary.couponDiscount.value}%`,
+      });
+    }
+
+    if (summary.couponDiscount?.kind === 'fixed') {
+      return t('discountFixedAmount', {
+        amount: formatPrice(summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
+        defaultValue: formatPrice(summary.couponDiscount.value, currency, t('naLabel'), t('invalidPrice')),
+      });
+    }
+
+    return t('discountApplied', { defaultValue: 'Discount applied' });
   };
 
   if (authLoading || loading) {
@@ -251,6 +378,10 @@ export default function MyPurchasesPage() {
             </div>
           )}
 
+          <div className="mb-8">
+            <MySubscriptions />
+          </div>
+
           {purchases.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-6xl mb-8">🛒</div>
@@ -262,6 +393,10 @@ export default function MyPurchasesPage() {
           ) : (
             <div className="space-y-4">
               {purchases.map((purchase) => (
+                (() => {
+                  const lineItems = lineItemsByTransaction[purchase.transaction_id] || [];
+                  const mixedRefundPolicies = hasMixedRefundPolicies(lineItems);
+                  return (
                 <div
                   key={purchase.transaction_id}
                   className="bg-sf-raised/80 backdrop-blur-md border border-sf-border rounded-2xl p-6 hover:bg-sf-hover transition-all"
@@ -282,6 +417,27 @@ export default function MyPurchasesPage() {
                       <div className="text-lg font-bold text-sf-accent">
                         {formatPrice(purchase.amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
                       </div>
+                      {(() => {
+                        const discountSummary = getPurchaseDiscountSummary(purchase, lineItems);
+                        if (!discountSummary) return null;
+
+                        return (
+                          <div className="mt-2 space-y-1 text-xs text-sf-muted">
+                            <div className="flex items-center justify-between gap-3">
+                              <span>{t('subtotal', { defaultValue: 'Subtotal' })}</span>
+                              <span>{formatPrice(discountSummary.subtotal, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 text-sf-success">
+                              <span>{getDiscountLabel(discountSummary, purchase.currency)}</span>
+                              <span>-{formatPrice(discountSummary.discountAmount, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 font-semibold text-sf-heading">
+                              <span>{t('paid', { defaultValue: 'Paid' })}</span>
+                              <span>{formatPrice(discountSummary.totalPaid, purchase.currency, t('naLabel'), t('invalidPrice'))}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {purchase.refunded_amount > 0 && purchase.status !== 'refunded' && (
                         <div className="text-sm text-sf-muted">
                           {t('refundedAmount', { defaultValue: 'Refunded' })}: {formatPrice(purchase.refunded_amount / 100, purchase.currency, t('naLabel'), t('invalidPrice'))}
@@ -290,13 +446,50 @@ export default function MyPurchasesPage() {
                     </div>
                   </div>
 
+                  {lineItems.length > 0 && (
+                    <div className="mt-5 rounded-xl border border-sf-border bg-sf-float/50 p-4">
+                      <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-sf-muted">
+                        {t('includes', { defaultValue: 'Includes' })}
+                      </div>
+                      <div className="space-y-3">
+                        {lineItems.map((item) => (
+                          <div key={item.id} className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-sf-heading">{item.displayName}</span>
+                                <span className="rounded-full bg-sf-raised px-2 py-0.5 text-[11px] font-medium text-sf-muted">
+                                  {getLineItemBadge(item)}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-xs text-sf-muted">
+                                {getLineItemRefundLabel(item)}
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-sm font-semibold text-sf-heading">
+                              {formatPrice(item.total_price, item.currency, t('naLabel'), t('invalidPrice'))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {mixedRefundPolicies && (
+                        <div className="mt-4 rounded-lg border border-sf-warning/30 bg-sf-warning-soft p-3 text-xs text-sf-warning">
+                          {t('mixedRefundPolicyNotice', {
+                            defaultValue: 'This purchase contains products with different refund policies. Refund requests are currently reviewed for the whole purchase.',
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-4 flex items-center justify-between">
                     <div>
                       {getStatusBadge(purchase)}
                     </div>
-                    {getRefundButton(purchase)}
+                    {getRefundButton(purchase, lineItems)}
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
           )}

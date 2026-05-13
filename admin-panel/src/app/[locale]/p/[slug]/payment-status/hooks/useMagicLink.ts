@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
+import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { MagicLinkState, PaymentStatus, Product } from '../types';
 import { SPINNER_MIN_TIME } from '../utils/helpers';
 
@@ -44,11 +45,15 @@ export function useMagicLink({
     setError(null); // Clear previous errors
 
     try {
-      // Build redirect URL with appropriate parameter
-      const paymentParam = sessionId
-        ? `session_id=${sessionId}`
-        : `payment_intent=${paymentIntentId}`;
-      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(`/p/${product.slug}/payment-status?${paymentParam}`)}`;
+      // Builds /auth/product-access?product=<slug>. By the time this fires,
+      // the Stripe webhook has already granted access — payment identifiers
+      // are not part of the post-login URL.
+      const redirectUrl = buildPostCheckoutMagicLinkRedirect({
+        origin: window.location.origin,
+        productSlug: product.slug,
+        sessionId,
+        paymentIntentId,
+      });
       const supabase = await createClient();
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: customerEmail,

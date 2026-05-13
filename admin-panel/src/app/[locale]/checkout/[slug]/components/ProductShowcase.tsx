@@ -11,7 +11,8 @@ import { useTranslations } from 'next-intl';
 import OmnibusPrice from '@/components/OmnibusPrice';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl } from '@/lib/videoUtils';
-import VideoPlayer from '@/components/player/VideoPlayer';
+import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
+import { isPlayerstackPlatform } from '@/lib/playerstack';
 
 interface ProductShowcaseProps {
   product: Product;
@@ -47,13 +48,18 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
     () => product.preview_video_url ? parseVideoUrl(product.preview_video_url) : null,
     [product.preview_video_url]
   );
+  const canRenderPreviewVideo = Boolean(
+    product.preview_video_url &&
+    parsedVideo?.isValid &&
+    isPlayerstackPlatform(parsedVideo.platform)
+  );
 
   return (
     <div className="w-full lg:w-1/2 lg:pr-8 lg:border-r border-sf-border mb-8 lg:mb-0">
       {/* Product Video / Image */}
-      {parsedVideo ? (
+      {canRenderPreviewVideo && product.preview_video_url ? (
         <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-black">
-          <VideoPlayer parsed={parsedVideo} title={product.name} />
+          <PlayerstackEmbed url={product.preview_video_url} title={product.name} />
         </div>
       ) : product.image_url ? (
         <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-sf-raised">
@@ -155,7 +161,6 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
       {/* Long Description with Markdown Support */}
       {product.long_description && (
         <div className="mb-8 prose dark:prose-invert prose-sm max-w-none">
-          {/* SECURITY: rehype-sanitize strips dangerous HTML/JS from markdown */}
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}

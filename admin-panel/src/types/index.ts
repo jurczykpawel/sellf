@@ -49,6 +49,12 @@ export interface Product {
   custom_price_min: number
   show_price_presets: boolean
   custom_price_presets: number[]
+  // Subscription (Phase 4 — Subscriptions MVP)
+  product_type?: 'one_time' | 'subscription'
+  billing_interval?: 'day' | 'week' | 'month' | 'year' | null
+  billing_interval_count?: number | null
+  recurring_price?: number | null
+  trial_days?: number | null
   // M:N variant relationship (populated by API when needed)
   variant_groups?: ProductVariantGroup[]
   created_at: string
@@ -81,15 +87,11 @@ export interface ContentItem {
 export interface ContentItemConfig {
   // For video_embed
   embed_url?: string
-  embed_code?: string
   // Video embed options
   autoplay?: boolean
   loop?: boolean
   muted?: boolean
-  preload?: boolean
   controls?: boolean
-  /** When false, skip custom player and render a plain iframe with native platform UI */
-  useCustomPlayer?: boolean
   // For download_link
   download_url?: string
   file_name?: string

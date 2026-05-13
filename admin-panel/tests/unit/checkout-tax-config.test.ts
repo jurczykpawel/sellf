@@ -275,12 +275,13 @@ describe('getCheckoutConfig', () => {
       expect(config.sources.payment_methods).toBe('db')
     })
 
-    it('should fallback to env/default when no payment config in DB', async () => {
+    it('should fallback to Stripe dynamic payment methods when no payment config or env override exists', async () => {
       mockedGetShopConfig.mockResolvedValue(baseShopConfig)
       mockedGetPaymentMethodConfig.mockResolvedValue(null)
 
       const config = await getCheckoutConfig()
-      expect(config.payment_method_types).toEqual(['blik', 'p24', 'card'])
+      expect(config.paymentMethodMode).toBe('automatic')
+      expect(config.payment_method_types).toEqual([])
       expect(config.sources.payment_methods).toBe('default')
     })
   })

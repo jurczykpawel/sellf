@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { RefundRequest } from '@/types';
+import { getAdminRefundActions } from '@/lib/refunds/flow';
 
 const formatPrice = (price: number | null, currency: string | null = 'USD', naLabel = 'N/A', invalidLabel = 'Invalid Price') => {
   if (price === null) return naLabel;
@@ -70,6 +71,45 @@ export default function RefundRequestsPage() {
     setActionType(action);
     setAdminResponse('');
     setActionModalOpen(true);
+  };
+
+  const renderRequestActions = (request: RefundRequest) => {
+    const actions = getAdminRefundActions(request.status);
+
+    if (actions.length > 0) {
+      return (
+        <div className="flex gap-2 justify-end">
+          {actions.includes('approve') && (
+            <button
+              onClick={() => openActionModal(request, 'approve')}
+              disabled={processingId === request.id}
+              className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {t('approve', { defaultValue: 'Approve' })}
+            </button>
+          )}
+          {actions.includes('reject') && (
+            <button
+              onClick={() => openActionModal(request, 'reject')}
+              disabled={processingId === request.id}
+              className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 disabled:opacity-50"
+            >
+              {t('reject', { defaultValue: 'Reject' })}
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (request.admin_response) {
+      return (
+        <span className="text-xs text-sf-muted max-w-xs truncate block" title={request.admin_response}>
+          {request.admin_response}
+        </span>
+      );
+    }
+
+    return <span className="text-sf-muted">—</span>;
   };
 
   const processRequest = async () => {
@@ -231,30 +271,7 @@ export default function RefundRequestsPage() {
                     {formatDate(request.created_at, t('naLabel'))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {request.status === 'pending' ? (
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => openActionModal(request, 'approve')}
-                          disabled={processingId === request.id}
-                          className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50"
-                        >
-                          {t('approve', { defaultValue: 'Approve' })}
-                        </button>
-                        <button
-                          onClick={() => openActionModal(request, 'reject')}
-                          disabled={processingId === request.id}
-                          className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 disabled:opacity-50"
-                        >
-                          {t('reject', { defaultValue: 'Reject' })}
-                        </button>
-                      </div>
-                    ) : request.admin_response ? (
-                      <span className="text-xs text-sf-muted max-w-xs truncate block" title={request.admin_response}>
-                        {request.admin_response}
-                      </span>
-                    ) : (
-                      <span className="text-sf-muted">—</span>
-                    )}
+                    {renderRequestActions(request)}
                   </td>
                 </tr>
               ))}

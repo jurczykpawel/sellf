@@ -303,6 +303,74 @@ describe('Product Validation', () => {
     });
   });
 
+  describe('video content validation', () => {
+    const validProduct = {
+      name: 'Video Product',
+      slug: 'video-product',
+      description: 'A test product with video content',
+      price: 0,
+      currency: 'PLN',
+      content_delivery_type: 'content',
+    };
+
+    it.each([
+      ['Wistia', 'https://support.wistia.com/medias/e4a27b971d'],
+      ['Bunny HLS', 'https://vz-12345678.b-cdn.net/course/playlist.m3u8'],
+      ['Bunny MP4', 'https://videos.example.b-cdn.net/course/lesson-1.mp4'],
+      ['Twitch VOD', 'https://www.twitch.tv/videos/2321733225'],
+      ['Twitch channel', 'https://www.twitch.tv/somestreamer'],
+      ['Twitch clip', 'https://clips.twitch.tv/PoliteSlugHere'],
+    ])('accepts %s video_embed URLs', (_label, embedUrl) => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        content_config: {
+          content_items: [{
+            id: 'video-1',
+            type: 'video_embed',
+            title: 'Lesson 1',
+            order: 1,
+            is_active: true,
+            config: { embed_url: embedUrl },
+          }],
+        },
+      });
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it.each([
+      ['Bunny iframe', 'https://iframe.mediadelivery.net/embed/123456/a1b2c3'],
+      ['Loom', 'https://www.loom.com/share/a1b2c3'],
+      ['DailyMotion', 'https://www.dailymotion.com/video/x7tgad0'],
+    ])('rejects %s video_embed URLs', (_label, embedUrl) => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        content_config: {
+          content_items: [{
+            id: 'video-1',
+            type: 'video_embed',
+            title: 'Lesson 1',
+            order: 1,
+            is_active: true,
+            config: { embed_url: embedUrl },
+          }],
+        },
+      });
+
+      expect(result.isValid).toBe(false);
+    });
+
+    it('rejects Bunny iframe preview video URLs', () => {
+      const result = validateCreateProduct({
+        ...validProduct,
+        preview_video_url: 'https://iframe.mediadelivery.net/embed/123456/a1b2c3',
+      });
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.join('\n')).toContain('Bunny Stream HLS/MP4');
+    });
+  });
+
   describe('validateIcon edge cases', () => {
     it('should reject icon with exactly 21 characters', () => {
       const result = validateUpdateProduct({ icon: 'a'.repeat(21) });

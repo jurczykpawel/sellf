@@ -115,7 +115,7 @@ export async function testStripeKeyConnection(apiKey: string): Promise<TestConne
 
     // Initialize Stripe client with the provided key
     const stripe = new Stripe(apiKey.trim(), {
-      apiVersion: '2026-04-22.dahlia',
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     })
 
@@ -179,7 +179,7 @@ export async function verifyStripeKeyPermissions(apiKey: string): Promise<Verify
     await requireAdminApi(supabase)
 
     const stripe = new Stripe(apiKey.trim(), {
-      apiVersion: '2026-04-22.dahlia',
+      apiVersion: STRIPE_API_VERSION,
       typescript: true,
     })
 
@@ -645,7 +645,7 @@ export async function getStripeAccountInfo(): Promise<{ accountId: string | null
     const apiKey = await getDecryptedStripeKeyInternal(mode) || process.env.STRIPE_SECRET_KEY
     if (!apiKey) return null
 
-    const stripe = new Stripe(apiKey, { apiVersion: '2026-04-22.dahlia' })
+    const stripe = new Stripe(apiKey, { apiVersion: STRIPE_API_VERSION })
     const account = await stripe.accounts.retrieve(null)
     const anyAccount = account as { business_profile?: { name?: string | null }; email?: string | null }
     return {

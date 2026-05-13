@@ -352,32 +352,21 @@ test.describe('Product Access & Content Delivery', () => {
 // ===== 5. VIDEO PLAYER =====
 
 test.describe('Video Player', () => {
-  test('thumbnail visible before play, player mounts after click', async ({ page }) => {
+  test('Playerstack embed mounts only when video content is rendered', async ({ page }) => {
     await login(page);
     await page.goto(`/p/${contentProduct.slug}`);
 
     // Wait for content to load
     await expect(page.getByText(/Welcome Video/i).first()).toBeVisible({ timeout: 15000 });
 
-    // Thumbnail should be visible before play
-    const thumbnail = page.getByTestId('player-thumbnail');
-    await expect(thumbnail).toBeVisible({ timeout: 10000 });
-
-    // Player container should NOT yet exist
-    await expect(page.getByTestId('player-container')).toHaveCount(0);
-
-    // Block YouTube requests to prevent flakiness — we only care about DOM changes
+    // Block YouTube requests to prevent flakiness — we only care about Sellf DOM integration.
     await page.route('https://*.youtube.com/**', (route) => route.abort());
     await page.route('https://img.youtube.com/**', (route) => route.abort());
 
-    // Click play
-    await thumbnail.click();
-
-    // After clicking, the player container should be mounted
-    await expect(page.getByTestId('player-container')).toBeVisible({ timeout: 5000 });
-
-    // Thumbnail should no longer be visible
+    await expect(page.locator('script[data-sellf-playerstack="true"]')).toHaveCount(1, { timeout: 10000 });
+    await expect(page.getByTestId('playerstack-loading').or(page.getByTestId('playerstack-embed'))).toBeVisible({ timeout: 10000 });
     await expect(page.getByTestId('player-thumbnail')).toHaveCount(0);
+    await expect(page.getByTestId('player-container')).toHaveCount(0);
   });
 });
 

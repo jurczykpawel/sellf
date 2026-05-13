@@ -3,15 +3,20 @@
 
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { CreditCard, DollarSign, Receipt, RotateCcw, TrendingUp, WalletCards } from 'lucide-react';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
+import { useUserPreferences } from '@/contexts/UserPreferencesContext';
+import type { CurrencyAmount } from '@/lib/actions/analytics';
 
 interface PaymentStats {
   totalTransactions: number;
-  totalRevenue: number;
+  totalRevenue: CurrencyAmount;
   pendingSessions: number;
-  refundedAmount: number;
-  todayRevenue: number;
-  thisMonthRevenue: number;
+  refundedAmount: CurrencyAmount;
+  todayRevenue: CurrencyAmount;
+  thisMonthRevenue: CurrencyAmount;
 }
 
 interface PaymentStatsCardsProps {
@@ -20,13 +25,66 @@ interface PaymentStatsCardsProps {
 
 export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
   const t = useTranslations('admin.payments.stats');
+  const { currencyViewMode, displayCurrency } = useUserPreferences();
+  const { convertMultipleCurrencies } = useCurrencyConversion();
+  const [convertedAmounts, setConvertedAmounts] = useState<{
+    totalRevenue: number;
+    todayRevenue: number;
+    thisMonthRevenue: number;
+    refundedAmount: number;
+  } | null>(null);
   
-  const formatCurrency = (amount: number) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function convertStats() {
+      if (currencyViewMode !== 'converted' || !displayCurrency) {
+        setConvertedAmounts(null);
+        return;
+      }
+
+      const [totalRevenue, todayRevenue, thisMonthRevenue, refundedAmount] =
+        await convertMultipleCurrencies([
+          stats.totalRevenue,
+          stats.todayRevenue,
+          stats.thisMonthRevenue,
+          stats.refundedAmount,
+        ], displayCurrency);
+
+      if (!cancelled) {
+        setConvertedAmounts({ totalRevenue, todayRevenue, thisMonthRevenue, refundedAmount });
+      }
+    }
+
+    convertStats().catch((error) => {
+      console.error('[PaymentStatsCards] Currency conversion failed:', error);
+      if (!cancelled) setConvertedAmounts(null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stats, currencyViewMode, displayCurrency, convertMultipleCurrencies]);
+
+  const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD', // You can make this dynamic based on your needs
-    }).format(amount);
+      currency,
+    }).format(amount / 100);
   };
+
+  const formatMultiCurrency = useCallback((amounts: CurrencyAmount, convertedAmount?: number) => {
+    if (currencyViewMode === 'converted' && displayCurrency && convertedAmount !== undefined) {
+      return formatCurrency(convertedAmount, displayCurrency);
+    }
+
+    const currencies = Object.keys(amounts);
+    if (currencies.length === 0) return formatCurrency(0, displayCurrency || 'USD');
+    return currencies
+      .sort()
+      .map((currency) => formatCurrency(amounts[currency], currency))
+      .join(' + ');
+  }, [currencyViewMode, displayCurrency]);
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US').format(num);
@@ -35,89 +93,75 @@ export default function PaymentStatsCards({ stats }: PaymentStatsCardsProps) {
   const statsCards = [
     {
       title: t('totalRevenue'),
-      value: formatCurrency(stats.totalRevenue),
-      icon: '💰',
+      value: formatMultiCurrency(stats.totalRevenue, convertedAmounts?.totalRevenue),
+      icon: DollarSign,
       color: 'bg-green-500',
-      change: '+12.5%',
-      changeType: 'positive' as const,
+      helper: t('grossCompleted', { defaultValue: 'Completed payments, gross' }),
     },
     {
       title: t('totalTransactions'),
       value: formatNumber(stats.totalTransactions),
-      icon: '📊',
+      icon: Receipt,
       color: 'bg-blue-500',
-      change: '+8.2%',
-      changeType: 'positive' as const,
+      helper: t('completedTransactions', { defaultValue: 'Completed transactions' }),
     },
     {
       title: t('todayRevenue'),
-      value: formatCurrency(stats.todayRevenue),
-      icon: '📈',
+      value: formatMultiCurrency(stats.todayRevenue, convertedAmounts?.todayRevenue),
+      icon: TrendingUp,
       color: 'bg-sf-accent-bg',
-      change: '+15.3%',
-      changeType: 'positive' as const,
+      helper: t('completedToday', { defaultValue: 'Completed today' }),
     },
     {
       title: t('pendingSessions'),
       value: formatNumber(stats.pendingSessions),
-      icon: '⏳',
+      icon: WalletCards,
       color: 'bg-yellow-500',
-      change: stats.pendingSessions > 10 ? t('high') : t('normal'),
-      changeType: stats.pendingSessions > 10 ? 'warning' : 'neutral' as const,
+      helper: stats.pendingSessions > 0
+        ? t('awaitingPayment', { defaultValue: 'Awaiting completion' })
+        : t('nonePending', { defaultValue: 'No pending payments' }),
     },
     {
       title: t('thisMonthRevenue'),
-      value: formatCurrency(stats.thisMonthRevenue),
-      icon: '📅',
+      value: formatMultiCurrency(stats.thisMonthRevenue, convertedAmounts?.thisMonthRevenue),
+      icon: CreditCard,
       color: 'bg-indigo-500',
-      change: '+22.1%',
-      changeType: 'positive' as const,
+      helper: t('completedThisMonth', { defaultValue: 'Completed this month' }),
     },
     {
       title: t('refundedAmount'),
-      value: formatCurrency(stats.refundedAmount),
-      icon: '↩️',
+      value: formatMultiCurrency(stats.refundedAmount, convertedAmounts?.refundedAmount),
+      icon: RotateCcw,
       color: 'bg-red-500',
-      change: '-2.1%',
-      changeType: 'negative' as const,
+      helper: t('totalRefunds', { defaultValue: 'Recorded refunds' }),
     },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-      {statsCards.map((card, index) => (
+      {statsCards.map((card, index) => {
+        const Icon = card.icon;
+        return (
         <div key={index} className="bg-sf-base shadow p-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-sf-body">
                 {card.title}
               </p>
-              <p className="text-2xl font-semibold text-sf-heading mt-1">
+              <p className="text-xl font-semibold text-sf-heading mt-1 break-words">
                 {card.value}
               </p>
             </div>
             <div className={`w-12 h-12 ${card.color} flex items-center justify-center text-white text-xl`}>
-              {card.icon}
+              <Icon className="w-5 h-5" aria-hidden="true" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            <span className={`text-sm font-medium ${
-              card.changeType === 'positive'
-                ? 'text-sf-success'
-                : card.changeType === 'negative'
-                ? 'text-sf-danger'
-                : card.changeType === 'warning'
-                ? 'text-sf-warning'
-                : 'text-sf-body'
-            }`}>
-              {card.change}
-            </span>
-            <span className="text-sm text-sf-muted ml-2">
-              {t('vsLastPeriod')}
-            </span>
+            <span className="text-sm text-sf-muted">{card.helper}</span>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

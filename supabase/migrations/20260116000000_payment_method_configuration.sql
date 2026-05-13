@@ -244,11 +244,11 @@ CREATE POLICY "Service role full access to payment method config"
 --   'Per-product payment method configuration override. If NULL, uses global config from payment_method_config table. If set with override_enabled=true, takes precedence over global config';
 
 -- =============================================================================
--- INSERT DEFAULT RECOMMENDED CONFIGURATION
+-- INSERT DEFAULT PAYMENT METHOD CONFIGURATION
 -- =============================================================================
 
--- Insert default recommended configuration optimized for Polish market
--- Order: BLIK -> Przelewy24 -> Card + Express Checkout enabled
+-- Insert default configuration using Stripe Dynamic Payment Methods.
+-- Admins can switch to custom mode from the payment method settings UI.
 INSERT INTO seller_main.payment_method_config (
   id,
   config_mode,
@@ -264,15 +264,11 @@ INSERT INTO seller_main.payment_method_config (
   available_payment_methods
 ) VALUES (
   1,
-  'custom',
+  'automatic',
   NULL,
   NULL,
-  '[
-    {"type": "blik", "enabled": true, "display_order": 0, "currency_restrictions": ["PLN"], "label": "BLIK"},
-    {"type": "p24", "enabled": true, "display_order": 1, "currency_restrictions": ["PLN", "EUR"], "label": "Przelewy24"},
-    {"type": "card", "enabled": true, "display_order": 2, "currency_restrictions": [], "label": "Card"}
-  ]'::jsonb,
-  '["blik", "p24", "card"]'::jsonb,
+  '[]'::jsonb,
+  '[]'::jsonb,
   '{}'::jsonb,
   true,
   true,

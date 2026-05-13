@@ -43,6 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Performance and memory management refs
   const isMountedRef = useRef(true)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Tracks the user.id of the previous auth state so we can distinguish a
+  // same-user token refresh (keep current role) from a real user switch
+  // (reset to 'user' before the new lookup resolves).
+  const prevUserIdRef = useRef<string | null>(null)
 
   /**
    * Fetches admin status using cached function for better performance
@@ -89,11 +93,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentUser)
         setError(null)
 
-        // Reset role immediately to prevent stale role from rendering wrong components
-        setRole('user')
+        // Decide how to treat the in-flight `role` value:
+        //   - same user (token refresh): keep prior role until the RPC
+        //     resolves so admin-only UI does not flicker to non-admin
+        //     mid-render and let a fast click read isAdmin=false.
+        //   - actual user switch (e.g. A signs out then B signs in
+        //     same-tab without an intermediate null state): reset to
+        //     'user' so B does not briefly inherit A's admin role from
+        //     the previous render. RLS already prevents data leakage,
+        //     this just keeps the UI honest during the lookup window.
+        //   - logout (no current user): explicit reset below.
+        const prevUserId = prevUserIdRef.current
+        const currentUserId = currentUser?.id ?? null
+        const userSwitched = prevUserId !== null && currentUserId !== null && prevUserId !== currentUserId
+        prevUserIdRef.current = currentUserId
 
-        // Resolve user role
         if (currentUser) {
+          if (userSwitched) {
+            setRole('user')
+          }
           const resolvedRole = await resolveUserRole(currentUser.id)
 
           if (!isMountedRef.current) return

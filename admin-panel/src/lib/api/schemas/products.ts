@@ -17,14 +17,31 @@ import {
 // Content Item Schema (for product content)
 // ============================================================================
 
+export const ContentItemConfigSchema = z.object({
+  embed_url: z.string().url().max(2048).optional(),
+  autoplay: z.boolean().optional(),
+  loop: z.boolean().optional(),
+  muted: z.boolean().optional(),
+  controls: z.boolean().optional(),
+  download_url: z.string().url().max(2048).optional(),
+  file_name: z.string().max(255).optional(),
+  file_size: z.string().max(50).optional(),
+  hosted_file_id: z.string().max(255).optional(),
+  mime_type: z.string().max(255).optional(),
+  thumbnail_url: z.string().url().max(2048).optional(),
+  duration: z.string().max(50).optional(),
+  access_level: z.enum(['basic', 'premium', 'vip']).optional(),
+}).strict().openapi('ContentItemConfig');
+
 export const ContentItemSchema = z.object({
-  id: z.string().openapi({ example: 'item-1' }),
-  type: z.enum(['text', 'video', 'file', 'link']).openapi({ example: 'text' }),
+  id: z.string().min(1).max(128).openapi({ example: 'item-1' }),
+  type: z.enum(['video_embed', 'download_link', 'hosted_video', 'hosted_file']).openapi({ example: 'video_embed' }),
   title: z.string().min(1).max(255).openapi({ example: 'Introduction' }),
-  content: z.string().openapi({ example: 'Welcome to the course...' }),
+  description: z.string().max(2000).optional(),
+  config: ContentItemConfigSchema,
   order: z.number().int().min(0).openapi({ example: 0 }),
   is_active: z.boolean().default(true),
-}).openapi('ContentItem');
+}).strict().openapi('ContentItem');
 
 export const ContentConfigSchema = z.object({
   content_items: z.array(ContentItemSchema).default([]),
@@ -44,7 +61,7 @@ export const ProductSchema = z.object({
   is_active: z.boolean().openapi({ example: true }),
   is_featured: z.boolean().openapi({ example: false }),
   icon: z.string().nullable().openapi({ example: 'https://...' }),
-  content_delivery_type: z.enum(['direct', 'email', 'redirect']).default('direct'),
+  content_delivery_type: z.enum(['content', 'redirect']).default('content'),
   content_config: ContentConfigSchema.nullable(),
   available_from: DateTimeSchema.nullable(),
   available_until: DateTimeSchema.nullable(),
@@ -87,7 +104,7 @@ export const CreateProductSchema = z.object({
   icon: z.string().url().optional().openapi({
     description: 'Product icon URL',
   }),
-  content_delivery_type: z.enum(['direct', 'email', 'redirect']).default('direct'),
+  content_delivery_type: z.enum(['content', 'redirect']).default('content'),
   content_config: ContentConfigSchema.optional(),
   available_from: z.string().datetime().nullable().optional(),
   available_until: z.string().datetime().nullable().optional(),

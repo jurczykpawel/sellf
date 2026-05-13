@@ -213,6 +213,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 setPriceDisplayValue={setPriceDisplayValue}
                 shopDefaultVatRate={shopDefaultVatRate}
                 taxMode={taxMode}
+                isEditing={isEditMode}
               />
             )}
 

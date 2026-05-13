@@ -65,6 +65,12 @@ export interface ProductFormData {
   oto_discount_type?: 'percentage' | 'fixed';
   oto_discount_value?: number;
   oto_duration_minutes?: number;
+  // Subscription (Phase 4 — Subscriptions MVP)
+  product_type: 'one_time' | 'subscription';
+  billing_interval: 'day' | 'week' | 'month' | 'year' | null;
+  billing_interval_count: number | null;
+  recurring_price: number | null;
+  trial_days: number | null;
 }
 
 export interface OtoState {
@@ -199,7 +205,13 @@ export const initialFormData: ProductFormData = {
   allow_custom_price: false,
   custom_price_min: 5.00,
   show_price_presets: true,
-  custom_price_presets: [5, 10, 25]
+  custom_price_presets: [5, 10, 25],
+  // Subscription (Phase 4 — Subscriptions MVP)
+  product_type: 'one_time',
+  billing_interval: null,
+  billing_interval_count: null,
+  recurring_price: null,
+  trial_days: null,
 };
 
 export const initialOtoState: OtoState = {

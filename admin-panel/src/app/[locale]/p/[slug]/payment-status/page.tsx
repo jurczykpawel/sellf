@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import PaymentStatusView from './components/PaymentStatusView';
-import { verifyPaymentSession, verifyPaymentIntent, OtoInfo } from '@/lib/payment/verify-payment';
+import { verifyPaymentSession, verifyPaymentIntent, OtoInfo, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { PaymentStatus, OtoOfferInfo } from './types';
@@ -69,27 +69,10 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         paymentStatus = 'expired';
         errorMessage = 'Payment session has expired. Please try again.';
       } else if (result.status === 'complete' && result.payment_status === 'paid') {
-        if (result.access_granted) {
-          accessGranted = true;
-          paymentStatus = 'completed';
-
-          // Access was granted in DB, but the buyer is not logged in (e.g., a
-          // pre-existing user did guest checkout). Show magic link UI so they
-          // can sign in and view the product.
-          if (result.requires_login && result.send_magic_link) {
-            paymentStatus = 'magic_link_sent';
-          }
-        } else if (result.scenario === 'email_validation_failed_server_side') {
-          // Email validation failed without refund
-          paymentStatus = 'email_validation_failed';
-          errorMessage = result.error || 'Invalid email address detected.';
-        } else if (result.is_guest_purchase && result.send_magic_link) {
-          // Guest purchase saved - let frontend handle magic link
-          paymentStatus = 'magic_link_sent';
-        } else {
-          errorMessage = result.error || 'Unknown error occurred';
-          paymentStatus = 'failed';
-        }
+        const mapped = mapVerifiedPaymentToStatus(result);
+        paymentStatus = mapped.paymentStatus;
+        accessGranted = mapped.accessGranted;
+        errorMessage = mapped.errorMessage;
       } else if (result.error) {
         errorMessage = result.error;
         paymentStatus = 'failed';
@@ -110,27 +93,10 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       userExistsInDatabase = result.scenario === 'existing_user_email';
 
       if (result.status === 'succeeded') {
-        if (result.access_granted) {
-          accessGranted = true;
-          paymentStatus = 'completed';
-
-          // Access was granted in DB, but the buyer is not logged in (e.g., a
-          // pre-existing user did guest checkout). Show magic link UI so they
-          // can sign in and view the product.
-          if (result.requires_login && result.send_magic_link) {
-            paymentStatus = 'magic_link_sent';
-          }
-        } else if (result.scenario === 'email_validation_failed_server_side') {
-          // Email validation failed without refund
-          paymentStatus = 'email_validation_failed';
-          errorMessage = result.error || 'Invalid email address detected.';
-        } else if (result.is_guest_purchase && result.send_magic_link) {
-          // Guest purchase saved - let frontend handle magic link
-          paymentStatus = 'magic_link_sent';
-        } else {
-          errorMessage = result.error || 'Unknown error occurred';
-          paymentStatus = 'failed';
-        }
+        const mapped = mapVerifiedPaymentToStatus(result);
+        paymentStatus = mapped.paymentStatus;
+        accessGranted = mapped.accessGranted;
+        errorMessage = mapped.errorMessage;
       } else if (result.error) {
         errorMessage = result.error;
         paymentStatus = 'failed';

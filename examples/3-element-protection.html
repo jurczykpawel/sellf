@@ -446,16 +446,5 @@ export default ${name};
     <!-- Sellf Script - no productSlug needed for element protection -->
     <script src="http://localhost:3000/api/sellf?id=3"></script>
 
-    <!-- Sellf Embed Widget (auto-configured via endpoint) -->
-    <script src="http://localhost:3000/api/sellf-embed"></script>
-
-    <!-- Optional: Listen for success events -->
-    <script>
-      document.addEventListener('sellf:success', function(e) {
-        console.log('Product claimed:', e.detail.productSlug, 'by:', e.detail.email);
-        // Optionally refresh the page or update UI
-        // location.reload();
-      });
-    </script>
 </body>
 </html>

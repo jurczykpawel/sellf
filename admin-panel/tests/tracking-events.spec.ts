@@ -85,37 +85,62 @@ async function getFbqCalls(page: Page): Promise<any[]> {
  */
 async function mockStripe(page: Page) {
   await page.addInitScript(() => {
-    (window as any).loadStripe = async function() {
-      return {
-        elements: function() {
-          return {
-            _commonOptions: { clientSecret: 'pi_mock_secret_123' },
-            create: function() {
-              return {
-                mount: function(selector: string) {
-                  const container = document.querySelector(selector);
-                  if (container) {
-                    const mockEl = document.createElement('div');
-                    mockEl.setAttribute('data-testid', 'mock-payment-element');
-                    mockEl.innerHTML = '<div>Mock Payment Element</div>';
-                    container.appendChild(mockEl);
-                  }
-                },
-                on: function() {},
-                unmount: function() {},
-                destroy: function() {}
-              };
-            },
-            submit: async function() { return { error: null }; }
-          };
-        },
-        confirmPayment: async function() { return { error: null }; },
-        retrievePaymentIntent: async function(cs: string) {
-          return { paymentIntent: { id: 'pi_mock_123', client_secret: cs, status: 'succeeded' } };
-        }
-      };
+    const mockSession = {
+      id: 'cs_test_mock',
+      currency: 'pln',
+      email: null,
+      lineItems: [],
+      total: { total: { minorUnitsAmount: 10000, amount: '100.00' } },
+      status: { type: 'open' },
     };
-    (window as any).Stripe = (window as any).loadStripe;
+    const mockStripeObject = {
+      elements: function() { return {}; },
+      createToken: async function() { return {}; },
+      createPaymentMethod: async function() { return {}; },
+      confirmCardPayment: async function() { return {}; },
+      initCheckoutElementsSdk: function() {
+        return {
+          on: function() {},
+          changeAppearance: function() {},
+          loadFonts: function() {},
+          createPaymentElement: function() {
+            return {
+              mount: function(target: string | HTMLElement) {
+                const container = typeof target === 'string' ? document.querySelector(target) : target;
+                if (container) {
+                  const mockEl = document.createElement('div');
+                  mockEl.setAttribute('data-testid', 'mock-payment-element');
+                  mockEl.innerHTML = '<div>Mock Payment Element</div>';
+                  container.appendChild(mockEl);
+                }
+              },
+              on: function() {},
+              update: function() {},
+              unmount: function() {},
+              destroy: function() {},
+            };
+          },
+          loadActions: async function() {
+            return {
+              type: 'success',
+              actions: {
+                getSession: () => mockSession,
+                updateEmail: async () => ({ type: 'success', session: mockSession }),
+                updateBillingAddress: async () => ({ type: 'success', session: mockSession }),
+                confirm: async ({ returnUrl }: { returnUrl?: string } = {}) => {
+                  if (returnUrl) window.location.href = returnUrl.replace('{CHECKOUT_SESSION_ID}', 'cs_test_mock');
+                  return { type: 'success', session: mockSession };
+                },
+              },
+            };
+          },
+        };
+      },
+      retrievePaymentIntent: async function(cs: string) {
+        return { paymentIntent: { id: 'pi_mock_123', client_secret: cs, status: 'succeeded' } };
+      },
+    };
+    (window as any).Stripe = function() { return mockStripeObject; };
   });
 
   await page.route('https://js.stripe.com/**', route => {
@@ -126,7 +151,7 @@ async function mockStripe(page: Page) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ clientSecret: 'pi_mock_secret_123', amount: 10000 })
+      body: JSON.stringify({ clientSecret: 'cs_test_mock_secret_123', checkoutSessionId: 'cs_test_mock', amount: 10000 })
     });
   });
 }
@@ -1337,11 +1362,11 @@ test.describe('Tracking Events - Payment Flow Events', () => {
   // add_payment_info
   //
   // This event fires inside CustomPaymentForm.handleSubmit(), after
-  // elements.submit() succeeds and before stripe.confirmPayment().
-  // Because the form depends on @stripe/react-stripe-js hooks (useStripe,
-  // useElements) which initialise through the Stripe Elements provider,
+  // checkout.confirm() runs.
+  // Because the form depends on @stripe/react-stripe-js/checkout hooks
+  // which initialise through the Checkout Elements provider,
   // simply mocking window.loadStripe is NOT sufficient to make the React
-  // provider expose a usable `stripe` / `elements` pair. The provider
+  // provider expose usable checkout actions. The provider
   // receives `null` until the real Stripe SDK resolves, and our mock is
   // intercepted at a different layer.
   //
@@ -1363,7 +1388,7 @@ test.describe('Tracking Events - Payment Flow Events', () => {
     await page.waitForTimeout(2000);
 
     // Call the trackEvent function directly in the browser with add_payment_info payload.
-    // This mirrors what CustomPaymentForm does before stripe.confirmPayment().
+    // This mirrors what CustomPaymentForm does before checkout.confirm().
     await page.evaluate((product: any) => {
       const eventId = crypto.randomUUID();
 

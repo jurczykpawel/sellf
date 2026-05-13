@@ -36,6 +36,20 @@ interface UseOtoReturn {
   handleOtoExpire: () => void;
   /** Slug of the OTO target product (for funnel test redirect) */
   funnelTestOtoSlug: string | null;
+  /**
+   * Returns a Promise that resolves once the funnel-test OTO lookup has
+   * settled (success, failure, or "no OTO configured"). Exposed as a getter
+   * so callers always read the latest in-flight or resolved promise — a
+   * mutated ref does not re-render, so a stale plain reference would never
+   * unblock once the fetch finishes.
+   */
+  getFunnelTestOtoReady: () => Promise<void>;
+  /**
+   * Returns the latest funnel-test OTO slug, bypassing closure capture so a
+   * caller awaiting `getFunnelTestOtoReady()` can read the value the fetch
+   * just wrote even if its memoized callback was bound to an earlier render.
+   */
+  getFunnelTestOtoSlug: () => string | null;
 }
 
 export function useOto({
@@ -51,6 +65,25 @@ export function useOto({
   const [otoInfo, setOtoInfo] = useState<OtoInfo | null>(null);
   const [otoExpired, setOtoExpired] = useState(false);
   const [funnelTestOtoSlug, setFunnelTestOtoSlug] = useState<string | null>(null);
+
+  // Mirror the slug into a ref so callers can read the latest value past
+  // the closure boundary of any async handler that captured an older
+  // render. Updated together with state (in the fetch's finally block).
+  const funnelTestOtoSlugRef = useRef<string | null>(null);
+  const getFunnelTestOtoSlug = useCallback(() => funnelTestOtoSlugRef.current, []);
+
+  // Holds the in-flight (or settled) funnel-test OTO fetch promise. Mutated
+  // when the productId/isFunnelTest pair changes — callers must read it
+  // through the getter below so they always see the active promise instead
+  // of a stale snapshot from an earlier render.
+  const funnelTestOtoReadyRef = useRef<{ promise: Promise<void>; resolve: () => void }>(
+    (() => {
+      let resolve: () => void = () => {};
+      const promise = new Promise<void>((r) => { resolve = r; });
+      return { promise, resolve };
+    })(),
+  );
+  const getFunnelTestOtoReady = useCallback(() => funnelTestOtoReadyRef.current.promise, []);
 
   // Derived from URL params + expiration flag — single source of truth, no
   // setState-in-effect cascade.
@@ -108,6 +141,11 @@ export function useOto({
     if (!isFunnelTest) return;
     const controller = new AbortController();
 
+    // Reset the ready-promise for this (isFunnelTest, productId) pair.
+    let resolveReady: () => void = () => {};
+    const readyPromise = new Promise<void>((r) => { resolveReady = r; });
+    funnelTestOtoReadyRef.current = { promise: readyPromise, resolve: resolveReady };
+
     const checkOto = async () => {
       try {
         const supabase = await createClient();
@@ -126,11 +164,16 @@ export function useOto({
             .eq('id', offer.oto_product_id)
             .abortSignal(controller.signal)
             .single();
-          if (otoProduct?.slug) setFunnelTestOtoSlug(otoProduct.slug);
+          if (otoProduct?.slug) {
+            funnelTestOtoSlugRef.current = otoProduct.slug;
+            setFunnelTestOtoSlug(otoProduct.slug);
+          }
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         console.error('[useOto] Failed to fetch funnel test OTO slug:', err);
+      } finally {
+        resolveReady();
       }
     };
 
@@ -143,5 +186,13 @@ export function useOto({
     toast.warning(t('otoExpired'));
   }, [t]);
 
-  return { isOtoMode, otoInfo, otoExpired, handleOtoExpire, funnelTestOtoSlug };
+  return {
+    isOtoMode,
+    otoInfo,
+    otoExpired,
+    handleOtoExpire,
+    funnelTestOtoSlug,
+    getFunnelTestOtoReady,
+    getFunnelTestOtoSlug,
+  };
 }

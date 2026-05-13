@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { buildSupabaseCookieOptions } from './cookie-options'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -27,15 +28,10 @@ export async function createClient() {
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              // SameSite=None is required for cross-domain SDK (sellf.js on external domains).
-              const needsCrossDomain = isProduction
+              // Cookie flags centralized — see buildSupabaseCookieOptions.
               cookieStore.set(name, value, {
                 ...(options as object),
-                // httpOnly must be false — @supabase/ssr browser client reads tokens
-                // via document.cookie. Setting httpOnly breaks client-side auth entirely.
-                httpOnly: false,
-                sameSite: needsCrossDomain ? 'none' : ((options?.sameSite as 'lax' | 'strict' | 'none' | undefined) ?? 'lax'),
-                secure: isProduction ? true : ((options?.secure as boolean | undefined) ?? false),
+                ...buildSupabaseCookieOptions({ isProduction, callerOptions: options }),
               })
             })
           } catch {

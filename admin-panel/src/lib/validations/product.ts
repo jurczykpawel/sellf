@@ -6,6 +6,7 @@
 
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
+import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 
 /**
  * Explicit field list for Products API v1 responses.
@@ -15,7 +16,7 @@ import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -401,19 +402,20 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
           if (typeof embedUrl !== 'string') {
             errors.push(`Content item ${index + 1}: Video embed URL must be a string`);
           } else {
-            // Must use HTTPS
             if (!embedUrl.startsWith('https://')) {
               errors.push(`Content item ${index + 1}: Video embed URL must use HTTPS`);
-            } else if (!isTrustedVideoPlatform(embedUrl)) {
-              // Check if it's from a trusted platform
-              errors.push(
-                `Content item ${index + 1}: Video URL must be from a trusted platform (YouTube, Vimeo, Bunny.net, Loom, Wistia, DailyMotion, Twitch)`
-              );
             } else {
-              // Validate that it's a parseable video URL
               const parsed = parseVideoUrl(embedUrl);
               if (!parsed.isValid) {
-                errors.push(`Content item ${index + 1}: Invalid video URL format`);
+                if (parsed.rejectionReason === 'bunny_iframe_unsupported') {
+                  errors.push(`Content item ${index + 1}: Bunny iframe embeds are not supported. Use a Bunny Stream HLS playlist (.m3u8) or MP4/WebM URL from your pull zone.`);
+                } else if (!isTrustedVideoPlatform(embedUrl)) {
+                  errors.push(
+                    `Content item ${index + 1}: Video URL must be from a trusted platform (YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, Twitch)`
+                  );
+                } else {
+                  errors.push(`Content item ${index + 1}: Invalid video URL format`);
+                }
               }
             }
           }
@@ -436,44 +438,10 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
                 errors.push(`Content item ${index + 1}: Download URL must use HTTPS`);
               }
 
-              // Check for trusted storage providers
-              // SECURITY FIX (V15): Use endsWith() instead of includes() to prevent domain spoofing
-              // e.g., cdn.attacker.com should NOT match just because it contains 'cdn.'
-              const trustedDomains = [
-                // AWS
-                'amazonaws.com',        // AWS S3
-                'cloudfront.net',       // AWS CloudFront
-                // Google
-                'googleapis.com',       // Google Cloud Storage
-                'drive.google.com',     // Google Drive
-                'docs.google.com',      // Google Docs
-                // Microsoft
-                'onedrive.live.com',    // OneDrive
-                '1drv.ms',              // OneDrive short links
-                'sharepoint.com',       // Microsoft SharePoint
-                'azureedge.net',        // Azure CDN
-                // Supabase
-                'supabase.co',          // Supabase Storage
-                // Bunny CDN
-                'bunny.net',            // Bunny CDN
-                'b-cdn.net',            // Bunny CDN alt domain
-                // Dropbox
-                'dropbox.com',          // Dropbox
-                'dropboxusercontent.com', // Dropbox direct links
-                // Cloudflare
-                'cloudflarestorage.com', // Cloudflare R2
-                // Other trusted providers
-                'box.com',              // Box
-                'mega.nz',              // Mega
-                'mediafire.com',        // MediaFire
-                'wetransfer.com',       // WeTransfer
-                'sendspace.com',        // SendSpace
-                'cloudinary.com',       // Cloudinary
-                'imgix.net',            // Imgix CDN
-                'fastly.net',           // Fastly CDN
-              ];
-
+              // Source of truth: src/lib/trustedDownloadProviders.ts (baseline +
+              // sanitized NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS env additions).
               const hostname = urlObj.hostname.toLowerCase();
+              const trustedDomains = getTrustedDownloadProviders();
               const isTrustedStorage = trustedDomains.some(domain =>
                 hostname === domain || hostname.endsWith('.' + domain)
               );
@@ -564,9 +532,9 @@ export function validateCreateProduct(data: unknown): ValidationResult {
       errors.push('Preview video URL must use HTTPS');
     } else {
       const parsed = parseVideoUrl(input.preview_video_url);
-      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
-      if (!allowedPlatforms.includes(parsed.platform)) {
-        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'twitch'];
+      if (!parsed.isValid || !allowedPlatforms.includes(parsed.platform)) {
+        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch');
       }
     }
   }
@@ -583,6 +551,51 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   // VAT rate is only relevant for paid products (or PWYW where customer always pays > 0)
   if (input.price_includes_vat === true && (input.price == null || Number(input.price) <= 0) && !input.allow_custom_price) {
     errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
+  }
+
+  // Subscription fields validation
+  errors.push(...validateSubscriptionFields(input).errors);
+
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateSubscriptionFields(input: Record<string, unknown>): ValidationResult {
+  const errors: string[] = [];
+  const productType = input.product_type;
+
+  if (productType !== undefined && productType !== 'one_time' && productType !== 'subscription') {
+    errors.push("product_type must be 'one_time' or 'subscription'");
+    return { isValid: false, errors };
+  }
+
+  if (productType === 'subscription') {
+    const recurring = input.recurring_price;
+    if (recurring == null || Number(recurring) <= 0) {
+      errors.push('Subscription requires recurring_price > 0');
+    }
+    const interval = input.billing_interval;
+    if (typeof interval !== 'string' || !['day', 'week', 'month', 'year'].includes(interval)) {
+      errors.push("billing_interval must be one of: day, week, month, year");
+    }
+    const count = input.billing_interval_count;
+    if (count == null || !Number.isInteger(Number(count)) || Number(count) < 1) {
+      errors.push('billing_interval_count must be a positive integer');
+    }
+    const trial = input.trial_days;
+    if (trial !== undefined && trial !== null) {
+      const t = Number(trial);
+      if (!Number.isInteger(t) || t < 0 || t > 730) {
+        errors.push('trial_days must be an integer between 0 and 730');
+      }
+    }
+  } else if (productType === 'one_time' || productType === undefined) {
+    // For one-time products, recurring fields must be null/absent.
+    if (input.recurring_price != null && Number(input.recurring_price) > 0) {
+      errors.push('recurring_price is only valid for subscription products');
+    }
+    if (input.billing_interval != null && input.billing_interval !== '') {
+      errors.push('billing_interval is only valid for subscription products');
+    }
   }
 
   return { isValid: errors.length === 0, errors };
@@ -668,9 +681,9 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
       errors.push('Preview video URL must use HTTPS');
     } else {
       const parsed = parseVideoUrl(input.preview_video_url);
-      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'loom'];
-      if (!allowedPlatforms.includes(parsed.platform)) {
-        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny, or Loom');
+      const allowedPlatforms = ['youtube', 'vimeo', 'wistia', 'bunny', 'twitch'];
+      if (!parsed.isValid || !allowedPlatforms.includes(parsed.platform)) {
+        errors.push('Preview video URL must be from a supported platform: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch');
       }
     }
   }
@@ -688,6 +701,17 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
   // Exception: PWYW (allow_custom_price) products always have a payment, so price_includes_vat is allowed
   if (input.price_includes_vat === true && input.price !== undefined && Number(input.price) <= 0 && !input.allow_custom_price) {
     errors.push('price_includes_vat cannot be true for free products (price must be greater than 0)');
+  }
+
+  // Subscription fields validation (only when caller provides at least one of them)
+  if (
+    input.product_type !== undefined ||
+    input.recurring_price !== undefined ||
+    input.billing_interval !== undefined ||
+    input.billing_interval_count !== undefined ||
+    input.trial_days !== undefined
+  ) {
+    errors.push(...validateSubscriptionFields(input).errors);
   }
 
   return { isValid: errors.length === 0, errors };
@@ -778,10 +802,37 @@ export function sanitizeProductData(data: Record<string, unknown>, setDefaults: 
     }
   }
 
+  // Subscription fields normalization
+  if (sanitizedData.product_type !== 'subscription') {
+    // For non-subscription products: clear all recurring fields.
+    if (sanitizedData.product_type !== undefined) sanitizedData.product_type = 'one_time';
+    if ('recurring_price' in sanitizedData) sanitizedData.recurring_price = null;
+    if ('billing_interval' in sanitizedData) sanitizedData.billing_interval = null;
+    if ('billing_interval_count' in sanitizedData) sanitizedData.billing_interval_count = null;
+    if ('trial_days' in sanitizedData) sanitizedData.trial_days = null;
+  } else {
+    if (sanitizedData.recurring_price !== undefined && sanitizedData.recurring_price !== null) {
+      sanitizedData.recurring_price = parseFloat(String(sanitizedData.recurring_price));
+    }
+    if (sanitizedData.billing_interval_count !== undefined && sanitizedData.billing_interval_count !== null) {
+      sanitizedData.billing_interval_count = parseInt(String(sanitizedData.billing_interval_count), 10) || 1;
+    } else if (setDefaults) {
+      sanitizedData.billing_interval_count = 1;
+    }
+    if (sanitizedData.trial_days === '' || sanitizedData.trial_days === undefined) {
+      sanitizedData.trial_days = null;
+    } else if (sanitizedData.trial_days !== null) {
+      sanitizedData.trial_days = parseInt(String(sanitizedData.trial_days), 10);
+    }
+  }
+
   // Set defaults only for CREATE operations (not partial updates)
   if (setDefaults) {
     if (sanitizedData.currency === undefined) {
       sanitizedData.currency = 'USD';
+    }
+    if (sanitizedData.product_type === undefined) {
+      sanitizedData.product_type = 'one_time';
     }
 
     if (sanitizedData.icon === undefined) {

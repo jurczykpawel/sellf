@@ -384,13 +384,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'NOT_FOUND', 'Coupon not found');
     }
 
-    // Delete coupon (cascade will handle redemptions/reservations)
+    // Delete coupon. Coupon redemptions intentionally use ON DELETE RESTRICT
+    // so historical sales records keep a valid coupon reference.
     const { error: deleteError } = await supabase
       .from('coupons')
       .delete()
       .eq('id', id);
 
     if (deleteError) {
+      if (deleteError.code === '23503') {
+        return apiError(
+          request,
+          'CONFLICT',
+          'Coupon has redemption history and cannot be deleted. Deactivate it instead.'
+        );
+      }
       console.error('Error deleting coupon:', deleteError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete coupon');
     }

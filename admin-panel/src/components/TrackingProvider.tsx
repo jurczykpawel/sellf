@@ -69,9 +69,15 @@ const CONSENT_TRANSLATIONS: Record<string, {
 
 interface TrackingProviderProps {
   config: PublicIntegrationsConfig | null
+  /**
+   * Per-request CSP nonce supplied by the root layout. Forwarded to every
+   * inline <Script> so the browser accepts them under the
+   * `script-src 'nonce-...'` directive set by middleware.
+   */
+  nonce?: string
 }
 
-export default function TrackingProvider({ config }: TrackingProviderProps) {
+export default function TrackingProvider({ config, nonce }: TrackingProviderProps) {
   if (!config) return null
 
   const {
@@ -213,9 +219,10 @@ klaroConfig.callback = function(consent, service) {
       {/* Only set denied defaults when cookie consent is enabled — Klaro callback will update to granted */}
       {/* When consent is disabled, GTM runs unrestricted (no consent mode needed) */}
       {gtm_container_id && cookie_consent_enabled && (
-        <Script
+        <script
           id="consent-mode-defaults"
-          strategy="beforeInteractive"
+          nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: consentModeDefaults }}
         />
       )}
@@ -225,17 +232,19 @@ klaroConfig.callback = function(consent, service) {
         <>
           {/* Consent logging flag — must be set before klaroConfig callback runs */}
           {consent_logging_enabled && (
-            <Script
+            <script
               id="consent-logging-flag"
-              strategy="beforeInteractive"
+              nonce={nonce}
+              suppressHydrationWarning
               dangerouslySetInnerHTML={{
                 __html: `window.__gfConsentLogging = true;`
               }}
             />
           )}
-          <Script
+          <script
             id="klaro-config"
-            strategy="beforeInteractive"
+            nonce={nonce}
+            suppressHydrationWarning
             dangerouslySetInnerHTML={{
               // Escape </script> sequences to prevent HTML parser from closing the tag early (XSS via DB)
               __html: `var klaroConfig = ${JSON.stringify(klaroConfig).replace(/<\//g, '<\\/')};\nklaroConfig.lang = document.documentElement.lang || 'en';\n${klaroCallbackJs}`
@@ -245,17 +254,20 @@ klaroConfig.callback = function(consent, service) {
             id="klaro-script"
             src="https://cdn.kiprotect.com/klaro/v0.7/klaro.js"
             strategy="afterInteractive"
+            nonce={nonce}
           />
         </>
       )}
 
       {/* MANAGED SCRIPTS */}
       {gtm_container_id && (
-        <Script
+        <script
           id="gtm-script"
           type={cookie_consent_enabled ? "text/plain" : "text/javascript"}
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "google-tag-manager" : undefined}
+          nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             // Pass dynamic values via JSON.stringify so any unexpected character
             // is escaped at the JS-string-literal layer, not just at validation.
@@ -269,11 +281,13 @@ klaroConfig.callback = function(consent, service) {
       )}
 
       {facebook_pixel_id && (
-        <Script
+        <script
           id="fb-pixel"
           type={cookie_consent_enabled ? "text/plain" : "text/javascript"}
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "facebook-pixel" : undefined}
+          nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `!function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -298,6 +312,7 @@ klaroConfig.callback = function(consent, service) {
           type={cookie_consent_enabled ? "text/plain" : "text/javascript"}
           data-type={cookie_consent_enabled ? "application/javascript" : undefined}
           data-name={cookie_consent_enabled ? "umami-analytics" : undefined}
+          nonce={nonce}
         />
       )}
 

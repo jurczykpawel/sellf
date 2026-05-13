@@ -977,6 +977,7 @@
     "exploreMore": "Explore More",
     "exploreMoreDescription": "Products available for purchase in the store.",
     "accessSince": "Access since {date}",
+    "accessExpires": "Expires {date}",
     "myAccessibleProducts": "My Accessible Products",
     "availableProducts": "Available Products",
     "freeResources": "Free",
@@ -1266,8 +1267,8 @@
         "imageUrlHelp": "Upload your product image to ImgBB or any image hosting service and paste the URL here.",
         "previewVideoUrl": "Preview Video URL",
         "previewVideoUrlPlaceholder": "https://youtube.com/watch?v=... or https://vimeo.com/...",
-        "previewVideoUrlHelp": "Video shown on checkout page. Takes priority over image. Best support: YouTube, Vimeo, Wistia, Bunny, Loom.",
-        "previewVideoUrlUnsupported": "Unsupported platform. Use YouTube, Vimeo, Wistia, Bunny, or Loom.",
+        "previewVideoUrlHelp": "Video shown on checkout page. Takes priority over image. Supports YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, and Twitch.",
+        "previewVideoUrlUnsupported": "Unsupported platform. Use YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, or Twitch.",
         "setToZeroForFree": "Set to 0 for free products. Use comma or dot for decimal separator.",
         "temporalAvailability": "Temporal Availability",
         "availabilityAndWaitlist": "Availability & Waitlist",
@@ -1417,8 +1418,8 @@
         "nameRequired": "{name} is required",
         "autoSlug": "Auto",
         "supportedVideoPlatforms": "Supported Video Platforms",
-        "supportedVideoPlatformsDesc": "Paste any URL format - we'll convert it to the proper embed URL automatically!",
-        "supportedVideoPlatformsList": "📺 YouTube • 🎬 Vimeo • 🐰 Bunny.net • 🎥 Loom • 📹 Wistia • 🎞️ DailyMotion • 🎮 Twitch",
+        "supportedVideoPlatformsDesc": "Paste a supported Playerstack URL. Bunny Stream requires an HLS playlist or MP4/WebM URL, not the iframe embed URL.",
+        "supportedVideoPlatformsList": "📺 YouTube • 🎬 Vimeo • 🐰 Bunny Stream HLS/MP4 • 📹 Wistia • 🎮 Twitch",
         "trustedStorageProviders": "Trusted Storage Providers for Downloads",
         "trustedStorageProvidersDesc": "Download URLs must use HTTPS and be from trusted storage providers for security.",
         "storageCloudProviders": "☁️ Cloud: AWS S3, Google Cloud Storage, Supabase Storage",
@@ -1426,23 +1427,19 @@
         "storageCdnProviders": "🌐 CDN: Bunny CDN, Cloudinary, Imgix, Fastly",
         "storageFileSharingProviders": "📤 File Sharing: Mega, MediaFire, WeTransfer, SendSpace",
         "videoOptions": "Video Options",
-        "videoOptionsNote": "💡 Options support varies by platform (YouTube, Vimeo, Bunny.net, etc.)",
+        "videoOptionsNote": "💡 Options support varies by platform (YouTube, Vimeo, Wistia, Bunny Stream, Twitch).",
         "platformSupports": "💡 {platform} supports: {options}",
-        "useCustomPlayer": "Custom player",
-        "useCustomPlayerDesc": "Turn off to use the default YouTube player.",
         "controls": "Controls",
-        "controlsTooltip": "Show the platform's built-in player controls (play button, progress bar, volume). When off, only the custom overlay is shown.",
+        "controlsTooltip": "Show Playerstack controls. When off, only a minimal play control is shown.",
         "autoplay": "Autoplay",
         "autoplayTooltip": "Start playing automatically when the page loads. Browsers require the video to be muted for autoplay to work.",
         "loop": "Loop",
         "loopTooltip": "Restart the video from the beginning when it ends.",
         "muted": "Muted",
         "mutedTooltip": "Start the video with sound off. Required for autoplay to work in most browsers.",
-        "preload": "Preload",
-        "preloadTooltip": "Start loading the video data before the user presses play. Only supported by Bunny.net.",
-        "useCustomPlayerTooltip": "Use a custom player with thumbnail, overlay controls, and click-to-play. When off, the platform's default embedded player is shown.",
         "urlRequired": "URL is required",
-        "untrustedPlatform": "Untrusted platform. Supported: YouTube, Vimeo, Bunny.net, Loom, Wistia, DailyMotion, Twitch",
+        "bunnyIframeUnsupported": "Bunny iframe embeds are not supported. Use a Bunny Stream HLS playlist (.m3u8) or MP4/WebM URL from your pull zone.",
+        "untrustedPlatform": "Untrusted platform. Supported: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, Twitch",
         "invalidVideoUrl": "Invalid video URL format. Please check the URL.",
         "videoDetected": "{platform} video detected",
         "untrustedDownloadUrl": "URL must be from a trusted provider (AWS, Google Drive, Dropbox, OneDrive, CDN, etc.)",
@@ -1452,7 +1449,26 @@
         "longDescriptionPlaceholder": "## What's included?\n- Feature 1\n- Feature 2",
         "slugPlaceholder": "product-url-slug",
         "imageUrlPlaceholder": "https://i.ibb.co/...",
-        "salePricePlaceholder": "0.00"
+        "salePricePlaceholder": "0.00",
+        "subscription": {
+          "title": "Subscription",
+          "help": "Subscription products bill on a recurring schedule. One-time products charge once.",
+          "oneTime": "One-time",
+          "recurring": "Subscription",
+          "lockedAfterSale": "Product type is locked after the first sale to keep billing consistent.",
+          "recurringPrice": "Recurring price",
+          "recurringPriceHelp": "Amount charged in each billing period.",
+          "billingInterval": "Billing interval",
+          "billingIntervalHelp": "How often the customer is charged.",
+          "trialDays": "Trial period (days)",
+          "trialDaysHelp": "Days of free access before the first charge. Leave empty to disable.",
+          "interval": {
+            "day": "Day",
+            "week": "Week",
+            "month": "Month",
+            "year": "Year"
+          }
+        }
       }
     },
     "categories": {
@@ -1576,6 +1592,7 @@
       "addEndpoint": "Add Endpoint",
       "editWebhook": "Edit Webhook",
       "url": "Endpoint URL",
+      "urlSensitiveDataWarning": "Outbound payloads contain customer email, Stripe identifiers, and invoice URLs. Use a domain you control.",
       "events": "Events",
       "secret": "Signing Secret",
       "description": "Description",
@@ -1607,6 +1624,12 @@
         "lead_captured": "Lead Captured (Free Product)",
         "waitlist_signup": "Waitlist Signup",
         "access_expired": "Access Expired",
+        "subscription_created": "Subscription Created",
+        "subscription_updated": "Subscription Updated",
+        "subscription_canceled": "Subscription Canceled",
+        "subscription_trial_ending": "Subscription Trial Ending",
+        "invoice_paid": "Invoice Paid",
+        "invoice_payment_failed": "Invoice Payment Failed",
         "subscription_started": "Subscription Started",
         "subscription_ended": "Subscription Ended",
         "refund_issued": "Refund Issued",
@@ -1778,6 +1801,8 @@
       "usageUnlimited": "{current} / ∞",
       "confirmDelete": "Delete Coupon?",
       "deleteMessage": "Are you sure you want to delete {code}?",
+      "usedCouponLocked": "Used - kept for history",
+      "usedCouponLockedHint": "This coupon has redemption history, so it cannot be deleted. Deactivate it if it should no longer be used.",
       "createSuccess": "Coupon created successfully",
       "updateSuccess": "Coupon updated successfully",
       "deleteSuccess": "Coupon deleted successfully",
@@ -1955,13 +1980,39 @@
         "date": "Date",
         "actions": "Actions",
         "refund": "Refund",
+        "details": "Details",
+        "transactionDetails": "Transaction details",
+        "customer": "Customer",
+        "payment": "Payment",
+        "userId": "User ID",
+        "guestUser": "Guest purchase",
+        "unknownCustomer": "Unknown customer",
+        "unknownProduct": "Unknown product",
+        "stripePaymentIntent": "Stripe Payment Intent",
+        "stripeSession": "Stripe session",
+        "items": "Transaction items",
+        "mainProduct": "Main product",
+        "orderBump": "Order bump",
+        "quantity": "Quantity",
+        "subtotal": "Subtotal",
+        "paid": "Paid",
+        "total": "Total",
+        "refundedTotal": "Refunded",
+        "remaining": "Remaining",
+        "close": "Close",
         "statuses": {
           "completed": "Completed",
           "pending": "Pending",
           "failed": "Failed",
-          "refunded": "Refunded"
+          "refunded": "Refunded",
+          "disputed": "Disputed",
+          "partialRefunded": "Partially refunded"
         },
-        "refunded": "Refunded: {amount}"
+        "refunded": "Refunded: {amount}",
+        "partialRefunded": "Partially refunded: {amount}",
+        "partialRefundWarning": "Partial refund detected. Review whether additional access revocation or follow-up is needed.",
+        "remainingRefundable": "Remaining refundable: {amount}",
+        "fullRefunded": "Fully refunded"
       },
       "sessions": {
         "title": "Checkout Sessions"
@@ -1991,7 +2042,13 @@
         "normal": "Normal",
         "thisMonthRevenue": "This Month",
         "refundedAmount": "Refunded",
-        "vsLastPeriod": "vs last period"
+        "grossCompleted": "Completed payments, gross",
+        "completedTransactions": "Completed transactions",
+        "completedToday": "Completed today",
+        "completedThisMonth": "Completed this month",
+        "awaitingPayment": "Awaiting completion",
+        "nonePending": "No pending payments",
+        "totalRefunds": "Recorded refunds"
       },
       "cancelSession": {
         "label": "Cancel",
@@ -2479,10 +2536,10 @@
       },
       "recommended": {
         "title": "Recommended Configuration",
-        "description": "Optimal configuration for Polish market, based on e-commerce best practices",
+        "description": "Stripe Dynamic Payment Methods, managed from your Stripe Dashboard",
         "reset": "Reset to Recommended",
         "resetConfirm": "Are you sure you want to reset to recommended configuration? Current settings will be replaced.",
-        "features": "Includes: BLIK, Przelewy24, Card + Express Checkout (Link, Apple Pay, Google Pay)"
+        "features": "Stripe automatically displays and orders eligible methods for each customer"
       },
       "buttons": {
         "save": "Save Configuration",
@@ -2742,12 +2799,21 @@
     "noPurchases": "No purchases yet",
     "noPurchasesMessage": "When you purchase products, they will appear here.",
     "purchasedOn": "Purchased on",
+    "includes": "Includes",
+    "mainProduct": "Main product",
+    "orderBump": "Order bump",
+    "lineItemRefundable": "Refundable",
+    "lineItemNotRefundable": "Not refundable",
+    "lineItemRefundPeriodExpired": "Refund period expired",
+    "mixedRefundPolicyNotice": "This purchase contains products with different refund policies. Refund requests are currently reviewed for the whole purchase.",
+    "bundleManualRefundContact": "This bundled purchase has mixed refund policies. Contact the seller to review a partial refund.",
     "statusRefunded": "Refunded",
     "statusPendingRefund": "Refund Pending",
     "statusRefundRejected": "Refund Rejected",
     "statusCompleted": "Completed",
     "notRefundable": "Not refundable",
     "refundPeriodExpired": "Refund period expired",
+    "refundRejectedContactSeller": "Refund rejected. Contact the seller directly if you need more help.",
     "requestRefund": "Request Refund",
     "daysRemaining": "{days} days left",
     "daysHoursRemaining": "{days}d {hours}h left",
@@ -2759,6 +2825,11 @@
     "cancel": "Cancel",
     "submitting": "Submitting...",
     "submitRequest": "Submit Request",
+    "subtotal": "Subtotal",
+    "paid": "Paid",
+    "discountApplied": "Discount applied",
+    "discountPercentage": "Discount ({value}%)",
+    "discountFixedAmount": "Discount ({amount})",
     "refundedAmount": "Refunded",
     "naLabel": "N/A",
     "invalidPrice": "Invalid Price",
@@ -2831,7 +2902,7 @@
       "badge": "Open Source · Self-Hosted · Enterprise-Ready",
       "headlineTop": "Your Products.",
       "headlineBottom": "Your Rules.",
-      "metaDescription": "Sell digital products on your own terms. Self-hosted, secure, and fully yours. No monthly fees, no middlemen.",
+      "metaDescription": "Sell digital products and subscriptions on your own terms. Self-hosted, secure, and fully yours. No monthly fees, no middlemen.",
       "subtitle": "Sell digital products on your own terms - without giving away revenue to platforms. <selfHosted>Self-hosted</selfHosted>, <secure>secure</secure>, and <yours>fully yours</yours>.",
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "secure",
@@ -2881,6 +2952,10 @@
         "title": "Accept payments everywhere",
         "desc": "Customers pay without leaving your page. 20+ currencies, guest checkout, bank-level encryption."
       },
+      "subscriptions": {
+        "title": "Charge customers on a schedule",
+        "desc": "Sell memberships and recurring access alongside one-time products. Free trials, Stripe-native coupon duration (once, N cycles, forever), and webhooks on every lifecycle event."
+      },
       "orderBumps": {
         "title": "Earn 30% more per order",
         "desc": "Show an extra offer at checkout. Buyer clicks 'Add' and the order value grows 30-50%."
@@ -2896,6 +2971,10 @@
       "leads": {
         "title": "Build your audience for free",
         "desc": "Offer a free product and collect emails. Buyers log in with one click from email, no passwords. Then sell them premium content."
+      },
+      "waitlist": {
+        "title": "Validate before you build",
+        "desc": "Add a waitlist to upcoming products. Capture emails before launch, signups fire a webhook to your mailer (n8n, Make, Listmonk). Signed-in users see their email pre-filled with one-click override."
       },
       "delivery": {
         "title": "Deliver content your way",
@@ -3055,6 +3134,13 @@
         "feature2": "Access for 30 or 90 days",
         "feature3": "Fast video via Bunny.net"
       },
+      "subscriptions": {
+        "title": "Subscriptions & Memberships",
+        "desc": "Sell recurring access instead of one-time. Monthly, yearly, with or without a trial. Customers cancel themselves and invoices arrive automatically.",
+        "feature1": "Recurring billing on month, year, or any Stripe interval",
+        "feature2": "Optional free trial per product",
+        "feature3": "Customer portal: cancel, resume, update card"
+      },
       "digital": {
         "title": "Digital Products",
         "desc": "Sell ebooks, templates, software licenses, or files. Better than Gumroad with zero commission.",
@@ -3211,6 +3297,7 @@
     "invalidVideoUrl": "Invalid Video URL",
     "trustedPlatformsOnly": "Only trusted video platforms are allowed",
     "unableToParseUrl": "Unable to parse video URL. Please check the format.",
+    "bunnyIframeUnsupported": "Bunny iframe embeds are not supported. Use the HLS playlist (.m3u8) or MP4/WebM URL from your Bunny pull zone.",
     "securityEmbedDisabled": "SECURITY: Raw HTML embed disabled for security reasons",
     "useIframeInstead": "Use iframe embed_url instead for secure content embedding",
     "invalidUrl": "Invalid URL",

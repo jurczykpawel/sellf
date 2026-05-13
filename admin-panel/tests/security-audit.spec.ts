@@ -161,20 +161,6 @@ test.describe('Security - CORS Headers', () => {
     expect(corsOrigin).toBe('http://localhost:3777');
   });
 
-  test('public claim-free route should echo origin (for embedding)', async ({ request }) => {
-    const response = await request.fetch('/api/public/products/claim-free', {
-      method: 'OPTIONS',
-      headers: {
-        Origin: 'https://my-landing-page.com',
-        'Access-Control-Request-Method': 'POST',
-      },
-    });
-
-    const corsOrigin = response.headers()['access-control-allow-origin'];
-
-    // Public route should echo the origin for embedding
-    expect(corsOrigin).toBe('https://my-landing-page.com');
-  });
 });
 
 // ============================================

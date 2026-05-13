@@ -1,5 +1,5 @@
 import { getTranslations, getLocale } from 'next-intl/server';
-import { BarChart3, CreditCard, Layers, Tag, Zap, Gift, Package, ShieldCheck, Clock, TrendingUp, RotateCcw, FileText, Lock } from 'lucide-react';
+import { BarChart3, CreditCard, Repeat, Layers, Tag, Zap, Gift, Bell, Package, ShieldCheck, Clock, TrendingUp, RotateCcw, FileText, Lock } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
 
@@ -14,10 +14,12 @@ interface Feature {
 const features: Feature[] = [
   { icon: BarChart3, key: 'dashboard' },
   { icon: CreditCard, key: 'payments' },
+  { icon: Repeat, key: 'subscriptions' },
   { icon: Layers, key: 'orderBumps' },
   { icon: Tag, key: 'coupons' },
   { icon: Zap, key: 'webhooks' },
   { icon: Gift, key: 'leads' },
+  { icon: Bell, key: 'waitlist' },
   { icon: Package, key: 'delivery' },
   { icon: ShieldCheck, key: 'omnibus' },
   { icon: Clock, key: 'saleLimits' },

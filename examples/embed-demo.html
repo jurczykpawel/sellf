@@ -94,20 +94,17 @@
     <h3>Example Code:</h3>
     <div class="code-block">
       <code>&lt;!-- Step 1: Add the widget div --&gt;
-&lt;div data-sellf-product="your-product-slug"&gt;&lt;/div&gt;
+&lt;div data-sellf-embed data-product-slug="your-product-slug" data-sellf-mode="free"&gt;&lt;/div&gt;
 
 &lt;!-- Step 2: Include the script --&gt;
-&lt;script src="http://localhost:3000/sellf-embed.js"&gt;&lt;/script&gt;</code>
+&lt;script src="http://localhost:3000/embed/v1/checkout.js"&gt;&lt;/script&gt;</code>
     </div>
 
     <h3>Optional Configuration:</h3>
     <div class="code-block">
-      <code>&lt;!-- Custom API URL and Turnstile key --&gt;
-&lt;script
-  src="http://localhost:3000/sellf-embed.js"
-  data-api-url="https://yourdomain.com"
-  data-turnstile-key="your-turnstile-site-key"
-&gt;&lt;/script&gt;</code>
+      <code>&lt;!-- Paid checkout mode --&gt;
+&lt;div data-sellf-embed data-product-slug="your-product-slug" data-sellf-mode="paid"&gt;&lt;/div&gt;
+&lt;script src="http://localhost:3000/embed/v1/checkout.js"&gt;&lt;/script&gt;</code>
     </div>
   </div>
 
@@ -135,7 +132,7 @@
   <div class="demo-section">
     <h2>🔒 Security</h2>
     <ul>
-      <li><strong>Rate Limiting:</strong> 3 requests per 5 minutes per IP</li>
+      <li><strong>Rate Limiting:</strong> IP/fingerprint and email scoped limits</li>
       <li><strong>CAPTCHA:</strong> Cloudflare Turnstile verification</li>
       <li><strong>Email Validation:</strong> Disposable email filter</li>
       <li><strong>Product Validation:</strong> Only free, active products</li>
@@ -143,6 +140,6 @@
   </div>
 
   <!-- Load the widget -->
-  <script src="/sellf-embed.js"></script>
+  <script src="/embed/v1/checkout.js"></script>
 </body>
 </html>

@@ -57,9 +57,109 @@ jobs:
         with:
           extra_args: --results verified,unknown
 
+  verify-playerstack-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sellf
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install SSH deploy key (read-only to playerstack)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PLAYERSTACK_DEPLOY_KEY }}
+
+      - name: Trust github.com host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts
+
+      - name: Extract pinned playerstack commit SHA from sellf
+        id: pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          SELLF_SRC_FILE="admin-panel/src/lib/playerstack.ts"
+          PS_SHA=$(grep -aoE "PLAYERSTACK_COMMIT_SHA = '[a-f0-9]{40}'" "$SELLF_SRC_FILE" | grep -oE "[a-f0-9]{40}" || true)
+          if [[ -z "$PS_SHA" ]]; then
+            echo "::error::could not extract PLAYERSTACK_COMMIT_SHA from $SELLF_SRC_FILE" >&2
+            exit 1
+          fi
+          echo "ps_sha=$PS_SHA" >> "$GITHUB_OUTPUT"
+          echo "pinned playerstack commit: $PS_SHA"
+
+      - name: Clone playerstack repo at pinned SHA
+        run: |
+          set -euo pipefail
+          git clone --no-checkout git@github.com:jurczykpawel/playerstack.git /tmp/playerstack
+          cd /tmp/playerstack
+          git checkout --detach ${{ steps.pin.outputs.ps_sha }}
+          echo "checked out: $(git rev-parse HEAD)"
+
+      - name: Install playerstack dependencies
+        working-directory: /tmp/playerstack
+        run: bun install --frozen-lockfile
+
+      - name: Build playerstack embed bundle
+        working-directory: /tmp/playerstack/packages/embed
+        run: bun run build
+
+      - name: Verify bundle SRI matches sellf source of truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE_PATH="/tmp/playerstack/packages/embed/dist/playerstack.min.js"
+          if [[ ! -s "$BUNDLE_PATH" ]]; then
+            echo "::error::playerstack build did not produce $BUNDLE_PATH" >&2
+            exit 1
+          fi
+
+          UPSTREAM_SRI="sha384-$(openssl dgst -sha384 -binary "$BUNDLE_PATH" | openssl base64 -A)"
+          UPSTREAM_SHORT="$(openssl dgst -sha256 "$BUNDLE_PATH" | awk '{print $2}' | cut -c1-12)"
+
+          SELLF_SRC_FILE="admin-panel/src/lib/playerstack.ts"
+          SELLF_SRI="$(grep -aoE "sha384-[A-Za-z0-9+/=]+" "$SELLF_SRC_FILE" | head -1 || true)"
+          SELLF_BUNDLE_PATH_REL="$(grep -aoE "/vendor/playerstack/playerstack-[a-f0-9]{12}\.min\.js" "$SELLF_SRC_FILE" | head -1 || true)"
+
+          if [[ -z "$SELLF_SRI" || -z "$SELLF_BUNDLE_PATH_REL" ]]; then
+            echo "::error::could not extract integrity / bundle path from $SELLF_SRC_FILE" >&2
+            exit 1
+          fi
+
+          SELLF_BUNDLE_FILE="admin-panel/public${SELLF_BUNDLE_PATH_REL}"
+          if [[ ! -s "$SELLF_BUNDLE_FILE" ]]; then
+            echo "::error::sellf bundle missing on disk: $SELLF_BUNDLE_FILE" >&2
+            exit 1
+          fi
+
+          ON_DISK_SRI="sha384-$(openssl dgst -sha384 -binary "$SELLF_BUNDLE_FILE" | openssl base64 -A)"
+          if [[ "$ON_DISK_SRI" != "$SELLF_SRI" ]]; then
+            echo "::error::bundle in $SELLF_BUNDLE_FILE does not match integrity declared in $SELLF_SRC_FILE" >&2
+            echo "::error::on-disk: $ON_DISK_SRI" >&2
+            echo "::error::declared: $SELLF_SRI" >&2
+            echo "::error::someone modified files in admin-panel/public/vendor/ or playerstack.ts manually" >&2
+            exit 1
+          fi
+
+          if [[ "$UPSTREAM_SRI" != "$SELLF_SRI" ]]; then
+            echo "::error::bundle in sellf is stale relative to pinned playerstack commit" >&2
+            echo "::error::upstream (rebuilt at ${{ steps.pin.outputs.ps_sha }}): $UPSTREAM_SRI ($UPSTREAM_SHORT)" >&2
+            echo "::error::sellf (declared):   $SELLF_SRI" >&2
+            echo "::error::fix: cd admin-panel && bun run sync:playerstack && git add -A && git commit" >&2
+            exit 1
+          fi
+
+          echo "✓ bundle matches playerstack@${{ steps.pin.outputs.ps_sha }}"
+          echo "  bundle: $SELLF_BUNDLE_PATH_REL"
+          echo "  sri:    $SELLF_SRI"
+
   build:
     runs-on: ubuntu-latest
-    needs: test  # Only build if tests pass
+    needs: [test, verify-playerstack-bundle]  # Only build if tests pass AND playerstack bundle is fresh
 
     steps:
       - name: Checkout code
@@ -239,7 +339,7 @@ jobs:
   # Build and push Docker image to GHCR
   docker:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, verify-playerstack-bundle]
 
     steps:
       - name: Checkout code

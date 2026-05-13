@@ -383,21 +383,6 @@ test.describe('Rate Limiting', () => {
       expect(result.successCount).toBeGreaterThan(0);
     });
 
-    test('claim-free should be rate limited', async ({ request }) => {
-      const result = await makeRequestsUntilRateLimited(
-        request,
-        'post',
-        '/api/public/products/claim-free',
-        {
-          email: 'test@example.com',
-          productSlug: 'nonexistent',
-        }
-      );
-
-      expect(result.gotRateLimited).toBe(true);
-      expect(result.successCount).toBeGreaterThan(0);
-    });
-
     test('verify-payment should be rate limited', async ({ request }) => {
       const result = await makeRequestsUntilRateLimited(
         request,

@@ -52,7 +52,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
 
   test('should automatically create price history entry when product is created', async () => {
     const { data, error } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .order('effective_from', { ascending: false })
@@ -80,7 +80,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
 
     // Check price history
     const { data, error } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .order('effective_from', { ascending: false });
@@ -172,7 +172,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
 
     // Count price history entries before
     const { data: beforeHistory } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId);
 
@@ -189,7 +189,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
 
     // Verify price history was created despite Omnibus being disabled
     const { data: afterHistory } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .order('effective_from', { ascending: false });
@@ -239,7 +239,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
     thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
 
     await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .insert({
         product_id: testProductId,
         price: 50, // Lower than current lowest (80)
@@ -273,7 +273,7 @@ test.describe('Omnibus Service - Backend Functions', () => {
 
     // Manually delete its price history
     await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .delete()
       .eq('product_id', emptyProduct!.id);
 

@@ -2,7 +2,7 @@
  * Server-side captcha token verification
  *
  * Consolidates Turnstile siteverify and ALTCHA HMAC verification
- * into a single function. Used by waitlist/signup and claim-free routes.
+ * into a single function. Used by waitlist/signup and embed free-access routes.
  *
  * @see types.ts — CaptchaVerifyResult
  * @see config.ts — getCaptchaProvider()

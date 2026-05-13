@@ -11,6 +11,7 @@
 import { test, expect } from '@playwright/test';
 import Stripe from 'stripe';
 import { supabaseAdmin } from './helpers/admin-auth';
+import { STRIPE_API_VERSION } from '@/lib/constants';
 
 test.describe('Webhook Amount Validation Security', () => {
   let stripe: Stripe;
@@ -21,7 +22,7 @@ test.describe('Webhook Amount Validation Security', () => {
     if (!stripeKey) {
       throw new Error('Stripe secret key not configured');
     }
-    stripe = new Stripe(stripeKey, { apiVersion: '2024-12-18.acacia' });
+    stripe = new Stripe(stripeKey, { apiVersion: STRIPE_API_VERSION });
 
     // Create test product with price > 0
     const suffix = Date.now().toString();

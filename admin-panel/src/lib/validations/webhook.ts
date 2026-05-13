@@ -150,6 +150,14 @@ export const WEBHOOK_EVENT_TYPES = [
   'lead.captured',
   'waitlist.signup',
   'access.expired',
+  // Subscriptions MVP (Phase 3)
+  'subscription.created',
+  'subscription.updated',
+  'subscription.canceled',
+  'subscription.trial_ending',
+  'invoice.paid',
+  'invoice.payment_failed',
+  'refund.issued',
   // Legacy/future events
   'payment.completed',
   'payment.refunded',

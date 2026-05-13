@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { GraduationCap, Package, Gift } from 'lucide-react';
+import { GraduationCap, Package, Gift, Repeat } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 
 import type { LucideIcon } from 'lucide-react';
@@ -11,6 +11,7 @@ interface UseCase {
 
 const useCases: UseCase[] = [
   { icon: GraduationCap, key: 'courses' },
+  { icon: Repeat, key: 'subscriptions' },
   { icon: Package, key: 'digital' },
   { icon: Gift, key: 'leads' },
 ];

@@ -1,7 +1,7 @@
 {
   "name": "sellf",
-  "version": "2026.4.1",
-  "description": "Open-source platform for selling and protecting digital products — built on Next.js, Supabase & Stripe",
+  "version": "2026.5.0",
+  "description": "Open-source platform for selling digital products and recurring subscriptions, with content protection. Built on Next.js, Supabase, and Stripe.",
   "main": "sellf.js",
   "scripts": {
     "setup": "bun run scripts/setup-supabase.ts",
@@ -12,6 +12,8 @@
   },
   "keywords": [
     "digital-products",
+    "subscriptions",
+    "memberships",
     "supabase",
     "stripe",
     "nextjs",

@@ -298,10 +298,10 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       }
     });
 
-    test('Embed widget: page loads and requests embed script for free product', async ({ page }) => {
+    test('Embed widget: page loads and requests checkout embed loader for free product', async ({ page }) => {
       const scriptRequests: string[] = [];
       page.on('request', (request) => {
-        if (request.url().includes('sellf-embed')) {
+        if (request.url().includes('/embed/v1/checkout.js')) {
           scriptRequests.push(request.url());
         }
       });
@@ -319,13 +319,14 @@ test.describe('Gatekeeper UI Protection Tests', () => {
       const productSlugElement = page.locator('#product-slug');
       await expect(productSlugElement).toContainText(freeProduct.slug, { timeout: 5000 });
 
-      // Sellf widget element should have the product attribute set
+      // Sellf widget element should use the checkout embed attributes
       const sellfWidget = page.locator('[data-testid="sellf-widget"]');
-      await expect(sellfWidget).toHaveAttribute('data-sellf-product', freeProduct.slug);
+      await expect(sellfWidget).toHaveAttribute('data-product-slug', freeProduct.slug);
+      await expect(sellfWidget).toHaveAttribute('data-sellf-mode', 'free');
 
       // Should have requested the embed script from Next.js server
       expect(scriptRequests.length).toBeGreaterThan(0);
-      expect(scriptRequests[0]).toContain('localhost:3777/sellf-embed.js');
+      expect(scriptRequests[0]).toContain('localhost:3777/embed/v1/checkout.js');
     });
 
     test('Gatekeeper script is loaded from Next.js server', async ({ page }) => {

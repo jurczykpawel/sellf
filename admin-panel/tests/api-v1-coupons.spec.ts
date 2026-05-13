@@ -471,6 +471,32 @@ test.describe('Coupons API v1', () => {
       expect(getResponse.status()).toBe(404);
     });
 
+    test('should return conflict for coupon with redemption history', async ({ page }) => {
+      await loginAsAdmin(page, adminEmail, adminPassword);
+
+      const createResponse = await page.request.post('/api/v1/coupons', {
+        data: { code: uniqueCode(), discount_type: 'percentage', discount_value: 10 }
+      });
+
+      const created = await createResponse.json();
+      const couponId = created.data.id;
+      testCoupons.push(couponId);
+
+      const { error: redemptionError } = await supabaseAdmin.from('coupon_redemptions').insert({
+        coupon_id: couponId,
+        customer_email: `redeemed-${Date.now()}@example.com`,
+        discount_amount: 10
+      });
+      expect(redemptionError).toBeNull();
+
+      const response = await page.request.delete(`/api/v1/coupons/${couponId}`);
+      expect(response.status()).toBe(409);
+
+      const body = await response.json();
+      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.message).toContain('redemption history');
+    });
+
     test('should return 404 for non-existent coupon', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 

@@ -6,7 +6,7 @@
 
 **An alternative to** Gumroad, LemonSqueezy, Paddle. Zero platform fees.
 
-![Version](https://img.shields.io/badge/version-2026.4.1-blue)
+![Version](https://img.shields.io/badge/version-2026.5.0-blue)
 ![Tests](https://img.shields.io/badge/tests-2,650%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
@@ -31,8 +31,10 @@
 Sellf gives you **complete control** over your digital product business. No monthly fees to platforms. No revenue sharing. Your data stays on your infrastructure.
 
 - **Stripe-powered payments** with visual setup wizard, no code required
+- **One-time and recurring:** sell digital downloads, courses, memberships, SaaS subscriptions in one platform
 - **Content protection** that works on any website (WordPress, Webflow, custom)
 - **Sales funnels built-in:** One-Time Offers, Order Bumps, Coupons
+- **Validate before you build:** waitlists for upcoming products with webhook delivery to your mailer
 - **EU-compliant:** Omnibus Directive price history, GDPR consent management
 - **Battle-tested:** 2,650 tests (1,127 E2E + 1,523 unit) with 100% pass rate
 
@@ -51,6 +53,31 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Order Bumps for upselling
 - One-Time Offers (OTO) post-purchase
 - Refund management with configurable periods
+
+</details>
+
+<details>
+<summary><strong>Subscriptions & Memberships</strong></summary>
+
+- Recurring billing on monthly, yearly, or any Stripe interval (day/week/month/year + count)
+- Optional free trials per product (set `trial_days`, card collected upfront, charge after trial)
+- Anonymous checkout, no forced login at purchase. Account materializes via webhook after first payment, login (magic link) only needed for the customer portal
+- Customer portal in Sellf: cancel/resume, view invoices, update card via Stripe `<PaymentElement>` + SetupIntent. No redirect to a separate Stripe-hosted portal
+- Cancel always at period end (customer keeps access until paid period expires)
+- Refund policy honors `refund_period_days`. Refund of the first invoice auto-cancels at period end
+- Coupons with Stripe-native `duration` (once / repeating N cycles / forever) for promotional pricing
+- Outgoing webhooks for every lifecycle event (`subscription.created`, `subscription.updated`, `subscription.canceled`, `subscription.trial_ending`, `invoice.paid`, `invoice.payment_failed`). Plug into n8n, Make, Listmonk, or your own mailer
+
+</details>
+
+<details>
+<summary><strong>Waitlist & Pre-Launch Validation</strong></summary>
+
+- Per-product `enable_waitlist` toggle. Inactive product + waitlist on = signup form. Inactive + waitlist off = 404 (so you can hide work-in-progress products without leaks)
+- Email capture form with terms acceptance, Cloudflare Turnstile CAPTCHA, and disposable email blocking
+- Signed-in users see their account email pre-filled with a one-click "Use a different email" override (no need to re-type for the common case, with escape hatch for shared accounts)
+- Webhook delivery on `waitlist.signup` event. Plug into n8n, Make, Listmonk, or any mailer to send confirmation emails and tag subscribers per product
+- Admin warnings: missing-webhook banner per product (so you don't accidentally launch a waitlist with nowhere to send signups), and "last webhook handling waitlist" warning when deleting webhooks
 
 </details>
 
@@ -333,10 +360,11 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 - [x] REST API v1 with OpenAPI 3.1
 - [x] MCP Server for Claude Desktop
 - [x] Simple Funnel System (OTO chaining)
+- [x] Stripe Subscriptions (recurring billing, trials, coupon duration, customer portal)
 - [ ] Zero-Config Setup Wizard (no .env needed)
 - [ ] Transactional Emails & Logs
 - [ ] Invoicing Integration (Fakturownia, KSeF)
-- [ ] Stripe Subscriptions (recurring payments)
+- [ ] Subscription upgrades/downgrades and MRR/churn dashboard
 
 Full roadmap: [BACKLOG.md](./BACKLOG.md)
 

@@ -8,6 +8,7 @@ import { getCategories, getProductCategories, Category } from '@/lib/actions/cat
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
+import { getVideoValidationMessage } from '@/lib/playerstack';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
 import { createClient } from '@/lib/supabase/client';
 import { api } from '@/lib/api/client';
@@ -18,6 +19,7 @@ import {
   initialFormData,
   initialOtoState,
 } from '../types';
+import { collectRequiredFieldErrors } from './required-fields';
 
 interface WaitlistWarning {
   show: boolean;
@@ -165,7 +167,13 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         allow_custom_price: product.allow_custom_price || false,
         custom_price_min: product.custom_price_min ?? 5.00,
         show_price_presets: product.show_price_presets !== false, // default true
-        custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25]
+        custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
+        // Subscription (Phase 4)
+        product_type: product.product_type ?? 'one_time',
+        billing_interval: product.billing_interval ?? null,
+        billing_interval_count: product.billing_interval_count ?? null,
+        recurring_price: product.recurring_price ?? null,
+        trial_days: product.trial_days ?? null,
       });
 
       // Fetch assigned categories
@@ -274,7 +282,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
   // Returns i18n message keys in `message` field — translated in ContentDeliverySection
   const platformLabels: Record<string, string> = {
     youtube: 'YouTube', vimeo: 'Vimeo', bunny: 'Bunny.net',
-    loom: 'Loom', wistia: 'Wistia', dailymotion: 'DailyMotion', twitch: 'Twitch',
+    wistia: 'Wistia', twitch: 'Twitch',
   };
 
   const validateContentItemUrl = useCallback((url: string, type: 'video_embed' | 'download_link'): UrlValidation => {
@@ -285,10 +293,14 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     if (type === 'video_embed') {
       const parsed = parseVideoUrl(url);
       if (!parsed.isValid) {
+        const message = getVideoValidationMessage(url);
+        if (message === 'bunnyIframeUnsupported') {
+          return { isValid: false, message: 'bunnyIframeUnsupported', platform: 'Bunny.net' };
+        }
         if (!isTrustedVideoPlatform(url)) {
           return { isValid: false, message: 'untrustedPlatform' };
         }
-        return { isValid: false, message: 'invalidVideoUrl' };
+        return { isValid: false, message: message === 'unsupportedVideoPlatform' ? 'untrustedPlatform' : 'invalidVideoUrl' };
       }
       const label = platformLabels[parsed.platform] ?? parsed.platform;
       return {
@@ -469,16 +481,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
 
   // Validate required fields — returns true if valid
   const validateRequiredFields = useCallback((): boolean => {
-    const errors: Record<string, string> = {};
-    if (!formData.name.trim()) errors.name = 'required';
-    if (!formData.slug.trim()) errors.slug = 'required';
-    if (!formData.description.trim()) errors.description = 'required';
-    if (priceDisplayValue === '') errors.price = 'required';
-
-    // In local tax mode: VAT rate is required when no shop default is set (only for paid products)
-    if (taxMode === 'local' && (formData.price > 0 || formData.allow_custom_price) && formData.price_includes_vat && formData.vat_rate == null) {
-      errors.vat_rate = 'required';
-    }
+    const errors = collectRequiredFieldErrors(formData, priceDisplayValue, taxMode);
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -487,7 +490,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
     setFieldErrors({});
     return true;
-  }, [formData.name, formData.slug, formData.description, formData.price, formData.allow_custom_price, formData.price_includes_vat, formData.vat_rate, priceDisplayValue, taxMode]);
+  }, [formData, priceDisplayValue, taxMode]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -524,9 +527,15 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
 
     // Include OTO data in the form submission
-    const isFreeProduct = formData.price === 0 && !formData.allow_custom_price;
+    const isSubscription = formData.product_type === 'subscription';
+    // subscription products use recurring_price, not the one-time `price`.
+    // Force price=0 so the API never sees a stale one-time value the UI hid.
+    const isFreeProduct = isSubscription
+      ? true
+      : formData.price === 0 && !formData.allow_custom_price;
     const submitData: ProductFormData = {
       ...formData,
+      ...(isSubscription && { price: 0 }),
       // Free products cannot have price_includes_vat — reset even if UI hid the checkbox
       ...(isFreeProduct && { price_includes_vat: false, vat_rate: null }),
       oto_enabled: oto.enabled,

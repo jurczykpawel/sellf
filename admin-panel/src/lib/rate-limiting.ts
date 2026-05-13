@@ -167,6 +167,29 @@ export async function checkRateLimit(
   }
 }
 
+export async function checkRateLimitForIdentifier(
+  actionType: string,
+  maxRequests: number,
+  windowMinutes: number,
+  identifier: string
+): Promise<boolean> {
+  const isTestMode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  if (isTestMode && process.env.RATE_LIMIT_TEST_MODE !== 'true') {
+    return true;
+  }
+
+  try {
+    if (getUpstashClient()) {
+      return await checkRateLimitUpstash(actionType, maxRequests, windowMinutes, identifier);
+    }
+
+    return await checkRateLimitDatabase(actionType, maxRequests, windowMinutes, identifier);
+  } catch (error) {
+    console.error('Rate limit check exception:', error);
+    return false;
+  }
+}
+
 /**
  * Standard rate limiting configurations
  */
@@ -229,5 +252,20 @@ export const RATE_LIMITS = {
     maxRequests: 100,
     windowMinutes: 1,
     actionType: 'stripe_webhook',
+  },
+  // Customer self-service: cancel/resume their own subscription. Each call hits Stripe.
+  // Tight to prevent flapping; legitimate users only need a couple of clicks.
+  SUBSCRIPTION_MUTATION: {
+    maxRequests: 10,
+    windowMinutes: 5,
+    actionType: 'subscription_mutation',
+  },
+  // Customer self-service read of their own subscriptions. Roomy enough
+  // for normal client polling but bounded so a misbehaving client (or
+  // hijacked-cookie attacker) cannot spam the DB read path.
+  SUBSCRIPTION_READ: {
+    maxRequests: 60,
+    windowMinutes: 1,
+    actionType: 'subscription_read',
   },
 } as const;

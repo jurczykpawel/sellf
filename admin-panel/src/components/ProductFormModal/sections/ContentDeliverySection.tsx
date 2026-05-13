@@ -12,13 +12,13 @@ import type { ContentDeliverySectionProps, UrlValidation, TranslationFunction } 
 const PLATFORM_SUPPORTED_OPTIONS: Record<string, string[]> = {
   YouTube: ['autoplay', 'loop', 'muted', 'controls'],
   Vimeo: ['autoplay', 'loop', 'muted', 'controls'],
-  'Bunny.net': ['autoplay', 'loop', 'muted', 'preload'],
-  Wistia: ['autoplay', 'muted', 'controls'],
-  DailyMotion: ['autoplay', 'muted', 'controls'],
+  Wistia: ['autoplay', 'loop', 'muted', 'controls'],
+  'Bunny.net': ['autoplay', 'loop', 'muted', 'controls'],
+  Twitch: ['autoplay', 'loop', 'muted', 'controls'],
 };
 
 /** All video option keys in display order */
-const VIDEO_OPTIONS = ['autoplay', 'loop', 'muted', 'preload', 'controls'] as const;
+const VIDEO_OPTIONS = ['autoplay', 'loop', 'muted', 'controls'] as const;
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ function ValidationMessage({ validation, t }: { validation: UrlValidation; t: Tr
         : <WarningIcon className="w-3 h-3 mt-0.5 flex-shrink-0" />
       }
       <span>
-        {validation.platform
+        {validation.isValid && validation.platform
           ? t('videoDetected', { platform: validation.platform })
           : t(validation.message)}
       </span>
@@ -121,8 +121,6 @@ function VideoOptionsPanel({ item, index, validation, t, onOptionChange }: {
   onOptionChange: (index: number, option: string, checked: boolean) => void;
 }) {
   const platform = validation?.platform;
-  const isYouTube = platform === 'YouTube';
-  const useCustomPlayer = item.config?.useCustomPlayer !== false;
 
   const platformInfoText = platform
     ? t('platformSupports', {
@@ -137,49 +135,28 @@ function VideoOptionsPanel({ item, index, validation, t, onOptionChange }: {
     <div className="mt-3 pt-3 border-t border-sf-border">
       <div className="text-xs font-medium text-sf-body mb-2">{t('videoOptions')}</div>
 
-      {/* Custom player toggle — YouTube only */}
-      {isYouTube && (
-        <div className="mb-2">
-          <Tooltip content={t('useCustomPlayerTooltip')} side="top">
-            <label className="inline-flex items-center space-x-1.5 text-xs cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useCustomPlayer}
-                onChange={(e) => onOptionChange(index, 'useCustomPlayer', e.target.checked)}
-                className="h-3 w-3 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
-              />
-              <span className="text-sf-body font-medium">{t('useCustomPlayer')}</span>
-            </label>
-          </Tooltip>
-          <p className="mt-0.5 ml-4.5 text-xs text-sf-muted">{t('useCustomPlayerDesc')}</p>
-        </div>
-      )}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {VIDEO_OPTIONS.map(option => {
+          const isControls = option === 'controls';
+          const checked = isControls
+            ? item.config?.controls !== false
+            : Boolean(item.config?.[option]);
 
-      {/* Option checkboxes — hidden when custom player is off */}
-      {useCustomPlayer && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {VIDEO_OPTIONS.map(option => {
-            const isControls = option === 'controls';
-            const checked = isControls
-              ? item.config?.controls !== false
-              : Boolean(item.config?.[option]);
-
-            return (
-              <Tooltip key={option} content={t(`${option}Tooltip`)} side="bottom">
-                <label className="inline-flex items-center space-x-1 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => onOptionChange(index, option, e.target.checked)}
-                    className="h-3 w-3 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
-                  />
-                  <span className="text-sf-body">{t(option)}</span>
-                </label>
-              </Tooltip>
-            );
-          })}
-        </div>
-      )}
+          return (
+            <Tooltip key={option} content={t(`${option}Tooltip`)} side="bottom">
+              <label className="inline-flex items-center space-x-1 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => onOptionChange(index, option, e.target.checked)}
+                  className="h-3 w-3 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
+                />
+                <span className="text-sf-body">{t(option)}</span>
+              </label>
+            </Tooltip>
+          );
+        })}
+      </div>
 
       <div className="mt-2 text-xs text-sf-muted">{platformInfoText}</div>
     </div>

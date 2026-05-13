@@ -501,21 +501,16 @@ test.describe('Gatekeeper Integration Tests', () => {
   });
 
   // ============================================================================
-  // Embed Widget Tests (sellf-embed.js)
-  // NOTE: Next.js App Router intercepts static file routes, so these tests
-  // check availability conditionally. In production with proper static file
-  // serving (nginx, etc.), these would work directly.
+  // Checkout Embed Loader Tests
   // ============================================================================
 
-  test.describe('Embed Widget Script', () => {
+  test.describe('Checkout Embed Loader', () => {
 
-    test('sellf-embed.js is available (via API or static)', async ({ request }) => {
-      // Try the API endpoint which serves the embed script
-      const response = await request.get('/api/sellf-embed');
+    test('checkout.js loader is available', async ({ request }) => {
+      const response = await request.get('/embed/v1/checkout.js');
 
       // Check if the endpoint returns JavaScript
       if (!response.ok()) {
-        // API endpoint not available - verify it returns a recognized error status
         const status = response.status();
         expect([404, 405, 500]).toContain(status);
         return;
@@ -535,18 +530,12 @@ test.describe('Gatekeeper Integration Tests', () => {
       expect(script.length).toBeGreaterThan(500);
     });
 
-    test('Embed form widget functionality exists in codebase', async ({ request }) => {
-      // Instead of testing HTTP access (blocked by Next.js), we verify the
-      // embed functionality exists by checking the sellf script includes
-      // embed-related capabilities
-      const response = await request.get('/api/sellf');
+    test('Embed checkout loader contains widget bootstrap code', async ({ request }) => {
+      const response = await request.get('/embed/v1/checkout.js');
       const script = await response.text();
 
-      // The sellf system should support embeddable widgets
-      const hasEmbedSupport = script.includes('Sellf') ||
-                              script.includes('sellf') ||
-                              script.includes('embed') ||
-                              script.includes('widget');
+      const hasEmbedSupport = script.includes('data-sellf-embed') &&
+                              script.includes('/api/embed/free-access');
 
       if (!hasEmbedSupport) {
         expect.fail('Expected sellf script to contain Sellf, embed, or widget but found none');

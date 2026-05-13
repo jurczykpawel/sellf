@@ -495,8 +495,9 @@ describe('Stripe Integration Security', () => {
       );
       expect(CREATE_PI_SOURCE).toContain('ids.length > 500');
       expect(CREATE_PI_SOURCE).toContain('lastIndexOf(\',\')');
-      // Fallback comment — webhook uses payment_line_items when metadata is truncated
-      expect(CREATE_PI_SOURCE).toContain('payment_line_items');
+      // Webhook fallback recovers the full list from pending transaction metadata
+      // when Stripe's 500-char metadata limit truncates bump_product_ids.
+      expect(CREATE_PI_SOURCE).toContain('bump_product_ids_full');
     });
   });
 });

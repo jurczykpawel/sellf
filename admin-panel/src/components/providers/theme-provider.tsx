@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
-import Script from 'next/script'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -125,7 +124,7 @@ export function useTheme() {
  * Reads localStorage and applies .dark class immediately.
  * Falls back to adminTheme from shop config when no user preference exists.
  */
-export function ThemeScript({ adminTheme }: { adminTheme?: string }) {
+export function ThemeScript({ adminTheme, nonce }: { adminTheme?: string; nonce?: string }) {
   const forced = adminTheme === 'light' || adminTheme === 'dark'
   const script = forced
     ? `(function(){try{${adminTheme === 'dark' ? "document.documentElement.classList.add('dark')" : "document.documentElement.classList.remove('dark')"}}catch(e){}})();`
@@ -144,14 +143,11 @@ export function ThemeScript({ adminTheme }: { adminTheme?: string }) {
       } catch(e) {}
     })();
   `
-  // Use next/script so React 19 doesn't warn about a raw <script> in JSX
-  // ("Encountered a script tag while rendering React component"). The
-  // beforeInteractive strategy emits the inline script in <head> before
-  // hydration, preserving FOUC prevention.
   return (
-    <Script
+    <script
       id="sf-theme-init"
-      strategy="beforeInteractive"
+      nonce={nonce}
+      suppressHydrationWarning
       dangerouslySetInnerHTML={{ __html: script }}
     />
   )

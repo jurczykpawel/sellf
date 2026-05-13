@@ -7,7 +7,7 @@ import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-au
  * Tests the ContentDeliverySection in the product wizard (Step 2):
  * - Adding/removing content items
  * - URL validation with platform detection
- * - Video options panel (autoplay, loop, muted, preload, controls)
+ * - Video options panel (autoplay, loop, muted, controls)
  * - Custom player toggle (YouTube-only)
  * - Tooltips on video option checkboxes
  */
@@ -157,7 +157,7 @@ test.describe('Video Options UI', () => {
     await page.getByRole('button', { name: /Odrzuć/i }).click();
   });
 
-  test('YouTube URL triggers platform detection and shows custom player toggle', async ({ page }) => {
+  test('YouTube URL triggers platform detection and Playerstack options', async ({ page }) => {
     await goToProducts(page);
     await openWizardAndGoToStep2(page, `VO YouTube ${Date.now()}`);
 
@@ -172,8 +172,8 @@ test.describe('Video Options UI', () => {
     // Wait for validation message with platform
     await expect(dialog(page).getByText(/Wykryto wideo YouTube/i)).toBeVisible({ timeout: 5000 });
 
-    // Custom player toggle should appear (YouTube-only)
-    await expect(dialog(page).getByText(/Własny odtwarzacz/i)).toBeVisible();
+    await expect(dialog(page).getByText(/Opcje wideo/i)).toBeVisible();
+    await expect(dialog(page).getByText(/Własny odtwarzacz/i)).not.toBeVisible();
 
     // Close wizard
     await page.getByRole('button', { name: /Wstecz/i }).click();
@@ -195,28 +195,26 @@ test.describe('Video Options UI', () => {
     // Video options section header
     await expect(dialog(page).getByText(/Opcje wideo/i)).toBeVisible();
 
-    // All 5 option checkboxes should be visible (exact match to avoid platform support text)
+    // All Playerstack option checkboxes should be visible (exact match to avoid platform support text)
     const contentItem = dialog(page).locator('[data-testid="content-item"]').first();
     await expect(contentItem.getByText('Automatyczne odtwarzanie', { exact: true })).toBeVisible();
     await expect(contentItem.getByText('Pętla', { exact: true })).toBeVisible();
     await expect(contentItem.getByText('Wyciszony', { exact: true })).toBeVisible();
-    await expect(contentItem.getByText('Wstępne ładowanie', { exact: true })).toBeVisible();
     await expect(contentItem.getByText('Kontrolki', { exact: true })).toBeVisible();
+    await expect(contentItem.getByText('Wstępne ładowanie', { exact: true })).toHaveCount(0);
 
     // Controls should be checked by default (config.controls !== false)
     const controlsCheckbox = dialog(page).locator('label').filter({ hasText: 'Kontrolki' }).locator('input[type="checkbox"]');
     await expect(controlsCheckbox).toBeChecked();
 
-    // Autoplay, loop, muted, preload should be unchecked by default
+    // Autoplay, loop and muted should be unchecked by default
     const autoplayCheckbox = dialog(page).locator('label').filter({ hasText: 'Automatyczne odtwarzanie' }).locator('input[type="checkbox"]');
     const loopCheckbox = dialog(page).locator('label').filter({ hasText: 'Pętla' }).locator('input[type="checkbox"]');
     const mutedCheckbox = dialog(page).locator('label').filter({ hasText: 'Wyciszony' }).locator('input[type="checkbox"]');
-    const preloadCheckbox = dialog(page).locator('label').filter({ hasText: 'Wstępne ładowanie' }).locator('input[type="checkbox"]');
 
     await expect(autoplayCheckbox).not.toBeChecked();
     await expect(loopCheckbox).not.toBeChecked();
     await expect(mutedCheckbox).not.toBeChecked();
-    await expect(preloadCheckbox).not.toBeChecked();
 
     // Close wizard
     await page.getByRole('button', { name: /Wstecz/i }).click();
@@ -261,41 +259,17 @@ test.describe('Video Options UI', () => {
     await page.getByRole('button', { name: /Odrzuć/i }).click();
   });
 
-  test('disabling custom player hides video option checkboxes', async ({ page }) => {
+  test('Bunny iframe URL is rejected with validation error', async ({ page }) => {
     await goToProducts(page);
-    await openWizardAndGoToStep2(page, `VO CustomOff ${Date.now()}`);
+    await openWizardAndGoToStep2(page, `VO BunnyIframe ${Date.now()}`);
 
-    // Add content item with YouTube URL
     await dialog(page).getByRole('button', { name: /Dodaj element treści/i }).click();
     const urlInput = contentItemUrlInput(page);
-    await urlInput.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    await urlInput.fill('https://iframe.mediadelivery.net/embed/123456/a1b2c3d4-e5f6-7890-abcd-ef1234567890');
     await urlInput.blur();
-    await expect(dialog(page).getByText(/Wykryto wideo YouTube/i)).toBeVisible({ timeout: 5000 });
 
-    // Custom player toggle should be checked by default
-    const customPlayerCheckbox = dialog(page).locator('label').filter({ hasText: 'Własny odtwarzacz' }).locator('input[type="checkbox"]');
-    await expect(customPlayerCheckbox).toBeChecked();
-
-    // Option checkboxes visible (scope within content item)
-    const contentItem = dialog(page).locator('[data-testid="content-item"]').first();
-    await expect(contentItem.getByText('Automatyczne odtwarzanie', { exact: true })).toBeVisible();
-
-    // Uncheck custom player
-    await customPlayerCheckbox.uncheck();
-    await expect(customPlayerCheckbox).not.toBeChecked();
-
-    // Option checkboxes should be hidden
-    await expect(contentItem.getByText('Automatyczne odtwarzanie', { exact: true })).not.toBeVisible();
-    await expect(contentItem.getByText('Pętla', { exact: true })).not.toBeVisible();
-    await expect(contentItem.getByText('Wyciszony', { exact: true })).not.toBeVisible();
-    await expect(contentItem.getByText('Kontrolki', { exact: true })).not.toBeVisible();
-
-    // Re-enable custom player
-    await customPlayerCheckbox.check();
-
-    // Options should reappear
-    await expect(contentItem.getByText('Automatyczne odtwarzanie', { exact: true })).toBeVisible();
-    await expect(contentItem.getByText('Kontrolki', { exact: true })).toBeVisible();
+    await expect(urlInput).toHaveClass(/border-red/, { timeout: 5000 });
+    await expect(dialog(page).getByText(/Iframe Bunny nie jest obsługiwany/i)).toBeVisible({ timeout: 5000 });
 
     // Close wizard
     await page.getByRole('button', { name: /Wstecz/i }).click();
@@ -303,7 +277,7 @@ test.describe('Video Options UI', () => {
     await page.getByRole('button', { name: /Odrzuć/i }).click();
   });
 
-  test('custom player toggle only appears for YouTube, not Vimeo', async ({ page }) => {
+  test('Playerstack options appear for Vimeo', async ({ page }) => {
     await goToProducts(page);
     await openWizardAndGoToStep2(page, `VO Vimeo ${Date.now()}`);
 
@@ -317,10 +291,8 @@ test.describe('Video Options UI', () => {
     // Video options section should be visible
     await expect(dialog(page).getByText(/Opcje wideo/i)).toBeVisible();
 
-    // Custom player toggle should NOT appear for Vimeo
     await expect(dialog(page).getByText(/Własny odtwarzacz/i)).not.toBeVisible();
 
-    // But option checkboxes should still be visible
     const contentItem = dialog(page).locator('[data-testid="content-item"]').first();
     await expect(contentItem.getByText('Automatyczne odtwarzanie', { exact: true })).toBeVisible();
     await expect(contentItem.getByText('Kontrolki', { exact: true })).toBeVisible();
@@ -356,12 +328,7 @@ test.describe('Video Options UI', () => {
     // Hover over controls label
     const controlsLabel = dialog(page).locator('label').filter({ hasText: 'Kontrolki' });
     await controlsLabel.hover();
-    await expect(page.getByText(/Pokaż wbudowane kontrolki/i)).toBeVisible({ timeout: 3000 });
-
-    // Hover over custom player toggle
-    const customPlayerLabel = dialog(page).locator('label').filter({ hasText: 'Własny odtwarzacz' });
-    await customPlayerLabel.hover();
-    await expect(page.getByText(/Używa własnego odtwarzacza/i)).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText(/Pokaż kontrolki Playerstack/i)).toBeVisible({ timeout: 3000 });
 
     // Close wizard
     await page.getByRole('button', { name: /Wstecz/i }).click();
@@ -423,7 +390,6 @@ test.describe('Video Options UI', () => {
     // Video options section should NOT be visible
     await expect(dialog(page).getByText(/Opcje wideo/i)).not.toBeVisible();
 
-    // Custom player toggle should NOT be visible
     await expect(dialog(page).getByText(/Własny odtwarzacz/i)).not.toBeVisible();
 
     // Close wizard

@@ -14,6 +14,7 @@ import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
 import { createClient } from '@/lib/supabase/client';
+import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
@@ -163,10 +164,13 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
     
     try {
       const supabase = await createClient();
-      
-      const authRedirectPath = `/auth/product-access?product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
-      const redirectUrl = `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(authRedirectPath)}`;
-      
+
+      const redirectUrl = buildFreeProductMagicLinkRedirect({
+        origin: window.location.origin,
+        productSlug: product.slug,
+        successUrl,
+      });
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {

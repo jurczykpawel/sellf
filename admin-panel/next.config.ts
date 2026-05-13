@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import {
+  buildBaseSecurityHeaders,
+  buildEmbeddableResourceHeaders,
+  buildApiSecurityHeaders,
+  EMBEDDABLE_RESOURCE_PATHS,
+} from './src/lib/security/headers';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 
@@ -137,65 +143,29 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8')).version,
   },
 
-  // Security headers
+  // Security headers — defined in src/lib/security/headers.ts so they are unit-testable.
   async headers() {
     return [
       {
-        // Apply to all routes
+        // Apply to all routes (HSTS is set by proxy.ts with DISABLE_HSTS env var support)
         source: '/:path*',
-        headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-          // HSTS is handled by proxy.ts with DISABLE_HSTS env var support
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} js.stripe.com challenges.cloudflare.com cdn.kiprotect.com www.youtube.com s.ytimg.com`,
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https: i.ibb.co *.stripe.com img.youtube.com vumbnail.com embed-ssl.wistia.com fast.wistia.com placehold.co",
-              "font-src 'self' data:",
-              "frame-src js.stripe.com challenges.cloudflare.com *.youtube.com player.vimeo.com iframe.mediadelivery.net *.loom.com fast.wistia.net *.dailymotion.com player.twitch.tv",
-              `connect-src 'self' *.supabase.co *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com${process.env.NODE_ENV === 'development' ? ' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*' : ''}`,
-              "worker-src 'self' blob:",
-              "object-src 'none'",
-              "base-uri 'self'",
-            ].join('; '),
-          },
-        ],
+        headers: buildBaseSecurityHeaders(),
       },
       {
-        // API routes - more restrictive
+        // API routes - more restrictive cache + nosniff
         source: '/api/:path*',
-        headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate',
-          },
-        ],
+        headers: buildApiSecurityHeaders(),
       },
+      // Embeddable cross-domain endpoints — relax CORP only.
+      // Listed AFTER /api/:path* so CORP override wins.
+      ...EMBEDDABLE_RESOURCE_PATHS.map((source) => ({
+        source: `${source}/:path*`,
+        headers: buildEmbeddableResourceHeaders(),
+      })),
+      ...EMBEDDABLE_RESOURCE_PATHS.map((source) => ({
+        source,
+        headers: buildEmbeddableResourceHeaders(),
+      })),
     ];
   },
 };

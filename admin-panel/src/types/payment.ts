@@ -1,6 +1,8 @@
 // types/payment.ts
 // Type definitions for payment-related operations
 
+import type { Json } from './database';
+
 export interface PaymentSession {
   id: string;
   session_id: string;
@@ -21,19 +23,39 @@ export interface PaymentSession {
 export interface PaymentTransaction {
   id: string;
   session_id: string;
-  user_id: string;
+  user_id: string | null;
+  customer_email?: string | null;
   product_id: string;
   amount: number;
   currency: string;
   stripe_payment_intent_id?: string;
-  status: 'completed' | 'refunded' | 'disputed';
+  status: 'completed' | 'refunded' | 'disputed' | 'pending' | 'failed';
   refunded_amount: number;
   refunded_at?: string;
   refunded_by?: string;
   refund_reason?: string;
   metadata: Record<string, unknown>;
+  product?: {
+    id: string;
+    name: string | null;
+    slug: string | null;
+  };
+  line_items?: PaymentTransactionLineItem[];
   created_at: string;
   updated_at: string;
+}
+
+export interface PaymentTransactionLineItem {
+  id: string;
+  transaction_id: string;
+  product_id: string | null;
+  item_type: 'main_product' | 'order_bump';
+  product_name: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  currency: string;
+  metadata?: Json | null;
 }
 
 export interface CreateCheckoutSessionRequest {

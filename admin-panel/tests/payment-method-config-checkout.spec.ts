@@ -17,10 +17,9 @@ import { test, expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 
 const gotoPaymentsSettings = async (page: Page) => {
-  await page.goto('/dashboard/settings');
+  await page.goto('/dashboard/settings?stripe_connected=1');
   await page.waitForLoadState('domcontentloaded');
-  await page.getByRole('button', { name: /^Payments$|^Płatności$/i }).click();
-  await page.waitForSelector('input[type="radio"][value="automatic"]', { timeout: 10000 });
+  await page.waitForSelector('input[type="radio"][value="automatic"]', { timeout: 20000 });
 };
 
 test.describe('Payment Method Configuration - Checkout Flow', () => {

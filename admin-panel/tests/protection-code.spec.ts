@@ -311,7 +311,7 @@ test.describe('Protection Code (Generate Protection Code)', () => {
       expect(generatedCode).toContain('data-no-access');
     });
 
-    test('Embed mode generates sellf-embed.js script', async ({ page }) => {
+    test('Embed mode generates checkout.js loader', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
       await page.waitForLoadState('domcontentloaded');
@@ -332,9 +332,10 @@ test.describe('Protection Code (Generate Protection Code)', () => {
       const codeBlock = page.locator('pre').first();
       const generatedCode = await codeBlock.textContent();
 
-      // Should contain sellf-embed script reference
-      expect(generatedCode).toContain('sellf-embed');
-      expect(generatedCode).toContain('data-sellf-product');
+      // Should contain the new checkout embed loader
+      expect(generatedCode).toContain('/embed/v1/checkout.js');
+      expect(generatedCode).toContain('data-sellf-embed');
+      expect(generatedCode).toContain('data-sellf-mode="free"');
       expect(generatedCode).toContain(freeProduct.slug);
     });
 

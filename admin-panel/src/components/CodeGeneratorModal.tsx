@@ -28,21 +28,9 @@ export default function CodeGeneratorModal({ isOpen, onClose, product }: CodeGen
     if (options.mode === 'page') {
       return `<script src="${domain}/api/sellf?productSlug=${product.slug}"></script><noscript><meta http-equiv="refresh" content="0;url=${domain}/p/${product.slug}"></noscript>`;
     } else if (options.mode === 'embed') {
-      // Embed widget mode - only for free products
       return `<!-- Sellf Free Product Embed -->
-<div data-sellf-product="${product.slug}"></div>
-<script src="${domain}/api/sellf-embed"></script>
-
-<!-- Optional: Listen for success events -->
-<!--
-<script>
-  document.addEventListener('sellf:success', function(e) {
-    console.log('Claimed:', e.detail.productSlug, 'Email:', e.detail.email);
-    // Reload page to show protected content
-    location.reload();
-  });
-</script>
--->`;
+<div data-sellf-embed data-product-slug="${product.slug}" data-sellf-mode="free"></div>
+<script src="${domain}/embed/v1/checkout.js"></script>`;
     } else {
       return `<!-- Add this to your page head -->
 <script src="${domain}/api/sellf"></script><noscript><meta http-equiv="refresh" content="0;url=${domain}/p/${product.slug}"></noscript>

@@ -113,11 +113,16 @@ export async function getCheckoutConfig(): Promise<CheckoutConfig> {
   )
 
   // --- Payment methods ---
-  let paymentMethodMode: PaymentConfigMode = 'custom'
-  let paymentMethodTypes: string[] = [...STRIPE_CONFIG.payment_method_types]
+  let paymentMethodMode: PaymentConfigMode = 'automatic'
+  let paymentMethodTypes: string[] = []
   let stripePresetId: string | null | undefined = undefined
   const pmEnvExists = !!process.env.STRIPE_PAYMENT_METHODS
   let pmSource: ConfigSource = pmEnvExists ? 'env' : 'default'
+
+  if (pmEnvExists) {
+    paymentMethodMode = 'custom'
+    paymentMethodTypes = [...STRIPE_CONFIG.payment_method_types]
+  }
 
   if (pmConfig) {
     paymentMethodMode = pmConfig.config_mode

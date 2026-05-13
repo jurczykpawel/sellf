@@ -165,6 +165,8 @@ describe('Area 8: RLS Policy Completeness', () => {
     'profiles',
     'stripe_configurations',
     'shop_config',
+    'seller_embed_settings',
+    'embed_checkout_log',
     'revenue_goals',
     'refund_requests',
     'coupons',

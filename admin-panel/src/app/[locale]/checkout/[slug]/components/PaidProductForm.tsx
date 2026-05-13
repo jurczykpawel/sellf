@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
+import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -26,6 +26,7 @@ import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import OrderBumpList from './OrderBumpList';
 import CouponField from './CouponField';
 import PwywSection from './PwywSection';
+import { getStripeClient } from '@/lib/stripe/client';
 
 interface PaidProductFormProps {
   product: Product;
@@ -48,11 +49,13 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // Safe loading of Stripe to prevent crashes if key is missing
   const stripePromise = config.stripePublishableKey
-    ? loadStripe(config.stripePublishableKey)
+    ? getStripeClient(config.stripePublishableKey)
     : null;
 
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
+  const lastCheckoutSessionSignature = useRef<string | null>(null);
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
@@ -150,6 +153,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     bumpSelected,
     isFunnelTest,
     funnelTestOtoSlug: oto.funnelTestOtoSlug,
+    getFunnelTestOtoReady: oto.getFunnelTestOtoReady,
+    getFunnelTestOtoSlug: oto.getFunnelTestOtoSlug,
   });
 
   const pricing = calculatePricing({
@@ -172,6 +177,14 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const isFullDiscountCoupon = !!coupon.appliedCoupon && pricing.isFreeWithCoupon;
 
   const isFreeAccess = isPwywFree || isFullDiscountCoupon;
+  const checkoutSessionSignature = JSON.stringify({
+    productId: product.id,
+    email: email || null,
+    bumpProductIds: Array.from(selectedBumpIds).sort(),
+    couponCode: coupon.appliedCoupon?.code ?? null,
+    successUrl: searchParams.get('success_url') || null,
+    customAmount: product.allow_custom_price ? customAmount : null,
+  });
 
   // Free-access flow (shared by PWYW=0 and full-discount coupons)
   const pwyw = useFreeAccess({
@@ -220,6 +233,15 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       return;
     }
 
+    const shouldRefreshExistingSession =
+      !!clientSecret &&
+      !!lastCheckoutSessionSignature.current &&
+      lastCheckoutSessionSignature.current !== checkoutSessionSignature;
+
+    if (clientSecret && !shouldRefreshExistingSession) {
+      return;
+    }
+
     const controller = new AbortController();
 
     fetch('/api/create-payment-intent', {
@@ -228,6 +250,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       signal: controller.signal,
       body: JSON.stringify({
         productId: product.id,
+        clientSecret: shouldRefreshExistingSession ? clientSecret : undefined,
         email: email || undefined,
         bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
         couponCode: coupon.appliedCoupon?.code,
@@ -261,7 +284,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           grantAccess();
           return;
         }
+        lastCheckoutSessionSignature.current = checkoutSessionSignature;
         setClientSecret(data.clientSecret);
+        setCheckoutSessionId(data.checkoutSessionId);
       })
       .catch(err => {
         if (controller.signal.aborted) return;
@@ -274,6 +299,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
+    clientSecret, checkoutSessionSignature,
   ]);
 
   const handleSignOutAndCheckout = async () => {
@@ -448,25 +474,27 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
-            <Elements
-              key={`${product.id}-${clientSecret}-${resolvedTheme}`}
+            <CheckoutElementsProvider
+              key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}
               options={{
                 clientSecret,
-                appearance: {
-                  theme: resolvedTheme === 'dark' ? 'night' : 'stripe',
-                  variables: {
-                    colorPrimary: '#3b82f6',
-                    ...(resolvedTheme === 'dark' ? {
-                      colorBackground: '#1e293b',
-                      colorText: '#ffffff',
-                    } : {}),
-                    colorDanger: '#ef4444',
-                    fontFamily: 'system-ui, sans-serif',
-                    borderRadius: '8px',
+                elementsOptions: {
+                  appearance: {
+                    theme: resolvedTheme === 'dark' ? 'night' : 'stripe',
+                    variables: {
+                      colorPrimary: '#3b82f6',
+                      ...(resolvedTheme === 'dark' ? {
+                        colorBackground: '#1e293b',
+                        colorText: '#ffffff',
+                      } : {}),
+                      colorDanger: '#ef4444',
+                      fontFamily: 'system-ui, sans-serif',
+                      borderRadius: '8px',
+                    },
                   },
                 },
-              } as StripeElementsOptions}
+              } satisfies StripeCheckoutElementsSdkOptions}
             >
               <CustomPaymentForm
                 product={product}
@@ -484,7 +512,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 expressCheckoutConfig={expressCheckoutConfig}
                 taxMode={taxMode}
               />
-            </Elements>
+            </CheckoutElementsProvider>
           )}
         </div>
       )}

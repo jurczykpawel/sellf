@@ -959,3 +959,85 @@ VALUES (
   (SELECT id FROM products WHERE slug = 'test-oto-target'),
   NOW() - INTERVAL '7 days'
 );
+-- =============================================================================
+-- Subscription products (subscriptions MVP)
+-- =============================================================================
+
+-- Monthly subscription example
+INSERT INTO products (
+  name, slug, description, long_description, icon, price, currency,
+  vat_rate, price_includes_vat, features, is_active, is_featured, is_listed,
+  product_type, billing_interval, billing_interval_count, recurring_price, trial_days
+) VALUES (
+  'Pro Membership',
+  'pro-membership-monthly',
+  'Monthly subscription with full library access.',
+  E'## Pro Membership\n\nFull access to the entire content library, refreshed weekly. Cancel anytime.\n\n- 40+ courses\n- New material every week\n- Discord community access\n- 14-day free trial',
+  '⭐',
+  0,
+  'PLN',
+  NULL,
+  true,
+  '[{"title": "Subskrypcja Pro", "items": ["Pełny dostęp do 40+ kursów", "Nowe materiały co tydzień", "Discord community", "Anuluj w każdej chwili"]}]'::jsonb,
+  true,
+  true,
+  true,
+  'subscription',
+  'month',
+  1,
+  49.00,
+  14
+);
+
+-- Yearly subscription example (no trial)
+INSERT INTO products (
+  name, slug, description, long_description, icon, price, currency,
+  vat_rate, price_includes_vat, features, is_active, is_listed,
+  product_type, billing_interval, billing_interval_count, recurring_price
+) VALUES (
+  'Pro Membership Yearly',
+  'pro-membership-yearly',
+  'Annual subscription, save 17% vs monthly.',
+  E'## Pro Membership Yearly\n\nSame benefits as monthly, billed once per year. Save 17% vs monthly billing.',
+  '🏆',
+  0,
+  'PLN',
+  NULL,
+  true,
+  '[{"title": "Subskrypcja roczna", "items": ["Wszystko z planu miesięcznego", "Zniżka 17% vs plan miesięczny", "Płatność raz w roku"]}]'::jsonb,
+  true,
+  true,
+  'subscription',
+  'year',
+  1,
+  490.00
+);
+
+-- Coupon: founders 30% off forever
+INSERT INTO coupons (
+  code, name, discount_type, discount_value, is_active,
+  duration, allowed_product_ids
+) VALUES (
+  'FOUNDERS30',
+  'Founders Forever Discount',
+  'percentage',
+  30,
+  true,
+  'forever',
+  '[]'::jsonb
+);
+
+-- Coupon: welcome 50% off first 3 months
+INSERT INTO coupons (
+  code, name, discount_type, discount_value, is_active,
+  duration, duration_in_months, allowed_product_ids
+) VALUES (
+  'WELCOME50',
+  'Welcome Discount (3 months)',
+  'percentage',
+  50,
+  true,
+  'repeating',
+  3,
+  '[]'::jsonb
+);

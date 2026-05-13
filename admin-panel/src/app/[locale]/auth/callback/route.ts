@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { Session, AuthError } from '@supabase/supabase-js'
 import { DisposableEmailService } from '@/lib/services/disposable-email'
 import { isSafeRedirectUrl } from '@/lib/validations/redirect'
+import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
 
 /**
  * Auth callback handler for Supabase magic links
@@ -73,12 +74,14 @@ export async function GET(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-          // Set cookies on the temporary response object
+          // Cookie flags centralized — see buildSupabaseCookieOptions.
+          const isProduction = process.env.NODE_ENV === 'production'
           cookiesToSet.forEach(({ name, value, options }) => {
             tempResponse.cookies.set({
               name,
               value,
-              ...options
+              ...options,
+              ...buildSupabaseCookieOptions({ isProduction, callerOptions: options }),
             })
           })
         },

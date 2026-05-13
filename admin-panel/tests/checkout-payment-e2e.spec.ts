@@ -23,58 +23,65 @@ const TEST_NIP_VALID = '5261040828';
  */
 async function mockStripe(page: any) {
   await page.addInitScript(() => {
-    // Mock loadStripe function (used by @stripe/stripe-js)
-    // @ts-ignore
-    window.loadStripe = async function() {
-      return {
-        elements: function() {
-          return {
-            _commonOptions: {
-              clientSecret: 'pi_mock_secret_123'
-            },
-            create: function() {
-              return {
-                mount: function(selector) {
-                  const container = document.querySelector(selector);
-                  if (container) {
-                    const mockEl = document.createElement('div');
-                    mockEl.setAttribute('data-testid', 'mock-payment-element');
-                    mockEl.innerHTML = '<div>Mock Payment Element (Test Mode)</div>';
-                    container.appendChild(mockEl);
-                  }
+    const mockSession = {
+      id: 'cs_test_mock',
+      currency: 'pln',
+      email: null,
+      lineItems: [],
+      total: { total: { minorUnitsAmount: 10000, amount: '100.00' } },
+      status: { type: 'open' },
+    };
+    const mockStripeObject = {
+      elements: function() { return {}; },
+      createToken: async function() { return {}; },
+      createPaymentMethod: async function() { return {}; },
+      confirmCardPayment: async function() { return {}; },
+      initCheckoutElementsSdk: function() {
+        return {
+          on: function() {},
+          changeAppearance: function() {},
+          loadFonts: function() {},
+          createPaymentElement: function() {
+            return {
+              mount: function(target) {
+                const container = typeof target === 'string' ? document.querySelector(target) : target;
+                if (container) {
+                  const mockEl = document.createElement('div');
+                  mockEl.setAttribute('data-testid', 'mock-payment-element');
+                  mockEl.innerHTML = '<div>Mock Payment Element (Test Mode)</div>';
+                  container.appendChild(mockEl);
+                }
+              },
+              on: function() {},
+              update: function() {},
+              unmount: function() {},
+              destroy: function() {},
+            };
+          },
+          loadActions: async function() {
+            return {
+              type: 'success',
+              actions: {
+                getSession: () => mockSession,
+                updateEmail: async () => ({ type: 'success', session: mockSession }),
+                updateBillingAddress: async () => ({ type: 'success', session: mockSession }),
+                confirm: async ({ returnUrl } = {}) => {
+                  if (returnUrl) window.location.href = returnUrl.replace('{CHECKOUT_SESSION_ID}', 'cs_test_mock');
+                  return { type: 'success', session: mockSession };
                 },
-                on: function() {},
-                unmount: function() {},
-                destroy: function() {}
-              };
-            },
-            submit: async function() {
-              return { error: null };
-            }
-          };
-        },
-        confirmPayment: async function(options) {
-          const returnUrl = options.confirmParams?.return_url;
-          if (returnUrl) {
-            window.location.href = returnUrl;
-          }
-          return { error: null };
-        },
-        retrievePaymentIntent: async function(cs) {
-          return {
-            paymentIntent: {
-              id: 'pi_mock_123',
-              client_secret: cs,
-              status: 'succeeded'
-            }
-          };
-        }
-      };
+              },
+            };
+          },
+        };
+      },
+      retrievePaymentIntent: async function(cs) {
+        return { paymentIntent: { id: 'pi_mock_123', client_secret: cs, status: 'succeeded' } };
+      },
     };
 
     // Also mock Stripe constructor (fallback)
     // @ts-ignore
-    window.Stripe = window.loadStripe;
+    window.Stripe = function() { return mockStripeObject; };
   });
 
   // Mock the Stripe CDN script to prevent loading real Stripe.js
@@ -96,7 +103,8 @@ async function mockStripeAPI(page: any) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        clientSecret: 'pi_mock_secret_123',
+        clientSecret: 'cs_test_mock_secret_123',
+        checkoutSessionId: 'cs_test_mock',
         amount: 10000
       })
     });

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { STRIPE_API_VERSION } from '@/lib/constants';
 
 /**
  * Stripe Webhook Tests
@@ -40,7 +41,7 @@ test.describe('Stripe Webhook Security', () => {
    */
   function generateWebhookSignature(payload: string, secret: string): string {
     const stripe = new Stripe(STRIPE_SECRET_KEY || 'sk_test_fake', {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: STRIPE_API_VERSION,
     });
 
     const timestamp = Math.floor(Date.now() / 1000);
@@ -67,7 +68,7 @@ test.describe('Stripe Webhook Security', () => {
     const event = {
       id: id || `evt_test_${Date.now()}`,
       object: 'event',
-      api_version: '2025-12-15.clover',
+      api_version: STRIPE_API_VERSION,
       created: Math.floor(Date.now() / 1000),
       type,
       data: {

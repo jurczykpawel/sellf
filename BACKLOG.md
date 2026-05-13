@@ -80,9 +80,9 @@ Google OAuth App integration for one-click GTM setup — Sellf auto-creates Cont
 
 ## 🟢 Lower Priority
 
-### Stripe Subscriptions (Recurring Payments)
+### Subscription Upgrades / Downgrades & MRR Dashboard
 **Status**: 📋 Planned
-Stripe Billing integration for monthly/yearly subscriptions with lifecycle management and customer portal.
+Plan switching with prorated billing, pause subscription, MRR / churn / LTV dashboard, and cohort retention curves. Builds on top of the shipped Subscriptions MVP.
 
 ### Privacy-First Cart Recovery
 **Status**: 📋 Planned
@@ -202,6 +202,16 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ External funnel support via `/checkout/[slug]`
 - ✅ URL parameters for coupons (`?coupon=...`) and tracking
 
+#### Stripe Subscriptions MVP (2026-05)
+- ✅ Recurring billing on day/week/month/year + interval count
+- ✅ Optional free trials per product (`trial_days`, card upfront)
+- ✅ Anonymous sub checkout (no forced login, account materializes via webhook)
+- ✅ Customer portal in Sellf: cancel/resume, invoice list, update card via SetupIntent
+- ✅ Cancel always at period end; refund of first invoice auto-cancels
+- ✅ Stripe-native coupon `duration` (once / repeating N cycles / forever)
+- ✅ Outgoing webhooks for full lifecycle (`subscription.created/updated/canceled/trial_ending`, `invoice.paid/payment_failed`)
+- ✅ `stripe_customers` + `subscriptions` tables with RLS, durable Stripe Price binding
+
 ### 📊 Analytics & Integrations
 
 #### Multi-Currency Conversion (2025-12-30)
@@ -245,6 +255,13 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 #### Product Variants (Jan 2025)
 - ✅ M:N architecture (variants as linked products)
 - ✅ Admin UI, variant selector page, featured variant
+
+#### Waitlist & Pre-Launch Validation
+- ✅ Per-product `enable_waitlist` toggle, inactive + waitlist = signup form, inactive + no waitlist = 404 (no leak)
+- ✅ Email capture with terms acceptance, Cloudflare Turnstile CAPTCHA, disposable email blocking
+- ✅ HMAC-signed `waitlist.signup` webhook event
+- ✅ Admin guardrails: missing-webhook banner per product, last-webhook deletion warning with affected product count
+- ✅ Signed-in user pre-fill + "Use a different email" override (v2026.4.1) — captcha only required on override path
 
 ### 🎨 UI & Branding
 
@@ -310,4 +327,4 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 
 ---
 
-**Last Updated**: 2026-02-18
+**Last Updated**: 2026-05-03

@@ -40,6 +40,11 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const platformAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+  db: { schema: 'public' },
+});
+
 // ===== CONSTANTS =====
 
 /** Default test transaction amount in cents (e.g., $49.99) */
@@ -201,6 +206,13 @@ async function createTestGuestPurchase(
   return data;
 }
 
+async function cleanupRateLimits(functionName: string) {
+  await platformAdmin
+    .from('rate_limits')
+    .delete()
+    .like('function_name', `%${functionName}%`);
+}
+
 async function cleanup() {
   for (const id of cleanupIds.refundRequests) {
     await supabaseAdmin.from('refund_requests').delete().eq('id', id);
@@ -274,6 +286,8 @@ afterEach(async () => {
   cleanupIds.userProductAccess = [];
   cleanupIds.guestPurchases = [];
   cleanupIds.users = cleanupIds.users.filter((id) => id === adminUser.userId);
+  await cleanupRateLimits('claim_guest_purchases_for_user');
+  await cleanupRateLimits('grant_product_access_service_role');
 });
 
 // =============================================================================
@@ -464,6 +478,51 @@ describe('get_user_purchases_with_refund_status RPC', () => {
     expect(typeof purchase.refund_eligible).toBe('boolean');
     // is_refundable comes from the product
     expect(typeof purchase.is_refundable).toBe('boolean');
+  });
+
+  it('1b. Shows a guest checkout transaction after the purchase is claimed by a new magic-link user', async () => {
+    const user = await createTestRegularUser('upr-guest-claim-history');
+    const sessionId = `cs_test_claim_history_${uniqueId()}`;
+    const tx = await createTestTransaction(testProduct.id, {
+      session_id: sessionId,
+      user_id: null,
+      customer_email: user.email,
+    });
+    const gp = await createTestGuestPurchase(testProduct.id, user.email, {
+      session_id: sessionId,
+    });
+
+    await cleanupRateLimits('claim_guest_purchases_for_user');
+    await cleanupRateLimits('grant_product_access_service_role');
+
+    const { data: claimResult, error: claimError } = await supabaseAdmin.rpc(
+      'claim_guest_purchases_for_user',
+      { p_user_id: user.userId },
+    );
+
+    expect(claimError).toBeNull();
+    expect(claimResult?.success).toBe(true);
+    expect(claimResult?.claimed_count).toBeGreaterThanOrEqual(1);
+
+    cleanupIds.userProductAccess.push({ userId: user.userId, productId: testProduct.id });
+
+    const { data, error } = await user.client.rpc('get_user_purchases_with_refund_status', {
+      user_id_param: user.userId,
+    });
+
+    expect(error).toBeNull();
+    const claimedPurchase = data.find(
+      (purchase: Record<string, unknown>) => purchase.transaction_id === tx.id,
+    );
+    expect(claimedPurchase).toBeDefined();
+    expect(claimedPurchase.product_id).toBe(testProduct.id);
+
+    const { data: claimedGuestPurchase } = await supabaseAdmin
+      .from('guest_purchases')
+      .select('claimed_by_user_id')
+      .eq('id', gp.id)
+      .single();
+    expect(claimedGuestPurchase?.claimed_by_user_id).toBe(user.userId);
   });
 
   it('2. Shows refund request status when refund request exists', async () => {

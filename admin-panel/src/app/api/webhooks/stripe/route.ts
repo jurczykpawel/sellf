@@ -10,6 +10,8 @@
  * - checkout.session.completed: Process successful checkout payments
  * - payment_intent.succeeded: Process successful direct payments
  * - charge.refunded: Revoke access when refund is processed externally
+ * - refund.created / refund.updated: Revoke access when dashboard refunds
+ *   are created or changed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
  */
 
@@ -19,10 +21,20 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import {
+  handleSubscriptionCreated,
+  handleSubscriptionUpdated,
+  handleSubscriptionDeleted,
+  handleSubscriptionTrialWillEnd,
+  handleInvoicePaid,
+  handleInvoicePaymentFailed,
+} from './subscription-handlers';
+import { RETRIABLE_EVENTS } from './retriable-events';
 
 /**
  * Process successful payment from checkout session.
@@ -31,6 +43,14 @@ async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
+  // Subscription checkouts are handled end-to-end by the
+  // customer.subscription.created + invoice.paid handlers in
+  // subscription-handlers.ts. This handler stays scoped to the
+  // one-time-payment surface.
+  if (session.mode === 'subscription') {
+    return { processed: true, message: 'Skipped: subscription mode (handled by invoice.paid)' };
+  }
+
   const sessionId = session.id;
   const productId = session.metadata?.product_id;
   const customerEmail = session.customer_details?.email || session.customer_email;
@@ -39,14 +59,16 @@ async function handleCheckoutSessionCompleted(
     return { processed: false, message: 'Missing product_id or customer_email in session' };
   }
 
-  // Idempotency check: Skip if already processed
+  // Idempotency check: Skip only if already completed (not pending).
+  // Checkout Sessions Elements creates a pending row before payment; the webhook
+  // must still process it and attach the eventual PaymentIntent ID.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status')
     .eq('session_id', sessionId)
     .maybeSingle();
 
-  if (existingTransaction) {
+  if (existingTransaction?.status === 'completed') {
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
@@ -56,13 +78,29 @@ async function handleCheckoutSessionCompleted(
   const hasBump = session.metadata?.has_bump === 'true';
   const couponId = session.metadata?.coupon_id || null;
   const hasCoupon = session.metadata?.has_coupon === 'true';
-  const discountAmount = parseFloat(session.metadata?.discount_amount || '0') || 0;
   const userId = session.metadata?.user_id || null;
 
   // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
   let bumpProductIds: string[] = bumpProductIdsStr
     ? bumpProductIdsStr.split(',').filter((id: string) => id.length > 0)
     : (hasBump && bumpProductId ? [bumpProductId] : []);
+
+  // Get payment intent ID
+  const stripePaymentIntentId = typeof session.payment_intent === 'object'
+    ? session.payment_intent?.id
+    : session.payment_intent;
+
+  if (existingTransaction?.status === 'pending' && stripePaymentIntentId) {
+    const { error: updatePendingError } = await supabase
+      .from('payment_transactions')
+      .update({ stripe_payment_intent_id: stripePaymentIntentId })
+      .eq('id', existingTransaction.id)
+      .eq('status', 'pending');
+
+    if (updatePendingError) {
+      console.error('[stripe-webhook] Failed to attach PaymentIntent ID to pending Checkout Session row:', updatePendingError);
+    }
+  }
 
   // Detect metadata truncation: bump_count tells us how many bumps were selected
   const expectedBumpCount = parseInt(session.metadata?.bump_count || '0', 10);
@@ -94,12 +132,20 @@ async function handleCheckoutSessionCompleted(
     } catch (lineItemErr) {
       console.error('[stripe-webhook] Failed to recover bump IDs from Stripe line items:', lineItemErr);
     }
-  }
 
-  // Get payment intent ID
-  const stripePaymentIntentId = typeof session.payment_intent === 'object'
-    ? session.payment_intent?.id
-    : session.payment_intent;
+    if (bumpProductIds.length < expectedBumpCount && existingTransaction) {
+      const { data: pendingTx } = await supabase
+        .from('payment_transactions')
+        .select('metadata')
+        .eq('id', existingTransaction.id)
+        .single();
+      const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
+      if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
+        bumpProductIds = fullBumpIds as string[];
+        console.info('[stripe-webhook] Recovered %d bump IDs from pending Checkout Session metadata', fullBumpIds.length);
+      }
+    }
+  }
 
   // Process payment using database function (multi-bump aware)
   const { data: rawResult, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
@@ -328,13 +374,14 @@ async function handleChargeRefunded(
     : charge.payment_intent?.id;
 
   if (!paymentIntentId) {
-    return { processed: false, message: 'No payment_intent in charge' };
+    // Malformed event payload — there is nothing to retry, acknowledge.
+    return { processed: true, message: 'No payment_intent in charge, skipping' };
   }
 
   // Find transaction by payment intent ID (include session_id for guest cleanup)
   const { data: transaction, error: txError } = await supabase
     .from('payment_transactions')
-    .select('id, user_id, product_id, status, session_id')
+    .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount')
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle();
 
@@ -342,12 +389,13 @@ async function handleChargeRefunded(
     // Also try finding by session_id (for payment intent flow)
     const { data: txBySession } = await supabase
       .from('payment_transactions')
-      .select('id, user_id, product_id, status, session_id')
+      .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount')
       .eq('session_id', paymentIntentId)
       .maybeSingle();
 
     if (!txBySession) {
-      return { processed: false, message: 'Transaction not found for refund' };
+      // Charge is not from this account — acknowledge so Stripe stops retrying.
+      return { processed: true, message: 'Transaction not found for refund, skipping' };
     }
 
     return await processRefundForTransaction(txBySession, charge, supabase);
@@ -356,27 +404,65 @@ async function handleChargeRefunded(
   return await processRefundForTransaction(transaction, charge, supabase);
 }
 
+/**
+ * Handle Stripe refund objects by resolving the underlying charge and
+ * delegating to the charge-based refund processor.
+ */
+async function handleRefundEvent(
+  refund: Stripe.Refund,
+  stripe: Stripe,
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<{ processed: boolean; message: string }> {
+  const chargeId = typeof refund.charge === 'string'
+    ? refund.charge
+    : refund.charge?.id;
+
+  if (!chargeId) {
+    return { processed: true, message: 'No charge in refund event, skipping' };
+  }
+
+  const charge = await stripe.charges.retrieve(chargeId);
+  return handleChargeRefunded(charge, supabase);
+}
+
 async function processRefundForTransaction(
-  transaction: { id: string; user_id: string | null; product_id: string; status: string; session_id: string | null },
+  transaction: {
+    id: string;
+    user_id: string | null;
+    product_id: string;
+    status: string;
+    session_id: string | null;
+    stripe_payment_intent_id: string | null;
+    amount: number;
+    currency: string;
+    customer_email: string | null;
+    refunded_amount: number | null;
+  },
   charge: Stripe.Charge,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
-  // Idempotency: Skip if already refunded
-  if (transaction.status === 'refunded') {
-    return { processed: true, message: 'Already refunded' };
-  }
-
   // Determine if this is a full or partial refund
   const isFullRefund = charge.amount_refunded >= charge.amount;
+  const previousRefundedAmount = transaction.refunded_amount || 0;
+  const nextStatus = isFullRefund ? 'refunded' : 'completed';
+  const refundedAt = new Date().toISOString();
+  const latestRefund = charge.refunds?.data?.[0];
+
+  // A repeated partial refund event after a full refund should not downgrade state.
+  // A repeated full refund event still attempts revocation so failed access cleanup
+  // can be repaired by Stripe retries or manual event replays.
+  if (transaction.status === 'refunded' && !isFullRefund) {
+    return { processed: true, message: 'Already fully refunded' };
+  }
 
   // Update transaction status
   const { error: updateError } = await supabase
     .from('payment_transactions')
     .update({
-      status: isFullRefund ? 'refunded' : 'completed',
-      refund_id: charge.refunds?.data?.[0]?.id || null,
+      status: nextStatus,
+      refund_id: latestRefund?.id || null,
       refunded_amount: charge.amount_refunded,
-      refunded_at: new Date().toISOString(),
+      refunded_at: refundedAt,
       updated_at: new Date().toISOString(),
     })
     .eq('id', transaction.id);
@@ -385,6 +471,23 @@ async function processRefundForTransaction(
     console.error('[Stripe Webhook] Failed to update refund status:', updateError);
     return { processed: false, message: 'Failed to update transaction status' };
   }
+
+  await emitRefundIssuedWebhook({
+    supabaseClient: supabase,
+    transaction,
+    stripeRefundId: latestRefund?.id || null,
+    refundAmount: latestRefund?.amount ?? Math.max(charge.amount_refunded - previousRefundedAmount, 0),
+    refundCurrency: latestRefund?.currency || charge.currency,
+    refundReason: latestRefund?.reason || null,
+    refundStatus: latestRefund?.status || null,
+    previousRefundedAmount,
+    totalRefunded: charge.amount_refunded,
+    isFullRefund,
+    statusBefore: transaction.status,
+    statusAfter: nextStatus,
+    refundedAt,
+    source: 'stripe_webhook',
+  });
 
   // Only revoke access on full refund
   if (!isFullRefund) {
@@ -419,7 +522,7 @@ async function handleChargeDisputeCreated(
     : dispute.charge?.id;
 
   if (!chargeId) {
-    return { processed: false, message: 'No charge in dispute' };
+    return { processed: true, message: 'No charge in dispute, skipping' };
   }
 
   // Get charge details to find payment intent
@@ -434,6 +537,15 @@ async function handleChargeDisputeCreated(
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[Stripe Webhook] Failed to retrieve charge ${chargeId}:`, msg);
+    // Stripe raises StripeInvalidRequestError when the charge id is unknown
+    // — that is a permanent state, retrying is pointless. Other error kinds
+    // (network, rate limit, 5xx) are transient and should escalate to retry.
+    const isUnknownResource =
+      err instanceof Error &&
+      (err as { type?: string }).type === 'StripeInvalidRequestError';
+    if (isUnknownResource) {
+      return { processed: true, message: `Charge ${chargeId} not found, skipping` };
+    }
     return { processed: false, message: `Failed to retrieve charge: ${msg}` };
   }
 
@@ -442,7 +554,7 @@ async function handleChargeDisputeCreated(
     : charge.payment_intent?.id;
 
   if (!paymentIntentId) {
-    return { processed: false, message: 'No payment_intent in disputed charge' };
+    return { processed: true, message: 'No payment_intent in disputed charge, skipping' };
   }
 
   // Find transaction (include session_id for guest cleanup)
@@ -453,7 +565,8 @@ async function handleChargeDisputeCreated(
     .maybeSingle();
 
   if (!transaction) {
-    return { processed: false, message: 'Transaction not found for dispute' };
+    // Charge is not from this account — acknowledge so Stripe stops retrying.
+    return { processed: true, message: 'Transaction not found for dispute, skipping' };
   }
 
   // Update transaction status to disputed
@@ -553,12 +666,6 @@ export async function POST(request: NextRequest) {
   // Handle events
   let result: { processed: boolean; message: string };
 
-  // Events where failure to process means we MUST retry (access revocation is critical)
-  const RETRIABLE_EVENTS = new Set([
-    'charge.refunded',
-    'charge.dispute.created',
-  ]);
-
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -591,9 +698,86 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'refund.created':
+      case 'refund.updated': {
+        const refund = event.data.object as Stripe.Refund;
+        const stripe = await getStripeServer();
+        result = await handleRefundEvent(refund, stripe, supabase);
+        break;
+      }
+
       case 'charge.dispute.created': {
         const dispute = event.data.object as Stripe.Dispute;
         result = await handleChargeDisputeCreated(dispute, supabase);
+        break;
+      }
+
+      case 'customer.subscription.created': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        result = await handleSubscriptionCreated(sub, supabase, createPlatformClient(), stripe);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        const previousAttributes =
+          (event.data.previous_attributes as Partial<Stripe.Subscription>) ?? undefined;
+        result = await handleSubscriptionUpdated(
+          sub,
+          supabase,
+          createPlatformClient(),
+          stripe,
+          previousAttributes
+        );
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        result = await handleSubscriptionDeleted(sub, supabase, createPlatformClient(), stripe);
+        break;
+      }
+
+      case 'customer.subscription.trial_will_end': {
+        const sub = event.data.object as Stripe.Subscription;
+        const stripe = await getStripeServer();
+        result = await handleSubscriptionTrialWillEnd(
+          sub,
+          supabase,
+          createPlatformClient(),
+          stripe
+        );
+        break;
+      }
+
+      case 'customer.subscription.paused':
+      case 'customer.subscription.resumed': {
+        // MVP: no-op (we don't expose pause/resume yet).
+        result = { processed: true, message: `No-op for ${event.type} (MVP)` };
+        break;
+      }
+
+      case 'invoice.paid':
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripe = await getStripeServer();
+        result = await handleInvoicePaid(invoice, supabase, createPlatformClient(), stripe);
+        break;
+      }
+
+      case 'invoice.payment_failed':
+      case 'invoice.payment_action_required': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripe = await getStripeServer();
+        result = await handleInvoicePaymentFailed(
+          invoice,
+          supabase,
+          createPlatformClient(),
+          stripe
+        );
         break;
       }
 
@@ -604,6 +788,15 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Stripe Webhook] ${event.type}: ${result.message}`);
 
+    // Force a Stripe retry on retriable events that returned processed:false
+    // — by returning 500 the next webhook delivery re-attempts the work.
+    if (!result.processed && RETRIABLE_EVENTS.has(event.type)) {
+      return NextResponse.json(
+        { error: 'Processing failed; will retry' },
+        { status: 500 }
+      );
+    }
+
     // Always return 200 for valid webhooks to prevent retries
     // SECURITY: Minimal response — don't leak event details or internal processing info
     return NextResponse.json({ received: true });
@@ -612,8 +805,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[Stripe Webhook] Error processing ${event.type}:`, message);
 
-    // SECURITY: For refund/dispute events, return 500 so Stripe retries.
-    // A transient DB outage during revocation could cause permanent access retention.
+    // Retriable events return 500 so Stripe re-attempts delivery on transient errors.
     if (RETRIABLE_EVENTS.has(event.type)) {
       return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
     }

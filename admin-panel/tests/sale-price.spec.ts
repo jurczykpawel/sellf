@@ -66,7 +66,7 @@ test.describe('Sale Price & Enhanced Omnibus', () => {
 
   test('should track sale_price in price history', async () => {
     const { data, error } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .order('effective_from', { ascending: false })
@@ -92,7 +92,7 @@ test.describe('Sale Price & Enhanced Omnibus', () => {
 
     // Check price history
     const { data, error } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .order('effective_from', { ascending: false });
@@ -222,7 +222,7 @@ test.describe('Sale Price & Enhanced Omnibus', () => {
     const thirtyOneDaysAgo = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
 
     const { error: insertError } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .insert({
         product_id: testProductId,
         price: 200,
@@ -244,7 +244,7 @@ test.describe('Sale Price & Enhanced Omnibus', () => {
 
     // Check that old entry was deleted
     const { data, error } = await supabaseAdmin
-      .from('product_price_history')
+      .schema('seller_main').from('product_price_history')
       .select('*')
       .eq('product_id', testProductId)
       .lt('effective_from', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
