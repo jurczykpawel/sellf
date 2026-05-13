@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { getStripeCheckoutSession } from './helpers/stripe-checkout';
 
 /**
  * PWYW Security Tests
@@ -276,8 +277,6 @@ test.describe('PWYW Security - Bypass Prevention', () => {
   // ========================================
 
   test('SECURITY: Verify Stripe PaymentIntent has correct amount for PWYW', async ({ request }) => {
-    const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-
     const response = await request.post('/api/create-payment-intent', {
       data: {
         productId: pwywProduct.id,
@@ -288,22 +287,13 @@ test.describe('PWYW Security - Bypass Prevention', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    // Verify in Stripe
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-
-    const pi = await stripeResponse.json();
-    expect(pi.amount).toBe(2500);  // $25 = 2500 cents
-    expect(pi.metadata.is_pwyw).toBe('true');
-    expect(pi.metadata.custom_amount).toBe('25');
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
+    expect(session.amount_total).toBe(2500);  // $25 = 2500 cents
+    expect(session.metadata.is_pwyw).toBe('true');
+    expect(session.metadata.custom_amount).toBe('25');
   });
 
   test('SECURITY: Verify Stripe PaymentIntent has correct amount for regular product', async ({ request }) => {
-    const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-
     const response = await request.post('/api/create-payment-intent', {
       data: {
         productId: regularProduct.id,
@@ -314,15 +304,8 @@ test.describe('PWYW Security - Bypass Prevention', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    // Verify in Stripe
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-
-    const pi = await stripeResponse.json();
-    expect(pi.amount).toBe(9999);  // $99.99 = 9999 cents
-    expect(pi.metadata.is_pwyw).toBe('false');
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
+    expect(session.amount_total).toBe(9999);  // $99.99 = 9999 cents
+    expect(session.metadata.is_pwyw).toBe('false');
   });
 });

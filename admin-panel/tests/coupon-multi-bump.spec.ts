@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { getStripeCheckoutSession } from './helpers/stripe-checkout';
 
 /**
  * Coupon × Multi-Bump E2E Tests
@@ -16,19 +17,7 @@ test.describe.configure({ mode: 'serial' });
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-// Helper: fetch Stripe PaymentIntent to verify amount
-async function getStripePaymentIntent(paymentIntentId: string) {
-  const res = await fetch(
-    `https://api.stripe.com/v1/payment_intents/${paymentIntentId}`,
-    { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }
-  );
-  expect(res.ok, `Stripe API error: ${res.status}`).toBeTruthy();
-  return res.json();
-}
 
 test.describe('Coupon × Multi-Bump', () => {
   const ts = Date.now();
@@ -294,10 +283,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(9500);
+    expect(session.amount_total).toBe(9500);
   });
 
   test('25% coupon, exclude_bumps=false, 1 bump: discount on entire order', async ({ request }) => {
@@ -315,10 +304,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(9000);
+    expect(session.amount_total).toBe(9000);
   });
 
   test('25% coupon, exclude_bumps=true, 3 bumps: discount on main only, bumps full price', async ({ request }) => {
@@ -336,10 +325,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(17500);
+    expect(session.amount_total).toBe(17500);
   });
 
   test('25% coupon, exclude_bumps=false, 3 bumps: discount on everything', async ({ request }) => {
@@ -357,10 +346,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(15000);
+    expect(session.amount_total).toBe(15000);
   });
 
   test('25% coupon, exclude_bumps=false, 2 of 3 bumps selected', async ({ request }) => {
@@ -378,10 +367,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(11250);
+    expect(session.amount_total).toBe(11250);
   });
 
   // =====================================================================
@@ -403,10 +392,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(8000);
+    expect(session.amount_total).toBe(8000);
   });
 
   test('$40 fixed coupon, exclude_bumps=false, 1 bump: discount on total', async ({ request }) => {
@@ -424,10 +413,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(8000);
+    expect(session.amount_total).toBe(8000);
   });
 
   test('$40 fixed coupon, exclude_bumps=true, 3 bumps: discount on main, bumps untouched', async ({ request }) => {
@@ -445,10 +434,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(16000);
+    expect(session.amount_total).toBe(16000);
   });
 
   test('$40 fixed coupon, exclude_bumps=false, 3 bumps: discount on total', async ({ request }) => {
@@ -466,10 +455,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(16000);
+    expect(session.amount_total).toBe(16000);
   });
 
   // =====================================================================
@@ -584,10 +573,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(7500);
+    expect(session.amount_total).toBe(7500);
   });
 
   test('product-specific coupon + multi-bump: works when product matches', async ({ request }) => {
@@ -606,10 +595,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(16000);
+    expect(session.amount_total).toBe(16000);
   });
 
   test('product-specific coupon does not activate when matching product is only selected as an order bump', async ({ request }) => {
@@ -638,10 +627,10 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(16000);
+    expect(session.amount_total).toBe(16000);
   });
 
   // =====================================================================
@@ -659,20 +648,20 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
     // Verify coupon metadata
-    expect(pi.metadata.coupon_code).toBe(pctInclude.code);
-    expect(pi.metadata.coupon_id).toBe(pctInclude.id);
+    expect(session.metadata.coupon_code).toBe(pctInclude.code);
+    expect(session.metadata.coupon_id).toBe(pctInclude.id);
 
     // Verify bump metadata
-    const bumpIds = pi.metadata.bump_product_ids.split(',');
+    const bumpIds = session.metadata.bump_product_ids.split(',');
     expect(bumpIds).toContain(bumpProduct1.id);
     expect(bumpIds).toContain(bumpProduct2.id);
 
     // Backward compat: bump_product_id should be first bump
-    expect(pi.metadata.bump_product_id).toBeTruthy();
+    expect(session.metadata.bump_product_id).toBeTruthy();
   });
 
   test('no coupon + 3 bumps: full price, correct amount', async ({ request }) => {
@@ -687,9 +676,9 @@ test.describe('Coupon × Multi-Bump', () => {
     });
 
     expect(res.status()).toBe(200);
-    const { paymentIntentId } = await res.json();
-    const pi = await getStripePaymentIntent(paymentIntentId);
+    const { checkoutSessionId } = await res.json();
+    const { session } = await getStripeCheckoutSession(checkoutSessionId);
 
-    expect(pi.amount).toBe(20000);
+    expect(session.amount_total).toBe(20000);
   });
 });

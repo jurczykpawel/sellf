@@ -163,7 +163,7 @@ describe('buildSubscriptionSessionConfig', () => {
       returnUrl: 'https://x.test/r',
       checkoutConfig: { ...baseConfig, paymentMethodMode: 'automatic' },
     });
-    expect(config.automatic_payment_methods).toEqual({ enabled: true });
+    expect(config.automatic_payment_methods).toBeUndefined();
     expect(config.payment_method_types).toBeUndefined();
   });
 

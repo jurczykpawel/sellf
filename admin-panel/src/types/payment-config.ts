@@ -13,7 +13,7 @@
 
 /**
  * Payment configuration mode
- * - automatic: Use Stripe's automatic_payment_methods (default behavior)
+ * - automatic: Use Stripe Dynamic Payment Methods for Checkout Sessions
  * - stripe_preset: Use a specific Stripe Payment Method Configuration (pmc_xxx)
  * - custom: Explicit payment_method_types with manual ordering
  */

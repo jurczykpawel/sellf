@@ -330,7 +330,9 @@ export class CheckoutService {
 
       // Apply payment method config based on mode
       if (checkoutConfig.paymentMethodMode === 'automatic') {
-        sessionConfig.automatic_payment_methods = { enabled: true };
+        // Checkout Sessions use Stripe Dynamic Payment Methods by default.
+        // Do not pass automatic_payment_methods: Stripe rejects that parameter
+        // for Checkout Sessions on the current API version.
       } else if (checkoutConfig.paymentMethodMode === 'stripe_preset' && checkoutConfig.stripePresetId) {
         sessionConfig.payment_method_configuration = checkoutConfig.stripePresetId;
       } else {

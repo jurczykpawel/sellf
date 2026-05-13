@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { getStripeCheckoutSession } from './helpers/stripe-checkout';
 
 /**
  * Multi Order Bump Security Tests
@@ -20,8 +21,6 @@ test.describe.configure({ mode: 'serial' });
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 test.describe('Multi Order Bump Security', () => {
@@ -174,22 +173,15 @@ test.describe('Multi Order Bump Security', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    // Verify in Stripe
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-    expect(stripeResponse.ok).toBeTruthy();
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // Expected: $100 (main) + $15 (bump1) + $20 (bump2) = $135 = 13500 cents
     // NOT $100 + $50 + $40 = $190 (product prices)
-    expect(pi.amount).toBe(13500);
+    expect(session.amount_total).toBe(13500);
 
     // Metadata should contain bump_product_ids (comma-separated)
-    expect(pi.metadata.bump_product_ids).toBeTruthy();
-    const ids = pi.metadata.bump_product_ids.split(',');
+    expect(session.metadata.bump_product_ids).toBeTruthy();
+    const ids = session.metadata.bump_product_ids.split(',');
     expect(ids).toContain(bumpProduct1.id);
     expect(ids).toContain(bumpProduct2.id);
   });
@@ -205,16 +197,11 @@ test.describe('Multi Order Bump Security', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // Only bump1 ($15) should be included, bump3 is inactive
     // Expected: $100 + $15 = $115 = 11500 cents
-    expect(pi.amount).toBe(11500);
+    expect(session.amount_total).toBe(11500);
   });
 
   test('SECURITY: Invalid bump IDs in array are silently ignored', async ({ request }) => {
@@ -231,15 +218,10 @@ test.describe('Multi Order Bump Security', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // Only bump1 ($15) should be included
-    expect(pi.amount).toBe(11500);
+    expect(session.amount_total).toBe(11500);
   });
 
   test('backward compat: single bumpProductId still works', async ({ request }) => {
@@ -253,17 +235,12 @@ test.describe('Multi Order Bump Security', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // $100 + $15 = $115 = 11500 cents
-    expect(pi.amount).toBe(11500);
+    expect(session.amount_total).toBe(11500);
     // Should still have bump metadata
-    expect(pi.metadata.bump_product_ids).toContain(bumpProduct1.id);
+    expect(session.metadata.bump_product_ids).toContain(bumpProduct1.id);
   });
 
   test('SECURITY: payment_line_items use bump_price, not product.price', async () => {

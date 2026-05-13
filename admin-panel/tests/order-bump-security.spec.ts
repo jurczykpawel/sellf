@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { ProductStateGuard } from './helpers/product-state';
+import { getStripeCheckoutSession } from './helpers/stripe-checkout';
 
 /**
  * Order Bump Security Tests
@@ -105,8 +106,6 @@ test.describe('Order Bump Pricing Security', () => {
   });
 
   test('SECURITY: Payment with bump should use bump_price ($10), not product.price ($30)', async ({ request }) => {
-    const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
-
     const response = await request.post('/api/create-payment-intent', {
       data: {
         productId: mainProduct.id,
@@ -117,21 +116,12 @@ test.describe('Order Bump Pricing Security', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    // Verify in Stripe
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` } }
-    );
-
-    expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // Expected: $50 (main) + $10 (bump) = $60 = 6000 cents
     // Bug would cause: $50 (main) + $30 (product.price) = $80 = 8000 cents
-    expect(pi.amount).toBe(6000);
-    expect(pi.metadata.bump_product_id).toBe(bumpProduct.id);
+    expect(session.amount_total).toBe(6000);
+    expect(session.metadata.bump_product_id).toBe(bumpProduct.id);
   });
 
   test('SECURITY: Reject invalid bump product (not configured for main product)', async ({ request }) => {
@@ -161,20 +151,11 @@ test.describe('Order Bump Pricing Security', () => {
 
       expect(response.status()).toBe(200);
       const data = await response.json();
-
-      // Verify in Stripe - should NOT include any bump
-      const stripeResponse = await fetch(
-        `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-        { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
-      );
-
-      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-      const pi = await stripeResponse.json();
+      const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
       // Expected: $50 only (bump should be ignored since it's not valid)
-      expect(pi.amount).toBe(5000);
-      expect(pi.metadata.bump_product_id).toBe('');  // No bump applied
+      expect(session.amount_total).toBe(5000);
+      expect(session.metadata.bump_product_id).toBe('');  // No bump applied
     } finally {
       await supabaseAdmin.from('products').delete().eq('id', randomProduct.id);
     }
@@ -222,18 +203,9 @@ test.describe('Order Bump Pricing Security', () => {
 
       expect(response.status()).toBe(200);
       const data = await response.json();
-
-      // Verify - bump with different currency should be ignored
-      const stripeResponse = await fetch(
-        `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-        { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
-      );
-
-      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-      const pi = await stripeResponse.json();
-      expect(pi.amount).toBe(5000);  // Only main product, no bump
-      expect(pi.metadata.bump_product_id).toBe('');
+      const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
+      expect(session.amount_total).toBe(5000);  // Only main product, no bump
+      expect(session.metadata.bump_product_id).toBe('');
     } finally {
       await supabaseAdmin.from('order_bumps').delete().eq('id', eurBump.id);
       await supabaseAdmin.from('products').delete().eq('id', eurProduct.id);
@@ -258,19 +230,11 @@ test.describe('Order Bump Pricing Security', () => {
 
       expect(response.status()).toBe(200);
       const data = await response.json();
-
-      const stripeResponse = await fetch(
-        `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-        { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
-      );
-
-      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-      const pi = await stripeResponse.json();
+      const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
       // Inactive bump should be ignored - only main product price
-      expect(pi.amount).toBe(5000);
-      expect(pi.metadata.bump_product_id).toBe('');
+      expect(session.amount_total).toBe(5000);
+      expect(session.metadata.bump_product_id).toBe('');
     } finally {
       // Restore for other tests
       await supabaseAdmin
@@ -298,19 +262,11 @@ test.describe('Order Bump Pricing Security', () => {
 
       expect(response.status()).toBe(200);
       const data = await response.json();
-
-      const stripeResponse = await fetch(
-        `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-        { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
-      );
-
-      expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-      const pi = await stripeResponse.json();
+      const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
       // Inactive product should not be applied as bump
-      expect(pi.amount).toBe(5000);
-      expect(pi.metadata.bump_product_id).toBe('');
+      expect(session.amount_total).toBe(5000);
+      expect(session.metadata.bump_product_id).toBe('');
     } finally {
       // Restore for other tests
       await supabaseAdmin
@@ -456,20 +412,12 @@ test.describe('Order Bump with Coupon', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
-    );
-
-    expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // $80 (main after 20% discount) + $15 (bump, no discount) = $95
-    expect(pi.amount).toBe(9500);
-    expect(pi.metadata.bump_product_id).toBe(bumpProduct.id);
-    expect(pi.metadata.coupon_code).toBe(couponExcludeBumps.code);
+    expect(session.amount_total).toBe(9500);
+    expect(session.metadata.bump_product_id).toBe(bumpProduct.id);
+    expect(session.metadata.coupon_code).toBe(couponExcludeBumps.code);
   });
 
   test('Coupon with exclude_order_bumps=false applies to total including bump', async ({ request }) => {
@@ -488,19 +436,11 @@ test.describe('Order Bump with Coupon', () => {
 
     expect(response.status()).toBe(200);
     const data = await response.json();
-
-    const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/payment_intents/${data.paymentIntentId}`,
-      { headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY!}` } }
-    );
-
-    expect(stripeResponse.ok, `Stripe API returned ${stripeResponse.status}`).toBeTruthy();
-
-    const pi = await stripeResponse.json();
+    const { session } = await getStripeCheckoutSession(data.checkoutSessionId);
 
     // ($100 + $15) * 0.8 = $92
-    expect(pi.amount).toBe(9200);
-    expect(pi.metadata.bump_product_id).toBe(bumpProduct.id);
-    expect(pi.metadata.coupon_code).toBe(couponIncludeBumps.code);
+    expect(session.amount_total).toBe(9200);
+    expect(session.metadata.bump_product_id).toBe(bumpProduct.id);
+    expect(session.metadata.coupon_code).toBe(couponIncludeBumps.code);
   });
 });

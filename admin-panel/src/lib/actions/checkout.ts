@@ -130,7 +130,8 @@ export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions):
       };
 
       if (checkoutConfig.paymentMethodMode === 'automatic') {
-        sessionConfig.automatic_payment_methods = { enabled: true };
+        // Checkout Sessions use Stripe Dynamic Payment Methods by default.
+        // Passing automatic_payment_methods is only valid for PaymentIntents.
       } else if (
         checkoutConfig.paymentMethodMode === 'stripe_preset' &&
         checkoutConfig.stripePresetId
