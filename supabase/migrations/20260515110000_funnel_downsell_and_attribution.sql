@@ -78,11 +78,14 @@ CREATE OR REPLACE VIEW public.oto_offers WITH (security_invoker = on) AS
 -- -----------------------------------------------------------------------------
 
 ALTER TABLE seller_main.products
-  DROP CONSTRAINT IF EXISTS products_checkout_template_check;
+  DROP CONSTRAINT IF EXISTS products_checkout_template_check,
+  DROP CONSTRAINT IF EXISTS products_tipjar_requires_pwyw;
 
 ALTER TABLE seller_main.products
   ADD CONSTRAINT products_checkout_template_check
-  CHECK (checkout_template IN ('default', 'tip-jar', 'oto'));
+  CHECK (checkout_template IN ('default', 'tip-jar', 'oto')),
+  ADD CONSTRAINT products_tipjar_requires_pwyw
+  CHECK (checkout_template <> 'tip-jar' OR allow_custom_price = true);
 
 -- -----------------------------------------------------------------------------
 -- 3. Coupon role attribution + idempotency rework
