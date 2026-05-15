@@ -12,6 +12,36 @@ ALTER FUNCTION seller_main.process_stripe_payment_completion_with_bump(
   TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID, UUID[], UUID
 ) RENAME TO _process_stripe_payment_completion_with_bump_impl;
 
+-- Patch the renamed body: it self-qualifies one column reference as
+-- `process_stripe_payment_completion_with_bump.stripe_payment_intent_id`,
+-- which after RENAME no longer resolves (Postgres treats it as a table
+-- alias and raises 42P01). Bind to a local alias instead.
+DO $patch$
+DECLARE
+  body TEXT;
+BEGIN
+  SELECT pg_get_functiondef(p.oid) INTO body
+    FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid
+   WHERE n.nspname = 'seller_main'
+     AND p.proname = '_process_stripe_payment_completion_with_bump_impl';
+
+  body := replace(
+    body,
+    'process_stripe_payment_completion_with_bump.stripe_payment_intent_id',
+    'pi_param'
+  );
+
+  body := regexp_replace(
+    body,
+    'DECLARE',
+    E'DECLARE\n  pi_param TEXT := stripe_payment_intent_id;',
+    ''
+  );
+
+  EXECUTE body;
+END
+$patch$;
+
 CREATE OR REPLACE FUNCTION seller_main.process_stripe_payment_completion_with_bump(
   session_id_param TEXT,
   product_id_param UUID,
@@ -29,11 +59,12 @@ SET search_path = ''
 AS $$
 DECLARE
   resolved_sid TEXT;
+  pi_param TEXT := stripe_payment_intent_id;
 BEGIN
-  IF stripe_payment_intent_id IS NOT NULL THEN
+  IF pi_param IS NOT NULL THEN
     SELECT pt.session_id INTO resolved_sid
       FROM seller_main.payment_transactions pt
-     WHERE pt.stripe_payment_intent_id = process_stripe_payment_completion_with_bump.stripe_payment_intent_id
+     WHERE pt.stripe_payment_intent_id = pi_param
        AND pt.status <> 'pending'
        AND pt.session_id <> session_id_param
      LIMIT 1;
