@@ -11,7 +11,7 @@ import {
 import { getStripeTaxStatus, getCheckoutConfigAction } from '@/lib/actions/stripe-tax'
 import type { StripeTaxStatus } from '@/lib/actions/stripe-tax'
 import type { ConfigSource } from '@/lib/stripe/checkout-config'
-import { getShopConfig, updateShopConfig } from '@/lib/actions/shop-config'
+import { getMyShopConfig, updateShopConfig } from '@/lib/actions/shop-config'
 import type { TaxMode } from '@/lib/actions/shop-config'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
@@ -119,7 +119,7 @@ export default function StripeTaxSettings() {
  const [statusResult, configResult, shopConfig] = await Promise.all([
  getStripeTaxStatus(),
  getCheckoutConfigAction(),
- getShopConfig(),
+ getMyShopConfig(),
  ])
 
  if (cancelled) return

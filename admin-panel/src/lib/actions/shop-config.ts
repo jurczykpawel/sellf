@@ -1,7 +1,7 @@
 'use server'
 
 import { createPublicClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache'
 import { cache } from 'react'
 import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
@@ -57,6 +57,23 @@ export interface ShopConfig {
  * 3. Database fallback - Works without Redis
  * 4. createPublicClient() - Enables ISR on pages using this function
  */
+// Cross-request DB fetch cache. When Upstash Redis is configured the Redis
+// layer above wins; without Redis this keeps the DB out of the hot path
+// (5 min in Next.js memory). Invalidated via revalidateTag('shop-config').
+const fetchShopConfigFromDb = unstable_cache(
+  async (): Promise<ShopConfig | null> => {
+    const supabase = createPublicClient()
+    const { data, error } = await supabase.from('shop_config').select('*').maybeSingle()
+    if (error) {
+      console.error('Error fetching shop config:', error)
+      return null
+    }
+    return data as ShopConfig | null
+  },
+  ['shop-config'],
+  { revalidate: 300, tags: ['shop-config'] },
+)
+
 export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
   const cacheKey = CacheKeys.SHOP_CONFIG
 
@@ -66,24 +83,16 @@ export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
     return cached
   }
 
-  // Fallback to database
-  const supabase = createPublicClient()
-  const { data, error } = await supabase
-    .from('shop_config')
-    .select('*')
-    .maybeSingle()
-
-  if (error) {
-    console.error('Error fetching shop config:', error)
-    return null
-  }
+  // Fallback: Next.js memory cache → DB. The DB call only fires when both
+  // Redis and Next's in-memory cache miss.
+  const data = await fetchShopConfigFromDb()
 
   // Cache for next time (if Redis is available)
   if (data) {
     await cacheSet(cacheKey, data, CacheTTL.LONG) // 1 hour
   }
 
-  return data as ShopConfig | null
+  return data
 })
 
 /**
@@ -156,6 +165,8 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
 
     // Invalidate Redis cache (if configured)
     await cacheDel(CacheKeys.SHOP_CONFIG)
+    // Invalidate the Next.js in-memory cache so the next read hits the DB.
+    revalidateTag('shop-config', { expire: 0 })
 
     // Revalidate all dashboard pages that might use shop config
     revalidatePath('/dashboard', 'layout')

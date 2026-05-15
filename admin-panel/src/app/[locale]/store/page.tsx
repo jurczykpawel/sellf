@@ -3,8 +3,8 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import { Product } from '@/types';
 
-// Enable ISR - cache for 60 seconds
-export const revalidate = 60;
+// Enable ISR - product catalog rarely changes; refresh every 5 min.
+export const revalidate = 300;
 
 /**
  * /store — always shows the product catalog, even in demo mode.

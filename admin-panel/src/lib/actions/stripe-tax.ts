@@ -101,7 +101,9 @@ export type CheckoutConfigResponse = {
 
 export async function getCheckoutConfigAction(): Promise<CheckoutConfigResponse> {
   try {
-    const config = await getCheckoutConfig()
+    // Called from Settings UI — bypass the public shop-config cache so the
+    // admin always sees the row they just wrote.
+    const config = await getCheckoutConfig({ freshShopConfig: true })
     return { success: true, data: config }
   } catch (error) {
     return {

@@ -407,24 +407,13 @@ test.describe('Legal Documents Settings', () => {
       })
       .eq('id', shopConfigId);
 
-    // Intercept the redirect to verify the target URL
-    let redirectUrl: string | null = null;
-    await page.route('**/*', (route) => {
-      const url = route.request().url();
-      if (url.includes('db-priority-test.example.com')) {
-        redirectUrl = url;
-        route.abort(); // Don't actually try to load the external URL
-      } else {
-        route.continue();
-      }
-    });
-
-    // Navigate to /terms page - it should try to redirect to DB URL
-    await page.goto('/terms', { waitUntil: 'commit' });
-    await page.waitForTimeout(1000);
-
-    // Verify the redirect was attempted to the DB URL
-    expect(redirectUrl).toBe(dbTermsUrl);
+    // Inspect the 307 directly instead of letting the browser follow the
+    // redirect to an unresolvable host (Chromium throws ERR_NAME_NOT_RESOLVED
+    // on `.example.com` and bubbles the failure up to `page.goto`, masking
+    // the actual assertion we care about).
+    const response = await page.request.get('/terms', { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(response.headers()['location']).toBe(dbTermsUrl);
   });
 
   test('/privacy page: Database URL takes priority over .env', async ({ page }) => {
@@ -438,24 +427,9 @@ test.describe('Legal Documents Settings', () => {
       })
       .eq('id', shopConfigId);
 
-    // Intercept the redirect to verify the target URL
-    let redirectUrl: string | null = null;
-    await page.route('**/*', (route) => {
-      const url = route.request().url();
-      if (url.includes('db-priority-test.example.com')) {
-        redirectUrl = url;
-        route.abort();
-      } else {
-        route.continue();
-      }
-    });
-
-    // Navigate to /privacy page - it should try to redirect to DB URL
-    await page.goto('/privacy', { waitUntil: 'commit' });
-    await page.waitForTimeout(1000);
-
-    // Verify the redirect was attempted to the DB URL
-    expect(redirectUrl).toBe(dbPrivacyUrl);
+    const response = await page.request.get('/privacy', { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(response.headers()['location']).toBe(dbPrivacyUrl);
   });
 
   test('/terms page: Shows fallback when DB is empty and no .env', async ({ page }) => {
@@ -522,44 +496,27 @@ test.describe('Legal Documents Settings', () => {
   });
 
   test('Changing DB URL affects redirect target', async ({ page }) => {
-    // Set initial URL
+    // Inspect the 307 directly — page.goto on a redirect to an unresolvable
+    // host throws ERR_NAME_NOT_RESOLVED before assertions can run.
     const initialUrl = 'https://initial-test.example.com/terms.pdf';
     await supabaseAdmin
       .from('shop_config')
-      .update({
-        terms_of_service_url: initialUrl
-      })
+      .update({ terms_of_service_url: initialUrl })
       .eq('id', shopConfigId);
 
-    // Intercept redirects
-    let redirectedTo: string | null = null;
-    await page.route('**/initial-test.example.com/**', (route) => {
-      redirectedTo = route.request().url();
-      route.abort();
-    });
-    await page.route('**/updated-test.example.com/**', (route) => {
-      redirectedTo = route.request().url();
-      route.abort();
-    });
+    const firstResponse = await page.request.get('/terms', { maxRedirects: 0 });
+    expect(firstResponse.status()).toBe(307);
+    expect(firstResponse.headers()['location']).toBe(initialUrl);
 
-    // First visit - should redirect to initial URL
-    await page.goto('/terms', { waitUntil: 'commit' });
-    await expect.poll(() => redirectedTo, { timeout: 5000 }).toBe(initialUrl);
-
-    // Update URL in database
     const updatedUrl = 'https://updated-test.example.com/terms-v2.pdf';
     await supabaseAdmin
       .from('shop_config')
-      .update({
-        terms_of_service_url: updatedUrl
-      })
+      .update({ terms_of_service_url: updatedUrl })
       .eq('id', shopConfigId);
 
-    redirectedTo = null;
-
-    // Second visit - should redirect to new URL
-    await page.goto('/terms', { waitUntil: 'commit' });
-    await expect.poll(() => redirectedTo, { timeout: 5000 }).toBe(updatedUrl);
+    const secondResponse = await page.request.get('/terms', { maxRedirects: 0 });
+    expect(secondResponse.status()).toBe(307);
+    expect(secondResponse.headers()['location']).toBe(updatedUrl);
   });
 
   test('Empty string in DB is treated as null (shows fallback)', async ({ page }) => {
@@ -620,16 +577,10 @@ test.describe('Legal Documents Settings', () => {
 
     expect(savedConfig?.terms_of_service_url).toBe(uiSetUrl);
 
-    // Set up route interception
-    let redirectUrl: string | null = null;
-    await page.route('**/ui-set-terms.example.com/**', (route) => {
-      redirectUrl = route.request().url();
-      route.abort();
-    });
-
-    // Now visit /terms - should redirect to the URL we just set
-    await page.goto('/terms', { waitUntil: 'commit' });
-    await expect.poll(() => redirectUrl, { timeout: 5000 }).toBe(uiSetUrl);
+    // Inspect the 307 directly — page.goto with an unresolvable host throws.
+    const response = await page.request.get('/terms', { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(response.headers()['location']).toBe(uiSetUrl);
   });
 
   test('UI-saved URL is used for /privacy redirect', async ({ page }) => {
@@ -664,15 +615,9 @@ test.describe('Legal Documents Settings', () => {
 
     expect(savedConfig?.privacy_policy_url).toBe(uiSetUrl);
 
-    // Set up route interception
-    let redirectUrl: string | null = null;
-    await page.route('**/ui-set-privacy.example.com/**', (route) => {
-      redirectUrl = route.request().url();
-      route.abort();
-    });
-
-    // Now visit /privacy - should redirect to the URL we just set
-    await page.goto('/privacy', { waitUntil: 'commit' });
-    await expect.poll(() => redirectUrl, { timeout: 5000 }).toBe(uiSetUrl);
+    // Inspect the 307 directly — page.goto with an unresolvable host throws.
+    const response = await page.request.get('/privacy', { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(response.headers()['location']).toBe(uiSetUrl);
   });
 });

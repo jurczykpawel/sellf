@@ -44,7 +44,14 @@ function setCachedConfig(data: AppConfig): void {
   }
 }
 
-export function ConfigProvider({ children }: { children: React.ReactNode }) {
+export function ConfigProvider({
+  children,
+  initialConfig,
+}: {
+  children: React.ReactNode;
+  /** Server-rendered config — eliminates the "Loading configuration…" spinner. */
+  initialConfig?: AppConfig | null;
+}) {
   // Cached config from sessionStorage. Both server and client first render
   // start with null so hydration matches; the cache is read in useEffect
   // after mount. Previous lazy useState init read sessionStorage during the
@@ -53,15 +60,17 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   // renders children — Next.js dev overlay then surfaces the mismatch).
   const [cachedConfig, setCachedConfigState] = useState<AppConfig | null>(null)
 
-  const [fetchedConfig, setFetchedConfig] = useState<AppConfig | null>(null)
+  const [fetchedConfig, setFetchedConfig] = useState<AppConfig | null>(initialConfig ?? null)
   const [error, setError] = useState<string | null>(null)
-  const [fetchSettled, setFetchSettled] = useState(false)
+  const [fetchSettled, setFetchSettled] = useState(!!initialConfig)
 
   // Effective config: server response wins over cache once it arrives.
   const config = fetchedConfig ?? cachedConfig
   const loading = !config && !error && !fetchSettled
 
   useEffect(() => {
+    // fetchSettled is already true (useState init) when initialConfig is set.
+    if (initialConfig) return;
     // Hydrate from sessionStorage after mount so SSR and client first paint
     // match. If the cache is fresh we surface it immediately while the live
     // fetch reconciles in the background. The setState-in-effect lint rule
@@ -101,7 +110,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       })
 
     return () => controller.abort()
-  }, [])
+  }, [initialConfig])
 
   if (loading) {
     return (

@@ -10,18 +10,7 @@ import Confetti from 'react-confetti';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/fetch-with-timeout';
 
-interface ProductAccessViewProps {
-  product: Product;
-  userAccess?: {
-    access_expires_at?: string | null;
-    access_duration_days?: number | null;
-    access_granted_at: string;
-  } | null;
-  licenseValid: boolean;
-  previewMode?: boolean;
-}
-
-interface SecureProductData {
+export interface SecureProductResponse {
   product: Product;
   userAccess: {
     access_expires_at?: string | null;
@@ -37,19 +26,43 @@ interface SecureProductData {
   };
 }
 
-export default function ProductAccessView({ product, licenseValid, previewMode = false }: ProductAccessViewProps) {
+interface ProductAccessViewProps {
+  product: Product;
+  userAccess?: {
+    access_expires_at?: string | null;
+    access_duration_days?: number | null;
+    access_granted_at: string;
+  } | null;
+  licenseValid: boolean;
+  previewMode?: boolean;
+  /** Server-prefetched payload — eliminates the client-side fetch + spinner. */
+  initialSecureData?: SecureProductResponse;
+}
+
+type SecureProductData = SecureProductResponse;
+
+export default function ProductAccessView({ product, licenseValid, previewMode = false, initialSecureData }: ProductAccessViewProps) {
   const t = useTranslations('productView');
   const tContent = useTranslations('digitalContent');
   
   const [showConfetti, setShowConfetti] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [secureData, setSecureData] = useState<SecureProductData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [secureData, setSecureData] = useState<SecureProductData | null>(initialSecureData ?? null);
+  const [loading, setLoading] = useState(!initialSecureData);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch secure product data from API (skipped in preview mode)
+  // Footer date — rendered client-side only. Locale-dependent toLocaleDateString
+  // would otherwise mismatch between Node (server) and browser, breaking
+  // hydration of the Suspense boundary that wraps this page.
+  const [todayLabel, setTodayLabel] = useState<string | null>(null);
   useEffect(() => {
+    setTodayLabel(new Date().toLocaleDateString());
+  }, []);
+
+  // Fetch secure product data from API (skipped in preview mode + when the
+  // server already prefetched the payload).
+  useEffect(() => {
+    if (initialSecureData) return;
     const controller = new AbortController();
 
     const fetchSecureData = async () => {
@@ -125,7 +138,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
     return () => {
       controller.abort();
     };
-  }, [product, previewMode, showConfetti, t]);
+  }, [product, previewMode, showConfetti, t, initialSecureData]);
 
   // Handle redirect type products.
   // Note: redirect_url is admin-configured and intentionally allows cross-origin URLs
@@ -405,10 +418,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
 
         {/* Footer */}
         <div className="mt-16 text-center text-xs text-sf-body">
-          {shopName
-            ? `${shopName} • ${new Date().toLocaleDateString()}`
-            : new Date().toLocaleDateString()
-          }
+          {todayLabel ? (shopName ? `${shopName} • ${todayLabel}` : todayLabel) : shopName ?? ''}
           {!secureProduct.is_active && (
             <div className="mt-1 text-sf-warning">{t('notAvailableToNew')}</div>
           )}

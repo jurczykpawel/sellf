@@ -3,7 +3,7 @@
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { validateIntegrations, type IntegrationsInput } from '@/lib/validations/integrations'
 import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { createPublicClient } from '@/lib/supabase/server'
 
@@ -94,21 +94,29 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
 
     if (error) return { success: false, error: error.message }
     revalidatePath('/dashboard/integrations')
+    revalidateTag('integrations-config', { expire: 0 })
     return { success: true }
   })
 }
 
 // --- PUBLIC API ---
 
+// Cached cross-request — the RPC payload is identical for every visitor.
+// Invalidated via revalidateTag('integrations-config') after admin updates.
+const fetchPublicIntegrationsConfig = unstable_cache(
+  async () => {
+    const supabase = createPublicClient()
+    const { data, error } = await supabase.rpc('get_public_integrations_config')
+    if (error) {
+      console.error('Failed to fetch public integrations config', error)
+      return null
+    }
+    return data
+  },
+  ['integrations-config'],
+  { revalidate: 300, tags: ['integrations-config'] },
+)
+
 export async function getPublicIntegrationsConfig() {
-  const supabase = createPublicClient()
-  // RPC returns a JSON object with config + scripts array
-  const { data, error } = await supabase.rpc('get_public_integrations_config')
-
-  if (error) {
-    console.error('Failed to fetch public integrations config', error)
-    return null
-  }
-
-  return data // Returns JSON object directly
+  return fetchPublicIntegrationsConfig()
 }

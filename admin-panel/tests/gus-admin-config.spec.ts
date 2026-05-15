@@ -294,7 +294,10 @@ test.describe('GUS API Admin Configuration', () => {
     const saveButton = gusContainer.locator('button').filter({ hasText: /Zapisz konfigurację|Save Configuration/i }).first();
     await saveButton.click();
 
-    // Should show error (support both EN and PL)
-    await expect(page.locator('text=/too short|za krótki|seems too short/i')).toBeVisible({ timeout: 5000 });
+    // Should show error (support both EN and PL). The validator now rejects
+    // anything that doesn't match the GUS key format (12–40 alphanumerics).
+    await expect(
+      page.locator('text=/Invalid GUS API key format|niepraw[oi]?d[lł]owy format|format API|too short|za krótki/i'),
+    ).toBeVisible({ timeout: 5000 });
   });
 });

@@ -549,8 +549,8 @@ test.describe('Coupon × Multi-Bump', () => {
       has: page.getByText(new RegExp(`Discount \\(${otoResult.coupon_code}\\)|Rabat \\(${otoResult.coupon_code}\\)`)),
     }).first();
 
-    await expect(orderSummary.getByText('-$10.00 USD', { exact: true })).toBeVisible({ timeout: 10000 });
-    await expect(orderSummary.getByText('$110.00 USD', { exact: true })).toBeVisible();
+    await expect(orderSummary.getByText('-$10.00', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(orderSummary.getByText('$110.00', { exact: true })).toBeVisible();
 
     await supabaseAdmin.from('coupon_reservations').delete().eq('coupon_id', otoResult.coupon_id);
     await supabaseAdmin.from('coupons').delete().eq('id', otoResult.coupon_id);

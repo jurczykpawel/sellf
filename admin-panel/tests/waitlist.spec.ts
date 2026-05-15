@@ -217,12 +217,12 @@ test.describe('Waitlist Feature', () => {
 
   test.describe('Checkout Page - Waitlist Form', () => {
     test('should show 404 for inactive product WITHOUT waitlist enabled', async ({ page }) => {
-      // test-no-redirect is an inactive product without waitlist enabled
-      await page.goto(`/pl/checkout/${testProductWithoutWaitlistSlug}`);
-
-      // Page loads but shows "Product Not Found" content (Next.js notFound() returns 200 in dev)
-      const title = await page.title();
-      expect(title).toContain('Product Not Found');
+      // test-no-redirect is an inactive product without waitlist enabled.
+      // Use the request context so we can read the HTTP status — Next.js 16
+      // renders the localized not-found page on a 404 response and inherits
+      // the root layout title, so `page.title()` is no longer a reliable signal.
+      const response = await page.request.get(`/pl/checkout/${testProductWithoutWaitlistSlug}`);
+      expect(response.status()).toBe(404);
     });
 
     test('should show waitlist form for inactive product WITH waitlist enabled', async ({ page }) => {

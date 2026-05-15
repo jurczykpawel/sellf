@@ -7,6 +7,7 @@ import { ThemeProvider, ThemeScript } from "@/components/providers/theme-provide
 import { TrackingConfigProvider } from "@/components/providers/tracking-config-provider";
 import { getPublicIntegrationsConfig } from "@/lib/actions/integrations";
 import { getShopConfig } from "@/lib/actions/shop-config";
+import { buildRuntimeConfig } from "@/lib/runtime-config";
 import TrackingProvider from "@/components/TrackingProvider";
 import { CSP_NONCE_HEADER } from "@/proxy";
 import { Suspense } from "react";
@@ -68,6 +69,15 @@ export default async function RootLayout({
   ]);
   const adminTheme = shopConfig?.checkout_theme || undefined;
   const cspNonce = hdrs.get(CSP_NONCE_HEADER) ?? undefined;
+  // Build runtime config on the server so ConfigProvider doesn't have to render
+  // a "Loading configuration…" spinner while the client fetches /api/runtime-config.
+  const runtimeConfig = (() => {
+    try {
+      return buildRuntimeConfig();
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -84,7 +94,7 @@ export default async function RootLayout({
 
         <ThemeProvider adminTheme={adminTheme}>
           <TrackingConfigProvider config={config}>
-            <ConfigProvider>
+            <ConfigProvider initialConfig={runtimeConfig}>
               {children}
             </ConfigProvider>
           </TrackingConfigProvider>

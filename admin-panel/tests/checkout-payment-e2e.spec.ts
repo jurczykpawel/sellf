@@ -406,8 +406,8 @@ test.describe('Checkout E2E - Price Display', () => {
     // Check product name is visible (not in title tag)
     await expect(page.locator(`h1:has-text("${testProduct.name}"), h2:has-text("${testProduct.name}")`).first()).toBeVisible();
 
-    // Check price and VAT are displayed
-    await expect(page.locator('text=/123.*PLN/i').first()).toBeVisible();
+    // PLN renders as "zł" symbol (not the ISO code) in user-facing checkout copy.
+    await expect(page.locator('text=/zł\\s*123/i').first()).toBeVisible();
     await expect(page.locator('text=/VAT.*23%/i').first()).toBeVisible();
   });
 

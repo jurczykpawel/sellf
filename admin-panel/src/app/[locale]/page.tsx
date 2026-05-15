@@ -4,8 +4,9 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import { Product } from '@/types';
 
-// ISR: revalidate every 60s. Dev server ignores this (always fresh).
-export const revalidate = 60;
+// ISR: storefront list rarely changes; refresh in the background every 5 min.
+// Dev server ignores this (always fresh).
+export const revalidate = 300;
 
 export default async function SmartLandingPage() {
   // Demo mode: always show the landing/about page as homepage

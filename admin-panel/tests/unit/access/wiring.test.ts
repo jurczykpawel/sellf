@@ -20,20 +20,23 @@ function read(rel: string): string {
 }
 
 describe('Access wiring', () => {
-  it('ProductView renders ProductExpiredState on reason="expired"', () => {
+  // ProductView now consumes a server-resolved ProductAccessOutcome instead of
+  // switching on accessData.reason from a client fetch. The render paths stay
+  // identical; the input shape changed.
+  it('ProductView renders ProductExpiredState on outcome.kind="render-expired"', () => {
     const src = read('src/app/[locale]/p/[slug]/components/ProductView.tsx');
     expect(src).toMatch(/import\s+ProductExpiredState\s+from/);
-    expect(src).toMatch(/case\s+['"]expired['"]\s*:\s*\n?\s*return\s+<ProductExpiredState/);
+    expect(src).toMatch(/outcome\.kind\s*===\s*['"]render-expired['"][\s\S]+?<ProductExpiredState/);
   });
 
-  it('ProductView renders ProductInactiveState on reason="inactive"', () => {
+  it('ProductView renders ProductInactiveState on outcome.kind="render-inactive"', () => {
     const src = read('src/app/[locale]/p/[slug]/components/ProductView.tsx');
-    expect(src).toMatch(/case\s+['"]inactive['"]\s*:\s*\n?\s*return\s+<ProductInactiveState/);
+    expect(src).toMatch(/outcome\.kind\s*===\s*['"]render-inactive['"][\s\S]+?<ProductInactiveState/);
   });
 
-  it('ProductView renders ProductTemporalState on reason="temporal"', () => {
+  it('ProductView renders ProductTemporalState on outcome.kind="render-temporal"', () => {
     const src = read('src/app/[locale]/p/[slug]/components/ProductView.tsx');
-    expect(src).toMatch(/case\s+['"]temporal['"]\s*:\s*\n?\s*return\s+<ProductTemporalState/);
+    expect(src).toMatch(/outcome\.kind\s*===\s*['"]render-temporal['"][\s\S]+?<ProductTemporalState/);
   });
 
   it('my-products page uses filterActiveAccess (no inline filter)', () => {

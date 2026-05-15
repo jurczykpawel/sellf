@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -278,19 +279,33 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .eq('id', id)
       .single();
 
+    const refreshedSlug =
+      (productWithCats as { slug?: string } | null)?.slug ??
+      (product as { slug?: string } | null)?.slug ??
+      undefined;
+
     if (productWithCats) {
       const cats = productWithCats.product_categories?.map(
         (pc: { category_id: unknown; categories: unknown }) => pc.categories
       ) || [];
       const result = { ...productWithCats, categories: cats, product_categories: undefined };
       delete result.product_categories;
+      revalidateProductCaches(refreshedSlug);
       return jsonResponse(successResponse(result), request);
     }
 
+    revalidateProductCaches(refreshedSlug);
     return jsonResponse(successResponse(product), request);
   } catch (error) {
     return handleApiError(error, request);
   }
+}
+
+function revalidateProductCaches(slug?: string | null) {
+  // Drop the unstable_cache wrapping getProduct on /p/[slug] so the edit
+  // shows up on the next visit instead of waiting for the 60s revalidate.
+  revalidateTag('product-by-slug', { expire: 0 });
+  if (slug) revalidateTag(`product:${slug}`, { expire: 0 });
 }
 
 /**
@@ -310,10 +325,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
-    // Check product exists
+    // Check product exists (need slug to invalidate cache below)
     const { data: existingProduct, error: checkError } = await supabase
       .from('products')
-      .select('id, name')
+      .select('id, name, slug')
       .eq('id', id)
       .single();
 
@@ -352,6 +367,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete product');
     }
+
+    revalidateProductCaches(existingProduct.slug);
 
     // Return 204 No Content on successful deletion
     return noContentResponse(request);

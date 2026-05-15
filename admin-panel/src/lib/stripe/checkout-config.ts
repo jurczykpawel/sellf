@@ -1,4 +1,4 @@
-import { getShopConfig } from '@/lib/actions/shop-config'
+import { getShopConfig, getMyShopConfig } from '@/lib/actions/shop-config'
 import { getPaymentMethodConfig } from '@/lib/actions/payment-config'
 import { STRIPE_CONFIG } from '@/lib/stripe/config'
 import type { TaxMode } from '@/lib/actions/shop-config'
@@ -61,10 +61,16 @@ function resolveNullable<T>(
 /**
  * Resolve all checkout config with priority: DB > env var > default.
  * NULL in DB means "not configured" → fall through to env var.
+ *
+ * @param freshShopConfig when true, bypass the public cached shop-config and
+ *   read the admin's own row directly. Required from admin Settings UI so
+ *   admins see the row they just wrote, not a stale 5-minute cache hit.
  */
-export async function getCheckoutConfig(): Promise<CheckoutConfig> {
+export async function getCheckoutConfig(
+  { freshShopConfig = false }: { freshShopConfig?: boolean } = {},
+): Promise<CheckoutConfig> {
   const [shopConfig, pmConfig] = await Promise.all([
-    getShopConfig(),
+    freshShopConfig ? getMyShopConfig() : getShopConfig(),
     getPaymentMethodConfig(),
   ])
 

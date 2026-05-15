@@ -1,11 +1,18 @@
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkFeature } from '@/lib/license/resolve';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import ProductView from './components/ProductView';
+import type { SecureProductResponse } from './components/ProductAccessView';
 import type { Product } from '@/types';
+import {
+  decideProductAccessOutcome,
+  type ResolvedUserAccess,
+} from '@/lib/payment/product-access-decision';
+import { getShopConfig } from '@/lib/actions/shop-config';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -24,16 +31,25 @@ export const dynamic = 'force-dynamic';
 // but is sanitized via safeProduct before being sent to the client.
 import { PRODUCT_PAGE_FIELDS } from '@/lib/constants';
 
-const getProduct = cache(async (slug: string) => {
-  const supabase = createPublicClient();
-  const { data: product, error } = await supabase
-    .from('products')
-    .select(PRODUCT_PAGE_FIELDS)
-    .eq('slug', slug)
-    .single();
-
-  return { product: product as Product | null, error };
-});
+// Two-layer cache: React cache() dedupes within a single render (e.g. between
+// generateMetadata and the page); unstable_cache persists across requests so
+// repeat visitors hit the Next.js memory cache instead of the DB. Cleared by
+// the products admin via revalidateTag('product-by-slug').
+const getProduct = cache((slug: string) =>
+  unstable_cache(
+    async (s: string) => {
+      const supabase = createPublicClient();
+      const { data: product, error } = await supabase
+        .from('products')
+        .select(PRODUCT_PAGE_FIELDS)
+        .eq('slug', s)
+        .single();
+      return { product: product as Product | null, error };
+    },
+    ['product-by-slug', slug],
+    { revalidate: 60, tags: ['product-by-slug', `product:${slug}`] },
+  )(slug),
+);
 
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -100,8 +116,95 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     return notFound();
   }
 
-  // Check license server-side
-  const licenseValid = await checkFeature('watermark-removal');
+  // Resolve license + auth in parallel — independent server-side checks.
+  // Auth is treated as guest on any failure so a transient Supabase blip
+  // doesn't take the public product page down with it.
+  const [licenseValid, authResult] = await Promise.all([
+    checkFeature('watermark-removal'),
+    (async () => {
+      try {
+        const c = await createClient();
+        const { data: { user } } = await c.auth.getUser();
+        return { client: c, user };
+      } catch {
+        return null;
+      }
+    })(),
+  ]);
+
+  let resolvedUser: { id: string } | null = null;
+  let resolvedAccess: ResolvedUserAccess | null = null;
+  if (authResult?.user) {
+    resolvedUser = { id: authResult.user.id };
+    // Pick the most recent access row: a single buyer can legitimately have
+    // multiple records (re-purchase after expiry, admin re-grant after refund,
+    // etc.). `.maybeSingle()` would error out on duplicates and lock the buyer
+    // out of content they paid for — order by granted_at desc and limit(1).
+    const { data: accessRows } = await authResult.client
+      .from('user_product_access')
+      .select('access_expires_at, access_duration_days, access_granted_at')
+      .eq('user_id', authResult.user.id)
+      .eq('product_id', product.id)
+      .order('access_granted_at', { ascending: false })
+      .limit(1);
+    const accessRow = accessRows?.[0];
+    if (accessRow) {
+      resolvedAccess = {
+        access_expires_at: accessRow.access_expires_at,
+        access_duration_days: accessRow.access_duration_days,
+        granted_at: accessRow.access_granted_at,
+      };
+    }
+  }
+
+  const outcome = decideProductAccessOutcome({
+    user: resolvedUser,
+    product: {
+      id: product.id,
+      is_active: product.is_active,
+      available_from: product.available_from,
+      available_until: product.available_until,
+    },
+    userAccess: resolvedAccess,
+    now: new Date(),
+    previewMode,
+  });
+
+  if (outcome.kind === 'redirect-checkout') {
+    // Preserve OTO/coupon query params so the checkout has the same context.
+    const carry = ['email', 'coupon', 'oto']
+      .map((k) => {
+        const v = resolvedSearch?.[k];
+        return typeof v === 'string' && v.length > 0 ? `${k}=${encodeURIComponent(v)}` : null;
+      })
+      .filter(Boolean)
+      .join('&');
+    redirect(`/checkout/${product.slug}${carry ? `?${carry}` : ''}`);
+  }
+
+  // Prefetch the secure content payload server-side for authenticated buyers
+  // — eliminates the "Loading secure content…" spinner inside ProductAccessView.
+  // getShopConfig() is deduped per-render via React cache() (layout calls it).
+  let initialSecureData: SecureProductResponse | undefined;
+  if (outcome.kind === 'render-content' && !previewMode && resolvedAccess) {
+    const shopConfig = await getShopConfig();
+    const expiresAtIso = resolvedAccess.access_expires_at ?? null;
+    const expiresAt = expiresAtIso ? new Date(expiresAtIso) : null;
+    const now = new Date();
+    const msPerDay = 1000 * 60 * 60 * 24;
+    initialSecureData = {
+      product,
+      branding: { shop_name: shopConfig?.shop_name ?? null },
+      userAccess: {
+        access_expires_at: expiresAtIso,
+        access_duration_days: resolvedAccess.access_duration_days ?? null,
+        access_granted_at: resolvedAccess.granted_at,
+        is_expired: !!(expiresAt && expiresAt < now),
+        is_expiring_soon: expiresAt ? Math.ceil((expiresAt.getTime() - now.getTime()) / msPerDay) <= 7 : false,
+        days_until_expiration: expiresAt ? Math.ceil((expiresAt.getTime() - now.getTime()) / msPerDay) : null,
+      },
+    };
+  }
 
   // Preview mode: server-side admin check — no client-side race conditions.
   // Only active when ?preview=1 AND the requester is a verified admin.
@@ -124,5 +227,13 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         : {},                                                      // content items served via auth API
   };
 
-  return <ProductView product={safeProduct as typeof product} licenseValid={licenseValid} previewMode={previewMode} />;
+  return (
+    <ProductView
+      product={safeProduct as typeof product}
+      licenseValid={licenseValid}
+      previewMode={previewMode}
+      outcome={outcome}
+      initialSecureData={initialSecureData}
+    />
+  );
 }
