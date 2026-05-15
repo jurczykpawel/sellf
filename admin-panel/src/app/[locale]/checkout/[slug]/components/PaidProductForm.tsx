@@ -75,6 +75,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
+  const urlName = searchParams.get('name') ?? undefined;
   const [email, setEmail] = useState<string | undefined>(user?.email || urlEmail || undefined);
 
   // Sync email with user when they log in. setState-during-render replaces the
@@ -541,6 +542,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               <CustomPaymentForm
                 product={product}
                 email={email}
+                initialFullName={urlName}
                 bumpProducts={availableBumps}
                 selectedBumpIds={selectedBumpIds}
                 appliedCoupon={coupon.appliedCoupon ?? undefined}

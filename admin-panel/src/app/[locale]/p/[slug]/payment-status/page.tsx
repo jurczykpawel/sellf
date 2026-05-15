@@ -183,11 +183,34 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       }
     }
 
+    // Pull the buyer's full name from the source transaction so the upsell
+    // checkout pre-fills it. Profile lookup would also work for logged-in
+    // users, but reading from payment metadata covers guests too.
+    let customerName: string | undefined;
+    if (session_id || payment_intent) {
+      const txQuery = supabase
+        .from('payment_transactions')
+        .select('metadata')
+        .limit(1);
+      const { data: txRow } = session_id
+        ? await txQuery.eq('session_id', session_id).maybeSingle()
+        : await txQuery.eq('stripe_payment_intent_id', payment_intent!).maybeSingle();
+
+      const meta = (txRow?.metadata ?? {}) as Record<string, unknown>;
+      const nameFromMeta = typeof meta.full_name === 'string' && meta.full_name.trim().length > 0
+        ? meta.full_name
+        : typeof meta.fullName === 'string' && meta.fullName.trim().length > 0
+          ? meta.fullName
+          : undefined;
+      customerName = nameFromMeta;
+    }
+
     if (!customerHasOtoAccess) {
       const otoRedirect = buildOtoRedirectUrl({
         locale: resolvedParams.locale,
         otoProductSlug: otoInfo.oto_product_slug!,
         customerEmail: customerEmail || undefined,
+        customerName,
         couponCode: otoInfo.coupon_code,
         baseUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL,
         hideBump: hasHideBumpParam(product.success_redirect_url),

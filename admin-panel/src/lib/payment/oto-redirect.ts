@@ -26,6 +26,9 @@ export interface OtoRedirectParams {
   // which OtoDeclineButton reads via useSearchParams.
   downsellCouponCode?: string;
   downsellProductSlug?: string;
+  // Buyer's full name from the source checkout — forwarded so the upsell
+  // form pre-fills it instead of asking again.
+  customerName?: string;
 }
 
 // ============================================
@@ -98,6 +101,10 @@ export function buildOtoRedirectUrl(params: OtoRedirectParams): OtoRedirectResul
     otoUrl.searchParams.set('coupon', couponCode);
   }
   otoUrl.searchParams.set('oto', '1');
+
+  if (params.customerName && params.customerName.trim().length > 0) {
+    otoUrl.searchParams.set('name', params.customerName);
+  }
 
   // Handle hide_bump option from source product
   if (hideBump) {
@@ -257,6 +264,7 @@ export interface DownsellRedirectParams {
   downsellProductSlug: string;
   downsellCouponCode: string;
   customerEmail?: string;
+  customerName?: string;
   baseUrl?: string;
 }
 
@@ -266,6 +274,7 @@ export function buildDownsellRedirectUrl(params: DownsellRedirectParams): string
     downsellProductSlug,
     downsellCouponCode,
     customerEmail,
+    customerName,
     baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
   } = params;
 
@@ -273,5 +282,8 @@ export function buildDownsellRedirectUrl(params: DownsellRedirectParams): string
   if (customerEmail) url.searchParams.set('email', customerEmail);
   url.searchParams.set('coupon', downsellCouponCode);
   url.searchParams.set('oto', '1');
+  if (customerName && customerName.trim().length > 0) {
+    url.searchParams.set('name', customerName);
+  }
   return url.toString();
 }

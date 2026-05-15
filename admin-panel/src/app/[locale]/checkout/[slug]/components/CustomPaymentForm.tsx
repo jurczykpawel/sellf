@@ -27,6 +27,7 @@ import type {
 interface CustomPaymentFormProps {
   product: Product;
   email?: string;
+  initialFullName?: string;
   bumpProducts?: OrderBumpWithProduct[];
   selectedBumpIds?: Set<string>;
   appliedCoupon?: AppliedCoupon;
@@ -60,6 +61,7 @@ type EmailValidationResponse = {
 export default function CustomPaymentForm({
   product,
   email,
+  initialFullName,
   bumpProducts = [],
   selectedBumpIds = new Set(),
   appliedCoupon,
@@ -95,7 +97,7 @@ export default function CustomPaymentForm({
   const [errorMessage, setErrorMessage] = useState('');
 
   // Invoice / NIP logic
-  const invoice = useInvoiceData(email);
+  const invoice = useInvoiceData(email, { initialFullName });
 
   const { basePrice, discountAmount, totalGross, totalNet, vatRate } = pricing;
   const paymentElementOptions: StripePaymentElementOptions = {

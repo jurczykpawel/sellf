@@ -600,6 +600,14 @@ export async function verifyPaymentSession(
             // Stripe session ID (generatePurchaseEventId) for Facebook dedup.
           }
 
+          if (user?.id && session.metadata) {
+            await updateProfileWithCompanyData(
+              serviceClient,
+              user.id,
+              session.metadata as Record<string, string | undefined>
+            );
+          }
+
           // Generate OTO coupon if configured for this product
           let otoInfo: OtoInfo = { has_oto: false };
           if (paymentResult.access_granted || paymentResult.is_guest_purchase) {

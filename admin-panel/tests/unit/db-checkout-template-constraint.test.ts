@@ -38,7 +38,14 @@ describe('products.checkout_template constraint', () => {
   });
 
   it("accepts 'tip-jar' as a valid template slug", async () => {
-    const { data, error } = await insertProduct({ checkout_template: 'tip-jar' });
+    // tip-jar requires PWYW (allow_custom_price=true) per
+    // products_tipjar_requires_pwyw CHECK — set both so the row is valid.
+    const { data, error } = await insertProduct({
+      checkout_template: 'tip-jar',
+      allow_custom_price: true,
+      price: 0,
+      custom_price_min: 1,
+    });
     expect(error).toBeNull();
     expect(data?.checkout_template).toBe('tip-jar');
     if (data?.id) await admin.from('products').delete().eq('id', data.id);
