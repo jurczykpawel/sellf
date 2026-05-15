@@ -42,6 +42,7 @@ interface CustomPaymentFormProps {
   customFieldValues?: CustomFieldValues;
   onCustomFieldValuesChange?: (next: CustomFieldValues) => void;
   customFieldErrors?: Record<string, string>;
+  afterCheckoutSlot?: React.ReactNode;
 }
 
 type EmailValidationResponse = {
@@ -73,6 +74,7 @@ export default function CustomPaymentForm({
   customFieldValues = {},
   onCustomFieldValuesChange,
   customFieldErrors,
+  afterCheckoutSlot,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
@@ -471,6 +473,7 @@ export default function CustomPaymentForm({
       </button>
 
       <p className="text-xs text-sf-muted text-center">{t('securePayment')}</p>
+      {afterCheckoutSlot}
     </form>
   );
 }

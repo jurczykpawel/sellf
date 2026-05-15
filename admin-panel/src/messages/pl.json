@@ -144,8 +144,7 @@
     "acceptOffer": "Tak, chcę to!",
     "noThanks": "Nie, dziękuję",
     "goToProduct": "Przejdź do produktu",
-    "getMagicLink": "Wyślij link dostępowy",
-    "declineCta": "Nie, dziękuję, pokaż alternatywę"
+    "getMagicLink": "Wyślij link dostępowy"
   },
   "common": {
     "loading": "Ładowanie...",

@@ -138,8 +138,7 @@
     "acceptOffer": "Yes, I want this!",
     "noThanks": "No thanks",
     "goToProduct": "Go to my product",
-    "getMagicLink": "Send me access link",
-    "declineCta": "No thanks — show me an alternative"
+    "getMagicLink": "Send me access link"
   },
   "common": {
     "loading": "Loading...",

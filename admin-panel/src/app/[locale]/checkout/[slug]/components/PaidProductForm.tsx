@@ -43,9 +43,10 @@ interface PaidProductFormProps {
    * `embedded`: form column only (host template provides product info / chrome).
    */
   layoutMode?: 'standalone' | 'embedded';
+  afterCheckoutSlot?: React.ReactNode;
 }
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, layoutMode = 'standalone' }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const isSubscription = product.product_type === 'subscription';
   // PWYW subscriptions allow buyers to choose their recurring amount. The
@@ -555,6 +556,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customFieldValues={customFieldValues}
                 onCustomFieldValuesChange={setCustomFieldValues}
                 customFieldErrors={customFieldErrors}
+                afterCheckoutSlot={afterCheckoutSlot}
               />
             </CheckoutElementsProvider>
           )}

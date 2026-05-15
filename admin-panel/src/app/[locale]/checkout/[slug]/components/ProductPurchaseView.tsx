@@ -16,13 +16,8 @@ interface ProductPurchaseViewProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   licenseValid?: boolean;
   taxMode?: TaxMode;
-  /**
-   * `standalone` (default) renders the full checkout shell incl. the product
-   * showcase + page-level background. `embedded` strips both — for templates
-   * (e.g. tip-jar) that supply their own product showcase / outer chrome and
-   * only need the payment form column inline.
-   */
   layoutMode?: 'standalone' | 'embedded';
+  afterCheckoutSlot?: React.ReactNode;
 }
 
 type UnavailableReason = 'not_started' | 'expired' | 'inactive' | null;
@@ -53,7 +48,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, layoutMode = 'standalone' }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled
@@ -70,7 +65,7 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       ) : product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
         <FreeProductForm product={product} />
       ) : (
-        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} />
+        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} />
       )}
 
       {/* Sellf branding — hidden when a valid license is active. In embedded
