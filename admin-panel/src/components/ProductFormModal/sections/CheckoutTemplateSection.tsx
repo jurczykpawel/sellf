@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ProductFormData } from '../types';
 import { getAllTemplates } from '@/lib/checkout-templates/registry';
@@ -36,9 +36,11 @@ export default function CheckoutTemplateSection({
   const t = useTranslations('productForm.checkoutTemplate');
   const tFields = useTranslations('productForm.customFields');
   const templates = useMemo(() => getAllTemplates(), []);
-  const [pendingTipJar, setPendingTipJar] = useState(false);
+  // onRequestStepChange currently unused — kept for forward-compat with
+  // future template guards that need to bounce the user to another step.
+  void onRequestStepChange;
 
-  const applyTemplate = useCallback(
+  const handleTemplateChange = useCallback(
     (slug: CheckoutTemplateSlug) => {
       setFormData((prev) => {
         const shouldSeed = slug === 'tip-jar' && prev.custom_checkout_fields.length === 0;
@@ -48,21 +50,11 @@ export default function CheckoutTemplateSection({
           custom_checkout_fields: shouldSeed
             ? getTipJarDefaultCustomFields()
             : prev.custom_checkout_fields,
+          allow_custom_price: slug === 'tip-jar' ? true : prev.allow_custom_price,
         };
       });
     },
     [setFormData],
-  );
-
-  const handleTemplateChange = useCallback(
-    (slug: CheckoutTemplateSlug) => {
-      if (slug === 'tip-jar' && !formData.allow_custom_price) {
-        setPendingTipJar(true);
-        return;
-      }
-      applyTemplate(slug);
-    },
-    [formData.allow_custom_price, applyTemplate],
   );
 
   const validation = validateCustomFieldDefinitions(formData.custom_checkout_fields);
@@ -139,32 +131,6 @@ export default function CheckoutTemplateSection({
         </p>
         {formData.checkout_template === 'tip-jar' && (
           <p className="mt-2 text-xs text-sf-warning">{t('tipJarRequiresPwyw')}</p>
-        )}
-        {pendingTipJar && (
-          <div className="mt-3 p-3 bg-sf-warning-soft border border-sf-warning rounded-lg space-y-2">
-            <p className="text-sm text-sf-warning">
-              {t('tipJarPwywPrompt', { defaultValue: 'Tip jar wymaga włączonego PWYW (Pay What You Want). Czy chcesz przejść do kroku Pricing i włączyć tę opcję?' })}
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setPendingTipJar(false)}
-                className="px-3 py-1.5 text-sm font-medium text-sf-body bg-sf-raised border border-sf-border rounded-full hover:bg-sf-deep"
-              >
-                {t('tipJarPwywCancel', { defaultValue: 'Anuluj' })}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPendingTipJar(false);
-                  onRequestStepChange?.(2);
-                }}
-                className="px-3 py-1.5 text-sm font-medium text-white bg-sf-accent-bg rounded-full hover:bg-sf-accent-hover"
-              >
-                {t('tipJarPwywGoToPricing', { defaultValue: 'Przejdź do Pricing' })}
-              </button>
-            </div>
-          </div>
         )}
       </div>
 

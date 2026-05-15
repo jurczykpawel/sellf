@@ -8,7 +8,6 @@ import {
   PostPurchaseSection,
   RefundSection,
   AdvancedSection,
-  CheckoutTemplateSection,
   BadgeGeneratorSection,
 } from '../../sections';
 import type { ProductFormData, TranslationFunction, OtoState } from '../../types';
@@ -27,7 +26,6 @@ interface StepSalesSettingsProps {
   currentProductId?: string;
   oto: OtoState;
   setOto: React.Dispatch<React.SetStateAction<OtoState>>;
-  onRequestStepChange?: (step: number) => void;
 }
 
 export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
@@ -43,7 +41,6 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
   currentProductId,
   oto,
   setOto,
-  onRequestStepChange,
 }) => {
   return (
     <div className="space-y-6">
@@ -92,8 +89,6 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         t={t}
         omnibusEnabled={omnibusEnabled}
       />
-
-      <CheckoutTemplateSection formData={formData} setFormData={setFormData} onRequestStepChange={onRequestStepChange} />
 
       <BadgeGeneratorSection formData={formData} />
     </div>

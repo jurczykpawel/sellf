@@ -214,6 +214,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 shopDefaultVatRate={shopDefaultVatRate}
                 taxMode={taxMode}
                 isEditing={isEditMode}
+                onRequestStepChange={setCurrentStep}
               />
             )}
 
@@ -245,7 +246,6 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 currentProductId={product?.id}
                 oto={oto}
                 setOto={setOto}
-                onRequestStepChange={setCurrentStep}
               />
             )}
           </form>

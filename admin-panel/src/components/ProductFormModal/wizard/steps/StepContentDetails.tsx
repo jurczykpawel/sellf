@@ -28,16 +28,19 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
   allCategories,
   loadingCategories,
 }) => {
+  const isTipJar = formData.checkout_template === 'tip-jar';
   return (
     <div className="space-y-6">
-      <ContentDeliverySection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-        urlValidation={urlValidation}
-        setUrlValidation={setUrlValidation}
-        validateContentItemUrl={validateContentItemUrl}
-      />
+      {!isTipJar && (
+        <ContentDeliverySection
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          urlValidation={urlValidation}
+          setUrlValidation={setUrlValidation}
+          validateContentItemUrl={validateContentItemUrl}
+        />
+      )}
 
       <PricingSection
         formData={formData}

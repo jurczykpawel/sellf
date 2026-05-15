@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BasicInfoSection, PriceVatInline, SubscriptionSection } from '../../sections';
+import { BasicInfoSection, PriceVatInline, SubscriptionSection, CheckoutTemplateSection } from '../../sections';
 import type { ProductFormData, TranslationFunction } from '../../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
@@ -23,6 +23,7 @@ interface StepEssentialsProps {
   /** True when editing an existing product — UI lock on product_type. Backend
    * (PATCH /api/v1/products/[id]) is the authoritative gate. */
   isEditing?: boolean;
+  onRequestStepChange?: (step: number) => void;
 }
 
 export const StepEssentials: React.FC<StepEssentialsProps> = ({
@@ -41,9 +42,16 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   shopDefaultVatRate,
   taxMode,
   isEditing,
+  onRequestStepChange,
 }) => {
   return (
     <div className="space-y-6">
+      <CheckoutTemplateSection
+        formData={formData}
+        setFormData={setFormData}
+        onRequestStepChange={onRequestStepChange}
+      />
+
       <BasicInfoSection
         formData={formData}
         setFormData={setFormData}
