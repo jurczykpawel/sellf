@@ -1361,7 +1361,11 @@
           "minutes": "minutes",
           "durationHelp": "How long the customer has to accept the offer (1-1440 minutes)",
           "preview": "Preview:",
-          "previewText": "After purchasing this product, customer will see a {discount} discount on \"{product}\" for {duration} minutes."
+          "previewText": "After purchasing this product, customer will see a {discount} discount on \"{product}\" for {duration} minutes.",
+          "downsellTitle": "Add downsell offer (when declined)",
+          "downsellDescription": "If the buyer declines the upsell, redirect them to a cheaper alternative with its own coupon.",
+          "downsellProduct": "Downsell product",
+          "selectDownsellPlaceholder": "Select downsell product..."
         },
         "salePrice": "Sale Price",
         "salePriceLabel": "Sale Price",

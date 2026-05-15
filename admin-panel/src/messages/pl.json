@@ -1376,7 +1376,11 @@
           "minutes": "minut",
           "durationHelp": "Jak długo klient ma na przyjęcie oferty (1-1440 minut)",
           "preview": "Podgląd:",
-          "previewText": "Po zakupie tego produktu klient zobaczy {discount} zniżkę na \"{product}\" przez {duration} minut."
+          "previewText": "Po zakupie tego produktu klient zobaczy {discount} zniżkę na \"{product}\" przez {duration} minut.",
+          "downsellTitle": "Dodaj ofertę downsell (gdy klient odrzuci)",
+          "downsellDescription": "Jeśli kupujący odrzuci upsell, przekieruj go do tańszej alternatywy z osobnym kuponem.",
+          "downsellProduct": "Produkt downsell",
+          "selectDownsellPlaceholder": "Wybierz produkt downsell..."
         },
         "salePrice": "Cena promocyjna",
         "salePriceLabel": "Cena promocyjna",
