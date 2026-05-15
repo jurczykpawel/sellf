@@ -30,7 +30,7 @@ export default function OtoDeclineButton() {
     <a
       href={declineHref}
       data-testid="oto-decline-button"
-      className="mt-4 inline-flex items-center justify-center w-full px-4 py-3 rounded-xl text-sm font-medium text-sf-muted bg-sf-raised border border-sf-border hover:bg-sf-deep hover:text-sf-text transition-colors"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 inline-flex items-center justify-center px-5 py-3 rounded-full text-sm font-medium text-sf-body bg-sf-raised/95 backdrop-blur border border-sf-border shadow-lg hover:bg-sf-deep hover:text-sf-heading transition-colors"
     >
       {t('declineCta')}
     </a>

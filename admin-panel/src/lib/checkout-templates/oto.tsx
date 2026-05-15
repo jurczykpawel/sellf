@@ -8,9 +8,7 @@ export default function OtoCheckoutTemplate(props: CheckoutTemplateProps) {
   return (
     <>
       <ProductPurchaseView {...props} layoutMode="standalone" />
-      <div className="max-w-3xl mx-auto px-4 pb-8">
-        <OtoDeclineButton />
-      </div>
+      <OtoDeclineButton />
     </>
   );
 }
