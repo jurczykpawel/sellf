@@ -42,3 +42,14 @@ export const RETRIABLE_EVENTS: ReadonlySet<string> = new Set<string>([
   'invoice.paid',
   'invoice.payment_succeeded',
 ]);
+
+// Terminal failures: handler returned processed:false but the cause is a
+// permanent data inconsistency (no point in Stripe retrying). Ack with 200
+// so the webhook queue drains instead of looping until heap OOM.
+export const TERMINAL_FAILURE_REASONS: ReadonlySet<string> = new Set<string>([
+  'Product not found',
+  'Subscription missing metadata.product_id',
+  'Stripe price id does not match the bound product',
+  'No email on customer',
+  'Customer is deleted',
+]);
