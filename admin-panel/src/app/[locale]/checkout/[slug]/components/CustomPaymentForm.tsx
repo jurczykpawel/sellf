@@ -220,11 +220,15 @@ export default function CustomPaymentForm({
         }
       }
 
-      const emailUpdate = await checkout.updateEmail(finalEmail);
-      if (emailUpdate.type === 'error') {
-        setErrorMessage(emailUpdate.error.message || t('emailRequired', { defaultValue: 'Email is required' }));
-        setIsProcessing(false);
-        return;
+      // Stripe rejects updateEmail when session already has customer_email.
+      const currentSessionEmail = (checkout as unknown as { email?: string | null }).email ?? null;
+      if (currentSessionEmail !== finalEmail) {
+        const emailUpdate = await checkout.updateEmail(finalEmail);
+        if (emailUpdate.type === 'error') {
+          setErrorMessage(emailUpdate.error.message || t('emailRequired', { defaultValue: 'Email is required' }));
+          setIsProcessing(false);
+          return;
+        }
       }
 
       // Track add_payment_info
