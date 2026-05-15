@@ -68,7 +68,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
         is_active,
         created_at,
         updated_at,
-        oto_product:products!oto_offers_oto_product_id_fkey(id, name, slug, price, currency)
+        downsell_product_id,
+        downsell_discount_type,
+        downsell_discount_value,
+        downsell_duration_minutes,
+        oto_product:products!oto_offers_oto_product_id_fkey(id, name, slug, price, currency),
+        downsell_product:products!oto_offers_downsell_product_id_fkey(id, name, slug, price, currency)
       `)
       .eq('source_product_id', productId)
       .eq('is_active', true)
@@ -90,6 +95,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       discount_value: otoOffer.discount_value,
       duration_minutes: otoOffer.duration_minutes,
       oto_product: otoOffer.oto_product,
+      downsell_product_id: otoOffer.downsell_product_id,
+      downsell_discount_type: otoOffer.downsell_discount_type,
+      downsell_discount_value: otoOffer.downsell_discount_value,
+      downsell_duration_minutes: otoOffer.downsell_duration_minutes,
+      downsell_product: otoOffer.downsell_product,
     }), request);
   } catch (error) {
     return handleApiError(error, request);
@@ -124,6 +134,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       discount_type = 'percentage',
       discount_value = 20,
       duration_minutes = 15,
+      downsell_product_id = null,
+      downsell_discount_type = null,
+      downsell_discount_value = null,
+      downsell_duration_minutes = null,
     } = body;
 
     // Validate required field
@@ -201,6 +215,65 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       });
     }
 
+    // -------------------------------------------------------------------------
+    // Downsell branch validation (optional). All-or-nothing: either the four
+    // downsell_* fields are all set or all null.
+    // -------------------------------------------------------------------------
+    const hasDownsell = downsell_product_id !== null && downsell_product_id !== undefined && downsell_product_id !== '';
+    if (hasDownsell) {
+      const dsIdValidation = validateUUID(String(downsell_product_id));
+      if (!dsIdValidation.isValid) {
+        return apiError(request, 'INVALID_INPUT', 'Invalid downsell product ID format');
+      }
+      if (String(downsell_product_id) === productId) {
+        return apiError(request, 'VALIDATION_ERROR', 'Downsell product cannot equal source product', {
+          downsell_product_id: ['Downsell product cannot equal source product'],
+        });
+      }
+      if (String(downsell_product_id) === String(oto_product_id)) {
+        return apiError(request, 'VALIDATION_ERROR', 'Downsell product cannot equal upsell product', {
+          downsell_product_id: ['Downsell product cannot equal upsell product'],
+        });
+      }
+      if (!['percentage', 'fixed'].includes(String(downsell_discount_type))) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid downsell discount type', {
+          downsell_discount_type: ['Must be "percentage" or "fixed"'],
+        });
+      }
+      if (typeof downsell_discount_value !== 'number' || downsell_discount_value <= 0) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid downsell discount value', {
+          downsell_discount_value: ['Must be a positive number'],
+        });
+      }
+      if (downsell_discount_type === 'percentage' && downsell_discount_value > 100) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid downsell discount value', {
+          downsell_discount_value: ['Percentage discount cannot exceed 100'],
+        });
+      }
+      if (
+        typeof downsell_duration_minutes !== 'number'
+        || !Number.isInteger(downsell_duration_minutes)
+        || downsell_duration_minutes < 1
+        || downsell_duration_minutes > 1440
+      ) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid downsell duration', {
+          downsell_duration_minutes: ['Must be between 1 and 1440 minutes'],
+        });
+      }
+
+      const { data: dsProduct, error: dsError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('id', String(downsell_product_id))
+        .single();
+
+      if (dsError || !dsProduct) {
+        return apiError(request, 'VALIDATION_ERROR', 'Downsell product not found', {
+          downsell_product_id: ['Downsell product not found'],
+        });
+      }
+    }
+
     // Upsert OTO configuration
     // First, deactivate any existing OTO for this source product
     await supabase
@@ -218,6 +291,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         discount_value,
         duration_minutes,
         is_active: true,
+        downsell_product_id: hasDownsell ? String(downsell_product_id) : null,
+        downsell_discount_type: hasDownsell ? String(downsell_discount_type) : null,
+        downsell_discount_value: hasDownsell ? (downsell_discount_value as number) : null,
+        downsell_duration_minutes: hasDownsell ? (downsell_duration_minutes as number) : null,
       })
       .select()
       .single();
@@ -233,6 +310,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       discount_type: data.discount_type,
       discount_value: data.discount_value,
       duration_minutes: data.duration_minutes,
+      downsell_product_id: data.downsell_product_id,
+      downsell_discount_type: data.downsell_discount_type,
+      downsell_discount_value: data.downsell_discount_value,
+      downsell_duration_minutes: data.downsell_duration_minutes,
     }), request);
   } catch (error) {
     return handleApiError(error, request);

@@ -144,7 +144,8 @@
     "acceptOffer": "Tak, chcę to!",
     "noThanks": "Nie, dziękuję",
     "goToProduct": "Przejdź do produktu",
-    "getMagicLink": "Wyślij link dostępowy"
+    "getMagicLink": "Wyślij link dostępowy",
+    "declineCta": "Nie, dziękuję, pokaż alternatywę"
   },
   "common": {
     "loading": "Ładowanie...",
@@ -3472,6 +3473,10 @@
         "tipJar": {
           "name": "Tip-jar",
           "description": "Strona wsparcia w stylu BMC: o autorze, lista wspierających, PWYW."
+        },
+        "oto": {
+          "name": "Lejek OTO",
+          "description": "Oferta jednorazowa z licznikiem i opcjonalnym downsellem."
         }
       }
     },

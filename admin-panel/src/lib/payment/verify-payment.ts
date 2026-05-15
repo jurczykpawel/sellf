@@ -86,8 +86,12 @@ async function updateProfileWithCompanyData(
 
 export interface OtoInfo {
   has_oto: boolean;
+  // Upsell branch (legacy field names preserved; `upsell_code` is the
+  // forward-symmetric alias and points at the same string as `coupon_code`).
   coupon_code?: string;
   coupon_id?: string;
+  upsell_code?: string;
+  upsell_coupon_id?: string;
   oto_product_id?: string;
   oto_product_slug?: string;
   oto_product_name?: string;
@@ -97,6 +101,20 @@ export interface OtoInfo {
   discount_value?: number;
   expires_at?: string;
   duration_minutes?: number;
+  // Downsell branch (populated only when oto_offers.downsell_product_id is set).
+  // Pre-minted on the same RPC call as the upsell coupon so the OTO checkout
+  // template can build the "Nie, dziękuję" URL without a second round-trip.
+  downsell_code?: string;
+  downsell_coupon_id?: string;
+  downsell_product_id?: string;
+  downsell_product_slug?: string;
+  downsell_product_name?: string;
+  downsell_product_price?: number;
+  downsell_product_currency?: string;
+  downsell_discount_type?: 'percentage' | 'fixed';
+  downsell_discount_value?: number;
+  downsell_expires_at?: string;
+  downsell_duration_minutes?: number;
   // Fields for skipped OTO (e.g., user already owns the product)
   reason?: string;
   skipped_oto_product_id?: string;

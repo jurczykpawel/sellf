@@ -189,15 +189,31 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       }).catch(err => console.error(err));
 
       // Fetch OTO configuration for this product using v1 API
-      api.getCustom<{ has_oto: boolean; oto_product_id?: string; discount_type?: 'percentage' | 'fixed'; discount_value?: number; duration_minutes?: number }>(`products/${product.id}/oto`)
+      api.getCustom<{
+        has_oto: boolean;
+        oto_product_id?: string;
+        discount_type?: 'percentage' | 'fixed';
+        discount_value?: number;
+        duration_minutes?: number;
+        downsell_product_id?: string | null;
+        downsell_discount_type?: 'percentage' | 'fixed' | null;
+        downsell_discount_value?: number | null;
+        downsell_duration_minutes?: number | null;
+      }>(`products/${product.id}/oto`)
         .then(data => {
           if (data.has_oto) {
+            const hasDownsell = !!data.downsell_product_id;
             setOto({
               enabled: true,
               productId: data.oto_product_id || '',
               discountType: data.discount_type || 'percentage',
               discountValue: data.discount_value || 20,
-              durationMinutes: data.duration_minutes || 15
+              durationMinutes: data.duration_minutes || 15,
+              downsellEnabled: hasDownsell,
+              downsellProductId: data.downsell_product_id || '',
+              downsellDiscountType: data.downsell_discount_type || 'percentage',
+              downsellDiscountValue: data.downsell_discount_value ?? 50,
+              downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
             });
           } else {
             setOto(initialOtoState);
@@ -548,6 +564,12 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       oto_discount_type: oto.discountType,
       oto_discount_value: oto.discountValue,
       oto_duration_minutes: oto.durationMinutes,
+      // Downsell branch — only persist when toggled on AND a product is picked
+      oto_downsell_product_id: oto.enabled && oto.downsellEnabled && oto.downsellProductId
+        ? oto.downsellProductId : null,
+      oto_downsell_discount_type: oto.downsellDiscountType,
+      oto_downsell_discount_value: oto.downsellDiscountValue,
+      oto_downsell_duration_minutes: oto.downsellDurationMinutes,
     };
 
     // Check waitlist config if enabling waitlist

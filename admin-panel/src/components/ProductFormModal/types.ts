@@ -65,6 +65,10 @@ export interface ProductFormData {
   oto_discount_type?: 'percentage' | 'fixed';
   oto_discount_value?: number;
   oto_duration_minutes?: number;
+  oto_downsell_product_id?: string | null;
+  oto_downsell_discount_type?: 'percentage' | 'fixed';
+  oto_downsell_discount_value?: number;
+  oto_downsell_duration_minutes?: number;
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type: 'one_time' | 'subscription';
   billing_interval: 'day' | 'week' | 'month' | 'year' | null;
@@ -82,6 +86,13 @@ export interface OtoState {
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   durationMinutes: number;
+  // Downsell branch — optional. When `downsellEnabled` is false the four
+  // downsell_* columns are persisted as NULL (no decline path).
+  downsellEnabled: boolean;
+  downsellProductId: string;
+  downsellDiscountType: 'percentage' | 'fixed';
+  downsellDiscountValue: number;
+  downsellDurationMinutes: number;
 }
 
 export interface UrlValidation {
@@ -225,5 +236,10 @@ export const initialOtoState: OtoState = {
   productId: '',
   discountType: 'percentage',
   discountValue: 20,
-  durationMinutes: 15
+  durationMinutes: 15,
+  downsellEnabled: false,
+  downsellProductId: '',
+  downsellDiscountType: 'percentage',
+  downsellDiscountValue: 50,
+  downsellDurationMinutes: 15,
 };

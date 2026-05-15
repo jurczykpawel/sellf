@@ -5,6 +5,7 @@ import {
 } from './types';
 import DefaultCheckoutTemplate from './default';
 import TipJarCheckoutTemplate from './tip-jar';
+import OtoCheckoutTemplate from './oto';
 
 // Single source of truth for /checkout/<slug> dispatch. Keep ordering — admin
 // dropdown iterates in CHECKOUT_TEMPLATE_SLUGS order so 'default' stays first.
@@ -20,6 +21,12 @@ const REGISTRY: Record<CheckoutTemplateSlug, CheckoutTemplate> = {
     displayName: 'Tip jar',
     descriptionKey: 'productForm.checkoutTemplate.options.tipJar.description',
     Component: TipJarCheckoutTemplate,
+  },
+  'oto': {
+    slug: 'oto',
+    displayName: 'OTO funnel',
+    descriptionKey: 'productForm.checkoutTemplate.options.oto.description',
+    Component: OtoCheckoutTemplate,
   },
 };
 

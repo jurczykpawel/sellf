@@ -7,7 +7,7 @@ import type { TaxMode } from '@/lib/actions/shop-config';
 //   - supabase/migrations/<ts>_add_checkout_template_to_products.sql (CHECK)
 //   - the zod schema validating product PATCH/POST payloads
 // Adding a template = update all three sites in one commit.
-export const CHECKOUT_TEMPLATE_SLUGS = ['default', 'tip-jar'] as const;
+export const CHECKOUT_TEMPLATE_SLUGS = ['default', 'tip-jar', 'oto'] as const;
 export type CheckoutTemplateSlug = typeof CHECKOUT_TEMPLATE_SLUGS[number];
 
 // Server-resolved props every template receives. Templates that need more

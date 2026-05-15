@@ -102,46 +102,33 @@ describe('useCountdown — source verification', () => {
 // =============================================================================
 
 describe('PaymentStatusView — source verification', () => {
+  // After the funnel-downsell-and-attribution migration, the OTO interstitial
+  // was cut: page.tsx redirects server-side to /checkout/<upsell_slug>, so the
+  // view no longer renders an OtoOfferSection. These assertions guard against
+  // the interstitial being re-introduced.
   it('renders success branch when paymentStatus=completed AND accessGranted (server is authoritative)', () => {
-    // Previously also required auth.isAuthenticated — that caused a redirect
-    // race when the client-side getUser() hadn't resolved yet after the Stripe
-    // bounce. Server-side verify-payment is now the sole source of truth.
     expect(viewSource).toMatch(
       /paymentStatus\s*===\s*'completed'\s*&&\s*accessGranted\)/,
     );
     expect(viewSource).not.toMatch(
       /paymentStatus\s*===\s*'completed'\s*&&\s*accessGranted\s*&&\s*auth\.isAuthenticated/,
     );
-    expect(viewSource).toContain('{hasOtoOffer ? (');
     expect(viewSource).toContain('<SuccessStatus');
     expect(viewSource).toContain('countdown={countdown}');
   });
 
-  it('handles guest magic_link_sent status with OTO gate and MagicLinkStatus', () => {
-    expect(viewSource).toMatch(
-      /paymentStatus\s*===\s*'magic_link_sent'/,
-    );
-    expect(viewSource).toContain(
-      'const showOtoForGuest = hasOtoOffer && !magicLink.sent',
-    );
+  it('handles guest magic_link_sent status with MagicLinkStatus (no OTO gate)', () => {
+    expect(viewSource).toMatch(/paymentStatus\s*===\s*'magic_link_sent'/);
     expect(viewSource).toContain('<MagicLinkStatus');
     expect(viewSource).toContain('redirectUrl={redirectUrl}');
   });
 
-  it('OTO skip: redirects authenticated user, sends magic link for guest', () => {
-    expect(viewSource).toMatch(
-      /handleOtoSkip[\s\S]*?auth\.isAuthenticated[\s\S]*?router\.push\(`\/p\/\$\{product\.slug\}`\)/,
-    );
-    expect(viewSource).toMatch(
-      /handleOtoSkip[\s\S]*?magicLink\.sendMagicLink\(\)/,
-    );
-  });
-
-  it('hasOtoOffer derives from otoOffer prop and controls disableAutoRedirect', () => {
-    expect(viewSource).toMatch(
-      /hasOtoOffer\s*=\s*otoOffer\?\.hasOto\s*\?\?\s*false/,
-    );
-    expect(viewSource).toContain('disableAutoRedirect: hasOtoOffer');
+  it('no longer renders an OTO interstitial section', () => {
+    // Regression guard: these symbols belonged to the deleted interstitial UI.
+    expect(viewSource).not.toContain('OtoOfferSection');
+    expect(viewSource).not.toContain('hasOtoOffer');
+    expect(viewSource).not.toContain('handleOtoSkip');
+    expect(viewSource).not.toContain('showOtoForGuest');
   });
 });
 
@@ -150,36 +137,45 @@ describe('PaymentStatusView — source verification', () => {
 // =============================================================================
 
 describe('Payment status page.tsx — source verification', () => {
-  it('checks if customer already has OTO access and skips OTO accordingly', () => {
+  it('checks customer already-owns-upsell short-circuit before redirecting', () => {
     expect(pageSource).toContain('customerHasOtoAccess');
     expect(pageSource).toContain("from('user_product_access')");
     expect(pageSource).toContain('oto_product_id');
-    expect(pageSource).toMatch(
-      /customerHasOtoAccess[\s\S]*?skip OTO/,
-    );
     expect(pageSource).toContain('buildOtoRedirectUrl');
   });
 
-  it('calculates isSuccessfulPayment and determines redirect conditions', () => {
+  it('redirects server-side to OTO checkout instead of rendering an interstitial', () => {
+    // Regression guard: the funnel-downsell migration deleted the interstitial
+    // (OtoOfferInfo + OtoOfferSection). page.tsx must use Next's redirect()
+    // helper so the buyer never sees a separate offer page.
+    expect(pageSource).toContain("import { redirect } from 'next/navigation'");
+    expect(pageSource).toMatch(/redirect\(otoRedirect\.url\)/);
+    expect(pageSource).not.toContain('otoOfferInfo');
+    expect(pageSource).not.toContain('OtoOfferInfo');
+  });
+
+  it('forwards downsell branch params to buildOtoRedirectUrl when set', () => {
+    expect(pageSource).toContain('downsellCouponCode: otoInfo.downsell_code');
+    expect(pageSource).toContain('downsellProductSlug: otoInfo.downsell_product_slug');
+  });
+
+  it('calculates isSuccessfulPayment and uses success_redirect_url for non-OTO paths', () => {
     expect(pageSource).toMatch(
       /isSuccessfulPayment\s*=\s*\(accessGranted\s*&&\s*paymentStatus\s*===\s*'completed'\)\s*\|\|\s*paymentStatus\s*===\s*'magic_link_sent'/,
     );
-    expect(pageSource).toContain('!otoOfferInfo');
-    expect(pageSource).toContain("otoInfo?.reason === 'already_owns_oto_product'");
-    expect(pageSource).toMatch(/otoWasSkipped[\s\S]*?no redirect/);
+    expect(pageSource).toContain('product.success_redirect_url');
+    expect(pageSource).toContain('buildSuccessRedirectUrl');
   });
 
   it('uses success_redirect_url with open redirect protection', () => {
-    expect(pageSource).toContain('product.success_redirect_url');
-    expect(pageSource).toContain('buildSuccessRedirectUrl');
     expect(pageSource).toContain("decoded.startsWith('/')");
     expect(pageSource).toContain("decoded.startsWith('//')");
     expect(pageSource).toContain("decoded.toLowerCase().includes('javascript:')");
     expect(pageSource).toContain("decoded.includes('://')");
   });
 
-  it('passes finalRedirectUrl and otoOfferInfo to PaymentStatusView', () => {
+  it('passes finalRedirectUrl to PaymentStatusView (no otoOffer prop)', () => {
     expect(pageSource).toContain('redirectUrl={finalRedirectUrl}');
-    expect(pageSource).toContain('otoOffer={otoOfferInfo}');
+    expect(pageSource).not.toContain('otoOffer=');
   });
 });

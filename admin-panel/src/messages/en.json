@@ -138,7 +138,8 @@
     "acceptOffer": "Yes, I want this!",
     "noThanks": "No thanks",
     "goToProduct": "Go to my product",
-    "getMagicLink": "Send me access link"
+    "getMagicLink": "Send me access link",
+    "declineCta": "No thanks — show me an alternative"
   },
   "common": {
     "loading": "Loading...",
@@ -3457,6 +3458,10 @@
         "tipJar": {
           "name": "Tip jar",
           "description": "BMC-style support page with about, recent supporters, PWYW."
+        },
+        "oto": {
+          "name": "OTO funnel",
+          "description": "One-time offer page with countdown timer and optional downsell."
         }
       }
     },

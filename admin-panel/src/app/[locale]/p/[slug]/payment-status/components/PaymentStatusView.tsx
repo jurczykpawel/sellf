@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react';
 import Confetti from 'react-confetti';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { usePaymentStatus } from '../hooks';
 import { PaymentStatusViewProps } from '../types';
 import { getStatusInfo } from '../utils/helpers';
@@ -15,7 +14,6 @@ import {
   SuccessStatus,
   MagicLinkStatus,
   PaymentStatusLayout,
-  OtoOfferSection,
 } from './';
 
 export default function PaymentStatusView({
@@ -27,19 +25,12 @@ export default function PaymentStatusView({
   sessionId,
   paymentIntentId,
   redirectUrl,
-  otoOffer,
 }: PaymentStatusViewProps) {
   const t = useTranslations('paymentStatus');
-  const tOto = useTranslations('oto');
-  const router = useRouter();
   const { track } = useTracking();
   const purchaseTracked = useRef(false);
 
-  // When OTO is shown, disable auto-redirect countdown
-  const hasOtoOffer = otoOffer?.hasOto ?? false;
-
   const {
-    auth,
     countdown,
     windowDimensions,
     terms,
@@ -53,7 +44,6 @@ export default function PaymentStatusView({
     product,
     accessGranted,
     redirectUrl,
-    disableAutoRedirect: hasOtoOffer,
   });
 
   const statusInfo = getStatusInfo(paymentStatus, t);
@@ -89,26 +79,6 @@ export default function PaymentStatusView({
       userEmail: customerEmail || undefined,
     }, purchaseEventId);
   }, [paymentStatus, accessGranted, product, sessionId, paymentIntentId, customerEmail, track]);
-
-  // Handle OTO skip action
-  const handleOtoSkip = () => {
-    if (auth.isAuthenticated) {
-      // Logged-in user: go to product page
-      router.push(`/p/${product.slug}`);
-    } else {
-      // Guest user: trigger magic link flow (handled by MagicLinkStatus visibility)
-      // We'll show magic link section by hiding OTO
-      magicLink.sendMagicLink();
-    }
-  };
-
-  // Determine skip button label based on auth status
-  const getSkipLabel = () => {
-    if (auth.isAuthenticated) {
-      return tOto('goToProduct');
-    }
-    return tOto('getMagicLink');
-  };
 
   // Handle error states first
   if (errorMessage && (paymentStatus === 'failed' || paymentStatus === 'expired')) {
@@ -151,25 +121,11 @@ export default function PaymentStatusView({
           product={product}
           statusInfo={statusInfo}
         >
-          {hasOtoOffer ? (
-            <>
-              <p className="text-sf-body mb-4">
-                {t('accessGrantedToProduct', { productName: product.name })}
-              </p>
-              <OtoOfferSection
-                otoOffer={otoOffer!}
-                productSlug={product.slug}
-                onSkip={handleOtoSkip}
-                skipLabel={getSkipLabel()}
-              />
-            </>
-          ) : (
-            <SuccessStatus
-              product={product}
-              windowDimensions={windowDimensions}
-              countdown={countdown}
-            />
-          )}
+          <SuccessStatus
+            product={product}
+            windowDimensions={windowDimensions}
+            countdown={countdown}
+          />
         </PaymentStatusLayout>
       </>
     );
@@ -178,8 +134,6 @@ export default function PaymentStatusView({
   // Handle magic link flow (guest purchase)
   if (paymentStatus === 'magic_link_sent' || paymentStatus === 'guest_purchase') {
     // Show OTO first for guests, then magic link after skip or OTO expiry
-    const showOtoForGuest = hasOtoOffer && !magicLink.sent;
-
     return (
       <>
         {/* Full-page confetti overlay for successful payment */}
@@ -201,40 +155,26 @@ export default function PaymentStatusView({
           product={product}
           statusInfo={statusInfo}
         >
-          {showOtoForGuest ? (
-            <>
-              <p className="text-sf-body mb-4">
-                {t('paymentSuccessful')} {t('accessGrantedToProduct', { productName: product.name })}
-              </p>
-              <OtoOfferSection
-                otoOffer={otoOffer!}
-                productSlug={product.slug}
-                onSkip={handleOtoSkip}
-                skipLabel={getSkipLabel()}
-              />
-            </>
-          ) : (
-            <MagicLinkStatus
-              product={product}
-              customerEmail={customerEmail}
-              magicLinkSent={magicLink.sent}
-              termsAccepted={terms.accepted}
-              captchaToken={turnstile.token}
-              captchaError={turnstile.error}
-              captchaTimeout={turnstile.timeout}
-              showInteractiveWarning={turnstile.showInteractiveWarning}
-              magicLinkError={magicLink.error}
-              onTermsAccept={terms.acceptTerms}
-              onCaptchaSuccess={turnstile.setToken}
-              onCaptchaError={turnstile.setError}
-              onCaptchaTimeout={() => turnstile.setTimeout(true)}
-              onBeforeInteractive={() => turnstile.setShowInteractiveWarning(true)}
-              onAfterInteractive={() => turnstile.setShowInteractiveWarning(false)}
-              sendMagicLink={magicLink.sendMagicLink}
-              redirectUrl={redirectUrl}
-              countdown={countdown}
-            />
-          )}
+          <MagicLinkStatus
+            product={product}
+            customerEmail={customerEmail}
+            magicLinkSent={magicLink.sent}
+            termsAccepted={terms.accepted}
+            captchaToken={turnstile.token}
+            captchaError={turnstile.error}
+            captchaTimeout={turnstile.timeout}
+            showInteractiveWarning={turnstile.showInteractiveWarning}
+            magicLinkError={magicLink.error}
+            onTermsAccept={terms.acceptTerms}
+            onCaptchaSuccess={turnstile.setToken}
+            onCaptchaError={turnstile.setError}
+            onCaptchaTimeout={() => turnstile.setTimeout(true)}
+            onBeforeInteractive={() => turnstile.setShowInteractiveWarning(true)}
+            onAfterInteractive={() => turnstile.setShowInteractiveWarning(false)}
+            sendMagicLink={magicLink.sendMagicLink}
+            redirectUrl={redirectUrl}
+            countdown={countdown}
+          />
         </PaymentStatusLayout>
       </>
     );
