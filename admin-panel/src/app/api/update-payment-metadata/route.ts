@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  validateCustomFieldDefinitions,
+  validateCustomFieldValues,
+} from '@/lib/validations/custom-checkout-fields';
 
 /**
  * POST /api/update-payment-metadata
@@ -85,6 +90,10 @@ export async function POST(request: NextRequest) {
       city,
       postalCode,
       country,
+      // Phase 3a: submit-time values for products.custom_checkout_fields.
+      // Validated with requireAll=true so required fields must be filled
+      // before checkout.confirm() is allowed to proceed.
+      customFieldValues,
     } = await request.json();
 
     if (!clientSecret) {
@@ -135,6 +144,8 @@ export async function POST(request: NextRequest) {
       country: country || '',
     };
 
+    let productIdFromStripe: string | null = null;
+
     if (isCheckoutSession) {
       const session = await stripe.checkout.sessions.retrieve(stripeObjectId);
       if (!session || session.status !== 'open') {
@@ -143,23 +154,87 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-
+      productIdFromStripe = (session.metadata?.product_id as string) || null;
       await stripe.checkout.sessions.update(stripeObjectId, { metadata });
-      return NextResponse.json({ success: true });
+    } else {
+      // Verify the PaymentIntent exists and is still in a modifiable state
+      // This prevents metadata updates on already-completed or cancelled payments
+      const pi = await stripe.paymentIntents.retrieve(stripeObjectId);
+      if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
+        return NextResponse.json(
+          { success: false, error: 'Payment intent is not in a modifiable state' },
+          { status: 400 }
+        );
+      }
+      productIdFromStripe = (pi.metadata?.product_id as string) || null;
+      await stripe.paymentIntents.update(stripeObjectId, { metadata });
     }
 
-    // Verify the PaymentIntent exists and is still in a modifiable state
-    // This prevents metadata updates on already-completed or cancelled payments
-    const pi = await stripe.paymentIntents.retrieve(stripeObjectId);
-    if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
-      return NextResponse.json(
-        { success: false, error: 'Payment intent is not in a modifiable state' },
-        { status: 400 }
-      );
-    }
+    // Phase 3a: validate + persist custom_field_values on the pending row.
+    // Definitions come from DB (not the client) so the buyer cannot spoof
+    // their own field shape; values from the request body are validated
+    // against those definitions with requireAll=true (submit-time gate).
+    if (customFieldValues !== undefined) {
+      if (!productIdFromStripe) {
+        return NextResponse.json(
+          { success: false, error: 'Cannot persist custom field values: payment has no product binding' },
+          { status: 400 },
+        );
+      }
 
-    // Update Payment Intent with customer and invoice metadata
-    await stripe.paymentIntents.update(stripeObjectId, { metadata });
+      const admin = createAdminClient();
+      const { data: product, error: productError } = await admin
+        .from('products')
+        .select('custom_checkout_fields')
+        .eq('id', productIdFromStripe)
+        .single();
+      if (productError || !product) {
+        return NextResponse.json(
+          { success: false, error: 'Product not found' },
+          { status: 404 },
+        );
+      }
+
+      const defs = validateCustomFieldDefinitions(product.custom_checkout_fields ?? []);
+      if (!defs.ok) {
+        console.error(
+          '[update-payment-metadata] product %s has invalid custom_checkout_fields shape:',
+          productIdFromStripe,
+          defs.errors,
+        );
+        return NextResponse.json(
+          { success: false, error: 'Product checkout configuration is invalid' },
+          { status: 500 },
+        );
+      }
+
+      const valuesResult = validateCustomFieldValues(defs.value, customFieldValues, {
+        requireAll: true,
+      });
+      if (!valuesResult.ok) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid custom field values', details: valuesResult.errors },
+          { status: 400 },
+        );
+      }
+
+      const sessionId = isCheckoutSession ? stripeObjectId : null;
+      const piId = isCheckoutSession ? null : stripeObjectId;
+      const matcher = sessionId
+        ? { session_id: sessionId }
+        : { stripe_payment_intent_id: piId as string };
+      const { error: updateError } = await admin
+        .from('payment_transactions')
+        .update({ custom_field_values: valuesResult.values })
+        .match(matcher);
+      if (updateError) {
+        console.error('[update-payment-metadata] failed to persist custom_field_values:', updateError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to save custom field values' },
+          { status: 500 },
+        );
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
@@ -13,6 +13,11 @@ import { useSearchParams } from 'next/navigation';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTheme } from '@/components/providers/theme-provider';
 import { useOrderBumps } from '@/hooks/useOrderBumps';
+import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import type {
+  CustomFieldDefinition,
+  CustomFieldValues,
+} from '@/lib/validations/custom-checkout-fields';
 import { useTranslations } from 'next-intl';
 import { useTracking } from '@/hooks/useTracking';
 import { useCoupon } from '@/hooks/useCoupon';
@@ -33,11 +38,20 @@ interface PaidProductFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
+  /**
+   * `standalone` (default): full page shell + ProductShowcase + form.
+   * `embedded`: form column only (host template provides product info / chrome).
+   */
+  layoutMode?: 'standalone' | 'embedded';
 }
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, layoutMode = 'standalone' }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const isSubscription = product.product_type === 'subscription';
+  // PWYW subscriptions allow buyers to choose their recurring amount. The
+  // existing PwywSection works regardless of one-shot vs recurring — only
+  // copy needs to switch to "Monthly amount" via the section's own i18n.
+  const isPwywSubscription = isSubscription && product.allow_custom_price === true;
   const { user, isAdmin, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const config = useConfig();
@@ -112,6 +126,16 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // Order bumps
   const { orderBumps } = useOrderBumps(product.id);
   const [selectedBumpIds, setSelectedBumpIds] = useState<Set<string>>(new Set());
+
+  // Custom checkout fields — admin defines, buyer fills. Values flow into the
+  // pending payment_transactions row via the API POST below; per-field errors
+  // round-trip back from server when validation fails (e.g. required missing).
+  const customFieldDefs = useMemo<CustomFieldDefinition[]>(
+    () => (Array.isArray(product.custom_checkout_fields) ? product.custom_checkout_fields : []),
+    [product.custom_checkout_fields],
+  );
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
 
   const availableBumps = orderBumps.filter(
     ob => product.currency.toLowerCase() === ob.bump_currency.toLowerCase()
@@ -258,6 +282,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         couponCode: coupon.appliedCoupon?.code,
         successUrl: searchParams.get('success_url') || undefined,
         customAmount: product.allow_custom_price ? customAmount : undefined,
+        customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
       }),
     })
       .then(async response => {
@@ -267,6 +292,13 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           if (controller.signal.aborted) return;
           if (errorData.error === 'You already have access to this product') {
             grantAccess();
+            return;
+          }
+          // Custom field validation surfaces per-field errors — keep them so
+          // the form can highlight the offending input.
+          if (errorData.error === 'Invalid custom field values' && errorData.details) {
+            setCustomFieldErrors(errorData.details as Record<string, string>);
+            setError(t('createSessionError'));
             return;
           }
           // Surface the server's error verbatim — previously a throw+catch
@@ -281,6 +313,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           setError(t('loadError'));
           return;
         }
+        setCustomFieldErrors({});
         // 100% coupon: server granted free access
         if (data.freeAccess) {
           grantAccess();
@@ -341,8 +374,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         />
       )}
 
-      {/* PWYW Section (price picker + free access) */}
-      {!isSubscription && (
+      {/* PWYW Section — shown for one-shot products with PWYW enabled, AND
+          for subscription products with allow_custom_price (Phase 3c, monthly
+          PWYW amount picker). Subscription + PWYW takes the raw subscription
+          path on submit; non-PWYW subscriptions keep the existing fixed-price
+          Checkout Session flow. */}
+      {(!isSubscription || isPwywSubscription) && (
         <PwywSection
           product={product}
           user={user}
@@ -514,6 +551,10 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}
                 taxMode={taxMode}
+                customFieldDefs={customFieldDefs}
+                customFieldValues={customFieldValues}
+                onCustomFieldValuesChange={setCustomFieldValues}
+                customFieldErrors={customFieldErrors}
               />
             </CheckoutElementsProvider>
           )}
@@ -521,6 +562,16 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       )}
     </div>
   );
+
+  if (layoutMode === 'embedded') {
+    // Host template (e.g. tip-jar) provides chrome + product info; we render
+    // ONLY the form column so the page doesn't duplicate showcase / wrapper.
+    return (
+      <div className="w-full p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
+        {renderCheckoutForm()}
+      </div>
+    );
+  }
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">

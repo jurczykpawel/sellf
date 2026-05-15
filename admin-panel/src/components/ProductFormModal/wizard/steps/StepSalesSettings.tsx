@@ -8,6 +8,8 @@ import {
   PostPurchaseSection,
   RefundSection,
   AdvancedSection,
+  CheckoutTemplateSection,
+  BadgeGeneratorSection,
 } from '../../sections';
 import type { ProductFormData, TranslationFunction, OtoState } from '../../types';
 import type { Product } from '@/types';
@@ -88,6 +90,10 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         t={t}
         omnibusEnabled={omnibusEnabled}
       />
+
+      <CheckoutTemplateSection formData={formData} setFormData={setFormData} />
+
+      <BadgeGeneratorSection formData={formData} />
     </div>
   );
 };

@@ -7,6 +7,8 @@
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
+import { CHECKOUT_TEMPLATE_SLUGS } from '@/lib/checkout-templates/types';
+import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
 
 /**
  * Explicit field list for Products API v1 responses.
@@ -556,6 +558,13 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   // Subscription fields validation
   errors.push(...validateSubscriptionFields(input).errors);
 
+  if (input.checkout_template !== undefined) {
+    errors.push(...validateCheckoutTemplate(input.checkout_template).errors);
+  }
+  if (input.custom_checkout_fields !== undefined) {
+    errors.push(...validateCustomCheckoutFieldsPayload(input.custom_checkout_fields).errors);
+  }
+
   return { isValid: errors.length === 0, errors };
 }
 
@@ -714,6 +723,38 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     errors.push(...validateSubscriptionFields(input).errors);
   }
 
+  if (input.checkout_template !== undefined) {
+    errors.push(...validateCheckoutTemplate(input.checkout_template).errors);
+  }
+  if (input.custom_checkout_fields !== undefined) {
+    errors.push(...validateCustomCheckoutFieldsPayload(input.custom_checkout_fields).errors);
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
+// Phase 3 — Checkout templates feature. Both helpers below mirror the DB
+// CHECK constraint + the typed registry; admin UI also runs them client-side
+// so the editor highlights errors without a round-trip.
+
+function validateCheckoutTemplate(value: unknown): ValidationResult {
+  const errors: string[] = [];
+  if (typeof value !== 'string' || !CHECKOUT_TEMPLATE_SLUGS.includes(value as typeof CHECKOUT_TEMPLATE_SLUGS[number])) {
+    errors.push(
+      `checkout_template must be one of: ${CHECKOUT_TEMPLATE_SLUGS.join(', ')}`,
+    );
+  }
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateCustomCheckoutFieldsPayload(value: unknown): ValidationResult {
+  const errors: string[] = [];
+  const result = validateCustomFieldDefinitions(value);
+  if (!result.ok) {
+    for (const [idx, msg] of Object.entries(result.errors)) {
+      errors.push(`custom_checkout_fields[${idx}]: ${msg}`);
+    }
+  }
   return { isValid: errors.length === 0, errors };
 }
 

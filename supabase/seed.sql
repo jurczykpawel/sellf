@@ -260,6 +260,34 @@ INSERT INTO products (
   '[5, 15, 30]'
 );
 
+-- Tip-jar checkout template demo product.
+-- PWYW forced by the template; presets nudge toward small donations.
+INSERT INTO products (
+  name, slug, description, long_description, icon, price, currency,
+  vat_rate, price_includes_vat, features, is_active, is_featured, is_listed,
+  allow_custom_price, custom_price_min, show_price_presets, custom_price_presets,
+  checkout_template
+) VALUES (
+  'Postaw mi kawę',
+  'postaw-mi-kawe',
+  'Wesprzyj projekt symboliczną kwotą.',
+  E'## Dziękuję za wsparcie\n\nKażda kwota pomaga utrzymać projekt przy życiu i daje motywację do publikowania kolejnych materiałów. ☕',
+  '☕',
+  5,
+  'USD',
+  NULL,
+  true,
+  '[]'::jsonb,
+  true,
+  false,
+  true,
+  true,
+  1,
+  true,
+  '[3, 5, 10, 25]',
+  'tip-jar'
+);
+
 -- Insert sample order bumps (multi-bump: premium-course has 3, vip-masterclass has 2)
 -- Bump 1: Add Pro Toolkit to Premium Course for $29.99 (Huge discount!)
 INSERT INTO order_bumps (

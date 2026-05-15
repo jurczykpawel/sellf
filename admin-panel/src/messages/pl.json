@@ -3425,5 +3425,86 @@
     "issues": "problemy",
     "lastRun": "Ostatnie uruchomienie",
     "notRunYet": "Kliknij \"Uruchom audyt\" aby sprawdzić konfigurację Supabase pod kątem bezpieczeństwa."
+  },
+  "supporterActions": {
+    "coffee": "postawił kawę",
+    "kebab": "postawił kebaba",
+    "pizza": "postawił pizzę",
+    "beer": "postawił piwo",
+    "pint": "postawił piwo",
+    "wine": "postawił wino",
+    "donut": "postawił donuta",
+    "taco": "postawił taco",
+    "pretzel": "postawił precla",
+    "croissant": "postawił rogala",
+    "heart": "okazał miłość",
+    "gift": "podarował coś",
+    "game": "wsparł sprzęt",
+    "pray": "podziękował",
+    "zap": "doładował",
+    "cloud": "opłacił hosting",
+    "desktop": "wsparł sprzęt",
+    "default": "wsparł projekt"
+  },
+  "tipJar": {
+    "about": "O autorze",
+    "recentSupporters": "Ostatni mecenasi",
+    "noSupportersYet": "Bądź pierwszym wspierającym",
+    "supportersCount": "{count, plural, one {# osoba wsparła} few {# osoby wsparły} many {# osób wsparło} other {# osób wsparło}}",
+    "timeAgo": {
+      "justNow": "przed chwilą",
+      "minutesAgo": "{minutes} min temu",
+      "hoursAgo": "{hours} h temu",
+      "daysAgo": "{days} dni temu"
+    }
+  },
+  "productForm": {
+    "checkoutTemplate": {
+      "label": "Szablon koszyka",
+      "helpText": "Wybierz wygląd strony /checkout dla tego produktu.",
+      "selectLabel": "Szablon",
+      "tipJarRequiresPwyw": "Tip-jar wymaga włączonego PWYW — kupujący sam wybiera kwotę.",
+      "options": {
+        "default": {
+          "name": "Domyślny",
+          "description": "Standardowy koszyk z pełnym formularzem zakupowym."
+        },
+        "tipJar": {
+          "name": "Tip-jar",
+          "description": "Strona wsparcia w stylu BMC: o autorze, lista wspierających, PWYW."
+        }
+      }
+    },
+    "customFields": {
+      "label": "Pola dodatkowe",
+      "helpText": "Pola, które kupujący wypełnia w koszyku (np. wiadomość, domena).",
+      "addButton": "Dodaj pole",
+      "removeButton": "Usuń",
+      "resetDefaults": "Przywróć domyślne",
+      "emptyState": "Brak pól dodatkowych. Dodaj pierwsze pole.",
+      "fieldId": "ID pola",
+      "fieldLabel": "Etykieta",
+      "maxLength": "Maks. długość",
+      "required": "wymagane",
+      "fieldType": {
+        "label": "Typ pola",
+        "text": "Tekst",
+        "textarea": "Wieloliniowy",
+        "email": "Email"
+      }
+    },
+    "badgeGenerator": {
+      "label": "Embed badge",
+      "helpText": "Wygeneruj badge HTML do osadzenia na zewnętrznej stronie.",
+      "saveFirst": "Zapisz produkt, żeby wygenerować snippet.",
+      "presetLabel": "Styl",
+      "previewLabel": "Podgląd",
+      "utmSource": "UTM source",
+      "utmMedium": "UTM medium",
+      "utmCampaign": "UTM campaign",
+      "utmContent": "UTM content (opcjonalnie)",
+      "copyButton": "Skopiuj kod",
+      "copiedToast": "Skopiowano"
+    }
   }
 }

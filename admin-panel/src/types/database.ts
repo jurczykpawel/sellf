@@ -1168,6 +1168,7 @@ export type Database = {
           amount: number | null
           created_at: string | null
           currency: string | null
+          custom_field_values: Json | null
           customer_email: string | null
           expires_at: string | null
           id: string | null
@@ -1191,6 +1192,7 @@ export type Database = {
           amount?: number | null
           created_at?: string | null
           currency?: string | null
+          custom_field_values?: Json | null
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
@@ -1214,6 +1216,7 @@ export type Database = {
           amount?: number | null
           created_at?: string | null
           currency?: string | null
+          custom_field_values?: Json | null
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
@@ -1396,10 +1399,12 @@ export type Database = {
           available_until: string | null
           billing_interval: string | null
           billing_interval_count: number | null
+          checkout_template: string | null
           content_config: Json | null
           content_delivery_type: string | null
           created_at: string | null
           currency: string | null
+          custom_checkout_fields: Json | null
           custom_price_min: number | null
           custom_price_presets: Json | null
           description: string | null
@@ -1432,6 +1437,7 @@ export type Database = {
           show_price_presets: boolean | null
           slug: string | null
           stripe_price_id: string | null
+          stripe_product_id: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
           trial_days: number | null
@@ -1445,10 +1451,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string | null
           content_config?: Json | null
           content_delivery_type?: string | null
           created_at?: string | null
           currency?: string | null
+          custom_checkout_fields?: Json | null
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -1481,6 +1489,7 @@ export type Database = {
           show_price_presets?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -1494,10 +1503,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string | null
           content_config?: Json | null
           content_delivery_type?: string | null
           created_at?: string | null
           currency?: string | null
+          custom_checkout_fields?: Json | null
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -1530,13 +1541,29 @@ export type Database = {
           show_price_presets?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
           updated_at?: string | null
           vat_rate?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -3582,6 +3609,7 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
+          custom_field_values: Json
           customer_email: string
           expires_at: string | null
           id: string
@@ -3605,6 +3633,7 @@ export type Database = {
           amount: number
           created_at?: string
           currency: string
+          custom_field_values?: Json
           customer_email: string
           expires_at?: string | null
           id?: string
@@ -3628,6 +3657,7 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
+          custom_field_values?: Json
           customer_email?: string
           expires_at?: string | null
           id?: string
@@ -3877,10 +3907,12 @@ export type Database = {
           available_until: string | null
           billing_interval: string | null
           billing_interval_count: number | null
+          checkout_template: string
           content_config: Json
           content_delivery_type: string
           created_at: string
           currency: string
+          custom_checkout_fields: Json
           custom_price_min: number | null
           custom_price_presets: Json | null
           description: string | null
@@ -3913,6 +3945,7 @@ export type Database = {
           show_price_presets: boolean
           slug: string
           stripe_price_id: string | null
+          stripe_product_id: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
           trial_days: number | null
@@ -3926,10 +3959,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string
           content_config?: Json
           content_delivery_type?: string
           created_at?: string
           currency?: string
+          custom_checkout_fields?: Json
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -3962,6 +3997,7 @@ export type Database = {
           show_price_presets?: boolean
           slug: string
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -3975,10 +4011,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string
           content_config?: Json
           content_delivery_type?: string
           created_at?: string
           currency?: string
+          custom_checkout_fields?: Json
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -4011,13 +4049,29 @@ export type Database = {
           show_price_presets?: boolean
           slug?: string
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
           updated_at?: string
           vat_rate?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -4245,7 +4299,22 @@ export type Database = {
           seller_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "seller_embed_settings_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "seller_embed_settings_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: true
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       shop_config: {
         Row: {
@@ -5913,3 +5982,4 @@ export const Constants = {
     },
   },
 } as const
+

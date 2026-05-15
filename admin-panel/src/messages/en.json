@@ -3410,5 +3410,86 @@
     "issues": "issues",
     "lastRun": "Last run",
     "notRunYet": "Click \"Run audit\" to check your Supabase configuration for security issues."
+  },
+  "supporterActions": {
+    "coffee": "bought a coffee",
+    "kebab": "bought a kebab",
+    "pizza": "bought a pizza",
+    "beer": "bought a beer",
+    "pint": "bought a beer",
+    "wine": "bought a glass of wine",
+    "donut": "bought a donut",
+    "taco": "bought a taco",
+    "pretzel": "bought a pretzel",
+    "croissant": "bought a croissant",
+    "heart": "showed some love",
+    "gift": "sent a gift",
+    "game": "chipped in for the rig",
+    "pray": "said thank you",
+    "zap": "topped up the tank",
+    "cloud": "paid the hosting bill",
+    "desktop": "chipped in for the rig",
+    "default": "supported the project"
+  },
+  "tipJar": {
+    "about": "About",
+    "recentSupporters": "Recent supporters",
+    "noSupportersYet": "Be the first supporter",
+    "supportersCount": "{count, plural, one {# supporter} other {# supporters}}",
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo": "{minutes} min ago",
+      "hoursAgo": "{hours} h ago",
+      "daysAgo": "{days} days ago"
+    }
+  },
+  "productForm": {
+    "checkoutTemplate": {
+      "label": "Checkout template",
+      "helpText": "Choose how /checkout looks for this product.",
+      "selectLabel": "Template",
+      "tipJarRequiresPwyw": "Tip-jar requires PWYW — buyer picks the amount.",
+      "options": {
+        "default": {
+          "name": "Default",
+          "description": "Standard checkout with the full purchase form."
+        },
+        "tipJar": {
+          "name": "Tip jar",
+          "description": "BMC-style support page with about, recent supporters, PWYW."
+        }
+      }
+    },
+    "customFields": {
+      "label": "Custom fields",
+      "helpText": "Fields the buyer fills at checkout (message, domain, etc.).",
+      "addButton": "Add field",
+      "removeButton": "Remove",
+      "resetDefaults": "Reset to defaults",
+      "emptyState": "No custom fields. Add your first one.",
+      "fieldId": "Field id",
+      "fieldLabel": "Label",
+      "maxLength": "Max length",
+      "required": "required",
+      "fieldType": {
+        "label": "Field type",
+        "text": "Text",
+        "textarea": "Multiline",
+        "email": "Email"
+      }
+    },
+    "badgeGenerator": {
+      "label": "Embed badge",
+      "helpText": "Generate an HTML badge snippet to paste anywhere on the web.",
+      "saveFirst": "Save the product first to generate a snippet.",
+      "presetLabel": "Style",
+      "previewLabel": "Preview",
+      "utmSource": "UTM source",
+      "utmMedium": "UTM medium",
+      "utmCampaign": "UTM campaign",
+      "utmContent": "UTM content (optional)",
+      "copyButton": "Copy code",
+      "copiedToast": "Copied"
+    }
   }
 }

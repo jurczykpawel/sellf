@@ -55,9 +55,13 @@ describe('subscription checkout and price display routing', () => {
     expect(createPaymentIntentSource).toContain("uiMode: 'elements'");
   });
 
-  it('does not show one-time PWYW, coupon, or bump controls for subscriptions', () => {
+  it('hides one-time-only controls (coupons, bumps, free-access path) for subscriptions but allows PWYW for PWYW subscriptions', () => {
     expect(paidProductFormSource).toContain('const isSubscription = product.product_type ===');
-    expect(paidProductFormSource).toContain('{!isSubscription && (');
+    // Phase 3c — PWYW subscriptions render the amount picker so the buyer can
+    // choose the monthly amount. Coupons + bumps + free-access path remain
+    // disabled because they aren't supported by the subscription Stripe flow.
+    expect(paidProductFormSource).toContain('const isPwywSubscription =');
+    expect(paidProductFormSource).toContain('{(!isSubscription || isPwywSubscription) && (');
     expect(paidProductFormSource).toContain('{!isSubscription && !hasAccess && !error && !isFreeAccess');
     expect(paidProductFormSource).toContain('{!isSubscription && !hasAccess && !error && !isPwywFree');
     expect(paidProductFormSource).toContain('productPrice: isSubscription ? product.recurring_price ?? 0 : product.price');

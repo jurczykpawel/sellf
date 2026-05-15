@@ -71,6 +71,9 @@ export interface ProductFormData {
   billing_interval_count: number | null;
   recurring_price: number | null;
   trial_days: number | null;
+  // Checkout template + custom fields (Phase 3 — checkout-templates feat)
+  checkout_template: string;
+  custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[];
 }
 
 export interface OtoState {
@@ -212,6 +215,9 @@ export const initialFormData: ProductFormData = {
   billing_interval_count: null,
   recurring_price: null,
   trial_days: null,
+  // Checkout template + custom fields (Phase 3 — checkout-templates feat)
+  checkout_template: 'default',
+  custom_checkout_fields: [],
 };
 
 export const initialOtoState: OtoState = {

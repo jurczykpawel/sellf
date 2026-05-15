@@ -174,6 +174,11 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         billing_interval_count: product.billing_interval_count ?? null,
         recurring_price: product.recurring_price ?? null,
         trial_days: product.trial_days ?? null,
+        // Checkout template + custom fields (Phase 3 — checkout templates feat)
+        checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
+        custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
+          ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
+          : [],
       });
 
       // Fetch assigned categories

@@ -49,6 +49,9 @@ export interface Product {
   custom_price_min: number
   show_price_presets: boolean
   custom_price_presets: number[]
+  // Checkout template + custom fields (Phase 3 — checkout templates feat)
+  checkout_template: string
+  custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[]
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type?: 'one_time' | 'subscription'
   billing_interval?: 'day' | 'week' | 'month' | 'year' | null
