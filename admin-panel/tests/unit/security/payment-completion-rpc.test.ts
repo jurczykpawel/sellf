@@ -2702,3 +2702,104 @@ describe('Retroactive claim for logged-in user', () => {
     expect(gp?.claimed_by_user_id).toBeNull();
   });
 });
+
+describe('Pending → completed conversion (regression: self-qualifier 42P01)', () => {
+  // Reproduces the bug where the RPC body referenced
+  // `process_stripe_payment_completion_with_bump.stripe_payment_intent_id`
+  // as a self-qualifier. After ALTER FUNCTION ... RENAME TO _impl, Postgres
+  // could no longer resolve the qualifier as a function param and tried it as
+  // a table alias, raising SQLSTATE 42P01 and surfacing as "Payment processing
+  // failed" to every buyer who completed checkout.
+
+  it('converts pending row (cs_xxx, pi=null) to completed when webhook attaches pi_xxx', async () => {
+    const sid = `cs_test_regression_${TS}_${Math.random().toString(36).slice(2, 8)}`;
+    const piId = `pi_regression_${TS}_${Math.random().toString(36).slice(2, 8)}`;
+    const email = `regression-${TS}@example.com`;
+    createdSessionIds.push(sid);
+
+    const { error: pendingErr } = await supabaseAdmin.from('payment_transactions').insert({
+      session_id: sid,
+      product_id: mainProduct.id,
+      customer_email: email,
+      amount: Math.round(mainProduct.price * 100),
+      currency: 'USD',
+      status: 'pending',
+    });
+    expect(pendingErr).toBeNull();
+
+    await supabaseAdmin
+      .from('payment_transactions')
+      .update({ stripe_payment_intent_id: piId })
+      .eq('session_id', sid)
+      .eq('status', 'pending');
+
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: Math.round(mainProduct.price * 100),
+      currency_param: 'USD',
+      stripe_payment_intent_id: piId,
+    });
+
+    expect(error).toBeNull();
+    expect(data).toMatchObject({ success: true });
+    if (data && typeof data === 'object' && 'error' in data) {
+      expect((data as Record<string, unknown>).error).toBeUndefined();
+    }
+    expect((data as Record<string, unknown>).code).not.toBe('42P01');
+
+    const { data: finalRow } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('status, stripe_payment_intent_id')
+      .eq('session_id', sid)
+      .single();
+    expect(finalRow?.status).toBe('completed');
+    expect(finalRow?.stripe_payment_intent_id).toBe(piId);
+  });
+
+  it('handles PI-keyed webhook for a row that already has cs_xxx session_id', async () => {
+    const sid = `cs_test_pikey_${TS}_${Math.random().toString(36).slice(2, 8)}`;
+    const piId = `pi_pikey_${TS}_${Math.random().toString(36).slice(2, 8)}`;
+    const email = `pikey-${TS}@example.com`;
+    createdSessionIds.push(sid);
+
+    await supabaseAdmin.from('payment_transactions').insert({
+      session_id: sid,
+      product_id: mainProduct.id,
+      customer_email: email,
+      amount: Math.round(mainProduct.price * 100),
+      currency: 'USD',
+      status: 'pending',
+      stripe_payment_intent_id: piId,
+    });
+
+    await callRpc(supabaseAdmin, {
+      session_id_param: sid,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: Math.round(mainProduct.price * 100),
+      currency_param: 'USD',
+      stripe_payment_intent_id: piId,
+    });
+
+    const { data: secondCall } = await callRpc(supabaseAdmin, {
+      session_id_param: piId,
+      product_id_param: mainProduct.id,
+      customer_email_param: email,
+      amount_total: Math.round(mainProduct.price * 100),
+      currency_param: 'USD',
+      stripe_payment_intent_id: piId,
+    });
+
+    expect((secondCall as Record<string, unknown>).code).not.toBe('42P01');
+    expect((secondCall as Record<string, unknown>).code).not.toBe('23505');
+
+    const { data: rows } = await supabaseAdmin
+      .from('payment_transactions')
+      .select('id, session_id, status, stripe_payment_intent_id')
+      .eq('stripe_payment_intent_id', piId);
+    expect(rows?.length).toBe(1);
+    expect(rows?.[0].status).toBe('completed');
+  });
+});
