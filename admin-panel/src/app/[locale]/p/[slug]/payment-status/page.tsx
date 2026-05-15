@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import PaymentStatusView from './components/PaymentStatusView';
 import { verifyPaymentSession, verifyPaymentIntent, OtoInfo, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
+import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { PaymentStatus } from './types';
 
@@ -200,8 +202,25 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         console.warn('OTO Redirect missing params:', otoRedirect.missingParams, '- OTO countdown may not work');
       }
 
-      // Server-side redirect: buyer goes straight to /checkout/<upsell_slug>
-      // where the 'oto' template (if configured) renders countdown + decline.
+      // Guest gets magic link sent server-side before we redirect into the funnel.
+      if (paymentStatus === 'magic_link_sent' && customerEmail) {
+        const { error: magicErr } = await supabase.auth.signInWithOtp({
+          email: customerEmail,
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: buildPostCheckoutMagicLinkRedirect({
+              origin: getSellfBaseUrl(),
+              productSlug: product.slug,
+              sessionId: session_id,
+              paymentIntentId: payment_intent,
+            }),
+          },
+        });
+        if (magicErr) {
+          console.error('[payment-status] Magic link send failed pre-OTO:', magicErr.message);
+        }
+      }
+
       redirect(otoRedirect.url);
     }
   }
