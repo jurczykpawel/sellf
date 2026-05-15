@@ -1074,7 +1074,7 @@ INSERT INTO coupons (
 INSERT INTO products (name, slug, description, long_description, icon, price, currency, is_active, is_listed, checkout_template) VALUES
   ('Funnel Mini PDF', 'funnel-mini-pdf', 'Lead magnet PDF that triggers the OTO funnel.', 'Krótki PDF z 7 wskazówkami. Po zakupie zobaczysz ofertę OTO.', '📄', 19.99, 'USD', true, true, 'default'),
   ('Funnel Premium Course', 'funnel-premium-course', 'Pełen kurs — OTO checkout z licznikiem i przyciskiem "Nie, dziękuję".', E'## Premium Course\n\n10 modułów wideo, ćwiczenia, materiały PDF. Po zakupie Mini PDF zobaczysz tę ofertę z 30%% zniżką przez 15 minut.', '🎓', 99.99, 'USD', true, false, 'oto'),
-  ('Funnel Toolkit', 'funnel-toolkit', 'Tańsza alternatywa pokazywana po odrzuceniu OTO.', 'Same templates i checklisty — bez modułów wideo. 50%% zniżki gdy klient odrzuci Premium Course.', '🧰', 29.99, 'USD', true, false, 'default');
+  ('Funnel Toolkit', 'funnel-toolkit', 'Tańsza alternatywa pokazywana po odrzuceniu OTO.', 'Same templates i checklisty — bez modułów wideo. 50%% zniżki gdy klient odrzuci Premium Course.', '🧰', 29.99, 'USD', true, false, 'oto');
 
 INSERT INTO oto_offers (
   source_product_id, oto_product_id,

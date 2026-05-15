@@ -14,17 +14,20 @@ export default function OtoDeclineButton() {
   const email = searchParams?.get('email') ?? null;
   const inOtoMode = searchParams?.get('oto') === '1';
 
-  const declineHref = useMemo(() => {
-    if (!downsellCoupon || !downsellSlug) return null;
-    const locale = params?.locale ?? 'en';
-    const qs = new URLSearchParams();
-    if (email) qs.set('email', email);
-    qs.set('coupon', downsellCoupon);
-    qs.set('oto', '1');
-    return `/${locale}/checkout/${downsellSlug}?${qs.toString()}`;
-  }, [downsellCoupon, downsellSlug, email, params?.locale]);
+  const locale = params?.locale ?? 'en';
 
-  if (!inOtoMode || !declineHref) return null;
+  const declineHref = useMemo(() => {
+    if (downsellCoupon && downsellSlug) {
+      const qs = new URLSearchParams();
+      if (email) qs.set('email', email);
+      qs.set('coupon', downsellCoupon);
+      qs.set('oto', '1');
+      return `/${locale}/checkout/${downsellSlug}?${qs.toString()}`;
+    }
+    return `/${locale}/my-products`;
+  }, [downsellCoupon, downsellSlug, email, locale]);
+
+  if (!inOtoMode) return null;
 
   return (
     <a
