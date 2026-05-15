@@ -1,12 +1,5 @@
 'use client';
 
-// Sticky "Nie, dziękuję" button rendered by the 'oto' checkout template.
-// Visible only when the URL carries downsell_coupon + downsell_slug params,
-// which payment-status injects after a source purchase if the active oto_offer
-// has a downsell_product_id configured. Clicking navigates to the downsell
-// product's checkout with its own pre-minted OTO coupon, reusing the same
-// useOto/OtoCountdownBanner machinery on the next page.
-
 import { useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -21,8 +14,6 @@ export default function OtoDeclineButton() {
   const email = searchParams?.get('email') ?? null;
   const inOtoMode = searchParams?.get('oto') === '1';
 
-  // Relative href so we don't need window.location.origin — keeps the
-  // component SSR/hydration-safe without a mounted-guard.
   const declineHref = useMemo(() => {
     if (!downsellCoupon || !downsellSlug) return null;
     const locale = params?.locale ?? 'en';

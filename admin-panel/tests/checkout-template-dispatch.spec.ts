@@ -1,16 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 
-// Render-time E2E for the per-product checkout template dispatcher.
-// `tip-jar-template.spec.ts` already covers 'tip-jar' end-to-end; this spec
-// fills the gap for 'default' and 'oto':
-//   - default → standard ProductPurchaseView, no BMC sidebar, no countdown
-//   - oto without ?oto=1 → standard form (template stays graceful for direct visits)
-//   - oto with ?oto=1&coupon=... → countdown banner + decline button visible
-//
-// Funnel decline navigation is covered separately by
-// funnel-mechanics.spec.ts:Scenario 4; here we verify the template ITSELF.
-
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
