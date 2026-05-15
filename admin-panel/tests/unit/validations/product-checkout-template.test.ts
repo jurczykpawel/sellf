@@ -83,6 +83,7 @@ describe('product validator — create flow', () => {
     const good = validateCreateProduct({
       ...baseCreateInput,
       checkout_template: 'tip-jar',
+      allow_custom_price: true,
       custom_checkout_fields: [
         { id: 'message', type: 'textarea', label: 'Msg', required: false, max_length: 100 },
       ],
@@ -94,5 +95,69 @@ describe('product validator — create flow', () => {
       checkout_template: 'evil',
     });
     expect(bad.isValid).toBe(false);
+  });
+});
+
+describe('product validator — tip-jar requires PWYW', () => {
+  it('CREATE: rejects tip-jar without allow_custom_price', () => {
+    const r = validateCreateProduct({
+      ...baseCreateInput,
+      checkout_template: 'tip-jar',
+    });
+    expect(r.isValid).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/PWYW|allow_custom_price/i);
+  });
+
+  it('CREATE: rejects tip-jar with allow_custom_price=false', () => {
+    const r = validateCreateProduct({
+      ...baseCreateInput,
+      checkout_template: 'tip-jar',
+      allow_custom_price: false,
+    });
+    expect(r.isValid).toBe(false);
+  });
+
+  it('CREATE: accepts tip-jar + allow_custom_price=true', () => {
+    const r = validateCreateProduct({
+      ...baseCreateInput,
+      checkout_template: 'tip-jar',
+      allow_custom_price: true,
+    });
+    expect(r.isValid).toBe(true);
+  });
+
+  it('CREATE: accepts default template without PWYW', () => {
+    const r = validateCreateProduct({
+      ...baseCreateInput,
+      checkout_template: 'default',
+    });
+    expect(r.isValid).toBe(true);
+  });
+
+  it('UPDATE: rejects setting tip-jar with allow_custom_price=false', () => {
+    const r = validateUpdateProduct({
+      checkout_template: 'tip-jar',
+      allow_custom_price: false,
+    });
+    expect(r.isValid).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/PWYW|allow_custom_price/i);
+  });
+
+  it('UPDATE: allows tip-jar alone (trusts existing PWYW state in DB)', () => {
+    const r = validateUpdateProduct({ checkout_template: 'tip-jar' });
+    expect(r.isValid).toBe(true);
+  });
+
+  it('UPDATE: allows allow_custom_price=false alone (template untouched)', () => {
+    const r = validateUpdateProduct({ allow_custom_price: false });
+    expect(r.isValid).toBe(true);
+  });
+
+  it('UPDATE: accepts tip-jar with allow_custom_price=true pair', () => {
+    const r = validateUpdateProduct({
+      checkout_template: 'tip-jar',
+      allow_custom_price: true,
+    });
+    expect(r.isValid).toBe(true);
   });
 });

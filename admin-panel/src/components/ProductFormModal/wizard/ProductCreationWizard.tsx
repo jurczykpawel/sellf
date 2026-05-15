@@ -245,6 +245,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 currentProductId={product?.id}
                 oto={oto}
                 setOto={setOto}
+                onRequestStepChange={setCurrentStep}
               />
             )}
           </form>

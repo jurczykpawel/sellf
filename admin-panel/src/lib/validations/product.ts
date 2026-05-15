@@ -564,6 +564,9 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   if (input.custom_checkout_fields !== undefined) {
     errors.push(...validateCustomCheckoutFieldsPayload(input.custom_checkout_fields).errors);
   }
+  if (input.checkout_template !== undefined || input.allow_custom_price !== undefined) {
+    errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price).errors);
+  }
 
   return { isValid: errors.length === 0, errors };
 }
@@ -729,6 +732,9 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
   if (input.custom_checkout_fields !== undefined) {
     errors.push(...validateCustomCheckoutFieldsPayload(input.custom_checkout_fields).errors);
   }
+  if (input.checkout_template !== undefined || input.allow_custom_price !== undefined) {
+    errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price, 'update').errors);
+  }
 
   return { isValid: errors.length === 0, errors };
 }
@@ -743,6 +749,23 @@ function validateCheckoutTemplate(value: unknown): ValidationResult {
     errors.push(
       `checkout_template must be one of: ${CHECKOUT_TEMPLATE_SLUGS.join(', ')}`,
     );
+  }
+  return { isValid: errors.length === 0, errors };
+}
+
+export function validateCheckoutTemplateDependencies(
+  template: unknown,
+  allowCustomPrice: unknown,
+  context: 'create' | 'update' = 'create',
+): ValidationResult {
+  const errors: string[] = [];
+  if (template === 'tip-jar') {
+    if (context === 'create' && allowCustomPrice !== true) {
+      errors.push('checkout_template "tip-jar" requires allow_custom_price=true (PWYW)');
+    }
+    if (context === 'update' && allowCustomPrice !== undefined && allowCustomPrice !== true) {
+      errors.push('Cannot set checkout_template "tip-jar" with allow_custom_price=false (PWYW required)');
+    }
   }
   return { isValid: errors.length === 0, errors };
 }
