@@ -149,18 +149,36 @@ export async function GET() {
     });
   }
 
+  // Idempotent style injection. Called from both renderModalTrigger (button
+  // needs sellf-mini-ring before price fetch) and openModalOverlay (modal
+  // body needs sellf-loader). @keyframes can't go on inline style attrs.
+  function createLoader(label) {
+    ensureStyles();
+    var el = document.createElement('div');
+    el.className = 'sellf-loader';
+    var ring = document.createElement('div');
+    ring.className = 'sellf-loader__ring';
+    var lbl = document.createElement('div');
+    lbl.textContent = label || 'Ładowanie koszyka…';
+    el.appendChild(ring);
+    el.appendChild(lbl);
+    return el;
+  }
+
+  function ensureStyles() {
+    if (document.getElementById('sellf-style')) return;
+    var style = document.createElement('style');
+    style.id = 'sellf-style';
+    style.textContent =
+      '@keyframes sellf-spin{to{transform:rotate(360deg)}}' +
+      '.sellf-loader{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:380px;color:#64748b;font-family:system-ui,-apple-system,sans-serif;font-size:14px}' +
+      '.sellf-loader__ring{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#5b8def;border-radius:50%;animation:sellf-spin 0.8s linear infinite}' +
+      '.sellf-mini-ring{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:sellf-spin 0.8s linear infinite;vertical-align:middle}';
+    document.head.appendChild(style);
+  }
+
   function openModalOverlay() {
-    // Inject the spinner keyframes once. Inline style attributes can't carry
-    // @keyframes, so we drop a single <style> on first modal open.
-    if (!document.getElementById('sellf-modal-style')) {
-      var style = document.createElement('style');
-      style.id = 'sellf-modal-style';
-      style.textContent =
-        '@keyframes sellf-spin{to{transform:rotate(360deg)}}' +
-        '.sellf-loader{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:380px;color:#64748b;font-family:system-ui,-apple-system,sans-serif;font-size:14px}' +
-        '.sellf-loader__ring{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#5b8def;border-radius:50%;animation:sellf-spin 0.8s linear infinite}';
-      document.head.appendChild(style);
-    }
+    ensureStyles();
 
     var overlay = document.createElement('div');
     overlay.className = 'sellf-overlay';
@@ -178,17 +196,7 @@ export async function GET() {
 
     var slot = document.createElement('div');
     slot.style.cssText = 'padding:24px 16px 16px;';
-
-    // Initial loader — replaced when checkout (paid) or form (free) mounts.
-    var loader = document.createElement('div');
-    loader.className = 'sellf-loader';
-    var ring = document.createElement('div');
-    ring.className = 'sellf-loader__ring';
-    var label = document.createElement('div');
-    label.textContent = 'Ładowanie koszyka…';
-    loader.appendChild(ring);
-    loader.appendChild(label);
-    slot.appendChild(loader);
+    slot.appendChild(createLoader());
 
     modal.appendChild(closeBtn);
     modal.appendChild(slot);
@@ -218,18 +226,31 @@ export async function GET() {
   }
 
   function renderModalTrigger(root, productSlug, options) {
+    ensureStyles();
     var button = document.createElement('button');
     button.type = 'button';
     button.className = 'sellf-embed-button';
     button.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(91,141,239,0.35);';
 
-    function applyLabel(priceText) {
-      var label = options.buttonLabel || 'Kup';
-      if (priceText) label += ' · ' + priceText;
-      button.textContent = label;
+    var baseLabel = options.buttonLabel || 'Kup';
+
+    // setLabel('price text')   → "<baseLabel> · 19,99 USD"
+    // setLabel({loading:true}) → "<baseLabel>  ◌"  (mini spinner while we wait)
+    // setLabel()               → "<baseLabel>"     (price toggle off / fetch failed)
+    function setLabel(arg) {
+      button.textContent = '';
+      button.appendChild(document.createTextNode(baseLabel));
+      if (arg && typeof arg === 'object' && arg.loading) {
+        button.appendChild(document.createTextNode(' '));
+        var ring = document.createElement('span');
+        ring.className = 'sellf-mini-ring';
+        button.appendChild(ring);
+      } else if (typeof arg === 'string' && arg) {
+        button.appendChild(document.createTextNode(' · ' + arg));
+      }
     }
 
-    applyLabel(options.initialPriceText || '');
+    setLabel(options.initialPriceText || '');
 
     root.textContent = '';
     root.appendChild(button);
@@ -256,9 +277,17 @@ export async function GET() {
         button.disabled = false;
       });
     });
+
+    return { setLabel: setLabel };
   }
 
   function renderInline(root, productSlug, email) {
+    // Show spinner immediately so the host page doesn't render a blank box
+    // for the ~400-800ms until Stripe Embedded paints its iframe.
+    // mountStripeInto / renderFreeForm both clear root before mounting.
+    root.textContent = '';
+    root.appendChild(createLoader());
+
     postJson('/api/embed/checkout-session', productSlug, {
       productSlug: productSlug,
       email: email || undefined,
@@ -292,9 +321,16 @@ export async function GET() {
     }
 
     if (modal) {
-      // Fetch product meta first so the button can show price without opening
-      // the modal. Lightweight: server already returns product.{price,currency}.
-      if (showPrice) {
+      // Render the button immediately. When data-show-price is set, the price
+      // fetch is async — we show a mini spinner inside the button label until
+      // it lands, instead of leaving the host page with no visible button.
+      var trigger = renderModalTrigger(root, productSlug, {
+        buttonLabel: buttonLabel,
+        email: email,
+        initialPriceText: showPrice ? { loading: true } : '',
+      });
+
+      if (showPrice && trigger && trigger.setLabel) {
         postJson('/api/embed/checkout-session', productSlug, {
           productSlug: productSlug,
         }).then(function (body) {
@@ -305,22 +341,9 @@ export async function GET() {
           } else if (product && product.price === 0) {
             priceText = 'Free';
           }
-          renderModalTrigger(root, productSlug, {
-            buttonLabel: buttonLabel,
-            email: email,
-            initialPriceText: priceText,
-          });
+          trigger.setLabel(priceText);
         }).catch(function () {
-          // If price fetch fails, fall back to a label-only button.
-          renderModalTrigger(root, productSlug, {
-            buttonLabel: buttonLabel,
-            email: email,
-          });
-        });
-      } else {
-        renderModalTrigger(root, productSlug, {
-          buttonLabel: buttonLabel,
-          email: email,
+          trigger.setLabel('');
         });
       }
       return;
