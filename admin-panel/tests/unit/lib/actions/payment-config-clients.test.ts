@@ -10,6 +10,13 @@ vi.mock('@/lib/supabase/admin', () => ({
   withAdminClient: vi.fn(),
 }))
 
+vi.mock('@/lib/actions/admin-auth', () => ({
+  withAdminAuth: vi.fn(),
+  withAdminClient: vi.fn(async (fn: (ctx: unknown) => Promise<unknown>) =>
+    fn({ user: {}, supabase: {}, role: 'platform_admin', dataClient: {} })
+  ),
+}))
+
 vi.mock('@/lib/stripe/payment-method-configs', () => ({
   fetchStripePaymentMethodConfigs: vi.fn(),
   isValidStripePMCId: vi.fn(() => true),
@@ -26,9 +33,11 @@ import {
 } from '@/lib/actions/payment-config'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 
 const mockedCreateClient = vi.mocked(createClient)
 const mockedCreateAdminClient = vi.mocked(createAdminClient)
+const mockedWithAdminClient = vi.mocked(withAdminClient)
 
 function makeChainableClient(returnValue: { data: unknown; error: unknown }) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {}
@@ -97,6 +106,20 @@ describe('payment-config: client selection (anti-regression for 42501)', () => {
 
       expect(mockedCreateAdminClient).toHaveBeenCalled()
       expect(mockedCreateClient).not.toHaveBeenCalled()
+    })
+
+    it('rejects non-admin callers before touching the admin client', async () => {
+      mockedWithAdminClient.mockResolvedValueOnce({
+        success: false,
+        error: 'Forbidden - admin access required',
+        errorCode: 'FORBIDDEN',
+      })
+
+      const result = await getStripePaymentMethodConfigsCached()
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('Forbidden')
+      expect(mockedCreateAdminClient).not.toHaveBeenCalled()
     })
   })
 })

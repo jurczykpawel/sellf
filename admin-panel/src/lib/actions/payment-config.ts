@@ -287,6 +287,14 @@ export async function updatePaymentMethodConfig(
 export async function getStripePaymentMethodConfigsCached(
   forceRefresh = false
 ): Promise<StripePaymentMethodConfigsResult> {
+  // Admin gate: previously enforced implicitly via RLS on createClient().
+  // createAdminClient bypasses RLS, so this is the only thing preventing
+  // anon callers from amplifying Stripe API load on cache miss.
+  const adminCheck = await withAdminClient(async () => ({ success: true as const }));
+  if (!adminCheck.success) {
+    return { success: false, error: adminCheck.error || 'Unauthorized' };
+  }
+
   try {
     const supabase = createAdminClient();
 
