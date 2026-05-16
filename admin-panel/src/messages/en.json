@@ -541,6 +541,8 @@
     "paid": "Paid",
     "permanent": "Permanent",
     "generateCode": "Generate Code",
+    "generateProtectionCode": "Generate content protection code",
+    "generateEmbedSnippet": "Generate embed checkout snippet",
     "codeGenerated": "Code Generated",
     "copyCode": "Copy Code",
     "codeCopied": "Code Copied!"
@@ -607,8 +609,9 @@
       "hourlySubtitle": "Hourly breakdown"
     }
   },
-  "codeGenerator": {
-    "title": "Generate Protection Code",
+  "protectionCode": {
+    "title": "Generate content protection code",
+    "subtitle": "Lock specific content on your own page with sellf.js. This is NOT a checkout form.",
     "product": "Product",
     "slug": "Slug",
     "protectionMode": "Protection Mode",
@@ -642,23 +645,37 @@
     "implementationDescription": "Add data-sellf-product=\"{slug}\" to content that should be visible to users with access, and data-no-access=\"true\" to fallback content for users without access. The script will automatically manage visibility.",
     "commonUseCase": "Common Use Case",
     "elementModeUseCase": "Replace \"Buy Now\" buttons with \"Access Product\" buttons for existing customers, or show premium content sections only to subscribers.",
-    "embedMode": "Embed Widget",
-    "embedDescription": "Embeddable form for landing pages",
-    "embedInstructions": {
-      "step1": "1. Paste the code anywhere in your landing page HTML",
-      "step2": "2. The widget will auto-initialize and display a beautiful signup form",
-      "step3": "3. Users enter their email → receive magic link → get instant access",
-      "step4": "4. Perfect for AI-generated landing pages or custom websites"
-    },
-    "embedInfoFreeOnlyTitle": "🎁 Free Products Only",
-    "embedInfoFreeOnly": "This embed widget only works for free products (price = $0)",
-    "embedInfoSecurityTitle": "🔒 Security",
-    "embedInfoSecurity": "Rate limiting (3 req/5min), Turnstile CAPTCHA, disposable email filter",
-    "embedInfoCustomizableTitle": "🎨 Customizable",
-    "embedInfoCustomizable": "Beautiful gradient design, auto-responsive, works on any website",
-    "embedInfoMagicLinkTitle": "✉️ Magic Link",
-    "embedInfoMagicLink": "Users receive instant access link via email - no password needed",
     "close": "Close"
+  },
+  "embedSnippet": {
+    "title": "Generate embed checkout snippet",
+    "subtitle": "Sell this product on any external page. Stripe Embedded for paid, email gate for free.",
+    "slug": "Slug",
+    "paidBadge": "Paid · Stripe",
+    "freeBadge": "Free · Email gate",
+    "snippetLabel": "Snippet to paste",
+    "copied": "✓ Copied!",
+    "copyCode": "📋 Copy Code",
+    "instructions": "How to use",
+    "step1": "Paste snippet anywhere in the HTML of the host page",
+    "step2": "Add host page domain to SELLF_EMBED_ALLOWED_ORIGINS",
+    "step3": "Open host page — checkout renders automatically",
+    "paidInfoTitle": "Paid product",
+    "paidInfoBody": "Renders Stripe Embedded Checkout (cards, BLIK, Google Pay). After payment buyer is sent to sellf.app — magic link delivers product access.",
+    "freeInfoTitle": "Free product",
+    "freeInfoBody": "Renders an email form with Cloudflare Turnstile. After submit user gets a magic link and product access.",
+    "originsTitle": "Origin allowlist",
+    "originsBody": "The domain where you paste the snippet MUST be in SELLF_EMBED_ALLOWED_ORIGINS (Sellf env) or seller_embed_settings (DB). Otherwise the browser blocks the request with CORS 403.",
+    "disabledTitle": "Embed is disabled for this product",
+    "disabledBody": "Go back to product edit (Step 3: Sales) and turn on the “Embed checkout” toggle.",
+    "close": "Close"
+  },
+  "embedSection": {
+    "title": "Embed checkout",
+    "toggleLabel": "Allow embedding this product's checkout on a third-party page",
+    "toggleHelp": "When ON you can generate a 2-line snippet from the product menu (action “Generate embed checkout snippet”).",
+    "nextStepTitle": "Next step",
+    "nextStepBody": "After saving the product, open the dots menu on the product row and pick “Generate embed checkout snippet”."
   },
   "messages": {
     "productCreated": "Product created successfully",
@@ -1184,6 +1201,8 @@
       "filterActive": "Active",
       "filterInactive": "Inactive",
       "generateCode": "Generate Code",
+      "generateProtectionCode": "Generate content protection code",
+      "generateEmbedSnippet": "Generate embed checkout snippet",
       "viewDetails": "View Details",
       "edit": "Edit",
       "delete": "Delete",
@@ -1303,6 +1322,13 @@
         "accessExpireAfter": "When users gain access to this product, their access will automatically expire after this many days. Leave empty for permanent access.",
         "autoGrantDurationTitle": "Auto-Grant Duration",
         "autoGrantDurationDescription": "This setting applies to automatic access grants (e.g., free products, purchases). Manual access grants through the admin panel can override this setting.",
+        "embedSection": {
+          "title": "Embed checkout",
+          "toggleLabel": "Allow embedding this product's checkout on a third-party page",
+          "toggleHelp": "When ON you can generate a 2-line snippet from the product menu (action “Generate embed checkout snippet”).",
+          "nextStepTitle": "Next step",
+          "nextStepBody": "After saving the product, open the dots menu on the product row and pick “Generate embed checkout snippet”."
+        },
         "contentDelivery": "Content Delivery",
         "contentDeliveryType": "Content Delivery Type",
         "contentItems": "Content Items",

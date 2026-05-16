@@ -556,6 +556,8 @@
     "paid": "Płatny",
     "permanent": "Permanentny",
     "generateCode": "Generuj kod",
+    "generateProtectionCode": "Generuj kod ochrony treści",
+    "generateEmbedSnippet": "Generuj kod osadzania koszyka",
     "codeGenerated": "Kod wygenerowany",
     "copyCode": "Kopiuj kod",
     "codeCopied": "Kod skopiowany!"
@@ -622,8 +624,9 @@
       "hourlySubtitle": "Podział godzinowy"
     }
   },
-  "codeGenerator": {
-    "title": "Generuj kod ochrony",
+  "protectionCode": {
+    "title": "Generuj kod ochrony treści",
+    "subtitle": "Blokuj wybrane treści na własnej stronie z sellf.js. NIE jest to formularz zakupu.",
     "product": "Produkt",
     "slug": "Slug",
     "protectionMode": "Tryb ochrony",
@@ -657,23 +660,37 @@
     "implementationDescription": "Dodaj data-sellf-product=\"{slug}\" do treści, która powinna być widoczna dla użytkowników z dostępem, i data-no-access=\"true\" do treści zastępczej dla użytkowników bez dostępu. Skrypt automatycznie zarządza widocznością.",
     "commonUseCase": "Powszechny przypadek użycia",
     "elementModeUseCase": "Zamień przyciski \"Kup teraz\" na przyciski \"Uzyskaj dostęp do produktu\" dla istniejących klientów, lub pokaż sekcje premium tylko subskrybentom.",
-    "embedMode": "Widget do Osadzenia",
-    "embedDescription": "Formularz do osadzenia na stronach landing page",
-    "embedInstructions": {
-      "step1": "1. Wklej kod w dowolnym miejscu HTML swojej strony landing page",
-      "step2": "2. Widget uruchomi się automatycznie i wyświetli formularz rejestracji",
-      "step3": "3. Użytkownicy wpisują email → otrzymują magiczny link → uzyskują natychmiastowy dostęp",
-      "step4": "4. Idealne do stron generowanych przez AI lub własnych stron internetowych"
-    },
-    "embedInfoFreeOnlyTitle": "🎁 Tylko darmowe produkty",
-    "embedInfoFreeOnly": "Ten widget działa tylko dla darmowych produktów (cena = 0 zł)",
-    "embedInfoSecurityTitle": "🔒 Bezpieczeństwo",
-    "embedInfoSecurity": "Ograniczenie zapytań (3 req/5min), CAPTCHA Turnstile, filtr tymczasowych emaili",
-    "embedInfoCustomizableTitle": "🎨 Konfigurowalny",
-    "embedInfoCustomizable": "Piękny design z gradientem, auto-responsywny, działa na każdej stronie",
-    "embedInfoMagicLinkTitle": "✉️ Magiczny link",
-    "embedInfoMagicLink": "Użytkownicy otrzymują natychmiastowy link dostępu na email - bez hasła",
     "close": "Zamknij"
+  },
+  "embedSnippet": {
+    "title": "Generuj kod osadzania koszyka",
+    "subtitle": "Sprzedaj produkt na cudzej stronie. Stripe wbudowany dla płatnych, formularz email dla darmowych.",
+    "slug": "Slug",
+    "paidBadge": "Płatny · Stripe",
+    "freeBadge": "Darmowy · Email gate",
+    "snippetLabel": "Snippet do wklejenia",
+    "copied": "✓ Skopiowano!",
+    "copyCode": "📋 Kopiuj kod",
+    "instructions": "Jak użyć",
+    "step1": "Wklej snippet w HTML cudzej strony (dowolne miejsce)",
+    "step2": "Dodaj domenę tej strony do listy SELLF_EMBED_ALLOWED_ORIGINS",
+    "step3": "Otwórz stronę — koszyk pojawi się automatycznie",
+    "paidInfoTitle": "Płatny produkt",
+    "paidInfoBody": "Wyświetli się formularz Stripe Embedded Checkout (BLIK, karta, Google Pay). Płatność wraca na sellf.app — magic link dostarczy dostęp.",
+    "freeInfoTitle": "Darmowy produkt",
+    "freeInfoBody": "Wyświetli się formularz email z Cloudflare Turnstile. Po wypełnieniu user dostaje magic link i dostęp do produktu.",
+    "originsTitle": "Origin allowlist",
+    "originsBody": "Domena gdzie wklejasz snippet musi być na liście SELLF_EMBED_ALLOWED_ORIGINS (env Sellfa) lub seller_embed_settings (DB). Inaczej przeglądarka odrzuci request z CORS 403.",
+    "disabledTitle": "Embed wyłączony dla tego produktu",
+    "disabledBody": "Wróć do edycji produktu (Krok 3: Sprzedaż) i włącz toggle „Osadzanie koszyka”.",
+    "close": "Zamknij"
+  },
+  "embedSection": {
+    "title": "Osadzanie koszyka (embed)",
+    "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
+    "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",
+    "nextStepTitle": "Następny krok",
+    "nextStepBody": "Po zapisaniu produktu otwórz menu kropek przy produkcie i wybierz „Generuj kod osadzania koszyka”."
   },
   "messages": {
     "productCreated": "Produkt został utworzony pomyślnie",
@@ -1199,6 +1216,8 @@
       "filterActive": "Aktywne",
       "filterInactive": "Nieaktywne",
       "generateCode": "Generuj kod",
+      "generateProtectionCode": "Generuj kod ochrony treści",
+      "generateEmbedSnippet": "Generuj kod osadzania koszyka",
       "viewDetails": "Pokaż szczegóły",
       "edit": "Edytuj",
       "delete": "Usuń",
@@ -1318,6 +1337,13 @@
         "accessExpireAfter": "Gdy użytkownicy uzyskają dostęp do tego produktu, ich dostęp automatycznie wygaśnie po tylu dniach. Pozostaw puste dla stałego dostępu.",
         "autoGrantDurationTitle": "Czas automatycznego przyznawania",
         "autoGrantDurationDescription": "To ustawienie dotyczy automatycznego przyznawania dostępu (np. darmowe produkty, zakupy). Ręczne przyznawanie dostępu przez panel administracyjny może zastąpić to ustawienie.",
+        "embedSection": {
+          "title": "Osadzanie koszyka (embed)",
+          "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
+          "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",
+          "nextStepTitle": "Następny krok",
+          "nextStepBody": "Po zapisaniu produktu otwórz menu kropek przy produkcie i wybierz „Generuj kod osadzania koszyka”."
+        },
         "contentDelivery": "Dostarczanie treści",
         "contentDeliveryType": "Typ dostarczania treści",
         "contentItems": "Elementy treści",

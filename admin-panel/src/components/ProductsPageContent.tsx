@@ -7,7 +7,8 @@ import ProductsTable from './ProductsTable';
 import { toast } from 'sonner';
 import ProductCreationWizard from './ProductFormModal/wizard/ProductCreationWizard';
 import type { ProductFormData } from './ProductFormModal/types';
-import CodeGeneratorModal from './CodeGeneratorModal';
+import ProtectionCodeModal from './ProtectionCodeModal';
+import EmbedSnippetModal from './EmbedSnippetModal';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -27,7 +28,8 @@ const ProductsPageContent: React.FC = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showCodeGenerator, setShowCodeGenerator] = useState(false);
+  const [showProtectionCode, setShowProtectionCode] = useState(false);
+  const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
   const [productForCodeGeneration, setProductForCodeGeneration] = useState<Product | null>(null);
 
   // State for pagination
@@ -199,9 +201,14 @@ const ProductsPageContent: React.FC = () => {
     }
   };
 
-  const handleGenerateCode = (product: Product) => {
+  const handleGenerateProtectionCode = (product: Product) => {
     setProductForCodeGeneration(product);
-    setShowCodeGenerator(true);
+    setShowProtectionCode(true);
+  };
+
+  const handleGenerateEmbedSnippet = (product: Product) => {
+    setProductForCodeGeneration(product);
+    setShowEmbedSnippet(true);
   };
 
   const handleDeleteProductClick = (product: Product) => {
@@ -304,7 +311,8 @@ const ProductsPageContent: React.FC = () => {
         onDeleteProduct={handleDeleteProductClick}
         onPreviewProduct={handlePreviewProduct}
         onPreviewRedirect={handlePreviewRedirect}
-        onGenerateCode={handleGenerateCode}
+        onGenerateProtectionCode={handleGenerateProtectionCode}
+        onGenerateEmbedSnippet={handleGenerateEmbedSnippet}
         onToggleStatus={handleToggleStatus}
         onToggleFeatured={handleToggleFeatured}
         onToggleListed={handleToggleListed}
@@ -391,11 +399,22 @@ const ProductsPageContent: React.FC = () => {
         </div>
       )}
 
-      {showCodeGenerator && productForCodeGeneration && (
-        <CodeGeneratorModal
-          isOpen={showCodeGenerator}
+      {showProtectionCode && productForCodeGeneration && (
+        <ProtectionCodeModal
+          isOpen={showProtectionCode}
           onClose={() => {
-            setShowCodeGenerator(false);
+            setShowProtectionCode(false);
+            setProductForCodeGeneration(null);
+          }}
+          product={productForCodeGeneration}
+        />
+      )}
+
+      {showEmbedSnippet && productForCodeGeneration && (
+        <EmbedSnippetModal
+          isOpen={showEmbedSnippet}
+          onClose={() => {
+            setShowEmbedSnippet(false);
             setProductForCodeGeneration(null);
           }}
           product={productForCodeGeneration}

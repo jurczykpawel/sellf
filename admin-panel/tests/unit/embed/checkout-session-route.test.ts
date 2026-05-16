@@ -204,4 +204,53 @@ describe('POST /api/embed/checkout-session', () => {
     expect(response.status).toBe(400);
     expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
   });
+
+  // Dispatcher behavior: the same endpoint handles both paid and free products.
+  // The SDK no longer reads data-sellf-mode — it discriminates on `kind`.
+  describe('dispatcher response shape', () => {
+    it('returns kind:"paid" with clientSecret for paid products', async () => {
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai' }, 'https://landing.example.com'),
+      );
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(payload.kind).toBe('paid');
+      expect(payload.clientSecret).toBe('cs_test_secret');
+      expect(payload.sessionId).toBe('cs_test_session');
+    });
+
+    it('returns kind:"free" without creating a Stripe session when price is 0', async () => {
+      const freeProduct = { ...product, price: 0 };
+      mocks.createAdminClient.mockReturnValue(makeDbMock({ product: freeProduct }));
+
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai' }, 'https://landing.example.com'),
+      );
+      const payload = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(payload.kind).toBe('free');
+      expect(payload.product).toMatchObject({ slug: 'kurs-ai', name: 'Kurs AI', price: 0 });
+      expect(payload).not.toHaveProperty('clientSecret');
+      // Free flow does not hit Stripe — completion goes through /api/embed/free-access
+      expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
+    });
+
+    it('includes captchaSiteKey on free response so the SDK can render Turnstile', async () => {
+      process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY = 'turnstile-test-key';
+      const freeProduct = { ...product, price: 0 };
+      mocks.createAdminClient.mockReturnValue(makeDbMock({ product: freeProduct }));
+
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai' }, 'https://landing.example.com'),
+      );
+      const payload = await response.json();
+
+      expect(payload.kind).toBe('free');
+      expect(payload.captchaSiteKey).toBe('turnstile-test-key');
+
+      delete process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
+    });
+  });
 });

@@ -59,6 +59,8 @@ export interface ProductFormData {
   custom_price_min: number;
   show_price_presets: boolean;
   custom_price_presets: number[];
+  // Embed checkout (per-product toggle)
+  embed_enabled: boolean;
   // OTO (One-Time Offer) configuration
   oto_enabled?: boolean;
   oto_product_id?: string | null;
@@ -220,6 +222,8 @@ export const initialFormData: ProductFormData = {
   custom_price_min: 5.00,
   show_price_presets: true,
   custom_price_presets: [5, 10, 25],
+  // Embed checkout
+  embed_enabled: false,
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type: 'one_time',
   billing_interval: null,

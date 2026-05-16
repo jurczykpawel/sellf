@@ -53,7 +53,8 @@ interface ProductsTableProps {
   onDeleteProduct: (product: Product) => void;
   onPreviewProduct: (product: Product) => void;
   onPreviewRedirect: (product: Product) => void;
-  onGenerateCode: (product: Product) => void;
+  onGenerateProtectionCode: (product: Product) => void;
+  onGenerateEmbedSnippet: (product: Product) => void;
   onToggleStatus: (productId: string, currentStatus: boolean) => void;
   onToggleFeatured: (productId: string, currentFeatured: boolean) => void;
   onToggleListed: (productId: string, currentListed: boolean) => void;
@@ -128,7 +129,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   onDeleteProduct,
   onPreviewProduct,
   onPreviewRedirect,
-  onGenerateCode,
+  onGenerateProtectionCode,
+  onGenerateEmbedSnippet,
   onToggleStatus,
   onToggleFeatured,
   onToggleListed,
@@ -515,13 +517,22 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                   // ── Dev / CRUD ───────────────────────────────
                                   {
                                     separator: true,
-                                    label: t('generateCode'),
+                                    label: t('generateProtectionCode'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onGenerateProtectionCode(product),
+                                  },
+                                  {
+                                    label: t('generateEmbedSnippet'),
                                     icon: (
                                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                                       </svg>
                                     ),
-                                    onClick: () => onGenerateCode(product),
+                                    onClick: () => onGenerateEmbedSnippet(product),
                                   },
                                   {
                                     label: t('duplicate'),

@@ -168,6 +168,8 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         custom_price_min: product.custom_price_min ?? 5.00,
         show_price_presets: product.show_price_presets !== false, // default true
         custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
+        // Embed checkout
+        embed_enabled: product.embed_enabled ?? false,
         // Subscription (Phase 4)
         product_type: product.product_type ?? 'one_time',
         billing_interval: product.billing_interval ?? null,

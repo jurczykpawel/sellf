@@ -5,6 +5,7 @@ import {
   SalePriceSection,
   AvailabilitySection,
   AccessSection,
+  EmbedSection,
   PostPurchaseSection,
   RefundSection,
   AdvancedSection,
@@ -61,6 +62,12 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
       />
 
       <AccessSection
+        formData={formData}
+        setFormData={setFormData}
+        t={t}
+      />
+
+      <EmbedSection
         formData={formData}
         setFormData={setFormData}
         t={t}

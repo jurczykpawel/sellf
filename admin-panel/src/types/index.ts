@@ -52,6 +52,8 @@ export interface Product {
   // Checkout template + custom fields (Phase 3 — checkout templates feat)
   checkout_template: string
   custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[]
+  // Embed checkout (per-product toggle; complements env-level origin allowlist)
+  embed_enabled?: boolean
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type?: 'one_time' | 'subscription'
   billing_interval?: 'day' | 'week' | 'month' | 'year' | null
