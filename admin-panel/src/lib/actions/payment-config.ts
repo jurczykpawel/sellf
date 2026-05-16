@@ -18,8 +18,8 @@ import { withAdminClient } from '@/lib/actions/admin-auth';
 import {
   fetchStripePaymentMethodConfigs,
   fetchStripePaymentMethodConfig,
-  isValidStripePMCId as validateStripePMCId,
 } from '@/lib/stripe/payment-method-configs';
+import { isValidStripePMCId as validateStripePMCId } from '@/lib/stripe/payment-method-metadata';
 import type {
   PaymentMethodConfig,
   UpdatePaymentConfigInput,

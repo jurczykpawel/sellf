@@ -2,7 +2,7 @@
 // Secure Stripe server configuration for Next.js Server Actions and API routes
 
 import Stripe from 'stripe';
-import { getDecryptedStripeKeyInternal, getDecryptedWebhookSecretInternal } from '@/lib/actions/stripe-config';
+import { getDecryptedStripeKeyInternal, getDecryptedWebhookSecretInternal } from '@/lib/stripe/internal-config';
 import { STRIPE_API_VERSION } from '@/lib/constants';
 import type { StripeMode } from '@/types/stripe-config';
 
