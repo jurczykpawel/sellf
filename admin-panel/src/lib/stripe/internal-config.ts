@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { decryptStripeKey } from '@/lib/services/stripe-encryption'
+import { decryptSecret } from '@/lib/services/secret-encryption'
 import type { StripeConfiguration, StripeMode } from '@/types/stripe-config'
 
 async function readActiveStripeConfig(mode: StripeMode): Promise<StripeConfiguration | null> {
@@ -30,7 +30,7 @@ export async function getDecryptedStripeKeyInternal(mode: StripeMode): Promise<s
   try {
     const config = await readActiveStripeConfig(mode)
     if (!config) return null
-    return await decryptStripeKey({
+    return await decryptSecret({
       encrypted_key: config.encrypted_key,
       encryption_iv: config.encryption_iv,
       encryption_tag: config.encryption_tag,
@@ -56,7 +56,7 @@ export async function getDecryptedWebhookSecretInternal(): Promise<string | null
       return null
     }
 
-    return await decryptStripeKey({
+    return await decryptSecret({
       encrypted_key: data.webhook_signing_secret_enc,
       encryption_iv: data.webhook_signing_iv,
       encryption_tag: data.webhook_signing_tag,

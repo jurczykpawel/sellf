@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { encryptStripeKey, decryptStripeKey } from '@/lib/services/stripe-encryption'
+import { encryptSecret } from '@/lib/services/secret-encryption'
 import { requireAdminApi } from '@/lib/auth-server'
 import { withAdminAuth } from '@/lib/actions/admin-auth'
 import Stripe from 'stripe'
@@ -446,7 +446,7 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
     const formatResult = validation.data.formatValidation
 
     // Encrypt the API key
-    const encrypted = await encryptStripeKey(input.apiKey.trim())
+    const encrypted = await encryptSecret(input.apiKey.trim())
 
     // Extract last 4 characters
     const keyLast4 = input.apiKey.trim().slice(-4)
@@ -677,7 +677,7 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
     const update: Record<string, string | null> = { webhook_endpoint_id: endpointId }
 
     if (signingSecret) {
-      const encrypted = await encryptStripeKey(signingSecret)
+      const encrypted = await encryptSecret(signingSecret)
       update.webhook_signing_secret_enc = encrypted.encryptedKey
       update.webhook_signing_iv = encrypted.iv
       update.webhook_signing_tag = encrypted.tag

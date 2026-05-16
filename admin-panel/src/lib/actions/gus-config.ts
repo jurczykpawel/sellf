@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { encryptGUSKey, decryptGUSKey } from '@/lib/services/gus-encryption';
+import { encryptSecret } from '@/lib/services/secret-encryption';
 import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { withAdminAuth } from '@/lib/actions/admin-auth';
@@ -69,7 +69,7 @@ export async function saveGUSAPIKey(input: SaveGUSKeyInput): Promise<ActionRespo
     }
 
     // Encrypt the API key
-    const encrypted = await encryptGUSKey(trimmedKey);
+    const encrypted = await encryptSecret(trimmedKey);
 
     // Update integrations_config with encrypted GUS key
     const { error } = await supabase
@@ -137,53 +137,6 @@ export async function getGUSConfig(): Promise<ActionResponse<GUSConfig>> {
       error: error instanceof Error ? error.message : 'Unknown error',
       errorCode: 'UNKNOWN_ERROR'
     };
-  }
-}
-
-/**
- * Gets decrypted GUS API key (server-side only)
- *
- * Method priority:
- * 1. Encrypted key from database (DB takes priority — set via admin panel)
- * 2. GUS_API_KEY from .env (fallback for developers)
- *
- * Returns null if not configured or if GUS is disabled
- */
-export async function getDecryptedGUSAPIKey(): Promise<string | null> {
-  try {
-    // METHOD 1: Check database first (priority)
-    // Use admin client — integrations_config requires service_role (RLS).
-    // This function is called from a public endpoint (checkout NIP autofill)
-    // where there's no user session.
-    const { createAdminClient } = await import('@/lib/supabase/admin');
-    const supabase = createAdminClient();
-
-    const { data: config } = await supabase
-      .from('integrations_config')
-      .select('gus_api_key_encrypted, gus_api_key_iv, gus_api_key_tag, gus_api_enabled')
-      .eq('id', 1)
-      .single();
-
-    // If DB has an encrypted key and GUS is enabled, use it
-    if (config?.gus_api_enabled === true && config?.gus_api_key_encrypted && config.gus_api_key_iv && config.gus_api_key_tag) {
-      const decrypted = await decryptGUSKey({
-        encrypted_key: config.gus_api_key_encrypted,
-        encryption_iv: config.gus_api_key_iv,
-        encryption_tag: config.gus_api_key_tag,
-      });
-      return decrypted;
-    }
-
-    // METHOD 2: Fallback to environment variable
-    const envKey = process.env.GUS_API_KEY;
-    if (envKey && envKey.trim().length > 0) {
-      return envKey.trim();
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error decrypting GUS API key:', error);
-    return null;
   }
 }
 

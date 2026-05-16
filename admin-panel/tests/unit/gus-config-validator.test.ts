@@ -59,7 +59,7 @@ describe('saveGUSAPIKey source guard', () => {
 
   it('validates format before encryption', () => {
     const validateIdx = source.indexOf('isValidGUSKeyFormat(trimmedKey)');
-    const encryptIdx = source.indexOf('encryptGUSKey(trimmedKey)');
+    const encryptIdx = source.indexOf('encryptSecret(trimmedKey)');
     expect(validateIdx).toBeGreaterThan(-1);
     expect(encryptIdx).toBeGreaterThan(-1);
     expect(validateIdx).toBeLessThan(encryptIdx);

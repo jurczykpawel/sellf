@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateNIPChecksum, normalizeNIP } from '@/lib/validation/nip';
 import { GUSAPIClient } from '@/lib/services/gus-api-client';
-import { getDecryptedGUSAPIKey } from '@/lib/actions/gus-config';
+import { getDecryptedGUSAPIKeyInternal } from '@/lib/integrations/internal-secrets';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 /**
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get API key from configuration
-    const apiKey = await getDecryptedGUSAPIKey();
+    const apiKey = await getDecryptedGUSAPIKeyInternal();
 
     if (!apiKey) {
       // GUS API not configured - return error
