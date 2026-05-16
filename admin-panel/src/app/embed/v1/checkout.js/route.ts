@@ -133,6 +133,11 @@ export async function GET() {
     });
   }
 
+  // Returns the Stripe EmbeddedCheckout instance so callers can destroy() it
+  // when their host (e.g. the modal overlay) goes away. Stripe enforces a
+  // single Embedded Checkout instance per page; failing to destroy() before
+  // mounting another one throws "You cannot have multiple Embedded Checkout
+  // objects."
   function mountStripeInto(target, clientSecret) {
     return loadStripeJs().then(function (Stripe) {
       var stripe = stripeInstances[publishableKey] || (stripeInstances[publishableKey] = Stripe(publishableKey));
@@ -140,6 +145,7 @@ export async function GET() {
     }).then(function (checkout) {
       target.textContent = '';
       checkout.mount(target);
+      return checkout;
     });
   }
 
@@ -166,7 +172,13 @@ export async function GET() {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
+    var stripeCheckout = null;
+
     function close() {
+      if (stripeCheckout && typeof stripeCheckout.destroy === 'function') {
+        try { stripeCheckout.destroy(); } catch (e) { /* ignore */ }
+        stripeCheckout = null;
+      }
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       document.removeEventListener('keydown', onKey);
     }
@@ -175,7 +187,11 @@ export async function GET() {
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
     document.addEventListener('keydown', onKey);
 
-    return { slot: slot, close: close };
+    return {
+      slot: slot,
+      close: close,
+      attachStripeCheckout: function (checkout) { stripeCheckout = checkout; },
+    };
   }
 
   function renderModalTrigger(root, productSlug, options) {
@@ -205,7 +221,9 @@ export async function GET() {
         if (body.kind === 'free') {
           renderFreeForm(modal.slot, productSlug, body.captchaSiteKey || '');
         } else if (body.kind === 'paid' && body.clientSecret) {
-          return mountStripeInto(modal.slot, body.clientSecret);
+          return mountStripeInto(modal.slot, body.clientSecret).then(function (checkout) {
+            modal.attachStripeCheckout(checkout);
+          });
         } else {
           modal.slot.textContent = 'Unexpected response from Sellf.';
         }
