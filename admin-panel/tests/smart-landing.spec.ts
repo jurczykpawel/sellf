@@ -306,8 +306,11 @@ test.describe('Smart Landing Page', () => {
     const aboutLink = page.locator('aside a[href="/about"]');
     await expect(aboutLink).toBeVisible({ timeout: 10000 });
 
-    // Click and wait for About page content to appear (soft navigation in App Router)
+    // Click and wait for the URL change (RSC soft navigation can finish before
+    // <h1> mounts; without waitForURL the headline check sometimes races and
+    // times out while we are still on /dashboard).
     await aboutLink.click();
+    await page.waitForURL(/\/about(\?|$|\/)/, { timeout: 15000 });
 
     // Should see marketing content headline (TextReveal uses \u00A0 between words)
     const mainHeadline = page.locator('h1');

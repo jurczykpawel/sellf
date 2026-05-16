@@ -17,12 +17,28 @@ FORCE_COLOR=0 npx playwright test "$@" --reporter=list 2>&1 | tee "$_PW" | grep 
    /✓/ {printf "%s%s%s\n", dim, $0, reset; next}
    {print}'
 
-# Print error details (lines after "  N) ...")
-ERRORS=$(awk '/^[[:space:]]+[0-9]+\) /{f=1} f' "$_PW")
+# Print error details (Playwright list reporter prints numbered failures at the bottom)
+ERRORS=$(awk '/^\s*[0-9]+\)\s/{f=1} f' "$_PW")
 if [ -n "$ERRORS" ]; then
   echo ""
   echo "${RED}===== FAILURES =====${RESET}"
   echo "$ERRORS" | awk -v red="$RED" -v reset="$RESET" '{printf "%s%s%s\n", red, $0, reset}'
+fi
+
+# Collect error-context.md snapshots from test-results/ (Playwright writes one
+# per failed test). These get overwritten on the next playwright invocation, so
+# snapshotting them into the log preserves diagnostics across the ttt/tttt
+# multi-phase runs.
+RESULTS_DIR="test-results"
+ERROR_CTX_SNAPSHOT=""
+if [ -d "$RESULTS_DIR" ]; then
+  while IFS= read -r ctx; do
+    [ -z "$ctx" ] && continue
+    ERROR_CTX_SNAPSHOT="${ERROR_CTX_SNAPSHOT}
+
+----- ${ctx} -----
+$(cat "$ctx")"
+  done < <(find "$RESULTS_DIR" -name 'error-context.md' -type f 2>/dev/null | sort)
 fi
 
 # Summary line
@@ -37,15 +53,29 @@ FLAKY=${FLAKY:-0}
 mkdir -p test-runs
 TIMESTAMP=$(date '+%Y-%m-%d_%H%M%S')
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+COMMIT_FULL=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+COMMIT_SUBJECT=$(git log -1 --format='%s' HEAD 2>/dev/null || echo "")
 BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+DIRTY=$([ -n "$(git status --porcelain 2>/dev/null)" ] && echo "yes" || echo "no")
+MAIN_HEAD=$(git rev-parse --short main 2>/dev/null || echo "unknown")
+MAIN_HEAD_FULL=$(git rev-parse main 2>/dev/null || echo "unknown")
+MERGE_BASE=$(git merge-base HEAD main 2>/dev/null | cut -c1-7 || echo "unknown")
+AHEAD=$(git rev-list --count main..HEAD 2>/dev/null || echo "?")
+BEHIND=$(git rev-list --count HEAD..main 2>/dev/null || echo "?")
 ARGS="${*:-default}"
 LOGFILE="test-runs/${TIMESTAMP}_${COMMIT}.log"
 
 {
-  echo "date:    $(date '+%Y-%m-%d %H:%M:%S')"
-  echo "commit:  ${COMMIT} (${BRANCH})"
-  echo "args:    ${ARGS}"
-  echo "result:  ${PASS} passed, ${FAIL} failed, ${FLAKY} flaky"
+  echo "date:           $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "commit:         ${COMMIT_FULL}"
+  echo "commit_short:   ${COMMIT} (${BRANCH})"
+  echo "commit_subject: ${COMMIT_SUBJECT}"
+  echo "dirty:          ${DIRTY}"
+  echo "main_head:      ${MAIN_HEAD_FULL} (${MAIN_HEAD})"
+  echo "branch_base:    ${MERGE_BASE}"
+  echo "vs_main:        ${AHEAD} ahead, ${BEHIND} behind"
+  echo "args:           ${ARGS}"
+  echo "result:         ${PASS} passed, ${FAIL} failed, ${FLAKY} flaky"
   echo ""
   if [ "$FAIL" -gt 0 ]; then
     echo "FAILURES:"
@@ -53,6 +83,11 @@ LOGFILE="test-runs/${TIMESTAMP}_${COMMIT}.log"
     echo ""
     echo "ERROR DETAILS:"
     echo "$ERRORS"
+    if [ -n "$ERROR_CTX_SNAPSHOT" ]; then
+      echo ""
+      echo "ERROR CONTEXT (test-results/*/error-context.md snapshots):"
+      echo "$ERROR_CTX_SNAPSHOT"
+    fi
   fi
   if [ "$FLAKY" -gt 0 ]; then
     echo "FLAKY:"

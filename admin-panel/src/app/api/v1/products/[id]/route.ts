@@ -206,6 +206,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       if (updateError) {
         console.error('Error updating product:', updateError);
+        if ((updateError as { code?: string }).code === '23514') {
+          throw new ApiValidationError('Validation failed', {
+            _errors: [`Database constraint violation: ${updateError.message}`],
+          });
+        }
         return apiError(request, 'INTERNAL_ERROR', 'Failed to update product');
       }
       product = updatedProduct;

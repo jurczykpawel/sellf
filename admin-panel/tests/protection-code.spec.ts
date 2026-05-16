@@ -29,9 +29,12 @@ test.describe('Protection Code (Generate Protection Code)', () => {
   let userWithoutAccess: any;
 
   // Opens the ⋯ dropdown on a product row and clicks "Generate Code"
+  // Note: dropdown has two "Generuj kod*" items — embed snippet (added in
+  // embed-admin-ui sprint) and protection code. Match the protection-specific
+  // copy to avoid clicking the wrong menu item.
   const openCodeGenerator = async (productRow: any, page: Page) => {
     await productRow.locator('button[aria-expanded]').click();
-    await page.locator('button').filter({ hasText: /Generuj kod|Generate Code/i }).first().click();
+    await page.locator('button').filter({ hasText: /Generuj kod ochrony|Generate content protection/i }).first().click();
   };
 
   const loginAsAdmin = async (page: Page) => {
@@ -229,7 +232,11 @@ test.describe('Protection Code (Generate Protection Code)', () => {
       expect(await embedButton.count()).toBe(0);
     });
 
-    test('Free product shows all three modes (Page, Element, Embed)', async ({ page }) => {
+    test('Free product opens Protection Code modal with Page and Element modes', async ({ page }) => {
+      // Architecture note: embed widget is now a separate modal (EmbedSnippetModal)
+      // reachable from its own dropdown item ("Generuj kod osadzania koszyka").
+      // ProtectionCodeModal itself only has page + element modes for both free
+      // and paid products — the free/paid distinction lives in EmbedSnippetModal.
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
       await page.waitForLoadState('domcontentloaded');
@@ -244,16 +251,11 @@ test.describe('Protection Code (Generate Protection Code)', () => {
 
       await page.waitForTimeout(1000);
 
-      // Should see all three modes
       const pageModeButton = page.locator('button').filter({ hasText: /Page|Strona/i }).first();
       await expect(pageModeButton).toBeVisible();
 
       const elementModeButton = page.locator('button').filter({ hasText: /Element/i }).first();
       await expect(elementModeButton).toBeVisible();
-
-      // Free product should have Embed option
-      const embedButton = page.locator('button').filter({ hasText: /Embed|Widget/i }).first();
-      await expect(embedButton).toBeVisible();
     });
 
     test('Page mode generates correct script tag with productSlug', async ({ page }) => {
@@ -311,31 +313,28 @@ test.describe('Protection Code (Generate Protection Code)', () => {
       expect(generatedCode).toContain('data-no-access');
     });
 
-    test('Embed mode generates checkout.js loader', async ({ page }) => {
+    test('Embed snippet item generates checkout.js loader', async ({ page }) => {
+      // Architecture note: embed is no longer a mode inside ProtectionCodeModal
+      // — it lives in EmbedSnippetModal opened via the "Generuj kod osadzania
+      // koszyka" dropdown item. Snippet format also changed: data-sellf-mode
+      // was dropped (backend dispatches free vs paid), data-product-slug added.
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
-      // Open code generator from ⋯ dropdown
+      // Open ⋯ dropdown on the free product, then click the embed snippet item
       const productRow = page.locator('tr, [data-testid="product-row"]').filter({ hasText: freeProduct.name }).first();
-      await openCodeGenerator(productRow, page);
-
+      await productRow.locator('button[aria-expanded]').click();
+      await page.locator('button').filter({ hasText: /Generuj kod osadzania|Generate embed/i }).first().click();
       await page.waitForTimeout(1000);
 
-      // Click Embed mode
-      const embedModeButton = page.locator('button').filter({ hasText: /Embed|Widget/i }).first();
-      await embedModeButton.click();
-      await page.waitForTimeout(500);
-
-      // Check generated code
+      // Check generated code in the embed snippet modal
       const codeBlock = page.locator('pre').first();
       const generatedCode = await codeBlock.textContent();
 
-      // Should contain the new checkout embed loader
       expect(generatedCode).toContain('/embed/v1/checkout.js');
       expect(generatedCode).toContain('data-sellf-embed');
-      expect(generatedCode).toContain('data-sellf-mode="free"');
       expect(generatedCode).toContain(freeProduct.slug);
     });
 

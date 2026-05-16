@@ -26,6 +26,7 @@ test.describe('Products API — checkout_template + custom_checkout_fields', () 
         price: 5,
         currency: 'USD',
         is_active: true,
+        allow_custom_price: true,
       })
       .select('id')
       .single();
