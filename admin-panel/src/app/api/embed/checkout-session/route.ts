@@ -71,7 +71,11 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Forbidden' }, 403, origin, allowedOrigins);
   }
 
-  const rateLimitOk = await checkRateLimit('embed_checkout_session', 20, 300);
+  // 30 sessions per 5-minute sliding window per fingerprint. Bigger window
+  // previously (20/300m = 5h) was too tight: a buyer who fat-fingers BLIK
+  // a couple times legitimately hits 4-5 attempts, and the same fingerprint
+  // covers everyone behind a NAT.
+  const rateLimitOk = await checkRateLimit('embed_checkout_session', 30, 5);
   if (!rateLimitOk) {
     await logEmbedCheckoutEvent(adminClient, {
       productId: null,
