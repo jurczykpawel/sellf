@@ -150,13 +150,25 @@ export async function GET() {
   }
 
   function openModalOverlay() {
+    // Inject the spinner keyframes once. Inline style attributes can't carry
+    // @keyframes, so we drop a single <style> on first modal open.
+    if (!document.getElementById('sellf-modal-style')) {
+      var style = document.createElement('style');
+      style.id = 'sellf-modal-style';
+      style.textContent =
+        '@keyframes sellf-spin{to{transform:rotate(360deg)}}' +
+        '.sellf-loader{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:380px;color:#64748b;font-family:system-ui,-apple-system,sans-serif;font-size:14px}' +
+        '.sellf-loader__ring{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#5b8def;border-radius:50%;animation:sellf-spin 0.8s linear infinite}';
+      document.head.appendChild(style);
+    }
+
     var overlay = document.createElement('div');
     overlay.className = 'sellf-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
     var modal = document.createElement('div');
     modal.className = 'sellf-modal';
-    modal.style.cssText = 'background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.25);';
+    modal.style.cssText = 'background:#fff;border-radius:12px;max-width:560px;width:100%;min-height:440px;max-height:90vh;overflow:auto;position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.25);';
 
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -166,6 +178,17 @@ export async function GET() {
 
     var slot = document.createElement('div');
     slot.style.cssText = 'padding:24px 16px 16px;';
+
+    // Initial loader — replaced when checkout (paid) or form (free) mounts.
+    var loader = document.createElement('div');
+    loader.className = 'sellf-loader';
+    var ring = document.createElement('div');
+    ring.className = 'sellf-loader__ring';
+    var label = document.createElement('div');
+    label.textContent = 'Ładowanie koszyka…';
+    loader.appendChild(ring);
+    loader.appendChild(label);
+    slot.appendChild(loader);
 
     modal.appendChild(closeBtn);
     modal.appendChild(slot);
