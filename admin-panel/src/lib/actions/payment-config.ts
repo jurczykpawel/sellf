@@ -12,7 +12,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import {
@@ -26,6 +26,7 @@ import type {
   PaymentConfigActionResult,
   StripePaymentMethodConfigsResult,
   PaymentMethodMetadata,
+  StripePaymentMethodConfig,
 } from '@/types/payment-config';
 import { RECOMMENDED_CONFIG } from '@/lib/utils/payment-method-helpers';
 
@@ -125,7 +126,7 @@ const UpdatePaymentConfigSchema = z.object({
  */
 export async function getPaymentMethodConfig(): Promise<PaymentMethodConfig | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('payment_method_config')
@@ -138,7 +139,7 @@ export async function getPaymentMethodConfig(): Promise<PaymentMethodConfig | nu
       return null;
     }
 
-    return data as PaymentMethodConfig;
+    return data as unknown as PaymentMethodConfig;
   } catch (error) {
     console.error('[getPaymentMethodConfig] Exception:', error);
     return null;
@@ -287,7 +288,7 @@ export async function getStripePaymentMethodConfigsCached(
   forceRefresh = false
 ): Promise<StripePaymentMethodConfigsResult> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Get current cache
     const { data: config } = await supabase
@@ -316,7 +317,7 @@ export async function getStripePaymentMethodConfigsCached(
     if (isCacheFresh && config.available_payment_methods) {
       return {
         success: true,
-        data: config.available_payment_methods,
+        data: config.available_payment_methods as unknown as StripePaymentMethodConfig[],
         cached: true,
       };
     }
@@ -345,7 +346,7 @@ export async function getStripePaymentMethodConfigsCached(
     if (config.available_payment_methods) {
       return {
         success: true,
-        data: config.available_payment_methods,
+        data: config.available_payment_methods as unknown as StripePaymentMethodConfig[],
         cached: true,
         error: result.error,
       };
