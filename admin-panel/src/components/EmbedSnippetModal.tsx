@@ -15,6 +15,7 @@ import { useState } from 'react';
 import BaseModal from './ui/BaseModal';
 import { Product } from '@/types';
 import { useTranslations } from 'next-intl';
+import { buildEmbedSnippet } from '@/lib/embed/snippet';
 
 interface EmbedSnippetModalProps {
   isOpen: boolean;
@@ -26,13 +27,23 @@ export default function EmbedSnippetModal({ isOpen, onClose, product }: EmbedSni
   const t = useTranslations('embedSnippet');
   const [copied, setCopied] = useState(false);
 
+  // Optional snippet params. Defaults keep the snippet 2-line minimal.
+  const [modal, setModal] = useState(false);
+  const [buttonLabel, setButtonLabel] = useState('');
+  const [showPrice, setShowPrice] = useState(false);
+
   const isPaid = product.price > 0;
   const enabled = product.embed_enabled === true;
 
   const generateSnippet = () => {
-    const domain = window.location.origin;
-    return `<div data-sellf-embed data-product-slug="${product.slug}"></div>
-<script src="${domain}/embed/v1/checkout.js"></script>`;
+    const sellfOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    return buildEmbedSnippet({
+      productSlug: product.slug,
+      sellfOrigin,
+      modal,
+      buttonLabel: buttonLabel.trim() || undefined,
+      showPrice,
+    });
   };
 
   const handleCopy = async () => {
@@ -82,6 +93,49 @@ export default function EmbedSnippetModal({ isOpen, onClose, product }: EmbedSni
             </div>
           )}
 
+          <div className="border border-sf-border rounded p-4 space-y-3">
+            <div className="text-sm font-medium text-sf-body">{t('optionsTitle')}</div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={modal}
+                onChange={(e) => setModal(e.target.checked)}
+                className="h-4 w-4 text-sf-accent border-sf-border-medium focus:ring-sf-accent rounded"
+              />
+              <div className="text-sm">
+                <span className="font-medium text-sf-heading">{t('optionModalLabel')}</span>
+                <span className="text-sf-muted ml-2">{t('optionModalHelp')}</span>
+              </div>
+            </label>
+
+            {modal && (
+              <div className="pl-6 space-y-3 border-l-2 border-sf-border-medium">
+                <div>
+                  <label className="block text-xs font-medium text-sf-body mb-1">
+                    {t('optionLabelText')}
+                  </label>
+                  <input
+                    type="text"
+                    value={buttonLabel}
+                    onChange={(e) => setButtonLabel(e.target.value)}
+                    placeholder={t('optionLabelPlaceholder')}
+                    className="w-full px-3 py-1.5 text-sm border border-sf-border-medium rounded focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
+                  />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showPrice}
+                    onChange={(e) => setShowPrice(e.target.checked)}
+                    className="h-4 w-4 text-sf-accent border-sf-border-medium focus:ring-sf-accent rounded"
+                  />
+                  <span className="text-sm text-sf-body">{t('optionShowPrice')}</span>
+                </label>
+              </div>
+            )}
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-sf-body">{t('snippetLabel')}</label>
@@ -117,6 +171,11 @@ export default function EmbedSnippetModal({ isOpen, onClose, product }: EmbedSni
             <p className="text-sm text-sf-info">
               {isPaid ? t('paidInfoBody') : t('freeInfoBody')}
             </p>
+            {modal && (
+              <p className="text-sm text-sf-info mt-2 pt-2 border-t border-sf-info/20">
+                {t('modalInfoExtra')}
+              </p>
+            )}
           </div>
 
           <div className="bg-sf-warning-soft p-4">

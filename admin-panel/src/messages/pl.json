@@ -683,6 +683,13 @@
     "originsBody": "Domena gdzie wklejasz snippet musi być na liście SELLF_EMBED_ALLOWED_ORIGINS (env Sellfa) lub seller_embed_settings (DB). Inaczej przeglądarka odrzuci request z CORS 403.",
     "disabledTitle": "Embed wyłączony dla tego produktu",
     "disabledBody": "Wróć do edycji produktu (Krok 3: Sprzedaż) i włącz toggle „Osadzanie koszyka”.",
+    "optionsTitle": "Opcje snippetu",
+    "optionModalLabel": "Tryb modal",
+    "optionModalHelp": "(zamiast inline pokaże przycisk; po kliknięciu koszyk w okienku)",
+    "optionLabelText": "Tekst na przycisku",
+    "optionLabelPlaceholder": "Kup teraz",
+    "optionShowPrice": "Pokaż cenę na przycisku (np. „Kup teraz · 19,99 USD”)",
+    "modalInfoExtra": "Tryb modal: przycisk montuje się natychmiast (bez sieci), formularz checkout ładuje się dopiero po kliknięciu. Zamknięcie przyciskiem ×, kliknięciem poza modalem albo Escape.",
     "close": "Zamknij"
   },
   "embedSection": {

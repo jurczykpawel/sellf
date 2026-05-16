@@ -668,6 +668,13 @@
     "originsBody": "The domain where you paste the snippet MUST be in SELLF_EMBED_ALLOWED_ORIGINS (Sellf env) or seller_embed_settings (DB). Otherwise the browser blocks the request with CORS 403.",
     "disabledTitle": "Embed is disabled for this product",
     "disabledBody": "Go back to product edit (Step 3: Sales) and turn on the “Embed checkout” toggle.",
+    "optionsTitle": "Snippet options",
+    "optionModalLabel": "Modal mode",
+    "optionModalHelp": "(renders a button instead of inline; checkout opens in an overlay on click)",
+    "optionLabelText": "Button text",
+    "optionLabelPlaceholder": "Buy now",
+    "optionShowPrice": "Show price on the button (e.g. “Buy now · $19.99”)",
+    "modalInfoExtra": "Modal mode: button mounts instantly (no network); checkout loads on click. Close with ×, outside-click, or Escape.",
     "close": "Close"
   },
   "embedSection": {

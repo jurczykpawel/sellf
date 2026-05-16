@@ -3,11 +3,16 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
-  // The SDK no longer takes a data-sellf-mode attribute. The single embed
-  // endpoint /api/embed/checkout-session returns a discriminated union:
-  //   { kind: 'paid', clientSecret, sessionId, product }  → Stripe Embedded
-  //   { kind: 'free', product, captchaSiteKey }           → email gate form
-  // The SDK reads `kind` and renders accordingly.
+  // SDK reads data-* attributes:
+  //   data-product-slug   (required)
+  //   data-email          (optional pre-fill)
+  //   data-modal          ("true" → render button + modal; default inline)
+  //   data-button-label   (modal mode only; text on the trigger button)
+  //   data-show-price     (modal mode only; append " · 19,99 USD" to label)
+  //
+  // Backend dispatches on product type:
+  //   { kind: 'paid', clientSecret, ... } → Stripe Embedded mount
+  //   { kind: 'free', captchaSiteKey, product } → email-gate form
   const script = `
 (function () {
   var script = document.currentScript;
@@ -36,11 +41,11 @@ export async function GET() {
   function loadStripeJs() {
     if (window.Stripe) return Promise.resolve(window.Stripe);
     return new Promise(function (resolve, reject) {
-      var stripeScript = document.createElement('script');
-      stripeScript.src = 'https://js.stripe.com/v3/';
-      stripeScript.onload = function () { resolve(window.Stripe); };
-      stripeScript.onerror = function () { reject(new Error('Stripe.js failed to load')); };
-      document.head.appendChild(stripeScript);
+      var s = document.createElement('script');
+      s.src = 'https://js.stripe.com/v3/';
+      s.onload = function () { resolve(window.Stripe); };
+      s.onerror = function () { reject(new Error('Stripe.js failed to load')); };
+      document.head.appendChild(s);
     });
   }
 
@@ -48,6 +53,18 @@ export async function GET() {
 
   function showMessage(root, message) {
     root.textContent = message;
+  }
+
+  function formatPrice(amount, currency) {
+    try {
+      return new Intl.NumberFormat(navigator.language || 'pl-PL', {
+        style: 'currency',
+        currency: currency || 'USD',
+        maximumFractionDigits: 2,
+      }).format(Number(amount));
+    } catch (e) {
+      return amount + ' ' + (currency || '');
+    }
   }
 
   function renderFreeForm(root, productSlug, captchaSiteKey) {
@@ -116,17 +133,106 @@ export async function GET() {
     });
   }
 
-  function mountPaidCheckout(root, clientSecret) {
-    if (!publishableKey) {
-      showMessage(root, 'Checkout is not configured.');
-      return;
-    }
-    loadStripeJs().then(function (Stripe) {
+  function mountStripeInto(target, clientSecret) {
+    return loadStripeJs().then(function (Stripe) {
       var stripe = stripeInstances[publishableKey] || (stripeInstances[publishableKey] = Stripe(publishableKey));
       return stripe.initEmbeddedCheckout({ clientSecret: clientSecret });
     }).then(function (checkout) {
-      root.textContent = '';
-      checkout.mount(root);
+      target.textContent = '';
+      checkout.mount(target);
+    });
+  }
+
+  function openModalOverlay() {
+    var overlay = document.createElement('div');
+    overlay.className = 'sellf-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    var modal = document.createElement('div');
+    modal.className = 'sellf-modal';
+    modal.style.cssText = 'background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.25);';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'position:absolute;top:8px;right:12px;background:transparent;border:0;font-size:28px;line-height:1;cursor:pointer;color:#64748b;padding:4px 8px;z-index:1;';
+
+    var slot = document.createElement('div');
+    slot.style.cssText = 'padding:24px 16px 16px;';
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(slot);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    function close() {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      document.removeEventListener('keydown', onKey);
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+
+    return { slot: slot, close: close };
+  }
+
+  function renderModalTrigger(root, productSlug, options) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sellf-embed-button';
+    button.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(91,141,239,0.35);';
+
+    function applyLabel(priceText) {
+      var label = options.buttonLabel || 'Kup';
+      if (priceText) label += ' · ' + priceText;
+      button.textContent = label;
+    }
+
+    applyLabel(options.initialPriceText || '');
+
+    root.textContent = '';
+    root.appendChild(button);
+
+    button.addEventListener('click', function () {
+      button.disabled = true;
+      var modal = openModalOverlay();
+      postJson('/api/embed/checkout-session', productSlug, {
+        productSlug: productSlug,
+        email: options.email || undefined,
+      }).then(function (body) {
+        if (body.kind === 'free') {
+          renderFreeForm(modal.slot, productSlug, body.captchaSiteKey || '');
+        } else if (body.kind === 'paid' && body.clientSecret) {
+          return mountStripeInto(modal.slot, body.clientSecret);
+        } else {
+          modal.slot.textContent = 'Unexpected response from Sellf.';
+        }
+      }).catch(function (error) {
+        modal.slot.textContent = error.message;
+      }).finally(function () {
+        button.disabled = false;
+      });
+    });
+  }
+
+  function renderInline(root, productSlug, email) {
+    postJson('/api/embed/checkout-session', productSlug, {
+      productSlug: productSlug,
+      email: email || undefined,
+    }).then(function (body) {
+      if (body.kind === 'free') {
+        renderFreeForm(root, productSlug, body.captchaSiteKey || '');
+      } else if (body.kind === 'paid' && body.clientSecret) {
+        if (!publishableKey) {
+          showMessage(root, 'Checkout is not configured.');
+          return;
+        }
+        return mountStripeInto(root, body.clientSecret);
+      } else {
+        showMessage(root, 'Unexpected response from Sellf.');
+      }
     }).catch(function (error) {
       showMessage(root, error.message);
     });
@@ -135,25 +241,51 @@ export async function GET() {
   function initEmbed(root) {
     var productSlug = root.getAttribute('data-product-slug');
     var email = root.getAttribute('data-email') || '';
+    var modal = root.getAttribute('data-modal') === 'true';
+    var buttonLabel = root.getAttribute('data-button-label') || '';
+    var showPrice = root.getAttribute('data-show-price') === 'true';
+
     if (!productSlug) {
       showMessage(root, 'Missing product.');
       return;
     }
 
-    postJson('/api/embed/checkout-session', productSlug, {
-      productSlug: productSlug,
-      email: email || undefined,
-    }).then(function (body) {
-      if (body.kind === 'free') {
-        renderFreeForm(root, productSlug, body.captchaSiteKey || '');
-      } else if (body.kind === 'paid' && body.clientSecret) {
-        mountPaidCheckout(root, body.clientSecret);
+    if (modal) {
+      // Fetch product meta first so the button can show price without opening
+      // the modal. Lightweight: server already returns product.{price,currency}.
+      if (showPrice) {
+        postJson('/api/embed/checkout-session', productSlug, {
+          productSlug: productSlug,
+        }).then(function (body) {
+          var product = body && body.product;
+          var priceText = '';
+          if (product && typeof product.price === 'number' && product.price > 0) {
+            priceText = formatPrice(product.price, product.currency);
+          } else if (product && product.price === 0) {
+            priceText = 'Free';
+          }
+          renderModalTrigger(root, productSlug, {
+            buttonLabel: buttonLabel,
+            email: email,
+            initialPriceText: priceText,
+          });
+        }).catch(function () {
+          // If price fetch fails, fall back to a label-only button.
+          renderModalTrigger(root, productSlug, {
+            buttonLabel: buttonLabel,
+            email: email,
+          });
+        });
       } else {
-        showMessage(root, 'Unexpected response from Sellf.');
+        renderModalTrigger(root, productSlug, {
+          buttonLabel: buttonLabel,
+          email: email,
+        });
       }
-    }).catch(function (error) {
-      showMessage(root, error.message);
-    });
+      return;
+    }
+
+    renderInline(root, productSlug, email);
   }
 
   document.querySelectorAll('[data-sellf-embed]').forEach(initEmbed);
