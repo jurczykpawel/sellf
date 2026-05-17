@@ -525,7 +525,7 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
     await page.context().clearCookies();
 
     await page.goto(`/checkout/${testProduct.slug}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // When consent is required and not given, the GTM container script should be blocked.
     // Note: An inline config script (defining gtag function) may run regardless — that's OK
@@ -755,7 +755,7 @@ test.describe('Tracking Events - Server-Side Conversions Without Consent', () =>
     await acceptAllCookies(page);
 
     await page.goto(`/checkout/${testProduct.slug}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000); // Extra time for consent-managed scripts
 
     // Ensure CAPI requests were actually made with consent

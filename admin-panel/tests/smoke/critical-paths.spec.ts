@@ -175,7 +175,7 @@ test.describe('Public Pages', () => {
     // Retry: SSR may serve stale data right after DB write
     await expect(async () => {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('a[href*="/p/"]').first()).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 25000 });
 

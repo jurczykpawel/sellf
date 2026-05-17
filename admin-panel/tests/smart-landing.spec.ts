@@ -216,7 +216,7 @@ test.describe('Smart Landing Page', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see storefront (products are active in DB)
@@ -249,7 +249,7 @@ test.describe('Smart Landing Page', () => {
 
     await loginAsAdmin(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Even as admin, should see storefront when products exist
@@ -268,7 +268,7 @@ test.describe('Smart Landing Page', () => {
   test('About page should display Sellf marketing content', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto('/about');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see main headline (TextReveal uses \u00A0 between words, so match with \s)
@@ -300,7 +300,7 @@ test.describe('Smart Landing Page', () => {
   test('Navigation sidebar should include About link', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Look for About link in sidebar
     const aboutLink = page.locator('aside a[href="/about"]');
@@ -370,7 +370,7 @@ test.describe('Smart Landing Page', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify storefront is shown

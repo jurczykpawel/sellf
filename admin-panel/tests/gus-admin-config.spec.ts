@@ -101,7 +101,7 @@ test.describe('GUS API Admin Configuration', () => {
 
     // Navigate to integrations
     await page.goto('/pl/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on GUS tab
     const gusTab = page.locator('button', { hasText: /^GUS$/i });
@@ -123,7 +123,7 @@ test.describe('GUS API Admin Configuration', () => {
 
     // Navigate to integrations
     await page.goto('/pl/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on GUS tab
     const gusTab = page.locator('button', { hasText: /^GUS$/i });
@@ -191,7 +191,7 @@ test.describe('GUS API Admin Configuration', () => {
     // Save API key with enabled=true first
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on GUS tab
     const gusTab = page.locator('button', { hasText: /^GUS$/i });
@@ -212,14 +212,14 @@ test.describe('GUS API Admin Configuration', () => {
     // Save
     const saveButton = gusContainer.locator('button').filter({ hasText: /Zapisz konfigurację|Save Configuration/i }).first();
     await saveButton.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Wait for success message
     await expect(page.locator('text=/pomyślnie|successfully/i')).toBeVisible({ timeout: 5000 });
 
     // Reload page to get fresh component state
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on GUS tab again after reload
     const gusTabAfterReload = page.locator('button', { hasText: /^GUS$/i });
@@ -241,7 +241,7 @@ test.describe('GUS API Admin Configuration', () => {
 
     // Navigate to integrations
     await page.goto('/pl/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on GUS tab
     const gusTab = page.locator('button', { hasText: /^GUS$/i });
@@ -277,7 +277,7 @@ test.describe('GUS API Admin Configuration', () => {
 
     // Navigate to integrations
     await page.goto('/pl/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on GUS tab
     const gusTab = page.locator('button', { hasText: /^GUS$/i });

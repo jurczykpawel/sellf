@@ -77,7 +77,7 @@ test.describe('Currency API Configuration', () => {
   test('should show currency settings in integrations page', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -92,7 +92,7 @@ test.describe('Currency API Configuration', () => {
   test('should display ECB provider by default', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -111,7 +111,7 @@ test.describe('Currency API Configuration', () => {
   test('should save currency config to database', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -149,7 +149,7 @@ test.describe('Currency API Configuration', () => {
   test('should require API key for exchangerate-api provider', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -172,7 +172,7 @@ test.describe('Currency API Configuration', () => {
   test('should save and encrypt API key for exchangerate-api', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -229,7 +229,7 @@ test.describe('Currency API Configuration', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -256,7 +256,7 @@ test.describe('Currency API Configuration', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -302,7 +302,7 @@ test.describe('Currency API Configuration', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
@@ -332,7 +332,7 @@ test.describe('Currency API Configuration', () => {
   test('should preserve enabled state when changing provider', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
     const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });

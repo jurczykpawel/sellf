@@ -670,7 +670,7 @@ test.describe('Protection Code (Generate Protection Code)', () => {
     test('Page mode code contains valid script syntax', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Open code generator from ⋯ dropdown
       const productRow = page.locator('tr, [data-testid="product-row"]').filter({ hasText: paidProduct.name }).first();
@@ -699,7 +699,7 @@ test.describe('Protection Code (Generate Protection Code)', () => {
     test('Element mode code contains proper HTML structure', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Open code generator from ⋯ dropdown
       const productRow = page.locator('tr, [data-testid="product-row"]').filter({ hasText: paidProduct.name }).first();
@@ -726,7 +726,7 @@ test.describe('Protection Code (Generate Protection Code)', () => {
     test('Product slug in generated code matches actual product', async ({ page }) => {
       await loginAsAdmin(page);
       await page.goto('/dashboard/products');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Test with both products
       for (const product of [paidProduct, freeProduct]) {

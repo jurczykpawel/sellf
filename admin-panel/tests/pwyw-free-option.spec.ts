@@ -670,7 +670,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   test('should allow setting custom_price_min to 0 in wizard', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open wizard
     const addButton = page.locator('button', { hasText: /Dodaj produkt/i });
@@ -706,7 +706,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   test('enabling PWYW should auto-populate presets relative to price', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open wizard
     await page.locator('button', { hasText: /Dodaj produkt/i }).click();
@@ -745,7 +745,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   test('changing price should auto-update presets and min', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open wizard
     await page.locator('button', { hasText: /Dodaj produkt/i }).click();
@@ -786,7 +786,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   test('manually edited min should not auto-sync on price change', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open wizard
     await page.locator('button', { hasText: /Dodaj produkt/i }).click();
@@ -825,7 +825,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   test('min=0 should show free hint, min>0 should show Stripe hint', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open wizard
     await page.locator('button', { hasText: /Dodaj produkt/i }).click();
@@ -863,7 +863,7 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
   test('disabling and re-enabling PWYW should reset auto-sync', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open wizard
     await page.locator('button', { hasText: /Dodaj produkt/i }).click();

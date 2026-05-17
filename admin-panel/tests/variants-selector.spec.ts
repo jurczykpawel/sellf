@@ -97,7 +97,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should display variant selector page with all active variants', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should show page title
     await expect(page.getByRole('heading', { name: /Wybierz opcję|Choose Your Option/i })).toBeVisible();
@@ -110,7 +110,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should display "Most Popular" badge on featured variant', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Featured variant should have the "Most Popular" badge
     const popularBadge = page.locator('span').filter({ hasText: /Najpopularniejsze|Most Popular/i });
@@ -119,7 +119,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should display prices correctly', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check that prices are displayed with currency (PLN uses comma or dot as decimal separator)
     await expect(page.getByText(/zł49[.,]00/)).toBeVisible();
@@ -129,7 +129,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should display descriptions', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByText('Perfect for beginners')).toBeVisible();
     await expect(page.getByText('For growing businesses')).toBeVisible();
@@ -138,7 +138,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should NOT display inactive variants', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Legacy plan is inactive, should not be visible
     await expect(page.getByRole('heading', { name: 'Legacy' })).not.toBeVisible();
@@ -147,7 +147,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should redirect to checkout when clicking a variant', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click on the Basic variant
     const basicVariant = page.locator('[class*="cursor-pointer"]').filter({ hasText: 'Basic' }).first();
@@ -161,7 +161,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should show Select button on variants', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const selectButtons = page.getByRole('button', { name: /Wybierz|Select/i });
     await expect(selectButtons).toHaveCount(3); // Only active variants
@@ -170,7 +170,7 @@ test.describe('Variant Selector Page', () => {
   test('should show error page for non-existent group', async ({ page }) => {
     const fakeGroupId = crypto.randomUUID();
     await page.goto(`/pl/v/${fakeGroupId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByTestId('variant-not-found')).toBeVisible();
     await expect(page.getByRole('heading', { name: /Nie znaleziono wariantów|Variants Not Found/i })).toBeVisible();
@@ -178,14 +178,14 @@ test.describe('Variant Selector Page', () => {
 
   test('should show secure payment footer', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByText(/Bezpieczna płatność|Secure payment/i)).toBeVisible();
   });
 
   test('should work in English locale', async ({ page }) => {
     await page.goto(`/en/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check English translations
     await expect(page.getByText('Choose Your Option')).toBeVisible();
@@ -194,7 +194,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should work with slug instead of UUID', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.slug}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should show the same content
     await expect(page.getByRole('heading', { name: 'Basic' })).toBeVisible();
@@ -203,7 +203,7 @@ test.describe('Variant Selector Page', () => {
 
   test('should have correct styling for featured variant', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Featured variant should have accent border (sf-accent tokens)
     const basicVariant = page.locator('[class*="cursor-pointer"]').filter({ hasText: 'Basic' }).first();
@@ -283,7 +283,7 @@ test.describe('Variant Selector - Edge Cases', () => {
   test('should display single variant correctly', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/en/v/${singleGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: 'Only Option' })).toBeVisible();
     await expect(page.getByText('$100.00')).toBeVisible();
@@ -352,7 +352,7 @@ test.describe('Variant Selector - All Inactive Variants', () => {
   test('should show error when all variants are inactive', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${inactiveGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByTestId('variant-not-found')).toBeVisible();
   });
@@ -419,7 +419,7 @@ test.describe('Variant Selector - Locale Handling', () => {
   test('should work in Polish locale', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: 'Wybierz opcję' })).toBeVisible();
     await expect(page.getByText('Najpopularniejsze')).toBeVisible();
@@ -428,7 +428,7 @@ test.describe('Variant Selector - Locale Handling', () => {
   test('should work in English locale', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/en/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByText('Choose Your Option')).toBeVisible();
     await expect(page.getByText('Most Popular')).toBeVisible();
@@ -437,7 +437,7 @@ test.describe('Variant Selector - Locale Handling', () => {
   test('should preserve Polish locale when selecting variant', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const variant = page.locator('[class*="cursor-pointer"]').first();
     await variant.click();
@@ -449,7 +449,7 @@ test.describe('Variant Selector - Locale Handling', () => {
   test('should redirect to default locale checkout from English', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/en/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const variant = page.locator('[class*="cursor-pointer"]').first();
     await variant.click();
@@ -520,7 +520,7 @@ test.describe('Variant Selector - Inactive Group', () => {
   test('should show not-found when variant group is_active=false', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${inactiveGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByTestId('variant-not-found')).toBeVisible();
     await expect(page.getByRole('heading', { name: /Nie znaleziono wariantów|Variants Not Found/i })).toBeVisible();
@@ -623,7 +623,7 @@ test.describe('Variant Selector - PWYW, Icon and Branding', () => {
   test.beforeEach(async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto(`/pl/v/${variantGroup.id}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('should display PWYW badge for pay-what-you-want products', async ({ page }) => {
@@ -666,7 +666,7 @@ test.describe('Variant Selector - PWYW, Icon and Branding', () => {
   test('should display improved not-found state with SVG icon', async ({ page }) => {
     const fakeId = crypto.randomUUID();
     await page.goto(`/pl/v/${fakeId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const notFound = page.getByTestId('variant-not-found');
     await expect(notFound).toBeVisible();

@@ -619,7 +619,7 @@ test.describe('Waitlist Feature', () => {
         await page.goto('/pl/dashboard/webhooks');
 
         // Wait for page to load
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(1000);
 
         // Find the webhook row with our test webhook URL
@@ -660,7 +660,7 @@ test.describe('Waitlist Feature', () => {
         await page.goto('/pl/dashboard/webhooks');
 
         // Wait for page to load
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(1000);
 
         // Find the webhook row

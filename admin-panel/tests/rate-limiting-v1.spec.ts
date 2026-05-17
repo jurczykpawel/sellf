@@ -42,7 +42,7 @@ async function loginAsAdmin(page: Page, email: string, password: string) {
 
   await page.reload();
   // Wait for page to fully load
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 test.describe('V1 API Rate Limiting', () => {

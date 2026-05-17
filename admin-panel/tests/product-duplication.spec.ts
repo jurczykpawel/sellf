@@ -118,7 +118,7 @@ test.describe('Product Duplication', () => {
 
     // Navigate to products page
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find the product row
     const productRow = page.locator('tr').filter({ hasText: 'Original Product' });
@@ -132,7 +132,7 @@ test.describe('Product Duplication', () => {
   test('should open wizard with duplicated data when clicking duplicate', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click duplicate from ⋯ dropdown
     const productRow = page.locator('tr').filter({ hasText: 'Original Product' });
@@ -175,7 +175,7 @@ test.describe('Product Duplication', () => {
   test('should show "Create" button (not "Update") when duplicating', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/pl/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click duplicate from ⋯ dropdown
     const productRow = page.locator('tr').filter({ hasText: 'Original Product' });

@@ -124,7 +124,7 @@ test.describe('Checkout Theme Settings', () => {
   test('should display three theme options (system, light, dark)', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find the Checkout Theme section
     const themeHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
@@ -146,7 +146,7 @@ test.describe('Checkout Theme Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const themeHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
     await expect(themeHeading).toBeVisible({ timeout: 10000 });
@@ -176,7 +176,7 @@ test.describe('Checkout Theme Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const themeHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
     await expect(themeHeading).toBeVisible({ timeout: 10000 });
@@ -196,7 +196,7 @@ test.describe('Checkout Theme Settings', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const reloadedHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
     await expect(reloadedHeading).toBeVisible({ timeout: 10000 });

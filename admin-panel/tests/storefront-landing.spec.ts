@@ -97,7 +97,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     // Poll: page may serve stale RSC cache from previous test. Reload until storefront shows free-only hero.
     await expect(async () => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('text=/Start Your Journey|Rozpocznij swoją podróż/i')).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
     await expect(page.locator('text=/Completely Free|Całkowicie za darmo/i')).toBeVisible();
@@ -166,7 +166,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     // Poll: page may serve stale RSC cache from previous test
     await expect(async () => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await expect(page.getByText('Premium Quality')).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
     await expect(page.getByText('Professional Results')).toBeVisible();
@@ -240,7 +240,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Force reveal animations to completed state — IntersectionObserver can be unreliable
@@ -296,7 +296,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify Featured section header
@@ -366,7 +366,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify limited product is visible (available_until=tomorrow means still accessible)
@@ -399,7 +399,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify product is displayed
@@ -446,7 +446,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000); // Wait longer for all 8 products to load
 
     // Verify "Show All 8 Free Resources" button exists (means not all are shown initially)
@@ -524,7 +524,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     // Poll: page may serve stale RSC cache from previous test
     await expect(async () => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       // "Show All 8 Premium Products" proves all 8 were loaded from DB
       await expect(page.getByRole('button', { name: /Show All 8 Premium Products/i })).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 25000, intervals: [2000, 3000, 5000] });
@@ -576,7 +576,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify storefront renders with expected structure
@@ -613,7 +613,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     // Poll: page may serve stale RSC cache from previous test
     await expect(async () => {
       await page.goto('/');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
 
@@ -668,7 +668,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify free product card links to product page
@@ -715,7 +715,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     await page.goto('/', { waitUntil: 'commit' });
 
     // Wait for full load and verify content eventually appears
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Verify storefront renders after mount
@@ -746,7 +746,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Section header shows "1 product" (singular) when only 1 free product
@@ -772,7 +772,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Section header shows "3 products" (plural) for multiple products

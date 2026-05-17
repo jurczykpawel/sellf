@@ -166,7 +166,7 @@ async function loginAsTestUser(page: Page) {
   await setAuthSession(page, TEST_USER.email, TEST_USER.password);
 
   await page.reload();
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 async function getProductBySlug(slug: string) {
@@ -742,7 +742,7 @@ test.describe('Purchase History - /my-purchases', () => {
 
       // Navigate to my-purchases page
       await page.goto('/en/my-purchases');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
       // Should see the page title (inside gradient span)
@@ -789,7 +789,7 @@ test.describe('Purchase History - /my-purchases', () => {
 
       // Navigate to my-purchases page
       await page.goto('/en/my-purchases');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
       // Should see both products in the list (use first() as there may be multiple entries)
@@ -845,7 +845,7 @@ test.describe('Purchase History - /my-purchases', () => {
 
       // Log in as TEST_USER and check my-purchases
       await page.goto('/en/my-purchases');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
       // Should see the page title
