@@ -17,8 +17,6 @@ interface CheckoutThemeSettingsProps {
 
 export default function CheckoutThemeSettings({ initialTheme }: CheckoutThemeSettingsProps = {}) {
  const t = useTranslations('settings.checkoutTheme');
- // Theme is pre-loaded server-side and passed in as a prop — no async
- // useEffect fetch chain that races the first render after page reload.
  const [theme, setTheme] = useState<string>(initialTheme || 'system');
  const [saving, setSaving] = useState(false);
 

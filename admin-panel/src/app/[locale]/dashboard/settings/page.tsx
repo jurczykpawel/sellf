@@ -7,8 +7,6 @@ export default async function SettingsPage() {
   await verifyAdminAccess();
   const t = await getTranslations('settings');
 
-  // Pre-load shop config server-side so CheckoutThemeSettings doesn't race
-  // an async useEffect chain on the first render after a reload.
   const shopConfig = await getMyShopConfig();
 
   return (

@@ -136,12 +136,6 @@ export async function convertCurrencyAmount(
  * Get all unique currencies used in transactions
  */
 export async function getUsedCurrencies(): Promise<string[]> {
-  // Used by the dashboard CurrencySelector which only renders when
-  // currencies.length > 1 — under anon RLS this often returned [] because
-  // the authenticated user's session race didn't yet have is_admin() cached,
-  // leaving the selector invisible despite multi-currency transactions in
-  // the DB. Admin-gated server action with the admin data client side-steps
-  // the race; the endpoint is already admin-only (dashboard route).
   const result = await withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient
       .from('payment_transactions')
