@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { withAdminClient } from '@/lib/actions/admin-auth'
 import { createCurrencyService, type ExchangeRates } from '@/lib/services/currencyService'
 import { getDecryptedCurrencyConfigInternal as getDecryptedCurrencyConfig } from '@/lib/integrations/internal-secrets'
 
@@ -136,22 +135,20 @@ export async function convertCurrencyAmount(
  * Get all unique currencies used in transactions
  */
 export async function getUsedCurrencies(): Promise<string[]> {
-  const result = await withAdminClient(async ({ dataClient }) => {
-    const { data, error } = await dataClient
-      .from('payment_transactions')
-      .select('currency')
-      .eq('status', 'completed')
+  const supabase = await createClient()
 
-    if (error) {
-      console.error('Error fetching currencies:', error)
-      return { success: false, error: error.message }
-    }
+  const { data, error } = await supabase
+    .from('payment_transactions')
+    .select('currency')
+    .eq('status', 'completed')
 
-    const currencies = [...new Set(data?.map((row) => row.currency) || [])]
-    return { success: true, data: currencies.sort() }
-  })
+  if (error) {
+    console.error('Error fetching currencies:', error)
+    return []
+  }
 
-  return result.success ? (result.data ?? []) : []
+  const currencies = [...new Set(data?.map((row) => row.currency) || [])]
+  return currencies.sort()
 }
 
 /**
