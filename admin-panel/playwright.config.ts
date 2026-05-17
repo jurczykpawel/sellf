@@ -47,8 +47,11 @@ export default defineConfig({
   workers: 1,
   /* Reporter: 'dot' in quiet mode (ttt/tttt), 'list' otherwise */
   reporter: quietMode ? 'dot' : 'list',
-  /* Per-test timeout: 45s (default 30s is too tight when Turbopack compiles pages on demand) */
-  timeout: 45000,
+  /* Per-test timeout: 90s. Turbopack compiles routes on first hit, and under
+   * daytime macOS load (Spotlight, iCloud, etc.) a cold compile + render +
+   * assertion can exceed 45s on pages with heavy server components. Bumped
+   * after seeing intermittent waitForLoadState timeouts in chromium runs. */
+  timeout: 90000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -154,7 +157,7 @@ export default defineConfig({
       reuseExistingServer: false,
       stdout: quietMode ? 'ignore' : 'pipe',
       stderr: quietMode ? 'ignore' : 'pipe',
-      timeout: 60000,
+      timeout: 120000,
     },
     {
       command: 'npx http-server ../examples/test-pages -p 3778 --cors -c-1',
