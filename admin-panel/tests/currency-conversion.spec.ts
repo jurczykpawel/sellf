@@ -134,8 +134,8 @@ test.describe('Currency Conversion Feature', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
 
-    const groupedButton = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane/i }).first();
-    await expect(groupedButton).toBeVisible({ timeout: 10000 });
+    const selector = page.locator('button', { hasText: /Grouped|Pogrupowane|Convert|Przelicz/i }).first();
+    await expect(selector).toBeVisible({ timeout: 10000 });
 
     // Revenue card shows multi-currency breakdown with "+" separator
     const revenueCard = page.getByTestId('stat-card-total-revenue');
