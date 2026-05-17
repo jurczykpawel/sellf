@@ -1,10 +1,15 @@
 import { verifyAdminAccess } from '@/lib/auth-server';
 import { getTranslations } from 'next-intl/server';
 import SettingsTabs from '@/components/settings/SettingsTabs';
+import { getMyShopConfig } from '@/lib/actions/shop-config';
 
 export default async function SettingsPage() {
   await verifyAdminAccess();
   const t = await getTranslations('settings');
+
+  // Pre-load shop config server-side so CheckoutThemeSettings doesn't race
+  // an async useEffect chain on the first render after a reload.
+  const shopConfig = await getMyShopConfig();
 
   return (
     <div className="space-y-8">
@@ -19,6 +24,7 @@ export default async function SettingsPage() {
 
       <SettingsTabs
         siteUrl={process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || ''}
+        initialCheckoutTheme={shopConfig?.checkout_theme ?? null}
       />
     </div>
   );

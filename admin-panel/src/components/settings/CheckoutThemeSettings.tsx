@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getMyShopConfig, updateShopConfig } from '@/lib/actions/shop-config';
+import { useState } from 'react';
+import { updateShopConfig } from '@/lib/actions/shop-config';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -11,31 +11,16 @@ const THEME_OPTIONS = [
  { value: 'dark', icon: '🌙', descKey: 'darkDesc' },
 ] as const;
 
-export default function CheckoutThemeSettings() {
- const t = useTranslations('settings.checkoutTheme');
- const [theme, setTheme] = useState<string>('system');
- const [loading, setLoading] = useState(true);
- const [saving, setSaving] = useState(false);
+interface CheckoutThemeSettingsProps {
+  initialTheme?: string | null;
+}
 
- useEffect(() => {
- let cancelled = false;
- async function load() {
- try {
- const config = await getMyShopConfig();
- if (cancelled) return;
- if (config?.checkout_theme) {
- setTheme(config.checkout_theme);
- }
- } catch (error) {
- if (cancelled) return;
- console.error('Failed to load checkout theme:', error);
- } finally {
- if (!cancelled) setLoading(false);
- }
- }
- load();
- return () => { cancelled = true; };
- }, []);
+export default function CheckoutThemeSettings({ initialTheme }: CheckoutThemeSettingsProps = {}) {
+ const t = useTranslations('settings.checkoutTheme');
+ // Theme is pre-loaded server-side and passed in as a prop — no async
+ // useEffect fetch chain that races the first render after page reload.
+ const [theme, setTheme] = useState<string>(initialTheme || 'system');
+ const [saving, setSaving] = useState(false);
 
  const handleSave = async (newTheme: string) => {
  setTheme(newTheme);
@@ -54,17 +39,6 @@ export default function CheckoutThemeSettings() {
  setSaving(false);
  }
  };
-
- if (loading) {
- return (
- <div className="bg-sf-base border-2 border-sf-border-medium p-6">
- <div className="animate-pulse space-y-4">
- <div className="h-4 bg-sf-raised w-1/4"></div>
- <div className="h-10 bg-sf-raised w-1/2"></div>
- </div>
- </div>
- );
- }
 
  return (
  <div className="bg-sf-base border-2 border-sf-border-medium p-6">

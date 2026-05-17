@@ -180,8 +180,11 @@ test.describe('Product Variants E2E Flow', () => {
     await page.goto('/pl/dashboard/variants');
     await page.waitForLoadState('domcontentloaded');
 
-    // Find any copy button (don't depend on specific group)
+    // VariantsPageContent loads groups via client-side fetch in useEffect —
+    // first paint shows zero rows. Wait for at least one row to render before
+    // counting copy buttons.
     const copyButtons = page.locator('button[title*="Kopiuj"]').or(page.locator('button[title*="Copy"]'));
+    await expect(copyButtons.first()).toBeVisible({ timeout: 10000 });
     const buttonCount = await copyButtons.count();
     expect(buttonCount).toBeGreaterThan(0);
 

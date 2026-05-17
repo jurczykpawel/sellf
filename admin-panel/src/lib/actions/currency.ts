@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { withAdminClient } from '@/lib/actions/admin-auth'
 import { createCurrencyService, type ExchangeRates } from '@/lib/services/currencyService'
 import { getDecryptedCurrencyConfigInternal as getDecryptedCurrencyConfig } from '@/lib/integrations/internal-secrets'
 
@@ -135,21 +136,28 @@ export async function convertCurrencyAmount(
  * Get all unique currencies used in transactions
  */
 export async function getUsedCurrencies(): Promise<string[]> {
-  const supabase = await createClient()
+  // Used by the dashboard CurrencySelector which only renders when
+  // currencies.length > 1 — under anon RLS this often returned [] because
+  // the authenticated user's session race didn't yet have is_admin() cached,
+  // leaving the selector invisible despite multi-currency transactions in
+  // the DB. Admin-gated server action with the admin data client side-steps
+  // the race; the endpoint is already admin-only (dashboard route).
+  const result = await withAdminClient(async ({ dataClient }) => {
+    const { data, error } = await dataClient
+      .from('payment_transactions')
+      .select('currency')
+      .eq('status', 'completed')
 
-  const { data, error } = await supabase
-    .from('payment_transactions')
-    .select('currency')
-    .eq('status', 'completed')
+    if (error) {
+      console.error('Error fetching currencies:', error)
+      return { success: false, error: error.message }
+    }
 
-  if (error) {
-    console.error('Error fetching currencies:', error)
-    return []
-  }
+    const currencies = [...new Set(data?.map((row) => row.currency) || [])]
+    return { success: true, data: currencies.sort() }
+  })
 
-  // Get unique currencies
-  const currencies = [...new Set(data?.map((row) => row.currency) || [])]
-  return currencies.sort()
+  return result.success ? (result.data ?? []) : []
 }
 
 /**
