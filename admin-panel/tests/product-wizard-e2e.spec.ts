@@ -369,19 +369,14 @@ test.describe('Edit mode uses wizard', () => {
   test('should navigate steps in edit mode', async ({ page }) => {
     await goToProducts(page);
 
-    // Open edit for the product
+    // Edit is a primary row action button (pencil icon). The ⋯ dropdown
+    // never had an Edit/Edytuj entry, so the previous fallback burned 45s.
     const productRow = page.locator('tr, [data-product-id]').filter({ hasText: 'Edit Mode Test Product' });
-    const editButton = productRow.locator('button[title*="Edytuj"], button[title*="Edit"]').first();
+    await expect(productRow).toBeVisible({ timeout: 15000 });
 
-    if (await editButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editButton.click();
-    } else {
-      const menuButton = productRow.locator('button').last();
-      await menuButton.click();
-      await page.waitForTimeout(300);
-      const editOption = page.locator('button, a, [role="menuitem"]').filter({ hasText: /Edytuj|Edit/i }).first();
-      await editOption.click();
-    }
+    const editButton = productRow.locator('button[title*="Edytuj"], button[title*="Edit"]').first();
+    await expect(editButton).toBeVisible({ timeout: 15000 });
+    await editButton.click();
 
     await expect(page.getByText('Edytuj produkt')).toBeVisible({ timeout: 5000 });
 
