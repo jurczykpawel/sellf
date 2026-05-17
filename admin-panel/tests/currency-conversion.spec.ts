@@ -129,15 +129,11 @@ test.describe('Currency Conversion Feature', () => {
   });
 
   test('should display grouped currencies by default (multi-currency dashboard)', async ({ page }) => {
-    // UserPreferencesContext defaults currencyViewMode to 'grouped' since the
-    // multi-currency feature shipped. The previous test name claimed
-    // 'converted' was the default — that was aspirational and never matched
-    // the code. Test asserts real behavior: grouped breakdown is the default.
     await loginAsAdmin(page);
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(3000);
 
-    // Selector shows "Grouped by Currency" by default
     const groupedButton = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane/i }).first();
     await expect(groupedButton).toBeVisible({ timeout: 10000 });
 
