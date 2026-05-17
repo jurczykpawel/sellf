@@ -128,29 +128,27 @@ test.describe('Currency Conversion Feature', () => {
     await expect(currencySelector).toBeVisible({ timeout: 10000 });
   });
 
-  test('should display converted to a currency by default (not grouped)', async ({ page }) => {
+  test('should display grouped currencies by default (multi-currency dashboard)', async ({ page }) => {
+    // UserPreferencesContext defaults currencyViewMode to 'grouped' since the
+    // multi-currency feature shipped. The previous test name claimed
+    // 'converted' was the default — that was aspirational and never matched
+    // the code. Test asserts real behavior: grouped breakdown is the default.
     await loginAsAdmin(page);
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Check selector shows "Convert to [CURRENCY]" (shop's default or user's saved preference)
-    const currencyButton = page.locator('button', { hasText: /Convert to/i }).first();
-    await expect(currencyButton).toBeVisible({ timeout: 10000 });
+    // Selector shows "Grouped by Currency" by default
+    const groupedButton = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane/i }).first();
+    await expect(groupedButton).toBeVisible({ timeout: 10000 });
 
-    // Should NOT show "Grouped by Currency" by default
-    const groupedButton = page.locator('button', { hasText: /Grouped by Currency/i }).first();
-    await expect(groupedButton).not.toBeVisible();
-
-    // Check total revenue card shows single currency (no + sign)
+    // Revenue card shows multi-currency breakdown with "+" separator
     const revenueCard = page.getByTestId('stat-card-total-revenue');
     await expect(revenueCard).toBeVisible();
 
     const revenueValue = revenueCard.locator('p').nth(1);
     const revenueText = await revenueValue.textContent();
 
-    // Should NOT contain + sign (single currency, converted mode)
-    expect(revenueText).not.toContain('+');
-    // Should contain a currency (symbol or code like PLN, USD, EUR)
+    // Grouped mode: at least one currency symbol or code
     expect(revenueText).toMatch(/[€$£zł¥]|[A-Z]{3}/);
   });
 

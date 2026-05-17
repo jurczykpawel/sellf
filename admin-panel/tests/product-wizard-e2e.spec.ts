@@ -330,22 +330,16 @@ test.describe('Edit mode uses wizard', () => {
   test('should open wizard with pre-filled data when editing a product', async ({ page }) => {
     await goToProducts(page);
 
-    // Find the edit button for our product
+    // Edit is a primary action button in each row (pencil icon, title="Edytuj").
+    // The previous fallback to a dropdown menu item is dead — the ⋯ dropdown
+    // never had an Edit/Edytuj entry, so falling through to it just burned
+    // the 45s test timeout when the products table was slow to hydrate.
     const productRow = page.locator('tr, [data-product-id]').filter({ hasText: 'Edit Mode Test Product' });
+    await expect(productRow).toBeVisible({ timeout: 15000 });
 
-    // Click the actions menu or edit button
     const editButton = productRow.locator('button[title*="Edytuj"], button[title*="Edit"]').first();
-
-    if (await editButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editButton.click();
-    } else {
-      // Try clicking 3-dot menu first
-      const menuButton = productRow.locator('button').last();
-      await menuButton.click();
-      await page.waitForTimeout(300);
-      const editOption = page.locator('button, a, [role="menuitem"]').filter({ hasText: /Edytuj|Edit/i }).first();
-      await editOption.click();
-    }
+    await expect(editButton).toBeVisible({ timeout: 15000 });
+    await editButton.click();
 
     // Should show "Edytuj produkt" in wizard header (edit mode)
     await expect(page.getByText('Edytuj produkt')).toBeVisible({ timeout: 5000 });

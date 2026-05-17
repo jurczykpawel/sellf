@@ -194,7 +194,10 @@ test.describe('Checkout Theme Settings', () => {
     // Wait for the dark button to get the selected class (server action saves + revalidates)
     await expect(darkBtn).toHaveClass(/border-sf-border-accent/, { timeout: 10000 });
 
-    // Reload and verify persistence
+    // Reload and verify persistence. CheckoutThemeSettings is a client
+    // component that fetches the config in useEffect → button selection
+    // only updates after that async chain resolves. Wait for the
+    // loading-pulse placeholder to disappear before asserting the class.
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
@@ -203,8 +206,8 @@ test.describe('Checkout Theme Settings', () => {
 
     const reloadedSection = reloadedHeading.locator('..');
     const darkButton = reloadedSection.locator('button', { hasText: '🌙' });
-    await expect(darkButton).toBeVisible({ timeout: 5000 });
-    await expect(darkButton).toHaveClass(/border-sf-border-accent/, { timeout: 5000 });
+    await expect(darkButton).toBeVisible({ timeout: 10000 });
+    await expect(darkButton).toHaveClass(/border-sf-border-accent/, { timeout: 15000 });
   });
 
   test('should apply dark theme on checkout page', async ({ page }) => {

@@ -96,7 +96,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     // Poll: page may serve stale RSC cache from previous test. Reload until storefront shows free-only hero.
     await expect(async () => {
-      await page.goto('/');
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('text=/Start Your Journey|Rozpocznij swoją podróż/i')).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
@@ -165,7 +165,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     // Poll: page may serve stale RSC cache from previous test
     await expect(async () => {
-      await page.goto('/');
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('domcontentloaded');
       await expect(page.getByText('Premium Quality')).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
@@ -239,7 +239,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -295,7 +295,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -365,7 +365,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (comingSoonProduct) testProductIds.push(comingSoonProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -398,7 +398,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (timedProduct) testProductIds.push(timedProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -445,7 +445,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000); // Wait longer for all 8 products to load
 
@@ -523,7 +523,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     // Poll: page may serve stale RSC cache from previous test
     await expect(async () => {
-      await page.goto('/');
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('domcontentloaded');
       // "Show All 8 Premium Products" proves all 8 were loaded from DB
       await expect(page.getByRole('button', { name: /Show All 8 Premium Products/i })).toBeVisible({ timeout: 5000 });
@@ -575,7 +575,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (data) testProductIds.push(data.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -612,7 +612,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     // Poll: page may serve stale RSC cache from previous test
     await expect(async () => {
-      await page.goto('/');
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 20000, intervals: [2000, 3000, 5000] });
@@ -667,7 +667,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (paidProduct) testProductIds.push(paidProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -745,7 +745,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (singleProduct) testProductIds.push(singleProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
@@ -771,7 +771,7 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
