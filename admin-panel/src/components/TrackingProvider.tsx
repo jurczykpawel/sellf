@@ -106,11 +106,14 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
        * Build the legacy `{service: bool}` payload that `/api/consent` and the
        * `consent_logs.consents` JSONB column have always expected. Lets us
        * change the consent library without rewriting historical rows.
+       *
+       * Note: `umami-analytics` is intentionally NOT here — Umami runs in
+       * cookieless mode (no client cookies, anonymised visitor hashing) and
+       * therefore does not require consent under GDPR Art. 6 / recital 30.
        */
       const buildLegacyConsents = () => ({
         'google-tag-manager': CookieConsent.acceptedService('gtm', 'analytics'),
         'facebook-pixel': CookieConsent.acceptedService('pixel', 'marketing'),
-        'umami-analytics': CookieConsent.acceptedService('umami', 'analytics'),
       })
 
       const updateGtagConsent = () => {
@@ -147,10 +150,50 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
         }, 100)
       }
 
+      // Build a description that names only the providers actually configured.
+      // GDPR Art. 7 + EDPB guidance: the consent prompt must specifically tell
+      // the user what data, why, how long, and who has access. Generic copy
+      // (e.g. "we use cookies") does NOT satisfy the "freely given, specific
+      // and informed" standard.
+      //
+      // Umami runs cookieless and is NOT enumerated here — under recital 30 +
+      // ePrivacy Art. 5(3), purely anonymous analytics that do not store
+      // anything on the user device are exempt from consent.
+      const enabledAnalytics: string[] = []
+      if (gtm_container_id) enabledAnalytics.push('Google Tag Manager')
+      const enabledMarketing: string[] = []
+      if (facebook_pixel_id) enabledMarketing.push('Meta Pixel')
+      const analyticsPart = enabledAnalytics.length
+        ? `${enabledAnalytics.join(', ')} — up to 24 months`
+        : ''
+      const marketingPart = enabledMarketing.length
+        ? `${enabledMarketing.join(', ')} — ~7 days`
+        : ''
+      const analyticsPartPl = enabledAnalytics.length
+        ? `${enabledAnalytics.join(', ')} — do 24 miesięcy`
+        : ''
+      const marketingPartPl = enabledMarketing.length
+        ? `${enabledMarketing.join(', ')} — ~7 dni`
+        : ''
+      const enDescription =
+        `We use cookies to run the site (necessary)` +
+        (analyticsPart ? `, measure usage (analytics: ${analyticsPart})` : '') +
+        (marketingPart ? `, and run marketing (${marketingPart})` : '') +
+        `. You can change your choice anytime via Cookie preferences in the footer.`
+      const plDescription =
+        `Używamy ciasteczek do działania strony (niezbędne)` +
+        (analyticsPartPl ? `, mierzenia ruchu (analityka: ${analyticsPartPl})` : '') +
+        (marketingPartPl ? `, oraz marketingu (${marketingPartPl})` : '') +
+        `. Wybór zmienisz w każdej chwili przez Preferencje ciasteczek w stopce.`
+
       await CookieConsent.run({
         // Same cookie name as the legacy Klaro install so neither tests nor
         // app-level helpers need to learn a second name.
         cookie: { name: 'sellf_consent', expiresAfterDays: 365 },
+        // Explicit opt-in: GDPR requires consent BEFORE non-essential cookies.
+        // cookieconsent v3 defaults to opt-in, but locking it down here keeps
+        // a future maintainer from accidentally flipping the model.
+        mode: 'opt-in',
         // Headless browsers (Playwright Chromium) are detected as bots by the
         // default heuristic and the banner is hidden — which makes every E2E
         // test that asserts banner visibility flake. We intentionally turn
@@ -165,11 +208,10 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
           necessary: { enabled: true, readOnly: true },
           analytics: {
             autoClear: {
-              cookies: [{ name: /^_ga/ }, { name: '_gid' }, { name: /^umami/i }],
+              cookies: [{ name: /^_ga/ }, { name: '_gid' }],
             },
             services: {
               ...(gtm_container_id ? { gtm: { label: 'Google Tag Manager' } } : {}),
-              ...(umami_website_id ? { umami: { label: 'Umami Analytics' } } : {}),
             },
           },
           marketing: {
@@ -187,7 +229,7 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
             en: {
               consentModal: {
                 title: 'We use cookies',
-                description: 'We use cookies to improve your experience and analyze traffic.',
+                description: enDescription,
                 acceptAllBtn: 'Accept all',
                 acceptNecessaryBtn: 'Reject all',
                 showPreferencesBtn: 'Manage preferences',
@@ -208,7 +250,7 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
             pl: {
               consentModal: {
                 title: 'Używamy ciasteczek',
-                description: 'Używamy ciasteczek, aby poprawić Twoje doświadczenia i analizować ruch.',
+                description: plDescription,
                 acceptAllBtn: 'Akceptuj wszystkie',
                 acceptNecessaryBtn: 'Odrzuć wszystkie',
                 showPreferencesBtn: 'Zarządzaj preferencjami',
@@ -320,16 +362,19 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
         />
       )}
 
-      {/* Umami */}
+      {/*
+        Umami — cookieless analytics, runs unconditionally.
+        No `type="text/plain"` blocking, no `data-category` tag: Umami
+        does not store anything on the user's device (cookieless visitor
+        hashing) and therefore falls under the ePrivacy Art. 5(3) /
+        GDPR recital 30 exemption.
+      */}
       {umami_website_id && (
         <Script
           id="umami-script"
           src={umami_script_url || 'https://cloud.umami.is/script.js'}
           strategy="afterInteractive"
           data-website-id={umami_website_id}
-          type={managedType}
-          data-category={cookie_consent_enabled ? 'analytics' : undefined}
-          data-service={cookie_consent_enabled ? 'umami' : undefined}
           nonce={nonce}
         />
       )}

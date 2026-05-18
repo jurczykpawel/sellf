@@ -3334,6 +3334,7 @@
       "licenseAGPL": "Licencja (AGPL-3.0)",
       "privacy": "Prywatność",
       "terms": "Warunki",
+      "cookiePreferences": "Preferencje ciasteczek",
       "copyright": "© {year} Sellf. Open source i self-hosted",
       "whiteLabelLicense": "Licencja White-Label"
     }

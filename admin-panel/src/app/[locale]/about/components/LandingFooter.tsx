@@ -122,6 +122,18 @@ export async function LandingFooter() {
               >
                 {t('footer.terms')}
               </Link>
+              {/*
+                GDPR Art. 7(3): the user must be able to withdraw consent as
+                easily as it was given. `data-cc="show-preferencesModal"`
+                re-opens the cookieconsent preferences modal from anywhere.
+              */}
+              <button
+                type="button"
+                data-cc="show-preferencesModal"
+                className="block text-left text-sm text-sf-muted hover:text-sf-heading transition-colors duration-200 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
+              >
+                {t('footer.cookiePreferences')}
+              </button>
             </nav>
           </div>
         </div>

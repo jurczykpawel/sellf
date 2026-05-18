@@ -12,9 +12,12 @@ import { Page } from '@playwright/test';
  * shape directly from the cookie — no library load required for SSR/tests.
  */
 
+/**
+ * Note: Umami is NOT a consent service in Sellf — it runs cookieless and
+ * therefore is exempt from consent (ePrivacy Art. 5(3) / GDPR recital 30).
+ */
 const CATEGORY_BY_SERVICE: Record<string, 'analytics' | 'marketing'> = {
   gtm: 'analytics',
-  umami: 'analytics',
   pixel: 'marketing',
 };
 
@@ -82,13 +85,13 @@ export async function acceptAllCookies(page: Page) {
  * (`'gtm'`, `'pixel'`, `'umami'`) so existing callers do not have to change.
  */
 export async function setConsentPreferences(page: Page, consents: Record<string, boolean>) {
+  // Umami (legacy `umami-analytics`, `umami`) is intentionally ignored — it
+  // runs cookieless and is not gated by consent in Sellf.
   const aliases: Record<string, string> = {
     'google-tag-manager': 'gtm',
     'facebook-pixel': 'pixel',
-    'umami-analytics': 'umami',
     gtm: 'gtm',
     pixel: 'pixel',
-    umami: 'umami',
   };
   const mapped: Record<string, boolean> = {};
   for (const [k, v] of Object.entries(consents)) {
