@@ -3038,6 +3038,14 @@
         "title": "Earn 30% more per order",
         "desc": "Show an extra offer at checkout. Buyer clicks 'Add' and the order value grows 30-50%."
       },
+      "embed": {
+        "title": "Sell from any website with embed",
+        "desc": "Drop a script tag on your blog, landing page, or course platform. Buyers complete checkout in a modal without ever leaving your site."
+      },
+      "checkoutTemplates": {
+        "title": "Switch checkout layout per product",
+        "desc": "Default, tip jar, or one-time offer (OTO) layout per product. Add custom fields to capture exactly the data you need at checkout."
+      },
       "coupons": {
         "title": "Run promos that sell",
         "desc": "Create discount codes and automatic promos. Set usage limits and expiry dates to protect your margins."
@@ -3068,7 +3076,7 @@
       },
       "funnels": {
         "title": "Turn buyers into repeat customers",
-        "desc": "After purchase, offer the next product or a return coupon. Build a path from first-time buyer to loyal customer."
+        "desc": "After purchase, route buyers through a One-Time Offer or fallback Downsell. Drive return visits with post-purchase coupons. Build a path from first sale to lifetime value."
       },
       "refunds": {
         "title": "Handle refunds without headaches",

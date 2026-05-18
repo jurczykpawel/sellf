@@ -3053,6 +3053,14 @@
         "title": "Zarabiaj 30% więcej na zamówieniu",
         "desc": "Przy płatności zaproponuj dodatkowy produkt. Klient klika 'Dodaj' i wartość zamówienia rośnie o 30-50%."
       },
+      "embed": {
+        "title": "Sprzedawaj z dowolnej strony przez embed",
+        "desc": "Wklej tag script na blogu, landingu albo platformie kursowej. Klient kończy płatność w modalu, bez wychodzenia z Twojej strony."
+      },
+      "checkoutTemplates": {
+        "title": "Zmień układ kasy per produkt",
+        "desc": "Layout domyślny, tip jar albo one-time offer (OTO) per produkt. Dodaj własne pola, żeby zebrać przy zakupie dokładnie te dane, których potrzebujesz."
+      },
       "coupons": {
         "title": "Prowadź promocje, które sprzedają",
         "desc": "Twórz kody rabatowe i automatyczne promocje. Ustaw limity użyć i daty ważności, żeby zachować marżę."
@@ -3083,7 +3091,7 @@
       },
       "funnels": {
         "title": "Zamień kupujących w stałych klientów",
-        "desc": "Po zakupie zaproponuj kolejny produkt lub kupon na powrót. Buduj ścieżkę od pierwszego zakupu do stałego klienta."
+        "desc": "Po zakupie poprowadź klienta przez One-Time Offer albo zapasowy Downsell. Zwiększ powroty kuponem po zakupie. Buduj ścieżkę od pierwszej sprzedaży do długoterminowej wartości klienta."
       },
       "refunds": {
         "title": "Obsługuj zwroty bez bólu głowy",

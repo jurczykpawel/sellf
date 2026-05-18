@@ -51,7 +51,8 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Pay What You Want (PWYW) pricing
 - Coupons (percentage, fixed amount, per-user limits)
 - Order Bumps for upselling
-- One-Time Offers (OTO) post-purchase
+- Post-purchase funnel: One-Time Offers (OTO) with fallback Downsell branch and post-purchase coupons for return visits
+- Per-product checkout templates (Default, Tip Jar, OTO) with custom field support per product
 - Refund management with configurable periods, partial refunds, and outgoing refund webhooks
 
 </details>
@@ -98,7 +99,8 @@ Sellf gives you **complete control** over your digital product business. No mont
 
 - Page-level or element-level protection
 - JavaScript SDK for any website
-- Embedded checkout script for protected external pages
+- Embeddable checkout SDK: drop a `<script>` tag on any external site (modal/inline/button variants, per-product snippet, show-price and button-label customization)
+- Self-hosted Playerstack video player: protected video delivery with no third-party hosting
 - Custom fallback content for non-buyers
 - Multi-product access on single page
 - License validation
