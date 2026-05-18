@@ -40,7 +40,7 @@ test.describe('Stripe Webhook Section UI', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);

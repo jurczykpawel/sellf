@@ -30,7 +30,7 @@ test.describe('Smart Landing Page', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);
@@ -54,7 +54,7 @@ test.describe('Smart Landing Page', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);

@@ -54,7 +54,6 @@ export function buildContentSecurityPolicyWithNonce(
     // keeping the third-party hosts here preserves coverage on those.
     'js.stripe.com',
     'challenges.cloudflare.com',
-    'cdn.kiprotect.com',
     'www.youtube.com',
     's.ytimg.com',
     isDev ? "'unsafe-eval'" : '',
