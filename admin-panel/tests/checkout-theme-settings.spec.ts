@@ -224,15 +224,12 @@ test.describe('Checkout Theme Settings', () => {
       localStorage.removeItem('sf_theme');
     });
 
-    // Visit checkout page (public, no login needed)
+    // Visit checkout page (public, no login needed).
+    // /checkout uses Stripe Embedded Checkout — telemetry to m.stripe.com keeps
+    // the network busy indefinitely, so `networkidle` never fires here. Wait on
+    // the actual condition under test instead (ThemeScript adds `dark` class
+    // synchronously from <head>, so this resolves immediately after navigation).
     await page.goto(`/checkout/${testProductSlug}`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
-
-    // The HTML element should have the "dark" class from ThemeScript
-    const hasDark = await page.evaluate(() => {
-      return document.documentElement.classList.contains('dark');
-    });
-    expect(hasDark).toBe(true);
+    await expect(page.locator('html')).toHaveClass(/dark/, { timeout: 15000 });
   });
 });

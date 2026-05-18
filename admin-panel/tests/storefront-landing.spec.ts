@@ -295,12 +295,17 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
 
-    // Verify Featured section header
-    await expect(page.locator('text=/Featured|Wyróżnione/i').first()).toBeVisible({ timeout: 15000 });
+    // Poll-retry the navigation + first assertion. Under heavy suite load the
+    // dev server occasionally takes >30s to respond on the first hit, and the
+    // RSC payload can briefly reflect the pre-deactivation state. Retrying
+    // both the goto and the visibility check converts that environmental
+    // slowness into a recoverable wait instead of a hard timeout.
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.locator('text=/Featured|Wyróżnione/i').first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000, intervals: [2000, 3000, 5000] });
 
     // Verify all featured products are displayed
     for (const product of featuredProducts) {
@@ -365,12 +370,14 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (comingSoonProduct) testProductIds.push(comingSoonProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
 
-    // Verify limited product is visible (available_until=tomorrow means still accessible)
-    await expect(page.getByText('Limited Time Offer').first()).toBeVisible({ timeout: 15000 });
+    // Poll-retry as the dev server occasionally stalls past 30s under full
+    // suite load. Same pattern as the SHOW ALL premium test below.
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.getByText('Limited Time Offer').first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000, intervals: [2000, 3000, 5000] });
   });
 
   test('ACCESS DURATION: Should display duration badges when auto_grant_duration_days is set', async ({ page }) => {

@@ -232,6 +232,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Find any edit button (don't depend on specific group name)
     const editButtons = page.locator('button[title*="Edytuj"]').or(page.locator('button[title*="Edit"]'));
+    await expect(editButtons.first()).toBeVisible({ timeout: 10000 });
     const buttonCount = await editButtons.count();
     expect(buttonCount).toBeGreaterThan(0);
 
@@ -273,6 +274,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Find any existing group (either E2E Updated Plans or E2E License Plans)
     const editButtons = page.locator('button[title*="Edytuj"]').or(page.locator('button[title*="Edit"]'));
+    await expect(editButtons.first()).toBeVisible({ timeout: 10000 });
     const buttonCount = await editButtons.count();
     expect(buttonCount).toBeGreaterThan(0);
 
@@ -301,6 +303,7 @@ test.describe('Product Variants E2E Flow', () => {
 
     // Find any delete button
     const deleteButtons = page.locator('button[title*="Usuń grupę"]').or(page.locator('button[title*="Delete group"]'));
+    await expect(deleteButtons.first()).toBeVisible({ timeout: 10000 });
     const buttonCount = await deleteButtons.count();
     expect(buttonCount).toBeGreaterThan(0);
 
