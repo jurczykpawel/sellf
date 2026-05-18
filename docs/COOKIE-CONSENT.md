@@ -1,6 +1,16 @@
 # Cookie Consent & Tracking Setup
 
-Sellf includes a built-in cookie consent management system powered by [Klaro](https://klaro.org/) v0.7. It supports Google Tag Manager, Meta Pixel (with Conversions API), Umami Analytics, and custom scripts — all configurable from the admin panel with zero environment variables required.
+Sellf ships with a built-in cookie consent system powered by [vanilla-cookieconsent v3](https://github.com/orestbida/cookieconsent) (orestbida). It gates Google Tag Manager and Meta Pixel (incl. Conversions API) behind opt-in consent and wires Google Consent Mode V2. Umami Analytics runs cookieless and is **not** gated — see below. All settings live in the admin panel; no env vars required.
+
+> **Compliance is configuration, not just code.** GDPR/CCPA regulate behaviour, not which library you use. cookieconsent is a tool — the regulatory posture below depends on you keeping the defaults Sellf ships with.
+>
+> 1. **Default ALL OFF.** Categories `analytics` and `marketing` are opt-in (`mode: 'opt-in'`, only `necessary` is `enabled:true readOnly:true`). No tracking script may fire before the visitor explicitly accepts.
+> 2. **Every tracking script tagged.** GTM + Meta Pixel render as `type="text/plain" data-category=... data-service=...`. cookieconsent rewrites them to executable scripts only on opt-in. Any future tracking script you add MUST follow this convention or it will run unconditionally and break compliance.
+> 3. **Informed copy.** The banner names each provider that is actually configured and its storage horizon (e.g. "Google Tag Manager — up to 24 months", "Meta Pixel — ~7 days"). Generic copy ("we use cookies") does **not** satisfy the GDPR Art. 7 "freely given, specific and informed" standard.
+> 4. **Re-consent.** The marketing footer (`LandingFooter`) carries a "Cookie preferences" button (`data-cc="show-preferencesModal"`) so visitors can withdraw consent as easily as they gave it (GDPR Art. 7(3)). Add the same button to any other globally visible chrome you ship.
+> 5. **Cookie policy in `/privacy`.** Sellf does NOT ship a privacy or cookie policy. `/privacy` and `/terms` redirect to admin-supplied `PRIVACY_URL` / `TERMS_URL`. You are responsible for publishing a cookie inventory (name, host, lifetime, purpose) there — the banner alone is not enough.
+
+**Umami exception.** Umami runs in cookieless mode (no client cookies, anonymous visitor hashing). Under ePrivacy Art. 5(3) + GDPR recital 30, purely anonymous analytics that store nothing on the device are exempt from consent. Sellf therefore loads the Umami script unconditionally and it is **not** listed in the consent banner.
 
 ## Table of Contents
 
@@ -41,7 +51,7 @@ get_public_integrations_config() RPC (public, safe subset of config)
   ▼
 Root Layout (server component) fetches config
   │
-  ├─► TrackingProvider (injects scripts + Klaro)
+  ├─► TrackingProvider (injects scripts + cookieconsent)
   └─► TrackingConfigProvider (React context for event tracking hooks)
 ```
 
@@ -54,7 +64,7 @@ All configuration is stored in the database and managed through the admin UI at 
 1. Go to `/dashboard/integrations` → **Consents** tab
 2. Enable **"Require Consent"** → Save
 3. (Optional) Add tracking IDs in **Analytics** or **Marketing** tabs
-4. Done — Klaro banner appears on all pages
+4. Done — cookieconsent banner appears on all pages
 
 ---
 
@@ -66,11 +76,11 @@ All configuration is stored in the database and managed through the admin UI at 
 
 | Setting | Effect |
 |---------|--------|
-| Require Consent | Shows Klaro banner, blocks non-essential scripts until user consents |
+| Require Consent | Shows cookieconsent banner, blocks non-essential scripts until user consents |
 | Consent Logging | Logs each user's consent choices to `consent_logs` table (for GDPR auditing) |
 | Send conversions without consent | Sends Purchase/Lead events via CAPI even if user declines cookies (legitimate interest) |
 
-When consent is enabled, tracking scripts are injected with `type="text/plain"` and a `data-name` attribute. Klaro intercepts these and only converts them to executable JavaScript after the user consents to that specific service.
+When consent is enabled, tracking scripts are injected with `type="text/plain"` with `data-category` and `data-service` attributes. cookieconsent intercepts these and only converts them to executable JavaScript after the user consents to that specific service.
 
 ### 2. Meta Pixel & Conversions API
 
@@ -111,8 +121,8 @@ When consent is enabled, tracking scripts are injected with `type="text/plain"` 
 The Server Container URL is for GTM Server-Side Tagging — it proxies tracking requests through your domain, bypassing most adblockers. Requires separate infrastructure (e.g., [Stape.io](https://stape.io/) or self-hosted).
 
 Google Consent Mode V2 is automatically configured:
-- Defaults to `denied` for all consent types before Klaro loads
-- Updates to `granted` when user accepts via Klaro callback
+- Defaults to `denied` for all consent types before cookieconsent loads
+- Updates to `granted` when user accepts via cookieconsent callback
 
 ### 4. Umami Analytics
 
@@ -135,7 +145,7 @@ Add any third-party script with:
 - **Content:** Raw `<script>` content or external URL
 - **Active toggle:** Enable/disable without deleting
 
-Non-essential scripts are automatically managed by Klaro — they only execute after user consent for the matching purpose.
+Non-essential scripts are automatically managed by cookieconsent — they only execute after user consent for the matching purpose.
 
 ### 6. Conversions Without Consent
 
@@ -151,7 +161,7 @@ When enabled:
 
 ### 7. Consent Logging
 
-When enabled, every interaction with the Klaro banner is logged via `POST /api/consent`:
+When enabled, every interaction with the cookieconsent banner is logged via `POST /api/consent`:
 
 ```json
 {
@@ -172,13 +182,13 @@ Stored in `consent_logs` table with IP, User-Agent, and timestamp. Rate limited 
 ```
 User visits site
   → TrackingProvider renders in root layout
-  → Klaro loads + shows banner (if no sellf_consent cookie)
+  → cookieconsent loads + shows banner (if no sellf_consent cookie)
   → Scripts injected as type="text/plain" (blocked)
 
 User clicks "Accept All"
-  → Klaro sets cookie: sellf_consent = {"google-tag-manager":true,...}
-  → Klaro converts scripts from text/plain → text/javascript (executes them)
-  → Klaro callback updates Google Consent Mode: analytics_storage → "granted"
+  → cookieconsent sets cookie: sellf_consent = {"categories":["necessary","analytics","marketing"], "services":{"analytics":["gtm"],"marketing":["pixel"]}, ...}
+  → cookieconsent converts scripts from text/plain → text/javascript (executes them)
+  → cookieconsent callback updates Google Consent Mode: analytics_storage → "granted"
   → POST /api/consent logs the choice (if consent_logging_enabled)
 
 User clicks "Decline" / closes banner
@@ -192,11 +202,11 @@ User clicks "Decline" / closes banner
 `TrackingProvider` (`src/components/TrackingProvider.tsx`) injects scripts in this order:
 
 1. **Google Consent Mode V2 defaults** (always, before everything else)
-2. **Klaro config + library** (if `cookie_consent_enabled`)
-3. **GTM script** (managed by Klaro if consent enabled)
-4. **Meta Pixel script** (managed by Klaro if consent enabled)
-5. **Umami script** (managed by Klaro if consent enabled)
-6. **Custom scripts** (managed by Klaro based on category)
+2. **cookieconsent config + library** (if `cookie_consent_enabled`)
+3. **GTM script** (managed by cookieconsent if consent enabled)
+4. **Meta Pixel script** (managed by cookieconsent if consent enabled)
+5. **Umami script** (managed by cookieconsent if consent enabled)
+6. **Custom scripts** (managed by cookieconsent based on category)
 
 All IDs are validated before injection to prevent XSS:
 - GTM: `/^GTM-[A-Z0-9]{1,10}$/i`
@@ -218,7 +228,7 @@ gtag('consent', 'default', {
 });
 ```
 
-After user interacts with Klaro, the callback updates consent:
+After user interacts with cookieconsent, the callback updates consent:
 
 ```javascript
 gtag('consent', 'update', {
@@ -252,7 +262,7 @@ Client-side tracking (`src/lib/tracking/client.ts`) provides:
 trackEvent(eventName, data, config)
 ```
 
-Before sending, it checks Klaro consent:
+Before sending, it checks cookieconsent consent:
 - `hasFacebookConsent()` → reads `sellf_consent` cookie for `facebook-pixel`
 - `hasGTMConsent()` → reads `sellf_consent` cookie for `google-tag-manager`
 
@@ -280,7 +290,7 @@ Deduplication: each event gets a UUID `event_id` shared between Pixel and CAPI.
 | `send_conversions_without_consent` | BOOLEAN | Allow CAPI without consent |
 | `umami_website_id` | TEXT | Umami Website UUID |
 | `umami_script_url` | TEXT | Umami script URL |
-| `cookie_consent_enabled` | BOOLEAN | Show Klaro banner |
+| `cookie_consent_enabled` | BOOLEAN | Show cookieconsent banner |
 | `consent_logging_enabled` | BOOLEAN | Log consent to DB |
 | `sellf_license` | TEXT | License key (unrelated) |
 
@@ -294,7 +304,7 @@ Deduplication: each event gets a UUID `event_id` shared between Pixel and CAPI.
 | `script_content` | TEXT | Script code or URL |
 | `category` | TEXT | `essential`, `analytics`, or `marketing` |
 | `is_active` | BOOLEAN | Enable/disable |
-| `cookie_consent_enabled` | BOOLEAN | Whether Klaro manages this script |
+| `cookie_consent_enabled` | BOOLEAN | Whether cookieconsent manages this script |
 
 ### consent_logs
 
@@ -328,7 +338,7 @@ Deduplication: each event gets a UUID `event_id` shared between Pixel and CAPI.
 
 ### Check the banner appears
 
-Visit your site in an incognito window — the Klaro banner should appear at the bottom.
+Visit your site in an incognito window — the cookieconsent banner should appear at the bottom.
 
 ### Check consent cookie
 
@@ -367,7 +377,7 @@ Browser DevTools → Console → filter for `[tracking]` or `[fb-capi]` log mess
 
 | File | Purpose |
 |------|---------|
-| `src/components/TrackingProvider.tsx` | Script injection + Klaro configuration |
+| `src/components/TrackingProvider.tsx` | Script injection + cookieconsent configuration |
 | `src/components/IntegrationsForm.tsx` | Admin UI for all integrations settings |
 | `src/lib/actions/integrations.ts` | Server actions (get/update config, CRUD scripts) |
 | `src/lib/validations/integrations.ts` | Input validation for all tracking IDs/URLs |
