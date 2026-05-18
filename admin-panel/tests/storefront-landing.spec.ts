@@ -452,9 +452,15 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }
 
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000); // Wait longer for all 8 products to load
+
+    // Poll: page may serve stale RSC cache or stall on page.goto under full-suite load.
+    // Same pattern as the SHOW ALL premium test below.
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(3000); // Wait longer for all 8 products to load
+      await expect(page.getByRole('button', { name: /Show All 8 Free Resources/i })).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000, intervals: [2000, 3000, 5000] });
 
     // Verify "Show All 8 Free Resources" button exists (means not all are shown initially)
     const showAllButton = page.getByRole('button', { name: /Show All 8 Free Resources/i });
