@@ -343,7 +343,7 @@ test.describe('API Keys Management UI', () => {
   test('should open edit modal with pre-populated fields', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/api-keys');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find the original "Test Key Default" row (exclude the "(rotated)" copy if rotation ran earlier)
     const keyRow = page.locator('tr')

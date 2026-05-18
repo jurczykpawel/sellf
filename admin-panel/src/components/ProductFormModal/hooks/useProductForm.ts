@@ -126,8 +126,21 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
   }, [isOpen, product]);
 
-  // Initialize form data when product changes or modal opens
+  // Initialize form data when editing an existing product.
+  // For new products the useState initializer above already seeds the form
+  // with `initialFormData` — running a non-functional setFormData here would
+  // race the user's first keystrokes (useEffect fires asynchronously after
+  // the first paint, so Playwright can fill an input between commit and
+  // effect-fire and have the reset wipe the value).
+  const initializedRef = useRef(false);
   useEffect(() => {
+    if (!isOpen) {
+      initializedRef.current = false;
+      return;
+    }
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     if (product) {
       // For existing products
       setFormData({
@@ -168,12 +181,19 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         custom_price_min: product.custom_price_min ?? 5.00,
         show_price_presets: product.show_price_presets !== false, // default true
         custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
+        // Embed checkout
+        embed_enabled: product.embed_enabled ?? false,
         // Subscription (Phase 4)
         product_type: product.product_type ?? 'one_time',
         billing_interval: product.billing_interval ?? null,
         billing_interval_count: product.billing_interval_count ?? null,
         recurring_price: product.recurring_price ?? null,
         trial_days: product.trial_days ?? null,
+        // Checkout template + custom fields (Phase 3 — checkout templates feat)
+        checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
+        custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
+          ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
+          : [],
       });
 
       // Fetch assigned categories
@@ -184,15 +204,31 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       }).catch(err => console.error(err));
 
       // Fetch OTO configuration for this product using v1 API
-      api.getCustom<{ has_oto: boolean; oto_product_id?: string; discount_type?: 'percentage' | 'fixed'; discount_value?: number; duration_minutes?: number }>(`products/${product.id}/oto`)
+      api.getCustom<{
+        has_oto: boolean;
+        oto_product_id?: string;
+        discount_type?: 'percentage' | 'fixed';
+        discount_value?: number;
+        duration_minutes?: number;
+        downsell_product_id?: string | null;
+        downsell_discount_type?: 'percentage' | 'fixed' | null;
+        downsell_discount_value?: number | null;
+        downsell_duration_minutes?: number | null;
+      }>(`products/${product.id}/oto`)
         .then(data => {
           if (data.has_oto) {
+            const hasDownsell = !!data.downsell_product_id;
             setOto({
               enabled: true,
               productId: data.oto_product_id || '',
               discountType: data.discount_type || 'percentage',
               discountValue: data.discount_value || 20,
-              durationMinutes: data.duration_minutes || 15
+              durationMinutes: data.duration_minutes || 15,
+              downsellEnabled: hasDownsell,
+              downsellProductId: data.downsell_product_id || '',
+              downsellDiscountType: data.downsell_discount_type || 'percentage',
+              downsellDiscountValue: data.downsell_discount_value ?? 50,
+              downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
             });
           } else {
             setOto(initialOtoState);
@@ -210,7 +246,6 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       // For new products — copy shop default VAT rate so it's explicit per product
       setFormData({
         ...initialFormData,
-        currency: defaultCurrency,
         icon: getIconEmoji('rocket'),
         vat_rate: shopDefaultVatRate != null ? Math.round(shopDefaultVatRate * 100) : null,
       });
@@ -225,6 +260,16 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 100);
+    }
+  }, [product, isOpen]);
+
+  // When shop default currency loads, apply it to new products (if user hasn't changed currency yet)
+  useEffect(() => {
+    if (!product && isOpen) {
+      setFormData(prev => {
+        if (prev.currency !== initialFormData.currency) return prev; // user already changed it
+        return { ...prev, currency: defaultCurrency };
+      });
     }
   }, [product, isOpen, defaultCurrency]);
 
@@ -543,6 +588,12 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       oto_discount_type: oto.discountType,
       oto_discount_value: oto.discountValue,
       oto_duration_minutes: oto.durationMinutes,
+      // Downsell branch — only persist when toggled on AND a product is picked
+      oto_downsell_product_id: oto.enabled && oto.downsellEnabled && oto.downsellProductId
+        ? oto.downsellProductId : null,
+      oto_downsell_discount_type: oto.downsellDiscountType,
+      oto_downsell_discount_value: oto.downsellDiscountValue,
+      oto_downsell_duration_minutes: oto.downsellDurationMinutes,
     };
 
     // Check waitlist config if enabling waitlist

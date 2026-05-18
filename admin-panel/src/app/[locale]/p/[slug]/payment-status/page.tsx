@@ -4,8 +4,10 @@ import { redirect } from 'next/navigation';
 import PaymentStatusView from './components/PaymentStatusView';
 import { verifyPaymentSession, verifyPaymentIntent, OtoInfo, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
+import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
-import { PaymentStatus, OtoOfferInfo } from './types';
+import { PaymentStatus } from './types';
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -144,17 +146,20 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
     errorMessage = 'An error occurred while verifying payment status';
   }
 
-  // Calculate Funnel/OTO Redirect URL and OTO Offer Info
+  // Calculate Funnel/OTO Redirect URL.
+  // OTO flow: when an active offer is present and the buyer doesn't already
+  // own the upsell product, we ALWAYS redirect server-side to the OTO
+  // checkout. The legacy interstitial offer card has been removed — the new
+  // 'oto' checkout template puts the countdown and the decline button on the
+  // upsell checkout page itself, so the buyer never sees a separate offer
+  // page (one fewer click + one fewer URL hop).
   let finalRedirectUrl: string | undefined = undefined;
-  let otoOfferInfo: OtoOfferInfo | undefined = undefined;
 
-  // Check for OTO offer (takes priority over regular success_redirect_url)
   if ((accessGranted || paymentStatus === 'magic_link_sent') && otoInfo?.has_oto && otoInfo.oto_product_slug) {
-    // Check if customer already has access to OTO product - skip OTO if they do
+    // Skip the funnel entirely if the buyer already owns the upsell product.
     let customerHasOtoAccess = false;
 
     if (otoInfo.oto_product_id && customerEmail) {
-      // First check if user exists with this email
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
@@ -162,7 +167,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         .maybeSingle();
 
       if (existingUser) {
-        // Check if user has access to OTO product
         const { data: existingOtoAccess } = await supabase
           .from('user_product_access')
           .select('id, access_expires_at')
@@ -171,7 +175,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
           .maybeSingle();
 
         if (existingOtoAccess) {
-          // Check if access is still valid (not expired)
           const expiresAt = existingOtoAccess.access_expires_at
             ? new Date(existingOtoAccess.access_expires_at)
             : null;
@@ -180,50 +183,80 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       }
     }
 
-    if (customerHasOtoAccess) {
-      // Customer already owns OTO product - skip OTO offer
-    } else {
-      // Build OTO checkout URL
+    // Pull the buyer's full name from the source transaction so the upsell
+    // checkout pre-fills it. Profile lookup would also work for logged-in
+    // users, but reading from payment metadata covers guests too.
+    let customerName: string | undefined;
+    if (session_id || payment_intent) {
+      const txQuery = supabase
+        .from('payment_transactions')
+        .select('metadata')
+        .limit(1);
+      const { data: txRow } = session_id
+        ? await txQuery.eq('session_id', session_id).maybeSingle()
+        : await txQuery.eq('stripe_payment_intent_id', payment_intent!).maybeSingle();
+
+      const meta = (txRow?.metadata ?? {}) as Record<string, unknown>;
+      const nameFromMeta = typeof meta.full_name === 'string' && meta.full_name.trim().length > 0
+        ? meta.full_name
+        : typeof meta.fullName === 'string' && meta.fullName.trim().length > 0
+          ? meta.fullName
+          : undefined;
+      customerName = nameFromMeta;
+    }
+
+    if (!customerHasOtoAccess) {
       const otoRedirect = buildOtoRedirectUrl({
         locale: resolvedParams.locale,
         otoProductSlug: otoInfo.oto_product_slug!,
         customerEmail: customerEmail || undefined,
+        customerName,
         couponCode: otoInfo.coupon_code,
         baseUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL,
         hideBump: hasHideBumpParam(product.success_redirect_url),
         passParams: product.pass_params_to_redirect || false,
         sourceProductId: product.id,
-        sessionId: session_id
+        sessionId: session_id,
+        downsellCouponCode: otoInfo.downsell_code,
+        downsellProductSlug: otoInfo.downsell_product_slug,
       });
 
-      // Build OTO offer info for display on payment-status page
-      otoOfferInfo = {
-        hasOto: true,
-        otoProductSlug: otoInfo.oto_product_slug,
-        otoProductName: otoInfo.oto_product_name,
-        discountType: otoInfo.discount_type,
-        discountValue: otoInfo.discount_value,
-        expiresAt: otoInfo.expires_at,
-        checkoutUrl: otoRedirect.url,
-        currency: otoInfo.oto_product_currency
-      };
-
-      // Log warning if required params are missing
       if (!otoRedirect.hasAllRequiredParams) {
         console.warn('OTO Redirect missing params:', otoRedirect.missingParams, '- OTO countdown may not work');
       }
+
+      // Guest gets magic link sent server-side before we redirect into the funnel.
+      if (paymentStatus === 'magic_link_sent' && customerEmail) {
+        const { error: magicErr } = await supabase.auth.signInWithOtp({
+          email: customerEmail,
+          options: {
+            shouldCreateUser: true,
+            emailRedirectTo: buildPostCheckoutMagicLinkRedirect({
+              origin: getSellfBaseUrl(),
+              productSlug: product.slug,
+              sessionId: session_id,
+              paymentIntentId: payment_intent,
+            }),
+          },
+        });
+        if (magicErr) {
+          console.error('[payment-status] Magic link send failed pre-OTO:', magicErr.message);
+        }
+      }
+
+      redirect(otoRedirect.url);
     }
   }
 
   // Redirect logic:
-  // 1. OTO active -> handled above (otoOfferInfo is set)
+  // 1. OTO active -> handled above via redirect()
   // 2. OTO skipped (user owns product) -> NO redirect
   // 3. No OTO -> use success_redirect_url
 
   // Include magic_link_sent as a success scenario (guest purchase)
   const isSuccessfulPayment = (accessGranted && paymentStatus === 'completed') || paymentStatus === 'magic_link_sent';
 
-  if (isSuccessfulPayment && !otoOfferInfo) {
+  if (isSuccessfulPayment) {
     // Check if OTO was configured but skipped (user already owns the product)
     const otoWasSkipped = otoInfo?.reason === 'already_owns_oto_product';
 
@@ -272,7 +305,6 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       sessionId={session_id}
       paymentIntentId={payment_intent}
       redirectUrl={finalRedirectUrl}
-      otoOffer={otoOfferInfo}
     />
   );
 }

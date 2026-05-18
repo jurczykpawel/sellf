@@ -42,3 +42,25 @@ export const RETRIABLE_EVENTS: ReadonlySet<string> = new Set<string>([
   'invoice.paid',
   'invoice.payment_succeeded',
 ]);
+
+// Terminal failures: handler returned processed:false but the cause is a
+// permanent data inconsistency (no point in Stripe retrying). Ack with 200
+// so the webhook queue drains instead of looping until heap OOM.
+//
+// The invoice-side "No (email|customer) on X" variants are the same
+// orphaned-subscription scenario as 'No email on customer' but emitted
+// from the invoice.* handlers (paid, payment_failed, upcoming). A new
+// variant added without listing it here flips the event into the retriable
+// gate and storms — the drift guard in stripe-retriable-events.test.ts
+// catches that.
+export const TERMINAL_FAILURE_REASONS: ReadonlySet<string> = new Set<string>([
+  'Product not found',
+  'Subscription missing metadata.product_id',
+  'Stripe price id does not match the bound product',
+  'No email on customer',
+  'No email on invoice',
+  'No email on invoice or customer',
+  'No email on upcoming invoice',
+  'No customer on upcoming invoice',
+  'Customer is deleted',
+]);

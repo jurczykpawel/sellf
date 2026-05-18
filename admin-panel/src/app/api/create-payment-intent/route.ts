@@ -10,6 +10,10 @@ import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
 import {
+  validateCustomFieldDefinitions,
+  validateCustomFieldValues,
+} from '@/lib/validations/custom-checkout-fields';
+import {
   ProductValidationService,
   type BillingInterval,
   type ValidatedProduct,
@@ -20,6 +24,8 @@ import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
+import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
+import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 
 type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>;
@@ -77,6 +83,7 @@ export async function POST(request: NextRequest) {
       country,
       successUrl,
       customAmount,  // Pay What You Want
+      customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
     } = body;
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
@@ -155,6 +162,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 1a. Validate custom checkout fields against the product's definitions.
+    // Defense in depth: client also validates, but server is the source of truth.
+    const productCustomFieldDefs = validateCustomFieldDefinitions(
+      product.custom_checkout_fields ?? [],
+    );
+    if (!productCustomFieldDefs.ok) {
+      console.error(
+        '[create-payment-intent] product %s has invalid custom_checkout_fields shape:',
+        productId,
+        productCustomFieldDefs.errors,
+      );
+      return NextResponse.json(
+        { error: 'Product checkout configuration is invalid' },
+        { status: 500 },
+      );
+    }
+    // Mount-time POST: buyer may not have filled required fields yet — relax
+    // the "required" check so the pending payment_transactions row can be
+    // created. Final required check happens at /api/update-payment-metadata
+    // (submit-time) before checkout.confirm().
+    const customFieldValuesResult = validateCustomFieldValues(
+      productCustomFieldDefs.value,
+      customFieldValues ?? {},
+      { requireAll: false },
+    );
+    if (!customFieldValuesResult.ok) {
+      return NextResponse.json(
+        { error: 'Invalid custom field values', details: customFieldValuesResult.errors },
+        { status: 400 },
+      );
+    }
+    const validatedCustomFieldValues = customFieldValuesResult.values;
+
     // 2. Check if user already has access
     if (user) {
       const { data: existingAccess } = await dataClient
@@ -196,7 +236,15 @@ export async function POST(request: NextRequest) {
         stripe_price_id: product.stripe_price_id,
       };
 
-      if (requestedBumpIds.length > 0 || couponCode || customAmount !== undefined) {
+      // PWYW subscriptions (subscription product + allow_custom_price=true)
+      // skip the fixed Checkout Session path and use stripe.subscriptions.create
+      // with dynamic price_data, so the buyer can pick their monthly amount
+      // and we don't accumulate one Stripe Price per donation level. Coupons
+      // + bumps + custom amount remain incompatible with the fixed flow.
+      const isPwywSubscription =
+        subscriptionProduct.allow_custom_price === true && customAmount !== undefined;
+
+      if (!isPwywSubscription && (requestedBumpIds.length > 0 || couponCode || customAmount !== undefined)) {
         return NextResponse.json(
           { error: 'Coupons, custom amounts, and order bumps are not supported for subscription checkout' },
           { status: 400 }
@@ -225,6 +273,41 @@ export async function POST(request: NextRequest) {
           percentage: subscriptionProduct.vat_rate,
           inclusive: subscriptionProduct.price_includes_vat,
         });
+      }
+
+      if (isPwywSubscription) {
+        const v = validateCustomAmount(customAmount, product);
+        if (!v.ok) {
+          return NextResponse.json({ error: v.error }, { status: 400 });
+        }
+        if (!customerId) {
+          return NextResponse.json(
+            { error: 'Email is required for recurring support' },
+            { status: 400 },
+          );
+        }
+        const stripeProductId = await ensureStripeProduct({
+          stripe,
+          dataClient,
+          product: {
+            id: product.id,
+            name: product.name,
+            stripe_product_id: (product as { stripe_product_id?: string | null }).stripe_product_id ?? null,
+          },
+        });
+        const { clientSecret, subscriptionId } = await createSubscriptionWithDynamicPrice({
+          stripe,
+          amount: customAmount as number,
+          currency: subscriptionProduct.currency,
+          customer: customerId,
+          stripeProductId,
+          productId: subscriptionProduct.id,
+          productSlug: subscriptionProduct.slug,
+          interval: (subscriptionProduct.billing_interval ?? 'month') as 'day' | 'week' | 'month' | 'year',
+          intervalCount: subscriptionProduct.billing_interval_count ?? 1,
+          taxRateId,
+        });
+        return NextResponse.json({ clientSecret, subscriptionId });
       }
 
       const stripePriceId = await getOrCreateStripePriceForProduct(stripe, subscriptionProduct);
@@ -638,7 +721,8 @@ export async function POST(request: NextRequest) {
             ...checkoutMetadata,
             // Full bump list (not subject to Stripe's 500-char metadata limit)
             bump_product_ids_full: bumpIds,
-          }
+          },
+          custom_field_values: validatedCustomFieldValues,
         });
 
       if (insertError) {

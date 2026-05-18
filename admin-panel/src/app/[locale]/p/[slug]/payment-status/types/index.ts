@@ -24,17 +24,6 @@ export interface StatusInfo {
   bgColor: string;
 }
 
-export interface OtoOfferInfo {
-  hasOto: boolean;
-  otoProductSlug?: string;
-  otoProductName?: string;
-  discountType?: 'percentage' | 'fixed';
-  discountValue?: number;
-  expiresAt?: string;
-  checkoutUrl?: string;
-  currency?: string;
-}
-
 export interface PaymentStatusViewProps {
   product: Product;
   accessGranted: boolean;
@@ -44,8 +33,6 @@ export interface PaymentStatusViewProps {
   sessionId?: string;
   paymentIntentId?: string;
   redirectUrl?: string;
-  /** OTO offer info - if present, show OTO banner instead of auto-redirect */
-  otoOffer?: OtoOfferInfo;
 }
 
 export interface AuthStatus {

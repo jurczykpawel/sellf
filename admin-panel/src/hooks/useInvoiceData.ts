@@ -44,11 +44,21 @@ export interface UseInvoiceDataReturn extends InvoiceFieldsData {
   setFullName: (v: string) => void;
 }
 
-export function useInvoiceData(email: string | undefined): UseInvoiceDataReturn {
+export interface UseInvoiceDataOptions {
+  /** Seed value for the fullName field (e.g. from a funnel URL ?name=...). */
+  initialFullName?: string;
+}
+
+export function useInvoiceData(
+  email: string | undefined,
+  options: UseInvoiceDataOptions = {},
+): UseInvoiceDataReturn {
   const t = useTranslations('checkout');
 
+  const { initialFullName } = options;
+
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState(initialFullName ?? '');
   const [nip, setNip] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [address, setAddress] = useState('');

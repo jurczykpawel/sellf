@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { encryptCurrencyKey, decryptCurrencyKey } from '@/lib/services/currency-encryption';
+import { encryptSecret } from '@/lib/services/secret-encryption';
 import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { withAdminAuth } from '@/lib/actions/admin-auth';
@@ -68,7 +68,7 @@ export async function saveCurrencyConfig(input: SaveCurrencyConfigInput): Promis
 
     // Encrypt API key if provided
     if (input.apiKey) {
-      const encrypted = await encryptCurrencyKey(input.apiKey.trim());
+      const encrypted = await encryptSecret(input.apiKey.trim());
       updateData.currency_api_key_encrypted = encrypted.encryptedKey;
       updateData.currency_api_key_iv = encrypted.iv;
       updateData.currency_api_key_tag = encrypted.tag;
@@ -169,67 +169,6 @@ export async function getCurrencyConfig(): Promise<ActionResponse<CurrencyConfig
       error: error instanceof Error ? error.message : 'Unknown error',
       errorCode: 'UNKNOWN_ERROR'
     };
-  }
-}
-
-/**
- * Gets decrypted Currency API configuration (server-side only)
- *
- * Method priority:
- * 1. Database encrypted config (METHOD 1 - recommended for non-technical users via UI)
- * 2. NEXT_PUBLIC_CURRENCY_PROVIDER + CURRENCY_API_KEY from .env (METHOD 2 - for developers)
- * 3. Manual fallback (METHOD 3 - always works)
- *
- * Returns { provider, apiKey } or null if disabled
- */
-export async function getDecryptedCurrencyConfig(): Promise<{ provider: string; apiKey: string | null } | null> {
-  try {
-    // METHOD 1: Check database first (priority)
-    const supabase = await createClient();
-
-    const { data: config } = await supabase
-      .from('integrations_config')
-      .select('currency_api_provider, currency_api_key_encrypted, currency_api_key_iv, currency_api_key_tag, currency_api_enabled')
-      .eq('id', 1)
-      .single();
-
-    if (config?.currency_api_enabled && config?.currency_api_provider) {
-      const provider = config.currency_api_provider;
-
-      // If provider needs a key, decrypt it
-      if ((provider === 'exchangerate-api' || provider === 'fixer') && config.currency_api_key_encrypted) {
-        const decryptedKey = await decryptCurrencyKey({
-          encrypted_key: config.currency_api_key_encrypted,
-          encryption_iv: config.currency_api_key_iv,
-          encryption_tag: config.currency_api_key_tag,
-        });
-
-        return { provider, apiKey: decryptedKey };
-      }
-
-      // ECB doesn't need API key
-      if (provider === 'ecb') {
-        return { provider, apiKey: null };
-      }
-    }
-
-    // METHOD 2: Fallback to environment variables
-    const envProvider = process.env.NEXT_PUBLIC_CURRENCY_PROVIDER || 'ecb';
-    const envKey = process.env.CURRENCY_API_KEY;
-
-    if (envProvider && envProvider !== 'ecb') {
-      return {
-        provider: envProvider,
-        apiKey: envKey?.trim() || null
-      };
-    }
-
-    // METHOD 3: Final fallback to ECB (free, no key needed)
-    return { provider: 'ecb', apiKey: null };
-  } catch (error) {
-    console.error('Error decrypting Currency config:', error);
-    // Fallback to ECB on error
-    return { provider: 'ecb', apiKey: null };
   }
 }
 

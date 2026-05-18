@@ -49,11 +49,11 @@ test.describe('Stripe Webhook Section UI', () => {
       addStyle();
     });
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await setAuthSession(page, adminEmail, adminPassword);
     await page.waitForTimeout(1000);
     await page.goto('/pl/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     // Wait for React hydration before clicking tab (can be slow under full-suite pressure)
     const paymentsTab = page.getByRole('button', { name: /^Payments$|^Płatności$/i });
     await expect(paymentsTab).toBeVisible({ timeout: 20000 });

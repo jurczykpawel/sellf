@@ -130,7 +130,7 @@ test.describe('Shop Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Wait for ShopSettings to load (skeleton disappears)
     const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
@@ -154,7 +154,7 @@ test.describe('Shop Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Wait for form
     const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
@@ -177,7 +177,7 @@ test.describe('Shop Settings', () => {
 
     // Verify persists after reload
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
 
     const reloadedInput = page.locator('input[type="text"][placeholder]').first();
@@ -187,7 +187,7 @@ test.describe('Shop Settings', () => {
   test('should update default currency', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
@@ -211,7 +211,7 @@ test.describe('Shop Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
@@ -237,7 +237,7 @@ test.describe('Shop Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const shopHeading = page.locator('h2', { hasText: /Shop Configuration|Shop Settings|Konfiguracja sklepu|Ustawienia sklepu/i });
     await expect(shopHeading).toBeVisible({ timeout: 10000 });
@@ -289,7 +289,7 @@ test.describe('Shop Settings', () => {
 
       // Try to access settings page
       await page.goto('/dashboard/settings');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000);
 
       // Should NOT see Shop Settings heading (redirected or access denied)

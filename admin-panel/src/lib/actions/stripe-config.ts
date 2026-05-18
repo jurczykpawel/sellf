@@ -2,12 +2,13 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { encryptStripeKey, decryptStripeKey } from '@/lib/services/stripe-encryption'
+import { encryptSecret } from '@/lib/services/secret-encryption'
 import { requireAdminApi } from '@/lib/auth-server'
 import { withAdminAuth } from '@/lib/actions/admin-auth'
 import Stripe from 'stripe'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { invalidateStripeCache } from '@/lib/stripe/server'
+import { getDecryptedStripeKeyInternal } from '@/lib/stripe/internal-config'
 import type {
   StripeConfiguration,
   StripeMode,
@@ -445,7 +446,7 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
     const formatResult = validation.data.formatValidation
 
     // Encrypt the API key
-    const encrypted = await encryptStripeKey(input.apiKey.trim())
+    const encrypted = await encryptSecret(input.apiKey.trim())
 
     // Extract last 4 characters
     const keyLast4 = input.apiKey.trim().slice(-4)
@@ -498,112 +499,6 @@ export async function saveStripeConfig(input: CreateStripeConfigInput): Promise<
       },
     }
   })
-}
-
-/**
- * Internal helper: retrieves active config using service-role client.
- * Used by server-side callers (getStripeServer, verifyWebhookSignature) that
- * run outside a user session (e.g. webhook handlers, checkout flows).
- */
-async function getActiveStripeConfigInternal(mode: StripeMode): Promise<GetActiveConfigResponse> {
-  try {
-    const adminClient = createAdminClient()
-
-    const { data, error } = await adminClient
-      .from('stripe_configurations')
-      .select('*')
-      .eq('mode', mode)
-      .eq('is_active', true)
-      .single()
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return { success: true, data: null }
-      }
-      console.error('Failed to retrieve Stripe configuration:', error)
-      return {
-        success: false,
-        error: 'Failed to retrieve configuration',
-        errorCode: 'DATABASE_ERROR',
-      }
-    }
-
-    return { success: true, data: data as StripeConfiguration }
-  } catch (error) {
-    console.error('[getActiveStripeConfigInternal] Error:', error)
-    return {
-      success: false,
-      error: 'Failed to retrieve Stripe configuration',
-      errorCode: 'UNKNOWN_ERROR',
-    }
-  }
-}
-
-/**
- * Retrieves the active Stripe configuration for a given mode
- */
-export async function getActiveStripeConfig(mode: StripeMode): Promise<GetActiveConfigResponse> {
-  // Platform admin only — seller schemas don't have stripe_configurations
-  return withAdminAuth(async () => {
-    const dataClient = createAdminClient();
-    const { data, error } = await dataClient
-      .from('stripe_configurations')
-      .select('*')
-      .eq('mode', mode)
-      .eq('is_active', true)
-      .single()
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows found
-        return { success: true, data: null }
-      }
-      console.error('Failed to retrieve Stripe configuration:', error)
-      return {
-        success: false,
-        error: 'Failed to retrieve configuration',
-        errorCode: 'DATABASE_ERROR',
-      }
-    }
-
-    return { success: true, data: data as StripeConfiguration }
-  })
-}
-
-/**
- * Internal helper: decrypts active Stripe key using service-role client.
- * Used by server-side callers that run outside a user session.
- */
-export async function getDecryptedStripeKeyInternal(mode: StripeMode): Promise<string | null> {
-  try {
-    const configResponse = await getActiveStripeConfigInternal(mode)
-
-    if (!configResponse.success || !configResponse.data) {
-      return null
-    }
-
-    return await decryptStripeKey({
-      encrypted_key: configResponse.data.encrypted_key,
-      encryption_iv: configResponse.data.encryption_iv,
-      encryption_tag: configResponse.data.encryption_tag,
-    })
-  } catch (error) {
-    console.error('[getDecryptedStripeKeyInternal] Error:', error)
-    return null
-  }
-}
-
-/**
- * Retrieves and decrypts the active Stripe API key for a given mode.
- * Platform admin only — sellers use Stripe Connect, not raw API keys.
- */
-export async function getDecryptedStripeKey(mode: StripeMode): Promise<string | null> {
-  const result = await withAdminAuth(async () => {
-    const decrypted = await getDecryptedStripeKeyInternal(mode)
-    return { success: true, data: decrypted }
-  })
-  if (!result.success) return null
-  return result.data ?? null
 }
 
 /**
@@ -782,7 +677,7 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
     const update: Record<string, string | null> = { webhook_endpoint_id: endpointId }
 
     if (signingSecret) {
-      const encrypted = await encryptStripeKey(signingSecret)
+      const encrypted = await encryptSecret(signingSecret)
       update.webhook_signing_secret_enc = encrypted.encryptedKey
       update.webhook_signing_iv = encrypted.iv
       update.webhook_signing_tag = encrypted.tag
@@ -806,7 +701,7 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
     } else {
       // ENV-config install: no DB row exists — insert a sentinel row to track webhook registration.
       // Sentinel uses placeholder encryption fields that intentionally fail decryption so
-      // getDecryptedStripeKey returns null → dbConfigured stays false → activeSource stays 'env'.
+      // getDecryptedStripeKeyInternal returns null → dbConfigured stays false → activeSource stays 'env'.
       const envKey = process.env.STRIPE_SECRET_KEY ?? ''
       const { error: dbError } = await supabase
         .from('stripe_configurations')
@@ -842,64 +737,3 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
   }
 }
 
-/**
- * Internal helper: decrypts webhook signing secret using service-role client.
- * Used by verifyWebhookSignature() which runs in webhook context (no user session).
- */
-export async function getDecryptedWebhookSecretInternal(): Promise<string | null> {
-  try {
-    const adminClient = createAdminClient()
-
-    const { data } = await adminClient
-      .from('stripe_configurations')
-      .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (!data?.webhook_signing_secret_enc || !data.webhook_signing_iv || !data.webhook_signing_tag) {
-      return null
-    }
-
-    return await decryptStripeKey({
-      encrypted_key: data.webhook_signing_secret_enc,
-      encryption_iv: data.webhook_signing_iv,
-      encryption_tag: data.webhook_signing_tag,
-    })
-  } catch (error) {
-    console.error('[getDecryptedWebhookSecretInternal] Error:', error)
-    return null
-  }
-}
-
-/**
- * Retrieves and decrypts the webhook signing secret from the active DB config.
- * Platform admin only.
- */
-export async function getDecryptedWebhookSecret(): Promise<string | null> {
-  const result = await withAdminAuth(async () => {
-    const dataClient = createAdminClient();
-    const { data } = await dataClient
-      .from('stripe_configurations')
-      .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (!data?.webhook_signing_secret_enc || !data.webhook_signing_iv || !data.webhook_signing_tag) {
-      return { success: true, data: null }
-    }
-
-    const secret = await decryptStripeKey({
-      encrypted_key: data.webhook_signing_secret_enc,
-      encryption_iv: data.webhook_signing_iv,
-      encryption_tag: data.webhook_signing_tag,
-    })
-
-    return { success: true, data: secret }
-  })
-  if (!result.success) return null
-  return result.data ?? null
-}

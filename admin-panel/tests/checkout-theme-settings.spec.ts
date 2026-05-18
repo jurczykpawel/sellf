@@ -49,7 +49,7 @@ test.describe('Checkout Theme Settings', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     await setAuthSession(page, adminEmail, password);
 
@@ -194,7 +194,10 @@ test.describe('Checkout Theme Settings', () => {
     // Wait for the dark button to get the selected class (server action saves + revalidates)
     await expect(darkBtn).toHaveClass(/border-sf-border-accent/, { timeout: 10000 });
 
-    // Reload and verify persistence
+    // Reload and verify persistence. CheckoutThemeSettings is a client
+    // component that fetches the config in useEffect → button selection
+    // only updates after that async chain resolves. Wait for the
+    // loading-pulse placeholder to disappear before asserting the class.
     await page.reload();
     await page.waitForLoadState('networkidle');
 
@@ -203,8 +206,8 @@ test.describe('Checkout Theme Settings', () => {
 
     const reloadedSection = reloadedHeading.locator('..');
     const darkButton = reloadedSection.locator('button', { hasText: '🌙' });
-    await expect(darkButton).toBeVisible({ timeout: 5000 });
-    await expect(darkButton).toHaveClass(/border-sf-border-accent/, { timeout: 5000 });
+    await expect(darkButton).toBeVisible({ timeout: 10000 });
+    await expect(darkButton).toHaveClass(/border-sf-border-accent/, { timeout: 15000 });
   });
 
   test('should apply dark theme on checkout page', async ({ page }) => {
@@ -221,15 +224,12 @@ test.describe('Checkout Theme Settings', () => {
       localStorage.removeItem('sf_theme');
     });
 
-    // Visit checkout page (public, no login needed)
+    // Visit checkout page (public, no login needed).
+    // /checkout uses Stripe Embedded Checkout — telemetry to m.stripe.com keeps
+    // the network busy indefinitely, so `networkidle` never fires here. Wait on
+    // the actual condition under test instead (ThemeScript adds `dark` class
+    // synchronously from <head>, so this resolves immediately after navigation).
     await page.goto(`/checkout/${testProductSlug}`);
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000);
-
-    // The HTML element should have the "dark" class from ThemeScript
-    const hasDark = await page.evaluate(() => {
-      return document.documentElement.classList.contains('dark');
-    });
-    expect(hasDark).toBe(true);
+    await expect(page.locator('html')).toHaveClass(/dark/, { timeout: 15000 });
   });
 });

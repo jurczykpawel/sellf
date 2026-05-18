@@ -3,6 +3,7 @@ import {
   buildOtoRedirectUrl,
   validateOtoRedirectUrl,
   buildSuccessRedirectUrl,
+  buildDownsellRedirectUrl,
   hasHideBumpParam
 } from '@/lib/payment/oto-redirect';
 
@@ -180,6 +181,83 @@ describe('OTO Redirect URL Builder', () => {
         'https://myshop.com/en/checkout/premium?email=buyer%40shop.com&coupon=OTO-DISCOUNT&oto=1&hide_bump=true&productId=src-product-id&sessionId=stripe-session-id'
       );
       expect(result.hasAllRequiredParams).toBe(true);
+    });
+
+    // Customer name is carried through the funnel so the second checkout
+    // form can pre-fill it without forcing the buyer to retype.
+    it('should add name param when customerName is provided', () => {
+      const result = buildOtoRedirectUrl({
+        locale: 'pl',
+        otoProductSlug: 'premium',
+        customerEmail: 'jan@example.com',
+        couponCode: 'OTO-ABC',
+        customerName: 'Jan Kowalski',
+      });
+
+      expect(result.url).toContain('name=Jan+Kowalski');
+    });
+
+    it('should URL-encode special characters in customerName', () => {
+      const result = buildOtoRedirectUrl({
+        locale: 'pl',
+        otoProductSlug: 'premium',
+        customerEmail: 'a@b.com',
+        couponCode: 'CODE',
+        customerName: 'Łukasz Żółć',
+      });
+
+      // Polish diacritics must survive encode+decode round-trip
+      expect(result.url).toContain('name=');
+      const url = new URL(result.url);
+      expect(url.searchParams.get('name')).toBe('Łukasz Żółć');
+    });
+
+    it('should not add name param when customerName is empty or missing', () => {
+      const noName = buildOtoRedirectUrl({
+        locale: 'pl',
+        otoProductSlug: 'premium',
+        customerEmail: 'a@b.com',
+        couponCode: 'CODE',
+      });
+      expect(noName.url).not.toContain('name=');
+
+      const emptyName = buildOtoRedirectUrl({
+        locale: 'pl',
+        otoProductSlug: 'premium',
+        customerEmail: 'a@b.com',
+        couponCode: 'CODE',
+        customerName: '',
+      });
+      expect(emptyName.url).not.toContain('name=');
+    });
+  });
+
+  describe('buildDownsellRedirectUrl', () => {
+    it('should add name param when customerName is provided', () => {
+      const url = buildDownsellRedirectUrl({
+        locale: 'pl',
+        downsellProductSlug: 'lite',
+        downsellCouponCode: 'DOWN-50',
+        customerEmail: 'jan@example.com',
+        customerName: 'Jan Kowalski',
+      });
+
+      const parsed = new URL(url);
+      expect(parsed.searchParams.get('name')).toBe('Jan Kowalski');
+      expect(parsed.searchParams.get('email')).toBe('jan@example.com');
+      expect(parsed.searchParams.get('coupon')).toBe('DOWN-50');
+      expect(parsed.searchParams.get('oto')).toBe('1');
+    });
+
+    it('should not add name param when customerName is missing', () => {
+      const url = buildDownsellRedirectUrl({
+        locale: 'pl',
+        downsellProductSlug: 'lite',
+        downsellCouponCode: 'DOWN-50',
+        customerEmail: 'jan@example.com',
+      });
+
+      expect(url).not.toContain('name=');
     });
   });
 

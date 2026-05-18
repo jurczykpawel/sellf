@@ -16,6 +16,8 @@ interface ProductPurchaseViewProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   licenseValid?: boolean;
   taxMode?: TaxMode;
+  layoutMode?: 'standalone' | 'embedded';
+  afterCheckoutSlot?: React.ReactNode;
 }
 
 type UnavailableReason = 'not_started' | 'expired' | 'inactive' | null;
@@ -46,7 +48,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled
@@ -63,11 +65,12 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       ) : product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
         <FreeProductForm product={product} />
       ) : (
-        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} />
+        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} />
       )}
 
-      {/* Sellf branding — hidden when a valid license is active */}
-      {!licenseValid && <SellfBranding />}
+      {/* Sellf branding — hidden when a valid license is active. In embedded
+          mode the host template (e.g. tip-jar) takes responsibility for branding. */}
+      {!licenseValid && layoutMode === 'standalone' && <SellfBranding />}
     </div>
   );
 }

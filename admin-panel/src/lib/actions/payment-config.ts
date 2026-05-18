@@ -12,20 +12,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import {
   fetchStripePaymentMethodConfigs,
   fetchStripePaymentMethodConfig,
-  isValidStripePMCId as validateStripePMCId,
 } from '@/lib/stripe/payment-method-configs';
+import { isValidStripePMCId as validateStripePMCId } from '@/lib/stripe/payment-method-metadata';
 import type {
   PaymentMethodConfig,
   UpdatePaymentConfigInput,
   PaymentConfigActionResult,
   StripePaymentMethodConfigsResult,
   PaymentMethodMetadata,
+  StripePaymentMethodConfig,
 } from '@/types/payment-config';
 import { RECOMMENDED_CONFIG } from '@/lib/utils/payment-method-helpers';
 
@@ -125,7 +126,7 @@ const UpdatePaymentConfigSchema = z.object({
  */
 export async function getPaymentMethodConfig(): Promise<PaymentMethodConfig | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('payment_method_config')
@@ -138,7 +139,7 @@ export async function getPaymentMethodConfig(): Promise<PaymentMethodConfig | nu
       return null;
     }
 
-    return data as PaymentMethodConfig;
+    return data as unknown as PaymentMethodConfig;
   } catch (error) {
     console.error('[getPaymentMethodConfig] Exception:', error);
     return null;
@@ -286,8 +287,16 @@ export async function updatePaymentMethodConfig(
 export async function getStripePaymentMethodConfigsCached(
   forceRefresh = false
 ): Promise<StripePaymentMethodConfigsResult> {
+  // Admin gate: previously enforced implicitly via RLS on createClient().
+  // createAdminClient bypasses RLS, so this is the only thing preventing
+  // anon callers from amplifying Stripe API load on cache miss.
+  const adminCheck = await withAdminClient(async () => ({ success: true as const }));
+  if (!adminCheck.success) {
+    return { success: false, error: adminCheck.error || 'Unauthorized' };
+  }
+
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Get current cache
     const { data: config } = await supabase
@@ -316,7 +325,7 @@ export async function getStripePaymentMethodConfigsCached(
     if (isCacheFresh && config.available_payment_methods) {
       return {
         success: true,
-        data: config.available_payment_methods,
+        data: config.available_payment_methods as unknown as StripePaymentMethodConfig[],
         cached: true,
       };
     }
@@ -345,7 +354,7 @@ export async function getStripePaymentMethodConfigsCached(
     if (config.available_payment_methods) {
       return {
         success: true,
-        data: config.available_payment_methods,
+        data: config.available_payment_methods as unknown as StripePaymentMethodConfig[],
         cached: true,
         error: result.error,
       };

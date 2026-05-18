@@ -8,7 +8,7 @@ test.describe('E2E Critical Flows', () => {
     await page.goto('/');
 
     // Wait for page to load (SmartLanding can show onboarding, coming soon, or storefront)
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const body = page.locator('body');
     await expect(body).not.toBeEmpty();
 
@@ -29,7 +29,7 @@ test.describe('E2E Critical Flows', () => {
     await page.goto('/');
 
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // SmartLanding can show: admin onboarding, guest coming soon, or storefront
     // Just verify the page loaded without errors

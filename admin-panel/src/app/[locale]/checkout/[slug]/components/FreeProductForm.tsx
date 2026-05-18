@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import { buildOtoRedirectUrl } from '@/lib/payment/oto-redirect';
@@ -12,6 +12,11 @@ import { validateEmailAction } from '@/lib/actions/validate-email';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
+import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import type {
+  CustomFieldDefinition,
+  CustomFieldValues,
+} from '@/lib/validations/custom-checkout-fields';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
 import { createClient } from '@/lib/supabase/client';
 import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
@@ -41,6 +46,11 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const captcha = useCaptcha();
+  const customFieldDefs = useMemo<CustomFieldDefinition[]>(
+    () => (Array.isArray(product.custom_checkout_fields) ? product.custom_checkout_fields : []),
+    [product.custom_checkout_fields],
+  );
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info' | null; text: string }>({
     type: null,
     text: '',
@@ -266,6 +276,21 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
                 disabled={loading}
               />
             </div>
+          )}
+
+          {/* Product-defined custom checkout fields (e.g. message, domain).
+              Free product persistence of these values is deferred — values
+              flow through the grant-access path only once that endpoint is
+              extended (follow-up). For now they render so admins can preview
+              the layout when toggling allow_custom_price + tip-jar template
+              before going paid. */}
+          {customFieldDefs.length > 0 && (
+            <CustomCheckoutFieldsForm
+              fields={customFieldDefs}
+              values={customFieldValues}
+              onChange={setCustomFieldValues}
+              disabled={loading}
+            />
           )}
 
           {/* Terms checkbox — only for guests (logged-in users accepted at registration) */}

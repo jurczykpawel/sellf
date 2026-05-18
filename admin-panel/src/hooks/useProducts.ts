@@ -59,6 +59,11 @@ interface ProductCreateData {
   oto_discount_type?: string | null;
   oto_discount_value?: number | null;
   oto_duration_minutes?: number | null;
+  // Downsell branch (sibling to OTO; persisted on the same oto_offers row)
+  oto_downsell_product_id?: string | null;
+  oto_downsell_discount_type?: string | null;
+  oto_downsell_discount_value?: number | null;
+  oto_downsell_duration_minutes?: number | null;
 }
 
 type ProductUpdateData = Partial<ProductCreateData>;
@@ -160,7 +165,11 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
    */
   const createProduct = useCallback(async (data: ProductCreateData): Promise<Product> => {
     // Extract OTO fields - they're handled separately
-    const { oto_enabled, oto_product_id, oto_discount_type, oto_discount_value, oto_duration_minutes, ...productData } = data;
+    const {
+      oto_enabled, oto_product_id, oto_discount_type, oto_discount_value, oto_duration_minutes,
+      oto_downsell_product_id, oto_downsell_discount_type, oto_downsell_discount_value, oto_downsell_duration_minutes,
+      ...productData
+    } = data;
 
     // Create the product
     const product = await api.create<Product>('products', productData);
@@ -173,6 +182,10 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
           discount_type: oto_discount_type || 'percentage',
           discount_value: oto_discount_value || 20,
           duration_minutes: oto_duration_minutes || 15,
+          downsell_product_id: oto_downsell_product_id || null,
+          downsell_discount_type: oto_downsell_discount_type || null,
+          downsell_discount_value: oto_downsell_discount_value ?? null,
+          downsell_duration_minutes: oto_downsell_duration_minutes ?? null,
         });
       } catch (otoErr) {
         console.error('Failed to save OTO configuration:', otoErr);
@@ -188,7 +201,11 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
    */
   const updateProduct = useCallback(async (id: string, data: ProductUpdateData): Promise<Product> => {
     // Extract OTO fields - they're handled separately
-    const { oto_enabled, oto_product_id, oto_discount_type, oto_discount_value, oto_duration_minutes, ...productData } = data;
+    const {
+      oto_enabled, oto_product_id, oto_discount_type, oto_discount_value, oto_duration_minutes,
+      oto_downsell_product_id, oto_downsell_discount_type, oto_downsell_discount_value, oto_downsell_duration_minutes,
+      ...productData
+    } = data;
 
     // Update the product
     const product = await api.update<Product>('products', id, productData);
@@ -202,6 +219,10 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
           discount_type: oto_discount_type || 'percentage',
           discount_value: oto_discount_value || 20,
           duration_minutes: oto_duration_minutes || 15,
+          downsell_product_id: oto_downsell_product_id || null,
+          downsell_discount_type: oto_downsell_discount_type || null,
+          downsell_discount_value: oto_downsell_discount_value ?? null,
+          downsell_duration_minutes: oto_downsell_duration_minutes ?? null,
         });
       } else {
         // Delete OTO configuration

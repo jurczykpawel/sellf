@@ -5,9 +5,11 @@ import {
   SalePriceSection,
   AvailabilitySection,
   AccessSection,
+  EmbedSection,
   PostPurchaseSection,
   RefundSection,
   AdvancedSection,
+  BadgeGeneratorSection,
 } from '../../sections';
 import type { ProductFormData, TranslationFunction, OtoState } from '../../types';
 import type { Product } from '@/types';
@@ -65,6 +67,12 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         t={t}
       />
 
+      <EmbedSection
+        formData={formData}
+        setFormData={setFormData}
+        t={t}
+      />
+
       <PostPurchaseSection
         formData={formData}
         setFormData={setFormData}
@@ -88,6 +96,8 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         t={t}
         omnibusEnabled={omnibusEnabled}
       />
+
+      <BadgeGeneratorSection formData={formData} />
     </div>
   );
 };

@@ -556,6 +556,8 @@
     "paid": "Płatny",
     "permanent": "Permanentny",
     "generateCode": "Generuj kod",
+    "generateProtectionCode": "Generuj kod ochrony treści",
+    "generateEmbedSnippet": "Generuj kod osadzania koszyka",
     "codeGenerated": "Kod wygenerowany",
     "copyCode": "Kopiuj kod",
     "codeCopied": "Kod skopiowany!"
@@ -622,8 +624,9 @@
       "hourlySubtitle": "Podział godzinowy"
     }
   },
-  "codeGenerator": {
-    "title": "Generuj kod ochrony",
+  "protectionCode": {
+    "title": "Generuj kod ochrony treści",
+    "subtitle": "Blokuj wybrane treści na własnej stronie z sellf.js. NIE jest to formularz zakupu.",
     "product": "Produkt",
     "slug": "Slug",
     "protectionMode": "Tryb ochrony",
@@ -657,23 +660,44 @@
     "implementationDescription": "Dodaj data-sellf-product=\"{slug}\" do treści, która powinna być widoczna dla użytkowników z dostępem, i data-no-access=\"true\" do treści zastępczej dla użytkowników bez dostępu. Skrypt automatycznie zarządza widocznością.",
     "commonUseCase": "Powszechny przypadek użycia",
     "elementModeUseCase": "Zamień przyciski \"Kup teraz\" na przyciski \"Uzyskaj dostęp do produktu\" dla istniejących klientów, lub pokaż sekcje premium tylko subskrybentom.",
-    "embedMode": "Widget do Osadzenia",
-    "embedDescription": "Formularz do osadzenia na stronach landing page",
-    "embedInstructions": {
-      "step1": "1. Wklej kod w dowolnym miejscu HTML swojej strony landing page",
-      "step2": "2. Widget uruchomi się automatycznie i wyświetli formularz rejestracji",
-      "step3": "3. Użytkownicy wpisują email → otrzymują magiczny link → uzyskują natychmiastowy dostęp",
-      "step4": "4. Idealne do stron generowanych przez AI lub własnych stron internetowych"
-    },
-    "embedInfoFreeOnlyTitle": "🎁 Tylko darmowe produkty",
-    "embedInfoFreeOnly": "Ten widget działa tylko dla darmowych produktów (cena = 0 zł)",
-    "embedInfoSecurityTitle": "🔒 Bezpieczeństwo",
-    "embedInfoSecurity": "Ograniczenie zapytań (3 req/5min), CAPTCHA Turnstile, filtr tymczasowych emaili",
-    "embedInfoCustomizableTitle": "🎨 Konfigurowalny",
-    "embedInfoCustomizable": "Piękny design z gradientem, auto-responsywny, działa na każdej stronie",
-    "embedInfoMagicLinkTitle": "✉️ Magiczny link",
-    "embedInfoMagicLink": "Użytkownicy otrzymują natychmiastowy link dostępu na email - bez hasła",
     "close": "Zamknij"
+  },
+  "embedSnippet": {
+    "title": "Generuj kod osadzania koszyka",
+    "subtitle": "Sprzedaj produkt na cudzej stronie. Stripe wbudowany dla płatnych, formularz email dla darmowych.",
+    "slug": "Slug",
+    "paidBadge": "Płatny · Stripe",
+    "freeBadge": "Darmowy · Email gate",
+    "snippetLabel": "Snippet do wklejenia",
+    "copied": "✓ Skopiowano!",
+    "copyCode": "📋 Kopiuj kod",
+    "instructions": "Jak użyć",
+    "step1": "Wklej snippet w HTML cudzej strony (dowolne miejsce)",
+    "step2": "Dodaj domenę tej strony do listy SELLF_EMBED_ALLOWED_ORIGINS",
+    "step3": "Otwórz stronę — koszyk pojawi się automatycznie",
+    "paidInfoTitle": "Płatny produkt",
+    "paidInfoBody": "Wyświetli się formularz Stripe Embedded Checkout (BLIK, karta, Google Pay). Płatność wraca na sellf.app — magic link dostarczy dostęp.",
+    "freeInfoTitle": "Darmowy produkt",
+    "freeInfoBody": "Wyświetli się formularz email z Cloudflare Turnstile. Po wypełnieniu user dostaje magic link i dostęp do produktu.",
+    "originsTitle": "Origin allowlist",
+    "originsBody": "Domena gdzie wklejasz snippet musi być na liście SELLF_EMBED_ALLOWED_ORIGINS (env Sellfa) lub seller_embed_settings (DB). Inaczej przeglądarka odrzuci request z CORS 403.",
+    "disabledTitle": "Embed wyłączony dla tego produktu",
+    "disabledBody": "Wróć do edycji produktu (Krok 3: Sprzedaż) i włącz toggle „Osadzanie koszyka”.",
+    "optionsTitle": "Opcje snippetu",
+    "optionModalLabel": "Tryb modal",
+    "optionModalHelp": "(zamiast inline pokaże przycisk; po kliknięciu koszyk w okienku)",
+    "optionLabelText": "Tekst na przycisku",
+    "optionLabelPlaceholder": "Kup teraz",
+    "optionShowPrice": "Pokaż cenę na przycisku (np. „Kup teraz · 19,99 USD”)",
+    "modalInfoExtra": "Tryb modal: przycisk montuje się natychmiast (bez sieci), formularz checkout ładuje się dopiero po kliknięciu. Zamknięcie przyciskiem ×, kliknięciem poza modalem albo Escape.",
+    "close": "Zamknij"
+  },
+  "embedSection": {
+    "title": "Osadzanie koszyka (embed)",
+    "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
+    "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",
+    "nextStepTitle": "Następny krok",
+    "nextStepBody": "Po zapisaniu produktu otwórz menu kropek przy produkcie i wybierz „Generuj kod osadzania koszyka”."
   },
   "messages": {
     "productCreated": "Produkt został utworzony pomyślnie",
@@ -1199,6 +1223,8 @@
       "filterActive": "Aktywne",
       "filterInactive": "Nieaktywne",
       "generateCode": "Generuj kod",
+      "generateProtectionCode": "Generuj kod ochrony treści",
+      "generateEmbedSnippet": "Generuj kod osadzania koszyka",
       "viewDetails": "Pokaż szczegóły",
       "edit": "Edytuj",
       "delete": "Usuń",
@@ -1318,6 +1344,13 @@
         "accessExpireAfter": "Gdy użytkownicy uzyskają dostęp do tego produktu, ich dostęp automatycznie wygaśnie po tylu dniach. Pozostaw puste dla stałego dostępu.",
         "autoGrantDurationTitle": "Czas automatycznego przyznawania",
         "autoGrantDurationDescription": "To ustawienie dotyczy automatycznego przyznawania dostępu (np. darmowe produkty, zakupy). Ręczne przyznawanie dostępu przez panel administracyjny może zastąpić to ustawienie.",
+        "embedSection": {
+          "title": "Osadzanie koszyka (embed)",
+          "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
+          "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",
+          "nextStepTitle": "Następny krok",
+          "nextStepBody": "Po zapisaniu produktu otwórz menu kropek przy produkcie i wybierz „Generuj kod osadzania koszyka”."
+        },
         "contentDelivery": "Dostarczanie treści",
         "contentDeliveryType": "Typ dostarczania treści",
         "contentItems": "Elementy treści",
@@ -1375,7 +1408,11 @@
           "minutes": "minut",
           "durationHelp": "Jak długo klient ma na przyjęcie oferty (1-1440 minut)",
           "preview": "Podgląd:",
-          "previewText": "Po zakupie tego produktu klient zobaczy {discount} zniżkę na \"{product}\" przez {duration} minut."
+          "previewText": "Po zakupie tego produktu klient zobaczy {discount} zniżkę na \"{product}\" przez {duration} minut.",
+          "downsellTitle": "Dodaj ofertę downsell (gdy klient odrzuci)",
+          "downsellDescription": "Jeśli kupujący odrzuci upsell, przekieruj go do tańszej alternatywy z osobnym kuponem.",
+          "downsellProduct": "Produkt downsell",
+          "selectDownsellPlaceholder": "Wybierz produkt downsell..."
         },
         "salePrice": "Cena promocyjna",
         "salePriceLabel": "Cena promocyjna",
@@ -3016,6 +3053,14 @@
         "title": "Zarabiaj 30% więcej na zamówieniu",
         "desc": "Przy płatności zaproponuj dodatkowy produkt. Klient klika 'Dodaj' i wartość zamówienia rośnie o 30-50%."
       },
+      "embed": {
+        "title": "Sprzedawaj z dowolnej strony przez embed",
+        "desc": "Wklej tag script na blogu, landingu albo platformie kursowej. Klient kończy płatność w modalu, bez wychodzenia z Twojej strony."
+      },
+      "checkoutTemplates": {
+        "title": "Zmień układ kasy per produkt",
+        "desc": "Layout domyślny, tip jar albo one-time offer (OTO) per produkt. Dodaj własne pola, żeby zebrać przy zakupie dokładnie te dane, których potrzebujesz."
+      },
       "coupons": {
         "title": "Prowadź promocje, które sprzedają",
         "desc": "Twórz kody rabatowe i automatyczne promocje. Ustaw limity użyć i daty ważności, żeby zachować marżę."
@@ -3046,7 +3091,7 @@
       },
       "funnels": {
         "title": "Zamień kupujących w stałych klientów",
-        "desc": "Po zakupie zaproponuj kolejny produkt lub kupon na powrót. Buduj ścieżkę od pierwszego zakupu do stałego klienta."
+        "desc": "Po zakupie poprowadź klienta przez One-Time Offer albo zapasowy Downsell. Zwiększ powroty kuponem po zakupie. Buduj ścieżkę od pierwszej sprzedaży do długoterminowej wartości klienta."
       },
       "refunds": {
         "title": "Obsługuj zwroty bez bólu głowy",
@@ -3425,5 +3470,90 @@
     "issues": "problemy",
     "lastRun": "Ostatnie uruchomienie",
     "notRunYet": "Kliknij \"Uruchom audyt\" aby sprawdzić konfigurację Supabase pod kątem bezpieczeństwa."
+  },
+  "supporterActions": {
+    "coffee": "postawił kawę",
+    "kebab": "postawił kebaba",
+    "pizza": "postawił pizzę",
+    "beer": "postawił piwo",
+    "pint": "postawił piwo",
+    "wine": "postawił wino",
+    "donut": "postawił donuta",
+    "taco": "postawił taco",
+    "pretzel": "postawił precla",
+    "croissant": "postawił rogala",
+    "heart": "okazał miłość",
+    "gift": "podarował coś",
+    "game": "wsparł sprzęt",
+    "pray": "podziękował",
+    "zap": "doładował",
+    "cloud": "opłacił hosting",
+    "desktop": "wsparł sprzęt",
+    "default": "wsparł projekt"
+  },
+  "tipJar": {
+    "about": "O autorze",
+    "recentSupporters": "Ostatni mecenasi",
+    "noSupportersYet": "Bądź pierwszym wspierającym",
+    "supportersCount": "{count, plural, one {# osoba wsparła} few {# osoby wsparły} many {# osób wsparło} other {# osób wsparło}}",
+    "timeAgo": {
+      "justNow": "przed chwilą",
+      "minutesAgo": "{minutes} min temu",
+      "hoursAgo": "{hours} h temu",
+      "daysAgo": "{days} dni temu"
+    }
+  },
+  "productForm": {
+    "checkoutTemplate": {
+      "label": "Szablon koszyka",
+      "helpText": "Wybierz wygląd strony /checkout dla tego produktu.",
+      "selectLabel": "Szablon",
+      "tipJarRequiresPwyw": "Tip-jar wymaga włączonego PWYW — kupujący sam wybiera kwotę.",
+      "options": {
+        "default": {
+          "name": "Domyślny",
+          "description": "Standardowy koszyk z pełnym formularzem zakupowym."
+        },
+        "tipJar": {
+          "name": "Tip-jar",
+          "description": "Strona wsparcia w stylu BMC: o autorze, lista wspierających, PWYW."
+        },
+        "oto": {
+          "name": "Lejek OTO",
+          "description": "Oferta jednorazowa z licznikiem i opcjonalnym downsellem."
+        }
+      }
+    },
+    "customFields": {
+      "label": "Pola dodatkowe",
+      "helpText": "Pola, które kupujący wypełnia w koszyku (np. wiadomość, domena).",
+      "addButton": "Dodaj pole",
+      "removeButton": "Usuń",
+      "resetDefaults": "Przywróć domyślne",
+      "emptyState": "Brak pól dodatkowych. Dodaj pierwsze pole.",
+      "fieldId": "ID pola",
+      "fieldLabel": "Etykieta",
+      "maxLength": "Maks. długość",
+      "required": "wymagane",
+      "fieldType": {
+        "label": "Typ pola",
+        "text": "Tekst",
+        "textarea": "Wieloliniowy",
+        "email": "Email"
+      }
+    },
+    "badgeGenerator": {
+      "label": "Embed badge",
+      "helpText": "Wygeneruj badge HTML do osadzenia na zewnętrznej stronie.",
+      "saveFirst": "Zapisz produkt, żeby wygenerować snippet.",
+      "presetLabel": "Styl",
+      "previewLabel": "Podgląd",
+      "utmSource": "UTM source",
+      "utmMedium": "UTM medium",
+      "utmCampaign": "UTM campaign",
+      "utmContent": "UTM content (opcjonalnie)",
+      "copyButton": "Skopiuj kod",
+      "copiedToast": "Skopiowano"
+    }
   }
 }

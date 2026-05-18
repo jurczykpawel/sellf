@@ -21,6 +21,14 @@ export interface OtoRedirectParams {
   // Additional data to pass when passParams is true
   sourceProductId?: string;
   sessionId?: string;
+  // Downsell branch (consumed by the 'oto' checkout template's decline button).
+  // When present, the URL gets `downsell_coupon` + `downsell_slug` query params
+  // which OtoDeclineButton reads via useSearchParams.
+  downsellCouponCode?: string;
+  downsellProductSlug?: string;
+  // Buyer's full name from the source checkout — forwarded so the upsell
+  // form pre-fills it instead of asking again.
+  customerName?: string;
 }
 
 // ============================================
@@ -94,6 +102,10 @@ export function buildOtoRedirectUrl(params: OtoRedirectParams): OtoRedirectResul
   }
   otoUrl.searchParams.set('oto', '1');
 
+  if (params.customerName && params.customerName.trim().length > 0) {
+    otoUrl.searchParams.set('name', params.customerName);
+  }
+
   // Handle hide_bump option from source product
   if (hideBump) {
     otoUrl.searchParams.set('hide_bump', 'true');
@@ -107,6 +119,13 @@ export function buildOtoRedirectUrl(params: OtoRedirectParams): OtoRedirectResul
     if (sessionId) {
       otoUrl.searchParams.set('sessionId', sessionId);
     }
+  }
+
+  // Downsell branch: only emit both params together. Half-config is meaningless
+  // (template needs both the slug to route to and the coupon to apply there).
+  if (params.downsellCouponCode && params.downsellProductSlug) {
+    otoUrl.searchParams.set('downsell_coupon', params.downsellCouponCode);
+    otoUrl.searchParams.set('downsell_slug', params.downsellProductSlug);
   }
 
   return {
@@ -231,4 +250,40 @@ export function buildSuccessRedirectUrl(params: SuccessRedirectParams): SuccessR
  */
 export function hasHideBumpParam(url: string | null | undefined): boolean {
   return url?.includes('hide_bump=true') || false;
+}
+
+// ============================================
+// Downsell Redirect
+// ============================================
+// The downsell branch reuses the OTO checkout route (so the same client-side
+// useOto + OtoCountdownBanner machinery applies) but routes to the downsell
+// product slug with the pre-minted downsell coupon.
+
+export interface DownsellRedirectParams {
+  locale: string;
+  downsellProductSlug: string;
+  downsellCouponCode: string;
+  customerEmail?: string;
+  customerName?: string;
+  baseUrl?: string;
+}
+
+export function buildDownsellRedirectUrl(params: DownsellRedirectParams): string {
+  const {
+    locale,
+    downsellProductSlug,
+    downsellCouponCode,
+    customerEmail,
+    customerName,
+    baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+  } = params;
+
+  const url = new URL(`/${locale}/checkout/${downsellProductSlug}`, baseUrl);
+  if (customerEmail) url.searchParams.set('email', customerEmail);
+  url.searchParams.set('coupon', downsellCouponCode);
+  url.searchParams.set('oto', '1');
+  if (customerName && customerName.trim().length > 0) {
+    url.searchParams.set('name', customerName);
+  }
+  return url.toString();
 }

@@ -193,7 +193,7 @@ test.describe('Refund System - Customer Purchase History', () => {
 
   test('should require login to view purchases', async ({ page }) => {
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should show access required message
     await expect(page.getByRole('heading', { name: 'Access Required' })).toBeVisible();
@@ -203,7 +203,7 @@ test.describe('Refund System - Customer Purchase History', () => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see the page title
@@ -217,7 +217,7 @@ test.describe('Refund System - Customer Purchase History', () => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see "Request Refund" button
@@ -231,7 +231,7 @@ test.describe('Refund System - Customer Purchase History', () => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Click request refund button
@@ -247,7 +247,7 @@ test.describe('Refund System - Customer Purchase History', () => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Click request refund button
@@ -483,7 +483,7 @@ test.describe('Refund System - Admin Management', () => {
     await signInUser(page, customerUser.email, customerPassword);
 
     await page.goto('/en/dashboard/refund-requests');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should be redirected away OR show access denied message
     const url = page.url();
@@ -503,7 +503,7 @@ test.describe('Refund System - Admin Management', () => {
     await signInUser(page, adminUser.email, adminPassword);
 
     await page.goto('/en/dashboard/refund-requests');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see the page title
@@ -592,7 +592,7 @@ test.describe('Refund System - Non-refundable Products', () => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should NOT see "Request Refund" button
@@ -670,7 +670,7 @@ test.describe('Refund System - Expired Refund Period', () => {
     await signInUser(page, testUser.email, testPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should NOT see "Request Refund" button
@@ -719,7 +719,7 @@ test.describe('Refund System - Admin Product Form UI', () => {
     await signInUser(page, adminUser.email, adminPassword);
 
     await page.goto('/en/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Find the row with test product and click its edit button (pencil icon)
@@ -753,7 +753,7 @@ test.describe('Refund System - Admin Product Form UI', () => {
     await signInUser(page, adminUser.email, adminPassword);
 
     await page.goto('/en/dashboard/products');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Close cookie banner if present
@@ -878,7 +878,7 @@ test.describe('Refund System - Admin Approve/Reject UI', () => {
     await signInUser(page, adminUser.email, adminPassword);
 
     await page.goto('/en/dashboard/refund-requests');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
     // Close cookie banner if present
@@ -901,7 +901,7 @@ test.describe('Refund System - Admin Approve/Reject UI', () => {
     await signInUser(page, adminUser.email, adminPassword);
 
     await page.goto('/en/dashboard/refund-requests');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Close cookie banner if present
@@ -981,7 +981,7 @@ test.describe('Refund System - Customer Status Updates', () => {
     await signInUser(page, customerUser.email, customerPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see "Approved" or "Refunded" status
@@ -1011,7 +1011,7 @@ test.describe('Refund System - Customer Status Updates', () => {
     await signInUser(page, customerUser.email, customerPassword);
 
     await page.goto('/en/my-purchases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should see "Refund Rejected" badge

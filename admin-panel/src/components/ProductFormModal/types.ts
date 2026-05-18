@@ -59,18 +59,27 @@ export interface ProductFormData {
   custom_price_min: number;
   show_price_presets: boolean;
   custom_price_presets: number[];
+  // Embed checkout (per-product toggle)
+  embed_enabled: boolean;
   // OTO (One-Time Offer) configuration
   oto_enabled?: boolean;
   oto_product_id?: string | null;
   oto_discount_type?: 'percentage' | 'fixed';
   oto_discount_value?: number;
   oto_duration_minutes?: number;
+  oto_downsell_product_id?: string | null;
+  oto_downsell_discount_type?: 'percentage' | 'fixed';
+  oto_downsell_discount_value?: number;
+  oto_downsell_duration_minutes?: number;
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type: 'one_time' | 'subscription';
   billing_interval: 'day' | 'week' | 'month' | 'year' | null;
   billing_interval_count: number | null;
   recurring_price: number | null;
   trial_days: number | null;
+  // Checkout template + custom fields (Phase 3 — checkout-templates feat)
+  checkout_template: string;
+  custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[];
 }
 
 export interface OtoState {
@@ -79,6 +88,13 @@ export interface OtoState {
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   durationMinutes: number;
+  // Downsell branch — optional. When `downsellEnabled` is false the four
+  // downsell_* columns are persisted as NULL (no decline path).
+  downsellEnabled: boolean;
+  downsellProductId: string;
+  downsellDiscountType: 'percentage' | 'fixed';
+  downsellDiscountValue: number;
+  downsellDurationMinutes: number;
 }
 
 export interface UrlValidation {
@@ -206,12 +222,17 @@ export const initialFormData: ProductFormData = {
   custom_price_min: 5.00,
   show_price_presets: true,
   custom_price_presets: [5, 10, 25],
+  // Embed checkout
+  embed_enabled: false,
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type: 'one_time',
   billing_interval: null,
   billing_interval_count: null,
   recurring_price: null,
   trial_days: null,
+  // Checkout template + custom fields (Phase 3 — checkout-templates feat)
+  checkout_template: 'default',
+  custom_checkout_fields: [],
 };
 
 export const initialOtoState: OtoState = {
@@ -219,5 +240,10 @@ export const initialOtoState: OtoState = {
   productId: '',
   discountType: 'percentage',
   discountValue: 20,
-  durationMinutes: 15
+  durationMinutes: 15,
+  downsellEnabled: false,
+  downsellProductId: '',
+  downsellDiscountType: 'percentage',
+  downsellDiscountValue: 50,
+  downsellDurationMinutes: 15,
 };

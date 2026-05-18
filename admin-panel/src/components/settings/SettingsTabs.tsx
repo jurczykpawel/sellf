@@ -28,6 +28,7 @@ const TABS = [
 
 interface SettingsTabsProps {
   siteUrl: string
+  initialCheckoutTheme?: string | null
 }
 
 function getInitialTab(): TabId {
@@ -36,7 +37,7 @@ function getInitialTab(): TabId {
   return params.has('stripe_connected') || params.has('connect_return') ? 'payments' : 'shop'
 }
 
-export default function SettingsTabs({ siteUrl }: SettingsTabsProps) {
+export default function SettingsTabs({ siteUrl, initialCheckoutTheme }: SettingsTabsProps) {
   const t = useTranslations('settings')
   // Lazy init reads URL once on first render — no effect, no cascading update.
   const [active, setActive] = useState<TabId>(getInitialTab)
@@ -71,7 +72,7 @@ export default function SettingsTabs({ siteUrl }: SettingsTabsProps) {
           <>
             <ShopSettings />
             {role === 'platform_admin' && <BrandingSettings />}
-            <CheckoutThemeSettings />
+            <CheckoutThemeSettings initialTheme={initialCheckoutTheme} />
           </>
         )}
 

@@ -260,6 +260,34 @@ INSERT INTO products (
   '[5, 15, 30]'
 );
 
+-- Tip-jar checkout template demo product.
+-- PWYW forced by the template; presets nudge toward small donations.
+INSERT INTO products (
+  name, slug, description, long_description, icon, price, currency,
+  vat_rate, price_includes_vat, features, is_active, is_featured, is_listed,
+  allow_custom_price, custom_price_min, show_price_presets, custom_price_presets,
+  checkout_template
+) VALUES (
+  'Postaw mi kawę',
+  'postaw-mi-kawe',
+  'Wesprzyj projekt symboliczną kwotą.',
+  E'## Dziękuję za wsparcie\n\nKażda kwota pomaga utrzymać projekt przy życiu i daje motywację do publikowania kolejnych materiałów. ☕',
+  '☕',
+  5,
+  'USD',
+  NULL,
+  true,
+  '[]'::jsonb,
+  true,
+  false,
+  true,
+  true,
+  1,
+  true,
+  '[3, 5, 10, 25]',
+  'tip-jar'
+);
+
 -- Insert sample order bumps (multi-bump: premium-course has 3, vip-masterclass has 2)
 -- Bump 1: Add Pro Toolkit to Premium Course for $29.99 (Huge discount!)
 INSERT INTO order_bumps (
@@ -1041,3 +1069,29 @@ INSERT INTO coupons (
   3,
   '[]'::jsonb
 );
+
+-- Funnel demo: source → OTO upsell (with countdown) → downsell on decline.
+INSERT INTO products (name, slug, description, long_description, icon, price, currency, is_active, is_listed, checkout_template) VALUES
+  ('Funnel Mini PDF', 'funnel-mini-pdf', 'Lead magnet PDF that triggers the OTO funnel.', 'Krótki PDF z 7 wskazówkami. Po zakupie zobaczysz ofertę OTO.', '📄', 19.99, 'USD', true, true, 'default'),
+  ('Funnel Premium Course', 'funnel-premium-course', 'Pełen kurs — OTO checkout z licznikiem i przyciskiem "Nie, dziękuję".', E'## Premium Course\n\n10 modułów wideo, ćwiczenia, materiały PDF. Po zakupie Mini PDF zobaczysz tę ofertę z 30%% zniżką przez 15 minut.', '🎓', 99.99, 'USD', true, false, 'oto'),
+  ('Funnel Toolkit', 'funnel-toolkit', 'Tańsza alternatywa pokazywana po odrzuceniu OTO.', 'Same templates i checklisty — bez modułów wideo. 50%% zniżki gdy klient odrzuci Premium Course.', '🧰', 29.99, 'USD', true, false, 'oto');
+
+INSERT INTO oto_offers (
+  source_product_id, oto_product_id,
+  discount_type, discount_value, duration_minutes,
+  downsell_product_id, downsell_discount_type, downsell_discount_value, downsell_duration_minutes,
+  is_active
+) VALUES (
+  (SELECT id FROM products WHERE slug = 'funnel-mini-pdf'),
+  (SELECT id FROM products WHERE slug = 'funnel-premium-course'),
+  'percentage', 30, 15,
+  (SELECT id FROM products WHERE slug = 'funnel-toolkit'),
+  'percentage', 50, 15,
+  true
+);
+
+-- Point Mini PDF's success_redirect at the upsell so payment-status can wire the funnel.
+UPDATE products
+   SET success_redirect_url = '/checkout/funnel-premium-course',
+       pass_params_to_redirect = true
+ WHERE slug = 'funnel-mini-pdf';

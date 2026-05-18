@@ -85,6 +85,10 @@ test.describe('Authenticated Admin Dashboard', () => {
     await modal.locator('input[name="price"]').fill('50');
     // Select currency explicitly (defaults to shop's default currency, but we want to be explicit in tests)
     await modal.locator('select[name="currency"]').selectOption('USD');
+    // Explicit VAT rate avoids racing the async shop_config fetch that
+    // normally auto-fills it — under load the form can submit before the
+    // default arrives and validation rejects vat_rate=null.
+    await modal.locator('#vat_rate').fill('23');
 
     // Click "Create Product" button (wizard uses regular button, not form submit)
     await page.getByRole('button', { name: /Utwórz produkt|Create Product/i }).click();

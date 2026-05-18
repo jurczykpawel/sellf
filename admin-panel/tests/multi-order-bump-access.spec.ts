@@ -215,7 +215,7 @@ async function loginAsTestUser(page: Page) {
   await page.waitForLoadState('domcontentloaded');
   await setAuthSession(page, TEST_USER.email, TEST_USER.password);
   await page.reload();
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 // ============================================================================

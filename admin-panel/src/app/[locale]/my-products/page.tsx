@@ -109,21 +109,23 @@ export default function MyProductsPage() {
       const supabase = await createClient();
 
       // Fetch user's product access with product details
+      // Tip-jar purchases skipped — no content to consume, supporter list lives in /my-purchases.
       const { data: accessData, error: accessError } = await supabase
         .from('user_product_access')
         .select(`
           id,
           access_granted_at,
           access_expires_at,
-          product:products (
+          product:products!inner (
             id, name, slug, description, icon, image_url, price, currency,
-            is_active, is_featured, created_at, product_type
+            is_active, is_featured, created_at, product_type, checkout_template
           ),
           subscription:subscriptions (
             status, cancel_at_period_end, current_period_end
           )
         `)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .neq('product.checkout_template', 'tip-jar');
 
       if (accessError) throw accessError;
 

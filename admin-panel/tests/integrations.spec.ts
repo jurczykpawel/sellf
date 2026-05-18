@@ -350,7 +350,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Switch to Marketing tab
     await page.getByRole('button', { name: 'Marketing' }).click();
@@ -376,7 +376,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
   test('should enable FB CAPI and save token', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Switch to Marketing tab
     await page.getByRole('button', { name: 'Marketing' }).click();
@@ -410,7 +410,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
   test('should reject invalid GTM ID format', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Analytics tab is default — GTM input has placeholder "GTM-XXXXXX"
     const gtmInput = page.locator('input[placeholder="GTM-XXXXXX"]');
@@ -432,7 +432,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
   test('should reject non-numeric Facebook Pixel ID', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Switch to Marketing tab
     await page.getByRole('button', { name: 'Marketing' }).click();
@@ -458,7 +458,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
   test('should show GTM SS toggle only when server container URL is filled', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Analytics tab — GTM section
     await page.getByRole('button', { name: 'Analytics' }).click();
@@ -488,7 +488,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('button', { name: 'Analytics' }).click();
     await page.waitForTimeout(500);
@@ -545,7 +545,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('button', { name: 'Analytics' }).click();
     await page.waitForTimeout(500);
@@ -567,7 +567,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
   test('should reject invalid GTM Server Container URL (non-HTTPS)', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('button', { name: 'Analytics' }).click();
     await page.waitForTimeout(500);

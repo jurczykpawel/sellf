@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createCurrencyService, type ExchangeRates } from '@/lib/services/currencyService'
-import { getDecryptedCurrencyConfig } from './currency-config'
+import { getDecryptedCurrencyConfigInternal as getDecryptedCurrencyConfig } from '@/lib/integrations/internal-secrets'
 
 // ============================================
 // SERVER-SIDE CACHE FOR EXCHANGE RATES
@@ -147,7 +147,6 @@ export async function getUsedCurrencies(): Promise<string[]> {
     return []
   }
 
-  // Get unique currencies
   const currencies = [...new Set(data?.map((row) => row.currency) || [])]
   return currencies.sort()
 }

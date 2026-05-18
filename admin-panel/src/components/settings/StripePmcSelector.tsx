@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { RefreshCw, Check } from 'lucide-react';
-import { KNOWN_PAYMENT_METHODS } from '@/lib/stripe/payment-method-configs';
+import { KNOWN_PAYMENT_METHODS } from '@/lib/stripe/payment-method-metadata';
 import { getPaymentMethodDisplayInfo } from '@/lib/utils/payment-method-display';
 import type { StripePaymentMethodConfig } from '@/types/payment-config';
 

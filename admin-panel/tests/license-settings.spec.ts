@@ -260,6 +260,8 @@ test.describe('License Settings', () => {
     // Enter expired license (2025-12-31)
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await licenseInput.fill(TEST_LICENSES.expired);
+    // Wait for React to commit before asserting derived UI.
+    await expect(licenseInput).toHaveValue(TEST_LICENSES.expired);
 
     // Should show the expiry date (even if expired)
     const dateText = page.locator('text=/2025-12-31/');
@@ -284,8 +286,11 @@ test.describe('License Settings', () => {
     const licenseInput = page.locator('input[placeholder*="SF-"]');
     await expect(licenseInput).toHaveValue(/SF-/, { timeout: 10000 });
 
-    // Clear the license input
+    // Clear the license input + wait for React to commit the empty value
+    // before asserting derived UI state (avoids a flake where the assertion
+    // runs before React's commit propagates `license=''` through the tree).
     await licenseInput.clear();
+    await expect(licenseInput).toHaveValue('');
 
     // Confirm license details section disappeared (proves state updated)
     const detailsSection = page.locator('text=/License Details|Szczegóły licencji/i');
@@ -295,7 +300,13 @@ test.describe('License Settings', () => {
     const saveButton = page.locator('button', { hasText: /Save License|Zapisz licencję/i });
     await saveButton.click();
 
-    // Verify in database — more reliable than toast timing under load
+    // Wait for success toast — guarantees the server action committed (and
+    // closes a flake where the DB poll ran on a stale pool connection while
+    // the action was still in-flight).
+    const successMessage = page.locator('text=/saved successfully|zapisana pomyślnie/i');
+    await expect(successMessage).toBeVisible({ timeout: 15000 });
+
+    // Verify in database
     await expect.poll(async () => {
       const { data } = await supabaseAdmin
         .from('integrations_config')
@@ -303,7 +314,7 @@ test.describe('License Settings', () => {
         .eq('id', 1)
         .single();
       return data?.sellf_license;
-    }, { timeout: 20000, intervals: [500, 1000, 2000] }).toBeNull();
+    }, { timeout: 10000, intervals: [500, 1000, 2000] }).toBeNull();
   });
 
   test('Signature is partially displayed (truncated)', async ({ page }) => {

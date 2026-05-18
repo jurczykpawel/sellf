@@ -34,7 +34,7 @@ async function loginAsTestUser(page: Page) {
   await setAuthSession(page, TEST_USER.email, TEST_USER.password);
 
   await page.reload();
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
 }
 
 async function getProductBySlug(slug: string) {
@@ -220,7 +220,7 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
     await loginAsTestUser(page);
   });
 
-  test('test-oto-active: should show OTO offer after purchase', async ({ page }) => {
+  test('test-oto-active: should redirect to OTO checkout after purchase', async ({ page }) => {
     const sessionId = generateSessionId('oto_active');
     const otoTarget = await getProductBySlug(PRODUCTS.otoTarget);
 
@@ -241,9 +241,11 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
 
       await page.goto(`/p/${PRODUCTS.otoActive}/payment-status?session_id=${sessionId}`);
 
-      // Should show OTO offer
-      await expect(page.getByText('Exclusive one-time offer!')).toBeVisible({ timeout: 15000 });
-      await expect(page.getByRole('button', { name: /Yes, I want this/i })).toBeVisible();
+      // payment-status now server-redirects straight to /checkout/<otoSlug>
+      // with the OTO coupon pre-applied — the interstitial offer card was
+      // removed in the funnel-downsell-and-attribution migration.
+      await page.waitForURL(new RegExp(`/checkout/${PRODUCTS.otoTarget}`), { timeout: 15000 });
+      await expect(page.getByTestId('oto-countdown-banner')).toBeVisible({ timeout: 15000 });
     } finally {
       // Restore access
       await supabaseAdmin
@@ -317,11 +319,13 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
 
       await page.goto(`/p/${PRODUCTS.otoOwned}/payment-status?session_id=${sessionId}`);
 
-      // Wait for page to load and potentially redirect
+      // Wait for any client-side navigation to settle
       await page.waitForTimeout(3000);
 
-      // Should NOT show OTO offer (was skipped because user owns OTO target)
-      await expect(page.getByText('Exclusive one-time offer!')).not.toBeVisible();
+      // payment-status must NOT redirect to /checkout/<otoTarget> when the
+      // buyer already owns the upsell product. URL stays on payment-status
+      // (or follows success_redirect_url, but never the OTO checkout).
+      expect(page.url()).not.toMatch(new RegExp(`/checkout/${PRODUCTS.otoTarget}`));
     } finally {
       await cleanupMockPayment(sessionId);
     }
@@ -349,7 +353,7 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
 });
 
 test.describe('Payment Status Redirect - Guest User', () => {
-  test('test-oto-active (guest): should show OTO offer', async ({ page }) => {
+  test('test-oto-active (guest): should redirect to OTO checkout', async ({ page }) => {
     const sessionId = generateSessionId('guest_oto');
 
     try {
@@ -361,8 +365,10 @@ test.describe('Payment Status Redirect - Guest User', () => {
 
       await page.goto(`/p/${PRODUCTS.otoActive}/payment-status?session_id=${sessionId}`);
 
-      // Should show OTO offer for guest
-      await expect(page.getByText('Exclusive one-time offer!')).toBeVisible({ timeout: 15000 });
+      // payment-status redirects guests too — buyer lands on /checkout/<otoSlug>
+      // with the OTO coupon pre-applied; interstitial offer card no longer renders.
+      await page.waitForURL(new RegExp(`/checkout/${PRODUCTS.otoTarget}`), { timeout: 15000 });
+      await expect(page.getByTestId('oto-countdown-banner')).toBeVisible({ timeout: 15000 });
     } finally {
       await cleanupMockPayment(sessionId);
     }

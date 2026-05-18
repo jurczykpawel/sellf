@@ -11,7 +11,12 @@
  * customer paid-without-access or revoked-without-revocation.
  */
 import { describe, it, expect } from 'vitest';
-import { RETRIABLE_EVENTS } from '@/app/api/webhooks/stripe/retriable-events';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import {
+  RETRIABLE_EVENTS,
+  TERMINAL_FAILURE_REASONS,
+} from '@/app/api/webhooks/stripe/retriable-events';
 
 describe('Stripe webhook retriable events', () => {
   it('forces retry on refunds and disputes (revenue + access impact)', () => {
@@ -63,5 +68,55 @@ describe('Stripe webhook retriable events', () => {
     // payment_intent.succeeded mirrors checkout.session.completed for
     // standalone payment intents; same idempotency rationale.
     expect(RETRIABLE_EVENTS.has('payment_intent.succeeded')).toBe(false);
+  });
+});
+
+// Terminal failures = permanent data-inconsistency reasons. A retry would
+// re-run the same handler with the same broken data; Stripe would loop the
+// event for 3 days until heap pressure. The set bypasses the retriable
+// gate, draining the queue with a 200 ack.
+describe('Stripe webhook terminal failure reasons', () => {
+  it('covers product-binding failures (zombie subscriptions)', () => {
+    expect(TERMINAL_FAILURE_REASONS.has('Product not found')).toBe(true);
+    expect(TERMINAL_FAILURE_REASONS.has('Subscription missing metadata.product_id')).toBe(true);
+    expect(TERMINAL_FAILURE_REASONS.has('Stripe price id does not match the bound product')).toBe(true);
+  });
+
+  it('covers customer/email failures (orphaned subscriptions)', () => {
+    expect(TERMINAL_FAILURE_REASONS.has('Customer is deleted')).toBe(true);
+    expect(TERMINAL_FAILURE_REASONS.has('No email on customer')).toBe(true);
+  });
+
+  it('covers all invoice-side no-email/no-customer variants', () => {
+    // Same root cause as 'No email on customer' but emitted from the
+    // invoice-event handlers — each has a slightly different message
+    // string so we list them explicitly.
+    expect(TERMINAL_FAILURE_REASONS.has('No email on invoice')).toBe(true);
+    expect(TERMINAL_FAILURE_REASONS.has('No email on invoice or customer')).toBe(true);
+    expect(TERMINAL_FAILURE_REASONS.has('No email on upcoming invoice')).toBe(true);
+    expect(TERMINAL_FAILURE_REASONS.has('No customer on upcoming invoice')).toBe(true);
+  });
+
+  // Drift guard. If a future handler returns a new 'No email on X' or
+  // 'No customer on X' message that isn't added here, retriable events
+  // (invoice.paid, invoice.payment_succeeded) loop until OOM. This test
+  // greps the source and forces a deliberate decision on every new variant.
+  it('drift guard: every "No (email|customer) on X" reason in handlers is on the terminal list', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../src/app/api/webhooks/stripe/subscription-handlers.ts'),
+      'utf-8',
+    );
+    const pattern = /message:\s*['"`](No (?:email|customer) on [^'"`]+)['"`]/g;
+    const reasons = new Set<string>();
+    for (const match of source.matchAll(pattern)) {
+      reasons.add(match[1]);
+    }
+
+    // Sanity: at least the variants we know about must show up — if this
+    // breaks, the source moved and the regex needs an update, not the set.
+    expect(reasons.size).toBeGreaterThanOrEqual(4);
+
+    const missing = [...reasons].filter(r => !TERMINAL_FAILURE_REASONS.has(r));
+    expect(missing, `New no-email/no-customer reasons must be added to TERMINAL_FAILURE_REASONS: ${missing.join(', ')}`).toEqual([]);
   });
 });

@@ -52,7 +52,7 @@ test.describe('Legal Documents Settings', () => {
   // (Settings page uses tabs since the tab refactor; Legal section lives under "legal" tab)
   const gotoLegalSettings = async (page: Page) => {
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     // Click the "Legal" tab – label is "Legal" (EN) or "Prawne" (PL)
     const legalTab = page.getByRole('button', { name: /^Legal$|^Prawne$/i });
     await expect(legalTab).toBeVisible({ timeout: 20000 });
@@ -370,7 +370,7 @@ test.describe('Legal Documents Settings', () => {
 
     // Try to access settings - should redirect or show error
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Should NOT see legal documents settings
@@ -443,7 +443,7 @@ test.describe('Legal Documents Settings', () => {
 
     // Navigate to /terms page
     await page.goto('/terms');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     const currentUrl = page.url();
@@ -477,7 +477,7 @@ test.describe('Legal Documents Settings', () => {
 
     // Navigate to /privacy page
     await page.goto('/privacy');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     const currentUrl = page.url();
@@ -530,7 +530,7 @@ test.describe('Legal Documents Settings', () => {
 
     // Navigate to /terms page
     await page.goto('/terms');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1000);
 
     const currentUrl = page.url();

@@ -15,8 +15,8 @@ import {
   isValidStripePMCId,
   isValidPaymentMethodType,
   getPaymentMethodConfigDisplayName,
-  type StripePaymentMethodConfig,
-} from '@/lib/stripe/payment-method-configs';
+} from '@/lib/stripe/payment-method-metadata';
+import type { StripePaymentMethodConfig } from '@/types/payment-config';
 
 describe('payment-method-configs', () => {
   describe('extractEnabledPaymentMethods', () => {

@@ -1,15 +1,14 @@
 import { createPublicClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
-import ProductPurchaseView from './components/ProductPurchaseView';
 import { getEffectivePaymentMethodOrder } from '@/lib/utils/payment-method-helpers';
 import { extractExpressCheckoutConfig } from '@/types/payment-config';
-import type { PaymentMethodConfig } from '@/types/payment-config';
+import { getPaymentMethodConfig } from '@/lib/actions/payment-config';
 import { checkFeature } from '@/lib/license/resolve';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
+import { getTemplate } from '@/lib/checkout-templates/registry';
 
 interface PageProps {
   params: Promise<{ slug: string; locale: string }>;
@@ -75,16 +74,7 @@ export default async function CheckoutPage({ params }: PageProps) {
     return notFound();
   }
 
-  // Get payment method configuration using admin client (service_role)
-  // RLS on payment_method_config only allows admin SELECT - checkout users need this config too.
-  // Also avoids cookies() which would break ISR caching on this page.
-  // createAdminClient() is typed with Database which may not include payment_method_config yet
-  const adminSupabase: any = createAdminClient();
-  const { data: paymentConfig } = await adminSupabase
-    .from('payment_method_config')
-    .select('*')
-    .eq('id', 1)
-    .single() as { data: PaymentMethodConfig | null };
+  const paymentConfig = await getPaymentMethodConfig();
   const paymentMethodOrder = paymentConfig?.config_mode === 'custom'
     ? getEffectivePaymentMethodOrder(paymentConfig, product.currency)
     : undefined;
@@ -97,9 +87,12 @@ export default async function CheckoutPage({ params }: PageProps) {
   const shopConfig = await getShopConfig();
   const taxMode: TaxMode = (shopConfig?.tax_mode as TaxMode) || 'local';
 
-  // ProductPurchaseView handles showing either checkout form or waitlist form
+  // Dispatch to the registered template (default / tip-jar / future). Unknown
+  // slugs fall back to default — verified by tests/unit/checkout-templates/registry.test.ts.
+  const template = getTemplate(product.checkout_template);
+  const TemplateComponent = template.Component;
   return (
-    <ProductPurchaseView
+    <TemplateComponent
       product={product}
       paymentMethodOrder={paymentMethodOrder}
       expressCheckoutConfig={expressCheckoutConfig}

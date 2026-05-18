@@ -36,7 +36,7 @@ import {
   handleInvoicePaid,
   handleInvoicePaymentFailed,
 } from './subscription-handlers';
-import { RETRIABLE_EVENTS } from './retriable-events';
+import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
 
 /**
  * Process successful payment from checkout session.
@@ -241,13 +241,11 @@ async function handlePaymentIntentSucceeded(
     return { processed: false, message: 'Missing product_id or email in payment intent' };
   }
 
-  // Idempotency check: Skip only if already completed (not pending)
-  // A pending row exists when the PI was created but not yet paid - the webhook
-  // must still process it to convert it to completed.
+  // Match either column — session handler may already hold the row keyed by cs_xxx.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status')
-    .eq('session_id', paymentIntent.id)
+    .or(`session_id.eq.${paymentIntent.id},stripe_payment_intent_id.eq.${paymentIntent.id}`)
     .maybeSingle();
 
   if (existingTransaction?.status === 'completed') {
@@ -810,6 +808,13 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Stripe Webhook] ${event.type}: ${result.message}`);
+
+    // Terminal data-inconsistency failures: ack 200 even on retriable events
+    // so Stripe stops the retry storm (otherwise zombie subscriptions for
+    // deleted products hammer the webhook until heap OOM).
+    if (!result.processed && TERMINAL_FAILURE_REASONS.has(result.message)) {
+      return NextResponse.json({ received: true, skipped: result.message });
+    }
 
     // Force a Stripe retry on retriable events that returned processed:false
     // — by returning 500 the next webhook delivery re-attempts the work.

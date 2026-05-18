@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CURRENCIES, getCurrencySymbol, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import type { SectionProps } from '../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -31,6 +31,16 @@ export function PriceVatInline({
 
   const presetsManuallyEdited = useRef(false);
   const minManuallyEdited = useRef(false);
+  // Mirror of formData.price that updates synchronously inside handlePriceChange.
+  // Click handlers like handleCustomPriceToggle read this so the auto-populate
+  // logic uses the most recent value even if React hasn't committed the
+  // setFormData from the previous onChange yet.
+  const latestPriceRef = useRef(formData.price);
+  // Keep ref in sync with state for cases that don't pass through
+  // handlePriceChange — e.g. edit mode loading product.price asynchronously.
+  useEffect(() => {
+    latestPriceRef.current = formData.price;
+  }, [formData.price]);
 
   const getDefaultMin = (price: number): number => {
     if (price <= 0) return 1;
@@ -51,6 +61,7 @@ export function PriceVatInline({
     }
 
     if (inputValue === '') {
+      latestPriceRef.current = 0;
       setPriceDisplayValue('');
       setFormData(prev => ({
         ...prev,
@@ -72,6 +83,7 @@ export function PriceVatInline({
     if (/^\d*\.?\d{0,2}$/.test(processedValue)) {
       const numericValue = parseFloat(processedValue);
       const price = isNaN(numericValue) ? 0 : numericValue;
+      latestPriceRef.current = price;
       setPriceDisplayValue(inputValue);
       setFormData(prev => ({
         ...prev,
@@ -87,15 +99,23 @@ export function PriceVatInline({
   const handleCustomPriceToggle = (enabled: boolean) => {
     presetsManuallyEdited.current = false;
     minManuallyEdited.current = false;
-    setFormData(prev => ({
-      ...prev,
-      allow_custom_price: enabled,
-      ...(enabled && {
-        custom_price_min: getDefaultMin(prev.price),
-        show_price_presets: prev.show_price_presets !== false,
-        custom_price_presets: getDefaultPresets(prev.price),
-      }),
-    }));
+    setFormData(prev => {
+      // Always prefer the ref (updated synchronously in handlePriceChange) —
+      // under heavy load a fill+click in quick succession can produce a
+      // render where the queued price update hasn't been committed, making
+      // prev.price stale. The ref is kept in sync via a useEffect for edit
+      // mode where product.price loads asynchronously.
+      const price = latestPriceRef.current;
+      return {
+        ...prev,
+        allow_custom_price: enabled,
+        ...(enabled && {
+          custom_price_min: getDefaultMin(price),
+          show_price_presets: prev.show_price_presets !== false,
+          custom_price_presets: getDefaultPresets(price),
+        }),
+      };
+    });
   };
 
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {

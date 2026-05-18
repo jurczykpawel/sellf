@@ -10,3 +10,6 @@ export { CategoriesSection } from './CategoriesSection';
 export { RefundSection } from './RefundSection';
 export { AdvancedSection } from './AdvancedSection';
 export { SubscriptionSection } from './SubscriptionSection';
+export { default as CheckoutTemplateSection } from './CheckoutTemplateSection';
+export { default as BadgeGeneratorSection } from './BadgeGeneratorSection';
+export { EmbedSection } from './EmbedSection';

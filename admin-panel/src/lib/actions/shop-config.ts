@@ -60,19 +60,22 @@ export interface ShopConfig {
 // Cross-request DB fetch cache. When Upstash Redis is configured the Redis
 // layer above wins; without Redis this keeps the DB out of the hot path
 // (5 min in Next.js memory). Invalidated via revalidateTag('shop-config').
-const fetchShopConfigFromDb = unstable_cache(
-  async (): Promise<ShopConfig | null> => {
-    const supabase = createPublicClient()
-    const { data, error } = await supabase.from('shop_config').select('*').maybeSingle()
-    if (error) {
-      console.error('Error fetching shop config:', error)
-      return null
-    }
-    return data as ShopConfig | null
-  },
-  ['shop-config'],
-  { revalidate: 300, tags: ['shop-config'] },
-)
+// In non-production the cache is disabled so direct DB writes (e.g. E2E test
+// fixtures) take effect immediately without needing to round-trip through the
+// server action that calls revalidateTag.
+const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {
+  const supabase = createPublicClient()
+  const { data, error } = await supabase.from('shop_config').select('*').maybeSingle()
+  if (error) {
+    console.error('Error fetching shop config:', error)
+    return null
+  }
+  return data as ShopConfig | null
+}
+
+const fetchShopConfigFromDb = process.env.NODE_ENV === 'production'
+  ? unstable_cache(fetchShopConfigFromDbRaw, ['shop-config'], { revalidate: 300, tags: ['shop-config'] })
+  : fetchShopConfigFromDbRaw
 
 export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
   const cacheKey = CacheKeys.SHOP_CONFIG

@@ -18,10 +18,16 @@ import InvoiceFields from '@/components/checkout/InvoiceFields';
 import OrderSummary from '@/components/checkout/OrderSummary';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { AppliedCoupon } from '@/types/coupon';
+import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import type {
+  CustomFieldDefinition,
+  CustomFieldValues,
+} from '@/lib/validations/custom-checkout-fields';
 
 interface CustomPaymentFormProps {
   product: Product;
   email?: string;
+  initialFullName?: string;
   bumpProducts?: OrderBumpWithProduct[];
   selectedBumpIds?: Set<string>;
   appliedCoupon?: AppliedCoupon;
@@ -33,6 +39,11 @@ interface CustomPaymentFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
+  customFieldDefs?: CustomFieldDefinition[];
+  customFieldValues?: CustomFieldValues;
+  onCustomFieldValuesChange?: (next: CustomFieldValues) => void;
+  customFieldErrors?: Record<string, string>;
+  afterCheckoutSlot?: React.ReactNode;
 }
 
 type EmailValidationResponse = {
@@ -50,6 +61,7 @@ type EmailValidationResponse = {
 export default function CustomPaymentForm({
   product,
   email,
+  initialFullName,
   bumpProducts = [],
   selectedBumpIds = new Set(),
   appliedCoupon,
@@ -60,6 +72,11 @@ export default function CustomPaymentForm({
   paymentMethodOrder,
   expressCheckoutConfig,
   taxMode,
+  customFieldDefs = [],
+  customFieldValues = {},
+  onCustomFieldValuesChange,
+  customFieldErrors,
+  afterCheckoutSlot,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
@@ -80,7 +97,7 @@ export default function CustomPaymentForm({
   const [errorMessage, setErrorMessage] = useState('');
 
   // Invoice / NIP logic
-  const invoice = useInvoiceData(email);
+  const invoice = useInvoiceData(email, { initialFullName });
 
   const { basePrice, discountAmount, totalGross, totalNet, vatRate } = pricing;
   const paymentElementOptions: StripePaymentElementOptions = {
@@ -184,20 +201,38 @@ export default function CustomPaymentForm({
             city: invoice.city || undefined,
             postalCode: invoice.postalCode || undefined,
             country: invoice.country || undefined,
+            customFieldValues:
+              customFieldDefs.length > 0 ? customFieldValues : undefined,
           }),
         });
 
         if (!updateResponse.ok) {
+          // Custom field validation surfaces per-field detail — block submit
+          // so the buyer sees the error rather than silently failing.
+          const errorBody = await updateResponse.json().catch(() => ({}));
+          if (errorBody?.error === 'Invalid custom field values' && errorBody.details) {
+            setErrorMessage(
+              t('customFieldsInvalid', {
+                defaultValue: 'Please fill the required information fields.',
+              }),
+            );
+            setIsProcessing(false);
+            return;
+          }
           console.error('[CustomPaymentForm] Failed to update payment metadata');
           // Continue anyway — metadata update is not critical for payment
         }
       }
 
-      const emailUpdate = await checkout.updateEmail(finalEmail);
-      if (emailUpdate.type === 'error') {
-        setErrorMessage(emailUpdate.error.message || t('emailRequired', { defaultValue: 'Email is required' }));
-        setIsProcessing(false);
-        return;
+      // Stripe rejects updateEmail when session already has customer_email.
+      const currentSessionEmail = (checkout as unknown as { email?: string | null }).email ?? null;
+      if (currentSessionEmail !== finalEmail) {
+        const emailUpdate = await checkout.updateEmail(finalEmail);
+        if (emailUpdate.type === 'error') {
+          setErrorMessage(emailUpdate.error.message || t('emailRequired', { defaultValue: 'Email is required' }));
+          setIsProcessing(false);
+          return;
+        }
       }
 
       // Track add_payment_info
@@ -361,6 +396,17 @@ export default function CustomPaymentForm({
       {/* Invoice Fields (NIP + company) */}
       <InvoiceFields invoice={invoice} />
 
+      {/* Product-defined custom checkout fields (e.g. message, domain). */}
+      {customFieldDefs.length > 0 && onCustomFieldValuesChange && (
+        <CustomCheckoutFieldsForm
+          fields={customFieldDefs}
+          values={customFieldValues}
+          onChange={onCustomFieldValuesChange}
+          errors={customFieldErrors}
+          disabled={isProcessing}
+        />
+      )}
+
       {/* Order Summary */}
       <OrderSummary
         productName={product.name}
@@ -429,6 +475,7 @@ export default function CustomPaymentForm({
       </button>
 
       <p className="text-xs text-sf-muted text-center">{t('securePayment')}</p>
+      {afterCheckoutSlot}
     </form>
   );
 }

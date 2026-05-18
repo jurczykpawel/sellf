@@ -6,6 +6,7 @@ import {
   sanitizeProductData,
   escapeIlikePattern,
   validateProductSortColumn,
+  PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
 
 describe('Product Validation', () => {
@@ -642,6 +643,60 @@ describe('Product Validation', () => {
 
     it('should return default for unknown column', () => {
       expect(validateProductSortColumn('nonexistent_column')).toBe('created_at');
+    });
+  });
+
+  // Embed checkout flag (per-product, complements seller-level origin allowlist).
+  // When ON the product is embeddable via /api/embed/checkout-session; when OFF
+  // the endpoint returns 404 'Product is not available'.
+  describe('embed_enabled flag', () => {
+    const validProduct = {
+      name: 'Test',
+      slug: 'test',
+      description: 'A test product',
+      price: 99,
+    };
+
+    it('exposes embed_enabled in PRODUCT_API_FIELDS so SELECTs hydrate the column', () => {
+      expect(PRODUCT_API_FIELDS).toMatch(/\bembed_enabled\b/);
+    });
+
+    it('validateCreateProduct accepts embed_enabled: true', () => {
+      const result = validateCreateProduct({ ...validProduct, embed_enabled: true });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('validateCreateProduct accepts embed_enabled: false', () => {
+      const result = validateCreateProduct({ ...validProduct, embed_enabled: false });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('validateUpdateProduct accepts embed_enabled toggle', () => {
+      expect(validateUpdateProduct({ embed_enabled: true }).isValid).toBe(true);
+      expect(validateUpdateProduct({ embed_enabled: false }).isValid).toBe(true);
+    });
+
+    it('rejects non-boolean embed_enabled on create', () => {
+      const result = validateCreateProduct({ ...validProduct, embed_enabled: 'yes' });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => /embed_enabled/i.test(e))).toBe(true);
+    });
+
+    it('rejects non-boolean embed_enabled on update', () => {
+      const result = validateUpdateProduct({ embed_enabled: 1 });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => /embed_enabled/i.test(e))).toBe(true);
+    });
+
+    it('sanitizeProductData passes embed_enabled through unchanged (whitelist by exclusion)', () => {
+      // sanitizeProductData uses delete-explicit pattern, not allowlist. New
+      // boolean toggles that have no special handling must round-trip cleanly
+      // so the PATCH handler can forward them to Supabase update().
+      const sanitized = sanitizeProductData({ embed_enabled: true }, false);
+      expect(sanitized.embed_enabled).toBe(true);
+
+      const sanitizedFalse = sanitizeProductData({ embed_enabled: false }, false);
+      expect(sanitizedFalse.embed_enabled).toBe(false);
     });
   });
 });

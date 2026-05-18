@@ -606,6 +606,7 @@ export type Database = {
           allowed_emails: Json | null
           allowed_product_ids: Json | null
           code: string | null
+          coupon_role: string | null
           created_at: string | null
           currency: string | null
           current_usage_count: number | null
@@ -631,6 +632,7 @@ export type Database = {
           allowed_emails?: Json | null
           allowed_product_ids?: Json | null
           code?: string | null
+          coupon_role?: string | null
           created_at?: string | null
           currency?: string | null
           current_usage_count?: number | null
@@ -656,6 +658,7 @@ export type Database = {
           allowed_emails?: Json | null
           allowed_product_ids?: Json | null
           code?: string | null
+          coupon_role?: string | null
           created_at?: string | null
           currency?: string | null
           current_usage_count?: number | null
@@ -959,6 +962,10 @@ export type Database = {
           discount_type: string | null
           discount_value: number | null
           display_order: number | null
+          downsell_discount_type: string | null
+          downsell_discount_value: number | null
+          downsell_duration_minutes: number | null
+          downsell_product_id: string | null
           duration_minutes: number | null
           id: string | null
           is_active: boolean | null
@@ -971,6 +978,10 @@ export type Database = {
           discount_type?: string | null
           discount_value?: number | null
           display_order?: number | null
+          downsell_discount_type?: string | null
+          downsell_discount_value?: number | null
+          downsell_duration_minutes?: number | null
+          downsell_product_id?: string | null
           duration_minutes?: number | null
           id?: string | null
           is_active?: boolean | null
@@ -983,6 +994,10 @@ export type Database = {
           discount_type?: string | null
           discount_value?: number | null
           display_order?: number | null
+          downsell_discount_type?: string | null
+          downsell_discount_value?: number | null
+          downsell_duration_minutes?: number | null
+          downsell_product_id?: string | null
           duration_minutes?: number | null
           id?: string | null
           is_active?: boolean | null
@@ -991,6 +1006,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "oto_offers_downsell_product_id_fkey"
+            columns: ["downsell_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "oto_offers_oto_product_id_fkey"
             columns: ["oto_product_id"]
@@ -1168,6 +1190,7 @@ export type Database = {
           amount: number | null
           created_at: string | null
           currency: string | null
+          custom_field_values: Json | null
           customer_email: string | null
           expires_at: string | null
           id: string | null
@@ -1191,6 +1214,7 @@ export type Database = {
           amount?: number | null
           created_at?: string | null
           currency?: string | null
+          custom_field_values?: Json | null
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
@@ -1214,6 +1238,7 @@ export type Database = {
           amount?: number | null
           created_at?: string | null
           currency?: string | null
+          custom_field_values?: Json | null
           customer_email?: string | null
           expires_at?: string | null
           id?: string | null
@@ -1396,10 +1421,12 @@ export type Database = {
           available_until: string | null
           billing_interval: string | null
           billing_interval_count: number | null
+          checkout_template: string | null
           content_config: Json | null
           content_delivery_type: string | null
           created_at: string | null
           currency: string | null
+          custom_checkout_fields: Json | null
           custom_price_min: number | null
           custom_price_presets: Json | null
           description: string | null
@@ -1432,6 +1459,7 @@ export type Database = {
           show_price_presets: boolean | null
           slug: string | null
           stripe_price_id: string | null
+          stripe_product_id: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
           trial_days: number | null
@@ -1445,10 +1473,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string | null
           content_config?: Json | null
           content_delivery_type?: string | null
           created_at?: string | null
           currency?: string | null
+          custom_checkout_fields?: Json | null
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -1481,6 +1511,7 @@ export type Database = {
           show_price_presets?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -1494,10 +1525,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string | null
           content_config?: Json | null
           content_delivery_type?: string | null
           created_at?: string | null
           currency?: string | null
+          custom_checkout_fields?: Json | null
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -1530,13 +1563,29 @@ export type Database = {
           show_price_presets?: boolean | null
           slug?: string | null
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
           updated_at?: string | null
           vat_rate?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -3004,6 +3053,7 @@ export type Database = {
           allowed_emails: Json
           allowed_product_ids: Json
           code: string
+          coupon_role: string | null
           created_at: string
           currency: string | null
           current_usage_count: number
@@ -3029,6 +3079,7 @@ export type Database = {
           allowed_emails?: Json
           allowed_product_ids?: Json
           code: string
+          coupon_role?: string | null
           created_at?: string
           currency?: string | null
           current_usage_count?: number
@@ -3054,6 +3105,7 @@ export type Database = {
           allowed_emails?: Json
           allowed_product_ids?: Json
           code?: string
+          coupon_role?: string | null
           created_at?: string
           currency?: string | null
           current_usage_count?: number
@@ -3386,6 +3438,10 @@ export type Database = {
           discount_type: string
           discount_value: number
           display_order: number
+          downsell_discount_type: string | null
+          downsell_discount_value: number | null
+          downsell_duration_minutes: number | null
+          downsell_product_id: string | null
           duration_minutes: number
           id: string
           is_active: boolean
@@ -3398,6 +3454,10 @@ export type Database = {
           discount_type: string
           discount_value: number
           display_order?: number
+          downsell_discount_type?: string | null
+          downsell_discount_value?: number | null
+          downsell_duration_minutes?: number | null
+          downsell_product_id?: string | null
           duration_minutes?: number
           id?: string
           is_active?: boolean
@@ -3410,6 +3470,10 @@ export type Database = {
           discount_type?: string
           discount_value?: number
           display_order?: number
+          downsell_discount_type?: string | null
+          downsell_discount_value?: number | null
+          downsell_duration_minutes?: number | null
+          downsell_product_id?: string | null
           duration_minutes?: number
           id?: string
           is_active?: boolean
@@ -3418,6 +3482,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "oto_offers_downsell_product_id_fkey"
+            columns: ["downsell_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "oto_offers_oto_product_id_fkey"
             columns: ["oto_product_id"]
@@ -3582,6 +3653,7 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
+          custom_field_values: Json
           customer_email: string
           expires_at: string | null
           id: string
@@ -3605,6 +3677,7 @@ export type Database = {
           amount: number
           created_at?: string
           currency: string
+          custom_field_values?: Json
           customer_email: string
           expires_at?: string | null
           id?: string
@@ -3628,6 +3701,7 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
+          custom_field_values?: Json
           customer_email?: string
           expires_at?: string | null
           id?: string
@@ -3877,10 +3951,12 @@ export type Database = {
           available_until: string | null
           billing_interval: string | null
           billing_interval_count: number | null
+          checkout_template: string
           content_config: Json
           content_delivery_type: string
           created_at: string
           currency: string
+          custom_checkout_fields: Json
           custom_price_min: number | null
           custom_price_presets: Json | null
           description: string | null
@@ -3913,6 +3989,7 @@ export type Database = {
           show_price_presets: boolean
           slug: string
           stripe_price_id: string | null
+          stripe_product_id: string | null
           success_redirect_url: string | null
           thumbnail_url: string | null
           trial_days: number | null
@@ -3926,10 +4003,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string
           content_config?: Json
           content_delivery_type?: string
           created_at?: string
           currency?: string
+          custom_checkout_fields?: Json
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -3962,6 +4041,7 @@ export type Database = {
           show_price_presets?: boolean
           slug: string
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
@@ -3975,10 +4055,12 @@ export type Database = {
           available_until?: string | null
           billing_interval?: string | null
           billing_interval_count?: number | null
+          checkout_template?: string
           content_config?: Json
           content_delivery_type?: string
           created_at?: string
           currency?: string
+          custom_checkout_fields?: Json
           custom_price_min?: number | null
           custom_price_presets?: Json | null
           description?: string | null
@@ -4011,13 +4093,29 @@ export type Database = {
           show_price_presets?: boolean
           slug?: string
           stripe_price_id?: string | null
+          stripe_product_id?: string | null
           success_redirect_url?: string | null
           thumbnail_url?: string | null
           trial_days?: number | null
           updated_at?: string
           vat_rate?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "products_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -4245,7 +4343,22 @@ export type Database = {
           seller_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "seller_embed_settings_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: true
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "seller_embed_settings_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: true
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       shop_config: {
         Row: {
@@ -4901,6 +5014,10 @@ export type Database = {
         Args: {
           discount_type_param: string
           discount_value_param: number
+          downsell_discount_type_param?: string
+          downsell_discount_value_param?: number
+          downsell_duration_minutes_param?: number
+          downsell_product_id_param?: string
           duration_minutes_param?: number
           is_active_param?: boolean
           oto_product_id_param: string
@@ -5913,3 +6030,4 @@ export const Constants = {
     },
   },
 } as const
+

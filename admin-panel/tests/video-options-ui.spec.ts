@@ -39,7 +39,7 @@ test.afterAll(async () => {
 async function goToProducts(page: Page) {
   await loginAsAdmin(page, adminEmail, adminPassword);
   await page.goto('/pl/dashboard/products');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
   // Ensure products table is loaded before interacting
   await expect(page.locator('button', { hasText: /Dodaj produkt/i })).toBeVisible({ timeout: 15000 });
 }

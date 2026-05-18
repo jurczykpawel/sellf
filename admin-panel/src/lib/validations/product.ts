@@ -7,6 +7,8 @@
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
+import { CHECKOUT_TEMPLATE_SLUGS } from '@/lib/checkout-templates/types';
+import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
 
 /**
  * Explicit field list for Products API v1 responses.
@@ -16,7 +18,7 @@ import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -91,6 +93,7 @@ export interface CreateProductInput {
   available_from?: string | null;
   available_until?: string | null;
   auto_grant_duration_days?: number | null;
+  embed_enabled?: boolean;
 }
 
 export interface UpdateProductInput {
@@ -116,6 +119,7 @@ export interface UpdateProductInput {
   available_from?: string | null;
   available_until?: string | null;
   auto_grant_duration_days?: number | null;
+  embed_enabled?: boolean;
 }
 
 // Validation functions
@@ -556,6 +560,20 @@ export function validateCreateProduct(data: unknown): ValidationResult {
   // Subscription fields validation
   errors.push(...validateSubscriptionFields(input).errors);
 
+  if (input.checkout_template !== undefined) {
+    errors.push(...validateCheckoutTemplate(input.checkout_template).errors);
+  }
+  if (input.custom_checkout_fields !== undefined) {
+    errors.push(...validateCustomCheckoutFieldsPayload(input.custom_checkout_fields).errors);
+  }
+  if (input.checkout_template !== undefined || input.allow_custom_price !== undefined) {
+    errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price).errors);
+  }
+
+  if (input.embed_enabled !== undefined && typeof input.embed_enabled !== 'boolean') {
+    errors.push('embed_enabled must be a boolean');
+  }
+
   return { isValid: errors.length === 0, errors };
 }
 
@@ -714,6 +732,62 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     errors.push(...validateSubscriptionFields(input).errors);
   }
 
+  if (input.checkout_template !== undefined) {
+    errors.push(...validateCheckoutTemplate(input.checkout_template).errors);
+  }
+  if (input.custom_checkout_fields !== undefined) {
+    errors.push(...validateCustomCheckoutFieldsPayload(input.custom_checkout_fields).errors);
+  }
+  if (input.checkout_template !== undefined || input.allow_custom_price !== undefined) {
+    errors.push(...validateCheckoutTemplateDependencies(input.checkout_template, input.allow_custom_price, 'update').errors);
+  }
+
+  if (input.embed_enabled !== undefined && typeof input.embed_enabled !== 'boolean') {
+    errors.push('embed_enabled must be a boolean');
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
+// Phase 3 — Checkout templates feature. Both helpers below mirror the DB
+// CHECK constraint + the typed registry; admin UI also runs them client-side
+// so the editor highlights errors without a round-trip.
+
+function validateCheckoutTemplate(value: unknown): ValidationResult {
+  const errors: string[] = [];
+  if (typeof value !== 'string' || !CHECKOUT_TEMPLATE_SLUGS.includes(value as typeof CHECKOUT_TEMPLATE_SLUGS[number])) {
+    errors.push(
+      `checkout_template must be one of: ${CHECKOUT_TEMPLATE_SLUGS.join(', ')}`,
+    );
+  }
+  return { isValid: errors.length === 0, errors };
+}
+
+export function validateCheckoutTemplateDependencies(
+  template: unknown,
+  allowCustomPrice: unknown,
+  context: 'create' | 'update' = 'create',
+): ValidationResult {
+  const errors: string[] = [];
+  if (template === 'tip-jar') {
+    if (context === 'create' && allowCustomPrice !== true) {
+      errors.push('checkout_template "tip-jar" requires allow_custom_price=true (PWYW)');
+    }
+    if (context === 'update' && allowCustomPrice !== undefined && allowCustomPrice !== true) {
+      errors.push('Cannot set checkout_template "tip-jar" with allow_custom_price=false (PWYW required)');
+    }
+  }
+  return { isValid: errors.length === 0, errors };
+}
+
+function validateCustomCheckoutFieldsPayload(value: unknown): ValidationResult {
+  const errors: string[] = [];
+  const result = validateCustomFieldDefinitions(value);
+  if (!result.ok) {
+    for (const [idx, msg] of Object.entries(result.errors)) {
+      errors.push(`custom_checkout_fields[${idx}]: ${msg}`);
+    }
+  }
   return { isValid: errors.length === 0, errors };
 }
 

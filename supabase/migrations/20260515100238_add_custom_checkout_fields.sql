@@ -1,0 +1,32 @@
+-- Custom checkout fields — product-level shared system usable by ANY template.
+--
+-- products.custom_checkout_fields    JSONB array of field definitions
+-- payment_transactions.custom_field_values JSONB map of field id → buyer-typed string
+--
+-- Shape + hard limits are enforced by
+-- admin-panel/src/lib/validations/custom-checkout-fields.ts which is the
+-- single source of truth — server (API) + client (admin editor) both use it.
+-- DB stays opinion-free about contents so future field types / shape evolution
+-- don't require a new migration each time.
+--
+-- @see admin-panel/src/lib/validations/custom-checkout-fields.ts
+
+ALTER TABLE seller_main.products
+  ADD COLUMN custom_checkout_fields JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+ALTER TABLE seller_main.payment_transactions
+  ADD COLUMN custom_field_values JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN seller_main.products.custom_checkout_fields IS
+  'Array of {id,type,label,required,max_length,placeholder?} definitions. Shape validated at API layer (lib/validations/custom-checkout-fields.ts).';
+COMMENT ON COLUMN seller_main.payment_transactions.custom_field_values IS
+  'Map of field_id → buyer-typed string. Validated against the buying product''s custom_checkout_fields before insert.';
+
+-- public.* SELECT * views freeze their column list at create time; refresh
+-- so PostgREST + standalone-mode clients see the new columns (same gotcha
+-- hit in 20260515080046_add_checkout_template_to_products).
+CREATE OR REPLACE VIEW public.products WITH (security_invoker = on) AS
+  SELECT * FROM seller_main.products;
+
+CREATE OR REPLACE VIEW public.payment_transactions WITH (security_invoker = on) AS
+  SELECT * FROM seller_main.payment_transactions;

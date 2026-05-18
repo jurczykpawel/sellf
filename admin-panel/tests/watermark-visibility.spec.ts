@@ -118,7 +118,7 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Load test page from http-server (uses sellf from localhost:3777)
     await page.goto(TEST_PAGE_URL);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Watermark container should NOT exist (check inner visible element)
@@ -135,7 +135,7 @@ test.describe('Watermark Visibility Based on License', () => {
 
     // Load test page from http-server
     await page.goto(TEST_PAGE_URL);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     // Watermark should NOT be visible (env fallback provides valid license)

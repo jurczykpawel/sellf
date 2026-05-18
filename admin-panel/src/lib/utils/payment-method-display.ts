@@ -1,4 +1,4 @@
-import { getAvailablePaymentMethods } from '@/lib/stripe/payment-method-configs';
+import { getAvailablePaymentMethods } from '@/lib/stripe/payment-method-metadata';
 import type { PaymentMethodInfo } from '@/types/payment-config';
 
 const availablePaymentMethods: PaymentMethodInfo[] = getAvailablePaymentMethods();

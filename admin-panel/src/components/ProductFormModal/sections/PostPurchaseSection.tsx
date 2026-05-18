@@ -321,6 +321,110 @@ export function PostPurchaseSection({
                     })}
                   </p>
                 </div>
+
+                {/* Downsell Branch */}
+                <div className="mt-2 pt-4 border-t border-sf-border">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-sf-heading">
+                        {t('oto.downsellTitle', { defaultValue: 'Add downsell offer (when declined)' })}
+                      </h4>
+                      <p className="text-xs text-sf-muted mt-1">
+                        {t('oto.downsellDescription', { defaultValue: 'If the buyer declines the upsell, redirect them to a cheaper alternative with its own coupon.' })}
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={oto.downsellEnabled}
+                        onChange={(e) => setOto(prev => ({ ...prev, downsellEnabled: e.target.checked }))}
+                      />
+                      <div className="w-11 h-6 bg-sf-raised peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sf-accent rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-sf-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sf-accent-bg"></div>
+                    </label>
+                  </div>
+
+                  {oto.downsellEnabled && (
+                    <div className="mt-4 space-y-4">
+                      {/* Downsell product picker */}
+                      <div>
+                        <label className="block text-sm font-medium text-sf-body mb-2">
+                          {t('oto.downsellProduct', { defaultValue: 'Downsell product' })}
+                        </label>
+                        <select
+                          value={oto.downsellProductId}
+                          onChange={(e) => setOto(prev => ({ ...prev, downsellProductId: e.target.value }))}
+                          disabled={loadingProducts}
+                          className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
+                        >
+                          <option value="">{t('oto.selectDownsellPlaceholder', { defaultValue: 'Select downsell product...' })}</option>
+                          {products
+                            .filter(p => p.id !== currentProductId && p.id !== oto.productId && p.price > 0)
+                            .map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} ({p.price} {p.currency})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Downsell discount config */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-sf-body mb-2">
+                            {t('oto.discountType', { defaultValue: 'Discount Type' })}
+                          </label>
+                          <select
+                            value={oto.downsellDiscountType}
+                            onChange={(e) => setOto(prev => ({ ...prev, downsellDiscountType: e.target.value as 'percentage' | 'fixed' }))}
+                            className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
+                          >
+                            <option value="percentage">{t('oto.percentage', { defaultValue: 'Percentage (%)' })}</option>
+                            <option value="fixed">{t('oto.fixed', { defaultValue: 'Fixed Amount' })}</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-sf-body mb-2">
+                            {t('oto.discountValue', { defaultValue: 'Discount Value' })}
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={oto.downsellDiscountValue}
+                              onChange={(e) => setOto(prev => ({ ...prev, downsellDiscountValue: Math.max(0, Number(e.target.value)) }))}
+                              min="0"
+                              max={oto.downsellDiscountType === 'percentage' ? 100 : undefined}
+                              className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading pr-10"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sf-muted">
+                              {oto.downsellDiscountType === 'percentage' ? '%' : formData.currency}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Downsell duration */}
+                      <div>
+                        <label className="block text-sm font-medium text-sf-body mb-2">
+                          {t('oto.duration', { defaultValue: 'Offer Duration' })}
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="number"
+                            value={oto.downsellDurationMinutes}
+                            onChange={(e) => setOto(prev => ({ ...prev, downsellDurationMinutes: Math.max(1, Math.min(1440, Number(e.target.value))) }))}
+                            min="1"
+                            max="1440"
+                            className="w-24 px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
+                          />
+                          <span className="text-sm text-sf-body">
+                            {t('oto.minutes', { defaultValue: 'minutes' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

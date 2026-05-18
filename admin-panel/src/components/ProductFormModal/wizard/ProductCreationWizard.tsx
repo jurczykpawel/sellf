@@ -214,6 +214,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 shopDefaultVatRate={shopDefaultVatRate}
                 taxMode={taxMode}
                 isEditing={isEditMode}
+                onRequestStepChange={setCurrentStep}
               />
             )}
 

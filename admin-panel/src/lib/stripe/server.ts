@@ -2,7 +2,7 @@
 // Secure Stripe server configuration for Next.js Server Actions and API routes
 
 import Stripe from 'stripe';
-import { getDecryptedStripeKeyInternal, getDecryptedWebhookSecretInternal } from '@/lib/actions/stripe-config';
+import { getDecryptedStripeKeyInternal, getDecryptedWebhookSecretInternal } from '@/lib/stripe/internal-config';
 import { STRIPE_API_VERSION } from '@/lib/constants';
 import type { StripeMode } from '@/types/stripe-config';
 
@@ -151,7 +151,13 @@ export const isUsingEnvConfig = async (): Promise<boolean> => {
     const dbKey = await getDecryptedStripeKeyInternal(mode);
     return !dbKey; // If no DB key, we're using env fallback
   } catch (error) {
-    return true; // If error retrieving DB key, assume env fallback
+    // The settings banner can mislead operators if we silently swallow this —
+    // log it so the env-fallback path is visible in production diagnostics.
+    console.error(
+      '[isUsingEnvConfig] DB key fetch failed, assuming env fallback:',
+      error instanceof Error ? error.message : error,
+    );
+    return true;
   }
 };
 

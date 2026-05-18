@@ -71,7 +71,11 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Forbidden' }, 403, origin, allowedOrigins);
   }
 
-  const rateLimitOk = await checkRateLimit('embed_checkout_session', 20, 300);
+  // 30 sessions per 5-minute sliding window per fingerprint. Bigger window
+  // previously (20/300m = 5h) was too tight: a buyer who fat-fingers BLIK
+  // a couple times legitimately hits 4-5 attempts, and the same fingerprint
+  // covers everyone behind a NAT.
+  const rateLimitOk = await checkRateLimit('embed_checkout_session', 30, 5);
   if (!rateLimitOk) {
     await logEmbedCheckoutEvent(adminClient, {
       productId: null,
@@ -84,7 +88,7 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
   }
 
-  if (!product || !isPaidEmbeddableProduct(product)) {
+  if (!product || !isEmbeddableProduct(product)) {
     await logEmbedCheckoutEvent(adminClient, {
       productId: product?.id ?? null,
       productSlug: parsed.value.productSlug,
@@ -94,6 +98,29 @@ export async function POST(request: Request) {
       status: 'denied',
     });
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
+  }
+
+  // Free products short-circuit: the SDK renders an email-gate form and
+  // submits to /api/embed/free-access. No Stripe session needed here.
+  if (product.price === 0) {
+    return embedJson(
+      {
+        kind: 'free' as const,
+        product: {
+          slug: product.slug,
+          name: product.name,
+          price: product.price,
+          currency: product.currency,
+        },
+        captchaSiteKey:
+          process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ||
+          process.env.CLOUDFLARE_TURNSTILE_SITE_KEY ||
+          '',
+      },
+      200,
+      origin,
+      allowedOrigins,
+    );
   }
 
   try {
@@ -122,6 +149,7 @@ export async function POST(request: Request) {
 
     return embedJson(
       {
+        kind: 'paid' as const,
         clientSecret: session.clientSecret,
         sessionId: session.sessionId,
         product: {
@@ -221,7 +249,7 @@ async function loadAllowedOriginsForProduct(
   return getEnvAllowedEmbedOrigins();
 }
 
-function isPaidEmbeddableProduct(product: EmbedProduct): boolean {
+function isEmbeddableProduct(product: EmbedProduct): boolean {
   const now = new Date();
   const availableFrom = product.available_from ? new Date(product.available_from) : null;
   const availableUntil = product.available_until ? new Date(product.available_until) : null;
@@ -230,7 +258,6 @@ function isPaidEmbeddableProduct(product: EmbedProduct): boolean {
     product.embed_enabled === true &&
     product.is_active === true &&
     product.product_type === 'one_time' &&
-    product.price > 0 &&
     (!availableFrom || availableFrom <= now) &&
     (!availableUntil || availableUntil > now)
   );
