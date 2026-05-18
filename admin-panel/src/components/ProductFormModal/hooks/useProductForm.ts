@@ -126,8 +126,21 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
   }, [isOpen, product]);
 
-  // Initialize form data when product changes or modal opens
+  // Initialize form data when editing an existing product.
+  // For new products the useState initializer above already seeds the form
+  // with `initialFormData` — running a non-functional setFormData here would
+  // race the user's first keystrokes (useEffect fires asynchronously after
+  // the first paint, so Playwright can fill an input between commit and
+  // effect-fire and have the reset wipe the value).
+  const initializedRef = useRef(false);
   useEffect(() => {
+    if (!isOpen) {
+      initializedRef.current = false;
+      return;
+    }
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     if (product) {
       // For existing products
       setFormData({
@@ -233,7 +246,6 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       // For new products — copy shop default VAT rate so it's explicit per product
       setFormData({
         ...initialFormData,
-        currency: defaultCurrency,
         icon: getIconEmoji('rocket'),
         vat_rate: shopDefaultVatRate != null ? Math.round(shopDefaultVatRate * 100) : null,
       });
@@ -248,6 +260,16 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 100);
+    }
+  }, [product, isOpen]);
+
+  // When shop default currency loads, apply it to new products (if user hasn't changed currency yet)
+  useEffect(() => {
+    if (!product && isOpen) {
+      setFormData(prev => {
+        if (prev.currency !== initialFormData.currency) return prev; // user already changed it
+        return { ...prev, currency: defaultCurrency };
+      });
     }
   }, [product, isOpen, defaultCurrency]);
 
