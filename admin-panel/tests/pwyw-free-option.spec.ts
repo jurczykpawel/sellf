@@ -870,21 +870,32 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
     await expect(page.getByText('Utwórz nowy produkt')).toBeVisible({ timeout: 5000 });
 
     await page.fill('input#name', 'PWYW Reset Test');
-    await page.fill('input#price', '100');
+    const priceInput = page.locator('input#price');
+    await priceInput.fill('100');
+    // Anchor: price commit must be in formData before the PWYW toggle reads
+    // latestPriceRef.current, otherwise getDefaultMin(0)=1 sticks.
+    await expect(priceInput).toHaveValue('100');
 
     // Enable PWYW
     const pwywCheckbox = page.locator('label').filter({ hasText: /Pozwól klientowi wybrać cenę/i }).locator('input[type="checkbox"]');
     await pwywCheckbox.check();
 
-    // Manually edit min
+    // Wait for PWYW section to mount (min input appears) before manual edit.
     const minInput = page.locator('input[type="number"][min="0"][step="0.10"]');
+    await expect(minInput).toBeVisible();
+    await expect(minInput).toHaveValue('50');
+
+    // Manually edit min
     await minInput.fill('5');
+    await expect(minInput).toHaveValue('5');
 
-    // Disable PWYW
+    // Disable PWYW — wait for min input to disappear (PWYW section unmounts).
     await pwywCheckbox.uncheck();
+    await expect(minInput).not.toBeVisible();
 
-    // Re-enable PWYW
+    // Re-enable PWYW — section re-mounts.
     await pwywCheckbox.check();
+    await expect(minInput).toBeVisible();
 
     // Min should be reset to auto-calculated value (50)
     await expect(minInput).toHaveValue('50');

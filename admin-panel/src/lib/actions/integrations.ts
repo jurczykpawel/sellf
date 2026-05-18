@@ -88,9 +88,14 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
       }
     }
 
+    // `.select()` forces PostgREST `Prefer: return=representation` which
+    // makes the update synchronous w.r.t. follow-up reads from a different
+    // pool connection (without it, a service-role poll right after success
+    // could occasionally observe the pre-update value).
     const { error } = await dataClient.from('integrations_config')
       .update({ ...sanitizedValues, updated_at: new Date().toISOString() })
       .eq('id', 1)
+      .select('id')
 
     if (error) return { success: false, error: error.message }
     revalidatePath('/dashboard/integrations')
