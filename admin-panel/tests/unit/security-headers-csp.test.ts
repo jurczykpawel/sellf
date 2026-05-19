@@ -35,11 +35,10 @@ describe('CSP with nonce — production posture', () => {
     expect(scriptSrc).not.toContain("'unsafe-eval'");
   });
 
-  it('preserves the third-party script allow-list (stripe, cloudflare, klaro, youtube)', () => {
+  it('preserves the third-party script allow-list (stripe, cloudflare, youtube)', () => {
     const scriptSrc = csp.split(';').find((d) => d.trim().startsWith('script-src')) ?? '';
     expect(scriptSrc).toContain('js.stripe.com');
     expect(scriptSrc).toContain('challenges.cloudflare.com');
-    expect(scriptSrc).toContain('cdn.kiprotect.com');
     expect(scriptSrc).toContain('www.youtube.com');
   });
 

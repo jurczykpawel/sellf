@@ -60,7 +60,6 @@ const DEMO_MUTATION_ALLOWED = [
   '/api/embed/',
   '/api/oto/',
   '/api/products/',
-  '/api/access',
   '/api/profile/',
   '/api/users/',
   '/api/refund-requests',
