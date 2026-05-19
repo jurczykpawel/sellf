@@ -1700,7 +1700,15 @@ test.describe('Tracking Events - Payment Flow Events', () => {
     // Navigate to free product checkout (also triggers view_item on mount)
     await page.goto(`/checkout/${freeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
+
+    // Wait for the view_item event explicitly — fixed 2s sleep was racing the
+    // dataLayer push under load.
+    await page.waitForFunction(
+      () => Array.isArray((window as { dataLayer?: { event?: string }[] }).dataLayer)
+        && (window as { dataLayer?: { event?: string }[] }).dataLayer!.some((e) => e?.event === 'view_item'),
+      undefined,
+      { timeout: 15000 },
+    );
 
     // Verify view_item fired for the free product (price = 0)
     const dataLayerBefore = await getDataLayerEvents(page);
