@@ -556,7 +556,6 @@
     "paid": "Płatny",
     "permanent": "Permanentny",
     "generateCode": "Generuj kod",
-    "generateProtectionCode": "Generuj kod ochrony treści",
     "generateEmbedSnippet": "Generuj kod osadzania koszyka",
     "codeGenerated": "Kod wygenerowany",
     "copyCode": "Kopiuj kod",
@@ -623,44 +622,6 @@
       "hourlyTitle": "Dzisiejszy przychód",
       "hourlySubtitle": "Podział godzinowy"
     }
-  },
-  "protectionCode": {
-    "title": "Generuj kod ochrony treści",
-    "subtitle": "Blokuj wybrane treści na własnej stronie z sellf.js. NIE jest to formularz zakupu.",
-    "product": "Produkt",
-    "slug": "Slug",
-    "protectionMode": "Tryb ochrony",
-    "pageMode": "Chroń całą stronę",
-    "elementMode": "Chroń elementy",
-    "pageDescription": "Chroni całą zawartość strony",
-    "elementDescription": "Chroni określone elementy strony",
-    "generatedCode": "Wygenerowany kod",
-    "copied": "✓ Skopiowano!",
-    "copyCode": "📋 Kopiuj kod",
-    "instructions": "Instrukcje implementacji",
-    "pageInstructions": {
-      "step1": "1. Skopiuj powyższy tag script",
-      "step2": "2. Wklej go do sekcji &lt;head&gt; chronionej strony",
-      "step3": "3. Cała strona zostanie automatycznie zabezpieczona"
-    },
-    "elementInstructions": {
-      "step1": "1. Dodaj tag script do sekcji &lt;head&gt; strony",
-      "step2": "2. Owiń treść, którą chcesz chronić w data-sellf-product=\"{slug}\"",
-      "step3": "3. Dodaj treść zastępczą z data-no-access dla użytkowników bez dostępu",
-      "step4": "4. Skrypt automatycznie pokaże/ukryje treść w zależności od dostępu użytkownika"
-    },
-    "importantInfo": "Ważne informacje",
-    "frontendProtection": "Ochrona frontendowa",
-    "frontendProtectionDescription": "To rozwiązanie działa w pełni po stronie klienta, co czyni je kompatybilnym z dowolnym konstruktorem stron jak WordPress, Webflow, Squarespace lub statycznym HTML. Chociaż to podejście jest mniej bezpieczne niż ochrona po stronie serwera, zaimplementowaliśmy kilka technik zaciemniania, aby obejście było trudniejsze niż w typowych rozwiązaniach frontend.",
-    "useCase": "Przypadek użycia",
-    "pageModeUseCase": "Idealne do ochrony stron docelowych, treści kursów lub dowolnej samodzielnej strony, gdzie chcesz kontrolować dostęp w oparciu o zakupy lub subskrypcje użytkowników.",
-    "selectiveDisplay": "Selektywne wyświetlanie treści",
-    "selectiveDisplayDescription": "Ta metoda pozwala pokazywać lub ukrywać określone sekcje strony w zależności od dostępu użytkownika. Jest szczególnie użyteczna na stronach sprzedażowych, gdzie chcesz wyświetlać różną treść płacącym klientom a potencjalnym klientom.",
-    "implementation": "Implementacja",
-    "implementationDescription": "Dodaj data-sellf-product=\"{slug}\" do treści, która powinna być widoczna dla użytkowników z dostępem, i data-no-access=\"true\" do treści zastępczej dla użytkowników bez dostępu. Skrypt automatycznie zarządza widocznością.",
-    "commonUseCase": "Powszechny przypadek użycia",
-    "elementModeUseCase": "Zamień przyciski \"Kup teraz\" na przyciski \"Uzyskaj dostęp do produktu\" dla istniejących klientów, lub pokaż sekcje premium tylko subskrybentom.",
-    "close": "Zamknij"
   },
   "embedSnippet": {
     "title": "Generuj kod osadzania koszyka",
@@ -1223,7 +1184,6 @@
       "filterActive": "Aktywne",
       "filterInactive": "Nieaktywne",
       "generateCode": "Generuj kod",
-      "generateProtectionCode": "Generuj kod ochrony treści",
       "generateEmbedSnippet": "Generuj kod osadzania koszyka",
       "viewDetails": "Pokaż szczegóły",
       "edit": "Edytuj",
