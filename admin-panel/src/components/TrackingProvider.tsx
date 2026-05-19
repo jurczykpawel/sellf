@@ -100,7 +100,10 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
 
       if (cancelled) return
 
-      const sellfLang = (document.documentElement.lang || 'en').toLowerCase().startsWith('pl') ? 'pl' : 'en'
+      // Root layout hardcodes `<html lang="en">`, so reading document.documentElement.lang
+      // would always return 'en'. Locale lives in the URL prefix (/pl, /en).
+      const path = window.location.pathname.toLowerCase()
+      const sellfLang = path === '/pl' || path.startsWith('/pl/') ? 'pl' : 'en'
 
       /**
        * Build the legacy `{service: bool}` payload that `/api/consent` and the

@@ -147,6 +147,15 @@ test.describe('cookieconsent integration', () => {
     expect(/(month|day|miesi|dni)/i.test(text)).toBe(true);
   });
 
+  test('compliance: banner renders in PL on /pl path', async ({ page }) => {
+    await clearConsent(page);
+    await page.goto('/pl');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('html.show--consent')).toBeAttached({ timeout: 10_000 });
+    const text = (await page.locator('#cc-main .cm').textContent()) ?? '';
+    expect(text).toMatch(/Używamy ciasteczek|niezbędne|Akceptuj/);
+  });
+
   test('compliance: cookie preferences link in the marketing footer re-opens preferences', async ({ page }) => {
     await acceptAllCookies(page);
     await page.goto('/about');

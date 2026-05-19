@@ -36,10 +36,7 @@ async function getCachedLicenseValid(): Promise<boolean> {
   }
 }
 
-/**
- * Clear license cache (useful when license is updated via admin panel)
- */
-export function clearLicenseCache(): void {
+function clearLicenseCache(): void {
   licenseCache.clear();
 }
 
