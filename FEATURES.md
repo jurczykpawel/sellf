@@ -283,24 +283,17 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 
 ---
 
-## 10. Gatekeeper (Content Protection)
+## 10. Embed Checkout
 
-### Protection Types
-- **Page-level protection** - Entire page requires access
-- **Element-level protection** - Specific elements (`.sellf-protected` class)
-- **Multi-product** - Different products on one page
-- **Free content** - Public content without login
+### How it works
+- Sellers paste a small `<script src=".../embed/v1/checkout.js" data-...>` snippet on their own page
+- Paid products render Stripe Embedded Checkout inline (cards, BLIK, Google Pay)
+- Free products render an email gate (Turnstile) and deliver access via magic link
+- Origins must be allowlisted via `seller_embed_settings.allowed_embed_origins` (DB) or `SELLF_EMBED_ALLOWED_ORIGINS` (env)
 
-### Fallback Content
-- **Custom fallback** - Custom content for users without access
-- **Upgrade buttons** - Purchase buttons
-- **Graceful degradation** - Functioning during API errors
-
-### JavaScript SDK
-- **sellf.js** - Dynamic script for protection
-- **License validation** - Sellf license verification
-- **Auto-detection** - Automatic detection of protected elements
-- **Embedded checkout handoff** - External pages can open Sellf checkout through the `/embed/v1/checkout.js` script and `/api/embed/*` endpoints
+### Admin tooling
+- "Generate embed checkout snippet" action in the product menu
+- Toggle on the product form (Step 3: Sales) enables embedding
 
 ---
 
