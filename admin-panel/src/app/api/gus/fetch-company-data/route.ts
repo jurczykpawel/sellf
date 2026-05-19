@@ -201,32 +201,23 @@ export async function POST(request: NextRequest) {
  */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
+  const siteUrl = process.env.SITE_URL;
 
-  // Use SITE_URL (server-side runtime env) — NEXT_PUBLIC_SITE_URL is baked at build time
-  const allowedOrigins = [
-    process.env.SITE_URL,
-  ].filter(Boolean);
-
-  const isValidOrigin = origin && allowedOrigins.some(allowed =>
-    origin === allowed || (allowed ? origin.startsWith(allowed) : false)
-  );
-
-  if (!isValidOrigin) {
+  if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
     return new NextResponse(null, {
       status: 403,
-      headers: {
-        'Access-Control-Allow-Origin': 'null',
-      }
+      headers: { Vary: 'Origin' },
     });
   }
 
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': origin || '',
+      'Access-Control-Allow-Origin': new URL(siteUrl).origin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400', // 24 hours
+      'Access-Control-Max-Age': '86400',
+      Vary: 'Origin',
     }
   });
 }
