@@ -1222,6 +1222,7 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
     };
 
     const response = await request.post(`${BASE_URL}/api/consent`, {
+      headers: { origin: BASE_URL },
       data: {
         anonymous_id: anonymousId,
         consents: declinedConsents,
