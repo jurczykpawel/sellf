@@ -865,6 +865,12 @@ export function sanitizeProductData(data: Record<string, unknown>, setDefaults: 
     sanitizedData.currency = sanitizedData.currency.toUpperCase().trim();
   }
 
+  // preview_video_config has a NOT NULL CHECK constraint with default '{}'
+  // — let the DB default fill in for callers that haven't set it.
+  if (sanitizedData.preview_video_config === null) {
+    delete sanitizedData.preview_video_config;
+  }
+
   // Convert empty strings to null for date fields
   if (sanitizedData.available_from === '') {
     sanitizedData.available_from = null;
