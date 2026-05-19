@@ -15,6 +15,14 @@ function validateReturnUrl(url: string | null): string {
   return isSafeRedirectUrl(decoded) ? decoded : '/';
 }
 
+function clearSupabaseCookies(response: NextResponse, request: NextRequest): void {
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith('sb-')) {
+      response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 });
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -22,18 +30,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const returnUrl = validateReturnUrl(body.returnUrl);
 
-    // Best-effort server-side session revocation.
-    // Always redirect even on error — the JWT will expire naturally (≤1h),
-    // and failing to revoke server-side is an extreme edge case on self-hosted.
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('[logout] signOut error (best-effort, continuing):', error);
+      console.error('[logout] signOut error:', error);
     }
 
-    return NextResponse.json({ success: true, redirectUrl: returnUrl });
+    const response = NextResponse.json({
+      success: !error,
+      redirectUrl: returnUrl,
+      ...(error ? { error: error.message } : {}),
+    });
+    clearSupabaseCookies(response, request);
+    return response;
 
   } catch (error) {
     console.error('[logout] unexpected error:', error);
-    return NextResponse.json({ success: true, redirectUrl: '/' });
+    const response = NextResponse.json({ success: false, redirectUrl: '/' });
+    clearSupabaseCookies(response, request);
+    return response;
   }
 }
