@@ -87,9 +87,7 @@ function loadStripeEnvConfig(): Record<string, string> {
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
-  // Pin file tracing root to admin-panel so Next.js doesn't infer the parent
-  // (where a leftover package-lock.json lives) and emit a warning.
-  outputFileTracingRoot: process.cwd(),
+  // outputFileTracingRoot intentionally unset — pinning it OOM-ed Turbopack dev (#81161).
   poweredByHeader: false,
   experimental: {
     // Enable if you need server actions
