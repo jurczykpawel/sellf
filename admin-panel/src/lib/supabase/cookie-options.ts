@@ -50,7 +50,11 @@ function pickSecure(input: BuildOptionsInput): boolean {
 export function buildSupabaseCookieOptions(input: BuildOptionsInput): SupabaseCookieOptions {
   const caller = input.callerOptions ?? {};
   return {
-    httpOnly: true,
+    // @supabase/ssr createBrowserClient reads the session from document.cookie
+    // on the client, so the cookie has to stay JS-readable. SameSite=Lax is the
+    // primary CSRF defence (browser blocks cross-origin cookie sends); an XSS
+    // would still let JS read the session, tracked separately.
+    httpOnly: false,
     secure: pickSecure(input),
     sameSite: pickSameSite(input),
     path: '/',
