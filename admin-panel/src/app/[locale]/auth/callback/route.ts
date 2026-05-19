@@ -27,28 +27,17 @@ export async function GET(request: NextRequest) {
   const tokenHash = requestUrl.searchParams.get('token_hash')
   const type = parseOtpType(requestUrl.searchParams.get('type'))
   
-  // Get the correct origin for redirects - prioritize env var, then headers, then request URL
-  const getOrigin = () => {
-    // First try environment variable
-    if (process.env.SITE_URL) {
-      return process.env.SITE_URL
-    }
-    
-    // Then try headers (for production environments)
-    const host = request.headers.get('host')
-    const protocol = request.headers.get('x-forwarded-proto') || 
-                    request.headers.get('x-forwarded-protocol') ||
-                    (requestUrl.protocol === 'https:' ? 'https' : 'http')
-    
-    if (host) {
-      return `${protocol}://${host}`
-    }
-    
-    // Fallback to request URL origin
-    return requestUrl.origin
+  // SITE_URL is the only trusted source for the canonical origin used to
+  // build redirect URLs from this callback. Host/x-forwarded-* headers are
+  // attacker-controlled in a reverse-proxy setup that doesn't strip them.
+  if (!process.env.SITE_URL) {
+    console.error('[auth/callback] SITE_URL is not configured')
+    return NextResponse.json(
+      { error: 'Server configuration error' },
+      { status: 500 },
+    )
   }
-  
-  const origin = getOrigin()
+  const origin = process.env.SITE_URL
 
   // Upstream error from Supabase verify or OAuth provider.
   // Distinguish magic link expiry (common UX pitfall: clicking link in different browser)
