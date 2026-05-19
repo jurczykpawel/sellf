@@ -20,7 +20,6 @@ interface HeaderEntry {
  * CORP is downgraded to `cross-origin` for these only — never the admin app.
  */
 export const EMBEDDABLE_RESOURCE_PATHS = [
-  '/api/sellf',
   '/embed/v1/checkout.js',
   '/api/runtime-config',
 ] as const;
