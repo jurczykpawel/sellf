@@ -1,13 +1,18 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limiting'
+import { isAllowedOrigin } from '@/lib/security/origin-match'
+import { getClientIp } from '@/lib/security/client-ip'
 
 export async function POST(request: NextRequest) {
   try {
-    // Origin validation: only accept requests from our own site (prevents cross-origin DB noise)
+    // Origin must be present and match the configured site URL. A missing
+    // Origin header on POST is a clear sign of a non-browser caller and
+    // is rejected here rather than treated as "same-origin".
     const origin = request.headers.get('origin');
     const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-    if (origin && siteUrl && origin !== new URL(siteUrl).origin) {
+    if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -31,7 +36,6 @@ export async function POST(request: NextRequest) {
       anonymous_id,
       consents,
       consent_version,
-      user_id
     } = body
 
     // Input validation
@@ -44,12 +48,15 @@ export async function POST(request: NextRequest) {
     if (consent_version !== undefined && (typeof consent_version !== 'string' || consent_version.length > 50)) {
       return NextResponse.json({ error: 'Invalid consent_version' }, { status: 400 })
     }
-    if (user_id !== undefined && user_id !== null && (typeof user_id !== 'string' || user_id.length > 200)) {
-      return NextResponse.json({ error: 'Invalid user_id' }, { status: 400 })
-    }
 
-    // Get client info from headers
-    const ip_address = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    // Bind the row to the authenticated user when one is present. Any
+    // user_id supplied in the body is ignored so a logged-in attacker
+    // cannot attribute consent rows to a different account.
+    const userClient = await createClient()
+    const { data: { user } } = await userClient.auth.getUser()
+    const boundUserId = user?.id ?? null
+
+    const ip_address = getClientIp(request)
     const user_agent = (request.headers.get('user-agent') || 'unknown').substring(0, 500)
 
     // Use admin client — this endpoint is public (called by Klaro consent callback
@@ -66,15 +73,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'Logging disabled' })
     }
 
-    // Never trust user_id from request body — use session if available
-    // For anonymous visitors, user_id will be null
     const { error } = await supabase
       .from('consent_logs')
       .insert({
         anonymous_id: anonymous_id || null,
         consents: consents || null,
         consent_version: consent_version || null,
-        user_id: null,
+        user_id: boundUserId,
         ip_address,
         user_agent
       })
