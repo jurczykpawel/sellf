@@ -74,6 +74,29 @@ describe('playerstack integration helpers', () => {
     expect(dataConfig.brandedThumb).toBeUndefined();
   });
 
+  it('enables saved-position plugin when config.saved_position is true', () => {
+    const result = buildPlayerstackRenderConfig({
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      config: { saved_position: true },
+    });
+
+    const dataConfig = JSON.parse(result!.dataConfig);
+    expect(dataConfig.savedPosition).toEqual({ enabled: true });
+  });
+
+  it('does not emit savedPosition when saved_position is falsy', () => {
+    const noConfig = buildPlayerstackRenderConfig({
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+    const explicitFalse = buildPlayerstackRenderConfig({
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      config: { saved_position: false },
+    });
+
+    expect(JSON.parse(noConfig!.dataConfig).savedPosition).toBeUndefined();
+    expect(JSON.parse(explicitFalse!.dataConfig).savedPosition).toBeUndefined();
+  });
+
   it('limits controls through config when controls are disabled', () => {
     const result = buildPlayerstackRenderConfig({
       url: 'https://vimeo.com/76979871',
@@ -197,7 +220,7 @@ describe('playerstack integration helpers', () => {
 
     const dataConfig = JSON.parse(result!.dataConfig);
     const allowedKeys = new Set([
-      'src', 'poster', 'title', 'loop', 'muted', 'controls', 'brandedThumb', 'preview', 'twitch',
+      'src', 'poster', 'title', 'loop', 'muted', 'controls', 'brandedThumb', 'preview', 'twitch', 'savedPosition',
     ]);
     for (const key of Object.keys(dataConfig)) {
       expect(allowedKeys.has(key)).toBe(true);

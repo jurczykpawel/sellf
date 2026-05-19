@@ -156,6 +156,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         icon: product.icon || getIconEmoji('rocket'),
         image_url: product.image_url || null,
         preview_video_url: product.preview_video_url || null,
+        preview_video_config: (product as Product & { preview_video_config?: Record<string, boolean> | null }).preview_video_config || null,
         available_from: product.available_from || '',
         available_until: product.available_until || '',
         auto_grant_duration_days: product.auto_grant_duration_days || null,

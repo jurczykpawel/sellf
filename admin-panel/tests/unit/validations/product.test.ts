@@ -688,6 +688,58 @@ describe('Product Validation', () => {
       expect(result.errors.some(e => /embed_enabled/i.test(e))).toBe(true);
     });
 
+  });
+
+  describe('preview_video_config', () => {
+    it('accepts a valid 4-flag config on create and update', () => {
+      const payload = {
+        name: 'X',
+        slug: 'x',
+        description: 'd',
+        price: 0,
+        currency: 'PLN',
+        preview_video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        preview_video_config: { autoplay: true, loop: true, muted: true, controls: false },
+      };
+      expect(validateCreateProduct(payload).isValid).toBe(true);
+      expect(validateUpdateProduct({ preview_video_config: { saved_position: true } }).isValid).toBe(true);
+    });
+
+    it('rejects non-boolean values', () => {
+      const result = validateUpdateProduct({ preview_video_config: { autoplay: 'yes' } });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => /preview_video_config/i.test(e))).toBe(true);
+    });
+
+    it('rejects unknown keys', () => {
+      const result = validateUpdateProduct({ preview_video_config: { evilFlag: true } });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => /preview_video_config/i.test(e))).toBe(true);
+    });
+
+    it('rejects non-object payloads', () => {
+      const result = validateUpdateProduct({ preview_video_config: 'on' });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => /preview_video_config/i.test(e))).toBe(true);
+    });
+
+    it('accepts empty object and null', () => {
+      expect(validateUpdateProduct({ preview_video_config: {} }).isValid).toBe(true);
+      expect(validateUpdateProduct({ preview_video_config: null }).isValid).toBe(true);
+    });
+
+    it('preserves preview_video_config through sanitizeProductData round-trip', () => {
+      const cfg = { autoplay: true, muted: true };
+      const sanitized = sanitizeProductData({ preview_video_config: cfg }, false);
+      expect(sanitized.preview_video_config).toEqual(cfg);
+    });
+
+    it('exposes preview_video_config in PRODUCT_API_FIELDS', () => {
+      expect(PRODUCT_API_FIELDS).toContain('preview_video_config');
+    });
+  });
+
+  describe('embed_enabled round-trip', () => {
     it('sanitizeProductData passes embed_enabled through unchanged (whitelist by exclusion)', () => {
       // sanitizeProductData uses delete-explicit pattern, not allowlist. New
       // boolean toggles that have no special handling must round-trip cleanly

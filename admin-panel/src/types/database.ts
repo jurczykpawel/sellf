@@ -1445,6 +1445,7 @@ export type Database = {
           name: string | null
           omnibus_exempt: boolean | null
           pass_params_to_redirect: boolean | null
+          preview_video_config: Json | null
           preview_video_url: string | null
           price: number | null
           price_includes_vat: boolean | null
@@ -1497,6 +1498,7 @@ export type Database = {
           name?: string | null
           omnibus_exempt?: boolean | null
           pass_params_to_redirect?: boolean | null
+          preview_video_config?: Json | null
           preview_video_url?: string | null
           price?: number | null
           price_includes_vat?: boolean | null
@@ -1549,6 +1551,7 @@ export type Database = {
           name?: string | null
           omnibus_exempt?: boolean | null
           pass_params_to_redirect?: boolean | null
+          preview_video_config?: Json | null
           preview_video_url?: string | null
           price?: number | null
           price_includes_vat?: boolean | null
@@ -3975,6 +3978,7 @@ export type Database = {
           name: string
           omnibus_exempt: boolean
           pass_params_to_redirect: boolean
+          preview_video_config: Json
           preview_video_url: string | null
           price: number
           price_includes_vat: boolean
@@ -4027,6 +4031,7 @@ export type Database = {
           name: string
           omnibus_exempt?: boolean
           pass_params_to_redirect?: boolean
+          preview_video_config?: Json
           preview_video_url?: string | null
           price?: number
           price_includes_vat?: boolean
@@ -4079,6 +4084,7 @@ export type Database = {
           name?: string
           omnibus_exempt?: boolean
           pass_params_to_redirect?: boolean
+          preview_video_config?: Json
           preview_video_url?: string | null
           price?: number
           price_includes_vat?: boolean
@@ -4985,6 +4991,20 @@ export type Database = {
       }
     }
     Functions: {
+      _process_stripe_payment_completion_with_bump_impl: {
+        Args: {
+          amount_total: number
+          bump_product_ids_param?: string[]
+          coupon_id_param?: string
+          currency_param: string
+          customer_email_param: string
+          product_id_param: string
+          session_id_param: string
+          stripe_payment_intent_id?: string
+          user_id_param?: string
+        }
+        Returns: Json
+      }
       admin_delete_oto_offer: {
         Args: { source_product_id_param: string }
         Returns: Json

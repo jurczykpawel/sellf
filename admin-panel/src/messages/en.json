@@ -1479,6 +1479,8 @@
         "loopTooltip": "Restart the video from the beginning when it ends.",
         "muted": "Muted",
         "mutedTooltip": "Start the video with sound off. Required for autoplay to work in most browsers.",
+        "saved_position": "Remember progress",
+        "saved_positionTooltip": "Resume playback where the viewer left off. Position is stored in the browser's localStorage.",
         "urlRequired": "URL is required",
         "bunnyIframeUnsupported": "Bunny iframe embeds are not supported. Use a Bunny Stream HLS playlist (.m3u8) or MP4/WebM URL from your pull zone.",
         "untrustedPlatform": "Untrusted platform. Supported: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, Twitch",

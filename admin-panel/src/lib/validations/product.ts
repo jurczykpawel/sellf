@@ -18,7 +18,7 @@ import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkou
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -543,6 +543,10 @@ export function validateCreateProduct(data: unknown): ValidationResult {
     }
   }
 
+  if (input.preview_video_config !== undefined) {
+    errors.push(...validatePreviewVideoConfig(input.preview_video_config).errors);
+  }
+
   // Validate date range
   if (typeof input.available_from === 'string' && typeof input.available_until === 'string') {
     const fromDate = new Date(input.available_from);
@@ -706,6 +710,10 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
     }
   }
 
+  if (input.preview_video_config !== undefined) {
+    errors.push(...validatePreviewVideoConfig(input.preview_video_config).errors);
+  }
+
   // Validate date range if both are provided
   if (typeof input.available_from === 'string' && typeof input.available_until === 'string') {
     const fromDate = new Date(input.available_from);
@@ -752,6 +760,29 @@ export function validateUpdateProduct(data: unknown): ValidationResult {
 // Phase 3 — Checkout templates feature. Both helpers below mirror the DB
 // CHECK constraint + the typed registry; admin UI also runs them client-side
 // so the editor highlights errors without a round-trip.
+
+const PREVIEW_VIDEO_CONFIG_FLAGS = ['autoplay', 'loop', 'muted', 'controls', 'saved_position'] as const;
+
+export function validatePreviewVideoConfig(value: unknown): ValidationResult {
+  const errors: string[] = [];
+  if (value === undefined || value === null) {
+    return { isValid: true, errors };
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    errors.push('preview_video_config must be an object');
+    return { isValid: false, errors };
+  }
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (!(PREVIEW_VIDEO_CONFIG_FLAGS as readonly string[]).includes(key)) {
+      errors.push(`preview_video_config has unknown key: ${key}`);
+      continue;
+    }
+    if (typeof val !== 'boolean') {
+      errors.push(`preview_video_config.${key} must be a boolean`);
+    }
+  }
+  return { isValid: errors.length === 0, errors };
+}
 
 function validateCheckoutTemplate(value: unknown): ValidationResult {
   const errors: string[] = [];

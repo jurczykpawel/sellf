@@ -65,7 +65,11 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
       {/* Product Video / Image */}
       {canRenderPreviewVideo && product.preview_video_url ? (
         <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-black">
-          <PlayerstackEmbed url={product.preview_video_url} title={product.name} />
+          <PlayerstackEmbed
+            url={product.preview_video_url}
+            title={product.name}
+            config={product.preview_video_config}
+          />
         </div>
       ) : product.image_url ? (
         <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-sf-raised">

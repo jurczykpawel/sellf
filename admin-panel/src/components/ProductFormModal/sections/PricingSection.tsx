@@ -5,6 +5,21 @@ import { ModalSection } from '@/components/ui/Modal';
 import IconSelector from '@/components/IconSelector';
 import { PricingSectionProps } from '../types';
 import { getVideoValidationMessage } from '@/lib/playerstack';
+import { parseVideoUrl } from '@/lib/videoUtils';
+import {
+  VideoOptionsPanel,
+  PREVIEW_DEFAULTS,
+  type VideoOptionKey,
+  type VideoOptionsConfig,
+} from '@/components/player/VideoOptionsPanel';
+
+const PLATFORM_LABELS: Record<string, string> = {
+  youtube: 'YouTube',
+  vimeo: 'Vimeo',
+  wistia: 'Wistia',
+  bunny: 'Bunny.net',
+  twitch: 'Twitch',
+};
 
 interface VisualSectionProps {
   formData: PricingSectionProps['formData'];
@@ -45,9 +60,28 @@ export function PricingSection({
 
     setFormData(prev => ({
       ...prev,
-      preview_video_url: value
+      preview_video_url: value,
+      // First time a valid URL appears, seed autopreview defaults so the
+      // checkbox row is meaningful out of the gate. Existing configs are kept.
+      preview_video_config: value && !hasAnyConfig(prev.preview_video_config)
+        ? { ...PREVIEW_DEFAULTS }
+        : prev.preview_video_config,
     }));
   };
+
+  const handleVideoOptionChange = (option: VideoOptionKey, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      preview_video_config: {
+        ...(prev.preview_video_config ?? {}),
+        [option]: checked,
+      },
+    }));
+  };
+
+  const previewPlatformLabel = formData.preview_video_url
+    ? PLATFORM_LABELS[parseVideoUrl(formData.preview_video_url).platform] ?? null
+    : null;
 
   return (
     <ModalSection title={t('visual')}>
@@ -102,7 +136,22 @@ export function PricingSection({
         <p className="mt-2 text-xs text-sf-muted">
           {t('previewVideoUrlHelp', { defaultValue: 'Video shown on checkout page. Takes priority over image. Supports YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, and Twitch.' })}
         </p>
+
+        {formData.preview_video_url && !videoUrlError && (
+          <VideoOptionsPanel
+            mode="preview"
+            config={formData.preview_video_config}
+            platform={previewPlatformLabel}
+            t={t}
+            onOptionChange={handleVideoOptionChange}
+            testId="preview-video-options"
+          />
+        )}
       </div>
     </ModalSection>
   );
+}
+
+function hasAnyConfig(config: VideoOptionsConfig | null | undefined): boolean {
+  return Boolean(config && Object.keys(config).length > 0);
 }

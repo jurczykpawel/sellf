@@ -1494,6 +1494,8 @@
         "loopTooltip": "Odtwarzaj wideo od początku, gdy się skończy.",
         "muted": "Wyciszony",
         "mutedTooltip": "Rozpocznij wideo z wyłączonym dźwiękiem. Wymagane, żeby autoplay działał w większości przeglądarek.",
+        "saved_position": "Zapamiętaj postęp",
+        "saved_positionTooltip": "Wznów odtwarzanie od miejsca, w którym kupujący skończył. Zapisuje pozycję w localStorage przeglądarki.",
         "urlRequired": "URL jest wymagany",
         "bunnyIframeUnsupported": "Iframe Bunny nie jest obsługiwany. Użyj playlisty HLS (.m3u8) albo URL MP4/WebM z Bunny pull zone.",
         "untrustedPlatform": "Nieobsługiwana platforma. Obsługiwane: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, Twitch",

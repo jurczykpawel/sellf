@@ -9,6 +9,18 @@ export interface Product {
   image_url?: string | null
   thumbnail_url?: string | null
   preview_video_url?: string | null
+  /**
+   * Playback options for preview_video_url shown on checkout / product page.
+   * Empty object means "use Playerstack defaults" (click-to-load thumbnail).
+   * Validated by validatePreviewVideoConfig in lib/validations/product.ts.
+   */
+  preview_video_config?: {
+    autoplay?: boolean
+    loop?: boolean
+    muted?: boolean
+    controls?: boolean
+    saved_position?: boolean
+  } | null
   price: number
   currency: string
   // VAT/Tax configuration
@@ -97,6 +109,7 @@ export interface ContentItemConfig {
   loop?: boolean
   muted?: boolean
   controls?: boolean
+  saved_position?: boolean
   // For download_link
   download_url?: string
   file_name?: string
