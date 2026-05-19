@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DisposableEmailService } from '@/lib/services/disposable-email';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { canonicalizeEmailForBucket } from '@/lib/security/email-canonical';
 
 /**
  * Email Validation API Endpoint
@@ -109,14 +110,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<EmailVali
     }
 
     // Per-email rate limit prevents enumeration: even with rotating
-    // IPs/fingerprints, a single address can only be probed a few
-    // times per hour.
+    // IPs/fingerprints, a single mailbox can only be probed a few
+    // times per hour. The bucket key is canonicalized so that
+    // dot/plus-tag variants of the same mailbox share one bucket.
     const normalizedEmail = email.trim().toLowerCase();
+    const bucketKey = canonicalizeEmailForBucket(email);
     const perEmailOk = await checkRateLimitForIdentifier(
       'validate_email_per_address',
       5,
       60,
-      `email:${normalizedEmail}`,
+      `email:${bucketKey}`,
     );
     if (!perEmailOk) {
       return NextResponse.json({
