@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useConfig } from '@/components/providers/config-provider'
 import TurnstileWidget from '@/components/TurnstileWidget'
 import AltchaWidget from './AltchaWidget'
@@ -65,7 +66,17 @@ export default function CaptchaWidget({
     )
   }
 
-  // provider === 'none' — no captcha configured
+  // provider === 'none' — no captcha configured. Mark the form as
+  // "verified" with a sentinel so submit buttons don't stay blocked.
+  // Server-side verifyCaptchaToken() also short-circuits on 'none'.
+  return <NoneProviderAutoVerify onVerify={onVerify} />
+}
+
+function NoneProviderAutoVerify({ onVerify }: { onVerify: (token: string) => void }) {
+  useEffect(() => {
+    onVerify('captcha-disabled')
+  }, [onVerify])
+
   if (process.env.NODE_ENV === 'development') {
     return (
       <div className="text-xs text-sf-muted opacity-50 text-center mb-2">
@@ -73,6 +84,5 @@ export default function CaptchaWidget({
       </div>
     )
   }
-
   return null
 }
