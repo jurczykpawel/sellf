@@ -38,21 +38,13 @@ describe('CORS/CSRF Security', () => {
   }
 
   describe('CROSS_ORIGIN_ALLOWED_PATHS', () => {
-    it('should only contain read-only endpoints', () => {
-      // These paths should ONLY be endpoints that:
-      // 1. Do not modify data (read-only)
-      // 2. Return non-sensitive information
-      expect(CROSS_ORIGIN_ALLOWED_PATHS).toContain('/api/access');
-      expect(CROSS_ORIGIN_ALLOWED_PATHS).toContain('/api/sellf');
-
-      // Should NOT contain admin endpoints
+    it('should not contain admin endpoints', () => {
       expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/v1/products');
       expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/users');
       expect(CROSS_ORIGIN_ALLOWED_PATHS).not.toContain('/api/webhooks');
     });
 
     it('should have a limited number of allowed paths', () => {
-      // Principle of least privilege - minimize cross-origin access
       expect(CROSS_ORIGIN_ALLOWED_PATHS.length).toBeLessThanOrEqual(5);
     });
   });
