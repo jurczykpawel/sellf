@@ -72,6 +72,7 @@ export function buildContentSecurityPolicyWithNonce(
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
+    "frame-ancestors 'self'",
   ].join('; ');
 }
 
