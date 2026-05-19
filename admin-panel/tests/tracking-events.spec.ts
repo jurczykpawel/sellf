@@ -1182,6 +1182,7 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
     const anonymousId = `test-disabled-${Date.now()}`;
 
     const response = await request.post(`${BASE_URL}/api/consent`, {
+      headers: { origin: BASE_URL },
       data: {
         anonymous_id: anonymousId,
         consents: { 'google-tag-manager': true },

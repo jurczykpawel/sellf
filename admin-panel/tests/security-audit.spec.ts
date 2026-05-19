@@ -50,8 +50,9 @@ test.describe('Security - Rate Limiting', () => {
     expect([404, 429]).toContain(response.status());
   });
 
-  test('consent endpoint accepts valid requests', async ({ request }) => {
+  test('consent endpoint accepts valid requests', async ({ request, baseURL }) => {
     const response = await request.post('/api/consent', {
+      headers: { origin: baseURL ?? 'http://localhost:3777' },
       data: {
         consents: { analytics: true },
         fingerprint: `test-fp-${Date.now()}`,
