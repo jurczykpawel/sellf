@@ -4,11 +4,12 @@ This file provides comprehensive guidance for AI coding agents (Claude Code, Gem
 
 ## Project Overview
 
-Sellf is a professional content access control and monetization platform built on Next.js, Supabase, and Stripe. It consists of three main components:
+Sellf is a self-hostable monetization platform built on Next.js, Supabase, and Stripe. It consists of two main components:
 
-1. **Client-side SDK** (`sellf.js`): JavaScript library for content protection
-2. **Admin Panel** (`admin-panel/`): Next.js 16 dashboard for product/user management
-3. **Database Layer** (`supabase/`): PostgreSQL with Row Level Security (RLS)
+1. **Admin Panel** (`admin-panel/`): Next.js 16 dashboard for product/user management and checkout
+2. **Database Layer** (`supabase/`): PostgreSQL with Row Level Security (RLS)
+
+Sellers ship a small loader snippet (`/embed/v1/checkout.js`) on their own pages to render the Stripe Embedded Checkout for a Sellf product.
 
 **Technical Stack:**
 - **Framework:** Next.js 16 (App Router, Turbopack), React 19
@@ -19,7 +20,7 @@ Sellf is a professional content access control and monetization platform built o
 - **Styling:** Tailwind CSS v4
 - **Internationalization:** next-intl v4 (English/Polish)
 
-The system implements page-level, element-level, and toggle-based content protection with integrated payment processing, magic link authentication, and freemium licensing.
+The system handles product CRUD, Stripe-backed payments (Embedded Checkout + webhook reconciliation), magic-link authentication, and a tier-based license registry that gates a small set of Pro-only admin features.
 
 ## Quick Start
 
@@ -120,25 +121,18 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 
 ## Architecture Overview
 
-### Three-Tier Architecture
+### Two-Tier Architecture
 
-**1. Client SDK (sellf.js)**
-- ~1700 lines of vanilla JavaScript
-- Dynamically loaded via `/api/sellf?domain=...`
-- Key classes: `CacheManager`, `LicenseManager`, `SessionManager`, `AccessControl`, `Sellf`
-- Implements three protection modes: page, element, hybrid
-- Features: caching (5min TTL), batch access checking, cross-domain sessions, license verification
-
-**2. Admin Panel (Next.js 16 + App Router)**
+**1. Admin Panel (Next.js 16 + App Router)**
 - TypeScript strict mode
 - App Router with internationalization (English/Polish via next-intl)
 - Key routes:
   - Public: `/`, `/p/[slug]` (product pages), `/login`, `/terms`, `/privacy`
   - Protected: `/dashboard`, `/my-products`
   - Admin: `/admin/products`, `/admin/users`, `/admin/payments`, `/admin/analytics`
-- API endpoints: `/api/sellf`, `/api/access`, `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`
+- API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`
 
-**3. Database (PostgreSQL + Supabase)**
+**2. Database (PostgreSQL + Supabase)**
 - Core tables: `products`, `user_product_access`, `payment_transactions`, `guest_purchases`, `rate_limits`, `audit_log`
 - All tables have RLS policies
 - Database functions for access control: `check_user_product_access()`, `batch_check_user_product_access()`, `grant_free_product_access()`
@@ -147,36 +141,26 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 
 ### Data Flow Patterns
 
-**Purchase Flow:**
-1. User visits product page → clicks Purchase
-2. `/api/create-embedded-checkout` creates Stripe session
-3. User completes payment → Stripe webhook → `/api/webhooks/stripe`
-4. Payment recorded in `payment_transactions`
-5. If guest: `guest_purchases` created; if authenticated: `user_product_access` granted
-6. User redirected with `session_id` → `/api/verify-payment` confirms access
+**Purchase Flow (on the admin panel):**
+1. Buyer visits `/p/[slug]` → clicks Purchase
+2. `/api/create-embedded-checkout` creates a Stripe session
+3. Buyer completes payment in Stripe Embedded Checkout
+4. Stripe webhook → `/api/webhooks/stripe` records the transaction
+5. Guest payments land in `guest_purchases`; authenticated buyers get a row in `user_product_access`
+6. Buyer redirected with `session_id` → `/api/verify-payment` confirms access
 
-**Access Check Flow:**
-1. `sellf.js` loads → detects protection mode
-2. Gets Supabase session → batch checks access via `/api/access`
-3. API calls `batch_check_user_product_access()` with RLS enforcement
-4. Results cached (5min TTL) → DOM modified based on access
+**Embedded Checkout (on a seller's external page):**
+1. Seller pastes the `<script src=".../embed/v1/checkout.js" data-...>` snippet
+2. Loader fetches `/api/embed/checkout-session` for paid products (anonymous, captcha-gated)
+3. Stripe Embedded Checkout renders inline; payment hits the same webhook path
+4. Free products go through `/api/embed/free-access` (Turnstile + magic link)
 
 **Magic Link Authentication:**
-1. User enters email → `/api/auth/magic-link`
-2. Supabase sends email (captured by Inbucket locally)
-3. User clicks link → redirected to `/#access_token=...`
-4. `SessionManager.handleSessionFromUrl()` parses hash
-5. `supabase.auth.setSession()` → session stored in HTTP-only cookies
-6. User redirected to dashboard
-
-### Cross-Domain Architecture
-
-Sellf supports protecting content across multiple domains:
-
-- **Main Domain** (`MAIN_DOMAIN` env var): Hosts admin panel and API
-- **Protected Domains**: Load `sellf.js` and make credentialed requests to main domain
-- **Session Sharing**: Auth shared via CORS + `credentials: 'include'` on API endpoints
-- **Security**: X-Requested-With and X-Sellf-Origin headers for verification
+1. User enters email → Supabase issues a magic link
+2. Locally captured by Inbucket; in production sent by the configured SMTP
+3. User clicks link → callback route exchanges the code
+4. `supabase.auth.setSession()` → session stored in cookies
+5. User redirected to the configured destination (`redirect_to` or `/dashboard`)
 
 ## Critical Security Patterns
 
@@ -411,14 +395,7 @@ To execute SQL queries directly on the local database, use `docker exec` with th
 
 ## Key Implementation Details
 
-### Dynamic Configuration System
-
-**SellfGenerator** (`admin-panel/src/lib/sellf-generator.ts`):
-- Reads `sellf.js` and injects configuration at runtime
-- Template replacement: `{{SUPABASE_URL}}`, `{{SUPABASE_ANON_KEY}}`, etc.
-- Hash-based caching with 5-minute TTL
-- Production: minification + optional obfuscation
-- Version tracking via `BUILD_HASH`
+### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):
 - Exposes safe client-side config (Supabase URL, Stripe publishable key, etc.)
@@ -442,25 +419,16 @@ This pattern allows purchasing before account creation, critical for conversion 
 - First user automatically gets `is_admin = true` in `user_metadata`
 - Admin status cached in session for performance
 
-### Original Content Preservation
+### License Tier Registry
 
-Before modifying DOM, `sellf.js` stores:
-```javascript
-document.body.setAttribute('data-original-content', document.body.innerHTML)
-```
+A small set of admin-panel features are gated by a license tier (`free`, `registered`, `pro`, `business`). The registry lives in `admin-panel/src/lib/license/features.ts` and the resolver in `admin-panel/src/lib/license/resolve.ts`. Currently gated:
 
-This allows:
-- Restoration on access grant or errors
-- Prevention of flash of protected content (FOPC)
-- Graceful degradation when API fails
+- `csv-export` — payment CSV export (`registered+`)
+- `watermark-removal` — hides the "Powered by Sellf" badge on checkout / product pages (`pro+`)
+- `theme-customization` — saving custom themes (`pro+`)
+- `api-key-scopes` — broader API key scopes (`pro+`)
 
-### Freemium Licensing Model
-
-- **Free Tier**: Full features + "Powered by Sellf" watermark
-- **Pro Tier**: Watermark removal via domain licensing
-- **Domain Fingerprinting**: Combines protocol, hostname, port, userAgent, platform
-- **Anti-Tampering**: MutationObserver + periodic checks prevent watermark removal
-- License verification via `/api/license/verify` with fallback endpoints
+Resolution is DB-first (`license_keys` table) with env fallback (`SELLF_LICENSE_KEY`).
 
 ### Temporal Access Control
 
@@ -491,15 +459,15 @@ All enforced at database level in RLS policies and access check functions.
 - Check browser console for auth errors
 
 ### Access Control Not Working
-- Open browser DevTools → Console for sellf.js logs
 - Verify product slug matches database
 - Check RLS policies in Supabase Studio
 - Confirm user has active session
+- Look at server logs from the `/api/verify-payment` and webhook handlers
 
-### CORS Issues with Cross-Domain Access
+### CORS Issues with Embed Checkout
 - Verify `MAIN_DOMAIN` environment variable
-- Check CORS headers in `/api/access` route
-- Ensure `credentials: 'include'` in fetch requests
+- Confirm the seller's domain is in `seller_embed_settings.allowed_embed_origins` or env `SELLF_EMBED_ALLOWED_ORIGINS`
+- Inspect the OPTIONS preflight to `/api/embed/checkout-session` in the browser network tab
 
 ### Testing Complex Flows (Playwright)
 - **Magic Links:** Use `Mailpit` API to capture emails and extract tokens programmatically
@@ -510,11 +478,8 @@ All enforced at database level in RLS policies and access check functions.
 
 ```
 sellf/
-├── sellf.js                  # Core SDK (dynamically served by /api/sellf)
 ├── index.html                     # Main landing page
-├── templates/                     # 12+ pre-built HTML product pages
 ├── themes/                        # CSS themes (dark.css, light.css)
-├── examples/                      # Demo implementations (1-12 numbered examples)
 ├── layouts/                       # Layout templates
 ├── supabase/
 │   ├── config.toml                # Supabase local dev config
@@ -539,12 +504,11 @@ sellf/
         │   │   ├── login/         # Magic link auth
         │   │   └── auth/          # Auth callback handling
         │   └── api/
-        │       ├── sellf/route.ts       # Dynamic SDK generation
-        │       ├── access/route.ts           # Access verification
         │       ├── runtime-config/route.ts   # Client config
         │       ├── create-embedded-checkout/route.ts
         │       ├── verify-payment/route.ts
         │       ├── validate-email/route.ts
+        │       ├── embed/                    # External-page embed checkout
         │       ├── webhooks/stripe/route.ts
         │       └── admin/                    # Admin API endpoints
         ├── components/
@@ -564,9 +528,6 @@ sellf/
         │   │   ├── server.ts      # Server component client
         │   │   └── middleware.ts  # Middleware client
         │   ├── validations/       # Input validation schemas
-        │   ├── sellf-generator.ts
-        │   ├── config-generator.ts
-        │   ├── js-processor.ts    # Minification/obfuscation
         │   ├── rate-limiting.ts
         │   ├── timezone.ts
         │   ├── logger.ts

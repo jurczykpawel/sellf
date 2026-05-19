@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DisposableEmailService } from '@/lib/services/disposable-email';
-import { checkRateLimit } from '@/lib/rate-limiting';
+import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { canonicalizeEmailForBucket } from '@/lib/security/email-canonical';
 
 /**
  * Email Validation API Endpoint
@@ -108,8 +109,35 @@ export async function POST(request: NextRequest): Promise<NextResponse<EmailVali
       }, { status: 400 });
     }
 
+    // Per-email rate limit prevents enumeration: even with rotating
+    // IPs/fingerprints, a single mailbox can only be probed a few
+    // times per hour. The bucket key is canonicalized so that
+    // dot/plus-tag variants of the same mailbox share one bucket.
+    const normalizedEmail = email.trim().toLowerCase();
+    const bucketKey = canonicalizeEmailForBucket(email);
+    const perEmailOk = await checkRateLimitForIdentifier(
+      'validate_email_per_address',
+      5,
+      60,
+      `email:${bucketKey}`,
+    );
+    if (!perEmailOk) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          message: 'Rate limit exceeded. Please try again later.',
+          code: 'RATE_LIMIT_EXCEEDED'
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          processingTime: Date.now() - startTime,
+          domainsLoaded: 0
+        }
+      }, { status: 429 });
+    }
+
     // Extract domain for response
-    const domain = email.toLowerCase().split('@')[1];
+    const domain = normalizedEmail.split('@')[1];
 
     // Validate email using the disposable email service
     const result = await DisposableEmailService.validateEmail(email, allowDisposable);

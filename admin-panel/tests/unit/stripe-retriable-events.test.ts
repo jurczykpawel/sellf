@@ -44,10 +44,16 @@ describe('Stripe webhook retriable events', () => {
     expect(RETRIABLE_EVENTS.has('invoice.payment_succeeded')).toBe(true);
   });
 
-  it('does not include events that should always 200-OK (idempotent, recoverable, or no-op)', () => {
-    // checkout.session.completed: idempotent + recoverable via the
-    // subsequent invoice.paid; double-retry would be redundant.
-    expect(RETRIABLE_EVENTS.has('checkout.session.completed')).toBe(false);
+  it('forces retry on one-time payment completion (no subsequent invoice fallback)', () => {
+    // For one-time payments the checkout.session.completed and
+    // payment_intent.succeeded events are the only source of truth — there
+    // is no invoice.* event behind them. The grant RPC is idempotent on
+    // session_id + payment_intent_id, so a redelivery is at worst a no-op.
+    expect(RETRIABLE_EVENTS.has('checkout.session.completed')).toBe(true);
+    expect(RETRIABLE_EVENTS.has('payment_intent.succeeded')).toBe(true);
+  });
+
+  it('does not include events that should always 200-OK (recoverable or no-op)', () => {
     expect(RETRIABLE_EVENTS.has('checkout.session.async_payment_succeeded')).toBe(false);
 
     // subscription.created is recoverable via the eventual invoice.paid,
@@ -64,10 +70,6 @@ describe('Stripe webhook retriable events', () => {
     // pause/resume are MVP no-ops.
     expect(RETRIABLE_EVENTS.has('customer.subscription.paused')).toBe(false);
     expect(RETRIABLE_EVENTS.has('customer.subscription.resumed')).toBe(false);
-
-    // payment_intent.succeeded mirrors checkout.session.completed for
-    // standalone payment intents; same idempotency rationale.
-    expect(RETRIABLE_EVENTS.has('payment_intent.succeeded')).toBe(false);
   });
 });
 

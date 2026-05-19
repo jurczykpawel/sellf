@@ -310,7 +310,9 @@ test.describe('Rate Limiting', () => {
         {
           consents: { analytics: true },
           fingerprint: `test-${Date.now()}`,
-        }
+        },
+        100,
+        { origin: 'http://localhost:3777' },
       );
 
       expect(result.gotRateLimited).toBe(true);
@@ -521,10 +523,6 @@ test.describe('Rate Limiting', () => {
       expect(result.gotRateLimited).toBe(true);
       expect(result.successCount).toBeGreaterThan(0);
     });
-
-    // NOTE: /api/access endpoint has rate limiting (120/min) but testing it is impractical
-    // because making 121+ sequential HTTP requests is slow and wasteful. The rate limiting
-    // code is present in src/app/api/access/route.ts and infrastructure is verified by other tests.
 
     // NOTE: The following endpoints have rate limiting but require authentication BEFORE
     // rate limiting is checked. They return 401 before reaching rate limit checks.

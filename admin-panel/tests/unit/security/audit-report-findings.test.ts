@@ -515,31 +515,6 @@ describe('TS-L01: payment metadata origin guard', () => {
 });
 
 // ============================================================================
-// TS-M01: sellf.js endpoint hardening
-// ============================================================================
-
-describe('TS-M01: sellf.js endpoint hardening', () => {
-  it('sellf/route.ts has rate limiting', () => {
-    const source = src('app/api/sellf/route.ts');
-    expect(source).toMatch(/checkRateLimit|rateLimit/);
-  });
-
-  it('sellf/route.ts clearCache requires admin auth', () => {
-    const source = src('app/api/sellf/route.ts');
-    // clearCache must be gated behind auth check or admin verification
-    expect(source).toMatch(/clearCache.*admin|clearCache.*auth|admin.*clearCache|requireAdmin.*clearCache/is);
-  });
-
-  it('sellf/route.ts uses checkFeature (which uses createAdminClient internally) instead of raw createClient', () => {
-    const source = src('app/api/sellf/route.ts');
-    // Should NOT import createClient from @supabase/supabase-js
-    expect(source).not.toMatch(/from\s+['"]@supabase\/supabase-js['"]/);
-    // Should use checkFeature from license/resolve (which internally uses createAdminClient)
-    expect(source).toMatch(/checkFeature/);
-  });
-});
-
-// ============================================================================
 // TS-N01: Admin CORS — no wildcard on admin endpoints
 // ============================================================================
 

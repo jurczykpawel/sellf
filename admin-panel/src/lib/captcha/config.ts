@@ -16,6 +16,12 @@ import type { CaptchaProvider } from './types';
  * Called from API routes and runtime-config endpoint.
  */
 export function getCaptchaProvider(): CaptchaProvider {
+  // Test mode flag — Playwright/Vitest can flip this so endpoints do not
+  // demand a real captcha solution when running against fixtures.
+  if (process.env.NEXT_PUBLIC_TURNSTILE_TEST_MODE === 'true') {
+    return 'none';
+  }
+
   const hasTurnstile =
     !!(process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY) &&
     !!process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;

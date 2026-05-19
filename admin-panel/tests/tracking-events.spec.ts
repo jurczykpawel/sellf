@@ -1143,6 +1143,7 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
 
     // POST to /api/consent directly (tests API independently from Klaro callback)
     const response = await request.post(`${BASE_URL}/api/consent`, {
+      headers: { origin: BASE_URL },
       data: {
         anonymous_id: anonymousId,
         consents,

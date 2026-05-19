@@ -41,6 +41,13 @@ export const RETRIABLE_EVENTS: ReadonlySet<string> = new Set<string>([
   // subscription-handlers.ts, so a redelivery is at worst a no-op.
   'invoice.paid',
   'invoice.payment_succeeded',
+  // One-time payment completion. Unlike subscription events these have
+  // no invoice.* fallback — a silent 200 after a transient handler
+  // failure leaves the buyer paid without access. The grant RPC is
+  // idempotent on session_id + payment_intent_id (migration
+  // 20260515180000), so a redelivery is at worst a no-op.
+  'checkout.session.completed',
+  'payment_intent.succeeded',
 ]);
 
 // Terminal failures: handler returned processed:false but the cause is a
@@ -63,4 +70,9 @@ export const TERMINAL_FAILURE_REASONS: ReadonlySet<string> = new Set<string>([
   'No email on upcoming invoice',
   'No customer on upcoming invoice',
   'Customer is deleted',
+  // Missing metadata on one-time payment events is a permanent
+  // data-shape failure (Stripe will not "fill it in" on retry).
+  // Ack 200 so the queue drains instead of looping.
+  'Missing product_id or customer_email in session',
+  'Missing product_id or email in payment intent',
 ]);

@@ -19,7 +19,7 @@ const FEATURE_TIERS = {
   'csv-export': 'registered',          // POST /api/v1/payments/export, POST /api/admin/payments/export
 
   // Pro
-  'watermark-removal': 'pro',          // /api/sellf route → LICENSE_VALID in sellf.js
+  'watermark-removal': 'pro',          // SellfBranding component on checkout + product pages
   'theme-customization': 'pro',        // theme.ts actions, theme-loader.ts
   'api-key-scopes': 'pro',             // POST /api/v1/api-keys → enforceApiKeyScopeGate
 } as const satisfies Record<string, LicenseTier>;

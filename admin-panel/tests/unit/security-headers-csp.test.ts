@@ -25,6 +25,10 @@ describe('CSP with nonce — production posture', () => {
     expect(csp).toMatch(/script-src[^;]*'strict-dynamic'/);
   });
 
+  it("locks frame-ancestors to 'self' so other origins cannot iframe the app", () => {
+    expect(csp).toMatch(/frame-ancestors 'self'/);
+  });
+
   it('does NOT contain unsafe-inline in script-src', () => {
     const scriptSrc = csp.split(';').find((d) => d.trim().startsWith('script-src')) ?? '';
     expect(scriptSrc).not.toContain("'unsafe-inline'");
@@ -35,11 +39,10 @@ describe('CSP with nonce — production posture', () => {
     expect(scriptSrc).not.toContain("'unsafe-eval'");
   });
 
-  it('preserves the third-party script allow-list (stripe, cloudflare, klaro, youtube)', () => {
+  it('preserves the third-party script allow-list (stripe, cloudflare, youtube)', () => {
     const scriptSrc = csp.split(';').find((d) => d.trim().startsWith('script-src')) ?? '';
     expect(scriptSrc).toContain('js.stripe.com');
     expect(scriptSrc).toContain('challenges.cloudflare.com');
-    expect(scriptSrc).toContain('cdn.kiprotect.com');
     expect(scriptSrc).toContain('www.youtube.com');
   });
 

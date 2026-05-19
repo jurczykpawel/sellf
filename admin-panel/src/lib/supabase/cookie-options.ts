@@ -4,9 +4,6 @@
  * Single source of truth for the cookie flags written by
  * `src/lib/supabase/server.ts`, `src/proxy.ts`, and the auth callback path
  * so flags cannot drift between code paths.
- *
- * Note: this remains compatible with the current browser Supabase client.
- * A server-only auth model is tracked separately.
  */
 
 type SameSite = 'lax' | 'strict' | 'none';
@@ -33,17 +30,14 @@ interface SupabaseCookieOptions {
 }
 
 function pickSameSite(input: BuildOptionsInput): SameSite {
-  // Production: `none` so the cross-domain SDK can read the session cookie.
-  if (input.isProduction) return 'none';
+  if (input.isProduction) return 'lax';
   const caller = input.callerOptions?.sameSite;
   if (caller === 'lax' || caller === 'strict' || caller === 'none') return caller;
   return 'lax';
 }
 
 function pickSecure(input: BuildOptionsInput): boolean {
-  // Production: always true. Browsers require Secure when SameSite=None.
   if (input.isProduction) return true;
-  // Local dev (http://localhost): allow false unless caller explicitly opts in.
   return Boolean(input.callerOptions?.secure);
 }
 
@@ -56,7 +50,7 @@ function pickSecure(input: BuildOptionsInput): boolean {
 export function buildSupabaseCookieOptions(input: BuildOptionsInput): SupabaseCookieOptions {
   const caller = input.callerOptions ?? {};
   return {
-    httpOnly: false, // see ARCHITECTURAL DECISION above
+    httpOnly: true,
     secure: pickSecure(input),
     sameSite: pickSameSite(input),
     path: '/',

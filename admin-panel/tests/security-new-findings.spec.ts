@@ -292,40 +292,6 @@ test.describe('V9: SSRF in Webhook URL Configuration', () => {
   });
 });
 
-test.describe('V11: getSession vs getUser', () => {
-  test('SECURITY: API should reject forged/expired JWT tokens', async ({ request }) => {
-    // getUser() validates with the auth server and rejects invalid tokens.
-    // getSession() would trust the JWT without server validation.
-    // We test the BEHAVIOR: send a forged JWT and verify the API rejects it.
-    const forgedToken = [
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
-      'eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImV4cCI6MX0',
-      'invalid-signature',
-    ].join('.');
-
-    const response = await request.post('/api/access', {
-      headers: {
-        'Authorization': `Bearer ${forgedToken}`,
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      data: {
-        productSlug: 'premium-course',
-      },
-    });
-
-    const body = await response.json();
-
-    // The response returns 200 with hasAccess: false / authenticated: false
-    // because the access route treats unauthenticated users as having no access
-    // rather than returning 401. The key security check: forged token MUST NOT
-    // grant access or return a userId.
-    expect(body.hasAccess).toBe(false);
-    expect(body.authenticated).toBe(false);
-    expect(body.userId).toBeUndefined();
-  });
-});
-
 test.describe('V14: Client-Side Open Redirect', () => {
   let testProductSlug: string;
   let testProductId: string;

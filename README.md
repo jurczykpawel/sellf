@@ -301,7 +301,6 @@ sellf/
 ├── mcp-server/        # MCP server for Claude Desktop
 ├── supabase/          # Migrations, seed data, RPC functions
 ├── bruno/             # API collection (Bruno client)
-├── templates/         # HTML templates for content protection
 ├── scripts/           # Utility scripts
 └── docs/              # Deployment guides
 ```
