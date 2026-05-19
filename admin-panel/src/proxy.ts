@@ -86,6 +86,16 @@ function isProtectedApiPath(pathname: string): boolean {
   return PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
+/**
+ * Skip the edge session gate when the caller presents a Bearer
+ * credential. The route handler runs its own API-key/JWT flow and
+ * still returns 401 on failure.
+ */
+function hasBearerAuthorization(request: NextRequest): boolean {
+  const auth = request.headers.get('authorization')
+  return !!auth && /^bearer\s+\S/i.test(auth)
+}
+
 // Add security headers to response
 function addSecurityHeaders(response: NextResponse, nonce?: string): NextResponse {
   // Add HSTS header unless disabled (e.g., when behind reverse proxy with SSL termination)
@@ -136,7 +146,9 @@ export async function proxy(request: NextRequest) {
   // signed-in user. Endpoints that legitimately serve anonymous traffic
   // (checkout, embed, public reads, webhooks, cron with a shared secret)
   // skip this gate and rely on their own checks inside the handler.
-  if (isProtectedApiPath(pathname)) {
+  // Requests presenting a Bearer credential bypass this gate so the
+  // route handler can run its own API-key / token flow.
+  if (isProtectedApiPath(pathname) && !hasBearerAuthorization(request)) {
     const apiAuthResponse = NextResponse.next({ request: { headers: requestHeaders } })
     const apiSupabase = createServerClient(
       process.env.SUPABASE_URL!,

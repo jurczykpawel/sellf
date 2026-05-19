@@ -42,19 +42,18 @@ Full affiliate/referral program where both parties benefit — the referrer earn
 **Status**: 📋 Planned
 "Just Bought" popup notifications, aggregate activity counters, and live viewer count to increase urgency and trust on product pages.
 
-### Simple Funnel System (OTO & Redirects)
-**Status**: 🏗️ In Progress
-Control where users are redirected after purchase to enable One-Time Offer flows.
-- ✅ Database columns, admin UI, redirect logic with param passing
-- 📋 Chaining multiple products into OTO sequences
+### Simple Funnel System (OTO + Downsell + Redirects)
+**Status**: ✅ Done
+- OTO offers, downsell branch, per-product redirect URLs with param passing — all shipped (`oto_offers.downsell_*` columns, PostPurchaseSection toggle, payment-status decline path).
+- Chaining multiple products into OTO sequences — separate idea, see `Product Bundles`.
 
 ### Per-Product Payment Method Override
 **Status**: 📋 Planned (Phase 2 of Payment Config)
 Override global payment method settings for specific products. Use cases: cards-only for high-value products, local methods for regional products, bank transfers for B2B.
 
 ### One-Click Auto-Update System
-**Status**: 📋 Planned
-Built-in version management with one-click updates from admin panel. Automatic backup before update, health check verification, and rollback capability.
+**Status**: ✅ Done (2026-02)
+Version management with one-click updates from admin panel. Automatic backup before update, health check verification, and rollback capability. See `system/upgrade.sh` + `/api/v1/system/*` endpoints + `SystemUpdateSettings`. Future phases (auto-scheduling, email notifications, Docker/Vercel strategies) tracked separately.
 
 ### Automated Review Collection
 **Status**: 📋 Planned
@@ -312,6 +311,12 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ Protected video embeds through supported HLS/MP4/WebM URLs
 - ✅ CI freshness gate for the vendored player bundle
 
+#### Per-Product Video Playback Options (2026-05-19)
+- ✅ `preview_video_config` JSONB on products (autoplay / loop / muted / controls)
+- ✅ Per content-item `saved_position` flag (Playerstack saved-position plugin)
+- ✅ Admin UI: shared `VideoOptionsPanel` reused in preview + content sections
+- ✅ Autopreview defaults seeded on first valid URL entry
+
 ### 📊 Other
 
 #### Public Demo Instance (2026-02)
@@ -339,4 +344,4 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 
 ---
 
-**Last Updated**: 2026-05-13
+**Last Updated**: 2026-05-19

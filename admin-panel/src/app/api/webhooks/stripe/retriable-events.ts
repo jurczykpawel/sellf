@@ -70,4 +70,9 @@ export const TERMINAL_FAILURE_REASONS: ReadonlySet<string> = new Set<string>([
   'No email on upcoming invoice',
   'No customer on upcoming invoice',
   'Customer is deleted',
+  // Missing metadata on one-time payment events is a permanent
+  // data-shape failure (Stripe will not "fill it in" on retry).
+  // Ack 200 so the queue drains instead of looping.
+  'Missing product_id or customer_email in session',
+  'Missing product_id or email in payment intent',
 ]);
