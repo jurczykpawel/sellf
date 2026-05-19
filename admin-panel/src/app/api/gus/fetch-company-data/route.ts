@@ -3,6 +3,7 @@ import { validateNIPChecksum, normalizeNIP } from '@/lib/validation/nip';
 import { GUSAPIClient } from '@/lib/services/gus-api-client';
 import { getDecryptedGUSAPIKeyInternal } from '@/lib/integrations/internal-secrets';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { isAllowedOrigin } from '@/lib/security/origin-match';
 
 /**
  * POST /api/gus/fetch-company-data
@@ -64,18 +65,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Origin Protection - reject explicitly cross-origin requests
-    // Same-origin fetch() does NOT send an Origin header, so missing origin = same-origin.
-    // Only block when Origin IS present and doesn't match SITE_URL (= cross-origin attempt).
+    // 1. Origin Protection - require an Origin header on this endpoint and
+    // verify it via exact-origin comparison. Browser fetches always send
+    // Origin on POST, so a missing header is a clear sign of a non-browser
+    // caller bypassing CORS controls.
     const origin = request.headers.get('origin');
-    if (origin) {
-      const siteUrl = process.env.SITE_URL;
-      if (!siteUrl || !origin.startsWith(siteUrl)) {
-        return NextResponse.json(
-          { success: false, error: 'Forbidden - Invalid origin', code: 'INVALID_ORIGIN' },
-          { status: 403 }
-        );
-      }
+    const siteUrl = process.env.SITE_URL;
+    if (!siteUrl) {
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error', code: 'CONFIG_MISSING' },
+        { status: 500 },
+      );
+    }
+    if (!isAllowedOrigin(origin, [siteUrl])) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden - Invalid origin', code: 'INVALID_ORIGIN' },
+        { status: 403 }
+      );
     }
 
     // 2. No auth required — checkout page uses this for NIP autofill (guest + logged-in).
