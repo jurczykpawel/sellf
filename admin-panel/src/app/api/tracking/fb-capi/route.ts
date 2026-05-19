@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { getClientIp } from '@/lib/security/client-ip';
 import {
   sha256,
   resolveDestinations,
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
     const value = sanitizeValue(body.value);
     const currency = sanitizeString(body.currency, 10);
     const orderId = sanitizeString(body.order_id, 200);
-    const userEmail = sanitizeString(body.user_email, 320);
+    const bodyEmail = sanitizeString(body.user_email, 320);
     const contentName = sanitizeString(body.content_name, 200);
     const eventSourceUrl = sanitizeUrl(body.event_source_url);
     const hasConsent = typeof body.has_consent === 'boolean' ? body.has_consent : true;
@@ -119,6 +120,13 @@ export async function POST(request: NextRequest) {
 
     // Get config from database
     const supabase = await createClient();
+
+    // When a user is logged in, attribute the event to that user's email
+    // instead of trusting whatever the client sent. Anonymous callers
+    // fall back to the body value.
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email ?? bodyEmail;
+
     const { data: config, error: configError } = await supabase
       .from('integrations_config')
       .select(
@@ -193,10 +201,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract client info from headers
-    const clientIp =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      '';
+    const clientIp = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || '';
 
     // Build user_data with hashing
