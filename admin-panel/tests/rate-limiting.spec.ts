@@ -310,7 +310,9 @@ test.describe('Rate Limiting', () => {
         {
           consents: { analytics: true },
           fingerprint: `test-${Date.now()}`,
-        }
+        },
+        100,
+        { origin: 'http://localhost:3777' },
       );
 
       expect(result.gotRateLimited).toBe(true);

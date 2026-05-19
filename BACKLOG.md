@@ -241,9 +241,11 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ Management UI, test events, retry, detailed logs
 - ✅ `waitlist.signup`, `refund.issued`, subscription lifecycle, upcoming renewal, and invoice payment events
 
-#### Cookie Consent — Klaro (2025-12-24)
+#### Cookie Consent — vanilla-cookieconsent v3 (2026-05-18, migrated from Klaro)
 - ✅ GDPR-compliant consent manager with TrackingProvider integration
-- ✅ "Require Consent" toggle in admin, blocks scripts until consent given
+- ✅ Explicit `opt-in` mode, banner copy lists configured providers + storage horizons (PL/EN)
+- ✅ Umami treated as cookieless and exempt from gating
+- ✅ Re-consent link in landing footer, dynamic provider/duration listing
 
 #### Script Manager (2025-12-24)
 - ✅ Structured management of custom scripts (Essential, Marketing, Analytics)
@@ -257,6 +259,11 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 
 #### Order Bumps (2025-11-28)
 - ✅ Checkout integration, automatic access grant, guest support
+
+#### Custom Checkout Fields (2026-05-15)
+- ✅ Per-product `custom_checkout_fields` JSONB on products with shape validation in `lib/validations/custom-checkout-fields.ts`
+- ✅ Buyer-typed values stored in `payment_transactions.custom_field_values` with cross-validation against the buying product
+- ✅ Reusable in any checkout template (DB schema is opinion-free about future field types)
 
 #### Product Variants (Jan 2025)
 - ✅ M:N architecture (variants as linked products)
