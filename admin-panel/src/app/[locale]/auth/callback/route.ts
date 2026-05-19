@@ -12,11 +12,20 @@ import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
  * the magic link sent to their email. It exchanges the code for a session
  * and redirects the user to the dashboard.
  */
+const SUPPORTED_OTP_TYPES = ['magiclink', 'recovery', 'invite', 'email_change', 'signup'] as const
+type SupportedOtpType = (typeof SUPPORTED_OTP_TYPES)[number]
+
+function parseOtpType(raw: string | null): SupportedOtpType {
+  return (SUPPORTED_OTP_TYPES as readonly string[]).includes(raw ?? '')
+    ? (raw as SupportedOtpType)
+    : 'magiclink'
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const tokenHash = requestUrl.searchParams.get('token_hash')
-  const type = requestUrl.searchParams.get('type') as 'magiclink' | 'recovery' | 'invite' | 'email_change' | 'signup' | null
+  const type = parseOtpType(requestUrl.searchParams.get('type'))
   
   // Get the correct origin for redirects - prioritize env var, then headers, then request URL
   const getOrigin = () => {
@@ -100,10 +109,9 @@ export async function GET(request: NextRequest) {
     error = oauthResponse.error;
   } else if (tokenHash) {
     // Token hash flow (from custom email templates)
-    const otpType = type || 'magiclink';
     const otpResponse = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
-      type: otpType
+      type,
     });
     session = otpResponse.data.session;
     error = otpResponse.error;
