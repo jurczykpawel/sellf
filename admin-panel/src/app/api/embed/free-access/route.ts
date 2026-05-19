@@ -71,19 +71,9 @@ export async function POST(request: Request) {
   }
 
   if (parsed.value.honeypot) {
-    const honeypotRateLimitOk = await checkRateLimit('embed_free_access_honeypot', 20, 300);
-    if (!honeypotRateLimitOk) {
-      return embedJson(
-        {
-          success: true,
-          message: 'Check your email for the access link.',
-        },
-        200,
-        origin,
-        allowedOrigins,
-      );
-    }
-
+    // Always log the hit so operators can see ongoing abuse, even after
+    // the bucket is exhausted. The response is identical on both paths
+    // to avoid leaking rate-limit state to bots.
     await logEmbedFreeAccessEvent(adminClient, {
       productId: product?.id ?? null,
       productSlug: parsed.value.productSlug,
@@ -91,6 +81,9 @@ export async function POST(request: Request) {
       email: parsed.value.email,
       status: 'bot_filtered',
     });
+
+    await checkRateLimit('embed_free_access_honeypot', 20, 300);
+
     return embedJson(
       {
         success: true,
