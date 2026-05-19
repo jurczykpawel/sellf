@@ -74,6 +74,18 @@ function isDemoBlocked(pathname: string, method: string): boolean {
   return !DEMO_MUTATION_ALLOWED.some(p => pathname.startsWith(p))
 }
 
+// API prefixes that always require an authenticated session at the edge.
+// Anonymous routes (checkout, embed, webhooks, cron, public reads) and
+// API-key-friendly v1 endpoints handle their own auth inside the route.
+const PROTECTED_API_PREFIXES = [
+  '/api/admin',
+  '/api/users',
+]
+
+function isProtectedApiPath(pathname: string): boolean {
+  return PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
 // Add security headers to response
 function addSecurityHeaders(response: NextResponse, nonce?: string): NextResponse {
   // Add HSTS header unless disabled (e.g., when behind reverse proxy with SSL termination)
@@ -118,6 +130,44 @@ export async function proxy(request: NextRequest) {
         { status: 413 }
       ), nonce)
     }
+  }
+
+  // Edge-level auth check for the API surface that always requires a
+  // signed-in user. Endpoints that legitimately serve anonymous traffic
+  // (checkout, embed, public reads, webhooks, cron with a shared secret)
+  // skip this gate and rely on their own checks inside the handler.
+  if (isProtectedApiPath(pathname)) {
+    const apiAuthResponse = NextResponse.next({ request: { headers: requestHeaders } })
+    const apiSupabase = createServerClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            const isProduction = process.env.NODE_ENV === 'production'
+            cookiesToSet.forEach(({ name, value, options }) => {
+              apiAuthResponse.cookies.set({
+                name,
+                value,
+                ...options,
+                ...buildSupabaseCookieOptions({ isProduction, callerOptions: options }),
+              })
+            })
+          },
+        },
+      },
+    )
+    const { data: { user }, error: userError } = await apiSupabase.auth.getUser()
+    if (!user || userError) {
+      return addSecurityHeaders(
+        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+        nonce,
+      )
+    }
+    return addSecurityHeaders(apiAuthResponse, nonce)
   }
 
   // Skip proxy processing for API routes, static files, and payment success page
