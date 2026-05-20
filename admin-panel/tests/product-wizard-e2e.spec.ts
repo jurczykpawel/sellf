@@ -5,9 +5,10 @@ import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-au
  * Product Wizard E2E Tests
  *
  * Tests the unified 3-step wizard for creating AND editing products:
- * Step 1: Essentials (name, slug, description, price) — required
- * Step 2: Content & Details (delivery, PWYW, icon, image, categories) — optional
- * Step 3: Sales & Settings (promotions, availability, OTO, refund, etc.) — optional
+ * Step 1: Essentials — product-type radio + name + slug + price/recurring price
+ * Step 2: Content & Details — description (moved from step 1), delivery, icon, etc.
+ * Step 3: Sales & Settings — 6 grouped accordions (Conversion / Form fields /
+ *         Availability / After purchase / Refunds / Advanced)
  *
  * Also tests: edit mode (same wizard), duplicate mode (wizard), exit confirmation.
  */
@@ -49,6 +50,13 @@ async function openWizard(page: Page) {
   await expect(page.getByText('Utwórz nowy produkt')).toBeVisible({ timeout: 5000 });
 }
 
+async function fillDescriptionOnStep2(page: Page, value: string) {
+  // After the redesign description lives on step 2.
+  await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+  await expect(page.locator('textarea#description')).toBeVisible({ timeout: 5000 });
+  await page.fill('textarea#description', value);
+}
+
 test.describe('Product Creation Wizard', () => {
 
   test('should open wizard when clicking Add Product', async ({ page }) => {
@@ -58,15 +66,23 @@ test.describe('Product Creation Wizard', () => {
     // Step indicator should show 3 steps
     await expect(page.getByRole('button', { name: /Podstawy/i })).toBeVisible();
 
-    // Create Product and Continue Setup buttons should be visible
-    await expect(page.getByRole('button', { name: /Utwórz produkt/i })).toBeVisible();
+    // Product-type radio renders at the top of step 1
+    await expect(page.locator('[data-product-type="standard"]')).toBeVisible();
+    await expect(page.locator('[data-product-type="tip-jar"]')).toBeVisible();
+
+    // Publish (primary) + Continue Setup buttons should be visible
+    await expect(page.getByRole('button', { name: /Publikuj/i })).toBeVisible();
     await expect(page.getByRole('dialog').getByRole('button', { name: /Dalej/i })).toBeVisible();
 
     // Cancel button on step 1
     await expect(page.getByRole('button', { name: /Anuluj/i })).toBeVisible();
+
+    // Publish disabled before name + price are filled — buyer-side checklist shows ○
+    const publishBtn = page.getByRole('button', { name: /Publikuj/i });
+    await expect(publishBtn).toBeDisabled();
   });
 
-  test('should create product from step 1 (fast path)', async ({ page }) => {
+  test('should create product from step 1 + 2 (fast path)', async ({ page }) => {
     await goToProducts(page);
     await openWizard(page);
 
@@ -74,20 +90,27 @@ test.describe('Product Creation Wizard', () => {
     const productName = `Wizard Fast ${uniqueSuffix}`;
     createdProductSlugs.push(`wizard-fast-${uniqueSuffix}`);
 
-    // Fill name
+    // Fill name + price on step 1
     await page.fill('input#name', productName);
     await page.waitForTimeout(300);
-
-    // Fill description
-    await page.fill('textarea#description', 'Created quickly from step 1');
-
-    // Fill price (now on step 1)
     await page.fill('input#price', '49,99');
 
-    // Click Create Product
-    await page.getByRole('button', { name: /Utwórz produkt/i }).click();
+    // Publish is enabled on step 1 (description still required — wizard jumps to step 2)
+    const publishBtn = page.getByRole('button', { name: /Publikuj/i });
+    await expect(publishBtn).toBeEnabled();
 
-    // Wait for modal to close (product created)
+    // First click bounces the wizard to step 2 because description is empty
+    await publishBtn.click();
+    await page.waitForTimeout(500);
+
+    // Step 2 visible — fill description
+    await expect(page.locator('textarea#description')).toBeVisible({ timeout: 5000 });
+    await page.fill('textarea#description', 'Created quickly');
+
+    // Click Publish again to commit
+    await page.getByRole('button', { name: /Publikuj/i }).click();
+
+    // Wait for modal to close
     await expect(page.getByText('Utwórz nowy produkt')).not.toBeVisible({ timeout: 15000 });
 
     // Product should appear in the list
@@ -101,18 +124,16 @@ test.describe('Product Creation Wizard', () => {
 
     // Fill step 1 minimum
     await page.fill('input#name', 'Nav Test Product');
-    await page.fill('textarea#description', 'Navigation test');
     await page.fill('input#price', '10');
 
     // Wait for slug auto-generation from name (required for step validation)
     await expect(page.locator('input#slug')).not.toHaveValue('', { timeout: 5000 });
 
     // Navigate Step 1 → Step 2 → Step 3
-    // Use toPass retry to handle React re-renders swallowing click events
     const dialog = page.getByRole('dialog');
     const nextBtn = dialog.getByRole('button', { name: /Dalej/i });
 
-    // Step 1 → Step 2 (retry — RSC refetch can swallow the click)
+    // Step 1 → Step 2
     await expect(async () => {
       if (await nextBtn.isVisible().catch(() => false)) {
         await nextBtn.click();
@@ -121,7 +142,10 @@ test.describe('Product Creation Wizard', () => {
     }).toPass({ timeout: 15000 });
     await expect(page.getByRole('button', { name: /Wstecz/i })).toBeVisible();
 
-    // Step 2 → Step 3 (retry — RSC refetch can swallow the click)
+    // Fill description on step 2 (now required here)
+    await page.fill('textarea#description', 'Navigation test');
+
+    // Step 2 → Step 3
     const step3Indicator = page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i });
     await expect(async () => {
       if (await nextBtn.isVisible().catch(() => false)) {
@@ -130,12 +154,15 @@ test.describe('Product Creation Wizard', () => {
       await expect(step3Indicator).toBeVisible({ timeout: 2000 });
     }).toPass({ timeout: 15000 });
 
+    // Step 3 shows the grouped accordions (Konwersja default open)
+    await expect(page.getByText('A. Konwersja')).toBeVisible();
+
     // No Continue Setup on last step
     await expect(page.getByRole('dialog').getByRole('button', { name: /Dalej/i })).not.toBeVisible();
 
-    // Back and Create Product should be visible
+    // Back + Publish on last step
     await expect(page.getByRole('button', { name: /Wstecz/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Utwórz produkt/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Publikuj/i })).toBeVisible();
 
     // Go back to step 2
     await page.getByRole('button', { name: /Wstecz/i }).click();
@@ -160,22 +187,22 @@ test.describe('Product Creation Wizard', () => {
     const productName = `Wizard Full ${uniqueSuffix}`;
     createdProductSlugs.push(`wizard-full-${uniqueSuffix}`);
 
-    // Step 1: Essentials
+    // Step 1: Essentials (no description here)
     await page.fill('input#name', productName);
-    await page.fill('textarea#description', 'Product created through all 3 steps');
     await page.fill('input#price', '99');
 
     // Continue to step 2
     await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
     await page.waitForTimeout(500);
 
-    // Step 2: Content & Details — just pass through
+    // Step 2: Content & Details — fill description here
+    await page.fill('textarea#description', 'Product created through all 3 steps');
     await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
     await page.waitForTimeout(500);
 
-    // Step 3: Sales & Settings — create from last step
+    // Step 3: Sales & Settings — publish
     await expect(page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i })).toBeVisible();
-    await page.getByRole('button', { name: /Utwórz produkt/i }).click();
+    await page.getByRole('button', { name: /Publikuj/i }).click();
 
     // Wait for modal to close after creation
     await expect(page.getByText('Utwórz nowy produkt')).not.toBeVisible({ timeout: 15000 });
@@ -184,15 +211,17 @@ test.describe('Product Creation Wizard', () => {
     await expect(page.locator('table td').getByText(productName).first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('should not advance from step 1 without required fields', async ({ page }) => {
+  test('publish button disabled with no name or price filled', async ({ page }) => {
     await goToProducts(page);
     await openWizard(page);
 
-    // Try to continue without filling anything
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+    // Lead-magnet is the inferred default for an empty form (price=0, no PWYW).
+    // For the assertion to be meaningful we move to the paid "standard" type
+    // so the checklist demands a price.
+    await page.locator('[data-product-type="standard"]').click();
 
-    // Should still be on step 1
-    await expect(page.getByRole('button', { name: /Podstawy/i })).toBeVisible();
+    // Required missing → Publish disabled.
+    await expect(page.getByRole('button', { name: /Publikuj/i })).toBeDisabled();
   });
 
   test('should show exit confirmation when form is dirty', async ({ page }) => {
@@ -223,7 +252,6 @@ test.describe('Product Creation Wizard', () => {
     await openWizard(page);
 
     // Don't fill anything, just close
-    // Click the X close button on the modal
     const closeBtn = page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]');
     await closeBtn.click();
 
@@ -241,6 +269,9 @@ test.describe('Product Creation Wizard', () => {
 
     await goToProducts(page);
     await openWizard(page);
+
+    // Pick standard (paid) so the price + VAT inputs render
+    await page.locator('[data-product-type="standard"]').click();
 
     // Enter a price > 0 to reveal the VAT checkbox (hidden when price = 0)
     const priceInput = page.locator('input#price');
@@ -273,8 +304,14 @@ test.describe('Product Creation Wizard', () => {
     await goToProducts(page);
     await openWizard(page);
 
+    // Pick standard so the price block renders (and exposes the tax badge)
+    await page.locator('[data-product-type="standard"]').click();
+
     // Wait for async getShopConfig() call to resolve and update taxMode state
     await page.waitForTimeout(2000);
+
+    // Enter price so the tax info block reveals
+    await page.fill('input#price', '10');
 
     // Should show "Tax calculated by Stripe" info instead of VAT fields
     await expect(page.getByText(/Tax calculated by Stripe|Podatek naliczany przez Stripe/i)).toBeVisible({ timeout: 10000 });
@@ -296,6 +333,38 @@ test.describe('Product Creation Wizard', () => {
     if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
       await page.getByRole('button', { name: /Odrzuć/i }).click();
     }
+  });
+});
+
+test.describe('Product type radio', () => {
+  test('switching to tip-jar applies PWYW + tip-jar template defaults', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    // Pick tip-jar
+    await page.locator('[data-product-type="tip-jar"]').click();
+
+    // The tip-jar branch hides the standalone price input (it's PWYW)
+    // and sets allow_custom_price=true under the hood. The form should
+    // not require a price for publish to enable — only name.
+    await page.fill('input#name', `Tip Jar ${Date.now()}`);
+    const publishBtn = page.getByRole('button', { name: /Publikuj/i });
+    await expect(publishBtn).toBeEnabled();
+
+    // Close without saving
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+
+  test('installments tile is disabled (coming soon)', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+    const installmentsBtn = page.locator('[data-product-type="installments"]');
+    await expect(installmentsBtn).toBeVisible();
+    await expect(installmentsBtn).toBeDisabled();
   });
 });
 
@@ -331,9 +400,6 @@ test.describe('Edit mode uses wizard', () => {
     await goToProducts(page);
 
     // Edit is a primary action button in each row (pencil icon, title="Edytuj").
-    // The previous fallback to a dropdown menu item is dead — the ⋯ dropdown
-    // never had an Edit/Edytuj entry, so falling through to it just burned
-    // the 45s test timeout when the products table was slow to hydrate.
     const productRow = page.locator('tr, [data-product-id]').filter({ hasText: 'Edit Mode Test Product' });
     await expect(productRow).toBeVisible({ timeout: 15000 });
 
@@ -347,19 +413,20 @@ test.describe('Edit mode uses wizard', () => {
     // Wizard step indicator SHOULD be present (unified wizard for edit too)
     await expect(page.getByRole('button', { name: /Podstawy/i })).toBeVisible();
 
-    // "Update product" button should be visible instead of "Create product"
+    // "Update product" button stays in edit mode (publishing semantics unchanged)
     await expect(page.getByRole('button', { name: /Aktualizuj produkt/i })).toBeVisible();
 
     // Form should be pre-filled with existing data
     const nameValue = await page.inputValue('input#name');
     expect(nameValue).toBe('Edit Mode Test Product');
 
+    // Description is on step 2 — navigate there to verify it's prefilled
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
     const descValue = await page.inputValue('textarea#description');
     expect(descValue).toBe('Product for edit mode test');
 
     // Close modal
     await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
-    // Exit confirmation (form is always dirty in edit mode)
     const exitModal = page.getByText(/Odrzucić zmiany/i);
     if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
       await page.getByRole('button', { name: /Odrzuć/i }).click();
@@ -369,8 +436,6 @@ test.describe('Edit mode uses wizard', () => {
   test('should navigate steps in edit mode', async ({ page }) => {
     await goToProducts(page);
 
-    // Edit is a primary row action button (pencil icon). The ⋯ dropdown
-    // never had an Edit/Edytuj entry, so the previous fallback burned 45s.
     const productRow = page.locator('tr, [data-product-id]').filter({ hasText: 'Edit Mode Test Product' });
     await expect(productRow).toBeVisible({ timeout: 15000 });
 
@@ -408,7 +473,6 @@ test.describe('Duplicate mode uses wizard', () => {
   const sourceSlug = `dup-source-${Date.now()}`;
 
   test.beforeAll(async () => {
-    // Create a product to duplicate
     const { data, error } = await supabaseAdmin
       .from('products')
       .insert({

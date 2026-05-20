@@ -51,17 +51,17 @@ async function openWizardAndGoToStep2(page: Page, productName: string) {
   await addBtn.click();
   await expect(page.getByText('Utwórz nowy produkt')).toBeVisible({ timeout: 15000 });
 
-  // Fill step 1 minimum
+  // Fill step 1 minimum (description moved to step 2)
   const dlg = page.getByRole('dialog');
   await dlg.locator('input#name').fill(productName);
-  await dlg.locator('textarea#description').fill('Video options test');
   await dlg.locator('input#price').fill('10');
 
   // Wait for slug auto-generation from name (required for step 1 validation)
   await expect(dlg.locator('input#slug')).not.toHaveValue('', { timeout: 10000 });
 
-  // Navigate to step 2
+  // Navigate to step 2 and fill description there
   await dlg.getByRole('button', { name: /Dalej/i }).click();
+  await dlg.locator('textarea#description').fill('Video options test');
 
   // Wait for step 2 content delivery section to render
   // If validation failed and step didn't advance, retry the click
@@ -441,8 +441,8 @@ test.describe('Video Options UI', () => {
     const controlsAfter = dialog(page).locator('label').filter({ hasText: 'Kontrolki' }).locator('input[type="checkbox"]');
     await expect(controlsAfter).toBeChecked();
 
-    // Create product from step 2 (Create Product button always visible)
-    await page.getByRole('button', { name: /Utwórz produkt/i }).click();
+    // Publish from step 2 (Publish button always visible)
+    await page.getByRole('button', { name: /Publikuj/i }).click();
     await expect(page.getByText('Utwórz nowy produkt')).not.toBeVisible({ timeout: 15000 });
 
     // Product should appear in list

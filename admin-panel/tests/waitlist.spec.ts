@@ -174,9 +174,8 @@ test.describe('Waitlist Feature', () => {
 
       await page.waitForSelector('[role="dialog"]');
 
-      // Fill step 1 minimum required fields
+      // Fill step 1 minimum required fields (description moved to step 2)
       await page.fill('input#name', 'Waitlist Test Temp');
-      await page.fill('textarea#description', 'Temp description');
       await page.fill('input#price', '10');
 
       // Uncheck "price includes VAT" to bypass VAT validation on step 1.
@@ -186,6 +185,10 @@ test.describe('Waitlist Feature', () => {
       if (await vatCheckbox.isChecked()) {
         await vatCheckbox.uncheck();
       }
+
+      // Advance to step 2 and fill description there
+      await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
+      await page.fill('textarea#description', 'Temp description');
 
       // Navigate to step 3 (Availability → Enable Waitlist is on step 3: Sales & Settings)
       const nextButton = page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i });
@@ -452,9 +455,8 @@ test.describe('Waitlist Feature', () => {
      * Fills minimum required fields on step 1 so "Continue Setup" works
      */
     async function navigateWizardToStep3(page: import('@playwright/test').Page): Promise<void> {
-      // Fill step 1 minimum required fields
+      // Fill step 1 minimum required fields (description moved to step 2)
       await page.fill('input#name', 'Waitlist Temp Product');
-      await page.fill('textarea#description', 'Temp description');
       await page.fill('input#price', '10');
 
       // Uncheck "price includes VAT" to bypass VAT validation on step 1.
@@ -464,10 +466,11 @@ test.describe('Waitlist Feature', () => {
         await vatCheckbox.uncheck();
       }
 
-      // Step 1 → Step 2
+      // Step 1 → Step 2 (fill description on step 2)
       const nextButton = page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i });
       await nextButton.click();
       await expect(page.locator('input#name')).not.toBeVisible({ timeout: 5000 });
+      await page.fill('textarea#description', 'Temp description');
 
       // Step 2 → Step 3
       await nextButton.click();

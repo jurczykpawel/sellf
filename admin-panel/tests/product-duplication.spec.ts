@@ -148,16 +148,18 @@ test.describe('Product Duplication', () => {
     const nameValue = await nameInput.inputValue();
     expect(nameValue).toBe('[COPY] Original Product');
 
-    // Check that description is copied (step 1)
-    const descInput = page.locator('textarea[name="description"]');
-    const descValue = await descInput.inputValue();
-    expect(descValue).toBe('Product to be duplicated');
-
     // Slug is blank in duplicate mode — fill it so step 1 validation passes
     const slugInput = page.locator('input[name="slug"]');
     if (!(await slugInput.inputValue())) {
       await slugInput.fill('copy-original-product');
     }
+
+    // Description lives on step 2 after the redesign. Navigate there to
+    // verify it was copied across.
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej|Next/i }).click();
+    const descInput = page.locator('textarea[name="description"]');
+    const descValue = await descInput.inputValue();
+    expect(descValue).toBe('Product to be duplicated');
 
     // Navigate to step 3 to check sale_price (Sales & Settings)
     await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
@@ -183,8 +185,8 @@ test.describe('Product Duplication', () => {
 
     await page.waitForTimeout(500);
 
-    // Wizard shows "Create Product" button (not a form submit, but a regular button)
-    const createButton = page.getByRole('button', { name: /Utwórz produkt|Create Product/i });
+    // Wizard shows "Publish" button (not a form submit, but a regular button)
+    const createButton = page.getByRole('button', { name: /Publikuj|Publish/i });
     await expect(createButton).toBeVisible({ timeout: 5000 });
 
     // Check that wizard title says "Create"

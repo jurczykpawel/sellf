@@ -81,7 +81,6 @@ test.describe('Authenticated Admin Dashboard', () => {
     const modal = page.locator('[role="dialog"], dialog').filter({ hasText: /Cancel|Anuluj/i });
     await modal.locator('input[name="name"]').fill(productName);
     await modal.locator('input[name="slug"]').fill(productSlug);
-    await modal.locator('textarea[name="description"]').fill('Description');
     await modal.locator('input[name="price"]').fill('50');
     // Select currency explicitly (defaults to shop's default currency, but we want to be explicit in tests)
     await modal.locator('select[name="currency"]').selectOption('USD');
@@ -90,8 +89,12 @@ test.describe('Authenticated Admin Dashboard', () => {
     // default arrives and validation rejects vat_rate=null.
     await modal.locator('#vat_rate').fill('23');
 
-    // Click "Create Product" button (wizard uses regular button, not form submit)
-    await page.getByRole('button', { name: /Utwórz produkt|Create Product/i }).click();
+    // Description lives on step 2 after the redesign — advance and fill it.
+    await modal.getByRole('button', { name: /Dalej|Next/i }).click();
+    await modal.locator('textarea[name="description"]').fill('Description');
+
+    // Click Publish to commit
+    await page.getByRole('button', { name: /Publikuj|Publish/i }).click();
 
     // Verify wizard closes
     await expect(modal).not.toBeVisible({ timeout: 15000 });

@@ -426,20 +426,24 @@ test.describe('PWYW Admin - Create New Product', () => {
     const modal = page.locator('[role="dialog"], dialog').filter({ hasText: /Cancel|Anuluj/i });
     await expect(modal).toBeVisible({ timeout: 5000 });
 
-    // Fill basic info (step 1 — Essentials: BasicInfo + Pricing)
+    // Fill basic info (step 1 — Essentials: BasicInfo + Pricing). Description
+    // moved to step 2 in the redesign.
     await modal.locator('input[name="name"]').fill(`New PWYW Product ${Date.now()}`);
-    await modal.locator('textarea[name="description"]').fill('New PWYW product description');
     await modal.locator('input[name="price"]').fill('10');
 
-    // Enable PWYW (PricingSection is on step 1)
+    // Enable PWYW (PricingSection toggle is still on step 1)
     await modal.locator('#allow_custom_price').check();
     await page.waitForTimeout(300);
 
     // Set minimum price
     await modal.locator('#custom_price_min').fill('5');
 
+    // Advance to step 2 and fill description there
+    await modal.getByRole('button', { name: /Dalej|Next/i }).click();
+    await modal.locator('textarea[name="description"]').fill('New PWYW product description');
+
     // Save — wizard uses a regular button, not form submit
-    const createButton = page.getByRole('button', { name: /Utwórz produkt|Create Product/i });
+    const createButton = page.getByRole('button', { name: /Publikuj|Publish/i });
     await createButton.click();
 
     // Wait for save and wizard to close
