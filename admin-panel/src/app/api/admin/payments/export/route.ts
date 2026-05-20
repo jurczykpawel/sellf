@@ -8,6 +8,7 @@ import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { hasFeature } from '@/lib/license/features';
+import { buildCsv } from '@/lib/csv/sanitize';
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,23 +119,7 @@ export async function POST(request: NextRequest) {
       ];
     }) || [];
 
-    // Sanitize CSV field to prevent formula injection (=, +, -, @, tab, CR)
-    const sanitizeCsvField = (field: unknown): string => {
-      const str = String(field ?? '');
-      const needsPrefix = /^[=+\-@\t\r]/.test(str);
-      const sanitized = needsPrefix ? `'${str}` : str;
-      if (sanitized.includes(',') || sanitized.includes('"') || sanitized.includes('\n'))
-        return `"${sanitized.replace(/"/g, '""')}"`;
-      return sanitized;
-    };
-
-    // Create CSV content
-    const csvContent = [
-      csvHeaders.join(','),
-      ...csvRows.map((row: any[]) =>
-        row.map(sanitizeCsvField).join(',')
-      )
-    ].join('\n');
+    const csvContent = buildCsv(csvHeaders, csvRows);
 
     // Return CSV file
     return new Response(csvContent, {
