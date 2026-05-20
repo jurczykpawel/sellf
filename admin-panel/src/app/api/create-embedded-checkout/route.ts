@@ -32,11 +32,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateChe
     }
 
     const requestData: CreateCheckoutRequest = await request.json();
-    
-    // Get origin for return URL — prefer server-side config over client-supplied Origin header
-    // SECURITY: Origin header is client-supplied and could be manipulated
-    const origin = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || request.headers.get('origin');
-    
+
+    const origin = process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL;
+    if (!origin) {
+      console.error('[create-embedded-checkout] Missing NEXT_PUBLIC_BASE_URL/SITE_URL');
+      return NextResponse.json(
+        { error: 'Server misconfiguration: canonical origin is not set', type: CheckoutErrorType.UNKNOWN_ERROR },
+        { status: 500 }
+      );
+    }
+
+
     // Use user's email from session if not provided in request
     const finalEmail = requestData.email || user?.email;
     
