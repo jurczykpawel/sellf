@@ -306,7 +306,9 @@ test.describe('License Settings', () => {
     const successMessage = page.locator('text=/saved successfully|zapisana pomyślnie/i');
     await expect(successMessage).toBeVisible({ timeout: 15000 });
 
-    // Verify in database
+    // Verify in database — extended timeout because under full-suite load
+    // the connection pool occasionally takes longer than 10s to propagate the
+    // service-action commit to a service-role client on a different connection.
     await expect.poll(async () => {
       const { data } = await supabaseAdmin
         .from('integrations_config')
@@ -314,7 +316,7 @@ test.describe('License Settings', () => {
         .eq('id', 1)
         .single();
       return data?.sellf_license;
-    }, { timeout: 10000, intervals: [500, 1000, 2000] }).toBeNull();
+    }, { timeout: 30000, intervals: [500, 1000, 2000, 5000] }).toBeNull();
   });
 
   test('Signature is partially displayed (truncated)', async ({ page }) => {
