@@ -26,10 +26,12 @@ export async function verifyCaptchaToken(
 ): Promise<CaptchaVerifyResult> {
   const provider = providerOverride ?? getCaptchaProvider();
 
-  // No captcha configured — skip verification (dev mode)
+  // No captcha configured — fail-closed in production to prevent
+  // magic-link bombing / signup spam. Dev mode skips for ergonomics.
   if (provider === 'none') {
     if (process.env.NODE_ENV === 'production') {
-      console.warn('[captcha] No captcha provider configured in production — requests are unprotected');
+      console.error('[captcha] No captcha provider configured in production — rejecting request');
+      return { success: false, error: 'Security verification unavailable' };
     }
     return { success: true };
   }

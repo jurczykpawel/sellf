@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 
 const SAVED_SECRET = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+const SAVED_NODE_ENV = process.env.NODE_ENV;
 const SAVED_FETCH = global.fetch;
 
 beforeEach(() => {
@@ -12,8 +13,25 @@ beforeEach(() => {
 afterEach(() => {
   if (SAVED_SECRET === undefined) delete process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
   else process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = SAVED_SECRET;
+  if (SAVED_NODE_ENV === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = SAVED_NODE_ENV;
   global.fetch = SAVED_FETCH;
   vi.restoreAllMocks();
+});
+
+describe('verifyCaptchaToken — provider=none fail-closed in production', () => {
+  it('rejects when provider=none in production (prevents magic-link bombing)', async () => {
+    process.env.NODE_ENV = 'production';
+    const result = await verifyCaptchaToken('any-token', 'none');
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/security|verification/i);
+  });
+
+  it('still permits provider=none in development (dev convenience)', async () => {
+    process.env.NODE_ENV = 'development';
+    const result = await verifyCaptchaToken(null, 'none');
+    expect(result.success).toBe(true);
+  });
 });
 
 describe('verifyCaptchaToken — Turnstile', () => {
