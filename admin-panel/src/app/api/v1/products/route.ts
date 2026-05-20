@@ -21,14 +21,15 @@ import {
   validateCursor,
   API_SCOPES,
 } from '@/lib/api';
+import { z } from 'zod';
 import {
   validateCreateProduct,
-  sanitizeProductData,
   escapeIlikePattern,
   validateProductSortColumn,
   validateUUID,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
+import { mapApiInputToProductRow } from '@/lib/api/dto/product';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -168,10 +169,18 @@ export async function POST(request: NextRequest) {
     // Extract categories separately
     const { categories, ...productDataRaw } = body;
 
-    // Sanitize input
-    const sanitizedData = sanitizeProductData(productDataRaw, true);
+    let sanitizedData: Record<string, unknown>;
+    try {
+      sanitizedData = mapApiInputToProductRow(productDataRaw, 'create');
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: err.issues.map((i) => `${i.path.join('.') || '_'}: ${i.message}`),
+        });
+      }
+      throw err;
+    }
 
-    // Validate input
     const validation = validateCreateProduct(sanitizedData);
     if (!validation.isValid) {
       throw new ApiValidationError('Validation failed', {

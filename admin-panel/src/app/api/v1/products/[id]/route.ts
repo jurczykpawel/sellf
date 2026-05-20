@@ -20,13 +20,14 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
+import { z } from 'zod';
 import {
   validateProductId,
   validateUpdateProduct,
   validateUUID,
-  sanitizeProductData,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
+import { mapApiInputToProductRow } from '@/lib/api/dto/product';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
 interface RouteParams {
@@ -136,10 +137,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Extract categories separately
     const { categories, ...productDataRaw } = body;
 
-    // Sanitize input (setDefaults: false for partial updates)
-    const sanitizedData = sanitizeProductData(productDataRaw, false);
+    let sanitizedData: Record<string, unknown>;
+    try {
+      sanitizedData = mapApiInputToProductRow(productDataRaw, 'update');
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: err.issues.map((i) => `${i.path.join('.') || '_'}: ${i.message}`),
+        });
+      }
+      throw err;
+    }
 
-    // Validate input
     const validation = validateUpdateProduct(sanitizedData);
     if (!validation.isValid) {
       throw new ApiValidationError('Validation failed', {
