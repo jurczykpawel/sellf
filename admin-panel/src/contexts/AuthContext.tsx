@@ -30,12 +30,11 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // State Management with Performance Tracking
   const [user, setUser] = useState<User | null>(null)
-  const [role, setRole] = useState<UserRole>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('sf_role') as UserRole) || 'user'
-    }
-    return 'user'
-  })
+  // Server and client first render both start with 'user' so hydration matches.
+  // localStorage is read in useEffect after mount — lazy init here previously
+  // returned different values on server vs client and crashed the dashboard
+  // with a hydration mismatch on tab-switching settings pages.
+  const [role, setRole] = useState<UserRole>('user')
   const isAdmin = role !== 'user'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -209,6 +208,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
     isMountedRef.current = true
     let subscription: { unsubscribe: () => void } | null = null
+
+    // Hydrate role from localStorage after mount so the cached value is used
+    // immediately while the RPC reconciles in the background. Reading here
+    // (not in useState init) keeps server and client first render aligned.
+    const cachedRole = localStorage.getItem('sf_role') as UserRole | null
+    if (cachedRole && cachedRole !== 'user') setRole(cachedRole)
 
     const setupAuth = async () => {
       try {

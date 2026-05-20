@@ -541,7 +541,6 @@
     "paid": "Paid",
     "permanent": "Permanent",
     "generateCode": "Generate Code",
-    "generateProtectionCode": "Generate content protection code",
     "generateEmbedSnippet": "Generate embed checkout snippet",
     "codeGenerated": "Code Generated",
     "copyCode": "Copy Code",
@@ -608,44 +607,6 @@
       "hourlyTitle": "Today's Revenue",
       "hourlySubtitle": "Hourly breakdown"
     }
-  },
-  "protectionCode": {
-    "title": "Generate content protection code",
-    "subtitle": "Lock specific content on your own page with sellf.js. This is NOT a checkout form.",
-    "product": "Product",
-    "slug": "Slug",
-    "protectionMode": "Protection Mode",
-    "pageMode": "Protect Entire Page",
-    "elementMode": "Protect Elements",
-    "pageDescription": "Protects the whole page content",
-    "elementDescription": "Protects specific page elements",
-    "generatedCode": "Generated Code",
-    "copied": "✓ Copied!",
-    "copyCode": "📋 Copy Code",
-    "instructions": "Implementation Instructions",
-    "pageInstructions": {
-      "step1": "1. Copy the script tag above",
-      "step2": "2. Paste it into the &lt;head&gt; section of your protected page",
-      "step3": "3. The entire page will be protected automatically"
-    },
-    "elementInstructions": {
-      "step1": "1. Add the script tag to your page &lt;head&gt;",
-      "step2": "2. Wrap content you want to protect with data-sellf-product=\"{slug}\"",
-      "step3": "3. Add fallback content with data-no-access for users without access",
-      "step4": "4. The script will automatically show/hide content based on user access"
-    },
-    "importantInfo": "Important Information",
-    "frontendProtection": "Frontend Protection",
-    "frontendProtectionDescription": "This solution operates entirely on the client-side, making it compatible with any website builder like WordPress, Webflow, Squarespace, or static HTML. While this approach is less secure than server-side protection, we've implemented several obfuscation techniques to make circumvention more challenging than typical frontend solutions.",
-    "useCase": "Use Case",
-    "pageModeUseCase": "Perfect for protecting landing pages, course content, or any standalone page where you want to control access based on user purchases or subscriptions.",
-    "selectiveDisplay": "Selective Content Display",
-    "selectiveDisplayDescription": "This method allows you to show or hide specific sections of a page based on user access. It's particularly useful for sales pages where you want to display different content to paying customers versus prospects.",
-    "implementation": "Implementation",
-    "implementationDescription": "Add data-sellf-product=\"{slug}\" to content that should be visible to users with access, and data-no-access=\"true\" to fallback content for users without access. The script will automatically manage visibility.",
-    "commonUseCase": "Common Use Case",
-    "elementModeUseCase": "Replace \"Buy Now\" buttons with \"Access Product\" buttons for existing customers, or show premium content sections only to subscribers.",
-    "close": "Close"
   },
   "embedSnippet": {
     "title": "Generate embed checkout snippet",
@@ -1208,7 +1169,6 @@
       "filterActive": "Active",
       "filterInactive": "Inactive",
       "generateCode": "Generate Code",
-      "generateProtectionCode": "Generate content protection code",
       "generateEmbedSnippet": "Generate embed checkout snippet",
       "viewDetails": "View Details",
       "edit": "Edit",
@@ -1479,6 +1439,8 @@
         "loopTooltip": "Restart the video from the beginning when it ends.",
         "muted": "Muted",
         "mutedTooltip": "Start the video with sound off. Required for autoplay to work in most browsers.",
+        "saved_position": "Remember progress",
+        "saved_positionTooltip": "Resume playback where the viewer left off. Position is stored in the browser's localStorage.",
         "urlRequired": "URL is required",
         "bunnyIframeUnsupported": "Bunny iframe embeds are not supported. Use a Bunny Stream HLS playlist (.m3u8) or MP4/WebM URL from your pull zone.",
         "untrustedPlatform": "Untrusted platform. Supported: YouTube, Vimeo, Wistia, Bunny Stream HLS/MP4, Twitch",
@@ -3319,6 +3281,7 @@
       "licenseAGPL": "License (AGPL-3.0)",
       "privacy": "Privacy",
       "terms": "Terms",
+      "cookiePreferences": "Cookie preferences",
       "copyright": "© {year} Sellf. Open source and self-hosted",
       "whiteLabelLicense": "White-Label License"
     }

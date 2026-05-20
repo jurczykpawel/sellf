@@ -64,6 +64,7 @@ async function verifyTurnstileToken(token: string): Promise<CaptchaVerifyResult>
       redirect: 'error',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ secret, response: token }),
+      signal: AbortSignal.timeout(5000),
     });
 
     const result = await response.json();

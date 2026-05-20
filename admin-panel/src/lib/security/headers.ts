@@ -16,11 +16,11 @@ interface HeaderEntry {
 }
 
 /**
- * Endpoints intentionally exposed to external origins (cross-domain SDK).
- * CORP is downgraded to `cross-origin` for these only — never the admin app.
+ * Endpoints intentionally exposed to external origins (embed checkout
+ * loader on seller pages, runtime-config bootstrap). CORP is downgraded
+ * to `cross-origin` for these only — never the admin app itself.
  */
 export const EMBEDDABLE_RESOURCE_PATHS = [
-  '/api/sellf',
   '/embed/v1/checkout.js',
   '/api/runtime-config',
 ] as const;
@@ -54,7 +54,6 @@ export function buildContentSecurityPolicyWithNonce(
     // keeping the third-party hosts here preserves coverage on those.
     'js.stripe.com',
     'challenges.cloudflare.com',
-    'cdn.kiprotect.com',
     'www.youtube.com',
     's.ytimg.com',
     isDev ? "'unsafe-eval'" : '',
@@ -74,6 +73,7 @@ export function buildContentSecurityPolicyWithNonce(
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
+    "frame-ancestors 'self'",
   ].join('; ');
 }
 

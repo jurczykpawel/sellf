@@ -71,6 +71,17 @@ describe('isPrivateOrReservedIp', () => {
       expect(isPrivateOrReservedIp('2606:4700:4700::1111')).toBe(false);
       expect(isPrivateOrReservedIp('2001:4860:4860::8888')).toBe(false);
     });
+
+    it('strips zone-id suffix so loopback and mapped addresses cannot bypass blocklist', () => {
+      expect(isPrivateOrReservedIp('::1%eth0')).toBe(true);
+      expect(isPrivateOrReservedIp('::%eth0')).toBe(true);
+      expect(isPrivateOrReservedIp('[::1%eth0]')).toBe(true);
+      expect(isPrivateOrReservedIp('::ffff:127.0.0.1%eth0')).toBe(true);
+      expect(isPrivateOrReservedIp('::ffff:169.254.169.254%eth0')).toBe(true);
+      expect(isPrivateOrReservedIp('::ffff:7f00:1%eth0')).toBe(true);
+      expect(isPrivateOrReservedIp('fe80::1%eth0')).toBe(true);
+      expect(isPrivateOrReservedIp('fc00::1%tun0')).toBe(true);
+    });
   });
 
   it('treats empty input as blocked (fail-closed)', () => {

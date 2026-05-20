@@ -1,13 +1,13 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import type { CaptchaConfig } from '@/lib/captcha/types'
 
 interface AppConfig {
   supabaseUrl: string
   supabaseAnonKey: string
   stripePublishableKey: string
-  cloudflareSiteKey: string
-  captchaProvider: 'turnstile' | 'altcha' | 'none'
+  captcha: CaptchaConfig
   siteUrl: string
   demoMode: boolean
   passwordLoginEnabled: boolean

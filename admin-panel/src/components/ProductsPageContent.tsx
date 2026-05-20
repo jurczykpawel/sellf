@@ -7,7 +7,6 @@ import ProductsTable from './ProductsTable';
 import { toast } from 'sonner';
 import ProductCreationWizard from './ProductFormModal/wizard/ProductCreationWizard';
 import type { ProductFormData } from './ProductFormModal/types';
-import ProtectionCodeModal from './ProtectionCodeModal';
 import EmbedSnippetModal from './EmbedSnippetModal';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
@@ -28,7 +27,6 @@ const ProductsPageContent: React.FC = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showProtectionCode, setShowProtectionCode] = useState(false);
   const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
   const [productForCodeGeneration, setProductForCodeGeneration] = useState<Product | null>(null);
 
@@ -201,11 +199,6 @@ const ProductsPageContent: React.FC = () => {
     }
   };
 
-  const handleGenerateProtectionCode = (product: Product) => {
-    setProductForCodeGeneration(product);
-    setShowProtectionCode(true);
-  };
-
   const handleGenerateEmbedSnippet = (product: Product) => {
     setProductForCodeGeneration(product);
     setShowEmbedSnippet(true);
@@ -311,7 +304,6 @@ const ProductsPageContent: React.FC = () => {
         onDeleteProduct={handleDeleteProductClick}
         onPreviewProduct={handlePreviewProduct}
         onPreviewRedirect={handlePreviewRedirect}
-        onGenerateProtectionCode={handleGenerateProtectionCode}
         onGenerateEmbedSnippet={handleGenerateEmbedSnippet}
         onToggleStatus={handleToggleStatus}
         onToggleFeatured={handleToggleFeatured}
@@ -397,17 +389,6 @@ const ProductsPageContent: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {showProtectionCode && productForCodeGeneration && (
-        <ProtectionCodeModal
-          isOpen={showProtectionCode}
-          onClose={() => {
-            setShowProtectionCode(false);
-            setProductForCodeGeneration(null);
-          }}
-          product={productForCodeGeneration}
-        />
       )}
 
       {showEmbedSnippet && productForCodeGeneration && (

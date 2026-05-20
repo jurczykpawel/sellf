@@ -20,47 +20,58 @@ const GA4_TO_FB: Record<GA4EventName, FBEventName> = {
 };
 
 /**
- * Check if user has given consent for a specific service via Klaro
+ * Consent helpers — read the cookieconsent (orestbida/cookieconsent v3) cookie
+ * named `sellf_consent`.
  *
- * Klaro stores consent in a cookie named 'sellf_consent' as JSON
- * Format: { "facebook-pixel": true, "google-tag-manager": true, ... }
+ * Cookie shape (cookieconsent native):
+ *   {
+ *     "categories": ["necessary","analytics","marketing"],
+ *     "services":   { "necessary": [], "analytics": ["gtm","umami"], "marketing": ["pixel"] },
+ *     "consentId":  "...",
+ *     "consentTimestamp": "...",
+ *     ...
+ *   }
+ *
+ * No consent cookie => no consent given.
+ *
+ * We parse the cookie directly so SSR / non-loaded paths stay equivalent and
+ * tests can write the cookie without booting the library. Categories on
+ * their own are not enough — cookieconsent v3 only includes a service in
+ * `services[cat]` when explicitly accepted.
  */
-function getKlaroConsent(serviceName: string): boolean {
-  if (typeof document === 'undefined') return false;
+interface CookieConsentCookie {
+  categories?: string[];
+  services?: Record<string, string[]>;
+}
 
+function readConsentCookie(): CookieConsentCookie | null {
+  if (typeof document === 'undefined') return null;
   try {
-    // Get Klaro consent cookie
-    const cookies = document.cookie.split(';');
-    const klaroCookie = cookies.find(c => c.trim().startsWith('sellf_consent='));
-
-    if (!klaroCookie) {
-      // No consent cookie = no consent given yet
-      return false;
-    }
-
-    const cookieValue = klaroCookie.split('=')[1];
-    const decoded = decodeURIComponent(cookieValue);
-    const consent = JSON.parse(decoded);
-
-    return consent[serviceName] === true;
+    const entry = document.cookie
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('sellf_consent='));
+    if (!entry) return null;
+    const decoded = decodeURIComponent(entry.slice('sellf_consent='.length));
+    return JSON.parse(decoded);
   } catch {
-    // If parsing fails, assume no consent
-    return false;
+    return null;
   }
 }
 
-/**
- * Check if user has consent for Facebook tracking
- */
-export function hasFacebookConsent(): boolean {
-  return getKlaroConsent('facebook-pixel');
+function hasAcceptedService(category: string, service: string): boolean {
+  const data = readConsentCookie();
+  return Array.isArray(data?.services?.[category]) && data.services[category].includes(service);
 }
 
-/**
- * Check if user has consent for Google Tag Manager
- */
+/** Check if user has consent for Facebook tracking (pixel category=marketing). */
+export function hasFacebookConsent(): boolean {
+  return hasAcceptedService('marketing', 'pixel');
+}
+
+/** Check if user has consent for Google Tag Manager (gtm category=analytics). */
 export function hasGTMConsent(): boolean {
-  return getKlaroConsent('google-tag-manager');
+  return hasAcceptedService('analytics', 'gtm');
 }
 
 /**

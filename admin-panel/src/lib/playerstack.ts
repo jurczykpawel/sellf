@@ -46,6 +46,9 @@ type PlayerstackConfigJson = {
   twitch?: {
     parent: string;
   };
+  savedPosition?: {
+    enabled: boolean;
+  };
 };
 
 const PLAYERSTACK_PLATFORMS = new Set<ParsedVideoUrl['platform']>([
@@ -127,6 +130,10 @@ export function buildPlayerstackRenderConfig({
 
   if (parsed.platform === 'twitch' && twitchParent) {
     playerConfig.twitch = { parent: twitchParent.toLowerCase() };
+  }
+
+  if (config?.saved_position) {
+    playerConfig.savedPosition = { enabled: true };
   }
 
   return {

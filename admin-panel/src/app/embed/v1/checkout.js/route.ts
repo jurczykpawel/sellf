@@ -67,14 +67,14 @@ export async function GET() {
     }
   }
 
-  function renderFreeForm(root, productSlug, captchaSiteKey) {
+  function renderFreeForm(root, productSlug, captcha) {
     var form = document.createElement('form');
     var input = document.createElement('input');
     var honeypot = document.createElement('input');
     var button = document.createElement('button');
     var status = document.createElement('div');
-    var captcha = document.createElement('div');
-    var turnstileToken = '';
+    var captchaSlot = document.createElement('div');
+    var captchaToken = '';
 
     input.type = 'email';
     input.name = 'email';
@@ -87,31 +87,49 @@ export async function GET() {
     honeypot.style.position = 'absolute';
     honeypot.style.left = '-10000px';
     honeypot.setAttribute('aria-hidden', 'true');
-    captcha.className = 'sellf-turnstile';
+    captchaSlot.className = 'sellf-captcha';
     button.type = 'submit';
     button.textContent = 'Get access';
 
     form.appendChild(input);
     form.appendChild(honeypot);
-    form.appendChild(captcha);
+    form.appendChild(captchaSlot);
     form.appendChild(button);
     form.appendChild(status);
     root.textContent = '';
     root.appendChild(form);
 
-    if (captchaSiteKey) {
-      var captchaScript = document.createElement('script');
-      captchaScript.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-      captchaScript.onload = function () {
+    if (captcha && captcha.provider === 'turnstile' && captcha.siteKey && captcha.scriptUrl) {
+      var turnstileScript = document.createElement('script');
+      turnstileScript.src = captcha.scriptUrl;
+      turnstileScript.onload = function () {
         if (!window.turnstile) return;
-        window.turnstile.render(captcha, {
-          sitekey: captchaSiteKey,
-          callback: function (token) { turnstileToken = token; },
-          'expired-callback': function () { turnstileToken = ''; },
-          'error-callback': function () { turnstileToken = ''; },
+        window.turnstile.render(captchaSlot, {
+          sitekey: captcha.siteKey,
+          callback: function (token) { captchaToken = token; },
+          'expired-callback': function () { captchaToken = ''; },
+          'error-callback': function () { captchaToken = ''; },
         });
       };
-      document.head.appendChild(captchaScript);
+      document.head.appendChild(turnstileScript);
+    } else if (captcha && captcha.provider === 'altcha' && captcha.scriptUrl && captcha.challengeUrl) {
+      var altchaScript = document.createElement('script');
+      altchaScript.src = captcha.scriptUrl;
+      altchaScript.type = 'module';
+      altchaScript.onload = function () {
+        var widget = document.createElement('altcha-widget');
+        widget.setAttribute('challengeurl', sellfOrigin + captcha.challengeUrl);
+        widget.addEventListener('statechange', function (ev) {
+          var detail = ev && ev.detail;
+          if (detail && detail.state === 'verified' && detail.payload) {
+            captchaToken = detail.payload;
+          } else if (detail && detail.state === 'error') {
+            captchaToken = '';
+          }
+        });
+        captchaSlot.appendChild(widget);
+      };
+      document.head.appendChild(altchaScript);
     }
 
     form.addEventListener('submit', function (event) {
@@ -122,7 +140,7 @@ export async function GET() {
         productSlug: productSlug,
         email: input.value,
         website: honeypot.value,
-        turnstileToken: turnstileToken || undefined,
+        turnstileToken: captchaToken || undefined,
       }).then(function (body) {
         status.textContent = body.message || 'Check your email.';
       }).catch(function (error) {
@@ -293,7 +311,7 @@ export async function GET() {
       email: email || undefined,
     }).then(function (body) {
       if (body.kind === 'free') {
-        renderFreeForm(root, productSlug, body.captchaSiteKey || '');
+        renderFreeForm(root, productSlug, body.captcha || null);
       } else if (body.kind === 'paid' && body.clientSecret) {
         if (!publishableKey) {
           showMessage(root, 'Checkout is not configured.');

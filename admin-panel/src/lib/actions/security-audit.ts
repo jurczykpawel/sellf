@@ -107,7 +107,6 @@ async function executeAudit(): Promise<SecurityAuditResult> {
     { scope: 'shop', check: () => checkHttpsRedirect(siteUrl) },
     { scope: 'shop', check: () => checkHstsHeader(siteUrl) },
     { scope: 'shop', check: () => checkAppUrl() },
-    { scope: 'shop', check: () => checkAllowedOrigins() },
     { scope: 'shop', check: () => checkStripeWebhookSecret() },
     { scope: 'shop', check: () => checkCookieSecure(siteUrl) },
   ];
@@ -408,30 +407,6 @@ async function checkAppUrl(): Promise<SecurityCheckResult> {
     fix: isLocalhost
       ? 'Set NEXT_PUBLIC_APP_URL to your production URL (e.g., https://yourdomain.com) in .env.local and restart the app.'
       : undefined,
-  };
-}
-
-async function checkAllowedOrigins(): Promise<SecurityCheckResult> {
-  const allowedOrigins = process.env.ALLOWED_ORIGINS;
-  const hasOrigins = !!allowedOrigins && allowedOrigins.trim().length > 0;
-
-  return {
-    id: 'allowed-origins',
-    name: 'CORS allowed origins',
-    status: hasOrigins ? 'pass' : 'warn',
-    message: hasOrigins
-      ? `Cross-domain origins are restricted to: ${allowedOrigins}`
-      : 'ALLOWED_ORIGINS is not set. Cross-domain API access (/api/access) is limited to your own domain. If you embed Sellf on external sites, add their origins.',
-    fix: hasOrigins ? undefined
-      : 'If you use Sellf cross-domain (sellf.js on external sites), set ALLOWED_ORIGINS in .env.local to a comma-separated list of customer domains: ALLOWED_ORIGINS=https://site1.com,https://site2.com',
-    steps: hasOrigins ? undefined : [
-      'First, decide: do you embed sellf.js on any external domains (outside your Sellf domain)?',
-      'If NO — you can safely ignore this warning. CORS is not needed for single-domain use.',
-      'If YES — identify all external domains where sellf.js is embedded (e.g., https://yourshop.com).',
-      'SSH into your server and edit: /opt/stacks/sellf-tsa/admin-panel/.env.local',
-      'Add: ALLOWED_ORIGINS=https://yourshop.com,https://another-site.com',
-      'Restart: pm2 restart sellf-tsa',
-    ],
   };
 }
 

@@ -17,6 +17,17 @@ ALTER TABLE seller_main.products
 ALTER TABLE seller_main.payment_transactions
   ADD COLUMN custom_field_values JSONB NOT NULL DEFAULT '{}'::jsonb;
 
+-- Per-product playback options for preview_video_url on the checkout/product
+-- page. Shape: { autoplay?, loop?, muted?, controls?, saved_position?: bool }.
+-- Validated by admin-panel/src/lib/validations/product.ts and applied by
+-- buildPlayerstackRenderConfig() in admin-panel/src/lib/playerstack.ts.
+ALTER TABLE seller_main.products
+  ADD COLUMN preview_video_config JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+ALTER TABLE seller_main.products
+  ADD CONSTRAINT preview_video_config_is_object
+  CHECK (jsonb_typeof(preview_video_config) = 'object');
+
 COMMENT ON COLUMN seller_main.products.custom_checkout_fields IS
   'Array of {id,type,label,required,max_length,placeholder?} definitions. Shape validated at API layer (lib/validations/custom-checkout-fields.ts).';
 COMMENT ON COLUMN seller_main.payment_transactions.custom_field_values IS

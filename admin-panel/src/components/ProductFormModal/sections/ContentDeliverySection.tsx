@@ -2,23 +2,9 @@
 
 import React from 'react';
 import { ModalSection } from '@/components/ui/Modal';
-import { Tooltip } from '@/components/ui/Tooltip';
-import type { ProductContentConfig, ContentItemConfig } from '@/types';
+import { VideoOptionsPanel, type VideoOptionKey } from '@/components/player/VideoOptionsPanel';
+import type { ProductContentConfig } from '@/types';
 import type { ContentDeliverySectionProps, UrlValidation, TranslationFunction } from '../types';
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-/** Which video options each platform actually supports (used for info text) */
-const PLATFORM_SUPPORTED_OPTIONS: Record<string, string[]> = {
-  YouTube: ['autoplay', 'loop', 'muted', 'controls'],
-  Vimeo: ['autoplay', 'loop', 'muted', 'controls'],
-  Wistia: ['autoplay', 'loop', 'muted', 'controls'],
-  'Bunny.net': ['autoplay', 'loop', 'muted', 'controls'],
-  Twitch: ['autoplay', 'loop', 'muted', 'controls'],
-};
-
-/** All video option keys in display order */
-const VIDEO_OPTIONS = ['autoplay', 'loop', 'muted', 'controls'] as const;
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
 
@@ -111,58 +97,6 @@ function ValidationMessage({ validation, t }: { validation: UrlValidation; t: Tr
   );
 }
 
-// ── Video options panel ────────────────────────────────────────────────────────
-
-function VideoOptionsPanel({ item, index, validation, t, onOptionChange }: {
-  item: { config: ContentItemConfig };
-  index: number;
-  validation?: UrlValidation;
-  t: TranslationFunction;
-  onOptionChange: (index: number, option: string, checked: boolean) => void;
-}) {
-  const platform = validation?.platform;
-
-  const platformInfoText = platform
-    ? t('platformSupports', {
-        platform,
-        options: (PLATFORM_SUPPORTED_OPTIONS[platform] ?? ['autoplay'])
-          .map(k => t(k).toLowerCase())
-          .join(', '),
-      })
-    : t('videoOptionsNote');
-
-  return (
-    <div className="mt-3 pt-3 border-t border-sf-border">
-      <div className="text-xs font-medium text-sf-body mb-2">{t('videoOptions')}</div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {VIDEO_OPTIONS.map(option => {
-          const isControls = option === 'controls';
-          const checked = isControls
-            ? item.config?.controls !== false
-            : Boolean(item.config?.[option]);
-
-          return (
-            <Tooltip key={option} content={t(`${option}Tooltip`)} side="bottom">
-              <label className="inline-flex items-center space-x-1 text-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => onOptionChange(index, option, e.target.checked)}
-                  className="h-3 w-3 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
-                />
-                <span className="text-sf-body">{t(option)}</span>
-              </label>
-            </Tooltip>
-          );
-        })}
-      </div>
-
-      <div className="mt-2 text-xs text-sf-muted">{platformInfoText}</div>
-    </div>
-  );
-}
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function ContentDeliverySection({
@@ -236,7 +170,7 @@ export function ContentDeliverySection({
     }
   };
 
-  const handleVideoOptionChange = (index: number, option: string, checked: boolean) => {
+  const handleVideoOptionChange = (index: number, option: VideoOptionKey, checked: boolean) => {
     updateContentItems(items => items.map((item, i) =>
       i === index ? { ...item, config: { ...item.config, [option]: checked } } : item
     ));
@@ -392,11 +326,14 @@ export function ContentDeliverySection({
 
                   {item.type === 'video_embed' && (
                     <VideoOptionsPanel
-                      item={item}
-                      index={index}
-                      validation={urlValidation[index]}
+                      mode="content"
+                      config={item.config}
+                      platform={urlValidation[index]?.platform ?? null}
                       t={t}
-                      onOptionChange={handleVideoOptionChange}
+                      onOptionChange={(option, checked) =>
+                        handleVideoOptionChange(index, option, checked)
+                      }
+                      testId={`content-video-options-${index}`}
                     />
                   )}
                 </div>

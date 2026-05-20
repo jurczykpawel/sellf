@@ -101,17 +101,16 @@ test.describe('Integrations & Script Injection', () => {
     await page.locator('input[placeholder*="script.js"]').fill(umamiUrl);
     
     // Ensure no consent banner blocks the button - aggressive check
-    const klaro = page.locator('#klaro');
-    if (await klaro.isVisible()) {
-        console.log('Klaro visible, attempting to close');
-        const acceptBtn = klaro.locator('button.cm-btn-success, button:has-text("Accept"), button:has-text("Zgoda")').first();
+    const banner = page.locator('#cc-main');
+    if (await banner.isVisible()) {
+        const acceptBtn = banner.locator('[data-role="all"], button:has-text("Accept"), button:has-text("Zgoda")').first();
         if (await acceptBtn.isVisible()) {
             await acceptBtn.click();
             await page.waitForTimeout(500);
         } else {
             await page.evaluate(() => {
-                const k = document.getElementById('klaro');
-                if (k) k.style.display = 'none';
+                const el = document.getElementById('cc-main');
+                if (el) el.style.display = 'none';
             });
         }
     }
@@ -180,7 +179,7 @@ test.describe('Integrations & Script Injection', () => {
     await page.goto('/dashboard/integrations');
     
     // Hide Klaro on dashboard to avoid blocking clicks
-    await page.addStyleTag({ content: '#klaro { display: none !important; }' });
+    await page.addStyleTag({ content: '#cc-main { display: none !important; }' });
 
     await page.getByRole('button', { name: 'Analytics' }).click();
     const gtmId = 'GTMCONSENT1'; // Must match ^GTM-[A-Z0-9]+$ so no hyphens allowed in suffix? Wait, prefix is GTM-. 
@@ -297,7 +296,7 @@ test.describe('Integrations - Field Persistence & Validation', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);

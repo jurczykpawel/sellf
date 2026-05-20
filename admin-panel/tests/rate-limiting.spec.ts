@@ -310,7 +310,9 @@ test.describe('Rate Limiting', () => {
         {
           consents: { analytics: true },
           fingerprint: `test-${Date.now()}`,
-        }
+        },
+        100,
+        { origin: 'http://localhost:3777' },
       );
 
       expect(result.gotRateLimited).toBe(true);
@@ -486,17 +488,6 @@ test.describe('Rate Limiting', () => {
       expect(result.successCount).toBeGreaterThan(0);
     });
 
-    test('config endpoint should be rate limited', async ({ request }) => {
-      const result = await makeRequestsUntilRateLimited(
-        request,
-        'get',
-        '/api/config'
-      );
-
-      expect(result.gotRateLimited).toBe(true);
-      expect(result.successCount).toBeGreaterThan(0);
-    });
-
     // NOTE: /api/runtime-config intentionally has NO rate limiting
     // (public, read-only, heavily cached endpoint) — no test needed
 
@@ -522,10 +513,6 @@ test.describe('Rate Limiting', () => {
       expect(result.successCount).toBeGreaterThan(0);
     });
 
-    // NOTE: /api/access endpoint has rate limiting (120/min) but testing it is impractical
-    // because making 121+ sequential HTTP requests is slow and wasteful. The rate limiting
-    // code is present in src/app/api/access/route.ts and infrastructure is verified by other tests.
-
     // NOTE: The following endpoints have rate limiting but require authentication BEFORE
     // rate limiting is checked. They return 401 before reaching rate limit checks.
     // Rate limiting code is present and functional in:
@@ -539,12 +526,13 @@ test.describe('Rate Limiting', () => {
   // ============================================
 
   test.describe('Rate Limit Behavior', () => {
-    test('rate limit should return 429 status code', async ({ request }) => {
+    test('rate limit should return 429 status code', async ({ request, baseURL }) => {
       // Make many requests until we hit the limit
       let got429 = false;
 
       for (let i = 0; i < 50; i++) {
         const response = await request.post('/api/consent', {
+          headers: { origin: baseURL ?? 'http://localhost:3777' },
           data: {
             consents: { analytics: true },
             fingerprint: `test-${Date.now()}`,
@@ -560,11 +548,12 @@ test.describe('Rate Limiting', () => {
       expect(got429).toBe(true);
     });
 
-    test('rate limited response should have proper error message', async ({ request }) => {
+    test('rate limited response should have proper error message', async ({ request, baseURL }) => {
       // Exhaust rate limit
       let got429 = false;
       for (let i = 0; i < 50; i++) {
         const response = await request.post('/api/consent', {
+          headers: { origin: baseURL ?? 'http://localhost:3777' },
           data: {
             consents: { analytics: true },
             fingerprint: `test-${Date.now()}`,

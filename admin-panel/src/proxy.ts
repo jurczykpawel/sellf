@@ -53,16 +53,13 @@ const DEMO_MUTATION_ALLOWED = [
   '/api/validate-email',
   '/api/health',
   '/api/status',
-  '/api/config',
   '/api/runtime-config',
   '/api/consent',
   '/api/tracking/',
   '/api/waitlist/',
-  '/api/sellf',
   '/api/embed/',
   '/api/oto/',
   '/api/products/',
-  '/api/access',
   '/api/profile/',
   '/api/users/',
   '/api/refund-requests',
@@ -75,6 +72,28 @@ function isDemoBlocked(pathname: string, method: string): boolean {
   // are handled by demo-guard in individual server actions
   if (!pathname.startsWith('/api')) return false
   return !DEMO_MUTATION_ALLOWED.some(p => pathname.startsWith(p))
+}
+
+// API prefixes that always require an authenticated session at the edge.
+// Anonymous routes (checkout, embed, webhooks, cron, public reads) and
+// API-key-friendly v1 endpoints handle their own auth inside the route.
+const PROTECTED_API_PREFIXES = [
+  '/api/admin',
+  '/api/users',
+]
+
+function isProtectedApiPath(pathname: string): boolean {
+  return PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
+/**
+ * Skip the edge session gate when the caller presents a Bearer
+ * credential. The route handler runs its own API-key/JWT flow and
+ * still returns 401 on failure.
+ */
+function hasBearerAuthorization(request: NextRequest): boolean {
+  const auth = request.headers.get('authorization')
+  return !!auth && /^bearer\s+\S/i.test(auth)
 }
 
 // Add security headers to response
@@ -121,6 +140,46 @@ export async function proxy(request: NextRequest) {
         { status: 413 }
       ), nonce)
     }
+  }
+
+  // Edge-level auth check for the API surface that always requires a
+  // signed-in user. Endpoints that legitimately serve anonymous traffic
+  // (checkout, embed, public reads, webhooks, cron with a shared secret)
+  // skip this gate and rely on their own checks inside the handler.
+  // Requests presenting a Bearer credential bypass this gate so the
+  // route handler can run its own API-key / token flow.
+  if (isProtectedApiPath(pathname) && !hasBearerAuthorization(request)) {
+    const apiAuthResponse = NextResponse.next({ request: { headers: requestHeaders } })
+    const apiSupabase = createServerClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            const isProduction = process.env.NODE_ENV === 'production'
+            cookiesToSet.forEach(({ name, value, options }) => {
+              apiAuthResponse.cookies.set({
+                name,
+                value,
+                ...options,
+                ...buildSupabaseCookieOptions({ isProduction, callerOptions: options }),
+              })
+            })
+          },
+        },
+      },
+    )
+    const { data: { user }, error: userError } = await apiSupabase.auth.getUser()
+    if (!user || userError) {
+      return addSecurityHeaders(
+        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+        nonce,
+      )
+    }
+    return addSecurityHeaders(apiAuthResponse, nonce)
   }
 
   // Skip proxy processing for API routes, static files, and payment success page

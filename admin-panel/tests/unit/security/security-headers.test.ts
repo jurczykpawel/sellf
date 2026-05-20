@@ -50,8 +50,7 @@ describe('Security headers', () => {
   });
 
   describe('EMBEDDABLE_RESOURCE_PATHS', () => {
-    it('contains the public SDK + runtime config endpoints', () => {
-      expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/api/sellf');
+    it('contains the public runtime config + checkout embed loader', () => {
       expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/embed/v1/checkout.js');
       expect(EMBEDDABLE_RESOURCE_PATHS).toContain('/api/runtime-config');
     });

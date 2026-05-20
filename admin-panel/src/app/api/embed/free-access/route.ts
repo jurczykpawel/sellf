@@ -71,19 +71,9 @@ export async function POST(request: Request) {
   }
 
   if (parsed.value.honeypot) {
-    const honeypotRateLimitOk = await checkRateLimit('embed_free_access_honeypot', 20, 300);
-    if (!honeypotRateLimitOk) {
-      return embedJson(
-        {
-          success: true,
-          message: 'Check your email for the access link.',
-        },
-        200,
-        origin,
-        allowedOrigins,
-      );
-    }
-
+    // Always log the hit so operators can see ongoing abuse, even after
+    // the bucket is exhausted. The response is identical on both paths
+    // to avoid leaking rate-limit state to bots.
     await logEmbedFreeAccessEvent(adminClient, {
       productId: product?.id ?? null,
       productSlug: parsed.value.productSlug,
@@ -91,6 +81,9 @@ export async function POST(request: Request) {
       email: parsed.value.email,
       status: 'bot_filtered',
     });
+
+    await checkRateLimit('embed_free_access_honeypot', 20, 300);
+
     return embedJson(
       {
         success: true,
@@ -107,17 +100,14 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
   }
 
-  const captchaBypassOk = await checkRateLimit('embed_free_access_without_captcha', 3, 300);
-  if (!captchaBypassOk) {
-    const captchaResult = await verifyCaptchaToken(parsed.value.turnstileToken);
-    if (!captchaResult.success) {
-      return embedJson(
-        { error: captchaResult.error || 'Security verification failed. Please try again.' },
-        400,
-        origin,
-        allowedOrigins,
-      );
-    }
+  const captchaResult = await verifyCaptchaToken(parsed.value.turnstileToken);
+  if (!captchaResult.success) {
+    return embedJson(
+      { error: captchaResult.error || 'Security verification failed. Please try again.' },
+      400,
+      origin,
+      allowedOrigins,
+    );
   }
 
   const emailValidation = await validateEmailAction(parsed.value.email);

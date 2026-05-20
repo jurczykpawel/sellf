@@ -28,7 +28,7 @@ function isPrivateIPv4(address: string): boolean {
 }
 
 function normalizeIPv6(address: string): string {
-  return address.replace(/^\[|\]$/g, '').toLowerCase();
+  return address.replace(/^\[|\]$/g, '').split('%')[0].toLowerCase();
 }
 
 function isPrivateIPv6(address: string): boolean {

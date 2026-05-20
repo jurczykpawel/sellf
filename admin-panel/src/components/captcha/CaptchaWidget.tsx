@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useConfig } from '@/components/providers/config-provider'
 import TurnstileWidget from '@/components/TurnstileWidget'
 import AltchaWidget from './AltchaWidget'
@@ -20,11 +21,11 @@ interface CaptchaWidgetProps {
 /**
  * Unified captcha widget — auto-detects Turnstile vs ALTCHA vs none.
  *
- * Reads `captchaProvider` from runtime config (set by /api/runtime-config)
+ * Reads captcha config from runtime config (set by /api/runtime-config)
  * and renders the appropriate widget. Forms should use this instead of
  * importing TurnstileWidget or AltchaWidget directly.
  *
- * @see /src/components/providers/config-provider.tsx — AppConfig.captchaProvider
+ * @see /src/components/providers/config-provider.tsx — AppConfig.captcha
  * @see /src/lib/captcha/config.ts — server-side detection
  */
 export default function CaptchaWidget({
@@ -37,7 +38,7 @@ export default function CaptchaWidget({
   compact,
 }: CaptchaWidgetProps) {
   const config = useConfig()
-  const provider = config.captchaProvider as CaptchaProvider
+  const provider = config.captcha.provider as CaptchaProvider
 
   if (provider === 'turnstile') {
     return (
@@ -65,7 +66,17 @@ export default function CaptchaWidget({
     )
   }
 
-  // provider === 'none' — no captcha configured
+  // provider === 'none' — no captcha configured. Mark the form as
+  // "verified" with a sentinel so submit buttons don't stay blocked.
+  // Server-side verifyCaptchaToken() also short-circuits on 'none'.
+  return <NoneProviderAutoVerify onVerify={onVerify} />
+}
+
+function NoneProviderAutoVerify({ onVerify }: { onVerify: (token: string) => void }) {
+  useEffect(() => {
+    onVerify('captcha-disabled')
+  }, [onVerify])
+
   if (process.env.NODE_ENV === 'development') {
     return (
       <div className="text-xs text-sf-muted opacity-50 text-center mb-2">
@@ -73,6 +84,5 @@ export default function CaptchaWidget({
       </div>
     )
   }
-
   return null
 }

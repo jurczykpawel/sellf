@@ -156,13 +156,5 @@ export default defineConfig({
       stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 60000,
     },
-    {
-      command: 'npx http-server ../examples/test-pages -p 3778 --cors -c-1',
-      url: 'http://localhost:3778',
-      reuseExistingServer: false,
-      stdout: quietMode ? 'ignore' : 'pipe',
-      stderr: quietMode ? 'ignore' : 'pipe',
-      timeout: 30000,
-    },
   ],
 });

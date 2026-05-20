@@ -87,6 +87,7 @@ function loadStripeEnvConfig(): Record<string, string> {
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
+  // outputFileTracingRoot intentionally unset — pinning it OOM-ed Turbopack dev (#81161).
   poweredByHeader: false,
   experimental: {
     // Enable if you need server actions

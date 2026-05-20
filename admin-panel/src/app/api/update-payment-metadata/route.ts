@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isAllowedOrigin } from '@/lib/security/origin-match';
 import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
@@ -40,13 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValidOrigin = origin && allowedOrigins.some(allowed =>
-      origin === allowed || (allowed ? origin.startsWith(allowed) : false)
-    );
-
-    const isValidReferer = referer && allowedOrigins.some(allowed =>
-      allowed ? referer.startsWith(allowed) : false
-    );
+    const isValidOrigin = isAllowedOrigin(origin, allowedOrigins as string[]);
+    const isValidReferer = isAllowedOrigin(referer, allowedOrigins as string[]);
 
     if (!isValidOrigin && !isValidReferer) {
       return NextResponse.json(

@@ -50,8 +50,9 @@ test.describe('Security - Rate Limiting', () => {
     expect([404, 429]).toContain(response.status());
   });
 
-  test('consent endpoint accepts valid requests', async ({ request }) => {
+  test('consent endpoint accepts valid requests', async ({ request, baseURL }) => {
     const response = await request.post('/api/consent', {
+      headers: { origin: baseURL ?? 'http://localhost:3777' },
       data: {
         consents: { analytics: true },
         fingerprint: `test-fp-${Date.now()}`,
@@ -192,11 +193,12 @@ test.describe('Security - Input Validation', () => {
     expect(response.status()).toBe(400);
   });
 
-  test('consent endpoint accepts request without fingerprint (no validation exists)', async ({ request }) => {
+  test('consent endpoint accepts request without fingerprint (no validation exists)', async ({ request, baseURL }) => {
     // NOTE: The consent endpoint currently has no input validation.
     // This test documents current behavior — POST succeeds even without fingerprint.
     // If input validation is added in the future, this test should be updated to expect 400.
     const response = await request.post('/api/consent', {
+      headers: { origin: baseURL ?? 'http://localhost:3777' },
       data: {
         consents: { analytics: true, marketing: false },
         anonymous_id: 'test-anonymous-id',

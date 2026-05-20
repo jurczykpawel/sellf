@@ -72,6 +72,8 @@ function buildRequest(body: unknown): Request {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.NODE_ENV = 'production';
+  process.env.ALTCHA_HMAC_KEY = 'test-hmac-key';
+  delete process.env.NEXT_PUBLIC_TURNSTILE_TEST_MODE;
 });
 
 describe('POST /api/waitlist/signup — authenticated user', () => {

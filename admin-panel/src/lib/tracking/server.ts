@@ -219,6 +219,7 @@ export async function sendToGtmSS(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       redirect: 'error',
+      signal: AbortSignal.timeout(5_000),
     });
 
     if (!response.ok) {
@@ -267,6 +268,7 @@ export async function sendToFacebookCAPI(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fbPayload),
         redirect: 'error',
+        signal: AbortSignal.timeout(5_000),
       }
     );
 

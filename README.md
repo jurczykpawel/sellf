@@ -6,8 +6,8 @@
 
 **An alternative to** Gumroad, LemonSqueezy, Paddle. Zero platform fees.
 
-![Version](https://img.shields.io/badge/version-2026.5.1-blue)
-![Tests](https://img.shields.io/badge/unit%20tests-2,714%20passing-brightgreen)
+![Version](https://img.shields.io/badge/version-2026.5.2-blue)
+![Tests](https://img.shields.io/badge/unit%20tests-3,019%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
@@ -301,7 +301,6 @@ sellf/
 ├── mcp-server/        # MCP server for Claude Desktop
 ├── supabase/          # Migrations, seed data, RPC functions
 ├── bruno/             # API collection (Bruno client)
-├── templates/         # HTML templates for content protection
 ├── scripts/           # Utility scripts
 └── docs/              # Deployment guides
 ```

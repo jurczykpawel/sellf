@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { extractTrustedClientIp } from '@/lib/security/client-ip';
 
 /**
  * Rate Limiting with automatic backend selection
@@ -48,15 +49,9 @@ export async function getRateLimitIdentifier(userId?: string): Promise<string> {
 
   const headersList = await headers();
 
-  if (process.env.TRUSTED_PROXY === 'true') {
-    const forwarded = headersList.get('x-forwarded-for');
-    const realIp = headersList.get('x-real-ip');
-    const ip = forwarded?.split(',')[0]?.trim() || realIp || 'unknown';
-    return `ip:${ip}`;
-  }
+  const trustedIp = extractTrustedClientIp(headersList);
+  if (trustedIp) return `ip:${trustedIp}`;
 
-  // Without a trusted proxy, build a fingerprint from non-spoofable-for-rate-limiting
-  // characteristics. Not perfect, but prevents trivial bypass via header spoofing.
   const ua = headersList.get('user-agent') || '';
   const lang = headersList.get('accept-language') || '';
   const accept = headersList.get('accept') || '';

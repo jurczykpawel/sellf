@@ -4,7 +4,6 @@ interface RuntimeConfig {
   supabaseUrl: string
   supabaseAnonKey: string
   stripePublishableKey: string
-  cloudflareSiteKey: string
   siteUrl: string
   demoMode: boolean
 }
@@ -66,7 +65,6 @@ async function getRuntimeConfig(): Promise<RuntimeConfig> {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
       supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'demo-key',
       stripePublishableKey: '',
-      cloudflareSiteKey: '',
       siteUrl: 'http://localhost:3000',
       demoMode: false,
     }

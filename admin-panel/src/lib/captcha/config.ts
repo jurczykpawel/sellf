@@ -1,41 +1,55 @@
-/**
- * Captcha provider detection
- *
- * Selection logic:
- * 1. Turnstile site key + secret key set → 'turnstile'
- * 2. ALTCHA_HMAC_KEY set → 'altcha'
- * 3. Neither → 'none' (dev warning)
- *
- * @see types.ts — CaptchaProvider type
- */
+import type { CaptchaConfig, CaptchaProvider } from './types';
 
-import type { CaptchaProvider } from './types';
+const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+const ALTCHA_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/altcha@3/dist/external/altcha.min.js';
+const ALTCHA_CHALLENGE_URL = '/api/captcha/challenge';
 
-/**
- * Detect which captcha provider is configured (server-side only).
- * Called from API routes and runtime-config endpoint.
- */
-export function getCaptchaProvider(): CaptchaProvider {
-  const hasTurnstile =
-    !!(process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY) &&
-    !!process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+const NONE_CONFIG: CaptchaConfig = {
+  provider: 'none',
+  siteKey: null,
+  scriptUrl: null,
+  widgetTag: null,
+  challengeUrl: null,
+};
 
-  if (hasTurnstile) return 'turnstile';
+export function getCaptchaConfig(): CaptchaConfig {
+  if (process.env.NEXT_PUBLIC_TURNSTILE_TEST_MODE === 'true') {
+    return NONE_CONFIG;
+  }
 
-  const hasAltcha = !!process.env.ALTCHA_HMAC_KEY;
-  if (hasAltcha) return 'altcha';
-
-  return 'none';
-}
-
-/**
- * Get the Turnstile site key for client-side rendering.
- * Returns empty string when Turnstile is not configured.
- */
-export function getTurnstileSiteKey(): string {
-  return (
+  const turnstileSiteKey =
     process.env.CLOUDFLARE_TURNSTILE_SITE_KEY ||
     process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ||
-    ''
-  );
+    '';
+  const hasTurnstile = !!turnstileSiteKey && !!process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+
+  if (hasTurnstile) {
+    return {
+      provider: 'turnstile',
+      siteKey: turnstileSiteKey,
+      scriptUrl: TURNSTILE_SCRIPT_URL,
+      widgetTag: 'turnstile',
+      challengeUrl: null,
+    };
+  }
+
+  if (process.env.ALTCHA_HMAC_KEY) {
+    return {
+      provider: 'altcha',
+      siteKey: null,
+      scriptUrl: ALTCHA_SCRIPT_URL,
+      widgetTag: 'altcha-widget',
+      challengeUrl: ALTCHA_CHALLENGE_URL,
+    };
+  }
+
+  return NONE_CONFIG;
+}
+
+export function getCaptchaProvider(): CaptchaProvider {
+  return getCaptchaConfig().provider;
+}
+
+export function getTurnstileSiteKey(): string {
+  return getCaptchaConfig().siteKey ?? '';
 }

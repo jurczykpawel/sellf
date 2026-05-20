@@ -1,11 +1,10 @@
 /**
- * Regression coverage for the centralized Supabase cookie options helper:
- *   1. The helper does not emit `httpOnly: true` (would break the browser
- *      SDK that reads tokens from `document.cookie`).
- *   2. Production cookies stay on `secure: true` / `sameSite: 'none'` so
- *      the cross-domain SDK keeps working over HTTPS.
- *   3. The three writers (server.ts, proxy.ts, auth callback) still go
- *      through the central helper.
+ * Regression coverage for the centralized Supabase cookie options helper.
+ *
+ * The helper is the single source of truth for the security flags on
+ * every Supabase-issued auth cookie. After the auth refactor the helper
+ * mirrors the @supabase/ssr defaults so the browser blocks cross-origin
+ * sends natively.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -16,16 +15,15 @@ const ADMIN_PANEL_SRC = join(__dirname, '../../../src');
 
 describe('Supabase auth cookie options helper', () => {
   describe('buildSupabaseCookieOptions', () => {
-    it('production: secure=true, sameSite=none, path=/, httpOnly=false', () => {
+    it('production: secure=true, sameSite=lax, path=/, httpOnly=false', () => {
       const opts = buildSupabaseCookieOptions({ isProduction: true });
       expect(opts.secure).toBe(true);
-      expect(opts.sameSite).toBe('none');
+      expect(opts.sameSite).toBe('lax');
       expect(opts.path).toBe('/');
-      // Required by the browser SDK that reads tokens via document.cookie.
       expect(opts.httpOnly).toBe(false);
     });
 
-    it('development: secure=false, sameSite=lax (relaxed for http://localhost)', () => {
+    it('development: secure=false by default, sameSite=lax, httpOnly=false', () => {
       const opts = buildSupabaseCookieOptions({ isProduction: false });
       expect(opts.secure).toBe(false);
       expect(opts.sameSite).toBe('lax');
@@ -33,30 +31,29 @@ describe('Supabase auth cookie options helper', () => {
       expect(opts.httpOnly).toBe(false);
     });
 
-    it('caller-supplied options are merged but security flags ALWAYS win', () => {
+    it('security flags ignore caller overrides, but domain/maxAge pass through', () => {
       const opts = buildSupabaseCookieOptions({
         isProduction: true,
         callerOptions: {
-          httpOnly: true,            // ignored — browser SDK requires JS-readable
-          secure: false,             // ignored in production — must be true
-          sameSite: 'strict',        // ignored in production — must be 'none'
-          domain: '.shop.example',   // legitimate caller field, kept
-          maxAge: 600,               // legitimate caller field, kept
+          httpOnly: true,
+          secure: false,
+          sameSite: 'none',
+          domain: '.shop.example',
+          maxAge: 600,
         },
       });
       expect(opts.httpOnly).toBe(false);
       expect(opts.secure).toBe(true);
-      expect(opts.sameSite).toBe('none');
+      expect(opts.sameSite).toBe('lax');
       expect(opts.domain).toBe('.shop.example');
       expect(opts.maxAge).toBe(600);
     });
 
-    it('dev: caller can opt into a stricter sameSite (lax→strict ok), but never weaker', () => {
+    it('dev: caller can opt into a stricter sameSite', () => {
       const opts = buildSupabaseCookieOptions({
         isProduction: false,
         callerOptions: { sameSite: 'strict' },
       });
-      // Caller-supplied stricter sameSite kept in dev.
       expect(opts.sameSite).toBe('strict');
     });
   });
@@ -67,18 +64,15 @@ describe('Supabase auth cookie options helper', () => {
     }
 
     it('src/lib/supabase/server.ts imports buildSupabaseCookieOptions', () => {
-      const sql = fileContents('lib/supabase/server.ts');
-      expect(sql).toMatch(/buildSupabaseCookieOptions/);
+      expect(fileContents('lib/supabase/server.ts')).toMatch(/buildSupabaseCookieOptions/);
     });
 
     it('src/proxy.ts imports buildSupabaseCookieOptions', () => {
-      const sql = fileContents('proxy.ts');
-      expect(sql).toMatch(/buildSupabaseCookieOptions/);
+      expect(fileContents('proxy.ts')).toMatch(/buildSupabaseCookieOptions/);
     });
 
     it('src/app/[locale]/auth/callback/route.ts imports buildSupabaseCookieOptions', () => {
-      const sql = fileContents('app/[locale]/auth/callback/route.ts');
-      expect(sql).toMatch(/buildSupabaseCookieOptions/);
+      expect(fileContents('app/[locale]/auth/callback/route.ts')).toMatch(/buildSupabaseCookieOptions/);
     });
   });
 });

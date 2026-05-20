@@ -23,6 +23,7 @@ export interface ProductFormData {
   icon: string;
   image_url?: string | null;
   preview_video_url?: string | null;
+  preview_video_config?: import('@/components/player/VideoOptionsPanel').VideoOptionsConfig | null;
   // Temporal availability fields
   available_from?: string | null;
   available_until?: string | null;
@@ -195,6 +196,7 @@ export const initialFormData: ProductFormData = {
   icon: '🚀',
   image_url: null,
   preview_video_url: null,
+  preview_video_config: null,
   available_from: '',
   available_until: '',
   auto_grant_duration_days: null,

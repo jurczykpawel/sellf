@@ -38,7 +38,7 @@ test.describe('PWYW Admin Configuration', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);
@@ -360,7 +360,7 @@ test.describe('PWYW Admin - Create New Product', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);
@@ -474,7 +474,7 @@ test.describe('PWYW Admin - Info Display', () => {
       const addStyle = () => {
         if (document.head) {
           const style = document.createElement('style');
-          style.innerHTML = '#klaro { display: none !important; }';
+          style.innerHTML = '#cc-main { display: none !important; }';
           document.head.appendChild(style);
         } else {
           setTimeout(addStyle, 10);

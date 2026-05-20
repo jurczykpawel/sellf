@@ -10,6 +10,7 @@ import {
   sanitizeAllowedEmbedOrigins,
 } from '@/lib/embed/checkout-embed';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { getCaptchaConfig } from '@/lib/captcha/config';
 import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 import { CheckoutService } from '@/lib/services/checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -112,10 +113,7 @@ export async function POST(request: Request) {
           price: product.price,
           currency: product.currency,
         },
-        captchaSiteKey:
-          process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ||
-          process.env.CLOUDFLARE_TURNSTILE_SITE_KEY ||
-          '',
+        captcha: getCaptchaConfig(),
       },
       200,
       origin,

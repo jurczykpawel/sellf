@@ -106,21 +106,27 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
 
 // --- PUBLIC API ---
 
-// Cached cross-request — the RPC payload is identical for every visitor.
-// Invalidated via revalidateTag('integrations-config') after admin updates.
-const fetchPublicIntegrationsConfig = unstable_cache(
-  async () => {
-    const supabase = createPublicClient()
-    const { data, error } = await supabase.rpc('get_public_integrations_config')
-    if (error) {
-      console.error('Failed to fetch public integrations config', error)
-      return null
-    }
-    return data
-  },
-  ['integrations-config'],
-  { revalidate: 300, tags: ['integrations-config'] },
-)
+async function fetchPublicIntegrationsConfigFresh() {
+  const supabase = createPublicClient()
+  const { data, error } = await supabase.rpc('get_public_integrations_config')
+  if (error) {
+    console.error('Failed to fetch public integrations config', error)
+    return null
+  }
+  return data
+}
+
+// Cached cross-request in production — the RPC payload is identical for every
+// visitor. Invalidated via revalidateTag('integrations-config') after admin
+// updates. Disabled in non-prod so tests and dev sessions never observe stale
+// config after a direct supabase update.
+const fetchPublicIntegrationsConfig = process.env.NODE_ENV === 'production'
+  ? unstable_cache(
+      fetchPublicIntegrationsConfigFresh,
+      ['integrations-config'],
+      { revalidate: 300, tags: ['integrations-config'] },
+    )
+  : fetchPublicIntegrationsConfigFresh
 
 export async function getPublicIntegrationsConfig() {
   return fetchPublicIntegrationsConfig()
