@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { assertSafeOutboundUrl } from '@/lib/security/outbound-url';
 import { FB_GRAPH_API_VERSION } from './types';
 import type { FBEventName, EcommerceItem } from './types';
 
@@ -214,6 +215,7 @@ export async function sendToGtmSS(
 ): Promise<DestinationResult> {
   try {
     const url = `${containerUrl.replace(/\/$/, '')}/mp/collect`;
+    await assertSafeOutboundUrl(url);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -262,10 +264,13 @@ export async function sendToFacebookCAPI(
     };
 
     const response = await fetch(
-      `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/${pixelId}/events?access_token=${token}`,
+      `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/${pixelId}/events`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(fbPayload),
         redirect: 'error',
         signal: AbortSignal.timeout(5_000),

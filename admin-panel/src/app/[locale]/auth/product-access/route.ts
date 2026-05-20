@@ -119,7 +119,10 @@ export async function GET(request: Request) {
         return;
       }
 
-      const qs = successUrl ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(successUrl)}` : '';
+      const propagatedSuccessUrl = successUrl && isSafeRedirectUrl(successUrl) ? successUrl : null;
+      const qs = propagatedSuccessUrl
+        ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(propagatedSuccessUrl)}`
+        : '';
       safeRedirect(`${statusUrl}${qs}`, returnUrl);
       return;
     }
