@@ -103,6 +103,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.NEXT_PUBLIC_BASE_URL = 'https://sellf.example.com';
   delete process.env.SELLF_EMBED_ALLOWED_ORIGINS;
+  delete process.env.NEXT_PUBLIC_TURNSTILE_TEST_MODE;
+  delete process.env.CLOUDFLARE_TURNSTILE_SITE_KEY;
+  delete process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
+  delete process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+  delete process.env.ALTCHA_HMAC_KEY;
   mocks.createAdminClient.mockReturnValue(makeDbMock());
   mocks.checkRateLimit.mockResolvedValue(true);
   mocks.createCheckoutSession.mockResolvedValue({
@@ -237,8 +242,9 @@ describe('POST /api/embed/checkout-session', () => {
       expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
     });
 
-    it('includes captchaSiteKey on free response so the SDK can render Turnstile', async () => {
+    it('includes captcha config on free response so the SDK can render Turnstile', async () => {
       process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY = 'turnstile-test-key';
+      process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = 'turnstile-secret';
       const freeProduct = { ...product, price: 0 };
       mocks.createAdminClient.mockReturnValue(makeDbMock({ product: freeProduct }));
 
@@ -248,9 +254,32 @@ describe('POST /api/embed/checkout-session', () => {
       const payload = await response.json();
 
       expect(payload.kind).toBe('free');
-      expect(payload.captchaSiteKey).toBe('turnstile-test-key');
+      expect(payload.captcha).toMatchObject({
+        provider: 'turnstile',
+        siteKey: 'turnstile-test-key',
+      });
+      expect(payload.captcha.scriptUrl).toContain('challenges.cloudflare.com');
+      expect(payload).not.toHaveProperty('captchaSiteKey');
+    });
 
-      delete process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
+    it('includes ALTCHA captcha config on free response when only ALTCHA is configured', async () => {
+      process.env.ALTCHA_HMAC_KEY = 'hmac-key';
+      const freeProduct = { ...product, price: 0 };
+      mocks.createAdminClient.mockReturnValue(makeDbMock({ product: freeProduct }));
+
+      const response = await POST(
+        makeRequest({ productSlug: 'kurs-ai' }, 'https://landing.example.com'),
+      );
+      const payload = await response.json();
+
+      expect(payload.kind).toBe('free');
+      expect(payload.captcha).toMatchObject({
+        provider: 'altcha',
+        siteKey: null,
+        widgetTag: 'altcha-widget',
+        challengeUrl: '/api/captcha/challenge',
+      });
+      expect(payload.captcha.scriptUrl).toContain('altcha');
     });
   });
 });
