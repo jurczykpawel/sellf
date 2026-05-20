@@ -1,4 +1,5 @@
 export { BasicInfoSection } from './BasicInfoSection';
+export { DescriptionSection } from './DescriptionSection';
 export { PricingSection } from './PricingSection';
 export { PriceVatInline } from './PriceVatInline';
 export { SalePriceSection } from './SalePriceSection';

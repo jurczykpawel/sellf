@@ -1249,6 +1249,12 @@
         "free": "Darmowy",
         "featured": "Wyróżniony",
         "preview": "Podgląd",
+        "descriptionSection": {
+          "title": "Opis produktu"
+        },
+        "productType": {
+          "leadMagnetNotice": "Produkt darmowy. Cena 0. Kontrola dostępu działa przez email i zgodę kupującego."
+        },
         "basicInformation": "Podstawowe informacje",
         "productName": "Nazwa produktu",
         "enterProductName": "Wprowadź nazwę produktu",

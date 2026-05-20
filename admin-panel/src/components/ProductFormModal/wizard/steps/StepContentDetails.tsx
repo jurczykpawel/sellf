@@ -1,7 +1,12 @@
 'use client';
 
 import React from 'react';
-import { ContentDeliverySection, PricingSection, CategoriesSection } from '../../sections';
+import {
+  ContentDeliverySection,
+  PricingSection,
+  CategoriesSection,
+  DescriptionSection,
+} from '../../sections';
 import type { ProductFormData, TranslationFunction, UrlValidation } from '../../types';
 import type { Category } from '@/lib/actions/categories';
 
@@ -15,6 +20,7 @@ interface StepContentDetailsProps {
   validateContentItemUrl: (url: string, type: 'video_embed' | 'download_link') => UrlValidation;
   allCategories: Category[];
   loadingCategories: boolean;
+  fieldErrors?: Record<string, string>;
 }
 
 export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
@@ -27,10 +33,18 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
   validateContentItemUrl,
   allCategories,
   loadingCategories,
+  fieldErrors,
 }) => {
   const isTipJar = formData.checkout_template === 'tip-jar';
   return (
     <div className="space-y-6">
+      <DescriptionSection
+        formData={formData}
+        setFormData={setFormData}
+        t={t}
+        fieldErrors={fieldErrors}
+      />
+
       {!isTipJar && (
         <ContentDeliverySection
           formData={formData}

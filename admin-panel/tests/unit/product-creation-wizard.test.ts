@@ -104,13 +104,14 @@ describe('ProductCreationWizard', () => {
     it('step 1 fields (Essentials) exist in initialFormData with correct defaults', () => {
       expect(initialFormData.name).toBe('');
       expect(initialFormData.slug).toBe('');
-      expect(initialFormData.description).toBe('');
       expect(initialFormData.price).toBe(0);
       expect(initialFormData.currency).toBe('USD');
       expect(initialFormData.icon).toBe('🚀');
     });
 
     it('step 2 fields (Content & Details) exist in initialFormData with correct defaults', () => {
+      expect(initialFormData.description).toBe('');
+      expect(initialFormData.long_description).toBe('');
       expect(initialFormData.content_delivery_type).toBe('content');
       expect(initialFormData.content_config).toEqual({ content_items: [] });
       expect(initialFormData.categories).toEqual([]);

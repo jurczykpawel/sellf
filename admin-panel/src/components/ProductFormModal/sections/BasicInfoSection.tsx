@@ -1,65 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ModalSection } from '@/components/ui/Modal';
 import { BasicInfoSectionProps } from '../types';
 
 const errorBorder = 'border-red-500 focus:ring-red-500';
 const normalBorder = 'border-sf-border focus:ring-sf-accent';
-
-function LongDescriptionField({
-  value,
-  onChange,
-  t,
-}: {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  t: (key: string) => string;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const hasContent = value.length > 0;
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <label htmlFor="long_description" className="block text-sm font-medium text-sf-body">
-          {t('longDescription')}
-          <span className="text-xs text-sf-muted ml-1">({t('optional')})</span>
-        </label>
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="text-xs text-sf-accent hover:text-sf-accent flex items-center gap-1"
-        >
-          {expanded ? t('collapse') : t('expand')}
-          <svg
-            className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-      </div>
-      <textarea
-        id="long_description"
-        name="long_description"
-        value={value}
-        onChange={onChange}
-        rows={expanded ? 10 : 2}
-        className="w-full px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading font-mono text-sm resize-none transition-all duration-200"
-        placeholder={t('longDescriptionPlaceholder')}
-      />
-      {expanded && (
-        <p className="mt-1.5 text-xs text-sf-muted flex items-start gap-1">
-          <span>💡</span>
-          <span>{t('markdownTip')}</span>
-        </p>
-      )}
-    </div>
-  );
-}
 
 export function BasicInfoSection({
   formData,
@@ -72,25 +18,25 @@ export function BasicInfoSection({
   generateSlug,
   fieldErrors = {},
 }: BasicInfoSectionProps) {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
     if (name === 'name' && !slugModified) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
-        slug: generateSlug(value)
+        slug: generateSlug(value),
       }));
     } else if (name === 'slug') {
       setSlugModified(true);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: generateSlug(value)
+        [name]: generateSlug(value),
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -109,12 +55,16 @@ export function BasicInfoSection({
             value={formData.name}
             onChange={handleInputChange}
             ref={nameInputRef}
-            className={`w-full px-3 py-2.5 border ${fieldErrors.name ? errorBorder : normalBorder} focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading`}
+            className={`w-full px-3 py-2.5 border ${
+              fieldErrors.name ? errorBorder : normalBorder
+            } focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading`}
             placeholder={t('enterProductName')}
             required
           />
           {fieldErrors.name && (
-            <p className="mt-1 text-xs text-red-500">{t('nameRequired', { name: t('productName') })}</p>
+            <p className="mt-1 text-xs text-red-500">
+              {t('nameRequired', { name: t('productName') })}
+            </p>
           )}
         </div>
 
@@ -130,7 +80,9 @@ export function BasicInfoSection({
               name="slug"
               value={formData.slug}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2.5 border ${fieldErrors.slug ? errorBorder : normalBorder} focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading pr-12`}
+              className={`w-full px-3 py-2.5 border ${
+                fieldErrors.slug ? errorBorder : normalBorder
+              } focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading pr-12`}
               placeholder={t('slugPlaceholder')}
               required
             />
@@ -141,35 +93,11 @@ export function BasicInfoSection({
             )}
           </div>
           <p className="mt-1 text-xs text-sf-muted">
-            {currentDomain ? `${currentDomain}/p/` : 'https://example.com/p/'}<strong>{formData.slug || 'product-slug'}</strong>
+            {currentDomain ? `${currentDomain}/p/` : 'https://example.com/p/'}
+            <strong>{formData.slug || 'product-slug'}</strong>
           </p>
         </div>
       </div>
-
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-sf-body mb-2">
-          {t('description')}
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description || ''}
-          onChange={handleInputChange}
-          rows={3}
-          className={`w-full px-3 py-2.5 border ${fieldErrors.description ? errorBorder : normalBorder} focus:outline-none focus:ring-2 focus:border-transparent bg-sf-input text-sf-heading`}
-          placeholder={t('descriptionPlaceholder')}
-          required
-        />
-        {fieldErrors.description && (
-          <p className="mt-1 text-xs text-red-500">{t('descriptionRequired')}</p>
-        )}
-      </div>
-
-      <LongDescriptionField
-        value={formData.long_description || ''}
-        onChange={handleInputChange}
-        t={t}
-      />
     </ModalSection>
   );
 }

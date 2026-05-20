@@ -1234,6 +1234,12 @@
         "free": "Free",
         "featured": "Featured",
         "preview": "Preview",
+        "descriptionSection": {
+          "title": "Product description"
+        },
+        "productType": {
+          "leadMagnetNotice": "Free product. Price 0. Access control still works via buyer email and consent."
+        },
         "basicInformation": "Basic Information",
         "productName": "Product Name",
         "enterProductName": "Enter product name",
