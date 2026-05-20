@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripeServer } from '@/lib/stripe/server';
-import { checkRateLimit } from '@/lib/rate-limiting';
+import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { isAllowedOrigin } from '@/lib/security/origin-match';
+import { assertStripeObjectOwnership } from '@/lib/api/ownership';
 import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
@@ -54,21 +56,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Rate Limiting - Database-backed for production reliability
-    const rateLimitOk = await checkRateLimit('update_payment_metadata', 10, 1); // 10 requests per 1 minute
-
-    if (!rateLimitOk) {
+    const sourceOk = await checkRateLimit('update_payment_metadata', 5, 1);
+    if (!sourceOk) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Too many requests. Please try again later.'
-        },
-        {
-          status: 429,
-          headers: {
-            'Retry-After': '60', // 1 minute
-          }
-        }
+        { success: false, error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': '60' } },
       );
     }
 
@@ -125,6 +117,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const userClient = await createClient();
+    const { data: { user: sessionUser } } = await userClient.auth.getUser();
+    const sessionUserId = sessionUser?.id ?? null;
+
     const stripe = await getStripeServer();
     const metadata = {
       first_name: finalFirstName,
@@ -142,6 +138,25 @@ export async function POST(request: NextRequest) {
 
     let productIdFromStripe: string | null = null;
 
+    const tooManyRequests = () =>
+      NextResponse.json(
+        { success: false, error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+
+    const enforcePerOwnerLimit = async (
+      ownerId: string | null,
+    ): Promise<Response | null> => {
+      if (!ownerId) return null;
+      const ok = await checkRateLimitForIdentifier(
+        'update_payment_metadata_user',
+        10,
+        5,
+        `user:${ownerId}`,
+      );
+      return ok ? null : tooManyRequests();
+    };
+
     if (isCheckoutSession) {
       const session = await stripe.checkout.sessions.retrieve(stripeObjectId);
       if (!session || session.status !== 'open') {
@@ -150,11 +165,16 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      const ownership = assertStripeObjectOwnership(session.metadata ?? null, sessionUserId);
+      if (ownership) return ownership;
+
       productIdFromStripe = (session.metadata?.product_id as string) || null;
+      const sessionOwnerId = (session.metadata?.user_id as string | undefined) || null;
+      const limited = await enforcePerOwnerLimit(sessionOwnerId);
+      if (limited) return limited;
+
       await stripe.checkout.sessions.update(stripeObjectId, { metadata });
     } else {
-      // Verify the PaymentIntent exists and is still in a modifiable state
-      // This prevents metadata updates on already-completed or cancelled payments
       const pi = await stripe.paymentIntents.retrieve(stripeObjectId);
       if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
         return NextResponse.json(
@@ -162,7 +182,14 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      const ownership = assertStripeObjectOwnership(pi.metadata ?? null, sessionUserId);
+      if (ownership) return ownership;
+
       productIdFromStripe = (pi.metadata?.product_id as string) || null;
+      const piOwnerId = (pi.metadata?.user_id as string | undefined) || null;
+      const limited = await enforcePerOwnerLimit(piOwnerId);
+      if (limited) return limited;
+
       await stripe.paymentIntents.update(stripeObjectId, { metadata });
     }
 
