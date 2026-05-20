@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { isAllowedOrigin } from '@/lib/security/origin-match';
 import { assertStripeObjectOwnership } from '@/lib/api/ownership';
+import { verifyCheckoutBinding } from '@/lib/security/checkout-binding';
 import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest) {
     // 3. Parse and validate request
     const {
       clientSecret,
+      bindingToken,
+      productId,
       firstName,
       lastName,
       fullName, // New field - if provided, split into first/last name
@@ -87,6 +90,20 @@ export async function POST(request: NextRequest) {
     if (!clientSecret) {
       return NextResponse.json(
         { success: false, error: 'Client secret is required' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof bindingToken !== 'string' || !bindingToken) {
+      return NextResponse.json(
+        { success: false, error: 'Missing binding token' },
+        { status: 403 }
+      );
+    }
+
+    if (typeof productId !== 'string' || !productId) {
+      return NextResponse.json(
+        { success: false, error: 'Missing productId' },
         { status: 400 }
       );
     }
@@ -120,6 +137,21 @@ export async function POST(request: NextRequest) {
     const userClient = await createClient();
     const { data: { user: sessionUser } } = await userClient.auth.getUser();
     const sessionUserId = sessionUser?.id ?? null;
+
+    // Verify HMAC binding. The token is computed at session-creation time
+    // over (stripe_object_id, user_id, product_id) with a server secret;
+    // a leaked clientSecret alone is no longer enough to mutate metadata.
+    const bindingOk = verifyCheckoutBinding(bindingToken, {
+      stripeObjectId,
+      userId: sessionUserId,
+      productId,
+    });
+    if (!bindingOk) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 },
+      );
+    }
 
     const stripe = await getStripeServer();
     const metadata = {

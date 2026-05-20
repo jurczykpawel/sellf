@@ -70,6 +70,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [bindingToken, setBindingToken] = useState<string | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
   const lastCheckoutSessionSignature = useRef<string | null>(null);
 
@@ -324,6 +325,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         lastCheckoutSessionSignature.current = checkoutSessionSignature;
         setClientSecret(data.clientSecret);
         setCheckoutSessionId(data.checkoutSessionId);
+        setBindingToken(data.bindingToken ?? null);
       })
       .catch(err => {
         if (controller.signal.aborted) return;
@@ -550,6 +552,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customAmount={product.allow_custom_price ? customAmount : undefined}
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
+                bindingToken={bindingToken || undefined}
                 pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
                 expressCheckoutConfig={expressCheckoutConfig}

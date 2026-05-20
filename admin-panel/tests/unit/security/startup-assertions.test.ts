@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  assertCheckoutBindingSecret,
   assertNodeEnvIsSet,
   assertNonProductionFlagsOff,
   assertProductionStartupConfig,
@@ -11,11 +12,13 @@ const SAVED_NODE_ENV = process.env.NODE_ENV;
 const SAVED_TRUSTED_PROXY = process.env.TRUSTED_PROXY;
 const SAVED_E2E_MODE = process.env.E2E_MODE;
 const SAVED_DEMO_MODE = process.env.DEMO_MODE;
+const SAVED_BINDING_SECRET = process.env.CHECKOUT_BINDING_SECRET;
 
 beforeEach(() => {
   delete process.env.TRUSTED_PROXY;
   delete process.env.E2E_MODE;
   delete process.env.DEMO_MODE;
+  delete process.env.CHECKOUT_BINDING_SECRET;
 });
 
 afterEach(() => {
@@ -27,6 +30,8 @@ afterEach(() => {
   else process.env.E2E_MODE = SAVED_E2E_MODE;
   if (SAVED_DEMO_MODE === undefined) delete process.env.DEMO_MODE;
   else process.env.DEMO_MODE = SAVED_DEMO_MODE;
+  if (SAVED_BINDING_SECRET === undefined) delete process.env.CHECKOUT_BINDING_SECRET;
+  else process.env.CHECKOUT_BINDING_SECRET = SAVED_BINDING_SECRET;
 });
 
 describe('assertTrustedProxyConfig', () => {
@@ -98,6 +103,30 @@ describe('assertNodeEnvIsSet', () => {
   });
 });
 
+describe('assertCheckoutBindingSecret', () => {
+  it('is a no-op outside production', () => {
+    process.env.NODE_ENV = 'development';
+    expect(() => assertCheckoutBindingSecret()).not.toThrow();
+  });
+
+  it('throws in production when secret is unset', () => {
+    process.env.NODE_ENV = 'production';
+    expect(() => assertCheckoutBindingSecret()).toThrow(/CHECKOUT_BINDING_SECRET/);
+  });
+
+  it('throws in production when secret is too short', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.CHECKOUT_BINDING_SECRET = 'short';
+    expect(() => assertCheckoutBindingSecret()).toThrow(/CHECKOUT_BINDING_SECRET/);
+  });
+
+  it('passes in production with a 32-byte base64 secret', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.CHECKOUT_BINDING_SECRET = 'a-base64-secret-that-is-clearly-long-enough';
+    expect(() => assertCheckoutBindingSecret()).not.toThrow();
+  });
+});
+
 describe('assertProductionStartupConfig', () => {
   it('fails first when NODE_ENV is unset', () => {
     delete process.env.NODE_ENV;
@@ -107,6 +136,7 @@ describe('assertProductionStartupConfig', () => {
   it('passes when production is fully configured', () => {
     process.env.NODE_ENV = 'production';
     process.env.TRUSTED_PROXY = 'true';
+    process.env.CHECKOUT_BINDING_SECRET = 'a-base64-secret-that-is-clearly-long-enough';
     expect(() => assertProductionStartupConfig()).not.toThrow();
   });
 
@@ -115,5 +145,11 @@ describe('assertProductionStartupConfig', () => {
     process.env.TRUSTED_PROXY = 'true';
     process.env.DEMO_MODE = 'true';
     expect(() => assertProductionStartupConfig()).toThrow(/DEMO_MODE/);
+  });
+
+  it('rejects production without a binding secret even if other flags are right', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.TRUSTED_PROXY = 'true';
+    expect(() => assertProductionStartupConfig()).toThrow(/CHECKOUT_BINDING_SECRET/);
   });
 });

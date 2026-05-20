@@ -27,6 +27,11 @@ import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checko
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
 import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
+import { signCheckoutBinding } from '@/lib/security/checkout-binding';
+
+function extractStripeObjectId(clientSecret: string): string | null {
+  return clientSecret.split('_secret_')[0] || null;
+}
 
 type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>;
 type CheckoutPaymentMethodType = NonNullable<CheckoutSessionCreateParams['payment_method_types']>[number];
@@ -307,7 +312,15 @@ export async function POST(request: NextRequest) {
           intervalCount: subscriptionProduct.billing_interval_count ?? 1,
           taxRateId,
         });
-        return NextResponse.json({ clientSecret, subscriptionId });
+        const stripeObjectId = extractStripeObjectId(clientSecret);
+        const bindingToken = stripeObjectId
+          ? signCheckoutBinding({
+              stripeObjectId,
+              userId: user?.id ?? null,
+              productId: subscriptionProduct.id,
+            })
+          : null;
+        return NextResponse.json({ clientSecret, subscriptionId, bindingToken });
       }
 
       const stripePriceId = await getOrCreateStripePriceForProduct(stripe, subscriptionProduct);
@@ -336,6 +349,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         clientSecret: checkoutSession.client_secret,
         checkoutSessionId: checkoutSession.id,
+        bindingToken: signCheckoutBinding({
+          stripeObjectId: checkoutSession.id,
+          userId: user?.id ?? null,
+          productId: subscriptionProduct.id,
+        }),
       });
     }
 
@@ -738,6 +756,11 @@ export async function POST(request: NextRequest) {
       clientSecret: checkoutSession.client_secret,
       checkoutSessionId: checkoutSession.id,
       paymentIntentId: null,
+      bindingToken: signCheckoutBinding({
+        stripeObjectId: checkoutSession.id,
+        userId: user?.id ?? null,
+        productId,
+      }),
     });
   } catch (error) {
     console.error('Error creating payment intent:', error);

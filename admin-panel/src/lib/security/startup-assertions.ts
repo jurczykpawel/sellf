@@ -50,9 +50,26 @@ export function assertNodeEnvIsSet(): void {
   );
 }
 
+/**
+ * Refuse to boot when the checkout-mutation binding secret is missing.
+ * update-payment-metadata and the session-expire path verify an HMAC over
+ * the Stripe object identity; without a secret those routes return 500.
+ */
+export function assertCheckoutBindingSecret(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (process.env.CHECKOUT_BINDING_SECRET && process.env.CHECKOUT_BINDING_SECRET.length >= 16) {
+    return;
+  }
+  throw new Error(
+    'Refusing to start: CHECKOUT_BINDING_SECRET is not set (or too short) in production. ' +
+      'Generate one with `openssl rand -base64 32` and add to .env.local before booting.',
+  );
+}
+
 /** Run every production startup gate in one call. */
 export function assertProductionStartupConfig(): void {
   assertNodeEnvIsSet();
   assertTrustedProxyConfig();
   assertNonProductionFlagsOff();
+  assertCheckoutBindingSecret();
 }

@@ -35,6 +35,7 @@ interface CustomPaymentFormProps {
   customAmount?: number;
   customAmountError?: string | null;
   clientSecret?: string;
+  bindingToken?: string;
   pricing: PricingResult;
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
@@ -68,6 +69,7 @@ export default function CustomPaymentForm({
   onChangeAccount,
   customAmountError,
   clientSecret,
+  bindingToken,
   pricing,
   paymentMethodOrder,
   expressCheckoutConfig,
@@ -192,6 +194,8 @@ export default function CustomPaymentForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientSecret,
+            bindingToken,
+            productId: product.id,
             fullName: invoice.fullName,
             termsAccepted: !email ? termsAccepted : undefined,
             needsInvoice: hasValidTaxId ? true : false,
