@@ -86,6 +86,13 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
 
   useEffect(() => {
     if (!config || !cookie_consent_enabled || initialisedRef.current) return
+    // Admin dashboard does not need tracking — and vanilla-cookieconsent v3
+    // attaches DOM nodes under <body> that collide with React reconciliation
+    // when /dashboard pages re-render after a server action
+    // (Uncaught NotFoundError: insertBefore / removeChild → global-error
+    // boundary). Tracking still runs on the public storefront where it
+    // matters; admin panel skips it.
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/dashboard')) return
     initialisedRef.current = true
 
     let cancelled = false
