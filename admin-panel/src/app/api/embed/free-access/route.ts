@@ -100,17 +100,14 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
   }
 
-  const captchaBypassOk = await checkRateLimit('embed_free_access_without_captcha', 3, 300);
-  if (!captchaBypassOk) {
-    const captchaResult = await verifyCaptchaToken(parsed.value.turnstileToken);
-    if (!captchaResult.success) {
-      return embedJson(
-        { error: captchaResult.error || 'Security verification failed. Please try again.' },
-        400,
-        origin,
-        allowedOrigins,
-      );
-    }
+  const captchaResult = await verifyCaptchaToken(parsed.value.turnstileToken);
+  if (!captchaResult.success) {
+    return embedJson(
+      { error: captchaResult.error || 'Security verification failed. Please try again.' },
+      400,
+      origin,
+      allowedOrigins,
+    );
   }
 
   const emailValidation = await validateEmailAction(parsed.value.email);

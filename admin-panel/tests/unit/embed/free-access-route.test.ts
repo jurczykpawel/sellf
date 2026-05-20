@@ -238,18 +238,32 @@ describe('POST /api/embed/free-access', () => {
     expect(mocks.signInWithOtp).not.toHaveBeenCalled();
   });
 
-  it('requires captcha after the unauthenticated free-access threshold is exceeded', async () => {
-    mocks.checkRateLimit
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+  it('requires captcha verification for every request — no first-attempts bypass', async () => {
+    mocks.checkRateLimit.mockResolvedValue(true);
     mocks.verifyCaptchaToken.mockResolvedValue({ success: false, error: 'Security verification failed' });
 
     const response = await POST(
       makeRequest({ productSlug: 'free-guide', email: 'lead@example.com' }, 'https://landing.example.com'),
     );
 
+    expect(mocks.verifyCaptchaToken).toHaveBeenCalled();
     expect(response.status).toBe(400);
-    expect(mocks.verifyCaptchaToken).toHaveBeenCalledWith(undefined);
     expect(mocks.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it('accepts request with a valid captcha token on the first attempt', async () => {
+    mocks.checkRateLimit.mockResolvedValue(true);
+    mocks.verifyCaptchaToken.mockResolvedValue({ success: true });
+
+    const response = await POST(
+      makeRequest(
+        { productSlug: 'free-guide', email: 'lead@example.com', turnstileToken: 'tok-abc' },
+        'https://landing.example.com',
+      ),
+    );
+
+    expect(mocks.verifyCaptchaToken).toHaveBeenCalledWith('tok-abc');
+    expect(response.status).toBe(200);
+    expect(mocks.signInWithOtp).toHaveBeenCalled();
   });
 });
