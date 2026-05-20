@@ -33,6 +33,7 @@ import {
   SCOPE_PRESETS,
 } from './api-keys';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { extractTrustedClientIp } from '@/lib/security/client-ip';
 
 /**
  * Check rate limit for API key using distributed backend (Upstash Redis or Supabase DB)
@@ -331,10 +332,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     .eq('id', keyData.key_id)
     .single();
 
-  // Update last used IP
-  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] ||
-    request.headers.get('x-real-ip') ||
-    'unknown';
+  const clientIp = extractTrustedClientIp(request.headers) ?? 'unknown';
 
   await platformClient
     .from('api_keys')

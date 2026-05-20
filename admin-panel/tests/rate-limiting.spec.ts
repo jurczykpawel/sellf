@@ -526,12 +526,13 @@ test.describe('Rate Limiting', () => {
   // ============================================
 
   test.describe('Rate Limit Behavior', () => {
-    test('rate limit should return 429 status code', async ({ request }) => {
+    test('rate limit should return 429 status code', async ({ request, baseURL }) => {
       // Make many requests until we hit the limit
       let got429 = false;
 
       for (let i = 0; i < 50; i++) {
         const response = await request.post('/api/consent', {
+          headers: { origin: baseURL ?? 'http://localhost:3777' },
           data: {
             consents: { analytics: true },
             fingerprint: `test-${Date.now()}`,
@@ -547,11 +548,12 @@ test.describe('Rate Limiting', () => {
       expect(got429).toBe(true);
     });
 
-    test('rate limited response should have proper error message', async ({ request }) => {
+    test('rate limited response should have proper error message', async ({ request, baseURL }) => {
       // Exhaust rate limit
       let got429 = false;
       for (let i = 0; i < 50; i++) {
         const response = await request.post('/api/consent', {
+          headers: { origin: baseURL ?? 'http://localhost:3777' },
           data: {
             consents: { analytics: true },
             fingerprint: `test-${Date.now()}`,
