@@ -7,13 +7,14 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const SCHEMAS = new Set(['seller_main', 'public']);
 const CREATE_FUNCTION_RE =
-  /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:(?<schema>\w+)\.)?(?<name>\w+)\s*\(/gi;
+  /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:(\w+)\.)?(\w+)\s*\(/gi;
 const DROP_FUNCTION_RE =
-  /DROP\s+FUNCTION\s+(?:IF\s+EXISTS\s+)?(?:(?<schema>\w+)\.)?(?<name>\w+)/gi;
+  /DROP\s+FUNCTION\s+(?:IF\s+EXISTS\s+)?(?:(\w+)\.)?(\w+)/gi;
 const REVOKE_RE =
   /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+(?:(\w+)\.)?(\w+)/gi;
 
@@ -57,18 +58,18 @@ export function lintSqlForMissingRevoke(_file: string, sql: string): LintMissing
   // pattern resets grants and therefore needs an inline REVOKE.
   const dropped = new Set<string>();
   for (const m of sql.matchAll(DROP_FUNCTION_RE)) {
-    const schema = m.groups?.schema?.toLowerCase() ?? 'public';
+    const schema = (m[1] ?? 'public').toLowerCase();
     if (!SCHEMAS.has(schema)) continue;
-    const name = m.groups?.name ?? '';
+    const name = m[2];
     if (!name) continue;
     dropped.add(`${schema}.${name}`);
   }
 
   const created = new Map<string, string>();
   for (const m of sql.matchAll(CREATE_FUNCTION_RE)) {
-    const schema = m.groups?.schema?.toLowerCase() ?? 'public';
+    const schema = (m[1] ?? 'public').toLowerCase();
     if (!SCHEMAS.has(schema)) continue;
-    const name = m.groups?.name ?? '';
+    const name = m[2];
     if (!name) continue;
     if (!dropped.has(`${schema}.${name}`)) continue;
     created.set(`${schema}.${name}`, schema);
@@ -96,7 +97,8 @@ function migrationTimestamp(filename: string): string | null {
 }
 
 function main() {
-  const migrationsDir = resolve(import.meta.dir, '../../supabase/migrations');
+  const scriptDir = dirname(fileURLToPath(import.meta.url));
+  const migrationsDir = resolve(scriptDir, '../../supabase/migrations');
   const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'));
   let failures = 0;
   let skipped = 0;
