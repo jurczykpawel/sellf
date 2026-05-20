@@ -290,8 +290,17 @@ async function getProcessedPaymentFromDatabase(
     return null; // Not in database, need to verify with Stripe
   }
 
-  // Verify user ownership if user is logged in
   if (user && transaction.user_id && transaction.user_id !== user.id) {
+    return {
+      session_id: sessionId,
+      status: 'complete',
+      payment_status: 'paid',
+      error: 'Session does not belong to current user'
+    };
+  }
+
+  if (user && !transaction.user_id && transaction.customer_email &&
+      user.email && transaction.customer_email.toLowerCase() !== user.email.toLowerCase()) {
     return {
       session_id: sessionId,
       status: 'complete',
@@ -409,11 +418,23 @@ export async function verifyPaymentSession(
       };
     }
 
-    // Check if session belongs to current user (only if user is logged in and session has valid user_id)
-    if (user && session.metadata?.user_id && 
-        session.metadata.user_id !== '' && 
-        session.metadata.user_id !== 'null' && 
+    if (user && session.metadata?.user_id &&
+        session.metadata.user_id !== '' &&
+        session.metadata.user_id !== 'null' &&
         session.metadata.user_id !== user.id) {
+      return {
+        session_id: session.id,
+        status: session.status || 'unknown',
+        payment_status: session.payment_status,
+        error: 'Session does not belong to current user'
+      };
+    }
+
+    const sessionEmail = session.customer_details?.email?.toLowerCase();
+    const userEmail = user?.email?.toLowerCase();
+    const sessionUserId = session.metadata?.user_id;
+    const sessionHasMatchingUserId = !!sessionUserId && sessionUserId !== '' && sessionUserId !== 'null' && sessionUserId === user?.id;
+    if (user && !sessionHasMatchingUserId && sessionEmail && userEmail && sessionEmail !== userEmail) {
       return {
         session_id: session.id,
         status: session.status || 'unknown',
