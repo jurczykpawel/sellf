@@ -2,13 +2,16 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/Modal';
-import type { TranslationFunction } from '../types';
+import type { TranslationFunction, ProductFormData } from '../types';
+import { PublishChecklist, getPublishChecklist } from './PublishChecklist';
 
 interface WizardFooterProps {
   currentStep: number;
   totalSteps: number;
   isSubmitting: boolean;
   isEditMode: boolean;
+  formData: ProductFormData;
+  priceDisplayValue: string;
   onBack: () => void;
   onContinue: () => void;
   onSubmit: () => void;
@@ -21,6 +24,8 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   totalSteps,
   isSubmitting,
   isEditMode,
+  formData,
+  priceDisplayValue,
   onBack,
   onContinue,
   onSubmit,
@@ -29,11 +34,24 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
 }) => {
   const isFirstStep = currentStep === 1;
   const isLastStep = currentStep === totalSteps;
+  const checklist = getPublishChecklist(formData, priceDisplayValue, t);
+  const missing = checklist.filter((c) => !c.ok);
+  const canPublish = isEditMode || missing.length === 0;
+  const submitLabel = isEditMode ? t('updateProduct') : t('publish.cta');
+  const tooltip = canPublish
+    ? undefined
+    : t('publish.disabledTooltip', { missing: missing.map((m) => m.label).join(', ') });
 
   return (
-    <div className="px-6 py-4 border-t border-sf-border bg-sf-raised">
+    <div className="px-6 py-3 border-t border-sf-border bg-sf-raised space-y-2">
+      {!isEditMode && (
+        <PublishChecklist
+          formData={formData}
+          priceDisplayValue={priceDisplayValue}
+          t={t}
+        />
+      )}
       <div className="flex items-center justify-between">
-        {/* Left side: Cancel / Back */}
         <div>
           {isFirstStep ? (
             <Button onClick={onCancel} variant="ghost">
@@ -41,29 +59,48 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
             </Button>
           ) : (
             <Button onClick={onBack} variant="ghost">
-              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-4 h-4 mr-1.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
               {t('wizard.back')}
             </Button>
           )}
         </div>
 
-        {/* Right side: Create/Update + Continue */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" title={tooltip}>
           <Button
             onClick={onSubmit}
             variant="primary"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canPublish}
             loading={isSubmitting}
           >
-            {isEditMode ? t('updateProduct') : t('wizard.createProduct')}
+            {submitLabel}
           </Button>
           {!isLastStep && (
             <Button onClick={onContinue} variant="ghost">
               {t('wizard.continueSetup')}
-              <svg className="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <svg
+                className="w-4 h-4 ml-1.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </Button>
           )}

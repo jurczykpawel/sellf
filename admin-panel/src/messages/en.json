@@ -1240,6 +1240,14 @@
         "productType": {
           "leadMagnetNotice": "Free product. Price 0. Access control still works via buyer email and consent."
         },
+        "publish": {
+          "cta": "⚡ Publish",
+          "disabledTooltip": "Fill in: {missing}",
+          "name": "Name",
+          "price": "Price",
+          "recurringPrice": "Recurring price",
+          "leadMagnetFile": "File (step 2)"
+        },
         "basicInformation": "Basic Information",
         "productName": "Product Name",
         "enterProductName": "Enter product name",

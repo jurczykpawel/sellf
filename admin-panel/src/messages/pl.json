@@ -1255,6 +1255,14 @@
         "productType": {
           "leadMagnetNotice": "Produkt darmowy. Cena 0. Kontrola dostępu działa przez email i zgodę kupującego."
         },
+        "publish": {
+          "cta": "⚡ Publikuj",
+          "disabledTooltip": "Wypełnij: {missing}",
+          "name": "Nazwa",
+          "price": "Cena",
+          "recurringPrice": "Cena cykliczna",
+          "leadMagnetFile": "Plik (krok 2)"
+        },
         "basicInformation": "Podstawowe informacje",
         "productName": "Nazwa produktu",
         "enterProductName": "Wprowadź nazwę produktu",
