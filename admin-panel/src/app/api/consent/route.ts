@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limiting'
 import { isAllowedOrigin } from '@/lib/security/origin-match'
 import { getClientIp } from '@/lib/security/client-ip'
+import { parseConsentBody } from './schema'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,22 +33,11 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    const {
-      anonymous_id,
-      consents,
-      consent_version,
-    } = body
-
-    // Input validation
-    if (anonymous_id !== undefined && (typeof anonymous_id !== 'string' || anonymous_id.length > 200)) {
-      return NextResponse.json({ error: 'Invalid anonymous_id' }, { status: 400 })
+    const parsed = parseConsentBody(body)
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
-    if (consents !== undefined && (typeof consents !== 'object' || consents === null || JSON.stringify(consents).length > 5000)) {
-      return NextResponse.json({ error: 'Invalid consents' }, { status: 400 })
-    }
-    if (consent_version !== undefined && (typeof consent_version !== 'string' || consent_version.length > 50)) {
-      return NextResponse.json({ error: 'Invalid consent_version' }, { status: 400 })
-    }
+    const { anonymous_id, consents, consent_version } = parsed.data
 
     // Bind the row to the authenticated user when one is present. Any
     // user_id supplied in the body is ignored so a logged-in attacker
@@ -77,7 +67,7 @@ export async function POST(request: NextRequest) {
       .from('consent_logs')
       .insert({
         anonymous_id: anonymous_id || null,
-        consents: consents || null,
+        consents: (consents ?? null) as never,
         consent_version: consent_version || null,
         user_id: boundUserId,
         ip_address,
