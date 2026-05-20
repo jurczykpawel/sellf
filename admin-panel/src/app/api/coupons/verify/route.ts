@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { checkRateLimit } from '@/lib/rate-limiting';
+import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const TOO_MANY = () => NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Reject non-JSON Content-Type to prevent blind CSRF via text/plain forms
     const contentType = request.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       return NextResponse.json(
@@ -17,12 +18,6 @@ export async function POST(request: NextRequest) {
 
     const { code, productId, email } = await request.json();
 
-    // 1. Rate Limiting
-    const allowed = await checkRateLimit('coupon_verify', 5, 60);
-    if (!allowed) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
-
     if (!code || typeof code !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Code and Product ID are required' }, { status: 400 });
     }
@@ -32,6 +27,21 @@ export async function POST(request: NextRequest) {
     if (email !== undefined && email !== null && typeof email !== 'string') {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
+
+    const normalisedCode = code.toUpperCase();
+
+    // Layered throttling: per-code bucket prevents enumeration of the code space
+    // through a botnet, per-source bucket keeps a single host from spamming.
+    const perCode = await checkRateLimitForIdentifier(
+      'coupon_verify_code',
+      5,
+      60,
+      `code:${normalisedCode}`,
+    );
+    if (!perCode) return TOO_MANY();
+
+    const perSource = await checkRateLimit('coupon_verify', 30, 60);
+    if (!perSource) return TOO_MANY();
 
     const supabase = await createClient();
 
@@ -45,9 +55,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // Use the secure DB function to verify coupon
     const { data, error } = await supabase.rpc('verify_coupon', {
-      code_param: code.toUpperCase(),
+      code_param: normalisedCode,
       product_id_param: productId,
       customer_email_param: email || null,
       currency_param: product.currency,
@@ -56,6 +65,10 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Coupon verification RPC error:', error);
       return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
+    }
+
+    if (!data || typeof data !== 'object' || !(data as { valid?: boolean }).valid) {
+      return NextResponse.json({ valid: false });
     }
 
     return NextResponse.json(data);
