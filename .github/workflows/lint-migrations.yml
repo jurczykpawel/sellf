@@ -1,0 +1,28 @@
+name: Migration lint
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'admin-panel/scripts/lint-migrations.ts'
+      - '.github/workflows/lint-migrations.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'admin-panel/scripts/lint-migrations.ts'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Run migration lint
+        working-directory: ./admin-panel
+        run: bun run lint:migrations
