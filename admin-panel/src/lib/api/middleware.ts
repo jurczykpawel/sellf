@@ -32,7 +32,7 @@ import {
   API_SCOPES,
   SCOPE_PRESETS,
 } from './api-keys';
-import { checkRateLimit } from '@/lib/rate-limiting';
+import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { extractTrustedClientIp } from '@/lib/security/client-ip';
 
 /**
@@ -272,7 +272,15 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     return null;
   }
 
-  const verifyAttemptAllowed = await checkRateLimit('api_key_verify', 120, 1);
+  const verifyIdentifier = extractTrustedClientIp(request.headers)
+    ? `ip:${extractTrustedClientIp(request.headers)}`
+    : `ua:${(request.headers.get('user-agent') || 'unknown').slice(0, 64)}`;
+  const verifyAttemptAllowed = await checkRateLimitForIdentifier(
+    'api_key_verify',
+    60,
+    1,
+    verifyIdentifier,
+  );
   if (!verifyAttemptAllowed) {
     throw new ApiAuthError(
       'RATE_LIMITED',

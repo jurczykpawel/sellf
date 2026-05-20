@@ -11,9 +11,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { WebhookService } from '@/lib/services/webhook-service';
 
 // ===== TYPES =====
@@ -191,6 +192,18 @@ const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const credential = request.headers.get('Authorization')?.slice(7) ?? '';
+  const credentialFingerprint = createHash('sha256').update(credential).digest('hex').slice(0, 16);
+  const invocationAllowed = await checkRateLimitForIdentifier(
+    'cron_invoke',
+    60,
+    1,
+    `cron:${credentialFingerprint}`,
+  );
+  if (!invocationAllowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
 
   const job = request.nextUrl.searchParams.get('job');
