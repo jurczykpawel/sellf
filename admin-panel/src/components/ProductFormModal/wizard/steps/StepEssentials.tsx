@@ -1,7 +1,12 @@
 'use client';
 
 import React from 'react';
-import { BasicInfoSection, PriceVatInline, SubscriptionSection, CheckoutTemplateSection } from '../../sections';
+import {
+  BasicInfoSection,
+  PriceVatInline,
+  SubscriptionSection,
+  ProductTypeRadio,
+} from '../../sections';
 import type { ProductFormData, TranslationFunction } from '../../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
@@ -20,10 +25,8 @@ interface StepEssentialsProps {
   setPriceDisplayValue: (value: string) => void;
   shopDefaultVatRate: number | null;
   taxMode?: TaxMode;
-  /** True when editing an existing product — UI lock on product_type. Backend
-   * (PATCH /api/v1/products/[id]) is the authoritative gate. */
+  /** True when editing an existing product — type radio is locked. */
   isEditing?: boolean;
-  onRequestStepChange?: (step: number) => void;
 }
 
 export const StepEssentials: React.FC<StepEssentialsProps> = ({
@@ -42,14 +45,21 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   shopDefaultVatRate,
   taxMode,
   isEditing,
-  onRequestStepChange,
 }) => {
+  const isLeadMagnet =
+    formData.product_type === 'one_time' &&
+    formData.checkout_template !== 'tip-jar' &&
+    formData.price === 0 &&
+    !formData.allow_custom_price;
+
+  const showPriceInput = formData.product_type !== 'subscription' && !isLeadMagnet;
+
   return (
     <div className="space-y-6">
-      <CheckoutTemplateSection
+      <ProductTypeRadio
         formData={formData}
         setFormData={setFormData}
-        onRequestStepChange={onRequestStepChange}
+        isEditing={isEditing}
       />
 
       <BasicInfoSection
@@ -64,14 +74,9 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         fieldErrors={fieldErrors}
       />
 
-      <SubscriptionSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-        hasSales={isEditing}
-      />
+      <SubscriptionSection formData={formData} setFormData={setFormData} t={t} />
 
-      {formData.product_type !== 'subscription' && (
+      {showPriceInput && (
         <PriceVatInline
           formData={formData}
           setFormData={setFormData}
@@ -83,6 +88,12 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
         />
+      )}
+
+      {isLeadMagnet && (
+        <p className="text-sm text-sf-info bg-sf-info-soft p-3 rounded">
+          {t('productType.leadMagnetNotice')}
+        </p>
       )}
     </div>
   );

@@ -3467,23 +3467,36 @@
     }
   },
   "productForm": {
-    "checkoutTemplate": {
-      "label": "Szablon koszyka",
-      "helpText": "Wybierz wygląd strony /checkout dla tego produktu.",
-      "selectLabel": "Szablon",
-      "tipJarRequiresPwyw": "Tip-jar wymaga włączonego PWYW — kupujący sam wybiera kwotę.",
+    "productType": {
+      "legend": "Typ produktu",
+      "lockedInEdit": "Typ produktu zablokowany w trybie edycji: {type}",
+      "comingSoon": "wkrótce",
+      "leadMagnetNotice": "Produkt darmowy. Cena 0. Kontrola dostępu działa przez email i zgodę kupującego.",
       "options": {
-        "default": {
-          "name": "Domyślny",
-          "description": "Standardowy koszyk z pełnym formularzem zakupowym."
+        "standard": {
+          "name": "Standardowy",
+          "tagline": "jednorazowa płatność",
+          "help": "Stała cena, zakup jednorazowy. Np. ebook, szablon, lifetime."
         },
-        "tipJar": {
-          "name": "Tip-jar",
-          "description": "Strona wsparcia w stylu BMC: o autorze, lista wspierających, PWYW."
+        "subscription": {
+          "name": "Subskrypcja",
+          "tagline": "płatność cykliczna",
+          "help": "Powtarzająca się opłata (mies./rok). Np. członkostwo, kurs ze społecznością."
         },
-        "oto": {
-          "name": "Lejek OTO",
-          "description": "Oferta jednorazowa z licznikiem i opcjonalnym downsellem."
+        "installments": {
+          "name": "Raty",
+          "tagline": "N rat co miesiąc",
+          "help": "Płatność rozbita na N rat (wkrótce)."
+        },
+        "tip-jar": {
+          "name": "Tip jar",
+          "tagline": "płać ile chcesz",
+          "help": "Klient sam wybiera kwotę. Np. donate, napiwek, wsparcie."
+        },
+        "lead-magnet": {
+          "name": "Lead magnet",
+          "tagline": "darmowy w zamian za email",
+          "help": "Bezpłatny produkt (PDF, checklist) za email klienta."
         }
       }
     },

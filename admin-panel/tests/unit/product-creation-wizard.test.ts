@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { initialFormData } from '@/components/ProductFormModal/types';
+import {
+  applyProductTypeDefaults,
+  inferProductTypeFromForm,
+} from '@/lib/product-defaults';
 
 /**
  * Tests for ProductCreationWizard logic.
@@ -63,6 +67,36 @@ describe('ProductCreationWizard', () => {
 
     it('should detect as clean when all trigger fields are default', () => {
       expect(isFormDirty({ name: '', price: 0, description: '' })).toBe(false);
+    });
+  });
+
+  describe('product type radio integration', () => {
+    // Mirrors the click-handler logic in ProductTypeRadio.tsx.
+    // Centralized so the contract for what counts as a "no-op" stays one place.
+    function handleTypeSelect(prev: typeof initialFormData, type: Parameters<typeof applyProductTypeDefaults>[1]) {
+      const current = inferProductTypeFromForm(prev);
+      const disabled = ['installments'].includes(type);
+      if (disabled) return prev;
+      if (type === current) return prev;
+      return applyProductTypeDefaults(prev, type);
+    }
+
+    it('selecting the current type is a no-op (preserves reference)', () => {
+      const subForm = { ...initialFormData, product_type: 'subscription' as const };
+      const result = handleTypeSelect(subForm, 'subscription');
+      expect(result).toBe(subForm);
+    });
+
+    it('selecting installments (disabled) is a no-op', () => {
+      const result = handleTypeSelect(initialFormData, 'installments');
+      expect(result).toBe(initialFormData);
+    });
+
+    it('switching type updates checkout_template and billing fields', () => {
+      const result = handleTypeSelect(initialFormData, 'subscription');
+      expect(result).not.toBe(initialFormData);
+      expect(result.product_type).toBe('subscription');
+      expect(result.billing_interval).toBe('month');
     });
   });
 

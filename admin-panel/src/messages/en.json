@@ -3452,23 +3452,36 @@
     }
   },
   "productForm": {
-    "checkoutTemplate": {
-      "label": "Checkout template",
-      "helpText": "Choose how /checkout looks for this product.",
-      "selectLabel": "Template",
-      "tipJarRequiresPwyw": "Tip-jar requires PWYW — buyer picks the amount.",
+    "productType": {
+      "legend": "Product type",
+      "lockedInEdit": "Product type locked in edit mode: {type}",
+      "comingSoon": "soon",
+      "leadMagnetNotice": "Free product. Price 0. Access control still works via buyer email and consent.",
       "options": {
-        "default": {
-          "name": "Default",
-          "description": "Standard checkout with the full purchase form."
+        "standard": {
+          "name": "Standard",
+          "tagline": "one-time payment",
+          "help": "Fixed price, one-time purchase. E.g. ebook, template, lifetime."
         },
-        "tipJar": {
+        "subscription": {
+          "name": "Subscription",
+          "tagline": "recurring payment",
+          "help": "Repeating charge (monthly/yearly). E.g. membership, course with community."
+        },
+        "installments": {
+          "name": "Installments",
+          "tagline": "N monthly payments",
+          "help": "Split payment into N installments (coming soon)."
+        },
+        "tip-jar": {
           "name": "Tip jar",
-          "description": "BMC-style support page with about, recent supporters, PWYW."
+          "tagline": "pay what you want",
+          "help": "Customer picks the amount. E.g. donate, tip, support."
         },
-        "oto": {
-          "name": "OTO funnel",
-          "description": "One-time offer page with countdown timer and optional downsell."
+        "lead-magnet": {
+          "name": "Lead magnet",
+          "tagline": "free for email",
+          "help": "Free product (PDF, checklist) in exchange for email."
         }
       }
     },
