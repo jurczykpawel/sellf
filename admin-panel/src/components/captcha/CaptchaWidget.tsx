@@ -21,11 +21,11 @@ interface CaptchaWidgetProps {
 /**
  * Unified captcha widget — auto-detects Turnstile vs ALTCHA vs none.
  *
- * Reads `captchaProvider` from runtime config (set by /api/runtime-config)
+ * Reads captcha config from runtime config (set by /api/runtime-config)
  * and renders the appropriate widget. Forms should use this instead of
  * importing TurnstileWidget or AltchaWidget directly.
  *
- * @see /src/components/providers/config-provider.tsx — AppConfig.captchaProvider
+ * @see /src/components/providers/config-provider.tsx — AppConfig.captcha
  * @see /src/lib/captcha/config.ts — server-side detection
  */
 export default function CaptchaWidget({
@@ -38,7 +38,7 @@ export default function CaptchaWidget({
   compact,
 }: CaptchaWidgetProps) {
   const config = useConfig()
-  const provider = config.captchaProvider as CaptchaProvider
+  const provider = config.captcha.provider as CaptchaProvider
 
   if (provider === 'turnstile') {
     return (

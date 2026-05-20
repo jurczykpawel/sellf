@@ -67,7 +67,7 @@ export default function TurnstileWidget({
       }
     } else {
       // Use provided sitekey or fallback to runtime config
-      return siteKey || config.cloudflareSiteKey
+      return siteKey || config.captcha.siteKey || ''
     }
   }
 

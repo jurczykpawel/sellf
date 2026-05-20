@@ -57,7 +57,7 @@ describe('Shared runtime-config builder is the single source of truth', () => {
     expect(configBuilderSource).toMatch(/export function buildRuntimeConfig\s*\(/);
     expect(configBuilderSource).toContain('supabaseUrl');
     expect(configBuilderSource).toContain('stripePublishableKey');
-    expect(configBuilderSource).toContain('captchaProvider');
+    expect(configBuilderSource).toMatch(/captcha:\s*getCaptchaConfig\(\)/);
   });
 
   it('runtime-config route uses the shared builder (no duplicated env reads)', () => {

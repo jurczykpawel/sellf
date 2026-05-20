@@ -1,13 +1,12 @@
 import 'server-only';
-import { getCaptchaProvider, getTurnstileSiteKey } from '@/lib/captcha/config';
+import { getCaptchaConfig } from '@/lib/captcha/config';
+import type { CaptchaConfig } from '@/lib/captcha/types';
 
-// Runtime config shape sent to the client (ConfigProvider).
 export interface RuntimeAppConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
   stripePublishableKey: string;
-  cloudflareSiteKey: string;
-  captchaProvider: 'turnstile' | 'altcha' | 'none';
+  captcha: CaptchaConfig;
   siteUrl: string;
   demoMode: boolean;
   passwordLoginEnabled: boolean;
@@ -20,8 +19,7 @@ export function buildRuntimeConfig(): RuntimeAppConfig {
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     stripePublishableKey:
       process.env.STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-    cloudflareSiteKey: getTurnstileSiteKey(),
-    captchaProvider: getCaptchaProvider(),
+    captcha: getCaptchaConfig(),
     siteUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL!,
     demoMode: process.env.DEMO_MODE === 'true',
     passwordLoginEnabled:
