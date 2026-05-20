@@ -11,6 +11,15 @@
 /** Supported captcha providers */
 export type CaptchaProvider = 'turnstile' | 'altcha' | 'none';
 
+/** Single source of truth for captcha runtime config shared across server, client, and embed loader. */
+export interface CaptchaConfig {
+  provider: CaptchaProvider;
+  siteKey: string | null;
+  scriptUrl: string | null;
+  widgetTag: string | null;
+  challengeUrl: string | null;
+}
+
 /** Result of server-side captcha token verification */
 export interface CaptchaVerifyResult {
   success: boolean;
