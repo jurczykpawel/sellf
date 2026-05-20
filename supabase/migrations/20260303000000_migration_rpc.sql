@@ -5,10 +5,15 @@
 -- Enables upgrade.sh to apply SQL migrations via Supabase REST API (PostgREST)
 -- using the existing SUPABASE_SERVICE_ROLE_KEY — no DATABASE_URL needed.
 --
+-- Tracking source of truth: supabase_migrations.schema_migrations (built-in
+-- Supabase table). Both `supabase db push` (Supabase CLI) and the RPC below
+-- write to the same table, eliminating the dual-tracking desync that caused
+-- KRYT-01 to slip through (custom _migration_history was bypassed when
+-- migrations were pushed via Supabase CLI).
+--
 -- Security model:
 --   1. PostgreSQL GRANT/REVOKE: only service_role can call apply_migration()
---      (enforced by the PG engine BEFORE function body runs)
---   2. Internal role check: defense-in-depth verification of current_setting('role')
+--   2. Internal role check: defense-in-depth verification of auth.role()
 --   3. Advisory lock: prevents concurrent migration execution
 --   4. SHA-256 checksum: verifies migration SQL content hasn't been tampered with
 --   5. Rate limiting: max 50 migration calls per 10 minutes
@@ -20,33 +25,9 @@
 --   Service role key holders can execute arbitrary DDL — this is intentional.
 --   The service role key already grants full data access (bypasses RLS).
 --   DDL access is a marginal increase on an already-powerful credential.
---   The key is stored in .env.local with chmod 600 on the server.
 --
 -- @see admin-panel/scripts/upgrade.sh (consumer)
--- @see 20260302000000_fix_rate_limit_grants.sql (REVOKE pattern)
 -- ============================================================================
-
-
--- ===== MIGRATION HISTORY TABLE =====
-
-CREATE TABLE IF NOT EXISTS public._migration_history (
-  version       TEXT PRIMARY KEY,                      -- e.g. "20260302000000_fix_rate_limit_grants"
-  checksum      TEXT,                                  -- SHA-256 of SQL content (NULL for seed entries)
-  applied_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  applied_by    TEXT NOT NULL DEFAULT 'upgrade.sh',
-  execution_ms  INTEGER                                -- NULL for seed entries
-);
-
--- RLS enabled with explicit service_role-only policies (Security Rule #1).
-ALTER TABLE public._migration_history ENABLE ROW LEVEL SECURITY;
-
--- Explicit policies (zero-policy tables are a time bomb even with REVOKE)
-CREATE POLICY "Service role full access to _migration_history"
-  ON public._migration_history FOR ALL TO service_role
-  USING (true) WITH CHECK (true);
-
-REVOKE ALL ON TABLE public._migration_history FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT ON TABLE public._migration_history TO service_role;
 
 
 -- ===== APPLY MIGRATION FUNCTION =====
@@ -64,28 +45,34 @@ AS $$
 DECLARE
   v_start TIMESTAMPTZ;
   v_elapsed_ms INTEGER;
+  v_version_ts TEXT;
+  v_version_name TEXT;
 BEGIN
-  -- LAYER 1: Role check (defense-in-depth, primary protection is GRANT/REVOKE below)
+  -- LAYER 1: Role check
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Forbidden: only service_role can apply migrations'
-      USING ERRCODE = '42501';  -- insufficient_privilege
+      USING ERRCODE = '42501';
   END IF;
 
-  -- LAYER 2: Rate limit (max 50 migrations per 10 minutes — enough for a full upgrade)
+  -- LAYER 2: Rate limit
   IF NOT public.check_rate_limit('apply_migration', 50, 600) THEN
     RAISE EXCEPTION 'Rate limited: too many migration attempts'
-      USING ERRCODE = '54000';  -- program_limit_exceeded
+      USING ERRCODE = '54000';
   END IF;
 
   -- LAYER 3: Validate version format (YYYYMMDDHHMMSS_lowercase_with_underscores)
   IF migration_version !~ '^[0-9]{14}_[a-z0-9_]+$' THEN
     RAISE EXCEPTION 'Invalid migration version format: %', migration_version
-      USING ERRCODE = '22023';  -- invalid_parameter_value
+      USING ERRCODE = '22023';
   END IF;
 
-  -- LAYER 4: Idempotency — skip if already applied (fast path, no lock needed)
+  -- Split version into timestamp + name parts (schema_migrations stores them separately)
+  v_version_ts := substring(migration_version from 1 for 14);
+  v_version_name := substring(migration_version from 16);
+
+  -- LAYER 4: Idempotency — check by timestamp (the actual PK of schema_migrations)
   IF EXISTS (
-    SELECT 1 FROM public._migration_history WHERE version = migration_version
+    SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = v_version_ts
   ) THEN
     RETURN jsonb_build_object(
       'version', migration_version,
@@ -95,12 +82,12 @@ BEGIN
     );
   END IF;
 
-  -- LAYER 5: Prevent concurrent migrations (transaction-scoped advisory lock)
+  -- LAYER 5: Advisory lock
   PERFORM pg_advisory_xact_lock(hashtext('sellf_apply_migration'));
 
-  -- Re-check after acquiring lock (another process may have applied it)
+  -- Re-check after lock
   IF EXISTS (
-    SELECT 1 FROM public._migration_history WHERE version = migration_version
+    SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = v_version_ts
   ) THEN
     RETURN jsonb_build_object(
       'version', migration_version,
@@ -110,25 +97,24 @@ BEGIN
     );
   END IF;
 
-  -- LAYER 6: Verify checksum — ensures SQL content matches what was shipped in the release
-  -- Use convert_to() instead of ::bytea cast to avoid "invalid input syntax for type bytea"
-  -- errors when migration SQL contains backslash sequences (e.g. E'\n' in string literals).
+  -- LAYER 6: Checksum verify
   IF encode(sha256(convert_to(migration_sql, 'UTF8')), 'hex') IS DISTINCT FROM content_checksum THEN
     RAISE EXCEPTION 'Checksum mismatch for migration %: expected %, got %',
       migration_version,
       content_checksum,
       encode(sha256(convert_to(migration_sql, 'UTF8')), 'hex')
-      USING ERRCODE = '22023';  -- invalid_parameter_value
+      USING ERRCODE = '22023';
   END IF;
 
-  -- LAYER 7: Execute the migration SQL
+  -- LAYER 7: Execute
   v_start := clock_timestamp();
   EXECUTE migration_sql;
   v_elapsed_ms := extract(milliseconds FROM clock_timestamp() - v_start)::INTEGER;
 
-  -- Record successful application
-  INSERT INTO public._migration_history (version, checksum, applied_by, execution_ms)
-  VALUES (migration_version, content_checksum, 'upgrade.sh/rpc', v_elapsed_ms);
+  -- Record into the single source of truth
+  INSERT INTO supabase_migrations.schema_migrations (version, name)
+  VALUES (v_version_ts, v_version_name)
+  ON CONFLICT (version) DO NOTHING;
 
   RETURN jsonb_build_object(
     'version', migration_version,
@@ -139,51 +125,31 @@ BEGIN
 END;
 $$;
 
--- Primary security layer: PostgreSQL access control
 REVOKE ALL ON FUNCTION public.apply_migration(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.apply_migration(TEXT, TEXT, TEXT) TO service_role;
 
 
 -- ===== GET MIGRATION STATUS FUNCTION =====
--- Read-only function for upgrade.sh to check which migrations are already applied.
+-- Returns versions in the YYYYMMDDHHMMSS_name format expected by upgrade.sh
+-- (matches the basename of files in supabase/migrations/).
 
+-- SECURITY DEFINER required: service_role does not have USAGE on the
+-- supabase_migrations schema, but the function owner (postgres) does.
+-- Only service_role can call (REVOKE/GRANT below), so this is safe.
 CREATE OR REPLACE FUNCTION public.get_migration_status()
 RETURNS JSONB
 LANGUAGE sql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = ''
 AS $$
   SELECT COALESCE(
     jsonb_agg(jsonb_build_object(
-      'version', h.version,
-      'applied_at', h.applied_at
-    ) ORDER BY h.version),
+      'version', sm.version || COALESCE('_' || sm.name, '')
+    ) ORDER BY sm.version),
     '[]'::jsonb
   )
-  FROM public._migration_history h;
+  FROM supabase_migrations.schema_migrations sm;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_migration_status() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_migration_status() TO service_role;
-
-
--- ===== SEED EXISTING MIGRATIONS =====
--- Mark all previously-applied migrations so upgrade.sh doesn't try to re-run them.
-
-INSERT INTO public._migration_history (version, checksum, applied_by, execution_ms)
-VALUES
-  ('20250101000000_core_schema',                NULL, 'initial_setup', NULL),
-  ('20250102000000_payment_system',             NULL, 'initial_setup', NULL),
-  ('20250103000000_features',                   NULL, 'initial_setup', NULL),
-  ('20251228152500_gus_api_integration',        NULL, 'initial_setup', NULL),
-  ('20251229120000_omnibus_directive',           NULL, 'initial_setup', NULL),
-  ('20251230000000_oto_system',                 NULL, 'initial_setup', NULL),
-  ('20260108000000_api_keys',                   NULL, 'initial_setup', NULL),
-  ('20260115163547_abandoned_cart_recovery',     NULL, 'initial_setup', NULL),
-  ('20260116000000_payment_method_configuration', NULL, 'initial_setup', NULL),
-  ('20260218000000_vat_rate_default_null',      NULL, 'initial_setup', NULL),
-  ('20260225131105_allow_pwyw_free',            NULL, 'initial_setup', NULL),
-  ('20260226000000_tracking_logs',              NULL, 'initial_setup', NULL),
-  ('20260302000000_fix_rate_limit_grants',      NULL, 'initial_setup', NULL),
-  ('20260303000000_migration_rpc',              NULL, 'self', NULL)
-ON CONFLICT (version) DO NOTHING;
