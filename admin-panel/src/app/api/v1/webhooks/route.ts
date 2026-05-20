@@ -19,6 +19,8 @@ import {
 import { validateWebhookUrlAsync, validateEventTypes } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 
+const WEBHOOK_ENDPOINT_QUOTA = 50;
+
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
@@ -151,6 +153,23 @@ export async function POST(request: NextRequest) {
     // Validate description length
     if (description && description.length > 500) {
       return apiError(request, 'INVALID_INPUT', 'Description must be 500 characters or less');
+    }
+
+    // Per-tenant quota — prevents an API key from filling the endpoints table
+    // and starving the WebhookService dispatcher with thousands of subscribers.
+    const { count: existing, error: countError } = await adminClient
+      .from('webhook_endpoints')
+      .select('id', { count: 'exact', head: true });
+    if (countError) {
+      console.error('Error counting webhook endpoints:', countError);
+      return apiError(request, 'INTERNAL_ERROR', 'Failed to validate webhook quota');
+    }
+    if ((existing ?? 0) >= WEBHOOK_ENDPOINT_QUOTA) {
+      return apiError(
+        request,
+        'CONFLICT',
+        `Webhook endpoint quota reached (${WEBHOOK_ENDPOINT_QUOTA}). Delete unused endpoints before creating a new one.`,
+      );
     }
 
     // Create webhook

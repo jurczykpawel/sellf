@@ -33,6 +33,7 @@ export const API_SCOPES = {
   // Payments
   PAYMENTS_READ: 'payments:read',
   PAYMENTS_WRITE: 'payments:write',
+  PAYMENTS_REFUND: 'payments:refund',
 
   // Webhooks
   WEBHOOKS_READ: 'webhooks:read',
@@ -284,6 +285,7 @@ export function getScopeDescription(scope: ApiScope): string {
     [API_SCOPES.ANALYTICS_READ]: 'View analytics and reports',
     [API_SCOPES.PAYMENTS_READ]: 'View payment transactions',
     [API_SCOPES.PAYMENTS_WRITE]: 'Update payment metadata',
+    [API_SCOPES.PAYMENTS_REFUND]: 'Issue refunds on payment transactions',
     [API_SCOPES.WEBHOOKS_READ]: 'View webhook configurations',
     [API_SCOPES.WEBHOOKS_WRITE]: 'Manage webhooks',
     [API_SCOPES.INTEGRATIONS_WRITE]: 'Manage integrations configuration',

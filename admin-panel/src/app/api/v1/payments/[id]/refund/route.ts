@@ -45,8 +45,7 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    // Refunds require full access - it's a sensitive financial operation
-    const auth = await authenticate(request, [API_SCOPES.FULL_ACCESS]);
+    const auth = await authenticate(request, [API_SCOPES.PAYMENTS_REFUND]);
     const { id } = await params;
 
     // Validate ID format
