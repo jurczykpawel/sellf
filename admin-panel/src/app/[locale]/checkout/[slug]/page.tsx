@@ -4,7 +4,7 @@ import { Metadata } from 'next';
 import { cache } from 'react';
 import { getEffectivePaymentMethodOrder } from '@/lib/utils/payment-method-helpers';
 import { extractExpressCheckoutConfig } from '@/types/payment-config';
-import { getPaymentMethodConfig } from '@/lib/actions/payment-config';
+import { getPublicPaymentConfig } from '@/lib/actions/payment-config';
 import { checkFeature } from '@/lib/license/resolve';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -74,7 +74,7 @@ export default async function CheckoutPage({ params }: PageProps) {
     return notFound();
   }
 
-  const paymentConfig = await getPaymentMethodConfig();
+  const paymentConfig = await getPublicPaymentConfig();
   const paymentMethodOrder = paymentConfig?.config_mode === 'custom'
     ? getEffectivePaymentMethodOrder(paymentConfig, product.currency)
     : undefined;

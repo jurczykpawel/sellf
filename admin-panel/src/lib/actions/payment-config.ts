@@ -120,31 +120,79 @@ const UpdatePaymentConfigSchema = z.object({
 // =============================================================================
 
 /**
- * Get the global payment method configuration
- *
- * @returns Payment config or null if not found
+ * Columns the public checkout flow actually needs. Excludes admin-only
+ * metadata (last_modified_by, cached Stripe PMC list, timestamps) so a new
+ * column does not silently leak into the storefront.
  */
-export async function getPaymentMethodConfig(): Promise<PaymentMethodConfig | null> {
+const PUBLIC_PAYMENT_CONFIG_COLUMNS =
+  'config_mode, stripe_pmc_id, stripe_pmc_name, custom_payment_methods, payment_method_order, currency_overrides, enable_express_checkout, enable_apple_pay, enable_google_pay, enable_link' as const;
+
+export type PublicPaymentMethodConfig = Pick<
+  PaymentMethodConfig,
+  | 'config_mode'
+  | 'stripe_pmc_id'
+  | 'stripe_pmc_name'
+  | 'custom_payment_methods'
+  | 'payment_method_order'
+  | 'currency_overrides'
+  | 'enable_express_checkout'
+  | 'enable_apple_pay'
+  | 'enable_google_pay'
+  | 'enable_link'
+>;
+
+/**
+ * Narrow DTO for the public storefront checkout. Use this from any code
+ * path reachable by anonymous buyers — never `getAdminPaymentConfig`.
+ */
+export async function getPublicPaymentConfig(): Promise<PublicPaymentMethodConfig | null> {
   try {
     const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('payment_method_config')
+      .select(PUBLIC_PAYMENT_CONFIG_COLUMNS)
+      .eq('id', 1)
+      .single();
+    if (error) {
+      console.error('[getPublicPaymentConfig] Error:', error);
+      return null;
+    }
+    return data as unknown as PublicPaymentMethodConfig;
+  } catch (error) {
+    console.error('[getPublicPaymentConfig] Exception:', error);
+    return null;
+  }
+}
 
+/**
+ * Full payment config including admin-only metadata. Restrict to server
+ * code reachable only by admins (settings UI, Stripe sync jobs).
+ */
+export async function getAdminPaymentConfig(): Promise<PaymentMethodConfig | null> {
+  try {
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('payment_method_config')
       .select('*')
       .eq('id', 1)
       .single();
-
     if (error) {
-      console.error('[getPaymentMethodConfig] Error:', error);
+      console.error('[getAdminPaymentConfig] Error:', error);
       return null;
     }
-
     return data as unknown as PaymentMethodConfig;
   } catch (error) {
-    console.error('[getPaymentMethodConfig] Exception:', error);
+    console.error('[getAdminPaymentConfig] Exception:', error);
     return null;
   }
 }
+
+/**
+ * @deprecated Use `getAdminPaymentConfig()` from admin paths or
+ * `getPublicPaymentConfig()` from storefront paths. Kept as a thin alias
+ * so existing callers compile while migration is in flight.
+ */
+export const getPaymentMethodConfig = getAdminPaymentConfig;
 
 // =============================================================================
 // UPDATE OPERATIONS

@@ -265,7 +265,13 @@ export interface ExpressCheckoutConfig {
  * Extract Express Checkout config from PaymentMethodConfig
  */
 export function extractExpressCheckoutConfig(
-  config: PaymentMethodConfig | null | undefined
+  config:
+    | Pick<
+        PaymentMethodConfig,
+        'enable_express_checkout' | 'enable_apple_pay' | 'enable_google_pay' | 'enable_link'
+      >
+    | null
+    | undefined,
 ): ExpressCheckoutConfig {
   if (!config) {
     // Default: all enabled

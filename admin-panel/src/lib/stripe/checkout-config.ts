@@ -1,5 +1,5 @@
 import { getShopConfig, getMyShopConfig } from '@/lib/actions/shop-config'
-import { getPaymentMethodConfig } from '@/lib/actions/payment-config'
+import { getPublicPaymentConfig } from '@/lib/actions/payment-config'
 import { STRIPE_CONFIG } from '@/lib/stripe/config'
 import type { TaxMode } from '@/lib/actions/shop-config'
 import type { PaymentConfigMode } from '@/types/payment-config'
@@ -71,7 +71,7 @@ export async function getCheckoutConfig(
 ): Promise<CheckoutConfig> {
   const [shopConfig, pmConfig] = await Promise.all([
     freshShopConfig ? getMyShopConfig() : getShopConfig(),
-    getPaymentMethodConfig(),
+    getPublicPaymentConfig(),
   ])
 
   // --- Tax Mode ---

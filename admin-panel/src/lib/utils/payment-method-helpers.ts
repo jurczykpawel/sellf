@@ -35,7 +35,7 @@ export const RECOMMENDED_CONFIG = {
  * @returns Ordered array of payment method types
  */
 export function getEffectivePaymentMethodOrder(
-  config: PaymentMethodConfig,
+  config: Pick<PaymentMethodConfig, 'currency_overrides' | 'payment_method_order'>,
   currency: string
 ): string[] {
   // Check currency overrides first
