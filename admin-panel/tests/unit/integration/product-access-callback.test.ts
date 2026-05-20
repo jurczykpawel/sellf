@@ -309,7 +309,7 @@ describe('/auth/product-access — grant flows', () => {
     expect(upa).toBeNull();
   });
 
-  it('preserves success_url when redirecting to payment-status', async () => {
+  it('preserves a same-origin success_url when redirecting to payment-status', async () => {
     const email = `cb-success-url-${TS}@example.com`;
     const user = await createUser(email);
     userIds.push(user.id);
@@ -318,13 +318,28 @@ describe('/auth/product-access — grant flows', () => {
 
     currentAuthedClient = await signInAs(email);
 
-    const successUrl = 'https://example.com/thanks';
+    const successUrl = '/thanks';
     const target = await runCallback(
       `http://localhost/auth/product-access?product=${product.slug}&success_url=${encodeURIComponent(successUrl)}`,
     );
-    // success_url is encoded into the status URL query.
     expect(target).toContain(`/p/${product.slug}/payment-status`);
     expect(target).toContain('success_url=');
+  });
+
+  it('drops an off-origin success_url instead of propagating it', async () => {
+    const email = `cb-success-url-evil-${TS}@example.com`;
+    const user = await createUser(email);
+    userIds.push(user.id);
+    const product = await createProduct({ price: 0 });
+    productIds.push(product.id);
+
+    currentAuthedClient = await signInAs(email);
+
+    const target = await runCallback(
+      `http://localhost/auth/product-access?product=${product.slug}&success_url=${encodeURIComponent('https://example.com/thanks')}`,
+    );
+    expect(target).toContain(`/p/${product.slug}/payment-status`);
+    expect(target).not.toContain('success_url=');
   });
 });
 

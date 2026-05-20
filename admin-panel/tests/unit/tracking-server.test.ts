@@ -37,6 +37,12 @@ vi.mock('@supabase/supabase-js', () => ({
   })),
 }));
 
+// Bypass the real DNS-backed safety check so we can stub fetch responses.
+vi.mock('@/lib/security/outbound-url', () => ({
+  assertSafeOutboundUrl: vi.fn().mockResolvedValue(undefined),
+  UnsafeOutboundUrlError: class extends Error {},
+}));
+
 // ===== HELPERS =====
 
 /**
@@ -399,10 +405,13 @@ describe('trackServerSideConversion', () => {
 
       const [url, options] = vi.mocked(global.fetch).mock.calls[0];
       expect(url).toBe(
-        `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/${config.facebook_pixel_id}/events?access_token=${config.facebook_capi_token}`
+        `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/${config.facebook_pixel_id}/events`
       );
       expect(options?.method).toBe('POST');
-      expect(options?.headers).toEqual({ 'Content-Type': 'application/json' });
+      expect(options?.headers).toEqual({
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.facebook_capi_token}`,
+      });
 
       const body = JSON.parse(options?.body as string);
       expect(body.data).toHaveLength(1);

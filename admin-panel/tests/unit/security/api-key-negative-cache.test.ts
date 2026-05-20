@@ -25,6 +25,7 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: (...args: unknown[]) => rateLimitMock(...args),
+  checkRateLimitForIdentifier: (...args: unknown[]) => rateLimitMock(...args),
   getRateLimitIdentifier: vi.fn(),
 }));
 

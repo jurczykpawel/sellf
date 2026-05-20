@@ -6,7 +6,7 @@ vi.mock('@/lib/actions/shop-config', () => ({
 }))
 
 vi.mock('@/lib/actions/payment-config', () => ({
-  getPaymentMethodConfig: vi.fn(),
+  getPublicPaymentConfig: vi.fn(),
 }))
 
 vi.mock('@/lib/stripe/config', () => ({
@@ -23,11 +23,11 @@ vi.mock('@/lib/stripe/config', () => ({
 
 import { getCheckoutConfig, getCheckoutTaxConfig } from '@/lib/stripe/checkout-config'
 import { getShopConfig } from '@/lib/actions/shop-config'
-import { getPaymentMethodConfig } from '@/lib/actions/payment-config'
+import { getPublicPaymentConfig } from '@/lib/actions/payment-config'
 import type { ConfigSource } from '@/lib/stripe/checkout-config'
 
 const mockedGetShopConfig = vi.mocked(getShopConfig)
-const mockedGetPaymentMethodConfig = vi.mocked(getPaymentMethodConfig)
+const mockedGetPaymentMethodConfig = vi.mocked(getPublicPaymentConfig)
 
 const baseShopConfig = {
   id: '1',
