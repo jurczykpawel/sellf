@@ -17,7 +17,7 @@ import {
   apiError,
   API_SCOPES,
 } from '@/lib/api';
-import { readFileSync, openSync, closeSync, constants } from 'fs';
+import { readFileSync, openSync, closeSync, fstatSync, constants } from 'fs';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,6 +71,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+      const stat = fstatSync(fd);
+      if (!stat.isFile()) {
+        return apiError(request, 'VALIDATION_ERROR', 'Invalid progress file');
+      }
       const content = readFileSync(fd, 'utf-8');
       const raw = JSON.parse(content);
       // Only expose known fields — don't leak unexpected data from the progress file (§19)

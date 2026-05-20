@@ -102,8 +102,10 @@ export async function GET(request: NextRequest) {
       query = query.eq('product_id', productId);
     }
 
-    // Filter by email (escape ILIKE wildcards to prevent pattern injection)
     if (email) {
+      if (email.length > 254) {
+        return apiError(request, 'INVALID_INPUT', 'Email filter must be 254 characters or less');
+      }
       const escapedEmail = escapeIlikePattern(email);
       query = query.ilike('customer_email', `%${escapedEmail}%`);
     }

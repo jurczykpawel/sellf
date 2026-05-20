@@ -8,7 +8,7 @@ export async function GET() {
       'Cache-Control':
         process.env.NODE_ENV === 'development'
           ? 'no-cache, no-store, must-revalidate'
-          : 'public, max-age=300, s-maxage=300',
+          : 'private, max-age=300',
     },
   });
 }

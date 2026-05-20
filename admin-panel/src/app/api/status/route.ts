@@ -2,19 +2,25 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limiting';
 
+function corsHeadersForSite(): Record<string, string> {
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  const base: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+  if (siteUrl) base['Access-Control-Allow-Origin'] = siteUrl;
+  return base;
+}
+
 /**
  * Handle CORS preflight requests
  */
 export async function OPTIONS() {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-
   return new NextResponse(null, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': siteUrl || 'null',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400', // 24 hours
+      ...corsHeadersForSite(),
+      'Access-Control-Max-Age': '86400',
     },
   });
 }
@@ -38,7 +44,7 @@ export async function GET() {
     }
 
     const supabase = await createClient();
-    
+
     // Get basic product count (public products only)
     const { data: products, error: productsError } = await supabase
       .from('products')
@@ -61,18 +67,12 @@ export async function GET() {
       }
     };
 
-    const statusSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     return NextResponse.json(status, {
       status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': statusSiteUrl || 'null',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      }
+      headers: corsHeadersForSite(),
     });
   } catch (error) {
     console.error('Error in status endpoint:', error);
-    const errorSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     return NextResponse.json(
       {
         system: {
@@ -86,11 +86,7 @@ export async function GET() {
       },
       {
         status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': errorSiteUrl || 'null',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        }
+        headers: corsHeadersForSite(),
       }
     );
   }

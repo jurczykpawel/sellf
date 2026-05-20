@@ -25,6 +25,31 @@ export interface GUSCompanyData {
   typ?: string;               // Entity type (P=legal, F=natural person)
 }
 
+const GUS_REQUEST_TIMEOUT_MS = 5_000;
+
+class GusRequestTimeoutError extends Error {
+  constructor() {
+    super(`GUS request exceeded ${GUS_REQUEST_TIMEOUT_MS}ms`);
+    this.name = 'GusRequestTimeoutError';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new GusRequestTimeoutError()), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export class GUSAPIClient {
   private bir: any; // BIR client instance
   private isTestMode: boolean;
@@ -49,8 +74,9 @@ export class GUSAPIClient {
    */
   async searchByNIP(nip: string): Promise<GUSCompanyData | null> {
     try {
-      // Login is handled automatically by bir1
-      const results = await this.bir.search({ nip });
+      // bir1 has no built-in timeout; race against a deadline so a stalled
+      // SOAP endpoint cannot pin a request handler indefinitely.
+      const results = await withTimeout(this.bir.search({ nip }), GUS_REQUEST_TIMEOUT_MS);
 
       if (!results) {
         return null;
