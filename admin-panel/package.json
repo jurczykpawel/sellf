@@ -58,6 +58,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "stripe": "^22.1.1",
+    "undici": "^6.25.0",
     "vanilla-cookieconsent": "^3.1.0",
     "zod": "^4.4.3"
   },
