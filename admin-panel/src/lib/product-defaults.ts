@@ -30,6 +30,7 @@ export function applyProductTypeDefaults(
     case 'standard':
       return {
         ...prev,
+        ux_product_type: 'standard',
         checkout_template: 'default',
         product_type: 'one_time',
         allow_custom_price: false,
@@ -41,6 +42,7 @@ export function applyProductTypeDefaults(
     case 'subscription':
       return {
         ...prev,
+        ux_product_type: 'subscription',
         checkout_template: 'default',
         product_type: 'subscription',
         allow_custom_price: false,
@@ -51,6 +53,7 @@ export function applyProductTypeDefaults(
     case 'tip-jar':
       return {
         ...prev,
+        ux_product_type: 'tip-jar',
         checkout_template: 'tip-jar',
         product_type: 'one_time',
         allow_custom_price: true,
@@ -65,6 +68,7 @@ export function applyProductTypeDefaults(
     case 'lead-magnet':
       return {
         ...prev,
+        ux_product_type: 'lead-magnet',
         checkout_template: 'default',
         product_type: 'one_time',
         allow_custom_price: false,
@@ -78,6 +82,12 @@ export function applyProductTypeDefaults(
   }
 }
 
+/**
+ * Derive a UX product type from existing product fields. Used to bootstrap
+ * `formData.ux_product_type` when an edit/duplicate flow opens with a loaded
+ * product — for fresh new products the wizard sets ux_product_type='standard'
+ * directly via initialFormData.
+ */
 export function inferProductTypeFromForm(formData: FormForInference): UxProductType {
   if (formData.checkout_template === 'tip-jar') return 'tip-jar';
   if (formData.product_type === 'subscription') return 'subscription';

@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import type { ProductFormData } from '../types';
 import {
   applyProductTypeDefaults,
-  inferProductTypeFromForm,
   UX_PRODUCT_TYPES_DISABLED,
   type UxProductType,
 } from '@/lib/product-defaults';
@@ -34,7 +33,7 @@ const ALL_TYPES: ReadonlyArray<UxProductType> = [
 
 export function ProductTypeRadio({ formData, setFormData, isEditing }: ProductTypeRadioProps) {
   const t = useTranslations('productForm.productType');
-  const current = inferProductTypeFromForm(formData);
+  const current = formData.ux_product_type;
 
   const handleSelect = (type: UxProductType) => {
     if (UX_PRODUCT_TYPES_DISABLED.includes(type)) return;

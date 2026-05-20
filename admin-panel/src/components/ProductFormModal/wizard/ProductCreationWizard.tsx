@@ -236,6 +236,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 allCategories={allCategories}
                 loadingCategories={loadingCategories}
                 fieldErrors={fieldErrors}
+                setFieldErrors={setFieldErrors}
               />
             )}
 

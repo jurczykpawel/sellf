@@ -20,6 +20,7 @@ import {
   initialOtoState,
 } from '../types';
 import { collectRequiredFieldErrors } from './required-fields';
+import { inferProductTypeFromForm } from '@/lib/product-defaults';
 
 interface WaitlistWarning {
   show: boolean;
@@ -142,7 +143,14 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     initializedRef.current = true;
 
     if (product) {
-      // For existing products
+      // For existing products. ux_product_type is form-only state — derive it
+      // from the loaded fields so the radio reflects the product's true shape.
+      const derivedUxType = inferProductTypeFromForm({
+        checkout_template: (product as Product & { checkout_template?: string }).checkout_template ?? 'default',
+        product_type: product.product_type ?? 'one_time',
+        allow_custom_price: product.allow_custom_price ?? false,
+        price: product.price,
+      });
       setFormData({
         name: product.name,
         slug: product.slug,
@@ -195,6 +203,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         custom_checkout_fields: Array.isArray((product as Product & { custom_checkout_fields?: unknown }).custom_checkout_fields)
           ? (product.custom_checkout_fields as ProductFormData['custom_checkout_fields'])
           : [],
+        ux_product_type: derivedUxType,
       });
 
       // Fetch assigned categories
@@ -572,7 +581,8 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       }
     }
 
-    // Include OTO data in the form submission
+    // Include OTO data in the form submission. ux_product_type is form-only
+    // state and stripped from `submitData` further below before the API call.
     const isSubscription = formData.product_type === 'subscription';
     // subscription products use recurring_price, not the one-time `price`.
     // Force price=0 so the API never sees a stale one-time value the UI hid.

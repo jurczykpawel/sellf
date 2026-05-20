@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { initialFormData } from '@/components/ProductFormModal/types';
-import {
-  applyProductTypeDefaults,
-  inferProductTypeFromForm,
-} from '@/lib/product-defaults';
+import { applyProductTypeDefaults } from '@/lib/product-defaults';
 
 /**
  * Tests for ProductCreationWizard logic.
@@ -72,9 +69,10 @@ describe('ProductCreationWizard', () => {
 
   describe('product type radio integration', () => {
     // Mirrors the click-handler logic in ProductTypeRadio.tsx.
-    // Centralized so the contract for what counts as a "no-op" stays one place.
+    // The radio reads its current selection from formData.ux_product_type
+    // (the canonical state); inference is reserved for edit-mode bootstrap.
     function handleTypeSelect(prev: typeof initialFormData, type: Parameters<typeof applyProductTypeDefaults>[1]) {
-      const current = inferProductTypeFromForm(prev);
+      const current = prev.ux_product_type;
       const disabled = ['installments'].includes(type);
       if (disabled) return prev;
       if (type === current) return prev;
@@ -82,7 +80,7 @@ describe('ProductCreationWizard', () => {
     }
 
     it('selecting the current type is a no-op (preserves reference)', () => {
-      const subForm = { ...initialFormData, product_type: 'subscription' as const };
+      const subForm = applyProductTypeDefaults(initialFormData, 'subscription');
       const result = handleTypeSelect(subForm, 'subscription');
       expect(result).toBe(subForm);
     });

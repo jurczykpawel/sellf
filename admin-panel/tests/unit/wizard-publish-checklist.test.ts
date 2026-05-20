@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { getPublishChecklist } from '@/components/ProductFormModal/wizard/PublishChecklist';
 import { initialFormData } from '@/components/ProductFormModal/types';
+import { applyProductTypeDefaults } from '@/lib/product-defaults';
 
 const t = ((key: string) => key) as unknown as Parameters<typeof getPublishChecklist>[2];
 
 describe('getPublishChecklist', () => {
-  it('standard product: name + price required, both missing -> two unmet items', () => {
-    const items = getPublishChecklist({ ...initialFormData, price: 49 }, '', t);
+  it('standard product: name + price required, both missing → two unmet items', () => {
+    const items = getPublishChecklist({ ...initialFormData }, '', t);
     const byKey = Object.fromEntries(items.map((i) => [i.key, i]));
     expect(byKey.name?.ok).toBe(false);
     expect(byKey.price?.ok).toBe(false);
   });
 
-  it('standard product: name + price filled -> all met', () => {
+  it('standard product: name + price filled → all met', () => {
     const items = getPublishChecklist(
       { ...initialFormData, name: 'My Product', price: 49 },
       '49,99',
@@ -22,13 +23,9 @@ describe('getPublishChecklist', () => {
   });
 
   it('subscription: requires recurring_price, not price', () => {
+    const sub = applyProductTypeDefaults(initialFormData, 'subscription');
     const items = getPublishChecklist(
-      {
-        ...initialFormData,
-        name: 'Sub',
-        product_type: 'subscription',
-        recurring_price: 49,
-      },
+      { ...sub, name: 'Sub', recurring_price: 49 },
       '',
       t,
     );
@@ -38,13 +35,9 @@ describe('getPublishChecklist', () => {
   });
 
   it('subscription with recurring_price=0 fails the checklist', () => {
+    const sub = applyProductTypeDefaults(initialFormData, 'subscription');
     const items = getPublishChecklist(
-      {
-        ...initialFormData,
-        name: 'Sub',
-        product_type: 'subscription',
-        recurring_price: 0,
-      },
+      { ...sub, name: 'Sub', recurring_price: 0 },
       '',
       t,
     );
@@ -53,8 +46,9 @@ describe('getPublishChecklist', () => {
   });
 
   it('lead-magnet (free, no PWYW): requires a content item, not a price', () => {
+    const lm = applyProductTypeDefaults(initialFormData, 'lead-magnet');
     const items = getPublishChecklist(
-      { ...initialFormData, name: 'Free PDF' },
+      { ...lm, name: 'Free PDF' },
       '',
       t,
     );
@@ -64,9 +58,10 @@ describe('getPublishChecklist', () => {
   });
 
   it('lead-magnet with content items passes', () => {
+    const lm = applyProductTypeDefaults(initialFormData, 'lead-magnet');
     const items = getPublishChecklist(
       {
-        ...initialFormData,
+        ...lm,
         name: 'Free PDF',
         content_config: {
           content_items: [
@@ -86,13 +81,9 @@ describe('getPublishChecklist', () => {
   });
 
   it('tip-jar: requires name only (price is configured via suggested amounts elsewhere)', () => {
+    const tj = applyProductTypeDefaults(initialFormData, 'tip-jar');
     const items = getPublishChecklist(
-      {
-        ...initialFormData,
-        name: 'Donations',
-        checkout_template: 'tip-jar',
-        allow_custom_price: true,
-      },
+      { ...tj, name: 'Donations' },
       '',
       t,
     );

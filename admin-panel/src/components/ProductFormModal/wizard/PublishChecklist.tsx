@@ -2,7 +2,6 @@
 
 import React from 'react';
 import type { ProductFormData, TranslationFunction } from '../types';
-import { inferProductTypeFromForm } from '@/lib/product-defaults';
 
 interface ChecklistItem {
   key: 'name' | 'price' | 'recurring_price' | 'content';
@@ -19,7 +18,7 @@ export function getPublishChecklist(
     { key: 'name', label: t('publish.name'), ok: !!formData.name.trim() },
   ];
 
-  const uxType = inferProductTypeFromForm(formData);
+  const uxType = formData.ux_product_type;
 
   if (uxType === 'subscription') {
     items.push({

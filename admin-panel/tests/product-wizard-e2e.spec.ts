@@ -145,13 +145,14 @@ test.describe('Product Creation Wizard', () => {
     // Fill description on step 2 (now required here)
     await page.fill('textarea#description', 'Navigation test');
 
-    // Step 2 → Step 3
-    const step3Indicator = page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i });
+    // Step 2 → Step 3. The step indicator is rendered on every step, so we
+    // can't use its visibility as the exit condition — instead we wait until
+    // the "Dalej" button disappears (it's hidden on the last step).
     await expect(async () => {
       if (await nextBtn.isVisible().catch(() => false)) {
         await nextBtn.click();
       }
-      await expect(step3Indicator).toBeVisible({ timeout: 2000 });
+      await expect(nextBtn).not.toBeVisible({ timeout: 2000 });
     }).toPass({ timeout: 15000 });
 
     // Step 3 shows the grouped accordions (Konwersja default open)

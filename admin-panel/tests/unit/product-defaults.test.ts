@@ -26,8 +26,9 @@ describe('product-defaults registry', () => {
   });
 
   describe('applyProductTypeDefaults', () => {
-    it('standard: checkout_template=default, product_type=one_time, allow_custom_price=false', () => {
+    it('standard: ux_product_type, checkout_template, product_type, allow_custom_price set', () => {
       const result = applyProductTypeDefaults(initialFormData, 'standard');
+      expect(result.ux_product_type).toBe('standard');
       expect(result.checkout_template).toBe('default');
       expect(result.product_type).toBe('one_time');
       expect(result.allow_custom_price).toBe(false);
@@ -138,6 +139,8 @@ describe('product-defaults registry', () => {
     });
 
     it('returns lead-magnet for free standard product (price=0, no PWYW)', () => {
+      // Inference is used only when bootstrapping a loaded product — the form's
+      // ux_product_type field is the source of truth for fresh wizard state.
       expect(inferProductTypeFromForm(initialFormData)).toBe('lead-magnet');
     });
 

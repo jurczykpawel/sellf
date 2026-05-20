@@ -81,6 +81,10 @@ export interface ProductFormData {
   // Checkout template + custom fields (Phase 3 — checkout-templates feat)
   checkout_template: string;
   custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[];
+  // UX product type — form-only state surfacing which radio card the seller
+  // picked. Not persisted to the DB; on edit we derive it from the loaded
+  // product via inferProductTypeFromForm.
+  ux_product_type: import('@/lib/product-defaults').UxProductType;
 }
 
 export interface OtoState {
@@ -235,6 +239,7 @@ export const initialFormData: ProductFormData = {
   // Checkout template + custom fields (Phase 3 — checkout-templates feat)
   checkout_template: 'default',
   custom_checkout_fields: [],
+  ux_product_type: 'standard',
 };
 
 export const initialOtoState: OtoState = {

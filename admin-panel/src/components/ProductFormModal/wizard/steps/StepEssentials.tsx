@@ -46,13 +46,10 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   taxMode,
   isEditing,
 }) => {
-  const isLeadMagnet =
-    formData.product_type === 'one_time' &&
-    formData.checkout_template !== 'tip-jar' &&
-    formData.price === 0 &&
-    !formData.allow_custom_price;
-
-  const showPriceInput = formData.product_type !== 'subscription' && !isLeadMagnet;
+  const uxType = formData.ux_product_type;
+  const isLeadMagnet = uxType === 'lead-magnet';
+  const isTipJar = uxType === 'tip-jar';
+  const showPriceInput = formData.product_type !== 'subscription' && !isLeadMagnet && !isTipJar;
 
   return (
     <div className="space-y-6">

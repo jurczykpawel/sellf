@@ -21,6 +21,7 @@ interface StepContentDetailsProps {
   allCategories: Category[];
   loadingCategories: boolean;
   fieldErrors?: Record<string, string>;
+  setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
@@ -34,6 +35,7 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
   allCategories,
   loadingCategories,
   fieldErrors,
+  setFieldErrors,
 }) => {
   const isTipJar = formData.checkout_template === 'tip-jar';
   return (
@@ -43,6 +45,7 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
         setFormData={setFormData}
         t={t}
         fieldErrors={fieldErrors}
+        setFieldErrors={setFieldErrors}
       />
 
       {!isTipJar && (

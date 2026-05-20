@@ -6,6 +6,7 @@ import type { SectionProps } from '../types';
 
 interface DescriptionSectionProps extends SectionProps {
   fieldErrors?: Record<string, string>;
+  setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 export function DescriptionSection({
@@ -13,12 +14,20 @@ export function DescriptionSection({
   setFormData,
   t,
   fieldErrors = {},
+  setFieldErrors,
 }: DescriptionSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (setFieldErrors && fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const errorBorder = 'border-red-500 focus:ring-red-500';

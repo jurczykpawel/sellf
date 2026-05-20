@@ -164,12 +164,15 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
    * Create a new product
    */
   const createProduct = useCallback(async (data: ProductCreateData): Promise<Product> => {
-    // Extract OTO fields - they're handled separately
+    // Extract OTO fields - they're handled separately. ux_product_type is
+    // form-only UX state; the API doesn't accept it.
     const {
       oto_enabled, oto_product_id, oto_discount_type, oto_discount_value, oto_duration_minutes,
       oto_downsell_product_id, oto_downsell_discount_type, oto_downsell_discount_value, oto_downsell_duration_minutes,
+      ux_product_type: _uxTypeCreate,
       ...productData
-    } = data;
+    } = data as ProductCreateData & { ux_product_type?: unknown };
+    void _uxTypeCreate;
 
     // Create the product
     const product = await api.create<Product>('products', productData);
@@ -200,12 +203,15 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
    * Update an existing product
    */
   const updateProduct = useCallback(async (id: string, data: ProductUpdateData): Promise<Product> => {
-    // Extract OTO fields - they're handled separately
+    // Extract OTO fields - they're handled separately. ux_product_type is
+    // form-only UX state; the API doesn't accept it.
     const {
       oto_enabled, oto_product_id, oto_discount_type, oto_discount_value, oto_duration_minutes,
       oto_downsell_product_id, oto_downsell_discount_type, oto_downsell_discount_value, oto_downsell_duration_minutes,
+      ux_product_type: _uxTypeUpdate,
       ...productData
-    } = data;
+    } = data as ProductUpdateData & { ux_product_type?: unknown };
+    void _uxTypeUpdate;
 
     // Update the product
     const product = await api.update<Product>('products', id, productData);
