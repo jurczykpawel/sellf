@@ -54,7 +54,7 @@ export default function MagicLinkStatus({
 
   // Terms are always accepted in checkout, so never need custom terms checkbox here
   const needsCustomTerms = false;
-  const needsTurnstile = !captchaToken;
+  const needsCaptcha = !captchaToken;
   
   // Show validation block if:
   // 1. We need user action (terms or captcha)
@@ -63,7 +63,7 @@ export default function MagicLinkStatus({
   // 4. Captcha became interactive (showInteractiveWarning is set by onBeforeInteractive)
   const showValidationBlock = !magicLinkSent && !captchaError && !magicLinkError && (
     needsCustomTerms || 
-    (needsTurnstile && showInteractiveWarning) || 
+    (needsCaptcha && showInteractiveWarning) || 
     showInteractiveWarning
   );
   
@@ -100,7 +100,7 @@ export default function MagicLinkStatus({
             )}
 
             {/* Captcha — show in yellow block when captcha became interactive */}
-            {needsTurnstile && showInteractiveWarning && (
+            {needsCaptcha && showInteractiveWarning && (
               <CaptchaWidget
                 onVerify={(token) => {
                   onCaptchaSuccess(token);
@@ -119,7 +119,7 @@ export default function MagicLinkStatus({
             )}
             
           </div>
-        ) : needsTurnstile && !showInteractiveWarning ? (
+        ) : needsCaptcha && !showInteractiveWarning ? (
           // Always render captcha when token is needed (outside yellow block)
           <div className="hidden">
             <CaptchaWidget
