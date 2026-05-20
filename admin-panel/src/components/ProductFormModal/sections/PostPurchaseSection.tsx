@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { ModalSection } from '@/components/ui/Modal';
 import { PostPurchaseSectionProps } from '../types';
+import { ConversionBadge } from './ConversionBadge';
 
 export function PostPurchaseSection({
   formData,
@@ -211,8 +212,9 @@ export function PostPurchaseSection({
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-sf-heading">
+                  <p className="font-medium text-sf-heading flex items-center gap-2">
                     {t('oto.addDiscount', { defaultValue: 'Add time-limited discount' })}
+                    <ConversionBadge label={t('conversionBadge.oto')} />
                   </p>
                   <p className="text-xs text-sf-muted">
                     {t('oto.addDiscountDesc', { defaultValue: 'Offer "{product}" at a special price', product: selectedRedirectProduct?.name })}

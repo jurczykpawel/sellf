@@ -14,5 +14,7 @@ export { SubscriptionSection } from './SubscriptionSection';
 export { ProductTypeRadio } from './ProductTypeRadio';
 export { CustomCheckoutFieldsSection } from './CustomCheckoutFieldsSection';
 export { FeaturedToggle } from './FeaturedToggle';
+export { ConversionBadge } from './ConversionBadge';
+export { TaxHelper, computeTaxHelperMessage } from './TaxHelper';
 export { default as BadgeGeneratorSection } from './BadgeGeneratorSection';
 export { EmbedSection } from './EmbedSection';

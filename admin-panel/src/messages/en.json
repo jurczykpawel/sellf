@@ -1337,6 +1337,14 @@
           "refunds": "E. Refunds",
           "advanced": "F. Advanced"
         },
+        "conversionBadge": {
+          "salePrice": "+6% conversion",
+          "oto": "+4% conversion"
+        },
+        "taxHelper": {
+          "gross": "Customer pays exactly {amount} {symbol} (VAT included)",
+          "netToGross": "Net price {net} {symbol} → customer pays {gross} {symbol} gross"
+        },
         "omnibusExempt": "Exempt from Omnibus Directive",
         "omnibusExemptHelp": "(perishable goods, new products <30 days)",
         "cancel": "Cancel",

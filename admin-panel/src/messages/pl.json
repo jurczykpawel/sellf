@@ -1352,6 +1352,14 @@
           "refunds": "E. Zwroty",
           "advanced": "F. Zaawansowane"
         },
+        "conversionBadge": {
+          "salePrice": "+6% do konwersji",
+          "oto": "+4% do konwersji"
+        },
+        "taxHelper": {
+          "gross": "Klient płaci dokładnie {amount} {symbol} (VAT wliczony)",
+          "netToGross": "Cena netto {net} {symbol} → klient płaci {gross} {symbol} brutto"
+        },
         "omnibusExempt": "Zwolniony z dyrektywy Omnibus",
         "omnibusExemptHelp": "(towary łatwo psujące się, nowe produkty <30 dni)",
         "cancel": "Anuluj",

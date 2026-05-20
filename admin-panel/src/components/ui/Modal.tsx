@@ -25,7 +25,7 @@ interface ModalBodyProps {
 }
 
 interface ModalSectionProps {
-  title?: string;
+  title?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   collapsible?: boolean;

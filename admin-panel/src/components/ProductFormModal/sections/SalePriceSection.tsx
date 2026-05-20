@@ -5,6 +5,7 @@ import { ModalSection } from '@/components/ui/Modal';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import { getCurrencySymbol } from '@/lib/constants';
 import { SalePriceSectionProps } from '../types';
+import { ConversionBadge } from './ConversionBadge';
 
 export function SalePriceSection({
   formData,
@@ -45,7 +46,16 @@ export function SalePriceSection({
   const quantityLimitReached = formData.sale_quantity_limit && formData.sale_quantity_sold !== undefined && formData.sale_quantity_sold >= formData.sale_quantity_limit;
 
   return (
-    <ModalSection title={t('salePrice')} collapsible defaultExpanded={!!formData.sale_price}>
+    <ModalSection
+      title={
+        <span className="inline-flex items-center gap-2">
+          {t('salePrice')}
+          <ConversionBadge label={t('conversionBadge.salePrice')} />
+        </span>
+      }
+      collapsible
+      defaultExpanded={!!formData.sale_price}
+    >
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { CURRENCIES, getCurrencySymbol, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import type { SectionProps } from '../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
+import { TaxHelper } from './TaxHelper';
 
 interface PriceVatInlineProps extends SectionProps {
   priceDisplayValue: string;
@@ -241,6 +242,8 @@ export function PriceVatInline({
           {t('setToZeroForFree')}
         </p>
       )}
+
+      <TaxHelper formData={formData} taxMode={taxMode} t={t} />
 
       {/* PWYW — checkbox reveals config */}
       <div className="mt-4">
