@@ -1327,7 +1327,16 @@
         "productActive": "Product is active and visible to users",
         "productListed": "Listed on store page",
         "productListedHelp": "Unlisted products can still be purchased via direct checkout link",
-        "featuredProduct": "Featured product (highlighted in listings)",
+        "featuredProduct": "Featured product",
+        "featuredProductHelp": "Highlighted in the product catalog",
+        "step3": {
+          "conversion": "A. Conversion",
+          "formFields": "B. Form fields",
+          "availability": "C. Availability & access",
+          "postPurchase": "D. After purchase",
+          "refunds": "E. Refunds",
+          "advanced": "F. Advanced"
+        },
         "omnibusExempt": "Exempt from Omnibus Directive",
         "omnibusExemptHelp": "(perishable goods, new products <30 days)",
         "cancel": "Cancel",

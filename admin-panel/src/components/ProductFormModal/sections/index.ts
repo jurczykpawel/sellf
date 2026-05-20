@@ -13,5 +13,6 @@ export { AdvancedSection } from './AdvancedSection';
 export { SubscriptionSection } from './SubscriptionSection';
 export { ProductTypeRadio } from './ProductTypeRadio';
 export { CustomCheckoutFieldsSection } from './CustomCheckoutFieldsSection';
+export { FeaturedToggle } from './FeaturedToggle';
 export { default as BadgeGeneratorSection } from './BadgeGeneratorSection';
 export { EmbedSection } from './EmbedSection';

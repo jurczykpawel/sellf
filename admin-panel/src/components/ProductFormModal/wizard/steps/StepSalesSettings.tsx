@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { ModalSection } from '@/components/ui/Modal';
 import {
   SalePriceSection,
   AvailabilitySection,
@@ -10,6 +11,8 @@ import {
   RefundSection,
   AdvancedSection,
   BadgeGeneratorSection,
+  CustomCheckoutFieldsSection,
+  FeaturedToggle,
 } from '../../sections';
 import type { ProductFormData, TranslationFunction, OtoState } from '../../types';
 import type { Product } from '@/types';
@@ -43,61 +46,73 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
   oto,
   setOto,
 }) => {
+  const isTipJar = formData.checkout_template === 'tip-jar';
+
   return (
-    <div className="space-y-6">
-      <SalePriceSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-        salePriceDisplayValue={salePriceDisplayValue}
-        setSalePriceDisplayValue={setSalePriceDisplayValue}
-        omnibusEnabled={omnibusEnabled}
-      />
+    <div className="space-y-4">
+      {/* A. Konwersja */}
+      <ModalSection title={t('step3.conversion')} collapsible defaultExpanded>
+        <div className="space-y-6">
+          <SalePriceSection
+            formData={formData}
+            setFormData={setFormData}
+            t={t}
+            salePriceDisplayValue={salePriceDisplayValue}
+            setSalePriceDisplayValue={setSalePriceDisplayValue}
+            omnibusEnabled={omnibusEnabled}
+          />
+          <PostPurchaseSection
+            formData={formData}
+            setFormData={setFormData}
+            t={t}
+            products={products}
+            loadingProducts={loadingProducts}
+            currentProductId={currentProductId}
+            oto={oto}
+            setOto={setOto}
+          />
+          <FeaturedToggle formData={formData} setFormData={setFormData} t={t} />
+          {isTipJar && <BadgeGeneratorSection formData={formData} />}
+        </div>
+      </ModalSection>
 
-      <AvailabilitySection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-        hasWaitlistWebhook={hasWaitlistWebhook}
-      />
+      {/* B. Pola formularza */}
+      <ModalSection title={t('step3.formFields')} collapsible>
+        <CustomCheckoutFieldsSection formData={formData} setFormData={setFormData} />
+      </ModalSection>
 
-      <AccessSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-      />
+      {/* C. Dostępność i dostęp */}
+      <ModalSection title={t('step3.availability')} collapsible>
+        <div className="space-y-6">
+          <AvailabilitySection
+            formData={formData}
+            setFormData={setFormData}
+            t={t}
+            hasWaitlistWebhook={hasWaitlistWebhook}
+          />
+          <AccessSection formData={formData} setFormData={setFormData} t={t} />
+        </div>
+      </ModalSection>
 
-      <EmbedSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-      />
+      {/* D. Po zakupie (embed) */}
+      <ModalSection title={t('step3.postPurchase')} collapsible>
+        <EmbedSection formData={formData} setFormData={setFormData} t={t} />
+      </ModalSection>
 
-      <PostPurchaseSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-        products={products}
-        loadingProducts={loadingProducts}
-        currentProductId={currentProductId}
-        oto={oto}
-        setOto={setOto}
-      />
+      {/* E. Zwroty */}
+      <ModalSection title={t('step3.refunds')} collapsible>
+        <RefundSection formData={formData} setFormData={setFormData} t={t} />
+      </ModalSection>
 
-      <RefundSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-      />
-
-      <AdvancedSection
-        formData={formData}
-        setFormData={setFormData}
-        t={t}
-        omnibusEnabled={omnibusEnabled}
-      />
-
-      <BadgeGeneratorSection formData={formData} />
+      {/* F. Zaawansowane */}
+      <ModalSection title={t('step3.advanced')} collapsible>
+        <AdvancedSection
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          omnibusEnabled={omnibusEnabled}
+        />
+      </ModalSection>
     </div>
   );
 };

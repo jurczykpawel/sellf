@@ -1342,7 +1342,16 @@
         "productActive": "Produkt jest aktywny i widoczny dla użytkowników",
         "productListed": "Widoczny na stronie sklepu",
         "productListedHelp": "Ukryte produkty można nadal kupić przez bezpośredni link",
-        "featuredProduct": "Produkt wyróżniony (podświetlany w listach)",
+        "featuredProduct": "Produkt wyróżniony",
+        "featuredProductHelp": "Wyróżniony w katalogu produktów",
+        "step3": {
+          "conversion": "A. Konwersja",
+          "formFields": "B. Pola formularza",
+          "availability": "C. Dostępność i dostęp",
+          "postPurchase": "D. Po zakupie",
+          "refunds": "E. Zwroty",
+          "advanced": "F. Zaawansowane"
+        },
         "omnibusExempt": "Zwolniony z dyrektywy Omnibus",
         "omnibusExemptHelp": "(towary łatwo psujące się, nowe produkty <30 dni)",
         "cancel": "Anuluj",
