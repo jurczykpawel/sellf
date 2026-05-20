@@ -67,6 +67,64 @@ export async function GET() {
     }
   }
 
+  function mountCaptchaWidget(slot, captcha, onToken) {
+    if (captcha && captcha.provider === 'turnstile' && captcha.siteKey && captcha.scriptUrl) {
+      var turnstileScript = document.createElement('script');
+      turnstileScript.src = captcha.scriptUrl;
+      turnstileScript.onload = function () {
+        if (!window.turnstile) return;
+        window.turnstile.render(slot, {
+          sitekey: captcha.siteKey,
+          callback: function (token) { onToken(token); },
+          'expired-callback': function () { onToken(''); },
+          'error-callback': function () { onToken(''); },
+        });
+      };
+      document.head.appendChild(turnstileScript);
+    } else if (captcha && captcha.provider === 'altcha' && captcha.scriptUrl && captcha.challengeUrl) {
+      var altchaScript = document.createElement('script');
+      altchaScript.src = captcha.scriptUrl;
+      altchaScript.type = 'module';
+      altchaScript.onload = function () {
+        var widget = document.createElement('altcha-widget');
+        widget.setAttribute('challengeurl', sellfOrigin + captcha.challengeUrl);
+        widget.addEventListener('statechange', function (ev) {
+          var detail = ev && ev.detail;
+          if (detail && detail.state === 'verified' && detail.payload) {
+            onToken(detail.payload);
+          } else if (detail && detail.state === 'error') {
+            onToken('');
+          }
+        });
+        slot.appendChild(widget);
+      };
+      document.head.appendChild(altchaScript);
+    }
+  }
+
+  function awaitCaptchaToken(slot, captcha) {
+    return new Promise(function (resolve) {
+      mountCaptchaWidget(slot, captcha, function (token) {
+        if (token) resolve(token);
+      });
+    });
+  }
+
+  function renderPaidCaptchaGate(target, captcha) {
+    target.textContent = '';
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;';
+    var label = document.createElement('div');
+    label.textContent = 'Please confirm you are human to continue.';
+    label.style.cssText = 'font-size:14px;color:#475569;text-align:center;';
+    var captchaSlot = document.createElement('div');
+    captchaSlot.className = 'sellf-captcha';
+    wrap.appendChild(label);
+    wrap.appendChild(captchaSlot);
+    target.appendChild(wrap);
+    return awaitCaptchaToken(captchaSlot, captcha);
+  }
+
   function renderFreeForm(root, productSlug, captcha) {
     var form = document.createElement('form');
     var input = document.createElement('input');
@@ -99,38 +157,7 @@ export async function GET() {
     root.textContent = '';
     root.appendChild(form);
 
-    if (captcha && captcha.provider === 'turnstile' && captcha.siteKey && captcha.scriptUrl) {
-      var turnstileScript = document.createElement('script');
-      turnstileScript.src = captcha.scriptUrl;
-      turnstileScript.onload = function () {
-        if (!window.turnstile) return;
-        window.turnstile.render(captchaSlot, {
-          sitekey: captcha.siteKey,
-          callback: function (token) { captchaToken = token; },
-          'expired-callback': function () { captchaToken = ''; },
-          'error-callback': function () { captchaToken = ''; },
-        });
-      };
-      document.head.appendChild(turnstileScript);
-    } else if (captcha && captcha.provider === 'altcha' && captcha.scriptUrl && captcha.challengeUrl) {
-      var altchaScript = document.createElement('script');
-      altchaScript.src = captcha.scriptUrl;
-      altchaScript.type = 'module';
-      altchaScript.onload = function () {
-        var widget = document.createElement('altcha-widget');
-        widget.setAttribute('challengeurl', sellfOrigin + captcha.challengeUrl);
-        widget.addEventListener('statechange', function (ev) {
-          var detail = ev && ev.detail;
-          if (detail && detail.state === 'verified' && detail.payload) {
-            captchaToken = detail.payload;
-          } else if (detail && detail.state === 'error') {
-            captchaToken = '';
-          }
-        });
-        captchaSlot.appendChild(widget);
-      };
-      document.head.appendChild(altchaScript);
-    }
+    mountCaptchaWidget(captchaSlot, captcha, function (token) { captchaToken = token; });
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -276,12 +303,23 @@ export async function GET() {
     button.addEventListener('click', function () {
       button.disabled = true;
       var modal = openModalOverlay();
-      postJson('/api/embed/checkout-session', productSlug, {
-        productSlug: productSlug,
-        email: options.email || undefined,
-      }).then(function (body) {
+      var basePayload = { productSlug: productSlug, email: options.email || undefined };
+      postJson('/api/embed/checkout-session', productSlug, basePayload).then(function (body) {
         if (body.kind === 'free') {
-          renderFreeForm(modal.slot, productSlug, body.captchaSiteKey || '');
+          renderFreeForm(modal.slot, productSlug, body.captcha || null);
+        } else if (body.kind === 'paid_needs_captcha') {
+          return renderPaidCaptchaGate(modal.slot, body.captcha).then(function (token) {
+            modal.slot.textContent = '';
+            modal.slot.appendChild(createLoader());
+            return postJson('/api/embed/checkout-session', productSlug, Object.assign({}, basePayload, { turnstileToken: token }));
+          }).then(function (next) {
+            if (next.kind === 'paid' && next.clientSecret) {
+              return mountStripeInto(modal.slot, next.clientSecret).then(function (checkout) {
+                modal.attachStripeCheckout(checkout);
+              });
+            }
+            modal.slot.textContent = 'Unexpected response from Sellf.';
+          });
         } else if (body.kind === 'paid' && body.clientSecret) {
           return mountStripeInto(modal.slot, body.clientSecret).then(function (checkout) {
             modal.attachStripeCheckout(checkout);
@@ -306,12 +344,22 @@ export async function GET() {
     root.textContent = '';
     root.appendChild(createLoader());
 
-    postJson('/api/embed/checkout-session', productSlug, {
-      productSlug: productSlug,
-      email: email || undefined,
-    }).then(function (body) {
+    var basePayload = { productSlug: productSlug, email: email || undefined };
+    postJson('/api/embed/checkout-session', productSlug, basePayload).then(function (body) {
       if (body.kind === 'free') {
         renderFreeForm(root, productSlug, body.captcha || null);
+      } else if (body.kind === 'paid_needs_captcha') {
+        return renderPaidCaptchaGate(root, body.captcha).then(function (token) {
+          root.textContent = '';
+          root.appendChild(createLoader());
+          return postJson('/api/embed/checkout-session', productSlug, Object.assign({}, basePayload, { turnstileToken: token }));
+        }).then(function (next) {
+          if (next.kind === 'paid' && next.clientSecret) {
+            if (!publishableKey) { showMessage(root, 'Checkout is not configured.'); return; }
+            return mountStripeInto(root, next.clientSecret);
+          }
+          showMessage(root, 'Unexpected response from Sellf.');
+        });
       } else if (body.kind === 'paid' && body.clientSecret) {
         if (!publishableKey) {
           showMessage(root, 'Checkout is not configured.');

@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 
+import { verifyCaptchaToken } from '@/lib/captcha/verify';
+
 const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
 const PRODUCT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,120}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email']);
+const PAID_CHECKOUT_KEYS = new Set(['productSlug', 'email', 'turnstileToken']);
 const FREE_ACCESS_KEYS = new Set(['productSlug', 'email', 'website', 'turnstileToken']);
 
 export interface EmbedCheckoutBody {
   productSlug: string;
   email?: string;
+  turnstileToken?: string;
 }
 
 export interface EmbedFreeAccessBody {
@@ -98,6 +101,26 @@ export function embedJson(
   });
 }
 
+/**
+ * Verify a captcha token for an embed route. Returns null on success or an
+ * embedJson 400 with the CORS headers attached on failure. Routes wrap this
+ * around their inline-logging concerns where needed.
+ */
+export async function requireEmbedCaptcha(
+  token: string | null | undefined,
+  origin: string | null,
+  allowedOrigins: string[],
+): Promise<NextResponse | null> {
+  const result = await verifyCaptchaToken(token);
+  if (result.success) return null;
+  return embedJson(
+    { error: result.error || 'Security verification failed. Please try again.' },
+    400,
+    origin,
+    allowedOrigins,
+  );
+}
+
 export function parseEmbedCheckoutBody(body: unknown): ParseResult<EmbedCheckoutBody> {
   if (!isRecord(body)) return { ok: false, error: 'Invalid request' };
   if (!hasOnlyKeys(body, PAID_CHECKOUT_KEYS)) return { ok: false, error: 'Invalid request' };
@@ -108,11 +131,15 @@ export function parseEmbedCheckoutBody(body: unknown): ParseResult<EmbedCheckout
   const email = parseOptionalEmail(body.email);
   if (email === false) return { ok: false, error: 'Invalid request' };
 
+  const turnstileToken =
+    typeof body.turnstileToken === 'string' ? body.turnstileToken.trim() : undefined;
+
   return {
     ok: true,
     value: {
       productSlug,
       ...(email ? { email } : {}),
+      ...(turnstileToken ? { turnstileToken } : {}),
     },
   };
 }

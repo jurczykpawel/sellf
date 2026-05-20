@@ -7,6 +7,7 @@ import {
   embedJson,
   getEnvAllowedEmbedOrigins,
   parseEmbedCheckoutBody,
+  requireEmbedCaptcha,
   sanitizeAllowedEmbedOrigins,
 } from '@/lib/embed/checkout-embed';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -101,8 +102,50 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
   }
 
-  // Free products short-circuit: the SDK renders an email-gate form and
-  // submits to /api/embed/free-access. No Stripe session needed here.
+  if (product.price !== 0) {
+    const captchaConfig = getCaptchaConfig();
+    const captchaRequired = captchaConfig.provider !== 'none';
+
+    // Two-step: SDK first posts without a token to learn the captcha config,
+    // then re-posts with the verified token. Returning a structured response
+    // keeps the front-end free of /api/runtime-config calls (which lack CORS
+    // headers for the embed origin).
+    if (captchaRequired && !parsed.value.turnstileToken) {
+      return embedJson(
+        {
+          kind: 'paid_needs_captcha' as const,
+          captcha: captchaConfig,
+          product: {
+            slug: product.slug,
+            name: product.name,
+            price: product.price,
+            currency: product.currency,
+          },
+        },
+        200,
+        origin,
+        allowedOrigins,
+      );
+    }
+
+    const captchaFail = await requireEmbedCaptcha(
+      parsed.value.turnstileToken,
+      origin,
+      allowedOrigins,
+    );
+    if (captchaFail) {
+      await logEmbedCheckoutEvent(adminClient, {
+        productId: product.id,
+        productSlug: product.slug,
+        origin,
+        email: parsed.value.email,
+        action: 'paid_checkout',
+        status: 'denied',
+      });
+      return captchaFail;
+    }
+  }
+
   if (product.price === 0) {
     return embedJson(
       {

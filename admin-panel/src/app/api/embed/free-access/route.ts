@@ -6,11 +6,11 @@ import {
   getEnvAllowedEmbedOrigins,
   getSellfBaseUrl,
   parseEmbedFreeAccessBody,
+  requireEmbedCaptcha,
   sanitizeAllowedEmbedOrigins,
 } from '@/lib/embed/checkout-embed';
 import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
-import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { validateEmailAction } from '@/lib/actions/validate-email';
@@ -100,15 +100,8 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
   }
 
-  const captchaResult = await verifyCaptchaToken(parsed.value.turnstileToken);
-  if (!captchaResult.success) {
-    return embedJson(
-      { error: captchaResult.error || 'Security verification failed. Please try again.' },
-      400,
-      origin,
-      allowedOrigins,
-    );
-  }
+  const captchaFail = await requireEmbedCaptcha(parsed.value.turnstileToken, origin, allowedOrigins);
+  if (captchaFail) return captchaFail;
 
   const emailValidation = await validateEmailAction(parsed.value.email);
   if (!emailValidation.isValid) {
