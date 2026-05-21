@@ -306,6 +306,14 @@ if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^CHECKOUT_BINDING_SECRET=" "$I
   echo "  → generated CHECKOUT_BINDING_SECRET (rotate via incident response only)"
 fi
 
+# Ensure LOGINWALL_SECRET exists. Required by the per-product login-wall
+# handoff token. Rotating it just invalidates in-flight tokens — visitors
+# transparently get a fresh one via /loginwall/protect.
+if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^LOGINWALL_SECRET=" "$INSTALL_DIR/.env.local"; then
+  printf "LOGINWALL_SECRET=%s\n" "$(openssl rand -hex 32)" >> "$INSTALL_DIR/.env.local"
+  echo "  → generated LOGINWALL_SECRET"
+fi
+
 # Copy .env.local into standalone dir
 STANDALONE_DIR="$INSTALL_DIR/.next/standalone/admin-panel"
 if [ -d "$STANDALONE_DIR" ] && [ -f "$INSTALL_DIR/.env.local" ]; then
