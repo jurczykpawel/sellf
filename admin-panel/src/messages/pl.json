@@ -1203,6 +1203,7 @@
       "filterInactive": "Nieaktywne",
       "generateCode": "Generuj kod",
       "generateEmbedSnippet": "Generuj kod osadzania koszyka",
+      "generateLoginwallSnippet": "Generuj kod login wall",
       "viewDetails": "Pokaż szczegóły",
       "edit": "Edytuj",
       "delete": "Usuń",
