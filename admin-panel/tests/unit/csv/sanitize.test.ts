@@ -11,17 +11,22 @@ describe('csvField', () => {
     expect(csvField('she said "hi"')).toBe('"she said ""hi"""');
   });
 
-  it('quotes formula-leading payloads', () => {
-    expect(csvField('=cmd()')).toBe('"=cmd()"');
-    expect(csvField('+cmd()')).toBe('"+cmd()"');
-    expect(csvField('-cmd()')).toBe('"-cmd()"');
-    expect(csvField('@cmd()')).toBe('"@cmd()"');
+  it('prefixes formula-leading payloads with apostrophe', () => {
+    expect(csvField('=cmd()')).toBe(`"'=cmd()"`);
+    expect(csvField('+cmd()')).toBe(`"'+cmd()"`);
+    expect(csvField('-cmd()')).toBe(`"'-cmd()"`);
+    expect(csvField('@cmd()')).toBe(`"'@cmd()"`);
   });
 
-  it('quotes leading-whitespace formula payloads', () => {
-    expect(csvField(' =cmd()')).toBe('" =cmd()"');
-    expect(csvField('\t=cmd()')).toBe('"\t=cmd()"');
-    expect(csvField('\r=cmd()')).toBe('"\r=cmd()"');
+  it('prefixes leading-whitespace formula payloads', () => {
+    expect(csvField(' =cmd()')).toBe(`"' =cmd()"`);
+    expect(csvField('\t=cmd()')).toBe(`"'\t=cmd()"`);
+    expect(csvField('\r=cmd()')).toBe(`"'\r=cmd()"`);
+  });
+
+  it('does not prefix benign data with leading whitespace', () => {
+    expect(csvField(' hello')).toBe('" hello"');
+    expect(csvField('\tname')).toBe('"\tname"');
   });
 
   it('handles null and undefined', () => {

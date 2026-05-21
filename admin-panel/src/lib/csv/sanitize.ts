@@ -1,16 +1,8 @@
-/**
- * Quote and escape a value for a CSV cell.
- *
- * Excel and Google Sheets trim leading whitespace before deciding whether a
- * cell is a formula, so the historical "only prefix when first char looks
- * like a formula" heuristic missed payloads such as `" =cmd(...)"`. Wrapping
- * every cell in double quotes and doubling internal quotes is what the OWASP
- * CSV-injection guide recommends and is what spreadsheet applications expect
- * for round-tripping arbitrary strings.
- */
+/** Quote, escape, and prefix-guard a CSV cell — Excel/Sheets evaluate `"=cmd()"` from CSV so quoting alone is not enough. */
 export function csvField(field: unknown): string {
   const str = String(field ?? '');
-  return `"${str.replace(/"/g, '""')}"`;
+  const prefixed = /^\s*[=+\-@]/.test(str) ? `'${str}` : str;
+  return `"${prefixed.replace(/"/g, '""')}"`;
 }
 
 /** Join one row into a CSV line. */
