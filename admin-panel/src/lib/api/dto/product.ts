@@ -19,6 +19,7 @@ const baseShape = {
     .transform((s) => s.toLowerCase())
     .refine((s) => SLUG_RE.test(s), 'slug must be lowercase letters, digits, or hyphens'),
   description: z.string().trim().min(1).max(5000),
+  long_description: z.string().max(20000).nullable().optional(),
   price: z.number().nonnegative().finite(),
   currency: z
     .string()
@@ -30,6 +31,11 @@ const baseShape = {
   is_featured: z.boolean().optional(),
   is_listed: z.boolean().optional(),
   icon: z.string().max(8).optional(),
+  image_url: z.string().max(2048).nullable().optional(),
+  thumbnail_url: z.string().max(2048).nullable().optional(),
+  preview_video_url: z.string().max(2048).nullable().optional(),
+  features: z.array(z.string().max(200)).max(20).nullable().optional(),
+  layout_template: z.string().max(40).nullable().optional(),
   content_delivery_type: contentDelivery.optional(),
   content_config: z.record(z.string(), z.unknown()).optional(),
   available_from: isoDateOrEmpty,
@@ -58,6 +64,18 @@ const baseShape = {
   min_amount: z.number().nonnegative().nullable().optional(),
   embed_enabled: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  // Refund settings
+  is_refundable: z.boolean().optional(),
+  refund_period_days: z.number().int().nonnegative().nullable().optional(),
+  // Waitlist on inactive products
+  enable_waitlist: z.boolean().optional(),
+  // VAT / EU Omnibus
+  vat_rate: z.number().nonnegative().nullable().optional(),
+  price_includes_vat: z.boolean().optional(),
+  omnibus_exempt: z.boolean().optional(),
+  // Post-purchase redirect (success page)
+  success_redirect_url: z.string().max(2048).nullable().optional(),
+  pass_params_to_redirect: z.boolean().optional(),
 };
 
 export const ProductCreateDTO = z.object(baseShape).strip();
