@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { ModalSection } from '@/components/ui/Modal';
 import type { ProductFormData } from '../types';
 import { getTipJarDefaultCustomFields } from '@/lib/checkout-templates/tip-jar';
 import {
@@ -71,12 +70,8 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
   };
 
   return (
-    <ModalSection
-      title={t('label')}
-      collapsible
-      defaultExpanded={formData.custom_checkout_fields.length > 0}
-    >
-      <header className="flex items-center justify-between mb-3">
+    <div className="space-y-3">
+      <header className="flex items-center justify-between">
         <p className="text-xs text-sf-muted">{t('helpText')}</p>
         <div className="flex items-center gap-2">
           {formData.checkout_template === 'tip-jar' && (
@@ -175,6 +170,6 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
           })}
         </ul>
       )}
-    </ModalSection>
+    </div>
   );
 }

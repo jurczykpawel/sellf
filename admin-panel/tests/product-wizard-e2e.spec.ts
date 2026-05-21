@@ -360,6 +360,111 @@ test.describe('Product type radio', () => {
     }
   });
 
+  test('tip-jar with just a name allows advancing to step 2 (no price required)', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.fill('input#name', `Tip Jar Continue ${Date.now()}`);
+    await page.locator('[data-product-type="tip-jar"]').click();
+
+    // Click "Dalej" — should advance to step 2, NOT block on missing price.
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+
+    // Step 2 visible: description textarea
+    await expect(page.locator('textarea#description')).toBeVisible({ timeout: 5000 });
+
+    // Close without saving
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+
+  test('"Dalej" on Standard with missing description stays on step 1 (no auto-jump)', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    // Pick standard, fill name + price, leave description empty.
+    await page.locator('[data-product-type="standard"]').click();
+    await page.fill('input#name', `Standard No Desc ${Date.now()}`);
+    await page.fill('input#price', '49');
+
+    // Click "Dalej" — step 1 fields are valid; should advance to step 2 (description
+    // belongs there). Used to auto-jump back from step 2 to step 2 due to stale
+    // description error, but now step 1 doesn't even look at description.
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+    await expect(page.locator('textarea#description')).toBeVisible({ timeout: 5000 });
+
+    // No "description required" red error should be surfaced yet — user hasn't
+    // tried to submit. The error only fires on Publikuj.
+    const descError = page.getByText(/Opis jest wymagany|Description is required/i);
+    await expect(descError).not.toBeVisible({ timeout: 1000 });
+
+    // Close without saving
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+
+  test('Standard with price=0 cannot publish (free product → lead-magnet)', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="standard"]').click();
+    await page.fill('input#name', `Standard Zero ${Date.now()}`);
+    await page.fill('input#price', '0');
+
+    // Publish stays disabled (checklist shows price ○).
+    const publishBtn = page.getByRole('button', { name: /Publikuj/i });
+    await expect(publishBtn).toBeDisabled();
+
+    // Switching to lead-magnet enables publish (price=0 is intentional there).
+    await page.locator('[data-product-type="lead-magnet"]').click();
+    // Lead magnet still needs content on step 2, so publish remains disabled
+    // until a content item is added. Just verify standard+0 is gated.
+    await expect(publishBtn).toBeDisabled();
+
+    // Close
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+});
+
+test.describe('Step 3 layout', () => {
+  test('renders 6 group headers (A–F), no inline duplicate titles, no collapsibles', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    // Get to step 3 via Standard / minimum fields.
+    await page.locator('[data-product-type="standard"]').click();
+    await page.fill('input#name', `Step3 layout ${Date.now()}`);
+    await page.fill('input#price', '19');
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+    await page.fill('textarea#description', 'desc');
+    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
+
+    // 6 step-3 group sections rendered.
+    const groups = page.locator('[data-step3-group]');
+    await expect(groups).toHaveCount(6);
+
+    // Group E (Zwroty) has no inner duplicate "Polityka zwrotów" header anymore.
+    const groupE = page.locator('[data-step3-group="E"]');
+    await expect(groupE.getByRole('heading', { level: 3 })).toContainText(/Zwroty/i);
+    await expect(groupE.getByRole('heading', { level: 4 })).toHaveCount(0);
+
+    // Close
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
 });
 
 test.describe('Edit mode uses wizard', () => {

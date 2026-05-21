@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ModalSection } from '@/components/ui/Modal';
 import { AccessSectionProps } from '../types';
 
 export function AccessSection({
@@ -10,8 +9,7 @@ export function AccessSection({
   t,
 }: AccessSectionProps) {
   return (
-    <ModalSection title={t('autoGrantAccessSettings')} collapsible defaultExpanded={!!formData.auto_grant_duration_days}>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div>
           <label htmlFor="auto-grant-duration" className="block text-sm font-medium text-sf-body mb-2">
             {t('defaultAccessDuration')}
@@ -50,7 +48,6 @@ export function AccessSection({
             </div>
           </div>
         </div>
-      </div>
-    </ModalSection>
+    </div>
   );
 }

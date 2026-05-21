@@ -89,14 +89,15 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
 };
 
 // Modal Body Component
-export const ModalBody: React.FC<ModalBodyProps> = ({ 
-  children, 
-  className = '', 
-  noPadding = false 
+export const ModalBody: React.FC<ModalBodyProps> = ({
+  children,
+  className = '',
+  noPadding = false
 }) => {
   return (
     <div className={`
-      ${noPadding ? '' : 'px-6 py-4'} 
+      ${noPadding ? '' : 'px-6 py-4'}
+      flex-1 overflow-y-auto min-h-0
       ${className}
     `}>
       {children}

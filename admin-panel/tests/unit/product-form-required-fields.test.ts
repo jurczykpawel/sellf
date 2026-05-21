@@ -4,7 +4,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectRequiredFieldErrors } from '@/components/ProductFormModal/hooks/required-fields';
+import {
+  collectRequiredFieldErrors,
+  collectStep1FieldErrors,
+} from '@/components/ProductFormModal/hooks/required-fields';
 
 const baseValid = {
   name: 'Sub',
@@ -20,6 +23,7 @@ const baseValid = {
   billing_interval_count: 1,
   recurring_price: 49,
   trial_days: null as number | null,
+  ux_product_type: 'subscription' as const,
 };
 
 describe('collectRequiredFieldErrors', () => {
@@ -50,6 +54,7 @@ describe('collectRequiredFieldErrors', () => {
       billing_interval_count: null,
       recurring_price: null,
       price: 99,
+      ux_product_type: 'standard' as const,
     };
     const errors = collectRequiredFieldErrors(oneTime, '', 'local');
     expect(errors.price).toBe('required');
@@ -63,6 +68,7 @@ describe('collectRequiredFieldErrors', () => {
       billing_interval_count: null,
       recurring_price: null,
       price: 99,
+      ux_product_type: 'standard' as const,
     };
     const errors = collectRequiredFieldErrors(oneTime, '99', 'local');
     expect(errors).toEqual({});
@@ -88,5 +94,99 @@ describe('collectRequiredFieldErrors', () => {
     expect(errors.name).toBe('required');
     expect(errors.slug).toBe('required');
     expect(errors.description).toBe('required');
+  });
+
+  describe('tip-jar / lead-magnet skip the price requirement', () => {
+    const oneTimeBase = {
+      ...baseValid,
+      product_type: 'one_time' as const,
+      billing_interval: null,
+      billing_interval_count: null,
+      recurring_price: null,
+      price: 0,
+    };
+
+    it('tip-jar (allow_custom_price=true) does not require priceDisplayValue', () => {
+      const errors = collectRequiredFieldErrors(
+        { ...oneTimeBase, allow_custom_price: true, ux_product_type: 'tip-jar' as const },
+        '',
+        'local',
+      );
+      expect(errors.price).toBeUndefined();
+    });
+
+    it('lead-magnet (price=0 by design) does not require priceDisplayValue', () => {
+      const errors = collectRequiredFieldErrors(
+        { ...oneTimeBase, ux_product_type: 'lead-magnet' as const },
+        '',
+        'local',
+      );
+      expect(errors.price).toBeUndefined();
+    });
+
+    it('standard with price=0 fails — must pick lead-magnet for free product', () => {
+      const errors = collectRequiredFieldErrors(
+        { ...oneTimeBase, ux_product_type: 'standard' as const },
+        '0',
+        'local',
+      );
+      expect(errors.price).toBe('required');
+    });
+
+    it('standard with priceDisplayValue empty fails', () => {
+      const errors = collectRequiredFieldErrors(
+        { ...oneTimeBase, ux_product_type: 'standard' as const },
+        '',
+        'local',
+      );
+      expect(errors.price).toBe('required');
+    });
+  });
+});
+
+describe('collectStep1FieldErrors', () => {
+  const baseStandard = {
+    name: 'Foo',
+    slug: 'foo',
+    description: '', // description is step 2 — should NOT be required here
+    price: 49,
+    vat_rate: 23 as number | null,
+    price_includes_vat: true,
+    allow_custom_price: false,
+    product_type: 'one_time' as const,
+    billing_interval: null,
+    billing_interval_count: null,
+    recurring_price: null,
+    trial_days: null,
+    ux_product_type: 'standard' as const,
+  };
+
+  it('does NOT require description (description belongs to step 2)', () => {
+    const errors = collectStep1FieldErrors(baseStandard, '49,00', 'local');
+    expect(errors.description).toBeUndefined();
+  });
+
+  it('still requires name and price', () => {
+    const errors = collectStep1FieldErrors(
+      { ...baseStandard, name: '' },
+      '',
+      'local',
+    );
+    expect(errors.name).toBe('required');
+    expect(errors.price).toBe('required');
+  });
+
+  it('tip-jar with just name filled passes step 1', () => {
+    const errors = collectStep1FieldErrors(
+      {
+        ...baseStandard,
+        ux_product_type: 'tip-jar' as const,
+        allow_custom_price: true,
+        price: 0,
+      },
+      '',
+      'local',
+    );
+    expect(errors).toEqual({});
   });
 });

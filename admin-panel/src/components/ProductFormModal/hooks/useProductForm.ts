@@ -19,7 +19,7 @@ import {
   initialFormData,
   initialOtoState,
 } from '../types';
-import { collectRequiredFieldErrors } from './required-fields';
+import { collectRequiredFieldErrors, collectStep1FieldErrors } from './required-fields';
 import { inferProductTypeFromForm } from '@/lib/product-defaults';
 
 interface WaitlistWarning {
@@ -534,10 +534,25 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     setPendingSubmitData(null);
   }, []);
 
-  // Validate required fields — returns true if valid
+  // Validate required fields — returns true if valid. Full validation used at
+  // submit time (covers description on step 2 too).
   const validateRequiredFields = useCallback((): boolean => {
     const errors = collectRequiredFieldErrors(formData, priceDisplayValue, taxMode);
 
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      if (errors.name) nameInputRef.current?.focus();
+      return false;
+    }
+    setFieldErrors({});
+    return true;
+  }, [formData, priceDisplayValue, taxMode]);
+
+  // Validate just step-1 fields — used by "Dalej" so a missing description
+  // doesn't trip the auto-jump-to-step-2 effect when the seller hasn't even
+  // tried to submit yet.
+  const validateStep1Fields = useCallback((): boolean => {
+    const errors = collectStep1FieldErrors(formData, priceDisplayValue, taxMode);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       if (errors.name) nameInputRef.current?.focus();
@@ -672,6 +687,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     generateSlug,
     validateContentItemUrl,
     validateRequiredFields,
+    validateStep1Fields,
 
     // Waitlist warning
     waitlistWarning,

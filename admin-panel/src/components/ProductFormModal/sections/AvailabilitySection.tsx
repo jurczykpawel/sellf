@@ -3,7 +3,6 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { ModalSection } from '@/components/ui/Modal';
 import DateTimePicker from '@/components/ui/DateTimePicker';
 import { AvailabilitySectionProps } from '../types';
 
@@ -18,8 +17,7 @@ export function AvailabilitySection({
 
   const isWaitlistDisabled = hasWaitlistWebhook === false;
   return (
-    <ModalSection title={t('availabilityAndWaitlist')} collapsible defaultExpanded={true}>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DateTimePicker
             label={t('availableFrom')}
@@ -91,7 +89,6 @@ export function AvailabilitySection({
             </div>
           </div>
         </div>
-      </div>
-    </ModalSection>
+    </div>
   );
 }

@@ -72,6 +72,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     fieldErrors,
     setFieldErrors,
     validateRequiredFields,
+    validateStep1Fields,
     waitlistWarning,
     proceedWithSubmit,
     dismissWaitlistWarning,
@@ -96,13 +97,13 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   }, [isFormDirty, onClose]);
 
   const handleContinue = useCallback(() => {
-    if (currentStep === 1 && !validateRequiredFields()) {
+    if (currentStep === 1 && !validateStep1Fields()) {
       return;
     }
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, validateRequiredFields]);
+  }, [currentStep, validateStep1Fields]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {

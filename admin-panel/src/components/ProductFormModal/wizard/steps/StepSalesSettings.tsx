@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ModalSection } from '@/components/ui/Modal';
 import {
   SalePriceSection,
   AvailabilitySection,
@@ -32,6 +31,24 @@ interface StepSalesSettingsProps {
   setOto: React.Dispatch<React.SetStateAction<OtoState>>;
 }
 
+interface GroupProps {
+  letter: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+  title: string;
+  children: React.ReactNode;
+}
+
+function StepGroup({ letter, title, children }: GroupProps) {
+  return (
+    <section data-step3-group={letter} className="space-y-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-sf-muted border-b border-sf-border pb-2">
+        <span className="text-sf-accent mr-2">{letter}.</span>
+        {title}
+      </h3>
+      <div className="space-y-6">{children}</div>
+    </section>
+  );
+}
+
 export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
   formData,
   setFormData,
@@ -49,70 +66,70 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
   const isTipJar = formData.checkout_template === 'tip-jar';
 
   return (
-    <div className="space-y-4">
-      {/* A. Konwersja */}
-      <ModalSection title={t('step3.conversion')} collapsible defaultExpanded>
-        <div className="space-y-6">
-          <SalePriceSection
-            formData={formData}
-            setFormData={setFormData}
-            t={t}
-            salePriceDisplayValue={salePriceDisplayValue}
-            setSalePriceDisplayValue={setSalePriceDisplayValue}
-            omnibusEnabled={omnibusEnabled}
-          />
-          <PostPurchaseSection
-            formData={formData}
-            setFormData={setFormData}
-            t={t}
-            products={products}
-            loadingProducts={loadingProducts}
-            currentProductId={currentProductId}
-            oto={oto}
-            setOto={setOto}
-          />
-          <FeaturedToggle formData={formData} setFormData={setFormData} t={t} />
-          {isTipJar && <BadgeGeneratorSection formData={formData} />}
-        </div>
-      </ModalSection>
+    <div className="space-y-8">
+      <StepGroup letter="A" title={t('step3.conversion')}>
+        <SalePriceSection
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          salePriceDisplayValue={salePriceDisplayValue}
+          setSalePriceDisplayValue={setSalePriceDisplayValue}
+          omnibusEnabled={omnibusEnabled}
+        />
+        <PostPurchaseSection
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          products={products}
+          loadingProducts={loadingProducts}
+          currentProductId={currentProductId}
+          oto={oto}
+          setOto={setOto}
+        />
+        <FeaturedToggle formData={formData} setFormData={setFormData} t={t} />
+        {isTipJar && <BadgeGeneratorSection formData={formData} />}
+      </StepGroup>
 
-      {/* B. Pola formularza */}
-      <ModalSection title={t('step3.formFields')} collapsible>
+      <StepGroup letter="B" title={t('step3.formFields')}>
         <CustomCheckoutFieldsSection formData={formData} setFormData={setFormData} />
-      </ModalSection>
+      </StepGroup>
 
-      {/* C. Dostępność i dostęp */}
-      <ModalSection title={t('step3.availability')} collapsible>
-        <div className="space-y-6">
+      <StepGroup letter="C" title={t('step3.availability')}>
+        <div>
+          <h4 className="text-sm font-medium text-sf-heading mb-2">
+            {t('availabilityAndWaitlist')}
+          </h4>
           <AvailabilitySection
             formData={formData}
             setFormData={setFormData}
             t={t}
             hasWaitlistWebhook={hasWaitlistWebhook}
           />
+        </div>
+        <div>
+          <h4 className="text-sm font-medium text-sf-heading mb-2">
+            {t('autoGrantAccessSettings')}
+          </h4>
           <AccessSection formData={formData} setFormData={setFormData} t={t} />
         </div>
-      </ModalSection>
+      </StepGroup>
 
-      {/* D. Po zakupie (embed) */}
-      <ModalSection title={t('step3.postPurchase')} collapsible>
+      <StepGroup letter="D" title={t('step3.postPurchase')}>
         <EmbedSection formData={formData} setFormData={setFormData} t={t} />
-      </ModalSection>
+      </StepGroup>
 
-      {/* E. Zwroty */}
-      <ModalSection title={t('step3.refunds')} collapsible>
+      <StepGroup letter="E" title={t('step3.refunds')}>
         <RefundSection formData={formData} setFormData={setFormData} t={t} />
-      </ModalSection>
+      </StepGroup>
 
-      {/* F. Zaawansowane */}
-      <ModalSection title={t('step3.advanced')} collapsible>
+      <StepGroup letter="F" title={t('step3.advanced')}>
         <AdvancedSection
           formData={formData}
           setFormData={setFormData}
           t={t}
           omnibusEnabled={omnibusEnabled}
         />
-      </ModalSection>
+      </StepGroup>
     </div>
   );
 };

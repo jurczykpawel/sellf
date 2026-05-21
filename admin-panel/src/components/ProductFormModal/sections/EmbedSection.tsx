@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ModalSection } from '@/components/ui/Modal';
 import { SectionProps } from '../types';
 
 export function EmbedSection({
@@ -12,12 +11,7 @@ export function EmbedSection({
   const enabled = !!formData.embed_enabled;
 
   return (
-    <ModalSection
-      title={t('embedSection.title')}
-      collapsible
-      defaultExpanded={enabled}
-    >
-      <div className="space-y-4">
+    <div className="space-y-4">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -51,7 +45,6 @@ export function EmbedSection({
             </div>
           </div>
         )}
-      </div>
-    </ModalSection>
+    </div>
   );
 }

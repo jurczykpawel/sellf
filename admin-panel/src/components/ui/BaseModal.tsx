@@ -130,12 +130,13 @@ const BaseModal: React.FC<BaseModalProps> = ({
       <div
         ref={modalRef}
         className={`
-          relative w-full ${getSizeClasses()} 
+          relative w-full ${getSizeClasses()}
           bg-sf-base
-          
+
           transform transition-all duration-300 ease-out
           animate-[modalIn_0.3s_ease-out]
-          max-h-[90vh] overflow-y-auto
+          flex flex-col
+          min-h-[70vh] max-h-[90vh]
           my-8
           ${className}
         `}

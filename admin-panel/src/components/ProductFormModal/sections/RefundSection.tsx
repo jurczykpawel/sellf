@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ModalSection } from '@/components/ui/Modal';
 import { RefundSectionProps } from '../types';
 
 export function RefundSection({
@@ -18,8 +17,7 @@ export function RefundSection({
   };
 
   return (
-    <ModalSection title={t('refundSettings.title', { defaultValue: 'Refund Policy' })} collapsible defaultExpanded={true}>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div className="flex items-center">
           <input
             type="checkbox"
@@ -79,7 +77,6 @@ export function RefundSection({
             </div>
           </div>
         )}
-      </div>
-    </ModalSection>
+    </div>
   );
 }

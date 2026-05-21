@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { ModalSection } from '@/components/ui/Modal';
 import { PostPurchaseSectionProps } from '../types';
 import { ConversionBadge } from './ConversionBadge';
 
@@ -103,7 +102,8 @@ export function PostPurchaseSection({
   };
 
   return (
-    <ModalSection title={t('postPurchase.title')} collapsible defaultExpanded={!!formData.success_redirect_url || oto.enabled}>
+    <div className="space-y-4">
+      <h4 className="text-sm font-medium text-sf-heading">{t('postPurchase.title')}</h4>
       <div className="space-y-4">
         {/* Product Selection */}
         <div className="space-y-3">
@@ -441,6 +441,6 @@ export function PostPurchaseSection({
           </div>
         )}
       </div>
-    </ModalSection>
+    </div>
   );
 }
