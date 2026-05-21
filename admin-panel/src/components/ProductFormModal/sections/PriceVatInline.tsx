@@ -255,7 +255,7 @@ export function PriceVatInline({
         <div className="flex flex-wrap items-center gap-3">
           <div>
             <label htmlFor="currency" className="block text-sm font-medium text-sf-body mb-1">
-              {t('currency', { defaultValue: 'Waluta' })}
+              {t('currency')}
             </label>
             <select
               id="currency"
