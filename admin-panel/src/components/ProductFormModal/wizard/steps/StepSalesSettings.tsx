@@ -31,7 +31,7 @@ interface StepSalesSettingsProps {
   setOto: React.Dispatch<React.SetStateAction<OtoState>>;
 }
 
-type GroupLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+type GroupLetter = 'A' | 'B' | 'C' | 'D' | 'E';
 
 interface GroupProps {
   letter: GroupLetter;
@@ -143,21 +143,18 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         </div>
       </StepGroup>
 
-      <StepGroup letter="D" title={t('step3.postPurchase')}>
-        <EmbedSection formData={formData} setFormData={setFormData} t={t} />
-      </StepGroup>
-
-      <StepGroup letter="E" title={t('step3.refunds')}>
+      <StepGroup letter="D" title={t('step3.refunds')}>
         <RefundSection formData={formData} setFormData={setFormData} t={t} />
       </StepGroup>
 
-      <StepGroup letter="F" title={t('step3.advanced')}>
+      <StepGroup letter="E" title={t('step3.advanced')}>
         <AdvancedSection
           formData={formData}
           setFormData={setFormData}
           t={t}
           omnibusEnabled={omnibusEnabled}
         />
+        <EmbedSection formData={formData} setFormData={setFormData} t={t} />
       </StepGroup>
     </div>
   );

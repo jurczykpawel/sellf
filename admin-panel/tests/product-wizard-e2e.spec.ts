@@ -470,7 +470,7 @@ test.describe('Product type radio', () => {
 });
 
 test.describe('Step 3 layout', () => {
-  test('renders 6 collapsible groups (A–F), default expansion + no doubled letters', async ({ page }) => {
+  test('renders 5 collapsible groups (A–E), default expansion + no doubled letters', async ({ page }) => {
     await goToProducts(page);
     await openWizard(page);
 
@@ -482,29 +482,32 @@ test.describe('Step 3 layout', () => {
     await page.fill('textarea#description', 'desc');
     await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
 
-    // 6 step-3 group sections rendered.
+    // 5 step-3 group sections rendered (D=Refunds, E=Advanced+Embed; legacy
+    // "Po zakupie" group was dropped — embed is a distribution flag, not
+    // a post-purchase step).
     const groups = page.locator('[data-step3-group]');
-    await expect(groups).toHaveCount(6);
+    await expect(groups).toHaveCount(5);
 
-    // Group A (Konwersja) is expanded by default; F (Zaawansowane) is collapsed.
+    // Group A (Konwersja) is expanded by default; E (Zaawansowane) is collapsed.
     const groupA = page.locator('[data-step3-group="A"]');
-    const groupF = page.locator('[data-step3-group="F"]');
+    const groupE = page.locator('[data-step3-group="E"]');
     await expect(groupA.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'true');
-    await expect(groupF.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupE.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'false');
 
     // Group title is just the name — no "A. " prefix duplicated against the letter chip.
     const groupAHeader = groupA.locator('button[aria-expanded]').first();
     await expect(groupAHeader).toContainText(/Konwersja/i);
     await expect(groupAHeader).not.toContainText(/A\. /i);
 
-    // Group E (Zwroty) collapsed by default — inner refund-policy heading isn't rendered.
-    const groupE = page.locator('[data-step3-group="E"]');
-    await expect(groupE.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'false');
-    await expect(groupE.locator('h4')).toHaveCount(0);
+    // Group D (Zwroty) collapsed by default — inner refund-policy heading isn't rendered.
+    const groupD = page.locator('[data-step3-group="D"]');
+    await expect(groupD.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupD.locator('h4')).toHaveCount(0);
 
-    // Expanding F surfaces the AdvancedSection inputs (is_active checkbox).
-    await groupF.locator('button[aria-expanded]').first().click();
-    await expect(groupF.locator('input#is_active')).toBeVisible();
+    // Expanding E surfaces both Advanced inputs (is_active) and the embed toggle.
+    await groupE.locator('button[aria-expanded]').first().click();
+    await expect(groupE.locator('input#is_active')).toBeVisible();
+    await expect(groupE.getByText(/Pozwól osadzić|embed/i).first()).toBeVisible();
 
     // Close
     await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
