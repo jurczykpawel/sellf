@@ -297,6 +297,15 @@ if [ -f "$BACKUP_DIR/.env.local" ]; then
   cp "$BACKUP_DIR/.env.local" "$INSTALL_DIR/.env.local"
 fi
 
+# Ensure CHECKOUT_BINDING_SECRET exists (production refuses to boot without
+# it). Self-hosters upgrading from an older version may not have generated
+# one yet — auto-create on first upgrade so the next boot does not fail
+# closed. Existing values are preserved so in-flight sessions stay valid.
+if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^CHECKOUT_BINDING_SECRET=" "$INSTALL_DIR/.env.local"; then
+  printf "CHECKOUT_BINDING_SECRET=%s\n" "$(openssl rand -base64 32)" >> "$INSTALL_DIR/.env.local"
+  echo "  → generated CHECKOUT_BINDING_SECRET (rotate via incident response only)"
+fi
+
 # Copy .env.local into standalone dir
 STANDALONE_DIR="$INSTALL_DIR/.next/standalone/admin-panel"
 if [ -d "$STANDALONE_DIR" ] && [ -f "$INSTALL_DIR/.env.local" ]; then
