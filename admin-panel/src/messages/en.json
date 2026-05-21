@@ -3486,7 +3486,6 @@
     "productType": {
       "legend": "Product type",
       "lockedInEdit": "Product type locked in edit mode: {type}",
-      "comingSoon": "soon",
       "leadMagnetNotice": "Free product. Price 0. Access control still works via buyer email and consent.",
       "options": {
         "standard": {
@@ -3498,11 +3497,6 @@
           "name": "Subscription",
           "tagline": "recurring payment",
           "help": "Repeating charge (monthly/yearly). E.g. membership, course with community."
-        },
-        "installments": {
-          "name": "Installments",
-          "tagline": "N monthly payments",
-          "help": "Split payment into N installments (coming soon)."
         },
         "tip-jar": {
           "name": "Tip jar",

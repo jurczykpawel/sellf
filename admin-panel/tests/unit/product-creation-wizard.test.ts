@@ -73,8 +73,6 @@ describe('ProductCreationWizard', () => {
     // (the canonical state); inference is reserved for edit-mode bootstrap.
     function handleTypeSelect(prev: typeof initialFormData, type: Parameters<typeof applyProductTypeDefaults>[1]) {
       const current = prev.ux_product_type;
-      const disabled = ['installments'].includes(type);
-      if (disabled) return prev;
       if (type === current) return prev;
       return applyProductTypeDefaults(prev, type);
     }
@@ -83,11 +81,6 @@ describe('ProductCreationWizard', () => {
       const subForm = applyProductTypeDefaults(initialFormData, 'subscription');
       const result = handleTypeSelect(subForm, 'subscription');
       expect(result).toBe(subForm);
-    });
-
-    it('selecting installments (disabled) is a no-op', () => {
-      const result = handleTypeSelect(initialFormData, 'installments');
-      expect(result).toBe(initialFormData);
     });
 
     it('switching type updates checkout_template and billing fields', () => {

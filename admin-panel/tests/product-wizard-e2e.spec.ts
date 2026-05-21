@@ -360,13 +360,6 @@ test.describe('Product type radio', () => {
     }
   });
 
-  test('installments tile is disabled (coming soon)', async ({ page }) => {
-    await goToProducts(page);
-    await openWizard(page);
-    const installmentsBtn = page.locator('[data-product-type="installments"]');
-    await expect(installmentsBtn).toBeVisible();
-    await expect(installmentsBtn).toBeDisabled();
-  });
 });
 
 test.describe('Edit mode uses wizard', () => {

@@ -1,5 +1,10 @@
 # Wizard Redesign Implementation Plan
 
+> **2026-05-21 amendment:** the `installments` UX type was dropped before
+> merge — nobody asked for it; the proposal placeholder slipped through.
+> All references below (registry, radio, i18n, tests) are historical and
+> have been removed from the codebase.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Refactor `ProductCreationWizard` per `vault/personal/_db-tasks/sellf-wizard-redesign-proposal.md`: type-radio at top of Step 1, description moved to Step 2, `lib/product-defaults.ts` registry, "⚡ Publikuj" footer w/ checklist, Step 3 reorganized into 6 accordions, conversion badges + dynamic tax helper, all backed by updated tests.

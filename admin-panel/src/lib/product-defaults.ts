@@ -4,7 +4,6 @@ import { getTipJarDefaultCustomFields } from '@/lib/checkout-templates/tip-jar';
 export type UxProductType =
   | 'standard'
   | 'subscription'
-  | 'installments'
   | 'tip-jar'
   | 'lead-magnet';
 
@@ -14,8 +13,6 @@ export const UX_PRODUCT_TYPES_AVAILABLE: ReadonlyArray<UxProductType> = [
   'tip-jar',
   'lead-magnet',
 ];
-
-export const UX_PRODUCT_TYPES_DISABLED: ReadonlyArray<UxProductType> = ['installments'];
 
 type FormForInference = Pick<
   ProductFormData,
@@ -77,8 +74,6 @@ export function applyProductTypeDefaults(
         billing_interval: null,
         billing_interval_count: null,
       };
-    case 'installments':
-      return prev;
   }
 }
 

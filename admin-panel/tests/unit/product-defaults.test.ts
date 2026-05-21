@@ -3,7 +3,6 @@ import {
   applyProductTypeDefaults,
   inferProductTypeFromForm,
   UX_PRODUCT_TYPES_AVAILABLE,
-  UX_PRODUCT_TYPES_DISABLED,
   type UxProductType,
 } from '@/lib/product-defaults';
 import { initialFormData } from '@/components/ProductFormModal/types';
@@ -11,17 +10,13 @@ import { getTipJarDefaultCustomFields } from '@/lib/checkout-templates/tip-jar';
 
 describe('product-defaults registry', () => {
   describe('UX type constants', () => {
-    it('exposes 4 available types (installments is hidden)', () => {
+    it('exposes the 4 available types in display order', () => {
       expect(UX_PRODUCT_TYPES_AVAILABLE).toEqual([
         'standard',
         'subscription',
         'tip-jar',
         'lead-magnet',
       ]);
-    });
-
-    it('marks installments as disabled (coming soon)', () => {
-      expect(UX_PRODUCT_TYPES_DISABLED).toEqual(['installments']);
     });
   });
 
@@ -98,11 +93,6 @@ describe('product-defaults registry', () => {
       expect(result.billing_interval_count).toBeNull();
       expect(result.recurring_price).toBeNull();
       expect(result.trial_days).toBeNull();
-    });
-
-    it('installments: returns input unchanged (disabled type)', () => {
-      const result = applyProductTypeDefaults(initialFormData, 'installments');
-      expect(result).toEqual(initialFormData);
     });
 
     it('preserves unrelated fields (name, slug, icon, categories)', () => {

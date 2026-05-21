@@ -3501,7 +3501,6 @@
     "productType": {
       "legend": "Typ produktu",
       "lockedInEdit": "Typ produktu zablokowany w trybie edycji: {type}",
-      "comingSoon": "wkrótce",
       "leadMagnetNotice": "Produkt darmowy. Cena 0. Kontrola dostępu działa przez email i zgodę kupującego.",
       "options": {
         "standard": {
@@ -3513,11 +3512,6 @@
           "name": "Subskrypcja",
           "tagline": "płatność cykliczna",
           "help": "Powtarzająca się opłata (mies./rok). Np. członkostwo, kurs ze społecznością."
-        },
-        "installments": {
-          "name": "Raty",
-          "tagline": "N rat co miesiąc",
-          "help": "Płatność rozbita na N rat (wkrótce)."
         },
         "tip-jar": {
           "name": "Tip jar",
