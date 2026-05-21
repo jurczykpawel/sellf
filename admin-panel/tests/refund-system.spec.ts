@@ -766,18 +766,19 @@ test.describe('Refund System - Admin Product Form UI', () => {
     await page.waitForTimeout(1000);
 
     // Navigate to step 3 (Sales & Settings) where Refund section lives
-    await page.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
+    const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#wizard-form') });
+    await modal.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
     await page.waitForTimeout(500);
-    await page.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
+    await modal.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
     await page.waitForTimeout(500);
 
-    // Scroll down to make sure refund settings are visible
-    await page.locator('text=/Refund Policy/i').scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
+    // Step 3 groups B-E are collapsed by default — expand group D (Refunds)
+    const refundsGroup = modal.locator('section[data-step3-group="D"]');
+    await refundsGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
 
     // Find the refund toggle checkbox by its ID
     const refundToggle = page.locator('#is_refundable');
-    await expect(refundToggle).toBeVisible();
+    await expect(refundToggle).toBeVisible({ timeout: 5000 });
 
     // First uncheck if already checked
     if (await refundToggle.isChecked()) {
