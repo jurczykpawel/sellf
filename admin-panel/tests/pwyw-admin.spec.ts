@@ -423,7 +423,10 @@ test.describe('PWYW Admin - Create New Product', () => {
     const addButton = page.getByRole('button', { name: /Dodaj produkt|Add product/i });
     await addButton.click();
 
-    const modal = page.locator('[role="dialog"], dialog').filter({ hasText: /Cancel|Anuluj/i });
+    // Scope to the product wizard via its stable form id — the wizard footer
+    // swaps Cancel→Back after step 1, so filtering by /Cancel|Anuluj/ silently
+    // matches an empty locator on step 2+.
+    const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#wizard-form') });
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Fill basic info (step 1 — Essentials: BasicInfo + Pricing). Description

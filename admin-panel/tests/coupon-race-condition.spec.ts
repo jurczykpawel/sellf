@@ -271,9 +271,10 @@ test.describe('Coupon Race Condition Security', () => {
 
     console.log(`   - Verify result: ${JSON.stringify(result)}`);
 
-    // Should be blocked - user already used their 1 allowed redemption
+    // Should be blocked - user already used their 1 allowed redemption.
+    // verify endpoint collapses all invalid reasons to {valid: false}
+    // (no reason enumeration) — see commit 9a5f530.
     expect(result.valid).toBe(false);
-    expect(result.error).toContain('already used');
 
     console.log(`✅ CORRECT: Per-user limit blocks after first redemption`);
 

@@ -98,7 +98,7 @@ test.describe('Smart Coupons System', () => {
     await expect(input).toBeVisible({ timeout: 10000 });
 
     // Wait for validation error
-    await expect(page.getByText(/Invalid code|Invalid coupon code|Failed to verify/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Invalid code|Invalid coupon code|Failed to verify|Nieprawidłowy kod/i)).toBeVisible({ timeout: 10000 });
     
     // Verify input still has the code
     await expect(input).toHaveValue(invalidCode);

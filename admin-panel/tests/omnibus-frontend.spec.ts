@@ -297,7 +297,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
 
     // Navigate to step 3 (Sales & Settings) where Advanced Settings lives
     // Use toPass to handle React re-renders swallowing clicks during wizard transitions
-    const advSettingsBtn = modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i });
+    const advSettingsBtn = modal.locator('button', { hasText: /^E\b|Advanced$|Zaawansowane$|Advanced Settings|Ustawienia zaawansowane/i });
     await expect(async () => {
       // Click through step 1 → 2 → 3 if needed
       const nextBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
@@ -348,7 +348,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Navigate to step 3 again — retry to handle re-renders
-    const advSettingsBtn2 = modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i });
+    const advSettingsBtn2 = modal.locator('button', { hasText: /^E\b|Advanced$|Zaawansowane$|Advanced Settings|Ustawienia zaawansowane/i });
     await expect(async () => {
       const nextBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
       if (await nextBtn.isVisible().catch(() => false)) {
@@ -360,7 +360,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
     // Advanced Settings may already be expanded (defaultExpanded=true when omnibus_exempt=true)
     const omnibusCheckbox2 = modal.locator('input[name="omnibus_exempt"]');
     // Use expect().toBeVisible with retry instead of instant isVisible()
-    const advSettingsExpander = modal.locator('button', { hasText: /Advanced Settings|Ustawienia zaawansowane/i });
+    const advSettingsExpander = modal.locator('button', { hasText: /^E\b|Advanced$|Zaawansowane$|Advanced Settings|Ustawienia zaawansowane/i });
     await expect(async () => {
       if (!(await omnibusCheckbox2.isVisible().catch(() => false))) {
         await advSettingsExpander.click();

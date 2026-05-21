@@ -190,14 +190,16 @@ test.describe('Waitlist Feature', () => {
       await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
       await page.fill('textarea#description', 'Temp description');
 
-      // Navigate to step 3 (Availability → Enable Waitlist is on step 3: Sales & Settings)
+      // Navigate to step 3 (Availability → Enable Waitlist is in group C of step 3)
       const nextButton = page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i });
       await nextButton.click();
       // Confirm step 1 actually left (validates that the click was accepted)
       await expect(page.locator('input#name')).not.toBeVisible({ timeout: 5000 });
-      await nextButton.click();
 
-      // AvailabilitySection renders with defaultExpanded={true}, so content should be visible
+      // Step 3 groups B-E are collapsed by default — expand group C (Availability)
+      const availabilityGroup = page.locator('section[data-step3-group="C"]');
+      await availabilityGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
+
       const waitlistLabel = page.locator('label').filter({ hasText: /Enable Waitlist|Włącz zapis na listę/i });
       await expect(waitlistLabel).toBeVisible({ timeout: 5000 });
     });

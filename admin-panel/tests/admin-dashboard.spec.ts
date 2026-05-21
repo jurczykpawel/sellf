@@ -78,7 +78,10 @@ test.describe('Authenticated Admin Dashboard', () => {
     const productName = `CRUD-Prod-${Date.now()}`;
     const productSlug = `crud-${Date.now()}`;
     
-    const modal = page.locator('[role="dialog"], dialog').filter({ hasText: /Cancel|Anuluj/i });
+    // Scope to the product wizard via its stable form id — the wizard footer
+    // swaps Cancel→Back after step 1, so filtering by /Cancel|Anuluj/ silently
+    // matches an empty locator on step 2+.
+    const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#wizard-form') });
     await modal.locator('input[name="name"]').fill(productName);
     await modal.locator('input[name="slug"]').fill(productSlug);
     await modal.locator('input[name="price"]').fill('50');

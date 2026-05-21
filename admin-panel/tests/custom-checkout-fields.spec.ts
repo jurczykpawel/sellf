@@ -141,12 +141,19 @@ test.describe('Custom checkout fields', () => {
       data: { productId, email, customFieldValues: {} },
     });
     expect(initial.status()).toBe(200);
-    const { clientSecret } = await initial.json();
+    const { clientSecret, bindingToken } = await initial.json();
     expect(clientSecret).toBeTruthy();
+    expect(bindingToken).toBeTruthy();
 
     // Required `domain` is missing — must be rejected with per-field error.
     const submitMissing = await request.post('/api/update-payment-metadata', {
-      data: { clientSecret, fullName: 'Test', customFieldValues: { message: 'hi' } },
+      data: {
+        clientSecret,
+        bindingToken,
+        productId,
+        fullName: 'Test',
+        customFieldValues: { message: 'hi' },
+      },
       headers: {
         Origin: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3777',
       },
@@ -159,6 +166,8 @@ test.describe('Custom checkout fields', () => {
     const submitOk = await request.post('/api/update-payment-metadata', {
       data: {
         clientSecret,
+        bindingToken,
+        productId,
         fullName: 'Test',
         customFieldValues: { domain: 'final.com', message: 'final' },
       },

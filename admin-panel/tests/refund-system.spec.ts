@@ -742,11 +742,12 @@ test.describe('Refund System - Admin Product Form UI', () => {
     await continueBtn.click();
     await page.waitForTimeout(1000);
 
-    // Should see refund settings section on step 3
-    await expect(page.locator('text=/Refund Policy/i')).toBeVisible({ timeout: 10000 });
+    // Step 3 groups (A-E) are collapsed by default. Expand group D (Refunds).
+    const refundsGroup = modal.locator('section[data-step3-group="D"]');
+    await refundsGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
 
-    // Should see the toggle for allowing refunds
-    await expect(page.locator('text=/Allow customers to request refunds/i')).toBeVisible();
+    // Should see the toggle for allowing refunds inside the expanded group
+    await expect(page.locator('text=/Allow customers to request refunds/i')).toBeVisible({ timeout: 10000 });
   });
 
   test('admin should be able to toggle refund settings in form', async ({ page }) => {

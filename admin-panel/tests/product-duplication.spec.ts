@@ -161,9 +161,8 @@ test.describe('Product Duplication', () => {
     const descValue = await descInput.inputValue();
     expect(descValue).toBe('Product to be duplicated');
 
-    // Navigate to step 3 to check sale_price (Sales & Settings)
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
-    await page.waitForTimeout(1000);
+    // Navigate to step 3 (Sales & Settings) — one more Continue takes us there.
+    // Group A (Konwersja) is expanded by default and contains sale_price.
     await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
     await page.waitForTimeout(1000);
 
