@@ -59,20 +59,27 @@ async function openWizardAndGoToStep2(page: Page, productName: string) {
   // Wait for slug auto-generation from name (required for step 1 validation)
   await expect(dlg.locator('input#slug')).not.toHaveValue('', { timeout: 10000 });
 
-  // Navigate to step 2 and fill description there
-  await dlg.getByRole('button', { name: /Dalej/i }).click();
-  await dlg.locator('textarea#description').fill('Video options test');
+  // Wait for shop config async fetch to auto-populate vat_rate — without it,
+  // step 1 validation rejects with "Stawka VAT jest wymagana" and the Dalej
+  // click silently stays on step 1.
+  await expect(dlg.locator('#vat_rate')).not.toHaveValue('', { timeout: 10000 });
 
-  // Wait for step 2 content delivery section to render
-  // If validation failed and step didn't advance, retry the click
-  const contentSection = dlg.getByText(/Dostarczanie treści/i);
+  // Navigate to step 2 — verify textarea#description appears (step 2 marker)
+  // before filling. Retry the click if validation kept us on step 1.
+  const nextBtn = dlg.getByRole('button', { name: /Dalej/i });
+  await nextBtn.click();
+  const descTextarea = dlg.locator('textarea#description');
   try {
-    await expect(contentSection).toBeVisible({ timeout: 10000 });
+    await expect(descTextarea).toBeVisible({ timeout: 5000 });
   } catch {
-    // Step might not have advanced — retry click
-    await dlg.getByRole('button', { name: /Dalej/i }).click();
-    await expect(contentSection).toBeVisible({ timeout: 15000 });
+    await nextBtn.click();
+    await expect(descTextarea).toBeVisible({ timeout: 10000 });
   }
+  await descTextarea.fill('Video options test');
+
+  // Confirm content delivery section is rendered
+  const contentSection = dlg.getByText(/Dostarczanie treści/i);
+  await expect(contentSection).toBeVisible({ timeout: 10000 });
 }
 
 /** Scope all locators within the wizard dialog */
