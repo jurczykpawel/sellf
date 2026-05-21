@@ -68,6 +68,15 @@ When deploying Sellf:
 5. **HTTPS**: Always use HTTPS in production
 6. **Backups**: Maintain regular database backups
 7. **Monitoring**: Set up logging and alerting
+8. **Reverse proxy + `TRUSTED_PROXY=true`**: Set `TRUSTED_PROXY=true` in
+   production and serve the Node process behind a reverse proxy
+   (Caddy/nginx/Cloudflare) that appends the real client IP to
+   `X-Forwarded-For`. Production refuses to boot without it.
+
+   Without a reverse proxy (e.g. local dev) the rate limiter falls back
+   to a fingerprint built from `User-Agent` / `Accept-Language` / `Accept`,
+   which a determined attacker can rotate to dilute the bucket. This is
+   an accepted dev-mode limitation, not a production deploy mode.
 
 ## Past Security Issues
 
