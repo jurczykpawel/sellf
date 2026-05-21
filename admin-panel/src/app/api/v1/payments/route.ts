@@ -204,33 +204,44 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform response
-    const transformedItems = paymentRows.map(p => ({
-      id: p.id,
-      customer_email: p.customer_email,
-      amount: p.amount,
-      currency: p.currency,
-      status: p.status,
-      stripe_payment_intent_id: p.stripe_payment_intent_id,
-      product: {
-        id: p.product_id,
-        name: (p.products as unknown as { name: string; slug: string })?.name,
-        slug: (p.products as unknown as { name: string; slug: string })?.slug,
-      },
-      line_items: lineItemsByTransactionId.get(p.id) ?? [],
-      user_id: p.user_id,
-      session_id: p.session_id,
-      metadata: p.metadata ?? {},
-      refunded_amount: p.refunded_amount ?? 0,
-      refund: p.refund_id ? {
-        id: p.refund_id,
-        amount: p.refunded_amount,
-        refunded_at: p.refunded_at,
-        reason: p.refund_reason,
-        refunded_by: p.refunded_by,
-      } : null,
-      created_at: p.created_at,
-      updated_at: p.updated_at,
-    }));
+    const transformedItems = paymentRows.map(p => {
+      const productRel = p.products as unknown as {
+        name: string;
+        slug: string;
+        custom_checkout_fields: unknown;
+      } | null;
+      return {
+        id: p.id,
+        customer_email: p.customer_email,
+        amount: p.amount,
+        currency: p.currency,
+        status: p.status,
+        stripe_payment_intent_id: p.stripe_payment_intent_id,
+        product: {
+          id: p.product_id,
+          name: productRel?.name,
+          slug: productRel?.slug,
+          custom_checkout_fields: Array.isArray(productRel?.custom_checkout_fields)
+            ? productRel.custom_checkout_fields
+            : null,
+        },
+        line_items: lineItemsByTransactionId.get(p.id) ?? [],
+        user_id: p.user_id,
+        session_id: p.session_id,
+        metadata: p.metadata ?? {},
+        custom_field_values: p.custom_field_values ?? null,
+        refunded_amount: p.refunded_amount ?? 0,
+        refund: p.refund_id ? {
+          id: p.refund_id,
+          amount: p.refunded_amount,
+          refunded_at: p.refunded_at,
+          reason: p.refund_reason,
+          refunded_by: p.refunded_by,
+        } : null,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+      };
+    });
 
     const { items, pagination } = createPaginationResponse(
       transformedItems,

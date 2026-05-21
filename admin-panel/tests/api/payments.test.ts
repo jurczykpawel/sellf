@@ -10,6 +10,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { get, post, patch, deleteTestApiKey, API_URL, supabase } from './setup';
 
+interface CustomFieldDef {
+  id: string;
+  type: 'text' | 'textarea' | 'email';
+  required: boolean;
+  label: string | { pl?: string; en?: string };
+}
+
 interface Payment {
   id: string;
   customer_email: string;
@@ -21,7 +28,9 @@ interface Payment {
     id: string;
     name: string;
     slug: string;
+    custom_checkout_fields?: CustomFieldDef[] | null;
   };
+  custom_field_values?: Record<string, unknown> | null;
   user?: {
     id: string;
     email: string;
@@ -294,6 +303,74 @@ describe('Payments API v1', () => {
       } finally {
         await supabase.from('payment_transactions').delete().eq('id', refundedTx.id);
       }
+    });
+  });
+
+  describe('Custom checkout fields surfacing', () => {
+    let cfProductId: string;
+    let cfTransactionId: string;
+    const fieldId = 'fld_msg';
+    const fieldValue = 'Dzieki za napiwek!';
+
+    beforeAll(async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .insert({
+          name: `CF Product ${randomStr}`,
+          slug: `cf-product-${randomStr}`,
+          description: 'Product with custom checkout fields',
+          price: 5000,
+          currency: 'PLN',
+          is_active: true,
+          custom_checkout_fields: [
+            { id: fieldId, type: 'text', required: false, label: { pl: 'Wiadomość', en: 'Message' } },
+          ],
+        })
+        .select('id')
+        .single();
+      if (productError) throw productError;
+      cfProductId = product.id;
+
+      const { data: tx, error: txError } = await supabase
+        .from('payment_transactions')
+        .insert({
+          customer_email: `cf-${randomStr}@example.com`,
+          amount: 5000,
+          currency: 'PLN',
+          status: 'completed',
+          stripe_payment_intent_id: `pi_cf_${randomStr}`,
+          product_id: cfProductId,
+          session_id: `cs_cf_${randomStr}`,
+          custom_field_values: { [fieldId]: fieldValue },
+        })
+        .select('id')
+        .single();
+      if (txError) throw txError;
+      cfTransactionId = tx.id;
+    });
+
+    afterAll(async () => {
+      if (cfTransactionId) await supabase.from('payment_transactions').delete().eq('id', cfTransactionId);
+      if (cfProductId) await supabase.from('products').delete().eq('id', cfProductId);
+    });
+
+    it('list endpoint surfaces custom_field_values + product.custom_checkout_fields', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?product_id=${cfProductId}`);
+      expect(status).toBe(200);
+      const item = data.data!.find((p) => p.id === cfTransactionId);
+      expect(item).toBeDefined();
+      expect(item!.custom_field_values).toEqual({ [fieldId]: fieldValue });
+      expect(item!.product.custom_checkout_fields).toHaveLength(1);
+      expect(item!.product.custom_checkout_fields![0].id).toBe(fieldId);
+    });
+
+    it('detail endpoint surfaces custom_field_values + product.custom_checkout_fields', async () => {
+      const { status, data } = await get<ApiResponse<Payment>>(`/api/v1/payments/${cfTransactionId}`);
+      expect(status).toBe(200);
+      expect(data.data!.custom_field_values).toEqual({ [fieldId]: fieldValue });
+      expect(data.data!.product.custom_checkout_fields).toHaveLength(1);
+      expect(data.data!.product.custom_checkout_fields![0].id).toBe(fieldId);
     });
   });
 

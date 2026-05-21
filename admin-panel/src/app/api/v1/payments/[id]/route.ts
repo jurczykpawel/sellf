@@ -28,6 +28,7 @@ interface PaymentProductRelation {
   slug: string;
   price: number;
   currency: string;
+  custom_checkout_fields: unknown;
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -113,7 +114,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         stripe_payment_intent_id: payment.stripe_payment_intent_id,
         product: (() => {
           const p = payment.products as unknown as PaymentProductRelation;
-          return { id: p.id, name: p.name, slug: p.slug, price: p.price, currency: p.currency };
+          return {
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            price: p.price,
+            currency: p.currency,
+            custom_checkout_fields: Array.isArray(p.custom_checkout_fields) ? p.custom_checkout_fields : null,
+          };
         })(),
         user: userInfo,
         session_id: payment.session_id,
@@ -125,6 +133,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           reason: payment.refund_reason,
         } : null,
         metadata: payment.metadata,
+        custom_field_values: payment.custom_field_values ?? null,
         created_at: payment.created_at,
         updated_at: payment.updated_at,
       }),
