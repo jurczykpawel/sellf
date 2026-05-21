@@ -156,8 +156,6 @@ executing.
 
 ## Step 6 — Post-deploy verification
 
-- [ ] `_migration_history` (legacy upgrade.sh table) does not exist on
-      managed Supabase — confirmed via `SELECT to_regclass('public._migration_history')` returning `NULL`. No legacy tracking sync needed.
 - [ ] `supabase_migrations.schema_migrations` shows all three new rows.
 - [ ] Stripe webhook replay test: post a `checkout.session.completed`
       payload twice. First write inserts; second promotes `pending -> completed`

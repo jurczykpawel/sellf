@@ -23,6 +23,11 @@
 -- argument to scope rate limits per coupon code.
 -- ============================================================================
 
+-- Drop the original 3-arg signature so the 4-arg replacement does not end
+-- up as a parallel overload (PostgREST + plpgsql calls without explicit
+-- types would otherwise raise "function is not unique").
+DROP FUNCTION IF EXISTS public.check_rate_limit(TEXT, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION check_rate_limit(
     function_name_param TEXT,
     max_calls INTEGER DEFAULT 100,
@@ -111,7 +116,7 @@ BEGIN
 
     RETURN current_count <= max_calls;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- Preserve existing grants (REVOKE/GRANT idempotent)
 REVOKE ALL ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;

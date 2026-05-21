@@ -160,10 +160,8 @@ describe('RLS-B01: tables with RLS must have explicit policies', () => {
     expect(hasPolicy, 'tracking_logs: RLS enabled but no policies defined').toBe(true);
   });
 
-  it('_migration_history has at least one CREATE POLICY', () => {
-    const hasPolicy = /CREATE POLICY\b[^;]*\b_migration_history\b/i.test(ALL_SQL);
-    expect(hasPolicy, '_migration_history: RLS enabled but no policies defined').toBe(true);
-  });
+  // _migration_history was retired across every deployment target — no
+  // table to enforce a policy on, nothing here to test.
 });
 
 // ============================================================================
