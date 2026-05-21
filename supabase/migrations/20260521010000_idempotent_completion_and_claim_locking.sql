@@ -537,8 +537,9 @@ DECLARE
   user_email_var TEXT;
   claimed_count INTEGER := 0;
   guest_purchase_record RECORD;
+  line_item_rec RECORD;
 BEGIN
-  -- Rate limiting: 10 calls per hour for claiming purchases (SECURITY)
+  -- Rate limiting: 10 calls per hour for claiming purchases
   IF NOT public.check_rate_limit('claim_guest_purchases_for_user', 10, 3600) THEN
     RETURN json_build_object(
       'success', false,
@@ -546,145 +547,140 @@ BEGIN
     );
   END IF;
 
-  -- Input validation
   IF p_user_id IS NULL THEN
-    RETURN json_build_object(
-      'success', false,
-      'error', 'User ID is required'
-    );
+    RETURN json_build_object('success', false, 'error', 'User ID is required');
   END IF;
-  
-  -- Get user's email using parameterized query (SECURITY)
-  SELECT email INTO user_email_var 
-  FROM auth.users 
-  WHERE id = p_user_id;
-  
+
+  SELECT email INTO user_email_var FROM auth.users WHERE id = p_user_id;
+
   IF user_email_var IS NULL THEN
-    RETURN json_build_object(
-      'success', false,
-      'error', 'User not found'
-    );
+    RETURN json_build_object('success', false, 'error', 'User not found');
   END IF;
-  
-  -- Enhanced email format validation using dedicated function
+
   IF NOT public.validate_email_format(user_email_var) THEN
-    RETURN json_build_object(
-      'success', false,
-      'error', 'Invalid email format'
-    );
+    RETURN json_build_object('success', false, 'error', 'Invalid email format');
   END IF;
-  
-  -- Find and claim all unclaimed guest purchases for this email
-  -- Direct query - no need for dynamic SQL (SECURITY FIX)
+
   FOR guest_purchase_record IN
-    SELECT * FROM seller_main.guest_purchases
-    WHERE customer_email = user_email_var
-      AND claimed_by_user_id IS NULL
-    FOR UPDATE SKIP LOCKED
+    SELECT gp.*, pt.id as transaction_id
+    FROM seller_main.guest_purchases gp
+    LEFT JOIN seller_main.payment_transactions pt ON pt.session_id = gp.session_id
+    WHERE gp.customer_email = user_email_var
+      AND gp.claimed_by_user_id IS NULL
+    FOR UPDATE OF gp SKIP LOCKED
   LOOP
-    -- Update guest purchase to mark as claimed
     UPDATE seller_main.guest_purchases
-    SET claimed_by_user_id = p_user_id,
-        claimed_at = NOW()
+    SET claimed_by_user_id = p_user_id, claimed_at = NOW()
     WHERE id = guest_purchase_record.id;
-    
-    -- Grant access to the product using optimistic locking with error handling
+
+    -- Grant access to the main product
     BEGIN
       DECLARE
         grant_result JSONB;
       BEGIN
         SELECT seller_main.grant_product_access_service_role(p_user_id, guest_purchase_record.product_id) INTO grant_result;
-        
+
         IF (grant_result->>'success')::boolean = true THEN
           claimed_count := claimed_count + 1;
+
+          UPDATE seller_main.payment_transactions
+          SET user_id = p_user_id,
+              updated_at = NOW()
+          WHERE session_id = guest_purchase_record.session_id
+            AND user_id IS NULL;
         ELSE
-          -- Handle optimistic locking failures
           IF (grant_result->>'retry_exceeded')::boolean = true THEN
-            -- High concurrency - log and continue
             PERFORM public.log_admin_action(
-              'guest_claim_concurrency_failure',
-              'guest_purchases',
+              'guest_claim_concurrency_failure', 'guest_purchases',
               guest_purchase_record.id::TEXT,
               jsonb_build_object(
-                'severity', 'WARNING',
-                'error_type', 'optimistic_lock_retry_exceeded',
-                'user_id', p_user_id,
-                'product_id', guest_purchase_record.product_id,
-                'guest_purchase_id', guest_purchase_record.id,
-                'grant_result', grant_result,
-                'function_name', 'claim_guest_purchases_for_user',
-                'timestamp', extract(epoch from NOW()),
-                'context', 'guest_claim_processing'
+                'severity', 'WARNING', 'error_type', 'optimistic_lock_retry_exceeded',
+                'user_id', p_user_id, 'product_id', guest_purchase_record.product_id,
+                'guest_purchase_id', guest_purchase_record.id, 'grant_result', grant_result,
+                'function_name', 'claim_guest_purchases_for_user'
               )
             );
           ELSE
-            -- Other error
             PERFORM public.log_admin_action(
-              'guest_claim_grant_failure',
-              'guest_purchases',
+              'guest_claim_grant_failure', 'guest_purchases',
               guest_purchase_record.id::TEXT,
               jsonb_build_object(
-                'severity', 'ERROR',
-                'error_type', 'access_grant_failure',
-                'user_id', p_user_id,
-                'product_id', guest_purchase_record.product_id,
-                'guest_purchase_id', guest_purchase_record.id,
-                'grant_result', grant_result,
-                'function_name', 'claim_guest_purchases_for_user',
-                'timestamp', extract(epoch from NOW()),
-                'context', 'guest_claim_processing'
+                'severity', 'ERROR', 'error_type', 'access_grant_failure',
+                'user_id', p_user_id, 'product_id', guest_purchase_record.product_id,
+                'guest_purchase_id', guest_purchase_record.id, 'grant_result', grant_result,
+                'function_name', 'claim_guest_purchases_for_user'
               )
             );
           END IF;
-          
-          -- Roll back the claim update since access grant failed
+
           UPDATE seller_main.guest_purchases
-          SET claimed_by_user_id = NULL,
-              claimed_at = NULL
+          SET claimed_by_user_id = NULL, claimed_at = NULL
           WHERE id = guest_purchase_record.id;
         END IF;
       END;
-    EXCEPTION 
+    EXCEPTION
       WHEN OTHERS THEN
-        -- Critical error: guest purchase marked as claimed but access not granted
         PERFORM public.log_admin_action(
-          'critical_guest_claim_failure',
-          'guest_purchases',
+          'critical_guest_claim_failure', 'guest_purchases',
           guest_purchase_record.id::TEXT,
           jsonb_build_object(
-            'severity', 'CRITICAL',
-            'error_type', 'guest_claim_exception',
-            'error_code', SQLSTATE,
-            'error_message', SQLERRM,
-            'user_id', p_user_id,
-            'product_id', guest_purchase_record.product_id,
+            'severity', 'CRITICAL', 'error_type', 'guest_claim_exception',
+            'error_code', SQLSTATE, 'error_message', SQLERRM,
+            'user_id', p_user_id, 'product_id', guest_purchase_record.product_id,
             'guest_purchase_id', guest_purchase_record.id,
-            'function_name', 'claim_guest_purchases_for_user',
-            'timestamp', extract(epoch from NOW()),
-            'context', 'guest_claim_processing'
+            'function_name', 'claim_guest_purchases_for_user'
           )
         );
-        
-        -- Roll back the claim update since access grant failed
         UPDATE seller_main.guest_purchases
-        SET claimed_by_user_id = NULL,
-            claimed_at = NULL
+        SET claimed_by_user_id = NULL, claimed_at = NULL
         WHERE id = guest_purchase_record.id;
-        
-        -- Continue with other purchases but log the failure
         NULL;
     END;
+
+    -- Grant access for bump products from payment_line_items.
+    -- Use the snapshotted access_duration_override per line item so the claim
+    -- path resolves the bump's UI override without re-querying order_bumps
+    -- (the bump row may have been edited or deleted since the purchase).
+    IF guest_purchase_record.transaction_id IS NOT NULL THEN
+      FOR line_item_rec IN
+        SELECT pli.product_id, pli.access_duration_override
+        FROM seller_main.payment_line_items pli
+        WHERE pli.transaction_id = guest_purchase_record.transaction_id
+          AND pli.item_type = 'order_bump'
+      LOOP
+        BEGIN
+          PERFORM seller_main.grant_product_access_service_role(
+            p_user_id,
+            line_item_rec.product_id,
+            override_duration_days_param => line_item_rec.access_duration_override
+          );
+          claimed_count := claimed_count + 1;
+        EXCEPTION WHEN OTHERS THEN
+          PERFORM public.log_admin_action(
+            'guest_claim_bump_failure', 'payment_line_items',
+            guest_purchase_record.transaction_id::TEXT,
+            jsonb_build_object(
+              'severity', 'ERROR', 'error_type', 'bump_access_grant_failure',
+              'user_id', p_user_id, 'product_id', line_item_rec.product_id,
+              'transaction_id', guest_purchase_record.transaction_id,
+              'function_name', 'claim_guest_purchases_for_user'
+            )
+          );
+          NULL;
+        END;
+      END LOOP;
+    END IF;
   END LOOP;
-  
+
   RETURN json_build_object(
     'success', true,
     'claimed_count', claimed_count,
-    'message', 'Claimed ' || claimed_count || ' guest purchases'
+    'user_email', user_email_var
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
-SET statement_timeout = '5s';
+SET statement_timeout = '30s';
 
 REVOKE EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user(UUID) TO service_role;

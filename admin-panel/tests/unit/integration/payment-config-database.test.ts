@@ -95,42 +95,42 @@ describe('Payment Config Database - RLS Policies & Constraints', () => {
   });
 
   describe('RLS Policies - Admin Read Access', () => {
-    // DB-RLS-001: Admin can read config
-    it('should allow admin users to read payment config', async () => {
-      const { data, error } = await adminClient
+    // DB-RLS-001: service-role bypasses every grant + policy.
+    it('should allow service-role reads', async () => {
+      const { data, error } = await supabaseAdmin
         .from('payment_method_config')
         .select('*')
         .eq('id', 1)
         .single();
 
-      // Note: This test requires proper auth session setup
-      // If RLS is properly configured, admin should be able to read
       expect(error).toBeNull();
       expect(data).toBeDefined();
     });
 
-    // DB-RLS-002: Non-admin cannot read config
-    it('should deny non-admin users from reading payment config', async () => {
-      // Sign in as non-admin
-      await nonAdminClient.auth.signInWithPassword({
-        email: NON_ADMIN_EMAIL,
-        password: 'test123456',
-      });
-
-      const { data, error } = await nonAdminClient
+    // DB-RLS-002: payment_method_config is service-role only at the table
+    // level. Authenticated callers — admin or not — get 42501 before RLS
+    // is even evaluated. Admin server actions go through createAdminClient
+    // (service_role) so this does not affect product behavior.
+    it('should deny authenticated reads regardless of admin status', async () => {
+      const { data: adminData, error: adminError } = await adminClient
         .from('payment_method_config')
         .select('*')
         .eq('id', 1)
         .single();
+      expect(adminData).toBeNull();
+      expect(adminError?.code).toBe('42501');
 
-      // Non-admin should not be able to read (RLS policy blocks)
-      // Supabase returns PGRST116 (no rows) when RLS hides all rows
-      expect(data).toBeNull();
-      if (error) {
-        expect(error.code).toBe('PGRST116');
-      } else {
-        expect.fail('Expected either null data with PGRST116 error or silent RLS block');
-      }
+      await nonAdminClient.auth.signInWithPassword({
+        email: NON_ADMIN_EMAIL,
+        password: 'test123456',
+      });
+      const { data: nonAdminData, error: nonAdminError } = await nonAdminClient
+        .from('payment_method_config')
+        .select('*')
+        .eq('id', 1)
+        .single();
+      expect(nonAdminData).toBeNull();
+      expect(nonAdminError?.code).toBe('42501');
     });
 
     // DB-RLS-003: Unauthenticated cannot read
