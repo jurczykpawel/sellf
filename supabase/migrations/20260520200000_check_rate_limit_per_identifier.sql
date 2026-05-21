@@ -119,7 +119,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- Preserve existing grants (REVOKE/GRANT idempotent)
-REVOKE ALL ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER, TEXT) TO service_role;
 
 -- ===== verify_coupon: opt in to per-identifier rate limit =====
