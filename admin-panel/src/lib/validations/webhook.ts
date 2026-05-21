@@ -5,10 +5,10 @@
  *                                    when persisting an endpoint URL.
  */
 
-import dns from 'node:dns/promises';
 import { isPrivateOrReservedIp } from '@/lib/security/ip-blocklist';
 
 async function resolveAuthoritative(hostname: string): Promise<string[]> {
+  const dns = await import('node:dns/promises');
   const [v4, v6] = await Promise.allSettled([
     dns.resolve4(hostname),
     dns.resolve6(hostname),
