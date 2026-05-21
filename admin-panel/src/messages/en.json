@@ -542,6 +542,7 @@
     "permanent": "Permanent",
     "generateCode": "Generate Code",
     "generateEmbedSnippet": "Generate embed checkout snippet",
+    "generateLoginwallSnippet": "Generate login wall snippet",
     "codeGenerated": "Code Generated",
     "copyCode": "Copy Code",
     "codeCopied": "Code Copied!"
@@ -636,6 +637,23 @@
     "optionLabelPlaceholder": "Buy now",
     "optionShowPrice": "Show price on the button (e.g. “Buy now · $19.99”)",
     "modalInfoExtra": "Modal mode: button mounts instantly (no network); checkout loads on click. Close with ×, outside-click, or Escape.",
+    "close": "Close"
+  },
+  "loginwallSnippet": {
+    "title": "Generate login wall snippet",
+    "subtitle": "Gate any page on your own domain — visitors must be signed in and own this product to see the content.",
+    "slug": "Slug",
+    "snippetLabel": "Snippet to paste",
+    "copied": "✓ Copied!",
+    "copyCode": "📋 Copy Code",
+    "instructions": "How to use",
+    "step1": "Paste the snippet inside the <head> of the page you want to gate.",
+    "step2": "Open the page — visitors without access are bounced through sign-in and back.",
+    "step3": "Returning visitors with active access see the page immediately.",
+    "howItWorksTitle": "How the gate works",
+    "howItWorksBody": "A short-lived signed token is added to the URL after sign-in. The snippet checks for it on load, then strips it from the URL with history.replaceState so visitors share clean links.",
+    "emptyAllowlistTitle": "No allowed origins configured",
+    "emptyAllowlistBody": "The login wall will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
     "close": "Close"
   },
   "embedSection": {

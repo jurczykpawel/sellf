@@ -557,6 +557,7 @@
     "permanent": "Permanentny",
     "generateCode": "Generuj kod",
     "generateEmbedSnippet": "Generuj kod osadzania koszyka",
+    "generateLoginwallSnippet": "Generuj kod login wall",
     "codeGenerated": "Kod wygenerowany",
     "copyCode": "Kopiuj kod",
     "codeCopied": "Kod skopiowany!"
@@ -651,6 +652,23 @@
     "optionLabelPlaceholder": "Kup teraz",
     "optionShowPrice": "Pokaż cenę na przycisku (np. „Kup teraz · 19,99 USD”)",
     "modalInfoExtra": "Tryb modal: przycisk montuje się natychmiast (bez sieci), formularz checkout ładuje się dopiero po kliknięciu. Zamknięcie przyciskiem ×, kliknięciem poza modalem albo Escape.",
+    "close": "Zamknij"
+  },
+  "loginwallSnippet": {
+    "title": "Generuj kod login wall",
+    "subtitle": "Chroń dowolną stronę na własnej domenie — zobaczą ją tylko zalogowani użytkownicy z aktywnym dostępem do tego produktu.",
+    "slug": "Slug",
+    "snippetLabel": "Snippet do wklejenia",
+    "copied": "✓ Skopiowano!",
+    "copyCode": "📋 Kopiuj kod",
+    "instructions": "Jak użyć",
+    "step1": "Wklej snippet w sekcji <head> strony, którą chcesz chronić.",
+    "step2": "Otwórz stronę — odwiedzający bez dostępu zostaną przeprowadzeni przez logowanie i z powrotem.",
+    "step3": "Powracający z aktywnym dostępem widzą stronę od razu.",
+    "howItWorksTitle": "Jak działa brama",
+    "howItWorksBody": "Po logowaniu dodajemy do URL krótko żyjący podpisany token. Snippet sprawdza go przy załadowaniu strony i natychmiast usuwa z URL przez history.replaceState — udostępniane linki pozostają czyste.",
+    "emptyAllowlistTitle": "Brak dozwolonych domen na białej liście",
+    "emptyAllowlistBody": "Login wall odrzuci przekierowanie z 400 dopóki nie dodasz domeny strony, na której wklejasz snippet, do allowed_embed_origins (Ustawienia → Osadzanie) albo do zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS.",
     "close": "Zamknij"
   },
   "embedSection": {

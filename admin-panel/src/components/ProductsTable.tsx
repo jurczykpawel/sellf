@@ -54,6 +54,7 @@ interface ProductsTableProps {
   onPreviewProduct: (product: Product) => void;
   onPreviewRedirect: (product: Product) => void;
   onGenerateEmbedSnippet: (product: Product) => void;
+  onGenerateLoginwallSnippet: (product: Product) => void;
   onToggleStatus: (productId: string, currentStatus: boolean) => void;
   onToggleFeatured: (productId: string, currentFeatured: boolean) => void;
   onToggleListed: (productId: string, currentListed: boolean) => void;
@@ -129,6 +130,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   onPreviewProduct,
   onPreviewRedirect,
   onGenerateEmbedSnippet,
+  onGenerateLoginwallSnippet,
   onToggleStatus,
   onToggleFeatured,
   onToggleListed,
@@ -522,6 +524,15 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                       </svg>
                                     ),
                                     onClick: () => onGenerateEmbedSnippet(product),
+                                  },
+                                  {
+                                    label: t('generateLoginwallSnippet'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6v-2c0-3.31 2.69-6 6-6 1.66 0 3.16.67 4.24 1.76M9 17h6m-3-3v3" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onGenerateLoginwallSnippet(product),
                                   },
                                   {
                                     label: t('duplicate'),

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import ProductCreationWizard from './ProductFormModal/wizard/ProductCreationWizard';
 import type { ProductFormData } from './ProductFormModal/types';
 import EmbedSnippetModal from './EmbedSnippetModal';
+import LoginwallSnippetModal from './LoginwallSnippetModal';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -28,6 +29,7 @@ const ProductsPageContent: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
+  const [showLoginwallSnippet, setShowLoginwallSnippet] = useState(false);
   const [productForCodeGeneration, setProductForCodeGeneration] = useState<Product | null>(null);
 
   // State for pagination
@@ -204,6 +206,11 @@ const ProductsPageContent: React.FC = () => {
     setShowEmbedSnippet(true);
   };
 
+  const handleGenerateLoginwallSnippet = (product: Product) => {
+    setProductForCodeGeneration(product);
+    setShowLoginwallSnippet(true);
+  };
+
   const handleDeleteProductClick = (product: Product) => {
     setProductToDelete(product);
   };
@@ -305,6 +312,7 @@ const ProductsPageContent: React.FC = () => {
         onPreviewProduct={handlePreviewProduct}
         onPreviewRedirect={handlePreviewRedirect}
         onGenerateEmbedSnippet={handleGenerateEmbedSnippet}
+        onGenerateLoginwallSnippet={handleGenerateLoginwallSnippet}
         onToggleStatus={handleToggleStatus}
         onToggleFeatured={handleToggleFeatured}
         onToggleListed={handleToggleListed}
@@ -396,6 +404,17 @@ const ProductsPageContent: React.FC = () => {
           isOpen={showEmbedSnippet}
           onClose={() => {
             setShowEmbedSnippet(false);
+            setProductForCodeGeneration(null);
+          }}
+          product={productForCodeGeneration}
+        />
+      )}
+
+      {showLoginwallSnippet && productForCodeGeneration && (
+        <LoginwallSnippetModal
+          isOpen={showLoginwallSnippet}
+          onClose={() => {
+            setShowLoginwallSnippet(false);
             setProductForCodeGeneration(null);
           }}
           product={productForCodeGeneration}

@@ -442,6 +442,45 @@ User access can have:
 
 All enforced at database level in RLS policies and access check functions.
 
+### Login Wall (content gating snippet)
+
+A per-product, copy-pasteable snippet sellers can paste on **their own pages** to
+gate content behind a Sellf sign-in + active-access check. The snippet does not
+verify the user against the page's server — the seller's page can remain a
+plain static page.
+
+**Flow (one round trip per visit):**
+
+1. Visitor hits `cust.example/some-page` (snippet in `<head>`).
+2. Inline `<script>` redirects to `/loginwall/protect?id=<product-uuid>&redirect=<page-url>`.
+3. `/loginwall/protect` (a Sellf route) checks the redirect host against the seller's
+   embed allowlist (`seller_embed_settings.allowed_embed_origins`, with
+   `SELLF_EMBED_ALLOWED_ORIGINS` as env fallback — the same allowlist the embed
+   checkout uses), then checks the session: unauth → `/login?redirect_to=…`,
+   signed-in without access → `/p/<slug>`, signed-in with access → 307 back to the page
+   with the token appended to the URL **fragment** as `#_sf_token=<HMAC>`. Fragments
+   are never sent in `Referer` headers and never reach server logs, so the token
+   does not leak to third-party assets (fonts, analytics, embeds) that load during
+   the seller page's initial render.
+4. The deferred loader at `/api/loginwall/login.js` runs after the inline script,
+   reads the token from `location.hash`, marks the page as visited
+   (`window._SF_LW_<hash> = true` so the inline fallback no-ops), and strips the token
+   from the URL via `history.replaceState` (preserving any unrelated fragment the
+   seller's page already had).
+
+**Pieces:**
+
+- Pure crypto: `src/lib/loginwall/token.ts` — HMAC-SHA256 sign + verify with constant-time compare; no DB, no env.
+- Nonce store: `src/lib/loginwall/store.ts` — single-use ledger in `seller_main.loginwall_tokens` (service-role only; hourly cron cleanup).
+- Snippet builder: `src/lib/loginwall/snippet.ts` — `buildLoginwallSnippet` (HTML the seller pastes) and `buildLoginwallScript` (the JS served at `/api/loginwall/login.js`). Per-product variable hash so the global flag name doesn't collide across products.
+- Redirect allowlist: reuses `loadAllowedOriginsForProduct` from `src/lib/embed/checkout-embed.ts` (shared with the embed checkout flow). Sellers register origins in `seller_main.seller_embed_settings.allowed_embed_origins`; the `SELLF_EMBED_ALLOWED_ORIGINS` env var is the fallback for solo deployments.
+- Routes: `src/app/[locale]/loginwall/protect/route.ts` and `src/app/api/loginwall/login.js/route.ts`.
+- Admin UI: `LoginwallSnippetModal` + the "Generate login wall snippet" action in `ProductsTable`.
+
+**Env:** `LOGINWALL_SECRET` (HMAC key, 32 random bytes hex). Rotating it
+invalidates every in-flight token immediately; the next visit just goes through
+`/loginwall/protect` again and gets a fresh one.
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.70.5 (run via `npx supabase`) — pin via `npx supabase@2.70.5` if needed
@@ -569,6 +608,9 @@ MAIN_DOMAIN=localhost:3000
 # Cloudflare Turnstile (CAPTCHA)
 NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=...
 CLOUDFLARE_TURNSTILE_SECRET_KEY=...
+
+# Login Wall (HMAC for the content-gating handoff token — see "Login Wall" above)
+LOGINWALL_SECRET=  # openssl rand -hex 32
 ```
 
 ## CI/CD & Release Flow
