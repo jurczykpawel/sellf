@@ -2,24 +2,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { isInternalHostname } from '@/lib/security/internal-hostname';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
-
-/** Block redirects to internal/private network hosts */
-function isBlockedHost(hostname: string): boolean {
-  const h = hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (h === 'localhost' || h === '::1' || h === '0.0.0.0') return true;
-  if (h.startsWith('::ffff:')) return true;
-  if (h.startsWith('fe80:')) return true;
-  const parts = h.split('.');
-  if (parts.length === 4) {
-    const [a, b] = parts.map(Number);
-    if (a === 127 || a === 10 || a === 0) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 169 && b === 254) return true;
-  }
-  return false;
-}
 
 /**
  * Product Access Route
@@ -135,7 +119,7 @@ export async function GET(request: Request) {
           safeRedirect(prodUrl, returnUrl);
           return;
         }
-        if (isBlockedHost(redirectUrl.hostname)) {
+        if (isInternalHostname(redirectUrl.hostname)) {
           safeRedirect(prodUrl, returnUrl);
           return;
         }

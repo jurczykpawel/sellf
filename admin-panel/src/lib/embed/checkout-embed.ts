@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
+import type { createAdminClient } from '@/lib/supabase/admin';
 
 const LOCALHOST_ORIGIN_PATTERN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
 const PRODUCT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,120}$/;
@@ -47,6 +48,34 @@ export function getEnvAllowedEmbedOrigins(): string[] {
       .map((origin) => origin.trim())
       .filter(Boolean),
   );
+}
+
+export async function loadAllowedOriginsForProduct(
+  adminClient: ReturnType<typeof createAdminClient>,
+  sellerId: string | null,
+): Promise<string[]> {
+  if (sellerId) {
+    const { data } = await adminClient
+      .from('seller_embed_settings')
+      .select('allowed_embed_origins')
+      .eq('seller_id', sellerId)
+      .maybeSingle();
+
+    const dbOrigins = sanitizeAllowedEmbedOrigins(data?.allowed_embed_origins ?? []);
+    if (dbOrigins.length > 0) return dbOrigins;
+  } else {
+    const { data } = await adminClient
+      .from('seller_embed_settings')
+      .select('allowed_embed_origins')
+      .limit(2);
+
+    if (data && data.length === 1) {
+      const dbOrigins = sanitizeAllowedEmbedOrigins(data[0]?.allowed_embed_origins ?? []);
+      if (dbOrigins.length > 0) return dbOrigins;
+    }
+  }
+
+  return getEnvAllowedEmbedOrigins();
 }
 
 export function normalizeOrigin(origin: string): string | null {

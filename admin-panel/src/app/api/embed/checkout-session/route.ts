@@ -5,10 +5,9 @@ import {
   buildEmbedCorsHeaders,
   buildEmbedReturnUrl,
   embedJson,
-  getEnvAllowedEmbedOrigins,
+  loadAllowedOriginsForProduct,
   parseEmbedCheckoutBody,
   requireEmbedCaptcha,
-  sanitizeAllowedEmbedOrigins,
 } from '@/lib/embed/checkout-embed';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getCaptchaConfig } from '@/lib/captcha/config';
@@ -260,34 +259,6 @@ async function loadEmbedContext(
   const product = data as EmbedProduct;
   const allowedOrigins = await loadAllowedOriginsForProduct(adminClient, product.seller_id);
   return { product, allowedOrigins };
-}
-
-async function loadAllowedOriginsForProduct(
-  adminClient: ReturnType<typeof createAdminClient>,
-  sellerId: string | null,
-): Promise<string[]> {
-  if (sellerId) {
-    const { data } = await adminClient
-      .from('seller_embed_settings')
-      .select('allowed_embed_origins')
-      .eq('seller_id', sellerId)
-      .maybeSingle();
-
-    const dbOrigins = sanitizeAllowedEmbedOrigins(data?.allowed_embed_origins ?? []);
-    if (dbOrigins.length > 0) return dbOrigins;
-  } else {
-    const { data } = await adminClient
-      .from('seller_embed_settings')
-      .select('allowed_embed_origins')
-      .limit(2);
-
-    if (data && data.length === 1) {
-      const dbOrigins = sanitizeAllowedEmbedOrigins(data[0]?.allowed_embed_origins ?? []);
-      if (dbOrigins.length > 0) return dbOrigins;
-    }
-  }
-
-  return getEnvAllowedEmbedOrigins();
 }
 
 function isEmbeddableProduct(product: EmbedProduct): boolean {
