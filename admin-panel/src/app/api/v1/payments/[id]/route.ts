@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         status,
         stripe_payment_intent_id,
         product_id,
-        products!inner(id, name, slug, price, currency),
+        products!inner(id, name, slug, price, currency, custom_checkout_fields),
         user_id,
         session_id,
         refund_id,
@@ -71,6 +71,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         refunded_by,
         refund_reason,
         metadata,
+        custom_field_values,
         created_at,
         updated_at
       `)

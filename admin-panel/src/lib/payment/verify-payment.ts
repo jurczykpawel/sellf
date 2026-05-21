@@ -597,6 +597,12 @@ export async function verifyPaymentSession(
 
           // Trigger webhook for new successful purchases
           if (!paymentResult.already_had_access) {
+            const { data: txCustomFields } = await serviceClient
+              .from('payment_transactions')
+              .select('custom_field_values')
+              .eq('session_id', session.id)
+              .maybeSingle();
+
             const webhookData = await buildPurchaseWebhookPayload({
               supabaseClient: serviceClient,
               customerEmail,
@@ -610,6 +616,7 @@ export async function verifyPaymentSession(
               paymentIntentId: stripePaymentIntentId,
               couponId: hasCoupon && couponId ? couponId : null,
               isGuest: paymentResult?.is_guest_purchase,
+              customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
             });
 
             WebhookService.trigger('purchase.completed', webhookData, serviceClient)
@@ -863,6 +870,12 @@ export async function verifyPaymentIntent(
 
           // Trigger webhook for new successful purchases
           if (!paymentResult.already_had_access) {
+            const { data: txCustomFields } = await serviceClient
+              .from('payment_transactions')
+              .select('custom_field_values')
+              .eq('stripe_payment_intent_id', paymentIntent.id)
+              .maybeSingle();
+
             const webhookData = await buildPurchaseWebhookPayload({
               supabaseClient: serviceClient,
               customerEmail,
@@ -875,6 +888,7 @@ export async function verifyPaymentIntent(
               paymentIntentId: paymentIntent.id,
               couponId: couponId || null,
               isGuest: paymentResult?.is_guest_purchase,
+              customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
             });
 
             WebhookService.trigger('purchase.completed', webhookData, serviceClient)

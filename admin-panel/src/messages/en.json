@@ -2030,6 +2030,7 @@
         "stripePaymentIntent": "Stripe Payment Intent",
         "stripeSession": "Stripe session",
         "items": "Transaction items",
+        "customFields": "Customer form answers",
         "mainProduct": "Main product",
         "orderBump": "Order bump",
         "quantity": "Quantity",

@@ -183,6 +183,15 @@ async function handleCheckoutSessionCompleted(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
+    // Pull buyer's custom-field answers so the webhook payload + admin UI can
+    // surface them. They were written by the checkout PaymentIntent flow on
+    // the same payment_transactions row keyed by session_id.
+    const { data: txCustomFields } = await supabase
+      .from('payment_transactions')
+      .select('custom_field_values')
+      .eq('session_id', sessionId)
+      .maybeSingle();
+
     const webhookData = await buildPurchaseWebhookPayload({
       supabaseClient: supabase,
       customerEmail,
@@ -197,6 +206,7 @@ async function handleCheckoutSessionCompleted(
       couponId: hasCoupon && couponId ? couponId : null,
       isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
+      customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
     // Server-side Purchase tracking via Facebook CAPI
@@ -320,6 +330,12 @@ async function handlePaymentIntentSucceeded(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
+    const { data: txCustomFields } = await supabase
+      .from('payment_transactions')
+      .select('custom_field_values')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .maybeSingle();
+
     const webhookData = await buildPurchaseWebhookPayload({
       supabaseClient: supabase,
       customerEmail,
@@ -333,6 +349,7 @@ async function handlePaymentIntentSucceeded(
       couponId: couponId || null,
       isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
+      customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
     // Server-side Purchase tracking via Facebook CAPI

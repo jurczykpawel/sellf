@@ -2045,6 +2045,7 @@
         "stripePaymentIntent": "Stripe Payment Intent",
         "stripeSession": "Sesja Stripe",
         "items": "Produkty w transakcji",
+        "customFields": "Pola formularza klienta",
         "mainProduct": "Produkt główny",
         "orderBump": "Order bump",
         "quantity": "Ilość",

@@ -35,10 +35,14 @@ export interface PaymentTransaction {
   refunded_by?: string;
   refund_reason?: string;
   metadata: Record<string, unknown>;
+  /** Buyer answers to product-level custom_checkout_fields. JSONB `{id: value}`. */
+  custom_field_values?: Record<string, unknown> | null;
   product?: {
     id: string;
     name: string | null;
     slug: string | null;
+    /** Definitions for resolving custom_field_values into label + type. */
+    custom_checkout_fields?: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[] | null;
   };
   line_items?: PaymentTransactionLineItem[];
   created_at: string;

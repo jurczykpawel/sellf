@@ -10,6 +10,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { formatCustomFieldsForDisplay, type DisplayCustomField } from '@/lib/format-custom-fields';
+import type { CustomFieldDefinition } from '@/lib/validations/custom-checkout-fields';
 
 type AnySupabaseClient = SupabaseClient<any, any, any>;
 
@@ -49,6 +51,12 @@ export interface PurchaseWebhookData {
     postalCode: string | null;
     country: string | null;
   };
+  /**
+   * Custom checkout-field answers, resolved against the product's
+   * `custom_checkout_fields` definitions. Omitted when the seller didn't
+   * configure any fields or the buyer didn't submit any values.
+   */
+  customFields?: DisplayCustomField[];
   source?: string;
 }
 
@@ -66,6 +74,12 @@ export interface BuildWebhookPayloadParams {
   couponId: string | null;
   isGuest: boolean | undefined;
   source?: string;
+  /**
+   * JSONB `custom_field_values` recorded on the buyer's payment_transactions
+   * row. Resolved against the product's `custom_checkout_fields` definitions
+   * before landing in the webhook payload.
+   */
+  customFieldValues?: Record<string, unknown> | null;
 }
 
 /**
@@ -80,13 +94,13 @@ export async function buildPurchaseWebhookPayload(
   const {
     supabaseClient, customerEmail, userId, productId, bumpProductIds,
     metadata, amount, currency, sessionId, paymentIntentId,
-    couponId, isGuest, source,
+    couponId, isGuest, source, customFieldValues,
   } = params;
 
   // Fetch main product details
   const { data: productDetails } = await supabaseClient
     .from('products')
-    .select('id, name, slug, price, currency, icon')
+    .select('id, name, slug, price, currency, icon, custom_checkout_fields')
     .eq('id', productId)
     .single();
 
@@ -154,6 +168,22 @@ export async function buildPurchaseWebhookPayload(
       postalCode: metadata.postal_code || null,
       country: metadata.country || null,
     };
+  }
+
+  // Attach resolved custom-checkout-field answers if the seller had any defined
+  // AND the buyer submitted at least one non-empty value. Webhooks default to
+  // English labels — receivers that need a locale-specific copy can re-resolve
+  // from `custom_checkout_fields` on the product (also surfaced via the v1 API).
+  const productCustomFields = (productDetails as { custom_checkout_fields?: unknown } | null)
+    ?.custom_checkout_fields;
+  const definitions: CustomFieldDefinition[] | null = Array.isArray(productCustomFields)
+    ? (productCustomFields as CustomFieldDefinition[])
+    : null;
+  if (definitions && customFieldValues) {
+    const resolved = formatCustomFieldsForDisplay(customFieldValues, definitions, 'en');
+    if (resolved.length > 0) {
+      webhookData.customFields = resolved;
+    }
   }
 
   return webhookData;
