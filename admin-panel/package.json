@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "prebuild": "chflags -R nouchg,nohidden .next 2>/dev/null; rm -rf .next 2>/dev/null; true",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
