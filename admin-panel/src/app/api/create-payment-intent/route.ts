@@ -27,7 +27,7 @@ import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checko
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
 import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
-import { signCheckoutBinding } from '@/lib/security/checkout-binding';
+import { signCheckoutBinding, verifyCheckoutBinding } from '@/lib/security/checkout-binding';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
     const {
       productId,
       clientSecret,
+      bindingToken: previousBindingToken,
       email,
       firstName,
       lastName,
@@ -703,8 +704,26 @@ export async function POST(request: NextRequest) {
     if (existingCheckoutSessionId) {
       try {
         const existingSession = await stripe.checkout.sessions.retrieve(existingCheckoutSessionId);
-        if (existingSession.status === 'open') {
+        const sessionOwnerId =
+          typeof existingSession.metadata?.user_id === 'string' && existingSession.metadata.user_id.length > 0
+            ? existingSession.metadata.user_id
+            : null;
+        const sessionProductId =
+          typeof existingSession.metadata?.product_id === 'string' && existingSession.metadata.product_id.length > 0
+            ? existingSession.metadata.product_id
+            : null;
+        const bindingOk =
+          typeof previousBindingToken === 'string' &&
+          sessionProductId !== null &&
+          verifyCheckoutBinding(previousBindingToken, {
+            stripeObjectId: existingCheckoutSessionId,
+            userId: sessionOwnerId,
+            productId: sessionProductId,
+          });
+        if (bindingOk && existingSession.status === 'open') {
           await stripe.checkout.sessions.expire(existingCheckoutSessionId);
+        } else if (!bindingOk) {
+          console.warn('[create-payment-intent] Skipping expire of previous session: missing or invalid binding token');
         }
       } catch (expireError) {
         console.warn('[create-payment-intent] Failed to expire previous Checkout Session:', expireError);

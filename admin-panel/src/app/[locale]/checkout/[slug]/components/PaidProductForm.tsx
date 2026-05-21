@@ -280,6 +280,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       body: JSON.stringify({
         productId: product.id,
         clientSecret: shouldRefreshExistingSession ? clientSecret : undefined,
+        bindingToken: shouldRefreshExistingSession ? bindingToken ?? undefined : undefined,
         email: checkoutEmail || undefined,
         bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
         couponCode: coupon.appliedCoupon?.code,
@@ -338,7 +339,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess, isSubscription,
-    clientSecret, checkoutSessionSignature,
+    clientSecret, bindingToken, checkoutSessionSignature,
   ]);
 
   const handleSignOutAndCheckout = async () => {
