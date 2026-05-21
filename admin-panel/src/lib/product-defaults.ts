@@ -54,9 +54,17 @@ export function applyProductTypeDefaults(
         checkout_template: 'tip-jar',
         product_type: 'one_time',
         allow_custom_price: true,
+        price: 0,
         billing_interval: null,
         billing_interval_count: null,
         recurring_price: null,
+        // Typical "support from 1 PLN" minimum + preserve any user-tuned presets.
+        custom_price_min: 1,
+        show_price_presets: true,
+        custom_price_presets:
+          prev.custom_price_presets && prev.custom_price_presets.length > 0
+            ? prev.custom_price_presets
+            : [5, 10, 25],
         custom_checkout_fields:
           prev.custom_checkout_fields.length === 0
             ? getTipJarDefaultCustomFields()

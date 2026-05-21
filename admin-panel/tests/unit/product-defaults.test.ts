@@ -65,6 +65,20 @@ describe('product-defaults registry', () => {
       expect(result.custom_checkout_fields).toEqual(customFields);
     });
 
+    it('tip-jar: sets PWYW defaults (min=1, presets [5,10,25], show_presets=true)', () => {
+      const result = applyProductTypeDefaults(initialFormData, 'tip-jar');
+      expect(result.custom_price_min).toBe(1);
+      expect(result.custom_price_presets).toEqual([5, 10, 25]);
+      expect(result.show_price_presets).toBe(true);
+    });
+
+    it('tip-jar: preserves user-tuned presets across re-selection', () => {
+      const customized = applyProductTypeDefaults(initialFormData, 'tip-jar');
+      const tuned = { ...customized, custom_price_presets: [10, 20, 50] };
+      const result = applyProductTypeDefaults(tuned, 'tip-jar');
+      expect(result.custom_price_presets).toEqual([10, 20, 50]);
+    });
+
     it('lead-magnet: price=0, allow_custom_price=false, checkout_template=default', () => {
       const result = applyProductTypeDefaults(
         { ...initialFormData, price: 49 },

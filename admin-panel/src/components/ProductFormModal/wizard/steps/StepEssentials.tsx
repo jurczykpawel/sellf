@@ -49,7 +49,8 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
   const uxType = formData.ux_product_type;
   const isLeadMagnet = uxType === 'lead-magnet';
   const isTipJar = uxType === 'tip-jar';
-  const showPriceInput = formData.product_type !== 'subscription' && !isLeadMagnet && !isTipJar;
+  const isSubscription = formData.product_type === 'subscription';
+  const showPaidPriceInput = !isSubscription && !isLeadMagnet && !isTipJar;
 
   return (
     <div className="space-y-6">
@@ -73,7 +74,7 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
 
       <SubscriptionSection formData={formData} setFormData={setFormData} t={t} />
 
-      {showPriceInput && (
+      {showPaidPriceInput && (
         <PriceVatInline
           formData={formData}
           setFormData={setFormData}
@@ -84,6 +85,21 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
           taxMode={taxMode}
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
+        />
+      )}
+
+      {isTipJar && (
+        <PriceVatInline
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          priceDisplayValue={priceDisplayValue}
+          setPriceDisplayValue={setPriceDisplayValue}
+          shopDefaultVatRate={shopDefaultVatRate}
+          taxMode={taxMode}
+          fieldErrors={fieldErrors}
+          setFieldErrors={setFieldErrors}
+          mode="tip-jar"
         />
       )}
 

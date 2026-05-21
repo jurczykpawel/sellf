@@ -1425,7 +1425,8 @@
           "freeOptionHint": "Customer can get this product for free",
           "showPresets": "Show buttons with predefined amounts",
           "showPresetsHelp": "Display suggested amounts as quick-select buttons on checkout",
-          "presetAmount": "Amount"
+          "presetAmount": "Amount",
+          "zeroHidden": "(0 = hidden)"
         },
         "enabled": "Enabled",
         "wizard": {

@@ -360,6 +360,38 @@ test.describe('Product type radio', () => {
     }
   });
 
+  test('tip-jar exposes PWYW config (min + presets + show toggle)', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="tip-jar"]').click();
+
+    // PWYW config inputs are visible: min amount, suggested presets (3 inputs),
+    // and the "show presets" toggle. The main one-line price input is gone.
+    await expect(page.locator('input#custom_price_min')).toBeVisible();
+    await expect(page.locator('input#show_price_presets')).toBeVisible();
+
+    // Min defaults to 1 (typical "support from 1 PLN").
+    await expect(page.locator('input#custom_price_min')).toHaveValue('1');
+
+    // Three preset inputs render with the default 5 / 10 / 25.
+    const presetInputs = page.locator('input[type="number"][step="1"][placeholder="0"]');
+    await expect(presetInputs).toHaveCount(3);
+    await expect(presetInputs.nth(0)).toHaveValue('5');
+    await expect(presetInputs.nth(1)).toHaveValue('10');
+    await expect(presetInputs.nth(2)).toHaveValue('25');
+
+    // The standard paid price input is NOT visible in tip-jar mode.
+    await expect(page.locator('input#price')).not.toBeVisible();
+
+    // Close
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+
   test('tip-jar with just a name allows advancing to step 2 (no price required)', async ({ page }) => {
     await goToProducts(page);
     await openWizard(page);
