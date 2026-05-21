@@ -1345,12 +1345,12 @@
         "featuredProduct": "Produkt wyróżniony",
         "featuredProductHelp": "Wyróżniony w katalogu produktów",
         "step3": {
-          "conversion": "A. Konwersja",
-          "formFields": "B. Pola formularza",
-          "availability": "C. Dostępność i dostęp",
-          "postPurchase": "D. Po zakupie",
-          "refunds": "E. Zwroty",
-          "advanced": "F. Zaawansowane"
+          "conversion": "Konwersja",
+          "formFields": "Pola formularza",
+          "availability": "Dostępność i dostęp",
+          "postPurchase": "Po zakupie",
+          "refunds": "Zwroty",
+          "advanced": "Zaawansowane"
         },
         "conversionBadge": {
           "salePrice": "+6% do konwersji",

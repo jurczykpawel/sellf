@@ -136,7 +136,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
           transform transition-all duration-300 ease-out
           animate-[modalIn_0.3s_ease-out]
           flex flex-col
-          min-h-[70vh] max-h-[90vh]
+          ${size === 'xl' || size === 'full' ? 'h-[85vh]' : 'max-h-[90vh]'}
           my-8
           ${className}
         `}

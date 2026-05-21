@@ -155,8 +155,9 @@ test.describe('Product Creation Wizard', () => {
       await expect(nextBtn).not.toBeVisible({ timeout: 2000 });
     }).toPass({ timeout: 15000 });
 
-    // Step 3 shows the grouped accordions (Konwersja default open)
-    await expect(page.getByText('A. Konwersja')).toBeVisible();
+    // Step 3 shows the 6 grouped accordions (Konwersja default open)
+    await expect(page.locator('[data-step3-group="A"]')).toBeVisible();
+    await expect(page.locator('[data-step3-group="A"]').getByText(/Konwersja/i)).toBeVisible();
 
     // No Continue Setup on last step
     await expect(page.getByRole('dialog').getByRole('button', { name: /Dalej/i })).not.toBeVisible();
@@ -469,7 +470,7 @@ test.describe('Product type radio', () => {
 });
 
 test.describe('Step 3 layout', () => {
-  test('renders 6 group headers (A–F), no inline duplicate titles, no collapsibles', async ({ page }) => {
+  test('renders 6 collapsible groups (A–F), default expansion + no doubled letters', async ({ page }) => {
     await goToProducts(page);
     await openWizard(page);
 
@@ -485,10 +486,25 @@ test.describe('Step 3 layout', () => {
     const groups = page.locator('[data-step3-group]');
     await expect(groups).toHaveCount(6);
 
-    // Group E (Zwroty) has no inner duplicate "Polityka zwrotów" header anymore.
+    // Group A (Konwersja) is expanded by default; F (Zaawansowane) is collapsed.
+    const groupA = page.locator('[data-step3-group="A"]');
+    const groupF = page.locator('[data-step3-group="F"]');
+    await expect(groupA.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'true');
+    await expect(groupF.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'false');
+
+    // Group title is just the name — no "A. " prefix duplicated against the letter chip.
+    const groupAHeader = groupA.locator('button[aria-expanded]').first();
+    await expect(groupAHeader).toContainText(/Konwersja/i);
+    await expect(groupAHeader).not.toContainText(/A\. /i);
+
+    // Group E (Zwroty) collapsed by default — inner refund-policy heading isn't rendered.
     const groupE = page.locator('[data-step3-group="E"]');
-    await expect(groupE.getByRole('heading', { level: 3 })).toContainText(/Zwroty/i);
-    await expect(groupE.getByRole('heading', { level: 4 })).toHaveCount(0);
+    await expect(groupE.locator('button[aria-expanded]').first()).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupE.locator('h4')).toHaveCount(0);
+
+    // Expanding F surfaces the AdvancedSection inputs (is_active checkbox).
+    await groupF.locator('button[aria-expanded]').first().click();
+    await expect(groupF.locator('input#is_active')).toBeVisible();
 
     // Close
     await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
