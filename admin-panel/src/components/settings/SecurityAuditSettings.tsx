@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Shield, ShieldCheck, ShieldAlert, AlertTriangle, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldAlert, AlertTriangle, Info, Loader2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { getSecurityAudit, runSecurityAudit } from '@/lib/actions/security-audit';
 import type { SecurityCheckResult, SecurityAuditResult } from '@/lib/actions/security-audit';
@@ -17,6 +17,7 @@ import type { SecurityCheckResult, SecurityAuditResult } from '@/lib/actions/sec
 function CheckIcon({ status }: { status: SecurityCheckResult['status'] }) {
   if (status === 'pass') return <ShieldCheck className="w-4 h-4 text-green-500 flex-shrink-0" />;
   if (status === 'fail') return <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0" />;
+  if (status === 'info') return <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />;
   return <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />;
 }
 
@@ -25,6 +26,7 @@ function StatusBadge({ status }: { status: SecurityCheckResult['status'] }) {
     pass: 'bg-green-500/10 text-green-600 border border-green-500/20',
     fail: 'bg-red-500/10 text-red-600 border border-red-500/20',
     warn: 'bg-yellow-500/10 text-yellow-600 border border-yellow-500/20',
+    info: 'bg-blue-500/10 text-blue-600 border border-blue-500/20',
   };
   return (
     <span className={`text-xs font-mono px-2 py-0.5 ${styles[status]}`}>
@@ -34,14 +36,17 @@ function StatusBadge({ status }: { status: SecurityCheckResult['status'] }) {
 }
 
 function CheckRow({ check }: { check: SecurityCheckResult }) {
-  const [expanded, setExpanded] = useState(check.status !== 'pass');
-  const hasDetails = check.status !== 'pass' || check.message;
+  const collapsedByDefault = check.status === 'pass' || check.status === 'info';
+  const [expanded, setExpanded] = useState(!collapsedByDefault);
+  const hasDetails = !collapsedByDefault || check.message;
 
-  const borderStyle = check.status === 'pass'
-    ? 'border-sf-border-light'
-    : check.status === 'fail'
+  const borderStyle = check.status === 'fail'
     ? 'border-red-500/30 bg-red-500/5'
-    : 'border-yellow-500/30 bg-yellow-500/5';
+    : check.status === 'warn'
+    ? 'border-yellow-500/30 bg-yellow-500/5'
+    : check.status === 'info'
+    ? 'border-blue-500/30 bg-blue-500/5'
+    : 'border-sf-border-light';
 
   return (
     <div className={`border ${borderStyle}`}>
@@ -150,6 +155,7 @@ export default function SecurityAuditSettings() {
   const passCount = result?.checks.filter(c => c.status === 'pass').length ?? 0;
   const warnCount = result?.checks.filter(c => c.status === 'warn').length ?? 0;
   const failCount = result?.checks.filter(c => c.status === 'fail').length ?? 0;
+  const infoCount = result?.checks.filter(c => c.status === 'info').length ?? 0;
 
   return (
     <div className="bg-sf-base border-2 border-sf-border-medium p-6">
@@ -207,13 +213,18 @@ export default function SecurityAuditSettings() {
                 <ShieldAlert className="w-4 h-4" /> {failCount} {t('issues')}
               </span>
             )}
+            {infoCount > 0 && (
+              <span className="flex items-center gap-1 text-blue-600">
+                <Info className="w-4 h-4" /> {infoCount} info
+              </span>
+            )}
           </div>
 
           {/* Check results - issues first, then warnings, then pass */}
           <div className="space-y-2">
             {result.checks
               .sort((a, b) => {
-                const order = { fail: 0, warn: 1, pass: 2 };
+                const order = { fail: 0, warn: 1, info: 2, pass: 3 };
                 return order[a.status] - order[b.status];
               })
               .map(check => (

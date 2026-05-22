@@ -85,7 +85,7 @@ describe('Security Audit', () => {
       const result = await runSecurityAudit();
 
       expect(result.success).toBe(true);
-      expect(result.checks).toHaveLength(15);
+      expect(result.checks).toHaveLength(18);
       expect(result.timestamp).toBeTruthy();
       expect(result.checks.every(c => c.id && c.name && c.status && c.message)).toBe(true);
     });
@@ -320,8 +320,13 @@ describe('Security Audit', () => {
       const result = await runSecurityAudit();
 
       expect(result.success).toBe(true);
-      expect(result.checks.every(c => c.status === 'pass')).toBe(true);
-      expect(result.checks.every(c => c.fix === undefined)).toBe(true);
+      // Every check should be a clean pass — info entries (e.g., trusted-domain
+      // listings, stripe-mode summary) are also acceptable since they are
+      // read-only summaries, not findings. Only warn / fail should be empty.
+      expect(result.checks.every(c => c.status === 'pass' || c.status === 'info')).toBe(true);
+      expect(result.checks.filter(c => c.status === 'warn' || c.status === 'fail')).toHaveLength(0);
+      const nonInfo = result.checks.filter(c => c.status !== 'info');
+      expect(nonInfo.every(c => c.fix === undefined)).toBe(true);
     });
 
     it('warns, not fails, when ALTCHA is active but a stale Turnstile site key is present', async () => {

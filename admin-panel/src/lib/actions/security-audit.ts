@@ -13,7 +13,7 @@ import { withAdminClient } from '@/lib/actions/admin-auth';
 export interface SecurityCheckResult {
   id: string;
   name: string;
-  status: 'pass' | 'warn' | 'fail';
+  status: 'pass' | 'warn' | 'fail' | 'info';
   message: string;
   fix?: string;
   steps?: string[];
@@ -35,7 +35,9 @@ let cachedResult: SecurityAuditResult | null = null;
 let cachedAt = 0;
 
 function getCacheTtl(result: SecurityAuditResult): number {
-  const hasIssues = result.checks.some(c => c.status !== 'pass');
+  // Info entries are read-only summaries (e.g., active license tier, Stripe mode);
+  // they should not shorten the cache window. Only real warnings / failures do.
+  const hasIssues = result.checks.some((c) => c.status === 'warn' || c.status === 'fail');
   return hasIssues ? CACHE_TTL_ISSUES_MS : CACHE_TTL_CLEAN_MS;
 }
 
@@ -104,6 +106,9 @@ async function executeAudit(): Promise<SecurityAuditResult> {
     { scope: 'platform', check: () => checkCaptcha() },
     { scope: 'platform', check: () => checkCronSecret() },
     { scope: 'platform', check: () => checkTrustedProxy() },
+    { scope: 'platform', check: () => checkTrustedDownloadDomains() },
+    { scope: 'platform', check: () => checkAllowedEmbedOrigins() },
+    { scope: 'shop', check: () => checkStripeMode() },
     // Shop-relevant checks
     { scope: 'shop', check: () => checkHttpsRedirect(siteUrl) },
     { scope: 'shop', check: () => checkHstsHeader(siteUrl) },
@@ -566,6 +571,121 @@ async function checkTrustedProxy(): Promise<SecurityCheckResult> {
   };
 }
 
+function parseDomainList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((d) => d.trim())
+    .filter(Boolean);
+}
+
+async function checkTrustedDownloadDomains(): Promise<SecurityCheckResult> {
+  const domains = parseDomainList(process.env.NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS);
+
+  if (domains.length === 0) {
+    return {
+      id: 'trusted-download-domains',
+      name: 'Trusted lead-magnet download domains',
+      status: 'info',
+      message: 'No extra download providers configured. Lead magnet download URLs are restricted to the built-in defaults (your own R2 bucket, the install\'s host).',
+    };
+  }
+
+  return {
+    id: 'trusted-download-domains',
+    name: 'Trusted lead-magnet download domains',
+    status: 'info',
+    message: `NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS adds ${domains.length} ${domains.length === 1 ? 'host' : 'hosts'} to the lead-magnet download allowlist: ${domains.join(', ')}. Anyone who can save a product can point its download URL at one of these hosts; treat the list like an outbound allowlist, not a casual config.`,
+  };
+}
+
+async function checkAllowedEmbedOrigins(): Promise<SecurityCheckResult> {
+  const origins = parseDomainList(process.env.SELLF_EMBED_ALLOWED_ORIGINS);
+
+  if (origins.length === 0) {
+    return {
+      id: 'allowed-embed-origins',
+      name: 'Allowed embed / loginwall origins',
+      status: 'info',
+      message: 'SELLF_EMBED_ALLOWED_ORIGINS is empty. Embedded checkout + login-wall round trips rely on the per-seller allowlist (seller_embed_settings.allowed_embed_origins) — set the env var if you want a global fallback for solo deployments.',
+    };
+  }
+
+  return {
+    id: 'allowed-embed-origins',
+    name: 'Allowed embed / loginwall origins',
+    status: 'info',
+    message: `SELLF_EMBED_ALLOWED_ORIGINS lists ${origins.length} ${origins.length === 1 ? 'origin' : 'origins'} that the embed checkout SDK and the login-wall redirect target trust: ${origins.join(', ')}. Any page on these origins can launch a checkout session for this install and receive a login-wall handoff token, so keep the list tight.`,
+  };
+}
+
+async function checkStripeMode(): Promise<SecurityCheckResult> {
+  const envKey = process.env.STRIPE_SECRET_KEY;
+  const inProduction = process.env.NODE_ENV === 'production';
+
+  if (envKey) {
+    const mode = envKey.startsWith('sk_live_') ? 'live' : 'test';
+    const source = 'STRIPE_SECRET_KEY env';
+    // Production with test keys = sandbox / staging — note but don't alarm.
+    // Non-production with live keys = highly unusual, surface as a warning.
+    if (mode === 'live' && !inProduction) {
+      return {
+        id: 'stripe-mode',
+        name: 'Stripe mode (live vs test)',
+        status: 'warn',
+        message: `Stripe is in LIVE mode (source: ${source}) but NODE_ENV is "${process.env.NODE_ENV || 'unset'}". Live keys on a non-production build risk capturing real money from test traffic.`,
+        fix: 'Use sk_test_... keys on staging / dev, or set NODE_ENV=production if this really is the live deploy.',
+      };
+    }
+    return {
+      id: 'stripe-mode',
+      name: 'Stripe mode (live vs test)',
+      status: 'info',
+      message: `Stripe is in ${mode.toUpperCase()} mode (source: ${source}).${mode === 'test' && inProduction ? ' This production deploy is running on test keys — payments are sandboxed.' : ''}`,
+    };
+  }
+
+  // No env key — the DB config decides mode. Try to resolve which one is active.
+  try {
+    const adminClient = (await import('@/lib/supabase/admin')).createAdminClient();
+    const dbTimeout = new Promise<{ data: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null }), 2500),
+    );
+    const { data } = await Promise.race([
+      adminClient
+        .from('stripe_configurations')
+        .select('mode')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single(),
+      dbTimeout,
+    ]);
+    const dbMode = (data as { mode?: string } | null)?.mode;
+    if (!dbMode) {
+      return {
+        id: 'stripe-mode',
+        name: 'Stripe mode (live vs test)',
+        status: 'info',
+        message: 'No active Stripe configuration in env or DB. Checkout will refuse to create sessions until Stripe is configured (Settings → Integrations).',
+      };
+    }
+    return {
+      id: 'stripe-mode',
+      name: 'Stripe mode (live vs test)',
+      status: 'info',
+      message: `Stripe is in ${dbMode.toUpperCase()} mode (source: database, Settings → Integrations).${dbMode === 'test' && inProduction ? ' This production deploy is running on test keys — payments are sandboxed.' : ''}`,
+    };
+  } catch {
+    return {
+      id: 'stripe-mode',
+      name: 'Stripe mode (live vs test)',
+      status: 'info',
+      message: 'Stripe mode could not be resolved (no env key and DB unreachable from this check).',
+    };
+  }
+}
+
 async function checkCronSecret(): Promise<SecurityCheckResult> {
   const secret = process.env.CRON_SECRET;
 
@@ -598,9 +718,10 @@ async function checkCronSecret(): Promise<SecurityCheckResult> {
 }
 
 async function checkStripeWebhookSecret(): Promise<SecurityCheckResult> {
-  const envSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const { getStripeWebhookSecretStatus } = await import('@/lib/stripe/internal-config');
+  const status = await getStripeWebhookSecretStatus();
 
-  if (envSecret) {
+  if (status.envConfigured) {
     return {
       id: 'stripe-webhook-secret',
       name: 'Stripe webhook secret',
@@ -609,13 +730,36 @@ async function checkStripeWebhookSecret(): Promise<SecurityCheckResult> {
     };
   }
 
-  // Not in env — may still work via DB (which has priority anyway)
+  if (status.dbPresent && status.dbDecryptable) {
+    return {
+      id: 'stripe-webhook-secret',
+      name: 'Stripe webhook secret',
+      status: 'pass',
+      message: 'Stripe webhook secret is stored encrypted in the database (Settings → Integrations) and decrypts cleanly. Webhook signature verification will succeed.',
+    };
+  }
+
+  if (status.dbPresent && !status.dbDecryptable) {
+    return {
+      id: 'stripe-webhook-secret',
+      name: 'Stripe webhook secret',
+      status: 'fail',
+      message: 'Stripe webhook secret is stored in the database but cannot be decrypted. APP_ENCRYPTION_KEY is missing or no longer matches the value used at encryption time, so Stripe webhooks fail signature verification — payments confirm in Stripe but never grant access in Sellf.',
+      fix: 'Restore the APP_ENCRYPTION_KEY that was active when the webhook secret was saved (preferred), or re-enter the webhook secret in Settings → Integrations → Stripe so it is re-encrypted with the current key.',
+      steps: [
+        'If you recently rotated or lost APP_ENCRYPTION_KEY: restore the old value to .env.local and restart.',
+        'Otherwise, fetch the signing secret from Stripe Dashboard → Developers → Webhooks → select endpoint.',
+        'In Sellf admin panel: Settings → Integrations → Stripe → paste and save. The new value is encrypted with the current APP_ENCRYPTION_KEY.',
+      ],
+    };
+  }
+
   return {
     id: 'stripe-webhook-secret',
     name: 'Stripe webhook secret',
-    status: 'warn',
-    message: 'STRIPE_WEBHOOK_SECRET is not set in environment variables. The app uses the encrypted value from the database (Settings → Integrations) as the primary source. If neither is configured, Stripe webhooks will fail signature verification and purchases will not be confirmed.',
-    fix: 'Configure the webhook secret in Settings → Integrations → Stripe (preferred), or set STRIPE_WEBHOOK_SECRET in .env.local as a fallback. Ensure APP_ENCRYPTION_KEY is valid for DB-stored secrets to work.',
+    status: 'fail',
+    message: 'Stripe webhook secret is not configured anywhere — neither STRIPE_WEBHOOK_SECRET in env nor an encrypted value in the database. Every Stripe webhook will fail signature verification, so successful payments will not unlock product access.',
+    fix: 'Configure the webhook secret in Settings → Integrations → Stripe (preferred), or set STRIPE_WEBHOOK_SECRET in .env.local as a fallback.',
     steps: [
       'Preferred method (stored encrypted in database):',
       '1. Go to Stripe Dashboard → Developers → Webhooks → select your endpoint.',

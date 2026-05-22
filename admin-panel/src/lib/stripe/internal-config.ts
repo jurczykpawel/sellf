@@ -66,3 +66,55 @@ export async function getDecryptedWebhookSecretInternal(): Promise<string | null
     return null
   }
 }
+
+export interface StripeWebhookSecretStatus {
+  envConfigured: boolean
+  dbPresent: boolean
+  dbDecryptable: boolean
+}
+
+/**
+ * Cheap status snapshot of the Stripe webhook secret across env + DB. Does
+ * not return the secret itself — only flags. Lets the security audit tell
+ * the difference between "not configured anywhere" (payments silently
+ * fail) and "DB has it but APP_ENCRYPTION_KEY no longer decrypts it"
+ * (worst case: payments silently fail after a key rotation).
+ */
+export async function getStripeWebhookSecretStatus(): Promise<StripeWebhookSecretStatus> {
+  const envConfigured = Boolean(process.env.STRIPE_WEBHOOK_SECRET)
+  // Bound the DB lookup — security-audit calls this on every run and we never
+  // want a slow / unreachable Supabase to hang the audit. Treat a hang the
+  // same as "DB unreachable from this check" → fall back to env-only signal.
+  const dbTimeout = new Promise<{ data: null }>((resolve) =>
+    setTimeout(() => resolve({ data: null }), 2500),
+  )
+  try {
+    const adminClient = createAdminClient()
+    const query = adminClient
+      .from('stripe_configurations')
+      .select('webhook_signing_secret_enc, webhook_signing_iv, webhook_signing_tag')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    const { data } = await Promise.race([query, dbTimeout])
+
+    const dbPresent = Boolean(
+      data?.webhook_signing_secret_enc && data?.webhook_signing_iv && data?.webhook_signing_tag,
+    )
+    if (!dbPresent) return { envConfigured, dbPresent: false, dbDecryptable: false }
+
+    try {
+      const decrypted = await decryptSecret({
+        encrypted_key: data!.webhook_signing_secret_enc as string,
+        encryption_iv: data!.webhook_signing_iv as string,
+        encryption_tag: data!.webhook_signing_tag as string,
+      })
+      return { envConfigured, dbPresent: true, dbDecryptable: Boolean(decrypted) }
+    } catch {
+      return { envConfigured, dbPresent: true, dbDecryptable: false }
+    }
+  } catch {
+    return { envConfigured, dbPresent: false, dbDecryptable: false }
+  }
+}
