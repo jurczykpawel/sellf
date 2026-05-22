@@ -323,6 +323,16 @@ if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^CRON_SECRET=" "$INSTALL_DIR/.
   echo "  → generated CRON_SECRET (point your scheduler at /api/cron with Authorization: Bearer <value>)"
 fi
 
+# Ensure TRUSTED_PROXY=true is set. Production startup refuses to boot
+# without it; rate limiting also degrades to a shared "unknown" bucket for
+# every request when it is missing. Self-hosters using upgrade.sh ship
+# Sellf behind a reverse proxy (Caddy/nginx), so true is the correct
+# default for this deploy path.
+if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^TRUSTED_PROXY=" "$INSTALL_DIR/.env.local"; then
+  printf "TRUSTED_PROXY=true\n" >> "$INSTALL_DIR/.env.local"
+  echo "  → enabled TRUSTED_PROXY (read client IP from last X-Forwarded-For hop)"
+fi
+
 # Copy .env.local into standalone dir
 STANDALONE_DIR="$INSTALL_DIR/.next/standalone/admin-panel"
 if [ -d "$STANDALONE_DIR" ] && [ -f "$INSTALL_DIR/.env.local" ]; then
