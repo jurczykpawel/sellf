@@ -85,7 +85,7 @@ describe('Security Audit', () => {
       const result = await runSecurityAudit();
 
       expect(result.success).toBe(true);
-      expect(result.checks).toHaveLength(14);
+      expect(result.checks).toHaveLength(15);
       expect(result.timestamp).toBeTruthy();
       expect(result.checks.every(c => c.id && c.name && c.status && c.message)).toBe(true);
     });
@@ -161,6 +161,56 @@ describe('Security Audit', () => {
       expect(check?.status).toBe('pass');
       expect(check?.message?.toLowerCase()).toContain('cdn');
       expect(check?.fix).toBeUndefined();
+    });
+
+    it('warns when NODE_ENV=production and TRUSTED_PROXY is not "true"', async () => {
+      const prevNodeEnv = process.env.NODE_ENV;
+      const prevTrusted = process.env.TRUSTED_PROXY;
+      try {
+        // @ts-expect-error — vitest test override
+        process.env.NODE_ENV = 'production';
+        delete process.env.TRUSTED_PROXY;
+
+        global.fetch = vi.fn().mockImplementation(() =>
+          Promise.resolve({ ok: true, status: 200, headers: new Headers({}), json: () => Promise.resolve({}) })
+        );
+
+        const result = await runSecurityAudit();
+        const check = result.checks.find(c => c.id === 'trusted-proxy');
+
+        expect(check?.status).toBe('warn');
+        expect(check?.message).toContain('TRUSTED_PROXY');
+        expect(check?.message?.toLowerCase()).toContain('rate');
+        expect(check?.fix).toBeDefined();
+      } finally {
+        // @ts-expect-error — vitest test override
+        process.env.NODE_ENV = prevNodeEnv;
+        if (prevTrusted !== undefined) process.env.TRUSTED_PROXY = prevTrusted;
+      }
+    });
+
+    it('passes the trusted-proxy check when NODE_ENV=production and TRUSTED_PROXY=true', async () => {
+      const prevNodeEnv = process.env.NODE_ENV;
+      const prevTrusted = process.env.TRUSTED_PROXY;
+      try {
+        // @ts-expect-error — vitest test override
+        process.env.NODE_ENV = 'production';
+        process.env.TRUSTED_PROXY = 'true';
+
+        global.fetch = vi.fn().mockImplementation(() =>
+          Promise.resolve({ ok: true, status: 200, headers: new Headers({}), json: () => Promise.resolve({}) })
+        );
+
+        const result = await runSecurityAudit();
+        const check = result.checks.find(c => c.id === 'trusted-proxy');
+
+        expect(check?.status).toBe('pass');
+      } finally {
+        // @ts-expect-error — vitest test override
+        process.env.NODE_ENV = prevNodeEnv;
+        if (prevTrusted === undefined) delete process.env.TRUSTED_PROXY;
+        else process.env.TRUSTED_PROXY = prevTrusted;
+      }
     });
 
     it('detects email autoconfirm enabled', async () => {

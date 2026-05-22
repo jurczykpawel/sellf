@@ -103,6 +103,7 @@ async function executeAudit(): Promise<SecurityAuditResult> {
     { scope: 'platform', check: () => checkAppEncryptionKey() },
     { scope: 'platform', check: () => checkCaptcha() },
     { scope: 'platform', check: () => checkCronSecret() },
+    { scope: 'platform', check: () => checkTrustedProxy() },
     // Shop-relevant checks
     { scope: 'shop', check: () => checkHttpsRedirect(siteUrl) },
     { scope: 'shop', check: () => checkHstsHeader(siteUrl) },
@@ -524,6 +525,44 @@ async function checkCaptcha(): Promise<SecurityCheckResult> {
     status: 'warn',
     message: 'No captcha provider is configured. Bot protection on signup and free product claim endpoints is disabled.',
     fix: 'Set ALTCHA_HMAC_KEY (self-hosted, zero dependencies) or configure Cloudflare Turnstile (CLOUDFLARE_TURNSTILE_SITE_KEY + CLOUDFLARE_TURNSTILE_SECRET_KEY).',
+  };
+}
+
+async function checkTrustedProxy(): Promise<SecurityCheckResult> {
+  const inProduction = process.env.NODE_ENV === 'production';
+  const trusted = process.env.TRUSTED_PROXY === 'true';
+
+  if (!inProduction) {
+    return {
+      id: 'trusted-proxy',
+      name: 'TRUSTED_PROXY (rate-limit identification)',
+      status: 'pass',
+      message: 'NODE_ENV is not production — TRUSTED_PROXY only matters behind a real reverse proxy.',
+    };
+  }
+
+  if (trusted) {
+    return {
+      id: 'trusted-proxy',
+      name: 'TRUSTED_PROXY (rate-limit identification)',
+      status: 'pass',
+      message: 'TRUSTED_PROXY=true — the app reads the trusted client IP from the last X-Forwarded-For hop, so rate limits target real callers instead of a shared "unknown" bucket.',
+    };
+  }
+
+  return {
+    id: 'trusted-proxy',
+    name: 'TRUSTED_PROXY (rate-limit identification)',
+    status: 'warn',
+    message: 'TRUSTED_PROXY is not "true" in production. Rate limiting falls back to a shared "unknown" identifier for every request behind the proxy — one abusive client can trip the global limit and block everyone else, and per-IP throttles do not apply. Production boot is also supposed to refuse this state (see startup-assertions.ts); if the app is running, the guard is bypassed.',
+    fix: 'Add TRUSTED_PROXY=true to .env.local on every instance that sits behind Caddy / nginx / Cloudflare. Only set it when a reverse proxy is in front of Node — exposing Node directly to the internet with this flag lets clients spoof X-Forwarded-For.',
+    steps: [
+      'Confirm the deploy is reached only via the reverse proxy (Caddy/nginx/Cloudflare) and never directly on the Node port.',
+      'SSH into the server and edit the .env.local for the instance.',
+      'Add: TRUSTED_PROXY=true',
+      'Reload PM2 with a full delete + start so the env actually refreshes (pm2 restart does not pick up env changes).',
+      'Re-run the audit to verify the check passes.',
+    ],
   };
 }
 
