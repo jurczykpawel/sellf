@@ -11,7 +11,10 @@
 -- area they never legitimately use. All admin reads/writes go through
 -- service-role-backed server actions in admin-panel/src/lib/actions.
 
-BEGIN;
+-- NB: no top-level BEGIN/COMMIT here — the production migration runner
+-- (apply_migration RPC) executes the file via PL/pgSQL EXECUTE, which does
+-- not support transaction commands. The runner already wraps the apply in
+-- its own transaction.
 
 -- 1) Temporal visibility on products SELECT policy
 DROP POLICY IF EXISTS "SELECT policy for products" ON seller_main.products;
@@ -34,5 +37,3 @@ CREATE POLICY "SELECT policy for products" ON seller_main.products
 -- 2) Redundant authenticated grants on payment_method_config
 REVOKE SELECT, UPDATE ON seller_main.payment_method_config FROM authenticated;
 GRANT SELECT, UPDATE ON seller_main.payment_method_config TO service_role;
-
-COMMIT;

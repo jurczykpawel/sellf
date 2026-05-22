@@ -16,8 +16,10 @@
 -- with the noted clauses changed. CREATE OR REPLACE preserves any earlier
 -- GRANTs; the explicit REVOKE + GRANT at the bottom matches the policy from
 -- 20260302000000_restrict_rpc_function_access.sql.
-
-BEGIN;
+--
+-- NB: no top-level BEGIN/COMMIT — the production migration runner
+-- (apply_migration RPC) wraps the apply in its own transaction and cannot
+-- execute transaction commands via PL/pgSQL EXECUTE.
 
 CREATE OR REPLACE FUNCTION seller_main.process_stripe_payment_completion(
     session_id_param TEXT,
@@ -684,5 +686,3 @@ SET statement_timeout = '30s';
 
 REVOKE EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user(UUID) TO service_role;
-
-COMMIT;

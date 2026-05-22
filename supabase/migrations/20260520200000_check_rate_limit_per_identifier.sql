@@ -28,7 +28,7 @@
 -- types would otherwise raise "function is not unique").
 DROP FUNCTION IF EXISTS public.check_rate_limit(TEXT, INTEGER, INTEGER);
 
-CREATE OR REPLACE FUNCTION check_rate_limit(
+CREATE OR REPLACE FUNCTION public.check_rate_limit(
     function_name_param TEXT,
     max_calls INTEGER DEFAULT 100,
     time_window_seconds INTEGER DEFAULT 3600,
