@@ -45,7 +45,8 @@ export default function SiteMenu({
 
   const handleLanguageChange = (newLocale: string) => {
     startTransition(() => {
-      document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`
+      const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax${secure}`
       const segments = pathname.split('/').filter(Boolean)
       const currentLocale = segments[0]
       let newPath = ''

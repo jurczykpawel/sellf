@@ -218,6 +218,22 @@ export async function proxy(request: NextRequest) {
   const intlRequest = new NextRequest(request, { headers: requestHeaders })
   const intlResponse = intlMiddleware(intlRequest)
 
+  // next-intl writes NEXT_LOCALE without the Secure flag. In production every
+  // deploy terminates HTTPS at the edge, so re-write the cookie with Secure.
+  if (process.env.NODE_ENV === 'production' && intlResponse.cookies.has('NEXT_LOCALE')) {
+    const existing = intlResponse.cookies.get('NEXT_LOCALE')
+    if (existing) {
+      intlResponse.cookies.set({
+        name: 'NEXT_LOCALE',
+        value: existing.value,
+        path: '/',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365,
+        secure: true,
+      })
+    }
+  }
+
   // If intl middleware redirects, return that response with security headers
   if (intlResponse.status === 302 || intlResponse.status === 301) {
     return addSecurityHeaders(intlResponse as NextResponse, nonce)
