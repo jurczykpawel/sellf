@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     template: '%s | Sellf',
   },
   description: 'Self-hosted platform for selling digital products. Courses, ebooks, content access control — with no per-sale commission.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://sellf.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://sellf.app'),
   openGraph: {
     type: 'website',
     siteName: 'Sellf',
