@@ -203,7 +203,7 @@ describe('Security Audit', () => {
     it('all pass when properly configured', async () => {
       // Set ALL env vars needed for every security check to pass
       process.env.SITE_URL = 'https://myapp.example.com';
-      process.env.NEXT_PUBLIC_APP_URL = 'https://myapp.example.com';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://myapp.example.com';
       process.env.ALLOWED_ORIGINS = 'https://customer.com';
       process.env.ALTCHA_HMAC_KEY = 'test-hmac-key-for-captcha';
       // base64-encoded 32 bytes (openssl rand -base64 32 output format)
@@ -382,7 +382,7 @@ describe('Security Audit', () => {
 
   describe('fetch error handling', () => {
     it('handles network errors gracefully', async () => {
-      process.env.NEXT_PUBLIC_APP_URL = 'https://myapp.example.com';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://myapp.example.com';
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
       const result = await runSecurityAudit();
