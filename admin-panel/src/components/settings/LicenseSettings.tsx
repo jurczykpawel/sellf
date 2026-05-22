@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { getIntegrationsConfig, updateIntegrationsConfig } from '@/lib/actions/integrations';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import type { EnvLicenseStatus } from '@/lib/license/env-status';
 
 export default function LicenseSettings() {
  const t = useTranslations('settings.license');
  const [loading, setLoading] = useState(true);
  const [saving, setSaving] = useState(false);
  const [license, setLicense] = useState('');
- const [envLicenseConfigured, setEnvLicenseConfigured] = useState(false);
+ const [envLicenseStatus, setEnvLicenseStatus] = useState<EnvLicenseStatus | null>(null);
 
  useEffect(() => {
  async function loadLicense() {
@@ -20,7 +21,7 @@ export default function LicenseSettings() {
  if (data?.sellf_license) {
  setLicense(data.sellf_license as string);
  }
- setEnvLicenseConfigured(data?.sellf_license_env_configured === true);
+ setEnvLicenseStatus((data?.sellf_license_env_status as EnvLicenseStatus | undefined) ?? null);
  } catch (error) {
  console.error('Failed to load license:', error);
  } finally {
@@ -138,11 +139,8 @@ export default function LicenseSettings() {
  <p className="mt-2 text-xs text-sf-muted">
  {t('formatHint')}
  </p>
- {!license && envLicenseConfigured && (
- <div className="mt-3 border border-sf-warning bg-sf-warning-soft p-3 text-sm text-sf-warning">
- <p className="font-medium">{t('envConfiguredTitle')}</p>
- <p className="mt-1 text-xs">{t('envConfiguredDescription')}</p>
- </div>
+ {!license && envLicenseStatus?.configured && (
+ <EnvLicenseStatusCard status={envLicenseStatus} t={t} />
  )}
  {validationError && (
  <p className="mt-2 text-sm text-sf-danger flex items-center gap-1">
@@ -225,6 +223,52 @@ export default function LicenseSettings() {
  </ul>
  </div>
  </div>
+ </div>
+ );
+}
+
+type LicenseTranslator = (key: string, values?: Record<string, string | number>) => string;
+
+function formatExpiry(expiry: string | null, t: LicenseTranslator): string {
+ if (!expiry) return '—';
+ if (expiry === 'UNLIMITED') return t('never');
+ if (/^\d{8}$/.test(expiry)) {
+ return `${expiry.slice(0, 4)}-${expiry.slice(4, 6)}-${expiry.slice(6, 8)}`;
+ }
+ return expiry;
+}
+
+function EnvLicenseStatusCard({ status, t }: { status: EnvLicenseStatus; t: LicenseTranslator }) {
+ const TIER_LABELS: Record<string, string> = { registered: 'Registered Free', pro: 'Pro', business: 'Business' };
+
+ const reasonKeyMap: Record<EnvLicenseStatus['reason'], string> = {
+ valid: 'envValidDescription',
+ expired: 'envInvalidExpired',
+ domain_mismatch: 'envInvalidDomain',
+ invalid_signature: 'envInvalidSignature',
+ invalid_format: 'envInvalidFormat',
+ no_platform_domain: 'envNoPlatformDomain',
+ not_configured: 'envConfiguredDescription',
+ };
+ const descriptionKey = reasonKeyMap[status.reason];
+
+ const tone = status.valid
+ ? { border: 'border-sf-success', bg: 'bg-sf-success-soft', text: 'text-sf-success' }
+ : { border: 'border-sf-danger', bg: 'bg-sf-danger-soft', text: 'text-sf-danger' };
+
+ const title = status.valid ? t('envValidTitle') : t('envInvalidTitle');
+
+ return (
+ <div className={`mt-3 border ${tone.border} ${tone.bg} p-3 text-sm ${tone.text}`}>
+ <p className="font-medium">{title}</p>
+ <p className="mt-1 text-xs">
+ {t(descriptionKey, {
+ domain: status.domain ?? '—',
+ platformDomain: status.platformDomain ?? '—',
+ expiry: formatExpiry(status.expiry, t),
+ tier: status.tier ? (TIER_LABELS[status.tier] ?? status.tier) : '—',
+ })}
+ </p>
  </div>
  );
 }

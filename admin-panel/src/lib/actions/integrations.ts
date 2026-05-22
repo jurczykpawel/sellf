@@ -3,6 +3,7 @@
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { validateIntegrations, type IntegrationsInput } from '@/lib/validations/integrations'
 import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify'
+import { getEnvLicenseStatus } from '@/lib/license/env-status'
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { createPublicClient } from '@/lib/supabase/server'
@@ -41,6 +42,9 @@ export async function getIntegrationsConfig() {
   return withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient.from('integrations_config').select('*').single()
     const envLicenseConfigured = Boolean(process.env.SELLF_LICENSE_KEY)
+    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN
+    const platformDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null
+    const envLicenseStatus = getEnvLicenseStatus(process.env.SELLF_LICENSE_KEY, platformDomain)
 
     if (error && error.code === 'PGRST116') {
       return {
@@ -49,6 +53,7 @@ export async function getIntegrationsConfig() {
           cookie_consent_enabled: true,
           consent_logging_enabled: false,
           sellf_license_env_configured: envLicenseConfigured,
+          sellf_license_env_status: envLicenseStatus,
         } as Record<string, unknown>,
       }
     }
@@ -58,6 +63,7 @@ export async function getIntegrationsConfig() {
       data: {
         ...(data as Record<string, unknown>),
         sellf_license_env_configured: envLicenseConfigured,
+        sellf_license_env_status: envLicenseStatus,
       },
     }
   })

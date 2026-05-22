@@ -9,9 +9,11 @@ export default async function IntegrationsPage() {
   const configResult = await getIntegrationsConfig()
   const config = configResult.success ? configResult.data : null
   const formConfig = config
-    ? (({ sellf_license_env_configured: _envLicenseConfigured, ...editableConfig }) => editableConfig)(
-      config as Record<string, unknown>
-    ) as IntegrationsInput
+    ? (({
+        sellf_license_env_configured: _envLicenseConfigured,
+        sellf_license_env_status: _envLicenseStatus,
+        ...editableConfig
+      }) => editableConfig)(config as Record<string, unknown>) as IntegrationsInput
     : null
 
   return (

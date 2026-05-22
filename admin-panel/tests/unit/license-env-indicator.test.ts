@@ -32,12 +32,21 @@ describe('license env indicator', () => {
     expect(integrationsActionSource).not.toContain('sellf_license_env: process.env.SELLF_LICENSE_KEY');
   });
 
-  it('shows an env fallback notice when database license is empty', () => {
-    expect(licenseSettingsSource).toContain('envLicenseConfigured');
-    expect(licenseSettingsSource).toContain('envConfiguredTitle');
-    expect(licenseSettingsSource).toContain('!license && envLicenseConfigured');
-    expect(enMessages).toContain('License configured via environment variable');
-    expect(plMessages).toContain('Licencja skonfigurowana w zmiennej środowiskowej');
+  it('exposes the validated env license status without leaking the key', () => {
+    expect(integrationsActionSource).toContain('getEnvLicenseStatus');
+    expect(integrationsActionSource).toContain('sellf_license_env_status');
+    expect(integrationsActionSource).not.toMatch(/sellf_license_env_status:\s*process\.env\.SELLF_LICENSE_KEY/);
+  });
+
+  it('shows the actual env license status when database license is empty', () => {
+    expect(licenseSettingsSource).toContain('envLicenseStatus');
+    expect(licenseSettingsSource).toContain('!license && envLicenseStatus?.configured');
+    expect(licenseSettingsSource).toContain('envValidTitle');
+    expect(licenseSettingsSource).toContain('envInvalidTitle');
+    expect(enMessages).toContain('Environment license is active');
+    expect(plMessages).toContain('Licencja z env jest aktywna');
+    expect(enMessages).toContain('Environment license is not active');
+    expect(plMessages).toContain('Licencja z env nie jest aktywna');
   });
 
   it('does not submit the env-only indicator through integrations settings saves', () => {
