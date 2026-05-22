@@ -94,13 +94,17 @@ export const TRUSTED_DOWNLOAD_PROVIDERS = TRUSTED_DOWNLOAD_PROVIDERS_BASE;
  * Returns true if the URL uses HTTPS and its hostname is the configured provider
  * itself or a direct subdomain of one. Match is exact-host or `.suffix` so an
  * unrelated host that merely ends with the provider string does not pass.
+ *
+ * `providers` lets the client pass the server-resolved list (via /api/runtime-config)
+ * — NEXT_PUBLIC_* envs are inlined at build time with CI placeholders, so client
+ * bundles never see the operator's additions unless they arrive at runtime.
  */
-export function isTrustedDownloadUrl(url: string): boolean {
+export function isTrustedDownloadUrl(url: string, providers?: readonly string[]): boolean {
   if (!url.startsWith('https://')) return false;
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    const providers = getTrustedDownloadProviders();
-    return providers.some(
+    const list = providers ?? getTrustedDownloadProviders();
+    return list.some(
       (provider) => hostname === provider || hostname.endsWith('.' + provider)
     );
   } catch {

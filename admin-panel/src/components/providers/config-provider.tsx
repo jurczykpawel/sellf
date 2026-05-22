@@ -12,6 +12,7 @@ interface AppConfig {
   demoMode: boolean
   passwordLoginEnabled: boolean
   oauthProviders: string[]
+  trustedDownloadDomains: string[]
 }
 
 const ConfigContext = createContext<AppConfig | null>(null)

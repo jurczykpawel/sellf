@@ -10,6 +10,7 @@ import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
 import { getVideoValidationMessage } from '@/lib/playerstack';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
+import { useConfig } from '@/components/providers/config-provider';
 import { createClient } from '@/lib/supabase/client';
 import { api } from '@/lib/api/client';
 import {
@@ -34,6 +35,7 @@ interface UseProductFormProps {
 }
 
 export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProps) {
+  const { trustedDownloadDomains } = useConfig();
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [priceDisplayValue, setPriceDisplayValue] = useState<string>('');
   const [salePriceDisplayValue, setSalePriceDisplayValue] = useState<string>('');
@@ -365,7 +367,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
       };
     } else if (type === 'download_link') {
       try {
-        if (!isTrustedDownloadUrl(url)) {
+        if (!isTrustedDownloadUrl(url, trustedDownloadDomains)) {
           return { isValid: false, message: 'untrustedDownloadUrl' };
         }
         return { isValid: true, message: 'validDownloadUrl' };
@@ -375,7 +377,7 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
     }
 
     return { isValid: false, message: 'unknownType' };
-  }, []);
+  }, [trustedDownloadDomains]);
 
   // Auto-validate existing content item URLs when modal opens with existing product
   useEffect(() => {

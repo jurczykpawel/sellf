@@ -1,6 +1,7 @@
 import 'server-only';
 import { getCaptchaConfig } from '@/lib/captcha/config';
 import type { CaptchaConfig } from '@/lib/captcha/types';
+import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 
 export interface RuntimeAppConfig {
   supabaseUrl: string;
@@ -11,6 +12,7 @@ export interface RuntimeAppConfig {
   demoMode: boolean;
   passwordLoginEnabled: boolean;
   oauthProviders: string[];
+  trustedDownloadDomains: string[];
 }
 
 export function buildRuntimeConfig(): RuntimeAppConfig {
@@ -30,5 +32,6 @@ export function buildRuntimeConfig(): RuntimeAppConfig {
       .filter((p) =>
         ['google', 'github', 'discord', 'twitter', 'azure', 'facebook', 'apple'].includes(p),
       ),
+    trustedDownloadDomains: [...getTrustedDownloadProviders()],
   };
 }

@@ -355,4 +355,39 @@ describe('Download URL Validation Security', () => {
     });
   });
 
+  describe('Explicit providers list (runtime-config injection from client)', () => {
+    const originalEnv = process.env[ENV_KEY];
+
+    beforeEach(() => {
+      delete process.env[ENV_KEY];
+    });
+
+    afterEach(() => {
+      if (originalEnv === undefined) delete process.env[ENV_KEY];
+      else process.env[ENV_KEY] = originalEnv;
+    });
+
+    it('uses the explicit providers list when passed, ignoring env', () => {
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/x.pdf', ['lm.techskills.academy'])).toBe(true);
+      expect(isTrustedDownloadUrl('https://bucket.s3.amazonaws.com/x.zip', ['lm.techskills.academy'])).toBe(false);
+    });
+
+    it('accepts direct subdomain matches against the explicit list', () => {
+      expect(isTrustedDownloadUrl('https://files.lm.techskills.academy/x.pdf', ['lm.techskills.academy'])).toBe(true);
+    });
+
+    it('still requires HTTPS when an explicit list is passed', () => {
+      expect(isTrustedDownloadUrl('http://lm.techskills.academy/x.pdf', ['lm.techskills.academy'])).toBe(false);
+    });
+
+    it('falls back to env-derived providers when arg is undefined', () => {
+      process.env[ENV_KEY] = 'lm.techskills.academy';
+      expect(isTrustedDownloadUrl('https://lm.techskills.academy/x.pdf', undefined)).toBe(true);
+    });
+
+    it('treats an empty explicit list as "trust nothing"', () => {
+      expect(isTrustedDownloadUrl('https://bucket.s3.amazonaws.com/x.zip', [])).toBe(false);
+    });
+  });
+
 });

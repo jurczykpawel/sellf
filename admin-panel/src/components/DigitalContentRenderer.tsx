@@ -7,6 +7,7 @@ import { parseVideoUrl } from '@/lib/videoUtils';
 import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
 import { getVideoValidationMessage, isPlayerstackPlatform } from '@/lib/playerstack';
 import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
+import { useConfig } from '@/components/providers/config-provider';
 
 interface DigitalContentRendererProps {
   contentItems: ContentItem[];
@@ -36,6 +37,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 
 export default function DigitalContentRenderer({ contentItems, productName }: DigitalContentRendererProps) {
   const t = useTranslations('digitalContent');
+  const { trustedDownloadDomains } = useConfig();
   const sortedItems = contentItems
     .filter(item => item.is_active)
     .sort((a, b) => a.order - b.order);
@@ -118,7 +120,7 @@ export default function DigitalContentRenderer({ contentItems, productName }: Di
       // ── Download link ──────────────────────────────────────────────────────
       case 'download_link': {
         const url = item.config.download_url;
-        const isValid = url ? isTrustedDownloadUrl(url) : false;
+        const isValid = url ? isTrustedDownloadUrl(url, trustedDownloadDomains) : false;
         const fileType = getFileType(item.config.file_name);
 
         return (

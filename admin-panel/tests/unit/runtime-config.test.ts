@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildRuntimeConfig } from '@/lib/runtime-config';
 
+const DOWNLOAD_DOMAINS_KEY = 'NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS';
+
 const SAVED = {
   TURNSTILE_TEST_MODE: process.env.NEXT_PUBLIC_TURNSTILE_TEST_MODE,
   TURNSTILE_SITE_KEY: process.env.CLOUDFLARE_TURNSTILE_SITE_KEY,
   TURNSTILE_PUBLIC_SITE_KEY: process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY,
   TURNSTILE_SECRET_KEY: process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY,
   ALTCHA_HMAC_KEY: process.env.ALTCHA_HMAC_KEY,
+  DOWNLOAD_DOMAINS: process.env[DOWNLOAD_DOMAINS_KEY],
 };
 
 beforeEach(() => {
@@ -16,6 +19,7 @@ beforeEach(() => {
   delete process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
   delete process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
   delete process.env.ALTCHA_HMAC_KEY;
+  delete process.env[DOWNLOAD_DOMAINS_KEY];
 });
 
 afterEach(() => {
@@ -24,6 +28,7 @@ afterEach(() => {
   if (SAVED.TURNSTILE_PUBLIC_SITE_KEY !== undefined) process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY = SAVED.TURNSTILE_PUBLIC_SITE_KEY;
   if (SAVED.TURNSTILE_SECRET_KEY !== undefined) process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = SAVED.TURNSTILE_SECRET_KEY;
   if (SAVED.ALTCHA_HMAC_KEY !== undefined) process.env.ALTCHA_HMAC_KEY = SAVED.ALTCHA_HMAC_KEY;
+  if (SAVED.DOWNLOAD_DOMAINS !== undefined) process.env[DOWNLOAD_DOMAINS_KEY] = SAVED.DOWNLOAD_DOMAINS;
 });
 
 describe('buildRuntimeConfig — captcha facade', () => {
@@ -63,5 +68,22 @@ describe('buildRuntimeConfig — captcha facade', () => {
 
     expect(config.cloudflareSiteKey).toBeUndefined();
     expect(config.captchaProvider).toBeUndefined();
+  });
+});
+
+describe('buildRuntimeConfig — trustedDownloadDomains', () => {
+  it('includes the baseline provider list when env is unset', () => {
+    const config = buildRuntimeConfig();
+    expect(config.trustedDownloadDomains).toContain('cloudflarestorage.com');
+    expect(config.trustedDownloadDomains).toContain('amazonaws.com');
+    expect(config.trustedDownloadDomains).not.toContain('lm.techskills.academy');
+  });
+
+  it('appends operator additions from NEXT_PUBLIC_SELLF_ALLOWED_DOWNLOAD_DOMAINS', () => {
+    process.env[DOWNLOAD_DOMAINS_KEY] = 'lm.techskills.academy, assets.example.com';
+    const config = buildRuntimeConfig();
+    expect(config.trustedDownloadDomains).toContain('lm.techskills.academy');
+    expect(config.trustedDownloadDomains).toContain('assets.example.com');
+    expect(config.trustedDownloadDomains).toContain('cloudflarestorage.com');
   });
 });
