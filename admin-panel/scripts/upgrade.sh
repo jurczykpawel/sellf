@@ -279,6 +279,7 @@ cp -r "$EXTRACT_DIR/.next" "$INSTALL_DIR/"
 cp -r "$EXTRACT_DIR/public" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$EXTRACT_DIR/package.json" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$EXTRACT_DIR/bun.lock" "$INSTALL_DIR/" 2>/dev/null || true
+cp "$EXTRACT_DIR/version.txt" "$INSTALL_DIR/" 2>/dev/null || true
 
 # Copy upgrade script itself (self-update)
 if [ -f "$EXTRACT_DIR/scripts/upgrade.sh" ]; then
