@@ -394,18 +394,22 @@ async function checkHstsHeader(siteUrl: string): Promise<SecurityCheckResult> {
 }
 
 async function checkAppUrl(): Promise<SecurityCheckResult> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-  const isLocalhost = !appUrl || appUrl.includes('localhost') || appUrl.includes('127.0.0.1');
+  // OG meta tags read from NEXT_PUBLIC_SITE_URL (see src/app/layout.tsx metadataBase).
+  // SITE_URL is the runtime-only override used by server-side code that can't see
+  // the build-time public var. Check both — whichever resolves wins.
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '';
+  const sourceVar = process.env.NEXT_PUBLIC_SITE_URL ? 'NEXT_PUBLIC_SITE_URL' : (process.env.SITE_URL ? 'SITE_URL' : 'NEXT_PUBLIC_SITE_URL');
+  const isLocalhost = !siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
 
   return {
     id: 'app-url',
     name: 'App URL configuration',
     status: isLocalhost ? 'fail' : 'pass',
     message: isLocalhost
-      ? `NEXT_PUBLIC_APP_URL is ${appUrl || 'not set'}. Open Graph meta tags (og:url, og:image) will reference localhost, breaking social media sharing previews.`
-      : `App URL is set to ${appUrl}.`,
+      ? `${sourceVar} is ${siteUrl || 'not set'}. Open Graph meta tags (og:url, og:image) and absolute redirects will reference localhost — social previews and magic links break.`
+      : `Site URL is set to ${siteUrl}.`,
     fix: isLocalhost
-      ? 'Set NEXT_PUBLIC_APP_URL to your production URL (e.g., https://yourdomain.com) in .env.local and restart the app.'
+      ? 'Set NEXT_PUBLIC_SITE_URL to your public URL (e.g., https://yourdomain.com) in .env.local and restart the app. Reverse-proxy hostnames are not read automatically — the value must be in the server env.'
       : undefined,
   };
 }
