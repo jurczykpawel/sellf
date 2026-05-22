@@ -52,6 +52,70 @@ export interface LintMissing {
   schema: string;
 }
 
+function stripSqlComments(sql: string): string {
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--[^\n]*/g, '');
+}
+
+function stripDollarQuotedBlocks(sql: string): string {
+  const tagRe = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/g;
+  let out = '';
+  let i = 0;
+  while (i < sql.length) {
+    tagRe.lastIndex = i;
+    const open = tagRe.exec(sql);
+    if (!open) {
+      out += sql.slice(i);
+      break;
+    }
+    out += sql.slice(i, open.index);
+    const tag = open[0];
+    const closeIdx = sql.indexOf(tag, open.index + tag.length);
+    if (closeIdx === -1) {
+      // Unclosed quote — keep the rest verbatim so the file at least parses
+      // through the lint pipeline.
+      out += sql.slice(open.index);
+      break;
+    }
+    i = closeIdx + tag.length;
+  }
+  return out;
+}
+
+const TOP_LEVEL_TXN_RE = /^\s*(BEGIN|COMMIT|ROLLBACK|END)\s*;\s*$/gim;
+
+export function lintSqlForTopLevelTransaction(sql: string): string[] {
+  const stripped = stripDollarQuotedBlocks(stripSqlComments(sql));
+  const offenders: string[] = [];
+  for (const m of stripped.matchAll(TOP_LEVEL_TXN_RE)) {
+    offenders.push(m[1].toUpperCase());
+  }
+  return offenders;
+}
+
+const UNQUALIFIED_CREATE_RE =
+  /\bCREATE\s+(?:OR\s+REPLACE\s+)?(FUNCTION|TABLE|VIEW|MATERIALIZED\s+VIEW|INDEX|TYPE|SEQUENCE|TRIGGER|POLICY)\s+(?!IF\s+NOT\s+EXISTS\s+)(?!IF\s+EXISTS\s+)([^\s(]+)/gi;
+
+export function lintSqlForUnqualifiedCreate(sql: string): string[] {
+  const stripped = stripDollarQuotedBlocks(stripSqlComments(sql));
+  const offenders: string[] = [];
+  for (const m of stripped.matchAll(UNQUALIFIED_CREATE_RE)) {
+    const kind = m[1].toUpperCase();
+    const target = m[2];
+    // POLICY targets follow `ON <schema>.<table>`, not <schema>.<policy>.
+    // Skip — the policy itself is namespaced by the parent table.
+    if (kind === 'POLICY') continue;
+    // INDEX / TRIGGER / TYPE often use unqualified names and rely on the
+    // parent table's schema or default search_path. Lint only the CREATE
+    // forms that take a schema-qualified target.
+    if (kind === 'INDEX' || kind === 'TRIGGER') continue;
+    if (target.includes('.')) continue;
+    offenders.push(`${kind} ${target}`);
+  }
+  return offenders;
+}
+
 export function lintSqlForMissingRevoke(_file: string, sql: string): LintMissing[] {
   // CREATE OR REPLACE FUNCTION without a prior DROP preserves existing grants
   // (which the catch-all in 20260302 set to REVOKE'd). Only the DROP+CREATE
@@ -96,6 +160,12 @@ function migrationTimestamp(filename: string): string | null {
   return match ? match[1] : null;
 }
 
+// Legacy migrations applied via Management API before apply_migration RPC was the upgrade path.
+const KNOWN_RPC_INCOMPAT_MIGRATIONS = new Set<string>([
+  '20260318100000_fix_digest_schema_qualification.sql',
+  '20260319000000_is_admin_service_role_bypass.sql',
+]);
+
 function main() {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
   const migrationsDir = resolve(scriptDir, '../../supabase/migrations');
@@ -111,18 +181,43 @@ function main() {
     }
     const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
     const missing = lintSqlForMissingRevoke(file, sql);
-    if (missing.length === 0) continue;
-    const list = missing.map((m) => m.qualified).join(', ');
-    if (KNOWN_DROP_RECREATE_MIGRATIONS.has(file)) {
-      knownDebt++;
-      console.warn(`⚠ ${file}: missing REVOKE EXECUTE for ${list} (known debt)`);
-      continue;
+    if (missing.length > 0) {
+      const list = missing.map((m) => m.qualified).join(', ');
+      if (KNOWN_DROP_RECREATE_MIGRATIONS.has(file)) {
+        knownDebt++;
+        console.warn(`⚠ ${file}: missing REVOKE EXECUTE for ${list} (known debt)`);
+      } else {
+        failures++;
+        console.error(`✖ ${file}: missing REVOKE EXECUTE for ${list}`);
+      }
     }
-    failures++;
-    console.error(`✖ ${file}: missing REVOKE EXECUTE for ${list}`);
+
+    const txnOffenders = lintSqlForTopLevelTransaction(sql);
+    if (txnOffenders.length > 0) {
+      const list = [...new Set(txnOffenders)].join(', ');
+      if (KNOWN_RPC_INCOMPAT_MIGRATIONS.has(file)) {
+        knownDebt++;
+        console.warn(`⚠ ${file}: top-level transaction commands (${list}) — incompatible with apply_migration RPC (known debt)`);
+      } else {
+        failures++;
+        console.error(`✖ ${file}: top-level transaction commands (${list}) — apply_migration RPC executes via EXECUTE and rejects BEGIN/COMMIT/ROLLBACK with SQLSTATE 0A000`);
+      }
+    }
+
+    const unqualOffenders = lintSqlForUnqualifiedCreate(sql);
+    if (unqualOffenders.length > 0) {
+      const list = unqualOffenders.join(', ');
+      if (KNOWN_RPC_INCOMPAT_MIGRATIONS.has(file)) {
+        knownDebt++;
+        console.warn(`⚠ ${file}: unqualified CREATE (${list}) — incompatible with apply_migration RPC (known debt)`);
+      } else {
+        failures++;
+        console.error(`✖ ${file}: unqualified CREATE (${list}) — apply_migration RPC runs with SET search_path = '' and rejects unqualified names with SQLSTATE 3F000`);
+      }
+    }
   }
   if (failures > 0) {
-    console.error(`\nLint failed for ${failures} migration file(s). New migrations must REVOKE EXECUTE.`);
+    console.error(`\nLint failed for ${failures} migration finding(s). New migrations must satisfy all lint rules.`);
     process.exit(1);
   }
   const summary = `Checked ${files.length - skipped} migrations (${skipped} grandfathered, ${knownDebt} legacy debt).`;

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
-import { lintSqlForMissingRevoke } from '@/../scripts/lint-migrations';
+import {
+  lintSqlForMissingRevoke,
+  lintSqlForTopLevelTransaction,
+  lintSqlForUnqualifiedCreate,
+} from '@/../scripts/lint-migrations';
 
 describe('lintSqlForMissingRevoke', () => {
   it('ignores plain CREATE OR REPLACE (grants preserved or covered by default privileges)', () => {
@@ -55,5 +59,69 @@ describe('lintSqlForMissingRevoke', () => {
     `;
     const missing = lintSqlForMissingRevoke('test.sql', sql);
     expect(missing.map((m) => m.qualified)).toEqual(['public.b']);
+  });
+});
+
+describe('lintSqlForTopLevelTransaction', () => {
+  it('flags top-level BEGIN / COMMIT', () => {
+    const sql = `BEGIN;\nGRANT SELECT ON seller_main.foo TO authenticated;\nCOMMIT;`;
+    expect(lintSqlForTopLevelTransaction(sql)).toEqual(['BEGIN', 'COMMIT']);
+  });
+
+  it('ignores BEGIN / END inside dollar-quoted function bodies', () => {
+    const sql = `CREATE FUNCTION seller_main.foo() RETURNS void AS $$\nBEGIN\n  NULL;\nEND;\n$$ LANGUAGE plpgsql;`;
+    expect(lintSqlForTopLevelTransaction(sql)).toEqual([]);
+  });
+
+  it('ignores BEGIN / END inside named dollar-quoted blocks', () => {
+    const sql = `CREATE FUNCTION seller_main.foo() RETURNS void AS $body$\nBEGIN\n  NULL;\nEND;\n$body$ LANGUAGE plpgsql;`;
+    expect(lintSqlForTopLevelTransaction(sql)).toEqual([]);
+  });
+
+  it('ignores transaction keywords inside SQL comments', () => {
+    const sql = `-- BEGIN; this is a comment\n/* COMMIT; also a comment */\nSELECT 1;`;
+    expect(lintSqlForTopLevelTransaction(sql)).toEqual([]);
+  });
+
+  it('catches a ROLLBACK left at top level', () => {
+    const sql = `SELECT 1;\nROLLBACK;`;
+    expect(lintSqlForTopLevelTransaction(sql)).toEqual(['ROLLBACK']);
+  });
+});
+
+describe('lintSqlForUnqualifiedCreate', () => {
+  it('flags CREATE FUNCTION without schema prefix', () => {
+    const sql = `CREATE OR REPLACE FUNCTION check_rate_limit(p text) RETURNS boolean AS $$ SELECT true $$ LANGUAGE sql;`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual(['FUNCTION check_rate_limit']);
+  });
+
+  it('passes schema-qualified CREATE FUNCTION', () => {
+    const sql = `CREATE OR REPLACE FUNCTION public.check_rate_limit(p text) RETURNS boolean AS $$ SELECT true $$ LANGUAGE sql;`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
+  });
+
+  it('flags CREATE TABLE without schema', () => {
+    const sql = `CREATE TABLE my_table (id int);`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual(['TABLE my_table']);
+  });
+
+  it('ignores CREATE INDEX (parent table carries the schema)', () => {
+    const sql = `CREATE INDEX idx_foo ON seller_main.products(id);`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
+  });
+
+  it('ignores CREATE POLICY (target is ON schema.table)', () => {
+    const sql = `CREATE POLICY "read" ON seller_main.products FOR SELECT USING (true);`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
+  });
+
+  it('ignores CREATE in comments', () => {
+    const sql = `-- CREATE FUNCTION foo() does not exist\nSELECT 1;`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
+  });
+
+  it('ignores CREATE inside a dollar-quoted body', () => {
+    const sql = `CREATE FUNCTION public.wrapper() RETURNS void AS $$\nBEGIN\n  EXECUTE 'CREATE TABLE inner (id int)';\nEND;\n$$ LANGUAGE plpgsql;`;
+    expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
   });
 });
