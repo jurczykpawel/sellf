@@ -144,6 +144,25 @@ describe('Security Audit', () => {
       expect(check?.message).toContain('postgrest');
     });
 
+    it('treats a bare CDN identifier (Server: cloudflare) as pass, not warn', async () => {
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/rest/v1/') && !url.includes('/rpc/')) {
+          return Promise.resolve({
+            ok: true,
+            headers: new Headers({ 'server': 'cloudflare' }),
+          });
+        }
+        return Promise.resolve({ ok: true, status: 404, headers: new Headers({}), json: () => Promise.resolve({}) });
+      });
+
+      const result = await runSecurityAudit();
+      const check = result.checks.find(c => c.id === 'version-headers');
+
+      expect(check?.status).toBe('pass');
+      expect(check?.message?.toLowerCase()).toContain('cdn');
+      expect(check?.fix).toBeUndefined();
+    });
+
     it('detects email autoconfirm enabled', async () => {
       global.fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('/auth/v1/settings')) {

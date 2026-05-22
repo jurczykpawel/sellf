@@ -201,11 +201,30 @@ async function checkServerHeaders(url: string, key: string): Promise<SecurityChe
     const res = await fetch(`${url}/rest/v1/`, { headers: { 'apikey': key } });
     const server = res.headers.get('server');
     const via = res.headers.get('via');
-    const exposed = !!(server || via);
+
+    // A "Server" header is only useful to an attacker when it leaks a software
+    // name+version they can map to known CVEs (e.g., "nginx/1.18.0", "Apache/2.4.49").
+    // Bare CDN identifiers like "cloudflare", "cloudfront", "Fastly", or "AkamaiGHost"
+    // reveal only that traffic terminates at a hardened edge — that's defense, not
+    // exposure. Same for "Via" with no version. Treat those as PASS.
+    const cdnOnly = /^(cloudflare|cloudfront|fastly|akamai\w*|envoy|caddy)$/i;
+    const hasVersionLeak = (h: string | null) => !!h && /\d+\.\d+/.test(h);
+    const serverLeaksVersion = hasVersionLeak(server) || (server !== null && !cdnOnly.test(server.trim()));
+    const viaLeaksVersion = hasVersionLeak(via);
+    const exposed = serverLeaksVersion || viaLeaksVersion;
 
     const parts: string[] = [];
     if (server) parts.push(`Server: ${server}`);
     if (via) parts.push(`Via: ${via}`);
+
+    if (!exposed && (server || via)) {
+      return {
+        id: 'version-headers',
+        name: 'Server version headers',
+        status: 'pass',
+        message: `Edge CDN identifier present (${parts.join(', ')}) but no software/version is leaked.`,
+      };
+    }
 
     return {
       id: 'version-headers',
@@ -217,19 +236,11 @@ async function checkServerHeaders(url: string, key: string): Promise<SecurityChe
       fix: exposed
         ? 'Configure your reverse proxy (nginx/Cloudflare) to strip Server and Via headers: proxy_hide_header Server; proxy_hide_header Via;'
         : undefined,
-      steps: exposed ? (
-        (server || '').includes('cloudflare') ? [
-          'Note: "Server: cloudflare" means your backend is already hidden behind Cloudflare — good.',
-          'To remove the Cloudflare header too: go to Cloudflare Dashboard → your domain → Rules → Transform Rules.',
-          'Click "Create transform rule" → "Modify response header".',
-          'Add action: Remove header named "Server". Save and deploy.',
-          'This is low-priority — the header only reveals you use Cloudflare, not your backend.',
-        ] : [
-          'In nginx config, add to your server block: proxy_hide_header Server; and proxy_hide_header Via;',
-          'Reload nginx: sudo nginx -s reload',
-          'In Cloudflare: Rules → Transform Rules → Modify response header → Remove "Server" and "Via".',
-        ]
-      ) : undefined,
+      steps: exposed ? [
+        'In nginx config, add to your server block: proxy_hide_header Server; and proxy_hide_header Via;',
+        'Reload nginx: sudo nginx -s reload',
+        'In Cloudflare: Rules → Transform Rules → Modify response header → Remove "Server" and "Via".',
+      ] : undefined,
     };
   } catch {
     return { id: 'version-headers', name: 'Server version headers', status: 'pass', message: 'Could not check headers.' };
