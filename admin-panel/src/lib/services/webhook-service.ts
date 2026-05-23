@@ -1,31 +1,35 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
-import { getSsrfSafeAgent } from '@/lib/security/safe-fetch';
-import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
-import { fetch as undiciFetch } from 'undici';
-import crypto from 'crypto';
+import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
+import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
+import { DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
 
-interface WebhookPayload {
+interface EnvelopePayload {
   event: string;
   timestamp: string;
-  data: any;
+  data: unknown;
 }
 
 // Supabase clients with different schema types can't be unified via generics.
-// This alias accepts any schema-scoped client (seller_main, seller_X, etc.)
-// Supabase clients with different schema types can't be unified via generics.
-// This alias accepts any schema-scoped client (seller_main, seller_X, etc.)
+// This alias accepts any schema-scoped client (seller_main, seller_X, etc.).
 type SupabaseClientLike = any;
+
+interface EndpointRow {
+  id: string;
+  url: string;
+  secret: string;
+}
 
 export class WebhookService {
   /**
-   * Triggers webhooks for a specific event to all subscribers.
-   * @param event - event type (e.g. 'purchase.completed')
-   * @param data - event payload data
-   * @param client - optional schema-scoped Supabase client (defaults to seller_main)
+   * Trigger webhooks for an event to every active matching endpoint.
+   * Optimistic-dispatch + queue model: first attempt result is persisted
+   * through the queue. Failures land in pending_retry and the worker
+   * picks them up with exponential backoff.
    */
-  static async trigger(event: string, data: any, client?: SupabaseClientLike) {
+  static async trigger(event: string, data: unknown, client?: SupabaseClientLike): Promise<void> {
     const supabase = client || createAdminClient();
+    const queue = new SupabaseWebhookQueue(supabase);
 
     try {
       const { data: endpoints, error } = await supabase
@@ -35,61 +39,71 @@ export class WebhookService {
         .contains('events', [event]);
 
       if (error) {
-        console.error('Failed to fetch webhook endpoints:', error);
+        console.error('[WebhookService.trigger] Failed to fetch endpoints:', error);
         return;
       }
-
-      if (!endpoints || endpoints.length === 0) {
-        return;
-      }
+      if (!endpoints || endpoints.length === 0) return;
 
       const timestamp = new Date().toISOString();
-      const payload: WebhookPayload = { event, timestamp, data };
+      const envelope: EnvelopePayload = { event, timestamp, data };
 
-      // Execute in parallel
-      const promises = endpoints.map((endpoint: { id: string; url: string; secret: string }) =>
-        this.dispatchWebhook(endpoint, event, payload, {}, supabase)
+      await Promise.allSettled(
+        (endpoints as EndpointRow[]).map(async (endpoint) => {
+          const result = await WebhookDispatcher.dispatch(endpoint, event, envelope, { attemptCount: 1 });
+          try {
+            await queue.recordFirstAttempt({
+              endpointId: endpoint.id,
+              eventType: event,
+              payload: envelope,
+              result,
+              maxAttempts: DEFAULT_MAX_ATTEMPTS,
+            });
+          } catch (recordErr) {
+            console.error('[WebhookService.trigger] Failed to record attempt:', recordErr);
+          }
+        }),
       );
-
-      await Promise.allSettled(promises);
-
     } catch (err) {
-      console.error('Error in WebhookService.trigger:', err);
+      console.error('[WebhookService.trigger] Unexpected error:', err);
     }
   }
 
-  /**
-   * Sends a test event to a specific endpoint
-   * @param client - optional schema-scoped Supabase client (defaults to seller_main)
-   */
+  /** Send a test event to a specific endpoint (one-shot, no retry semantics). */
   static async testEndpoint(endpointId: string, eventType: string = 'test.event', client?: SupabaseClientLike) {
     const supabase = client || createAdminClient();
 
     const { data: endpoint, error } = await supabase
       .from('webhook_endpoints')
-      .select('*')
+      .select('id, url, secret')
       .eq('id', endpointId)
       .single();
-
-    if (error || !endpoint) {
-      throw new Error('Endpoint not found');
-    }
+    if (error || !endpoint) throw new Error('Endpoint not found');
 
     const mockData = WEBHOOK_MOCK_PAYLOADS[eventType] || WEBHOOK_MOCK_PAYLOADS['test.event'];
-    const timestamp = new Date().toISOString();
-    const payload: WebhookPayload = {
+    const envelope: EnvelopePayload = {
       event: eventType,
-      timestamp,
+      timestamp: new Date().toISOString(),
       data: mockData,
     };
 
-    return this.dispatchWebhook(endpoint, eventType, payload, {}, supabase);
+    const result = await WebhookDispatcher.dispatch(endpoint, eventType, envelope, { attemptCount: 1 });
+    const queue = new SupabaseWebhookQueue(supabase);
+    await queue.recordFirstAttempt({
+      endpointId,
+      eventType,
+      payload: envelope,
+      result,
+      maxAttempts: 1,
+    });
+    return { success: result.ok, status: result.httpStatus, error: result.errorMessage };
   }
 
   /**
-   * Retries a specific webhook log entry.
-   * Marks the old log as 'retried' if the retry request is dispatched successfully.
-   * @param client - optional schema-scoped Supabase client (defaults to seller_main)
+   * Legacy retry path for status='failed' rows (creates a NEW log entry
+   * and marks the old log 'retried'). Backward-compatible with the
+   * existing /api/v1/webhooks/logs/[id]/retry endpoint. New rows produced
+   * by trigger() land in 'pending_retry' instead and are handled by the
+   * worker; the admin /replay endpoint operates on those via the queue.
    */
   static async retry(logId: string, client?: SupabaseClientLike) {
     const supabase = client || createAdminClient();
@@ -99,140 +113,36 @@ export class WebhookService {
       .select('payload, endpoint_id, event_type')
       .eq('id', logId)
       .single();
-
-    if (logError || !log) {
-      throw new Error('Log entry not found');
-    }
-
-    if (!log.endpoint_id) {
-      throw new Error('Endpoint ID is missing in log entry');
-    }
+    if (logError || !log) throw new Error('Log entry not found');
+    if (!log.endpoint_id) throw new Error('Endpoint ID is missing in log entry');
 
     const { data: endpoint, error: endpointError } = await supabase
       .from('webhook_endpoints')
       .select('id, url, secret')
       .eq('id', log.endpoint_id)
       .single();
+    if (endpointError || !endpoint) throw new Error('Endpoint not found');
 
-    if (endpointError || !endpoint) {
-      throw new Error('Endpoint not found');
+    const result = await WebhookDispatcher.dispatch(
+      endpoint,
+      log.event_type,
+      log.payload,
+      { attemptCount: 1, extraHeaders: { 'X-Sellf-Retry': 'true' } },
+    );
+
+    const queue = new SupabaseWebhookQueue(supabase);
+    await queue.recordFirstAttempt({
+      endpointId: endpoint.id,
+      eventType: log.event_type,
+      payload: log.payload,
+      result,
+      maxAttempts: DEFAULT_MAX_ATTEMPTS,
+    });
+
+    if (result.ok || result.httpStatus > 0) {
+      await supabase.from('webhook_logs').update({ status: 'retried' }).eq('id', logId);
     }
 
-    const options = { headers: { 'X-Sellf-Retry': 'true' } };
-    const result = await this.dispatchWebhook(endpoint, log.event_type, log.payload, options, supabase);
-
-    // If dispatch executed (even if it failed HTTP-wise, we logged a new attempt),
-    // mark the OLD log as retried to clean up the queue.
-    if (result.success || result.status > 0) {
-      await supabase
-        .from('webhook_logs')
-        .update({ status: 'retried' })
-        .eq('id', logId);
-    }
-
-    return result;
-  }
-
-  /**
-   * Core dispatch logic (DRY)
-   * Handles signing, sending, and logging.
-   */
-  private static async dispatchWebhook(
-    endpoint: { id: string; url: string; secret: string },
-    event: string,
-    payload: any,
-    extraOptions: { headers?: Record<string, string> } = {},
-    client?: SupabaseClientLike
-  ) {
-    const supabase = client || createAdminClient();
-    const payloadString = JSON.stringify(payload);
-    const signature = this.signPayload(payloadString, endpoint.secret);
-    const timestamp = payload.timestamp || new Date().toISOString();
-
-    let responseStatus = 0;
-    let responseBody = '';
-    let errorMessage = null;
-    let status = 'failed';
-    const startTime = Date.now();
-
-    try {
-      // Re-resolve the hostname at dispatch time. Two reasons:
-      //   1) DNS rebinding: an endpoint that resolved to a public IP at save
-      //      time may resolve to a private IP later — the saved row alone is
-      //      not a sufficient guarantee.
-      //   2) The undici dispatcher's connect.lookup hook (defense-in-depth
-      //      below) is a no-op under Bun, where Agent.prototype.dispatch is
-      //      undefined and fetch ignores the dispatcher option entirely. So
-      //      this pre-flight check is the only SSRF guard at dispatch time
-      //      in the production runtime.
-      const guard = await validateWebhookUrlAsync(endpoint.url);
-      if (!guard.valid) {
-        throw new Error(`Webhook URL rejected: ${guard.error || 'failed validation'}`);
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await undiciFetch(endpoint.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Sellf-Event': event,
-          'X-Sellf-Signature': signature,
-          'X-Sellf-Timestamp': timestamp,
-          ...extraOptions.headers
-        },
-        body: payloadString,
-        signal: controller.signal,
-        redirect: 'error',
-        // Defense-in-depth on Node; ignored by Bun (Agent has no dispatch method there).
-        dispatcher: getSsrfSafeAgent(),
-      });
-
-      clearTimeout(timeoutId);
-
-      responseStatus = response.status;
-      responseBody = await response.text();
-
-      if (response.ok) {
-        status = 'success';
-      } else {
-        status = 'failed';
-        errorMessage = `HTTP ${response.status}`;
-      }
-
-    } catch (err: any) {
-      status = 'failed';
-      if (err.name === 'AbortError') {
-        errorMessage = 'Request timed out (5s)';
-        responseStatus = 408;
-      } else {
-        errorMessage = err.message;
-        responseStatus = 0; // Network error
-      }
-    } finally {
-      const duration = Date.now() - startTime;
-
-      // Log result
-      await supabase.from('webhook_logs').insert({
-        endpoint_id: endpoint.id,
-        event_type: event,
-        payload: payload,
-        status: status,
-        http_status: responseStatus,
-        response_body: responseBody ? responseBody.substring(0, 5000) : null,
-        error_message: errorMessage,
-        duration_ms: duration,
-      });
-    }
-
-    return { success: status === 'success', status: responseStatus, error: errorMessage };
-  }
-
-  private static signPayload(payload: string, secret: string): string {
-    return crypto
-      .createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex');
+    return { success: result.ok, status: result.httpStatus, error: result.errorMessage };
   }
 }
