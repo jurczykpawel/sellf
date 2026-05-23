@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { maskWebhookSecret } from '@/lib/webhooks/mask';
 
 interface WebhookListTableProps {
   endpoints: WebhookEndpoint[];
@@ -67,7 +68,7 @@ const WebhookRow = ({
       <td className="px-6 py-4">
         <div className="flex items-center space-x-2">
           <code className="text-xs bg-sf-raised px-2 py-1 border-2 border-sf-border-medium font-mono text-sf-body">
-            {showSecret ? endpoint.secret : 'sf_••••••••••••••••'}
+            {showSecret ? endpoint.secret : maskWebhookSecret(endpoint.secret)}
           </code>
           <button
             onClick={() => setShowSecret(!showSecret)}
