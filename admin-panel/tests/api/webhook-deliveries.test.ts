@@ -1,13 +1,14 @@
 /**
- * API Integration: SupabaseWebhookQueue state machine.
- * Hits the real local Supabase via a seller_main-scoped client.
- * Run with `bun run test:api`.
+ * API Integration: SupabaseWebhookQueue state machine + REST replay endpoint.
+ * Hits the real local Supabase via a seller_main-scoped client and the
+ * running dev server. Run with `bun run test:api`.
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
 import type { AttemptResult } from '@/lib/services/webhook-queue/types';
 import { computeNextRetry, DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
+import { post } from './setup';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -251,5 +252,78 @@ describe('SupabaseWebhookQueue admin actions', () => {
     expect(after.status).toBe('permanently_failed');
     expect(after.failed_permanently_at).not.toBeNull();
     expect(after.next_retry_at).toBeNull();
+  });
+});
+
+describe('POST /api/v1/webhooks/logs/[logId]/replay', () => {
+  it('returns 400 for an invalid UUID', async () => {
+    const { status, data } = await post<{ error?: { code: string } }>(
+      '/api/v1/webhooks/logs/not-a-uuid/replay',
+      {},
+    );
+    expect(status).toBe(400);
+    expect((data as any).error?.code).toBe('INVALID_INPUT');
+  });
+
+  it('returns 404 for a missing log', async () => {
+    const { status, data } = await post<{ error?: { code: string } }>(
+      '/api/v1/webhooks/logs/11111111-1111-4111-a111-111111111111/replay',
+      {},
+    );
+    expect(status).toBe(404);
+    expect((data as any).error?.code).toBe('NOT_FOUND');
+  });
+
+  it('replays a permanently_failed delivery: resets attempt_count, sets pending_retry, next_retry_at≈now', async () => {
+    const { data: row } = await sellerClient
+      .from('webhook_logs')
+      .insert({
+        endpoint_id: endpointId,
+        event_type: 'test.event',
+        payload: { event: 'test.event', data: { x: 'replay' } },
+        status: 'permanently_failed',
+        attempt_count: 5,
+        max_attempts: 5,
+        failed_permanently_at: new Date().toISOString(),
+        http_status: 503,
+        duration_ms: 0,
+      })
+      .select('id')
+      .single();
+    createdLogIds.push(row!.id);
+
+    const { status } = await post(`/api/v1/webhooks/logs/${row!.id}/replay`, {});
+    expect(status).toBe(200);
+
+    const after = await fetchRow(row!.id);
+    expect(after.status).toBe('pending_retry');
+    expect(after.attempt_count).toBe(0);
+    expect(after.failed_permanently_at).toBeNull();
+    expect(after.next_retry_at).not.toBeNull();
+  });
+
+  it('returns 409 when trying to replay a non-permanently_failed delivery', async () => {
+    const { data: row } = await sellerClient
+      .from('webhook_logs')
+      .insert({
+        endpoint_id: endpointId,
+        event_type: 'test.event',
+        payload: { event: 'test.event', data: { x: 'wrong-state' } },
+        status: 'success',
+        attempt_count: 1,
+        max_attempts: 5,
+        http_status: 200,
+        duration_ms: 12,
+      })
+      .select('id')
+      .single();
+    createdLogIds.push(row!.id);
+
+    const { status, data } = await post<{ error?: { code: string } }>(
+      `/api/v1/webhooks/logs/${row!.id}/replay`,
+      {},
+    );
+    expect(status).toBe(409);
+    expect((data as any).error?.code).toBe('CONFLICT');
   });
 });
