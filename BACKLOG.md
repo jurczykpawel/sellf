@@ -64,8 +64,8 @@ Auto-request reviews after purchase, rich media support (photos/videos), display
 Generate conversion-focused landing pages using AI. One-click generation from product name & description with persuasive copy and design automation.
 
 ### Outgoing Webhooks v2.0
-**Status**: 📋 Planned
-Auto-retry with exponential backoff, log retention policy (auto-cleanup), delivery analytics, and advanced filtering/transforms. Core refund, waitlist, purchase, subscription, and invoice events are already shipped.
+**Status**: 🟡 Partial — auto-retry + DLQ + Replay shipped 2026-05-23. Remaining: delivery analytics (success rate, p99 latency), advanced filtering/transforms.
+Auto-retry with exponential backoff (1m/5m/30m/2h/12h), dead-letter queue with admin Replay UI, atomic concurrent-worker safety, and pluggable queue driver (`WEBHOOK_QUEUE_DRIVER=supabase|sqs`) are now in `/dashboard/webhooks/deliveries`. See [docs/webhooks.md](docs/webhooks.md). Core refund, waitlist, purchase, subscription, and invoice events were already shipped.
 
 ### API Extensions & SDKs
 **Status**: 📋 Planned

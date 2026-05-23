@@ -319,15 +319,23 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 ### Delivery & Logging
 - **Secure delivery** - HMAC signature in header
 - **Webhook logs** - Call history
-- **Status tracking** - success/failed/retried/archived
+- **Status tracking** - success / failed (legacy) / retried / archived / pending_retry / permanently_failed
 - **HTTP status** - Response code
 - **Response body** - Response content
 - **Duration tracking** - Call duration (ms)
 
+### Automatic retry + Dead-letter queue
+- **Exponential backoff** - 1m / 5m / 30m / 2h / 12h, 5 attempts before DLQ
+- **Atomic worker** - `FOR UPDATE SKIP LOCKED` + 60s lease prevents double-dispatch
+- **Retry header** - `X-Sellf-Retry-Attempt: <n>` on attempts 2–5
+- **DLQ page** - `/dashboard/webhooks/deliveries` lists `permanently_failed`, `pending_retry`, `all_failed`
+- **Admin actions** - Replay (resets DLQ row), Retry now (advances `next_retry_at`), Cancel (flips to DLQ)
+- **Queue abstraction** - `WEBHOOK_QUEUE_DRIVER=supabase|sqs` for future backend swap
+
 ### Management
 - **Test modal** - Testing webhooks
 - **Retry button** - Resending
-- **Logs filtering** - Filtering by status
+- **Logs filtering** - Filtering by status (including pending_retry, permanently_failed, all_failed)
 - **Archive functionality** - Log archiving
 
 ---
