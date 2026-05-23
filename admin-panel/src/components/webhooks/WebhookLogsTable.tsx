@@ -11,6 +11,11 @@ interface WebhookLogsTableProps {
   retryingId: string | null;
   showEndpointColumn?: boolean;
   onRefresh?: () => void;
+  onReplay?: (logId: string) => void;
+  onForceRetry?: (logId: string) => void;
+  onCancel?: (logId: string) => void;
+  replayingId?: string | null;
+  actingId?: string | null;
 }
 
 export default function WebhookLogsTable({
@@ -18,7 +23,12 @@ export default function WebhookLogsTable({
   onRetry,
   retryingId,
   showEndpointColumn = false,
-  onRefresh
+  onRefresh,
+  onReplay,
+  onForceRetry,
+  onCancel,
+  replayingId = null,
+  actingId = null,
 }: WebhookLogsTableProps) {
   const t = useTranslations('admin.webhooks.logs');
   const tCommon = useTranslations('common');
@@ -47,8 +57,22 @@ export default function WebhookLogsTable({
           </span>
         );
     }
-    
-    // Failed
+    if (log.status === 'pending_retry') {
+      return (
+        <span className="px-2 py-1 bg-sf-warning-soft text-sf-warning rounded text-xs font-medium border border-sf-warning/20">
+          {t('filterPendingRetry')}
+        </span>
+      );
+    }
+    if (log.status === 'permanently_failed') {
+      return (
+        <span className="px-2 py-1 bg-sf-danger-soft text-sf-danger rounded text-xs font-medium border border-sf-danger/20">
+          DLQ
+        </span>
+      );
+    }
+
+    // Legacy 'failed'
     if (log.http_status === 0) {
       return <span className="px-2 py-1 bg-sf-danger-soft text-sf-danger rounded text-xs font-medium border border-sf-danger/20">{t('networkError')}</span>;
     }
@@ -129,8 +153,35 @@ export default function WebhookLogsTable({
                   {log.duration_ms !== undefined ? `${log.duration_ms}ms` : '---'}
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap space-x-2">
-                  {/* Resend button - available for all statuses except 'retried' */}
-                  {log.status !== 'retried' && log.status !== 'archived' && (
+                  {log.status === 'permanently_failed' && onReplay && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReplay(log.id); }}
+                      disabled={replayingId === log.id}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded border-sf-border text-sf-accent bg-sf-accent-soft hover:bg-sf-hover disabled:opacity-50"
+                    >
+                      {replayingId === log.id ? '...' : t('replay')}
+                    </button>
+                  )}
+                  {log.status === 'pending_retry' && onForceRetry && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onForceRetry(log.id); }}
+                      disabled={actingId === log.id}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded border-sf-border text-sf-accent bg-sf-raised hover:bg-sf-hover disabled:opacity-50"
+                    >
+                      {actingId === log.id ? '...' : t('forceRetry')}
+                    </button>
+                  )}
+                  {log.status === 'pending_retry' && onCancel && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onCancel(log.id); }}
+                      disabled={actingId === log.id}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded border-sf-border text-sf-muted bg-sf-raised hover:text-sf-danger disabled:opacity-50"
+                    >
+                      {actingId === log.id ? '...' : t('cancel')}
+                    </button>
+                  )}
+                  {/* Legacy Resend/Retry — kept for success/failed states */}
+                  {(log.status === 'success' || log.status === 'failed') && (
                     <button
                       onClick={(e) => handleRetryClick(e, log.id)}
                       disabled={retryingId === log.id}
@@ -187,6 +238,28 @@ export default function WebhookLogsTable({
                             {log.response_body || t('emptyResponse')}
                           </pre>
                         </div>
+                      </div>
+                      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                        {typeof log.attempt_count === 'number' && (
+                          <div>
+                            <span className="text-sf-muted">{t('attemptCount')}: </span>
+                            <span className="text-sf-heading font-mono">
+                              {t('attemptOf', { count: log.attempt_count, max: log.max_attempts })}
+                            </span>
+                          </div>
+                        )}
+                        {log.next_retry_at && (
+                          <div>
+                            <span className="text-sf-muted">{t('nextRetryAt')}: </span>
+                            <span className="text-sf-heading font-mono">{new Date(log.next_retry_at).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {log.failed_permanently_at && (
+                          <div>
+                            <span className="text-sf-muted">{t('failedPermanentlyAt')}: </span>
+                            <span className="text-sf-heading font-mono">{new Date(log.failed_permanently_at).toLocaleString()}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
