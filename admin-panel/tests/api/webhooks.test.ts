@@ -169,6 +169,8 @@ describe('Webhooks API v1', () => {
       expect(testWebhook).toBeDefined();
       expect(testWebhook!.events).toContain('payment.completed');
       expect(testWebhook!.is_active).toBe(true);
+      // Signing secret must be exposed so the seller can copy it into their handler.
+      expect(testWebhook!.secret).toMatch(/^whsec_/);
     });
 
     it('should support status filter - active', async () => {
@@ -293,6 +295,7 @@ describe('Webhooks API v1', () => {
       expect(data.data!).toHaveProperty('is_active');
       expect(data.data!).toHaveProperty('created_at');
       expect(data.data!).toHaveProperty('updated_at');
+      expect(data.data!.secret).toMatch(/^whsec_/);
     });
 
     it('should return 404 for non-existent webhook', async () => {
@@ -334,6 +337,7 @@ describe('Webhooks API v1', () => {
 
         expect(status).toBe(200);
         expect(data.data!.url).toContain('updated');
+        expect(data.data!.secret).toMatch(/^whsec_/);
       } finally {
         await supabase.from('webhook_endpoints').delete().eq('id', webhook!.id);
       }
