@@ -8,21 +8,34 @@ export interface WebhookEndpoint {
   created_at: string;
 }
 
+export type WebhookLogStatus =
+  | 'success'
+  | 'failed'
+  | 'retried'
+  | 'archived'
+  | 'pending_retry'
+  | 'permanently_failed';
+
 export interface WebhookLog {
   id: string;
   endpoint_id: string;
   event_type: string;
   payload: any;
-  
-  // New fields
-  status: 'success' | 'failed' | 'retried' | 'archived';
-  http_status: number; // Formerly response_status
-  
+
+  status: WebhookLogStatus;
+  http_status: number;
+
   response_body: string;
   error_message?: string;
   duration_ms: number;
+
+  attempt_count: number;
+  max_attempts: number;
+  next_retry_at: string | null;
+  failed_permanently_at: string | null;
+
   created_at: string;
-  
+
   endpoint?: {
     id: string;
     url: string;
