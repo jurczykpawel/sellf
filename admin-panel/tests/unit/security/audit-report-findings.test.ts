@@ -382,10 +382,13 @@ describe('TS-E01: rate limiting must use unique identifiers', () => {
 // ============================================================================
 
 describe('TS-F01: external fetch must block redirects', () => {
-  it('webhook-service.ts fetch uses redirect: "error"', () => {
-    const source = src('lib/services/webhook-service.ts');
+  it('webhook dispatcher fetch uses redirect: "error"', () => {
+    // The dispatch + SSRF gate moved from webhook-service.ts into
+    // webhook-queue/dispatcher.ts during the DLQ refactor. The same
+    // runtime-portable redirect guard must live at the new location.
+    const source = src('lib/services/webhook-queue/dispatcher.ts');
     const hasRedirectError = /redirect:\s*['"]error['"]/i.test(source);
-    expect(hasRedirectError, 'webhook-service: fetch without redirect blocking').toBe(true);
+    expect(hasRedirectError, 'dispatcher: fetch without redirect blocking').toBe(true);
   });
 });
 
