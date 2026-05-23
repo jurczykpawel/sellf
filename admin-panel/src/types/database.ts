@@ -2335,37 +2335,49 @@ export type Database = {
       }
       webhook_logs: {
         Row: {
+          attempt_count: number | null
           created_at: string | null
           duration_ms: number | null
           endpoint_id: string | null
           error_message: string | null
           event_type: string | null
+          failed_permanently_at: string | null
           http_status: number | null
           id: string | null
+          max_attempts: number | null
+          next_retry_at: string | null
           payload: Json | null
           response_body: string | null
           status: string | null
         }
         Insert: {
+          attempt_count?: number | null
           created_at?: string | null
           duration_ms?: number | null
           endpoint_id?: string | null
           error_message?: string | null
           event_type?: string | null
+          failed_permanently_at?: string | null
           http_status?: number | null
           id?: string | null
+          max_attempts?: number | null
+          next_retry_at?: string | null
           payload?: Json | null
           response_body?: string | null
           status?: string | null
         }
         Update: {
+          attempt_count?: number | null
           created_at?: string | null
           duration_ms?: number | null
           endpoint_id?: string | null
           error_message?: string | null
           event_type?: string | null
+          failed_permanently_at?: string | null
           http_status?: number | null
           id?: string | null
+          max_attempts?: number | null
+          next_retry_at?: string | null
           payload?: Json | null
           response_body?: string | null
           status?: string | null
@@ -4865,37 +4877,49 @@ export type Database = {
       }
       webhook_logs: {
         Row: {
+          attempt_count: number
           created_at: string
           duration_ms: number | null
           endpoint_id: string | null
           error_message: string | null
           event_type: string
+          failed_permanently_at: string | null
           http_status: number | null
           id: string
+          max_attempts: number
+          next_retry_at: string | null
           payload: Json | null
           response_body: string | null
           status: string
         }
         Insert: {
+          attempt_count?: number
           created_at?: string
           duration_ms?: number | null
           endpoint_id?: string | null
           error_message?: string | null
           event_type: string
+          failed_permanently_at?: string | null
           http_status?: number | null
           id?: string
+          max_attempts?: number
+          next_retry_at?: string | null
           payload?: Json | null
           response_body?: string | null
           status: string
         }
         Update: {
+          attempt_count?: number
           created_at?: string
           duration_ms?: number | null
           endpoint_id?: string | null
           error_message?: string | null
           event_type?: string
+          failed_permanently_at?: string | null
           http_status?: number | null
           id?: string
+          max_attempts?: number
+          next_retry_at?: string | null
           payload?: Json | null
           response_body?: string | null
           status?: string
@@ -5286,6 +5310,19 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: boolean
       }
+      increment_webhook_attempt: {
+        Args: {
+          p_duration_ms: number
+          p_error_message: string
+          p_failed_permanently_at: string
+          p_http_status: number
+          p_log_id: string
+          p_next_retry_at: string
+          p_response_body: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       is_sale_price_active: {
         Args: {
           p_sale_price: number
@@ -5299,6 +5336,17 @@ export type Database = {
       migrate_guest_payment_data_to_profile: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      pick_due_webhook_deliveries: {
+        Args: { p_limit: number }
+        Returns: {
+          attempt_count: number
+          endpoint_id: string
+          event_type: string
+          id: string
+          max_attempts: number
+          payload: Json
+        }[]
       }
       process_refund_request: {
         Args: {
