@@ -164,15 +164,22 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
     await expect(selectAll).toBeVisible();
     await selectAll.check();
 
-    // Toolbar should show selection count + Replay selected button
-    const batchReplayBtn = page.getByRole('button', { name: /Powtórz zaznaczone|Replay selected/i });
+    // Toolbar: Replay button shows count of DLQ-eligible items (3), others disabled
+    const batchReplayBtn = page.getByRole('button', { name: /Powtórz \(3\)|Replay \(3\)/i });
     await expect(batchReplayBtn).toBeVisible();
+    await expect(batchReplayBtn).toBeEnabled();
+
+    const batchForceRetryBtn = page.getByRole('button', { name: /Ponów teraz|Retry now/i });
+    await expect(batchForceRetryBtn).toBeDisabled();
+    const batchCancelBtn = page.getByRole('button', { name: /Anuluj \(0\)|Cancel \(0\)/i });
+    await expect(batchCancelBtn).toBeDisabled();
+
     await batchReplayBtn.click();
 
     // Confirm modal appears (in-app modal, not native confirm())
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible({ timeout: 5000 });
-    await expect(modal).toContainText(/Powtórzyć|Replay/i);
+    await expect(modal).toContainText(/Wznowić ponawianie|Re-queue/i);
     await modal.getByRole('button', { name: /^Powtórz$|^Replay$/i }).click();
 
     // After batch replay, no DLQ rows remain in the default filter view
@@ -192,6 +199,110 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
       expect(row.attempt_count).toBe(0);
       expect(row.failed_permanently_at).toBeNull();
       expect(row.next_retry_at).not.toBeNull();
+    }
+  });
+});
+
+test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  let endpointId: string;
+  const pendingIds: string[] = [];
+  let cleanupAdmin: (() => Promise<void>) | null = null;
+  let adminEmail: string;
+  let adminPassword: string;
+
+  test.beforeAll(async () => {
+    const random = Math.random().toString(36).slice(2, 8);
+    const { data: endpoint } = await supabaseAdmin
+      .from('webhook_endpoints')
+      .insert({
+        url: `https://example.com/pending-batch-${random}`,
+        events: ['purchase.completed'],
+        is_active: true,
+        secret: `whsec_pending_${random}`,
+        description: 'pending batch UI test',
+      })
+      .select('id')
+      .single();
+    endpointId = endpoint!.id;
+
+    // Future next_retry_at so the row is "scheduled but not due" — that's
+    // the exact state where Force retry now is the only sensible batch action.
+    for (let i = 0; i < 2; i++) {
+      const { data: log } = await supabaseAdmin
+        .from('webhook_logs')
+        .insert({
+          endpoint_id: endpointId,
+          event_type: 'purchase.completed',
+          payload: { event: 'purchase.completed', data: { p: i } },
+          status: 'pending_retry',
+          attempt_count: 2,
+          max_attempts: 5,
+          next_retry_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          http_status: 503,
+          duration_ms: 0,
+        })
+        .select('id')
+        .single();
+      pendingIds.push(log!.id);
+    }
+
+    const admin = await createTestAdmin('pending-batch');
+    adminEmail = admin.email;
+    adminPassword = admin.password;
+    cleanupAdmin = admin.cleanup;
+  });
+
+  test.afterAll(async () => {
+    if (pendingIds.length > 0) {
+      await supabaseAdmin.from('webhook_logs').delete().in('id', pendingIds);
+    }
+    if (endpointId) await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
+    if (cleanupAdmin) await cleanupAdmin();
+  });
+
+  test('with pending_retry selection: Replay is disabled, Force retry + Cancel are enabled with correct counts', async ({ page }) => {
+    await loginAsAdmin(page, adminEmail, adminPassword);
+    await page.goto('/pl/dashboard/webhooks/deliveries');
+
+    // Switch to pending_retry filter so only our 2 rows are visible.
+    await page.getByRole('button', { name: /Oczekuje na ponowienie|Pending retry/i }).first().click();
+    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(2, {
+      timeout: 10000,
+    });
+
+    // Select all
+    const selectAll = page.getByRole('checkbox', { name: /Zaznacz wszystkie|Select all/i });
+    await selectAll.check();
+
+    // Replay button should be disabled (count = 0 because no DLQ items)
+    const replayBtn = page.getByRole('button', { name: /Powtórz \(0\)|Replay \(0\)/i });
+    await expect(replayBtn).toBeDisabled();
+
+    // Force retry shows count = 2 and is clickable
+    const forceRetryBtn = page.getByRole('button', { name: /Ponów teraz \(2\)|Retry now \(2\)/i });
+    await expect(forceRetryBtn).toBeEnabled();
+
+    // Cancel also = 2 enabled
+    const cancelBtn = page.getByRole('button', { name: /Anuluj \(2\)|Cancel \(2\)/i });
+    await expect(cancelBtn).toBeEnabled();
+
+    // Click Force retry and confirm in the modal
+    await forceRetryBtn.click();
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await modal.getByRole('button', { name: /^Ponów teraz$|^Retry now$/i }).click();
+
+    // After batch, next_retry_at moves to ~now (was +1h)
+    await page.waitForTimeout(1000); // give the parallel calls a beat
+    const { data: rows } = await supabaseAdmin
+      .from('webhook_logs')
+      .select('id, next_retry_at')
+      .in('id', pendingIds);
+    for (const row of rows!) {
+      const delta = new Date(row.next_retry_at!).getTime() - Date.now();
+      expect(Math.abs(delta)).toBeLessThan(10_000);
     }
   });
 });

@@ -133,6 +133,24 @@ export function useWebhookDeliveries() {
     [fetchLogs, t],
   );
 
+  const batchForceRetry = useCallback(
+    async (logIds: string[]) => {
+      if (logIds.length === 0) return;
+      setBatchRunning(true);
+      try {
+        const { succeeded, failed } = await runBatch(logIds, (id) =>
+          api.postCustom(`webhooks/logs/${id}/force-retry`, {}),
+        );
+        if (failed === 0) toast.success(t('batchForceRetrySuccess', { count: succeeded }));
+        else toast.warning(t('batchForceRetryPartial', { succeeded, failed }));
+        await fetchLogs();
+      } finally {
+        setBatchRunning(false);
+      }
+    },
+    [fetchLogs, t],
+  );
+
   return {
     logs,
     loading,
@@ -142,6 +160,7 @@ export function useWebhookDeliveries() {
     forceRetry,
     cancel,
     batchReplay,
+    batchForceRetry,
     batchCancel,
     batchRunning,
     replayingId,

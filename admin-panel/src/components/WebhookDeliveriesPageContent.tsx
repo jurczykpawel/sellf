@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWebhookDeliveries, type DeliveryFilter } from '@/hooks/useWebhookDeliveries';
+import type { WebhookLog } from '@/types/webhooks';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
 import WebhookBatchConfirmModal from './webhooks/WebhookBatchConfirmModal';
 
@@ -35,7 +36,7 @@ export default function WebhookDeliveriesPageContent() {
   const {
     logs, loading, filter, setFilter,
     replay, forceRetry, cancel,
-    batchReplay, batchCancel, batchRunning,
+    batchReplay, batchForceRetry, batchCancel, batchRunning,
     replayingId, actingId, refresh,
   } = useWebhookDeliveries();
 
@@ -64,7 +65,28 @@ export default function WebhookDeliveriesPageContent() {
   const selectedArray = Array.from(visibleSelected);
   const selectedCount = selectedArray.length;
 
-  const [confirmVariant, setConfirmVariant] = useState<'replay' | 'cancel' | null>(null);
+  // Split selected ids by the action each is eligible for. Endpoint contracts:
+  //   replay      → permanently_failed only
+  //   force-retry → pending_retry only
+  //   cancel      → pending_retry only
+  const eligibleByAction = useMemo(() => {
+    const byStatus = new Map<string, WebhookLog['status']>();
+    logs.forEach((l) => byStatus.set(l.id, l.status));
+    const replayIds: string[] = [];
+    const forceRetryIds: string[] = [];
+    const cancelIds: string[] = [];
+    selectedArray.forEach((id) => {
+      const s = byStatus.get(id);
+      if (s === 'permanently_failed') replayIds.push(id);
+      else if (s === 'pending_retry') {
+        forceRetryIds.push(id);
+        cancelIds.push(id);
+      }
+    });
+    return { replayIds, forceRetryIds, cancelIds };
+  }, [logs, selectedArray]);
+
+  const [confirmVariant, setConfirmVariant] = useState<'replay' | 'force-retry' | 'cancel' | null>(null);
 
   return (
     <div className="space-y-4">
@@ -90,7 +112,7 @@ export default function WebhookDeliveriesPageContent() {
       </div>
 
       {selectedCount > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-sf-accent-soft border-2 border-sf-accent">
+        <div className="flex items-center gap-3 px-4 py-3 bg-sf-accent-soft border-2 border-sf-accent flex-wrap">
           <span className="text-sm font-medium text-sf-heading">
             {t('selectedCount', { count: selectedCount })}
           </span>
@@ -98,18 +120,41 @@ export default function WebhookDeliveriesPageContent() {
           <button
             type="button"
             onClick={() => setConfirmVariant('replay')}
-            disabled={batchRunning}
-            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-accent hover:bg-sf-hover disabled:opacity-50"
+            disabled={batchRunning || eligibleByAction.replayIds.length === 0}
+            title={
+              eligibleByAction.replayIds.length === 0
+                ? t('batchReplayDisabledHint')
+                : undefined
+            }
+            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-accent hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {batchRunning ? '...' : t('batchReplay')}
+            {batchRunning ? '...' : `${t('batchReplay')} (${eligibleByAction.replayIds.length})`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmVariant('force-retry')}
+            disabled={batchRunning || eligibleByAction.forceRetryIds.length === 0}
+            title={
+              eligibleByAction.forceRetryIds.length === 0
+                ? t('batchForceRetryDisabledHint')
+                : undefined
+            }
+            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-accent hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {batchRunning ? '...' : `${t('batchForceRetry')} (${eligibleByAction.forceRetryIds.length})`}
           </button>
           <button
             type="button"
             onClick={() => setConfirmVariant('cancel')}
-            disabled={batchRunning}
-            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-muted hover:text-sf-danger hover:bg-sf-hover disabled:opacity-50"
+            disabled={batchRunning || eligibleByAction.cancelIds.length === 0}
+            title={
+              eligibleByAction.cancelIds.length === 0
+                ? t('batchCancelDisabledHint')
+                : undefined
+            }
+            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-muted hover:text-sf-danger hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {batchRunning ? '...' : t('batchCancel')}
+            {batchRunning ? '...' : `${t('batchCancel')} (${eligibleByAction.cancelIds.length})`}
           </button>
           <button
             type="button"
@@ -125,15 +170,20 @@ export default function WebhookDeliveriesPageContent() {
       <WebhookBatchConfirmModal
         isOpen={confirmVariant !== null}
         variant={confirmVariant ?? 'replay'}
-        count={selectedCount}
+        count={
+          confirmVariant === 'replay' ? eligibleByAction.replayIds.length
+            : confirmVariant === 'force-retry' ? eligibleByAction.forceRetryIds.length
+            : confirmVariant === 'cancel' ? eligibleByAction.cancelIds.length
+            : 0
+        }
         busy={batchRunning}
         onClose={() => setConfirmVariant(null)}
         onConfirm={async () => {
-          const ids = selectedArray;
           const variant = confirmVariant;
           setConfirmVariant(null);
-          if (variant === 'replay') await batchReplay(ids);
-          else if (variant === 'cancel') await batchCancel(ids);
+          if (variant === 'replay') await batchReplay(eligibleByAction.replayIds);
+          else if (variant === 'force-retry') await batchForceRetry(eligibleByAction.forceRetryIds);
+          else if (variant === 'cancel') await batchCancel(eligibleByAction.cancelIds);
         }}
       />
 

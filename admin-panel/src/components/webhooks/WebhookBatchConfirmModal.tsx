@@ -4,9 +4,11 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '../ui/Modal';
 
+type Variant = 'replay' | 'force-retry' | 'cancel';
+
 interface WebhookBatchConfirmModalProps {
   isOpen: boolean;
-  variant: 'replay' | 'cancel';
+  variant: Variant;
   count: number;
   onClose: () => void;
   onConfirm: () => void;
@@ -24,13 +26,19 @@ export default function WebhookBatchConfirmModal({
   const t = useTranslations('admin.webhooks.logs');
   const tCommon = useTranslations('common');
 
-  const title = variant === 'replay' ? t('batchReplay') : t('batchCancel');
+  const title =
+    variant === 'replay' ? t('batchReplay')
+      : variant === 'force-retry' ? t('batchForceRetry')
+      : t('batchCancel');
   const body =
-    variant === 'replay'
-      ? t('batchReplayConfirm', { count })
+    variant === 'replay' ? t('batchReplayConfirm', { count })
+      : variant === 'force-retry' ? t('batchForceRetryConfirm', { count })
       : t('batchCancelConfirm', { count });
-  const confirmLabel = variant === 'replay' ? t('replay') : t('cancel');
-  const confirmVariant = variant === 'replay' ? 'primary' : 'danger';
+  const confirmLabel =
+    variant === 'replay' ? t('replay')
+      : variant === 'force-retry' ? t('forceRetry')
+      : t('cancel');
+  const confirmVariant: 'primary' | 'danger' = variant === 'cancel' ? 'danger' : 'primary';
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="md">
