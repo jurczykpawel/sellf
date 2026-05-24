@@ -3022,7 +3022,7 @@
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "bezpieczna",
       "subtitleYours": "w pełni Twoja",
-      "subtitleBottom": "10 minut do pierwszej sprzedaży.",
+      "subtitleBottom": "10 minut setupu. Reszta to wklejenie linku na swojej stronie.",
       "ctaDeploy": "Postaw u siebie (10 min)",
       "ctaDemo": "Wypróbuj demo",
       "ctaGithub": "Zobacz na GitHub",
@@ -3033,7 +3033,7 @@
       "revenueBadgeIdle": "Co zostaje vs Gumroad",
       "revenueBadgePrefix": "Zaoszczędzasz",
       "revenueBadgeSuffix": "/rok vs Gumroad",
-      "tenMinBadge": "10 minut od klona do pierwszej sprzedaży"
+      "tenMinBadge": "10 minut od klona do działającego sklepu"
     },
     "socialProof": {
       "openSource": "Open source",
@@ -3174,7 +3174,7 @@
     },
     "howItWorks": {
       "title": "Gotowy w 3 krokach",
-      "subtitle": "Od zera do sprzedaży w mniej niż 10 minut",
+      "subtitle": "Od klona do działającego sklepu w mniej niż 10 minut",
       "step1": {
         "title": "Wdróż",
         "desc": "Sklonuj repo i wdróż na dowolny VPS lub chmurę. Docker lub PM2, Twój wybór."
@@ -3370,10 +3370,10 @@
     },
     "finalCta": {
       "title": "Gotowy na start?",
-      "subtitle": "Wdróż Sellf w 10 minut. Zacznij sprzedawać bez miesięcznych opłat.",
+      "subtitle": "Wdróż Sellf w 10 minut. Sprzedawaj bez miesięcznych opłat platformy.",
       "ctaDeploy": "Wdróż za 0 zł",
       "ctaGithub": "Zobacz na GitHub",
-      "trust10min": "Wdrożenie w 10 min",
+      "trust10min": "Setup w 10 min",
       "trustSourceCode": "Pełny kod źródłowy",
       "trustMIT": "Licencja MIT"
     },

@@ -3007,7 +3007,7 @@
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "secure",
       "subtitleYours": "fully yours",
-      "subtitleBottom": "10 minutes to your first sale.",
+      "subtitleBottom": "10 minutes of setup. The rest is just sharing the link.",
       "ctaDeploy": "Self-host it (10 min)",
       "ctaDemo": "Try the demo",
       "ctaGithub": "View on GitHub",
@@ -3018,7 +3018,7 @@
       "revenueBadgeIdle": "What you keep vs Gumroad",
       "revenueBadgePrefix": "You'd save",
       "revenueBadgeSuffix": "/year vs Gumroad",
-      "tenMinBadge": "10 minutes from clone to first sale"
+      "tenMinBadge": "10 minutes from clone to a working shop"
     },
     "socialProof": {
       "openSource": "Open source",
@@ -3159,7 +3159,7 @@
     },
     "howItWorks": {
       "title": "Up and running in 3 steps",
-      "subtitle": "From zero to selling in under 10 minutes",
+      "subtitle": "From clone to a working shop in under 10 minutes",
       "step1": {
         "title": "Deploy",
         "desc": "Clone the repo and deploy to any VPS or cloud provider. Docker or PM2, your choice."
@@ -3355,10 +3355,10 @@
     },
     "finalCta": {
       "title": "Ready to Start?",
-      "subtitle": "Deploy Sellf in 10 minutes. Start selling without monthly fees.",
+      "subtitle": "Deploy Sellf in 10 minutes. Sell without monthly platform fees.",
       "ctaDeploy": "Deploy for Free",
       "ctaGithub": "View on GitHub",
-      "trust10min": "10-minute deployment",
+      "trust10min": "10-minute setup",
       "trustSourceCode": "Full source code",
       "trustMIT": "MIT License"
     },
