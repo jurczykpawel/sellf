@@ -48,6 +48,46 @@ INSERT INTO admin_users (user_id)
 VALUES ('dddddddd-0000-4000-a000-000000000000')
 ON CONFLICT DO NOTHING;
 
+-- =====================================================
+-- PENTEST REGRESSION: NON-ADMIN BUYER
+-- =====================================================
+-- Inserted AFTER the admin so the first-user-becomes-admin trigger has
+-- already fired. Used by tests/api/pentest-regression.test.ts to assert
+-- RLS / IDOR / cross-tenant boundaries from a regular buyer's perspective.
+-- Credentials: buyer@demo.sellf.app / demo1234
+
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, confirmation_token, recovery_token,
+  email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) VALUES (
+  '00000000-0000-0000-0000-000000000000',
+  'bbbbbbbb-0000-4000-a000-000000000000',
+  'authenticated',
+  'authenticated',
+  'buyer@demo.sellf.app',
+  extensions.crypt('demo1234', extensions.gen_salt('bf')),
+  NOW(),
+  '', '', '', '', '', '',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"full_name":"Demo Buyer"}'::jsonb,
+  NOW(),
+  NOW()
+) ON CONFLICT DO NOTHING;
+
+INSERT INTO auth.identities (
+  provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+) VALUES (
+  'bbbbbbbb-0000-4000-a000-000000000000',
+  'bbbbbbbb-0000-4000-a000-000000000000',
+  jsonb_build_object('sub', 'bbbbbbbb-0000-4000-a000-000000000000', 'email', 'buyer@demo.sellf.app'),
+  'email',
+  NOW(),
+  NOW(),
+  NOW()
+) ON CONFLICT DO NOTHING;
+
 -- Insert shop configuration (singleton)
 INSERT INTO shop_config (
   default_currency,

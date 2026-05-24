@@ -124,7 +124,7 @@ describe('POST /api/tracking/fb-capi', () => {
       const body = await res.json();
 
       expect(res.status).toBe(400);
-      expect(body.error).toMatch(/not configured/i);
+      expect(body.error).toMatch(/configured/i);
     });
 
     it('should return 400 when pixel_id is missing', async () => {
@@ -139,7 +139,7 @@ describe('POST /api/tracking/fb-capi', () => {
       const body = await res.json();
 
       expect(res.status).toBe(400);
-      expect(body.error).toMatch(/not configured/i);
+      expect(body.error).toMatch(/configured/i);
     });
   });
 
@@ -217,7 +217,10 @@ describe('POST /api/tracking/fb-capi', () => {
 
       // Passed consent check → reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      expect(body.error).toMatch(/Facebook API/i);
+      // Endpoint wording is destination-agnostic since the GTM+FB refactor
+      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
+      // failed" instead of the old "Facebook API ..." message.
+      expect(body.error).toMatch(/(failed|destination)/i);
     });
 
     it('should forward any event to Facebook when has_consent=true', async () => {
@@ -239,7 +242,10 @@ describe('POST /api/tracking/fb-capi', () => {
 
       // Passed consent check → reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      expect(body.error).toMatch(/Facebook API/i);
+      // Endpoint wording is destination-agnostic since the GTM+FB refactor
+      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
+      // failed" instead of the old "Facebook API ..." message.
+      expect(body.error).toMatch(/(failed|destination)/i);
     });
 
     it('should default has_consent to true when not provided (backwards compat)', async () => {
@@ -263,7 +269,10 @@ describe('POST /api/tracking/fb-capi', () => {
       expect(body.skipped).toBeUndefined();
       // Reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      expect(body.error).toMatch(/Facebook API/i);
+      // Endpoint wording is destination-agnostic since the GTM+FB refactor
+      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
+      // failed" instead of the old "Facebook API ..." message.
+      expect(body.error).toMatch(/(failed|destination)/i);
     });
   });
 

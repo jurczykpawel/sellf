@@ -201,11 +201,13 @@ describe('Public product endpoints — expiry semantics', () => {
       expect(status).toBe(404);
     });
 
-    it('reason=temporal when product is no longer purchasable and user has no access', async () => {
-      const { status, data } = await publicGet(`/api/public/products/${pTemporal.slug}/access`, userCookie);
-      expect(status).toBe(200);
-      expect(data.hasAccess).toBe(false);
-      expect(data.reason).toBe('temporal');
+    it('product past available_until is hidden from regular user (RLS) — endpoint returns 404', async () => {
+      // Mirror of the inactive case above: migration 20260521000000 tightened
+      // the products SELECT policy so non-admin callers only see rows inside
+      // their availability window. Past-window products short-circuit to 404
+      // before the route can compute reason='temporal'.
+      const { status } = await publicGet(`/api/public/products/${pTemporal.slug}/access`, userCookie);
+      expect(status).toBe(404);
     });
 
     it('reason=no_access for active product the user never bought', async () => {

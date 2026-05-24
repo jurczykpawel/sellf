@@ -29,11 +29,14 @@ const TEST_ANON_PREFIX = 'consent-test-';
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** POST to /api/consent with JSON body */
+/** POST to /api/consent with JSON body. Endpoint requires Origin matching SITE_URL. */
 async function postConsent(body: Record<string, unknown>) {
   return fetch(`${API_URL}/api/consent`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || API_URL,
+    },
     body: JSON.stringify(body),
   });
 }
