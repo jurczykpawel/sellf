@@ -70,10 +70,10 @@ beforeAll(async () => {
 afterAll(async () => {
   // Restore original config
   if (originalConfig) {
-    await supabase.from('integrations_config').upsert(originalConfig);
+    await supabase.schema('seller_main' as never).from('integrations_config').upsert(originalConfig);
   } else {
     // If there was no row originally, delete the test row
-    await supabase.from('integrations_config').delete().eq('id', 1);
+    await supabase.schema('seller_main' as never).from('integrations_config').delete().eq('id', 1);
   }
 
   // Clean up rate limit entries created during tests
@@ -113,7 +113,7 @@ describe('POST /api/tracking/fb-capi', () => {
   describe('CAPI not configured', () => {
     it('should return 400 when fb_capi_enabled is false', async () => {
       // Set up config with CAPI disabled
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: false,
         facebook_pixel_id: 'fake-pixel-123',
@@ -128,7 +128,7 @@ describe('POST /api/tracking/fb-capi', () => {
     });
 
     it('should return 400 when pixel_id is missing', async () => {
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: null,
@@ -148,7 +148,7 @@ describe('POST /api/tracking/fb-capi', () => {
   describe('Consent logic', () => {
     beforeAll(async () => {
       // Set up config with CAPI enabled and fake credentials
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
@@ -173,7 +173,7 @@ describe('POST /api/tracking/fb-capi', () => {
 
     it('should skip ViewContent when has_consent=false even if send_conversions_without_consent=true', async () => {
       // ViewContent is NOT in CONSENT_EXEMPT_EVENTS (only Purchase, Lead)
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
@@ -197,7 +197,7 @@ describe('POST /api/tracking/fb-capi', () => {
     it('should forward Purchase to Facebook when has_consent=false and send_conversions_without_consent=true', async () => {
       // Purchase IS in CONSENT_EXEMPT_EVENTS → should pass consent check
       // Will fail at the Facebook API call (fake token) → 500
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
@@ -224,7 +224,7 @@ describe('POST /api/tracking/fb-capi', () => {
     });
 
     it('should forward any event to Facebook when has_consent=true', async () => {
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
@@ -249,7 +249,7 @@ describe('POST /api/tracking/fb-capi', () => {
     });
 
     it('should default has_consent to true when not provided (backwards compat)', async () => {
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',

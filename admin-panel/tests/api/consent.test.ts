@@ -9,7 +9,7 @@
  * @see admin-panel/src/app/api/consent/route.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
@@ -72,10 +72,10 @@ beforeAll(async () => {
 afterAll(async () => {
   // Restore original config
   if (originalConfig) {
-    await supabase.from('integrations_config').upsert(originalConfig);
+    await supabase.schema('seller_main' as never).from('integrations_config').upsert(originalConfig);
   } else {
     // If there was no row originally, delete the test row
-    await supabase.from('integrations_config').delete().eq('id', 1);
+    await supabase.schema('seller_main' as never).from('integrations_config').delete().eq('id', 1);
   }
 
   // Clean up consent_logs entries created during tests
@@ -100,7 +100,7 @@ describe('POST /api/consent', () => {
 
   describe('Logging disabled', () => {
     it('should return success with "Logging disabled" message when consent_logging_enabled is false', async () => {
-      await supabase.from('integrations_config').upsert({
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         consent_logging_enabled: false,
       });
@@ -117,11 +117,34 @@ describe('POST /api/consent', () => {
   // ===== LOGGING ENABLED — SUCCESSFUL INSERT =====
 
   describe('Logging enabled', () => {
-    beforeAll(async () => {
-      await supabase.from('integrations_config').upsert({
-        id: 1,
-        consent_logging_enabled: true,
-      });
+    // Use beforeEach (not beforeAll) so each it() gets a guaranteed-true
+    // setting even if a sibling describe's test or another file flipped
+    // it back. Plus verify the write landed — supabase-js upsert returning
+    // doesn't prove the row matches the desired state under contention.
+    beforeEach(async () => {
+      // Write directly to seller_main.integrations_config rather than via
+      // the public.integrations_config view — upserts through the view
+      // were occasionally invisible to the /api/consent endpoint's read
+      // even after the test-side SELECT verified the new value. Writing
+      // straight to the underlying table eliminates the view layer as a
+      // possible source of read-after-write inconsistency.
+      const { error: upsertError } = await supabase
+        .schema('seller_main' as never)
+        .from('integrations_config')
+        .upsert({ id: 1, consent_logging_enabled: true });
+      if (upsertError) throw new Error(`upsert config failed: ${upsertError.message}`);
+
+      const { data } = await supabase
+        .schema('seller_main' as never)
+        .from('integrations_config')
+        .select('consent_logging_enabled')
+        .eq('id', 1)
+        .single();
+      if (data?.consent_logging_enabled !== true) {
+        throw new Error(
+          `consent_logging_enabled is ${data?.consent_logging_enabled}, expected true`
+        );
+      }
     });
 
     it('should return success and insert a row into consent_logs', async () => {
