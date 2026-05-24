@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
 export function FAQSection() {
   const t = useTranslations('landing');
@@ -27,7 +28,7 @@ export function FAQSection() {
                 {t('faq.title')}
               </h2>
               <a
-                href="https://github.com/jurczykpawel/sellf/issues"
+                href={`${SELLF_GITHUB_URL}/issues`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"

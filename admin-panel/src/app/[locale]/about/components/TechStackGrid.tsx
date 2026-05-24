@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
 const techs = ['nextjs', 'supabase', 'stripe', 'tailwind', 'typescript', 'docker', 'postgresql', 'bunny'] as const;
 
@@ -40,7 +41,7 @@ export async function TechStackGrid() {
 
         <div className="text-center mt-8">
           <a
-            href="https://github.com/jurczykpawel/sellf"
+            href={SELLF_GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"

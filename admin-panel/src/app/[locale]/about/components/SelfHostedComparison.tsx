@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Rocket, Shield, ArrowRight, Check, ExternalLink } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
 export async function SelfHostedComparison() {
   const t = await getTranslations('landing');
@@ -90,7 +91,7 @@ export async function SelfHostedComparison() {
               <ExternalLink className="h-5 w-5" />
             </a>
             <a
-              href="https://github.com/jurczykpawel/sellf#deployment"
+              href={`${SELLF_GITHUB_URL}#deployment`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-sf-raised/80 border-2 border-sf-border hover:border-sf-border-accent text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[border-color,background-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
