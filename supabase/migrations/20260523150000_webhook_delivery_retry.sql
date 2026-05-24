@@ -95,7 +95,8 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION seller_main.increment_webhook_attempt(uuid, text, int, text, text, int, timestamptz, timestamptz) FROM anon, authenticated, PUBLIC;
-GRANT EXECUTE ON FUNCTION seller_main.increment_webhook_attempt(uuid, text, int, text, text, int, timestamptz, timestamptz) TO service_role, authenticated;
+-- service_role only — SECURITY DEFINER + no ownership check inside.
+GRANT EXECUTE ON FUNCTION seller_main.increment_webhook_attempt(uuid, text, int, text, text, int, timestamptz, timestamptz) TO service_role;
 
 CREATE OR REPLACE VIEW public.webhook_logs WITH (security_invoker = on) AS
   SELECT * FROM seller_main.webhook_logs;
