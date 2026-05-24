@@ -116,8 +116,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories separately
-    const { categories, ...productDataRaw } = body;
+    // Extract categories and tags separately
+    const { categories, tags, ...productDataRaw } = body;
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -222,7 +222,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Update categories if provided
     if (Array.isArray(categories)) {
-      // Delete existing categories
       const { error: deleteError } = await supabase
         .from('product_categories')
         .delete()
@@ -230,10 +229,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       if (deleteError) {
         console.error('Error deleting categories:', deleteError);
-        // Don't fail the request
       }
 
-      // Insert new categories
       if (categories.length > 0) {
         for (const catId of categories) {
           const catValidation = validateUUID(String(catId));
@@ -253,13 +250,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
         if (catError) {
           console.error('Error adding categories:', catError);
-          // Don't fail the request
         }
       }
     }
 
-    // Re-fetch with categories to match GET response shape
-    const { data: productWithCats } = await supabase
+    // Replace tags if provided (empty array clears all)
+    if (Array.isArray(tags)) {
+      await supabase.from('product_tags').delete().eq('product_id', id);
+      if (tags.length > 0) {
+        const { error: linkErr } = await supabase.from('product_tags').insert(
+          tags.map((tag_id: unknown) => ({ product_id: id, tag_id: String(tag_id) })),
+        );
+        if (linkErr) {
+          console.error('[products.PATCH tags]', linkErr);
+        }
+      }
+    }
+
+    // Re-fetch with categories and tags to match GET response shape
+    const { data: productWithRels } = await supabase
       .from('products')
       .select(`
         ${PRODUCT_API_FIELDS},
@@ -270,22 +279,34 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             name,
             slug
           )
+        ),
+        product_tags (
+          tag_id,
+          tags (
+            id,
+            name,
+            slug
+          )
         )
       `)
       .eq('id', id)
       .single();
 
     const refreshedSlug =
-      (productWithCats as { slug?: string } | null)?.slug ??
+      (productWithRels as { slug?: string } | null)?.slug ??
       (product as { slug?: string } | null)?.slug ??
       undefined;
 
-    if (productWithCats) {
-      const cats = productWithCats.product_categories?.map(
+    if (productWithRels) {
+      const cats = productWithRels.product_categories?.map(
         (pc: { category_id: unknown; categories: unknown }) => pc.categories
       ) || [];
-      const result = { ...productWithCats, categories: cats, product_categories: undefined };
+      const tgs = productWithRels.product_tags?.map(
+        (pt: { tag_id: unknown; tags: unknown }) => pt.tags
+      ) || [];
+      const result = { ...productWithRels, categories: cats, tags: tgs, product_categories: undefined, product_tags: undefined };
       delete result.product_categories;
+      delete result.product_tags;
       revalidateProductCaches(refreshedSlug);
       return jsonResponse(successResponse(result), request);
     }

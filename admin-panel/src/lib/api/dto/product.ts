@@ -76,6 +76,7 @@ const baseShape = {
   // Post-purchase redirect (success page)
   success_redirect_url: z.string().max(2048).nullable().optional(),
   pass_params_to_redirect: z.boolean().optional(),
+  tags: z.array(z.string().uuid()).max(50).optional(),
 };
 
 export const ProductCreateDTO = z.object(baseShape).strip();

@@ -622,6 +622,59 @@ describe('Products API v1', () => {
     });
   });
 
+  describe('POST/PATCH /api/v1/products tags array', () => {
+    let tagId: string;
+    beforeAll(async () => {
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/tags', { name: 'Assign', slug: `assign-${Date.now()}` });
+      tagId = r.data.data!.id;
+    });
+    afterAll(async () => {
+      await supabaseAdmin().from('tags').delete().eq('id', tagId);
+    });
+
+    it('POST stores tag links and returns them via embed', async () => {
+      const slug = uniqueSlug();
+      const { status, data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'WT', slug, description: 'd', price: 1, tags: [tagId],
+      });
+      expect(status).toBe(201);
+      createdProductIds.push(data.data!.id);
+
+      const got = await get<ApiResponse<{ tags: Array<{ id: string }> }>>(`/api/v1/products/${data.data!.id}`);
+      expect(got.data.data!.tags.map((t) => t.id)).toContain(tagId);
+    });
+
+    it('PATCH replaces existing tags (full replace semantics)', async () => {
+      const slug = uniqueSlug();
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'PT', slug, description: 'd', price: 1, tags: [tagId],
+      });
+      const pid = r.data.data!.id;
+      createdProductIds.push(pid);
+
+      await patch<ApiResponse<unknown>>(`/api/v1/products/${pid}`, { tags: [] });
+      const after = await get<ApiResponse<{ tags: unknown[] }>>(`/api/v1/products/${pid}`);
+      expect(after.data.data!.tags).toEqual([]);
+    });
+
+    it('POST rejects >50 tags', async () => {
+      const slug = uniqueSlug();
+      const bogus = Array.from({ length: 51 }, () => crypto.randomUUID());
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'TooMany', slug, description: 'd', price: 1, tags: bogus,
+      });
+      expect(status).toBe(400);
+    });
+
+    it('POST rejects non-UUID in tags array', async () => {
+      const slug = uniqueSlug();
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'Bad', slug, description: 'd', price: 1, tags: ['not-a-uuid'],
+      });
+      expect(status).toBe(400);
+    });
+  });
+
   describe('Response Format', () => {
     it('should use standardized success response format', async () => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {

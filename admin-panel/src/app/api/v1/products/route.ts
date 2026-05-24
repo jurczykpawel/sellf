@@ -216,8 +216,8 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories separately
-    const { categories, ...productDataRaw } = body;
+    // Extract categories and tags separately
+    const { categories, tags, ...productDataRaw } = body;
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -292,6 +292,34 @@ export async function POST(request: NextRequest) {
       if (catError) {
         console.error('Error adding categories:', catError);
         // Don't fail the request, just log the error
+      }
+    }
+
+    // Add tags if provided
+    if (product && Array.isArray(tags) && tags.length > 50) {
+      return apiError(request, 'VALIDATION_ERROR', 'Too many tags', {
+        tags: ['A product can have at most 50 tags']
+      });
+    }
+    if (product && Array.isArray(tags) && tags.length > 0) {
+      for (const tagId of tags) {
+        const tagValidation = validateUUID(String(tagId));
+        if (!tagValidation.isValid) {
+          return apiError(request, 'VALIDATION_ERROR', `Invalid tag ID format: ${tagId}`);
+        }
+      }
+
+      const tagInserts = tags.map((tag_id: unknown) => ({
+        product_id: product.id,
+        tag_id: String(tag_id),
+      }));
+
+      const { error: tagLinkErr } = await supabase
+        .from('product_tags')
+        .insert(tagInserts);
+
+      if (tagLinkErr) {
+        console.error('[products.POST tags]', tagLinkErr);
       }
     }
 
