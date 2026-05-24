@@ -7,8 +7,10 @@ const SECTIONS = [
   'hero',
   'social-proof',
   'fee-comparison',
+  'conversion-stack',
+  'login-wall',
+  'subscriptions-demo',
   'features',
-  'embed-demo',
   'use-cases',
   'tax',
   'how-it-works',
@@ -63,24 +65,58 @@ for (const path of ABOUT_PATHS) {
       await expect(first).toHaveAttribute('aria-expanded', 'true');
     });
 
-    test('embed demo skeleton appears after Run click', async ({ page }) => {
-      const section = page.locator('[data-landing-section="embed-demo"]').first();
+    test('conversion stack walks product → bump → coupon → pay → OTO → done', async ({ page }) => {
+      const section = page.locator('[data-landing-section="conversion-stack"]').first();
       await section.scrollIntoViewIfNeeded();
-      const runBtn = section.locator('[data-action="run-snippet"]').first();
-      await runBtn.click();
-      const skeleton = section
-        .locator('[data-checkout-state="loaded"]')
-        .first();
-      await expect(skeleton).toBeVisible({ timeout: 3000 });
+
+      // Stage: product → click Buy
+      await section.locator('[data-action="buy-now"]').click();
+      await expect(section.locator('[data-stage-screen="checkout"]')).toBeVisible();
+
+      // checkout → next
+      await section.locator('[data-action="checkout-next"]').click();
+
+      // bump → tick it + verify cart updates
+      await section.locator('[data-action="toggle-bump"]').check();
+      await expect(section.locator('[data-cart-line="bump"]')).toBeVisible();
+      await section.locator('[data-action="bump-next"]').click();
+
+      // coupon → apply sample
+      await section.locator('[data-action="coupon-apply"]').or(section.locator('button:has-text("FRIENDS50")')).first().click();
+      await expect(section.locator('[data-cart-line="coupon"]')).toBeVisible();
+      await section.locator('[data-action="coupon-next"]').click();
+
+      // pay → success → OTO modal
+      await section.locator('[data-action="pay-now"]').click();
+      await expect(section.locator('[data-oto-state="open"]')).toBeVisible({ timeout: 2500 });
+
+      // OTO decline → done
+      await section.locator('[data-action="oto-decline"]').click();
+      // either downsell or done
+      await section
+        .locator('[data-action="downsell-decline"]')
+        .or(section.locator('[data-action="replay"]'))
+        .first()
+        .click();
     });
 
-    test('embed copy button writes snippet to clipboard', async ({ page, context }) => {
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-      const section = page.locator('[data-landing-section="embed-demo"]').first();
+    test('login wall unlock reveals content and token fragment', async ({ page }) => {
+      const section = page.locator('[data-landing-section="login-wall"]').first();
       await section.scrollIntoViewIfNeeded();
-      await section.locator('[data-action="copy-snippet"]').first().click();
-      const value = await page.evaluate(() => navigator.clipboard.readText());
-      expect(value).toContain('embed/v1/checkout.js');
+      await expect(section.locator('[data-wall-state="locked"]')).toBeVisible();
+      await section.locator('[data-action="unlock"]').click();
+      await expect(section.locator('[data-wall-state="open"]')).toBeVisible();
+      await expect(section.locator('[data-token-fragment="present"]')).toBeVisible();
+    });
+
+    test('subscriptions timeline reveals all 14 months after play', async ({ page }) => {
+      const section = page.locator('[data-landing-section="subscriptions-demo"]').first();
+      await section.scrollIntoViewIfNeeded();
+      await section.locator('[data-action="play"]').click();
+      // Final month chip becomes data-revealed='true'
+      await expect(
+        section.locator('[data-month-idx="13"][data-revealed="true"]'),
+      ).toBeVisible({ timeout: 15000 });
     });
 
     test('webhook timeline eventually lights all ticks', async ({ page }) => {

@@ -4,7 +4,9 @@ import { HeroSection } from './components/HeroSection';
 import { SocialProofBar } from './components/SocialProofBar';
 import { FeeComparisonSection } from './components/FeeComparisonSection';
 import { FeatureGrid } from './components/FeatureGrid';
-import { EmbedCheckoutDemo } from './components/EmbedCheckoutDemo';
+import { ConversionStack } from './components/ConversionStack';
+import { LoginWallDemo } from './components/LoginWallDemo';
+import { SubscriptionsDemo } from './components/SubscriptionsDemo';
 import { UseCases } from './components/UseCases';
 import { TaxSection } from './components/TaxSection';
 import { HowItWorks } from './components/HowItWorks';
@@ -77,8 +79,10 @@ export default async function AboutPage({
         <HeroSection />
         <SocialProofBar />
         <FeeComparisonSection />
+        <ConversionStack />
+        <LoginWallDemo />
+        <SubscriptionsDemo />
         <FeatureGrid />
-        <EmbedCheckoutDemo />
         <UseCases />
         <TaxSection />
         <div className="section-divider" />
