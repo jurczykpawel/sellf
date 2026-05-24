@@ -63,6 +63,9 @@ export {
   transformEmbeddedRelations,
 } from './embed';
 
+// Filter helpers
+export { parseCsvFilter, FILTER_MAX_VALUES, type ParsedFilter } from './filters';
+
 // API Keys
 export {
   API_SCOPES,
