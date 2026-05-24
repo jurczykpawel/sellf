@@ -118,3 +118,13 @@ WEBHOOK_QUEUE_DRIVER=sqs         # AWS SQS stub (throws NotImplemented)
 ```
 
 A future SQS implementation would replace `pickDue` with `ReceiveMessage`, `markFailed` with `ChangeMessageVisibility`, and `markPermanentlyFailed` with `SendMessage` to a configured DLQ queue. `webhook_logs` would remain the audit log of attempts in either case.
+
+### Known limitations (operator-facing)
+
+These are intentional MVP shortcuts in the 2026-05-24 batch-ops cut. None are correctness bugs, but operators recovering from a large outage should know about them. Tracked in `BACKLOG.md → Outgoing Webhooks v2.0` for the next sprint.
+
+- **List capped at 50 rows.** `/dashboard/webhooks/deliveries` fetches `limit=50` with no pagination. Select-all toggles those 50, not the full DLQ. For backlogs above 50, switch the filter, replay the visible page, refresh, repeat — or use SQL to bulk-update `status='pending_retry'` directly.
+- **Batch loop is client-side `Promise.allSettled`.** N parallel POSTs from the browser, no jitter. A network drop mid-batch leaves a partial outcome (run again on the survivors). Safe up to ~100 items; above that consider SQL bulk-update.
+- **No rate-limit jitter against the receiver.** If the destination has a strict per-minute limit, a 100-item batch can briefly trip 429s on its side. Those become `pending_retry` and pick up on the next cron tick — but the toast will report partial failure.
+- **Retry policy is global.** `RETRY_DELAYS_SECONDS = [60, 300, 1800, 7200, 43200]` and `max_attempts = 5` apply to every endpoint. No per-endpoint override yet (e.g. 1-attempt Slack alerts vs 10-attempt paid CRM).
+- **Replay / Cancel are irreversible.** No undo. A fat-finger Cancel on 50 rows requires `UPDATE seller_main.webhook_logs SET status='pending_retry', failed_permanently_at=NULL WHERE id IN (...)` to restore — practically impossible without keeping the log id list.
