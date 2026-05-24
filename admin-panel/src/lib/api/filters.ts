@@ -22,7 +22,7 @@ export function parseCsvFilter(raw: string | null | undefined): ParsedFilter {
     } else if (SLUG_RE.test(part)) {
       slugs.add(part);
     } else {
-      throw new Error(`invalid filter value: ${part.slice(0, 20)}`);
+      throw new Error('invalid filter value');
     }
   }
   return { ids: [...ids], slugs: [...slugs] };

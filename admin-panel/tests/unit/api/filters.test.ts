@@ -33,6 +33,13 @@ describe('parseCsvFilter', () => {
     const out = parseCsvFilter('a,a,b');
     expect(out.slugs).toEqual(['a', 'b']);
   });
+  it('returns empty for undefined', () => {
+    expect(parseCsvFilter(undefined)).toEqual({ ids: [], slugs: [] });
+  });
+  it('deduplicates UUIDs (case-insensitive)', () => {
+    const out = parseCsvFilter('D192CAB8-FB9C-407B-88E1-69245BB607C3,d192cab8-fb9c-407b-88e1-69245bb607c3');
+    expect(out.ids).toEqual(['d192cab8-fb9c-407b-88e1-69245bb607c3']);
+  });
   it('throws when slug fails slug regex', () => {
     expect(() => parseCsvFilter('has space')).toThrow(/invalid/i);
   });
