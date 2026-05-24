@@ -1,5 +1,5 @@
-import { describe, it, expect, afterAll } from 'vitest';
-import { get, post, cleanup, deleteTestApiKey, API_URL } from './setup';
+import { describe, it, expect, afterAll, beforeAll } from 'vitest';
+import { get, post, patch, del, cleanup, deleteTestApiKey, API_URL } from './setup';
 
 interface Tag { id: string; name: string; slug: string; created_at: string; }
 interface ApiResp<T> { data?: T; error?: { code: string; message: string }; pagination?: { has_more: boolean; limit: number; next_cursor: string | null; }; }
@@ -61,6 +61,52 @@ describe('Tags API v1', () => {
     it('rejects name longer than 50 chars', async () => {
       const { status } = await post<ApiResp<Tag>>('/api/v1/tags', { name: 'x'.repeat(51), slug: uniqueSlug() });
       expect(status).toBe(400);
+    });
+  });
+
+  describe('Single tag', () => {
+    let id: string;
+    beforeAll(async () => {
+      const r = await post<ApiResp<Tag>>('/api/v1/tags', { name: 'Single', slug: uniqueSlug() });
+      id = r.data.data!.id;
+      created.push(id);
+    });
+
+    it('GET returns tag by id', async () => {
+      const r = await get<ApiResp<Tag>>(`/api/v1/tags/${id}`);
+      expect(r.status).toBe(200);
+      expect(r.data.data!.id).toBe(id);
+    });
+    it('GET unknown id returns 404', async () => {
+      const r = await get<ApiResp<Tag>>('/api/v1/tags/00000000-0000-0000-0000-000000000000');
+      expect(r.status).toBe(404);
+    });
+    it('GET invalid uuid returns 400', async () => {
+      const r = await get<ApiResp<Tag>>('/api/v1/tags/not-a-uuid');
+      expect(r.status).toBe(400);
+    });
+    it('PATCH updates name', async () => {
+      const r = await patch<ApiResp<Tag>>(`/api/v1/tags/${id}`, { name: 'Renamed' });
+      expect(r.status).toBe(200);
+      expect(r.data.data!.name).toBe('Renamed');
+    });
+    it('PATCH with empty body returns 400', async () => {
+      const r = await patch<ApiResp<Tag>>(`/api/v1/tags/${id}`, {});
+      expect(r.status).toBe(400);
+    });
+    it('PATCH to existing slug returns 409', async () => {
+      const other = await post<ApiResp<Tag>>('/api/v1/tags', { name: 'Other', slug: uniqueSlug() });
+      created.push(other.data.data!.id);
+      const r = await patch<ApiResp<Tag>>(`/api/v1/tags/${id}`, { slug: other.data.data!.slug });
+      expect(r.status).toBe(409);
+    });
+    it('DELETE removes the tag', async () => {
+      const tmp = await post<ApiResp<Tag>>('/api/v1/tags', { name: 'Del', slug: uniqueSlug() });
+      const tmpId = tmp.data.data!.id;
+      const r = await del<ApiResp<unknown>>(`/api/v1/tags/${tmpId}`);
+      expect(r.status).toBe(204);
+      const after = await get<ApiResp<Tag>>(`/api/v1/tags/${tmpId}`);
+      expect(after.status).toBe(404);
     });
   });
 });
