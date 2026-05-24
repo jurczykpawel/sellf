@@ -559,6 +559,69 @@ describe('Products API v1', () => {
     });
   });
 
+  describe('GET /api/v1/products ?tag= filter', () => {
+    let tagA: string;
+    let tagB: string;
+    let tagASlug: string;
+    let pA: string;
+    let pB: string;
+    let pBoth: string;
+
+    beforeAll(async () => {
+      tagASlug = `tag-a-${Date.now()}`;
+      const tagBSlug = `tag-b-${Date.now()}`;
+      const r1 = await post<ApiResponse<{ id: string }>>('/api/v1/tags', { name: 'A', slug: tagASlug });
+      const r2 = await post<ApiResponse<{ id: string }>>('/api/v1/tags', { name: 'B', slug: tagBSlug });
+      tagA = r1.data.data!.id;
+      tagB = r2.data.data!.id;
+
+      const make = async (tags: string[]) => {
+        const { data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+          name: 'TF', slug: uniqueSlug(), description: 'd', price: 1,
+        });
+        const id = data.data!.id;
+        createdProductIds.push(id);
+        if (tags.length) {
+          const rows = tags.map((tag_id) => ({ product_id: id, tag_id }));
+          const { error } = await supabaseAdmin().from('product_tags').insert(rows);
+          if (error) throw error;
+        }
+        return id;
+      };
+      pA = await make([tagA]);
+      pB = await make([tagB]);
+      pBoth = await make([tagA, tagB]);
+    });
+
+    afterAll(async () => {
+      await supabaseAdmin().from('tags').delete().in('id', [tagA, tagB]);
+    });
+
+    it('filters by tag UUID', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?tag=${tagA}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toEqual(expect.arrayContaining([pA, pBoth]));
+      expect(ids).not.toContain(pB);
+    });
+    it('filters by tag slug', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?tag=${tagASlug}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(pA);
+    });
+    it('AND-intersects ?tag=a,b', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?tag=${tagA},${tagB}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(pBoth);
+      expect(ids).not.toContain(pA);
+      expect(ids).not.toContain(pB);
+    });
+    it('returns 400 on invalid tag value', async () => {
+      const { status, data } = await get<ApiResponse<unknown>>('/api/v1/products?tag=evil%20space');
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('INVALID_INPUT');
+    });
+  });
+
   describe('Response Format', () => {
     it('should use standardized success response format', async () => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {

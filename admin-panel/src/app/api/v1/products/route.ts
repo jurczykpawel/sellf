@@ -24,7 +24,7 @@ import {
   buildProductSelect,
   transformEmbeddedRelations,
 } from '@/lib/api';
-import { parseCsvFilter, resolveFilterIds } from '@/lib/api/filters';
+import { parseCsvFilter, resolveFilterIds, intersectProductIdsByMembership } from '@/lib/api/filters';
 import { z } from 'zod';
 import {
   validateCreateProduct,
@@ -37,6 +37,13 @@ import { mapApiInputToProductRow } from '@/lib/api/dto/product';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
+}
+
+function intersectNullable(a: string[] | null, b: string[] | null): string[] | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  const setB = new Set(b);
+  return a.filter((x) => setB.has(x));
 }
 
 /**
@@ -79,35 +86,35 @@ export async function GET(request: NextRequest) {
     }
     const escapedSearch = search ? escapeIlikePattern(search) : null;
 
-    let categoryFilter;
-    try {
-      categoryFilter = parseCsvFilter(searchParams.get('category'));
-    } catch (e) {
-      return apiError(request, 'INVALID_INPUT', e instanceof Error ? e.message : 'Invalid category filter');
-    }
+    const safeParse = (raw: string | null, label: string) => {
+      try { return parseCsvFilter(raw); }
+      catch (e) {
+        return apiError(request, 'INVALID_INPUT', e instanceof Error ? e.message : `Invalid ${label}`);
+      }
+    };
 
-    const categoryIds = await resolveFilterIds(supabase, 'categories', categoryFilter);
-    if (categoryIds === null) {
+    const categoryFilterRaw = safeParse(searchParams.get('category'), 'category');
+    if (categoryFilterRaw instanceof Response) return categoryFilterRaw;
+    const tagFilterRaw = safeParse(searchParams.get('tag'), 'tag');
+    if (tagFilterRaw instanceof Response) return tagFilterRaw;
+
+    const categoryIds = await resolveFilterIds(supabase, 'categories', categoryFilterRaw);
+    const tagIds = await resolveFilterIds(supabase, 'tags', tagFilterRaw);
+    if (categoryIds === null || tagIds === null) {
       return jsonResponse(successResponse([], { cursor: null, next_cursor: null, has_more: false, limit, total: 0 }), request);
     }
 
-    let restrictedIds: string[] | null = null;
-    if (categoryIds.length > 0) {
-      for (const cid of categoryIds) {
-        const { data: links, error: linkErr } = await supabase
-          .from('product_categories')
-          .select('product_id')
-          .eq('category_id', cid);
-        if (linkErr) {
-          console.error('[products.GET category]', linkErr);
-          return apiError(request, 'INTERNAL_ERROR', 'Failed to filter by category');
-        }
-        const matched = new Set((links ?? []).map((r) => r.product_id as string));
-        restrictedIds = restrictedIds == null ? [...matched] : restrictedIds.filter((id) => matched.has(id));
-        if (restrictedIds.length === 0) break;
-      }
-    }
-    if (restrictedIds && restrictedIds.length === 0) {
+    const categoryProductIds = await intersectProductIdsByMembership(supabase, categoryIds, {
+      junctionTable: 'product_categories',
+      fkColumn: 'category_id',
+    });
+    const tagProductIds = await intersectProductIdsByMembership(supabase, tagIds, {
+      junctionTable: 'product_tags',
+      fkColumn: 'tag_id',
+    });
+
+    const filteredIds = intersectNullable(categoryProductIds, tagProductIds);
+    if (filteredIds && filteredIds.length === 0) {
       return jsonResponse(successResponse([], { cursor: null, next_cursor: null, has_more: false, limit, total: 0 }), request);
     }
 
@@ -123,7 +130,7 @@ export async function GET(request: NextRequest) {
     } else if (status === 'inactive') {
       countQuery = countQuery.eq('is_active', false);
     }
-    if (restrictedIds) countQuery = countQuery.in('id', restrictedIds);
+    if (filteredIds) countQuery = countQuery.in('id', filteredIds);
     const { count } = await countQuery;
 
     // Build main query - fetch limit + 1 to detect next page
@@ -143,7 +150,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_active', false);
     }
 
-    if (restrictedIds) query = query.in('id', restrictedIds);
+    if (filteredIds) query = query.in('id', filteredIds);
 
     // Apply cursor pagination
     query = applyCursorToQuery(query, cursor, sortBy, sortOrder);

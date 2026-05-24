@@ -47,3 +47,28 @@ export async function resolveFilterIds(
   }
   return ids;
 }
+
+export interface MembershipFilterConfig {
+  junctionTable: string;
+  fkColumn: string;
+}
+
+export async function intersectProductIdsByMembership(
+  supabase: SupabaseClient,
+  ids: string[],
+  cfg: MembershipFilterConfig,
+): Promise<string[] | null> {
+  if (ids.length === 0) return null;
+  let acc: string[] | null = null;
+  for (const id of ids) {
+    const { data, error } = await supabase
+      .from(cfg.junctionTable)
+      .select('product_id')
+      .eq(cfg.fkColumn, id);
+    if (error) throw error;
+    const matched = new Set((data ?? []).map((r) => r.product_id as string));
+    acc = acc == null ? [...matched] : acc.filter((pid) => matched.has(pid));
+    if (acc.length === 0) return [];
+  }
+  return acc;
+}
