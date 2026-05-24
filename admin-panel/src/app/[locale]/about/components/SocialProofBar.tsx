@@ -14,7 +14,7 @@ export async function SocialProofBar() {
   ];
 
   return (
-    <section className="relative py-12 overflow-hidden">
+    <section className="relative py-12 overflow-hidden" data-landing-section="social-proof">
       <div
         className="absolute inset-0"
         style={{

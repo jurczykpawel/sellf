@@ -18,7 +18,7 @@ export function HeroSection() {
   ]
 
   return (
-    <section className="relative pt-32 pb-20 md:pb-32 overflow-hidden">
+    <section className="relative pt-32 pb-20 md:pb-32 overflow-hidden" data-landing-section="hero">
       {/* Mesh gradient background */}
       <div
         className="absolute inset-0"

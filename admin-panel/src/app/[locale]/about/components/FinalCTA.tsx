@@ -8,7 +8,7 @@ export async function FinalCTA() {
   const t = await getTranslations('landing');
 
   return (
-    <section className="relative py-28 md:py-36 overflow-hidden">
+    <section className="relative py-28 md:py-36 overflow-hidden" data-landing-section="final-cta">
       <div
         className="absolute inset-0"
         style={{

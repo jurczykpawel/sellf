@@ -17,7 +17,7 @@ export function FAQSection() {
   }
 
   return (
-    <section className="py-24 md:py-32 bg-sf-deep">
+    <section className="py-24 md:py-32 bg-sf-deep" data-landing-section="faq">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Split layout: sticky title left, accordion right */}
         <div className="flex flex-col md:flex-row md:gap-16">

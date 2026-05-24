@@ -9,7 +9,7 @@ export async function TechStackGrid() {
   const t = await getTranslations('landing');
 
   return (
-    <section className="py-20 md:py-24 bg-sf-deep">
+    <section className="py-20 md:py-24 bg-sf-deep" data-landing-section="tech-stack">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-12">
           <p className="text-sm font-medium text-sf-muted tracking-[0.08em] uppercase mb-3">

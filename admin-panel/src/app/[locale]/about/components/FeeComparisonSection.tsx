@@ -62,7 +62,7 @@ export function FeeComparisonSection() {
   const annualSavings = monthlySavings * 12;
 
   return (
-    <section className="py-24 md:py-32 bg-sf-base">
+    <section className="py-24 md:py-32 bg-sf-base" data-landing-section="fee-comparison">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal>
           <p className="text-sm font-medium text-sf-muted tracking-[0.08em] uppercase mb-3 text-center">

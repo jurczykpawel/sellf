@@ -7,7 +7,7 @@ export async function SelfHostedComparison() {
   const t = await getTranslations('landing');
 
   return (
-    <section id="deployment" className="py-24 md:py-32 bg-sf-base">
+    <section id="deployment" className="py-24 md:py-32 bg-sf-base" data-landing-section="self-hosted">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-16">
           <p className="text-sm font-medium text-sf-muted tracking-[0.08em] uppercase mb-3">
