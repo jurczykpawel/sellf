@@ -1,12 +1,13 @@
 import { getTranslations } from 'next-intl/server';
 import { Rocket, Link2, ShoppingBag } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { WebhookTimeline } from '@/components/landing-fx';
 
 import type { LucideIcon } from 'lucide-react';
 
 interface Step {
   icon: LucideIcon;
-  key: string;
+  key: 'step1' | 'step2' | 'step3';
   number: string;
 }
 
@@ -16,8 +17,36 @@ const steps: Step[] = [
   { icon: ShoppingBag, key: 'step3', number: '03' },
 ];
 
+const WEBHOOK_TICKS = [
+  { label: 'stripe' },
+  { label: 'sellf' },
+  { label: 'your n8n' },
+];
+
 export async function HowItWorks() {
   const t = await getTranslations('landing');
+
+  function StepBody({ stepKey, number }: { stepKey: Step['key']; number: string }) {
+    return (
+      <>
+        <div className="text-xs font-bold text-sf-accent mb-1 tracking-wider">{number}</div>
+        <h3 className="text-xl font-bold text-sf-heading mb-2">
+          {t(`howItWorks.${stepKey}.title`)}
+        </h3>
+        <p className="text-sf-body leading-relaxed">
+          {t(`howItWorks.${stepKey}.desc`)}
+        </p>
+        {stepKey === 'step3' && (
+          <div className="mt-4 rounded-xl border border-sf-border-accent bg-sf-raised/60 px-4 py-3">
+            <WebhookTimeline
+              ticks={WEBHOOK_TICKS}
+              ariaLabel={t('howItWorks.step3.title')}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <section className="py-24 md:py-32 bg-sf-base" data-landing-section="how-it-works">
@@ -62,26 +91,14 @@ export async function HowItWorks() {
 
                     {/* Mobile content */}
                     <div className="md:hidden flex-1">
-                      <div className="text-xs font-bold text-sf-accent mb-1 tracking-wider">{step.number}</div>
-                      <h3 className="text-xl font-bold text-sf-heading mb-2">
-                        {t(`howItWorks.${step.key}.title`)}
-                      </h3>
-                      <p className="text-sf-body leading-relaxed">
-                        {t(`howItWorks.${step.key}.desc`)}
-                      </p>
+                      <StepBody stepKey={step.key} number={step.number} />
                     </div>
 
                     {/* Desktop left area */}
                     <div className="hidden md:flex md:w-[calc(50%-2rem)] md:justify-end">
                       {isLeft ? (
                         <div className="text-right max-w-sm">
-                          <div className="text-xs font-bold text-sf-accent mb-1 tracking-wider">{step.number}</div>
-                          <h3 className="text-xl font-bold text-sf-heading mb-2">
-                            {t(`howItWorks.${step.key}.title`)}
-                          </h3>
-                          <p className="text-sf-body leading-relaxed">
-                            {t(`howItWorks.${step.key}.desc`)}
-                          </p>
+                          <StepBody stepKey={step.key} number={step.number} />
                         </div>
                       ) : (
                         <div />
@@ -99,13 +116,7 @@ export async function HowItWorks() {
                     <div className="hidden md:flex md:w-[calc(50%-2rem)]">
                       {!isLeft ? (
                         <div className="max-w-sm">
-                          <div className="text-xs font-bold text-sf-accent mb-1 tracking-wider">{step.number}</div>
-                          <h3 className="text-xl font-bold text-sf-heading mb-2">
-                            {t(`howItWorks.${step.key}.title`)}
-                          </h3>
-                          <p className="text-sf-body leading-relaxed">
-                            {t(`howItWorks.${step.key}.desc`)}
-                          </p>
+                          <StepBody stepKey={step.key} number={step.number} />
                         </div>
                       ) : (
                         <div />
