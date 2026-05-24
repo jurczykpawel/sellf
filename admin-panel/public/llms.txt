@@ -1,0 +1,29 @@
+# Sellf
+
+> Self-hosted digital product monetization platform. Open-source alternative to Gumroad / LemonSqueezy / Paddle. Zero platform fees, full data ownership, EU-compliant.
+
+Built by Paweł Jurczyk (github.com/jurczykpawel). 17 years IT background. Open-source advocate.
+
+## Products
+
+- **Sellf** — Next.js + Supabase + Stripe, AGPL-3.0 + commercial white-label license. https://github.com/jurczykpawel/sellf
+
+## Key features
+
+- Stripe Embedded Checkout (26 currencies, magic-link guest checkout)
+- Embed snippet — paste one `<script>` on any page to render checkout
+- Login wall snippet — content gating via HMAC handoff token
+- Webhooks with DLQ + retry + dashboard replay
+- Pay-what-you-want, tip jar, order bumps, OTO pages, coupons (incl. OTO discount)
+- License tiers: Free → Registered → Pro → Business (white-label)
+- MCP server with 45 tools / 4 resources / 6 prompts for Claude Desktop
+- Polish market integrations: GUS REGON auto-fill, VAT compliance, Omnibus Directive support
+
+## Pages
+
+- Marketing landing: /en/about, /pl/about
+- Tenant storefront: /en/store, /pl/store
+
+## Policy
+
+Content-Signal: search=yes, ai-input=yes, ai-train=no
