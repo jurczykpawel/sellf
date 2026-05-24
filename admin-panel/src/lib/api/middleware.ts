@@ -299,11 +299,19 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   const platformClient = createPlatformClient();
 
   // Retry transient PostgREST upstream errors — they're gateway hiccups, not auth failures.
-  let verifyResult: Awaited<ReturnType<typeof platformClient.rpc>>['data'] = null;
+  type VerifyRow = {
+    key_id: string;
+    admin_user_id: string;
+    scopes: unknown;
+    rate_limit_per_minute: number;
+    is_valid: boolean;
+    rejection_reason: string | null;
+  };
+  let verifyResult: VerifyRow[] | null = null;
   let verifyError: { message: string; code?: string } | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await platformClient.rpc('verify_api_key', { p_key_hash: keyHash });
-    verifyResult = res.data;
+    verifyResult = res.data as VerifyRow[] | null;
     verifyError = res.error;
     if (!verifyError) break;
     const isTransientGatewayError =
