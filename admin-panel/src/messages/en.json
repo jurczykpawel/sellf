@@ -3014,7 +3014,10 @@
       "trustNoFees": "No monthly fees",
       "trustOwnData": "Own your data",
       "trustDeployAnywhere": "Deploy anywhere",
-      "trustSecurity": "Enterprise security"
+      "trustSecurity": "Enterprise security",
+      "revenueBadgeIdle": "What you keep vs Gumroad",
+      "revenueBadgePrefix": "You'd save",
+      "revenueBadgeSuffix": "/year vs Gumroad"
     },
     "socialProof": {
       "openSource": "Open Source",
@@ -3112,7 +3115,35 @@
         "title": "Auto-fill company data",
         "desc": "Enter NIP. GUS API auto-fills company data."
       },
-      "categoryLabel": "FEATURES"
+      "categoryLabel": "FEATURES",
+      "oto": {
+        "title": "One-time offer pages",
+        "desc": "Post-purchase OTO with its own discount and analytics. Connect any product as the upsell."
+      },
+      "webhookRetry": {
+        "title": "Webhook DLQ + retry",
+        "desc": "Failed deliveries land in a dead-letter queue with exponential backoff and a one-click replay UI."
+      },
+      "pwyw": {
+        "title": "Pay what you want",
+        "desc": "Let fans set their own price, with or without a minimum threshold. Higher conversion on lead magnets."
+      },
+      "tipJar": {
+        "title": "Tip jar",
+        "desc": "Optional tip step at checkout. Never coercive — buyers stay in control."
+      },
+      "loginWall": {
+        "title": "Login wall snippet",
+        "desc": "Drop one line on any page to gate it behind a Sellf sign-in + active-access check. No backend needed."
+      },
+      "magicLink": {
+        "title": "Magic-link guest checkout",
+        "desc": "Buyers purchase without an account. Their purchases auto-claim when they later register with the same email."
+      },
+      "mcp": {
+        "title": "MCP server",
+        "desc": "Connect Claude Desktop and other agents. 45 tools, 4 resources, 6 prompts. Drive your shop from a chat."
+      }
     },
     "howItWorks": {
       "title": "Up and running in 3 steps",
@@ -3186,7 +3217,8 @@
         "db": "Managed database",
         "deploy": "Zero-downtime deploys",
         "price": "~$4-14/mo",
-        "specs": "2-core CPU, 8GB RAM, 100GB NVMe"
+        "specs": "2-core CPU, 8GB RAM, 100GB NVMe",
+        "mcpReady": "MCP server (Claude Desktop integration)"
       },
       "demoPrompt": "Want to see it in action first?",
       "demoPromptSubtitle": "Explore the full admin panel, test checkout with Stripe test cards, and browse sample products. No setup required.",
@@ -3230,7 +3262,15 @@
         "desc": "CDN & Video hosting"
       },
       "viewStack": "View full tech stack on GitHub",
-      "categoryLabel": "TECHNOLOGY"
+      "categoryLabel": "TECHNOLOGY",
+      "mcp": {
+        "name": "MCP",
+        "desc": "Claude Desktop integration via 45-tool MCP server"
+      },
+      "bun": {
+        "name": "Bun",
+        "desc": "Runtime + package manager — faster dev cycles"
+      }
     },
     "useCases": {
       "title": "Built for creators, developers, and entrepreneurs",
@@ -3313,6 +3353,18 @@
         {
           "q": "How do I handle VAT and taxes?",
           "a": "Below €10,000/year EU cross-border B2C - handle VAT in your country only. Above that - register EU OSS (one form, all countries). Stripe Tax automates calculation for 0.5%. Consult a tax professional for your case."
+        },
+        {
+          "q": "What happens if a webhook fails?",
+          "a": "Failed deliveries land in a dead-letter queue with exponential backoff. You see them in the dashboard and can replay any of them with one click."
+        },
+        {
+          "q": "Can I drive Sellf from Claude / an AI agent?",
+          "a": "Yes — Sellf ships an MCP server with 45 tools, 4 resources, and 6 prompts. Add it to Claude Desktop and ask it to list products, refund a payment, or pull analytics."
+        },
+        {
+          "q": "Do you handle VAT / Polish JPK / OSS?",
+          "a": "Sellf records the data and exports CSVs. You stay the Merchant of Record so you keep full control (and your data), and you grow into VAT / OSS handling on your own timeline."
         }
       ],
       "githubIssues": "GitHub Issues →"
@@ -3343,7 +3395,59 @@
       "terms": "Terms",
       "cookiePreferences": "Cookie preferences",
       "copyright": "© {year} Sellf. Open source and self-hosted",
-      "whiteLabelLicense": "White-Label License"
+      "whiteLabelLicense": "White-Label License",
+      "llmsTxt": "llms.txt (for AI agents)"
+    },
+    "licenseTier": {
+      "title": "Pick the tier that fits where you are",
+      "subtitle": "Free covers most solopreneurs. Pro removes branding and unlocks themes. Business adds white-label.",
+      "categoryLabel": "License",
+      "free": {
+        "name": "Free",
+        "tagline": "Solopreneurs starting out. No limits on products, sales, or buyers.",
+        "cta": "Self-host now"
+      },
+      "registered": {
+        "name": "Registered",
+        "tagline": "Free + CSV export of payments. Register your install in 30 seconds.",
+        "cta": "Register install"
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "Hide \"Powered by Sellf\", save custom themes, expand API key scopes.",
+        "cta": "Go Pro"
+      },
+      "business": {
+        "name": "Business",
+        "tagline": "White-label commercial license. Resell to your own clients.",
+        "cta": "Talk to us"
+      },
+      "rows": {
+        "products": "Unlimited products",
+        "buyers": "Unlimited buyers",
+        "payments": "Stripe + 26 currencies",
+        "webhooks": "Webhooks + DLQ + retry",
+        "csvExport": "Payment CSV export",
+        "watermark": "Hide \"Powered by Sellf\"",
+        "themes": "Save custom themes",
+        "apiScopes": "Expanded API scopes",
+        "whiteLabel": "White-label resale"
+      }
+    },
+    "embedDemo": {
+      "categoryLabel": "Embed checkout",
+      "title": "Paste one script. Checkout runs on your page.",
+      "subtitle": "No iframe ceremony, no popup. The Stripe Embedded Checkout loads inside your existing HTML.",
+      "snippetLabel": "snippet",
+      "runButton": "Run snippet",
+      "copyButton": "Copy",
+      "copyDone": "Copied",
+      "loading": "Loading checkout…",
+      "shopBadge": "Demo shop",
+      "productLabel": "Sample product",
+      "productPrice": "$29.00",
+      "payButton": "Pay (demo)",
+      "demoNote": "This is a presentational mock. Real checkout flow is in the live demo."
     }
   },
   "notFound": {

@@ -3029,7 +3029,10 @@
       "trustNoFees": "Bez opłat miesięcznych",
       "trustOwnData": "Własność danych",
       "trustDeployAnywhere": "Wdrożenie wszędzie",
-      "trustSecurity": "Bezpieczeństwo korporacyjne"
+      "trustSecurity": "Bezpieczeństwo korporacyjne",
+      "revenueBadgeIdle": "Co zostaje vs Gumroad",
+      "revenueBadgePrefix": "Zaoszczędzasz",
+      "revenueBadgeSuffix": "/rok vs Gumroad"
     },
     "socialProof": {
       "openSource": "Open Source",
@@ -3127,7 +3130,35 @@
         "title": "Auto-uzupełnianie danych firmy",
         "desc": "Klient wpisuje NIP, a dane firmy uzupełniają się automatycznie z bazy GUS."
       },
-      "categoryLabel": "FUNKCJE"
+      "categoryLabel": "FUNKCJE",
+      "oto": {
+        "title": "Strony one-time-offer",
+        "desc": "Post-purchase OTO z własnym rabatem i analityką. Podpinasz dowolny produkt jako upsell."
+      },
+      "webhookRetry": {
+        "title": "Webhooki DLQ + retry",
+        "desc": "Nieudane delivery lądują w dead-letter queue z exponential backoff. Jeden klik i replay."
+      },
+      "pwyw": {
+        "title": "Zapłać ile uważasz",
+        "desc": "Klienci sami ustalają cenę, z minimalnym progiem albo bez. Większa konwersja na lead magnetach."
+      },
+      "tipJar": {
+        "title": "Tip jar",
+        "desc": "Opcjonalny napiwek w checkoucie. Nigdy przymusowy — kupujący decyduje."
+      },
+      "loginWall": {
+        "title": "Login wall (snippet)",
+        "desc": "Jedna linijka na Twojej stronie — content gated za Sellf sign-in + sprawdzenie aktywnego dostępu. Bez backendu."
+      },
+      "magicLink": {
+        "title": "Magic-link guest checkout",
+        "desc": "Kupują bez konta. Zakupy auto-claim'ują się, gdy później założą konto na ten sam email."
+      },
+      "mcp": {
+        "title": "MCP server",
+        "desc": "Podłącz Claude Desktop i innych agentów. 45 narzędzi, 4 zasoby, 6 promptów. Sterujesz sklepem z czatu."
+      }
     },
     "howItWorks": {
       "title": "Gotowy w 3 krokach",
@@ -3201,7 +3232,8 @@
         "db": "Zarządzana baza danych",
         "deploy": "Wdrożenia bez przestojów",
         "price": "~17-56 zł/mies",
-        "specs": "2-rdzeniowy CPU, 8GB RAM, 100GB NVMe"
+        "specs": "2-rdzeniowy CPU, 8GB RAM, 100GB NVMe",
+        "mcpReady": "Serwer MCP (integracja z Claude Desktop)"
       },
       "demoPrompt": "Chcesz najpierw zobaczyć w akcji?",
       "demoPromptSubtitle": "Przejrzyj panel admina, przetestuj checkout kartami testowymi Stripe i zobacz przykładowe produkty. Bez instalacji.",
@@ -3245,7 +3277,15 @@
         "desc": "CDN i hosting wideo"
       },
       "viewStack": "Zobacz pełny stack na GitHub",
-      "categoryLabel": "TECHNOLOGIA"
+      "categoryLabel": "TECHNOLOGIA",
+      "mcp": {
+        "name": "MCP",
+        "desc": "Integracja z Claude Desktop przez serwer MCP (45 narzędzi)"
+      },
+      "bun": {
+        "name": "Bun",
+        "desc": "Runtime + package manager — szybsze cykle dev"
+      }
     },
     "useCases": {
       "title": "Stworzone dla twórców, programistów i przedsiębiorców",
@@ -3328,6 +3368,18 @@
         {
           "q": "Jak rozliczać VAT i podatki?",
           "a": "Poniżej €10 000/rok sprzedaży transgranicznej B2C w UE - VAT w swoim kraju. Powyżej - rejestracja EU OSS (jeden formularz, wszystkie kraje). Stripe Tax automatyzuje kalkulację za 0,5%. Skonsultuj się z doradcą podatkowym."
+        },
+        {
+          "q": "Co się dzieje, jeśli webhook padnie?",
+          "a": "Nieudane delivery lądują w dead-letter queue z exponential backoff. Widzisz je w panelu i jednym kliknięciem replay'ujesz dowolne."
+        },
+        {
+          "q": "Czy mogę sterować Sellfem z Claude / agenta AI?",
+          "a": "Tak — Sellf ma własny serwer MCP: 45 narzędzi, 4 zasoby, 6 promptów. Dodajesz do Claude Desktop i prosisz: wylistuj produkty, zrób refund, ściągnij analitykę."
+        },
+        {
+          "q": "Co z VAT / JPK / OSS w Polsce?",
+          "a": "Sellf zapisuje dane i eksportuje CSV. Pozostajesz Merchant of Record, więc masz pełną kontrolę (i swoje dane), a w VAT / OSS wchodzisz we własnym tempie."
         }
       ],
       "githubIssues": "GitHub Issues →"
@@ -3358,7 +3410,59 @@
       "terms": "Warunki",
       "cookiePreferences": "Preferencje ciasteczek",
       "copyright": "© {year} Sellf. Open source i self-hosted",
-      "whiteLabelLicense": "Licencja White-Label"
+      "whiteLabelLicense": "Licencja White-Label",
+      "llmsTxt": "llms.txt (dla agentów AI)"
+    },
+    "licenseTier": {
+      "title": "Tier dopasowany do tego, gdzie jesteś",
+      "subtitle": "Free starcza większości solopreneurów. Pro zdejmuje branding i odblokowuje motywy. Business dorzuca white-label.",
+      "categoryLabel": "Licencja",
+      "free": {
+        "name": "Free",
+        "tagline": "Solopreneurzy na starcie. Bez limitów na produkty, sprzedaż, kupujących.",
+        "cta": "Self-host teraz"
+      },
+      "registered": {
+        "name": "Registered",
+        "tagline": "Free + CSV export płatności. Rejestracja instalacji w 30 sekund.",
+        "cta": "Zarejestruj instalację"
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "Ukryj \"Powered by Sellf\", zapisuj custom motywy, większe scope'y API.",
+        "cta": "Wejdź na Pro"
+      },
+      "business": {
+        "name": "Business",
+        "tagline": "Licencja white-label. Sprzedawaj własnym klientom pod swoim brandem.",
+        "cta": "Pogadajmy"
+      },
+      "rows": {
+        "products": "Nielimitowane produkty",
+        "buyers": "Nielimitowani kupujący",
+        "payments": "Stripe + 26 walut",
+        "webhooks": "Webhooki + DLQ + retry",
+        "csvExport": "Eksport płatności do CSV",
+        "watermark": "Ukrycie \"Powered by Sellf\"",
+        "themes": "Zapis własnych motywów",
+        "apiScopes": "Większe scope'y API",
+        "whiteLabel": "Licencja white-label"
+      }
+    },
+    "embedDemo": {
+      "categoryLabel": "Embed checkout",
+      "title": "Wklejasz 1 linijkę kodu. Checkout startuje na Twojej stronie.",
+      "subtitle": "Bez ceremonii z iframe'ami, bez popupów. Stripe Embedded Checkout ładuje się w Twoim HTML.",
+      "snippetLabel": "snippet",
+      "runButton": "Uruchom snippet",
+      "copyButton": "Kopiuj",
+      "copyDone": "Skopiowane",
+      "loading": "Ładowanie checkoutu…",
+      "shopBadge": "Demo sklepu",
+      "productLabel": "Przykładowy produkt",
+      "productPrice": "129 zł",
+      "payButton": "Zapłać (demo)",
+      "demoNote": "To prezentacyjny mock. Prawdziwy flow jest w live demo."
     }
   },
   "notFound": {
