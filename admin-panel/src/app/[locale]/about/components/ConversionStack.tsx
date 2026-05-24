@@ -196,27 +196,119 @@ export function ConversionStack() {
 
                 {stage === 'checkout' && (
                   <div className="space-y-4 animate-[checkoutFadeIn_400ms_ease-out_both]">
-                    <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-sf-muted">
-                      <ShoppingCart className="h-3 w-3" aria-hidden="true" />
-                      Stripe Embedded Checkout (mock)
+                    <div className="flex items-center justify-between text-xs font-mono uppercase tracking-wider text-sf-muted">
+                      <span className="inline-flex items-center gap-2">
+                        <ShoppingCart className="h-3 w-3" aria-hidden="true" />
+                        Stripe Embedded Checkout (mock)
+                      </span>
+                      <span className="inline-flex items-center gap-1 normal-case text-[10px]">
+                        <span aria-hidden="true">🔒</span>
+                        Secure
+                      </span>
                     </div>
-                    <div className="rounded-xl border border-sf-border bg-sf-raised/40 p-4 space-y-3">
-                      <div className="h-3 bg-sf-muted/20 rounded w-1/2" />
-                      <div className="h-10 bg-sf-muted/20 rounded" />
-                      <div className="h-10 bg-sf-muted/20 rounded" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="h-10 bg-sf-muted/20 rounded" />
-                        <div className="h-10 bg-sf-muted/20 rounded" />
+
+                    {/* Realistic Stripe-styled checkout panel */}
+                    <div className="rounded-xl border border-sf-border bg-white text-slate-900 p-5 space-y-4 shadow-inner">
+                      {/* Order summary row */}
+                      <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                        <div className="h-10 w-10 rounded-md bg-gradient-to-br from-sf-accent-soft via-sf-accent-med to-sf-accent-glow flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold truncate">
+                            {t('productLabel')}
+                          </div>
+                          <div className="text-xs text-slate-500">x 1</div>
+                        </div>
+                        <div className="text-sm font-mono">{t('productPrice')}</div>
                       </div>
+
+                      {/* Express checkout — Apple Pay / Link / Google Pay row */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="h-9 rounded-md bg-black text-white text-[11px] font-semibold flex items-center justify-center">
+                          <span aria-hidden="true"></span>
+                          <span className="ml-0.5">Pay</span>
+                        </div>
+                        <div className="h-9 rounded-md bg-emerald-600 text-white text-[11px] font-semibold flex items-center justify-center gap-1">
+                          <span className="h-2.5 w-2.5 rounded-full bg-white/90" aria-hidden="true" />
+                          link
+                        </div>
+                        <div className="h-9 rounded-md bg-white border border-slate-300 text-slate-900 text-[11px] font-semibold flex items-center justify-center">
+                          <span className="text-blue-500">G</span>
+                          <span className="text-red-500">o</span>
+                          <span className="text-yellow-500">o</span>
+                          <span className="text-blue-500">g</span>
+                          <span className="text-emerald-600">l</span>
+                          <span className="text-red-500">e</span>
+                          <span className="ml-1">Pay</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-400">
+                        <div className="flex-1 h-px bg-slate-200" />
+                        Or pay with card
+                        <div className="flex-1 h-px bg-slate-200" />
+                      </div>
+
+                      {/* Email */}
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">Email</span>
+                        <div className="h-10 rounded-md border border-slate-300 bg-white px-3 flex items-center text-sm text-slate-900">
+                          buyer@example.com
+                        </div>
+                      </label>
+
+                      {/* Card number with brand icons */}
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">Card information</span>
+                        <div className="h-10 rounded-t-md border border-slate-300 bg-white px-3 flex items-center justify-between text-sm text-slate-900">
+                          <span className="font-mono tracking-wide">4242 4242 4242 4242</span>
+                          <span className="flex items-center gap-1" aria-hidden="true">
+                            <span className="inline-flex h-4 w-6 rounded-sm bg-gradient-to-br from-blue-600 to-blue-900 text-[8px] font-bold text-white items-center justify-center">VISA</span>
+                            <span className="inline-flex h-4 w-6 rounded-sm relative overflow-hidden">
+                              <span className="absolute left-0 top-0 h-full w-3 bg-red-500 rounded-l-sm" />
+                              <span className="absolute right-0 top-0 h-full w-3 bg-yellow-400 rounded-r-sm" />
+                            </span>
+                            <span className="inline-flex h-4 w-6 rounded-sm bg-blue-500 text-[7px] font-bold text-white items-center justify-center">AMEX</span>
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 -mt-px">
+                          <div className="h-10 rounded-bl-md border border-slate-300 bg-white px-3 flex items-center text-sm text-slate-900 font-mono">
+                            12 / 27
+                          </div>
+                          <div className="h-10 rounded-br-md border border-slate-300 border-l-0 bg-white px-3 flex items-center text-sm text-slate-900 font-mono">
+                            123
+                          </div>
+                        </div>
+                      </label>
+
+                      {/* Country / ZIP */}
+                      <label className="block">
+                        <span className="block text-xs font-medium text-slate-600 mb-1">Country or region</span>
+                        <div className="h-10 rounded-t-md border border-slate-300 bg-white px-3 flex items-center text-sm text-slate-900">
+                          Polska
+                        </div>
+                        <div className="h-10 rounded-b-md border border-slate-300 border-t-0 bg-white px-3 flex items-center text-sm text-slate-900 font-mono">
+                          00-001
+                        </div>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => setStage('bump')}
+                        data-action="checkout-next"
+                        className="w-full bg-[#635BFF] hover:bg-[#5347e6] text-white rounded-md py-3 font-bold text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#635BFF]"
+                      >
+                        Continue
+                      </button>
+
+                      <p className="text-center text-[10px] text-slate-400">
+                        Powered by{' '}
+                        <span className="font-semibold text-[#635BFF]">stripe</span>
+                        <span className="mx-1.5">·</span>
+                        <a className="underline" href="#">Terms</a>
+                        <span className="mx-1.5">·</span>
+                        <a className="underline" href="#">Privacy</a>
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setStage('bump')}
-                      data-action="checkout-next"
-                      className="w-full bg-sf-accent-soft border border-sf-border-accent hover:bg-sf-accent-med text-sf-heading rounded-lg py-2 font-mono text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
-                    >
-                      Continue
-                    </button>
                   </div>
                 )}
 
