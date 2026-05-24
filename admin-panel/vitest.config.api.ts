@@ -20,6 +20,7 @@ export default defineConfig({
     testTimeout: 30000, // 30s timeout for API calls
     hookTimeout: 60000, // 60s for setup/teardown
     setupFiles: [],
+    globalSetup: ['./tests/api/global-setup.ts'],
     // Run tests sequentially to avoid race conditions
     pool: 'forks',
     poolOptions: {

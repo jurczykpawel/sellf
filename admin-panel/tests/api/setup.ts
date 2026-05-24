@@ -52,17 +52,27 @@ let testAuthUserId: string | null = null;
 async function getTestAdminUser(): Promise<string> {
   if (testAdminUserId) return testAdminUserId;
 
-  const testEmail = `vitest-api-admin-${Date.now()}@example.com`;
-
-  // Create a new user in auth.users
-  const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-    email: testEmail,
-    password: 'TestPassword123!',
-    email_confirm: true,
-  });
-
-  if (userError) {
-    throw new Error(`Failed to create test admin user: ${userError.message}`);
+  // Retry up to 3× because supabase.auth.admin.createUser occasionally
+  // returns "Database error creating new user" under load — almost always
+  // a transient GoTrue/Postgres race that succeeds on the next attempt.
+  let userData: Awaited<ReturnType<typeof supabase.auth.admin.createUser>>['data'] | null = null;
+  let lastErr: { message: string } | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const testEmail = `vitest-api-admin-${Date.now()}-${attempt}@example.com`;
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: testEmail,
+      password: 'TestPassword123!',
+      email_confirm: true,
+    });
+    if (!error && data?.user) {
+      userData = data;
+      break;
+    }
+    lastErr = error ?? { message: 'unknown' };
+    await new Promise((r) => setTimeout(r, 150 * attempt));
+  }
+  if (!userData) {
+    throw new Error(`Failed to create test admin user after 3 attempts: ${lastErr?.message}`);
   }
 
   testAuthUserId = userData.user!.id;
@@ -132,24 +142,39 @@ export async function createTestApiKey(): Promise<string> {
 }
 
 /**
- * Delete test API key and admin user after tests
+ * No-op during tests. The real cleanup happens once in globalTeardown
+ * (tests/api/global-setup.ts) — running it per-file caused races: file N's
+ * afterAll cleared the module-level testApiKey cache and deleted the auth
+ * user, then file N+1's beforeAll raced supabase.auth.admin.createUser and
+ * occasionally hit "Database error creating new user", surfacing as a flaky
+ * 401 on the first API call.
+ *
+ * Kept as an exported function so the existing call sites in test files
+ * still compile without churn.
  */
 export async function deleteTestApiKey(): Promise<void> {
-  // Delete API key
+  // intentional no-op — see _globalCleanupTestApiKey
+}
+
+/**
+ * Globally tear down the shared admin user, admin_users row, and API key.
+ * Called once by tests/api/global-setup.ts after the whole suite finishes.
+ */
+export async function _globalCleanupTestApiKey(): Promise<void> {
   if (testApiKeyId) {
     await supabase.from('api_keys').delete().eq('id', testApiKeyId);
     testApiKey = null;
     testApiKeyId = null;
   }
-
-  // Delete admin user entry
   if (testAdminUserId) {
     await supabase.from('admin_users').delete().eq('id', testAdminUserId);
     testAdminUserId = null;
   }
-
-  // Delete auth user (will cascade if needed)
   if (testAuthUserId) {
+    // audit_log.user_id has a FK to auth.users with no cascade, so a raw
+    // deleteUser would fail silently and leak the row. Clear the audit
+    // trail for this test user first.
+    await supabase.from('audit_log').delete().eq('user_id', testAuthUserId);
     await supabase.auth.admin.deleteUser(testAuthUserId);
     testAuthUserId = null;
   }
