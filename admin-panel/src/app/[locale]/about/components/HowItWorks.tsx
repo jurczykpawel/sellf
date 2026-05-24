@@ -61,6 +61,9 @@ export async function HowItWorks() {
           <p className="text-xl text-sf-body max-w-3xl mx-auto">
             {t('howItWorks.subtitle')}
           </p>
+          <p className="text-xs text-sf-muted italic mt-3 max-w-2xl mx-auto">
+            * {t('howItWorks.disclaimer')}
+          </p>
         </Reveal>
 
         {/* Vertical timeline */}

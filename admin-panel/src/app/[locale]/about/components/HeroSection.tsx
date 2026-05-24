@@ -182,10 +182,15 @@ export function HeroSection() {
             </Link>
           </div>
 
-          {/* 10-minute badge — promises speed-to-first-sale prominently */}
-          <div className="inline-flex items-center gap-2 text-sm text-sf-body bg-sf-success-soft border border-sf-success/30 rounded-full px-4 py-1.5">
-            <Clock className="h-3.5 w-3.5 text-sf-success" aria-hidden="true" />
-            <span>{t('hero.tenMinBadge')}</span>
+          {/* 10-minute setup badge + honest prerequisites disclaimer */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="inline-flex items-center gap-2 text-sm text-sf-body bg-sf-success-soft border border-sf-success/30 rounded-full px-4 py-1.5">
+              <Clock className="h-3.5 w-3.5 text-sf-success" aria-hidden="true" />
+              <span>{t('hero.tenMinBadge')}</span>
+            </div>
+            <p className="text-[11px] text-sf-muted italic">
+              * {t('hero.tenMinDisclaimer')}
+            </p>
           </div>
         </motion.div>
 

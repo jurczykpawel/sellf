@@ -3033,7 +3033,8 @@
       "revenueBadgeIdle": "Co zostaje vs Gumroad",
       "revenueBadgePrefix": "Zaoszczędzasz",
       "revenueBadgeSuffix": "/rok vs Gumroad",
-      "tenMinBadge": "10 minut od klona do działającego sklepu"
+      "tenMinBadge": "10 minut od klona do działającego sklepu",
+      "tenMinDisclaimer": "Wymaga VPS i konta Stripe"
     },
     "socialProof": {
       "openSource": "Open source",
@@ -3187,7 +3188,8 @@
         "title": "Zacznij Sprzedawać",
         "desc": "Stwórz produkty, ustaw ceny, udostępnij linki. Twój sklep jest online."
       },
-      "categoryLabel": "SZYBKI START"
+      "categoryLabel": "SZYBKI START",
+      "disclaimer": "Wymaga VPS (np. Hetzner, Mikrus, DigitalOcean) i konta Stripe."
     },
     "demo": {
       "title": "Zobacz w akcji",
