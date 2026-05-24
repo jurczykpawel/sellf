@@ -226,7 +226,10 @@ export function ConversionStack() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
             {/* Main stage screen */}
-            <div className="rounded-2xl border border-sf-border-accent bg-sf-raised/80 overflow-hidden min-h-[480px]">
+            {/* min-heights match the tallest stage (checkout panel) per
+                breakpoint so the page below doesn't jump when switching stages.
+                Mobile: checkout vertical stack ≈ 720 px; desktop unchanged. */}
+            <div className="rounded-2xl border border-sf-border-accent bg-sf-raised/80 overflow-hidden min-h-[760px] sm:min-h-[820px] lg:min-h-[860px]">
               <div className="px-5 py-3 border-b border-sf-border-accent bg-black/20 flex items-center justify-between gap-3">
                 {/* Live URL bar — reflects the coupon link state */}
                 <span
@@ -276,9 +279,12 @@ export function ConversionStack() {
                 </div>
               </div>
 
-              <div className="p-6" data-stage-screen={stage}>
+              <div
+                className="p-6 flex flex-col min-h-[calc(760px-3.25rem)] sm:min-h-[calc(820px-3.25rem)] lg:min-h-[calc(860px-3.25rem)]"
+                data-stage-screen={stage}
+              >
                 {stage === 'product' && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 my-auto w-full">
                     <div className="aspect-[5/3] rounded-xl bg-gradient-to-br from-sf-accent-soft via-sf-accent-med to-sf-accent-glow flex items-center justify-center">
                       <Sparkles className="h-16 w-16 text-white/80" aria-hidden="true" />
                     </div>
@@ -539,7 +545,7 @@ export function ConversionStack() {
 
                 {stage === 'oto' && (
                   <div
-                    className="space-y-4 animate-[otoSlideIn_360ms_ease-out_both]"
+                    className="space-y-4 my-auto w-full animate-[otoSlideIn_360ms_ease-out_both]"
                     data-oto-state="open"
                     role="dialog"
                     aria-label={t('otoOfferLabel')}
@@ -591,7 +597,7 @@ export function ConversionStack() {
 
                 {stage === 'downsell' && (
                   <div
-                    className="space-y-4 animate-[otoSlideIn_360ms_ease-out_both]"
+                    className="space-y-4 my-auto w-full animate-[otoSlideIn_360ms_ease-out_both]"
                     data-downsell-state="open"
                     role="dialog"
                     aria-label={t('downsellOffer')}
@@ -629,7 +635,7 @@ export function ConversionStack() {
                 )}
 
                 {stage === 'done' && (
-                  <div className="flex flex-col items-center text-center gap-3 py-12 animate-[checkoutFadeIn_300ms_ease-out_both]">
+                  <div className="flex flex-col items-center text-center gap-3 my-auto w-full py-12 animate-[checkoutFadeIn_300ms_ease-out_both]">
                     <div className="h-16 w-16 rounded-full bg-sf-success-soft border border-sf-success flex items-center justify-center">
                       <PartyPopper
                         className="h-8 w-8 text-sf-success"
