@@ -21,9 +21,10 @@ export async function LandingFooter() {
               href={SELLF_GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="GitHub"
               className="inline-flex text-sf-muted hover:text-sf-heading transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
             >
-              <GithubIcon className="h-5 w-5" />
+              <GithubIcon className="h-5 w-5" aria-hidden="true" />
             </a>
           </div>
 

@@ -86,7 +86,10 @@ for (const path of ABOUT_PATHS) {
     test('webhook timeline eventually lights all ticks', async ({ page }) => {
       const section = page.locator('[data-landing-section="how-it-works"]').first();
       await section.scrollIntoViewIfNeeded();
-      const ticks = section.locator('[role="img"][aria-label*="webhook step"]');
+      // HowItWorks renders mobile + desktop step bodies side-by-side in DOM
+      // (Tailwind md:hidden / hidden md:flex). Scope to visible to get the one
+      // rendering at this viewport.
+      const ticks = section.locator('[role="img"][aria-label*="webhook step"]:visible');
       await expect(ticks).toHaveCount(3);
       await expect(ticks.nth(2)).toHaveAttribute('data-state', 'lit', {
         timeout: 5000,
