@@ -256,7 +256,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Replace tags if provided (empty array clears all)
     if (Array.isArray(tags)) {
-      await supabase.from('product_tags').delete().eq('product_id', id);
+      const { error: tagDeleteErr } = await supabase.from('product_tags').delete().eq('product_id', id);
+      if (tagDeleteErr) console.error('[products.PATCH tags]', tagDeleteErr);
       if (tags.length > 0) {
         const { error: linkErr } = await supabase.from('product_tags').insert(
           tags.map((tag_id: unknown) => ({ product_id: id, tag_id: String(tag_id) })),
