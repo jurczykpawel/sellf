@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, Play, CheckCircle, TrendingUp } from 'lucide-react'
+import { ArrowRight, Play, CheckCircle, TrendingUp, Clock } from 'lucide-react'
 import { motion } from 'motion/react'
 import { TextReveal } from './motion/TextReveal'
 
@@ -69,7 +69,6 @@ export function HeroSection() {
     t('hero.trustNoFees'),
     t('hero.trustOwnData'),
     t('hero.trustDeployAnywhere'),
-    t('hero.trustSecurity'),
   ]
 
   return (
@@ -156,30 +155,38 @@ export function HeroSection() {
           <RevenueBadge />
         </motion.div>
 
-        {/* CTA buttons — staggered */}
+        {/* CTA buttons — PRIMARY = demo (low friction), SECONDARY = deploy */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+          className="flex flex-col items-center gap-4 mb-6"
         >
-          <Link
-            href="#deployment"
-            className="group inline-flex items-center gap-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white rounded-full px-8 py-4 text-lg font-bold transition-[background-color,transform,box-shadow] duration-200 shadow-[var(--sf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--sf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
-          >
-            {t('hero.ctaDeploy')}
-            <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="https://demo.sellf.app/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white rounded-full px-8 py-4 text-lg font-bold transition-[background-color,transform,box-shadow] duration-200 shadow-[var(--sf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--sf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+            >
+              <Play className="h-5 w-5" />
+              {t('hero.ctaDemo')}
+              <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </a>
 
-          <a
-            href="https://demo.sellf.app/login"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-sf-accent-soft border border-sf-border-accent hover:bg-sf-accent-med text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[background-color,border-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
-          >
-            <Play className="h-5 w-5" />
-            {t('hero.ctaDemo')}
-          </a>
+            <Link
+              href="#deployment"
+              className="inline-flex items-center gap-2 bg-sf-accent-soft border border-sf-border-accent hover:bg-sf-accent-med text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[background-color,border-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+            >
+              {t('hero.ctaDeploy')}
+            </Link>
+          </div>
+
+          {/* 10-minute badge — promises speed-to-first-sale prominently */}
+          <div className="inline-flex items-center gap-2 text-sm text-sf-body bg-sf-success-soft border border-sf-success/30 rounded-full px-4 py-1.5">
+            <Clock className="h-3.5 w-3.5 text-sf-success" aria-hidden="true" />
+            <span>{t('hero.tenMinBadge')}</span>
+          </div>
         </motion.div>
 
         {/* Product screenshot */}
@@ -187,7 +194,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2, duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="hidden md:block mb-16"
+          className="hidden md:block mt-10 mb-16"
         >
           <div className="relative mx-auto max-w-5xl rounded-2xl border border-sf-border shadow-2xl overflow-hidden">
             <Image

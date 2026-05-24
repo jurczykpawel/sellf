@@ -78,6 +78,15 @@ export async function LicenseTier() {
                     <h3 className="text-2xl font-bold text-sf-heading">
                       {t(`${tier}.name`)}
                     </h3>
+                    {/* Pricing — visible per tier, no hidden costs */}
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-sf-heading">
+                        {t(`${tier}.price`)}
+                      </span>
+                      <span className="text-xs text-sf-muted">
+                        {t(`${tier}.priceNote`)}
+                      </span>
+                    </div>
                     <p className="text-sm text-sf-body min-h-[5rem]">
                       {t(`${tier}.tagline`)}
                     </p>

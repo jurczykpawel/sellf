@@ -13,6 +13,7 @@ import { HowItWorks } from './components/HowItWorks';
 import { SelfHostedComparison } from './components/SelfHostedComparison';
 import { TechStackGrid } from './components/TechStackGrid';
 import { LicenseTier } from './components/LicenseTier';
+import { ObjectionsBlock } from './components/ObjectionsBlock';
 import { FAQSection } from './components/FAQSection';
 import { FinalCTA } from './components/FinalCTA';
 import { LandingFooter } from './components/LandingFooter';
@@ -76,21 +77,28 @@ export default async function AboutPage({
       </a>
       <LandingNav />
       <main id="main-content">
+        {/* Hook + proof — first 3 scrolls answer "kto + co + ile zostaje" */}
         <HeroSection />
         <SocialProofBar />
+        <UseCases />
         <FeeComparisonSection />
+        {/* Fast onboarding promise + flagship sales demo + pricing — answer
+            "ile to kosztuje?" before piling on feature dump */}
+        <HowItWorks />
         <ConversionStack />
+        <LicenseTier />
+        {/* Feature dump + deep demos for buyers who want details */}
+        <FeatureGrid />
         <LoginWallDemo />
         <SubscriptionsDemo />
-        <FeatureGrid />
-        <UseCases />
-        <TaxSection />
         <div className="section-divider" />
-        <HowItWorks />
+        {/* Strategic background — tax growth path, self-host details, stack */}
+        <TaxSection />
         <SelfHostedComparison />
         <TechStackGrid />
-        <LicenseTier />
         <div className="section-divider" />
+        {/* Close objections + final CTA */}
+        <ObjectionsBlock />
         <FAQSection />
         <FinalCTA />
       </main>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Lock, Unlock, ArrowRight } from 'lucide-react';
+import { Lock, Unlock, ArrowRight, Rocket } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 
 export function LoginWallDemo() {
@@ -143,6 +143,20 @@ export function LoginWallDemo() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Conversion CTA after the demo */}
+          <div className="mt-6 flex flex-col items-center text-center gap-2">
+            <a
+              href="#deployment"
+              data-action="end-cta"
+              className="inline-flex items-center gap-2 bg-sf-accent hover:bg-sf-accent-hover text-white rounded-full px-5 py-2.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+            >
+              <Rocket className="h-4 w-4" aria-hidden="true" />
+              {t('endCtaLink')}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </a>
+            <p className="text-xs text-sf-muted max-w-md">{t('endCta')}</p>
           </div>
         </Reveal>
       </div>

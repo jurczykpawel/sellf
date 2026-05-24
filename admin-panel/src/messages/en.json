@@ -2999,39 +2999,45 @@
       "toggleMenu": "Toggle menu"
     },
     "hero": {
-      "badge": "Open Source · Self-Hosted · Enterprise-Ready",
-      "headlineTop": "Your Products.",
-      "headlineBottom": "Your Rules.",
-      "metaDescription": "Sell digital products and subscriptions on your own terms. Self-hosted, secure, and fully yours. No monthly fees, no middlemen.",
-      "subtitle": "Sell digital products on your own terms - without giving away revenue to platforms. <selfHosted>Self-hosted</selfHosted>, <secure>secure</secure>, and <yours>fully yours</yours>.",
+      "badge": "Open source · Self-hosted · Zero platform fees",
+      "headlineTop": "Sell courses, ebooks, subscriptions",
+      "headlineBottom": "without platform fees.",
+      "metaDescription": "Self-hosted alternative to Gumroad and LemonSqueezy. Set up on your VPS in 10 minutes. No platform fees, no subscriptions, your data stays yours.",
+      "subtitle": "For creators, freelancers, and solopreneurs who don't want to give 5-10% of every sale to a middleman.",
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "secure",
       "subtitleYours": "fully yours",
-      "subtitleBottom": "No monthly fees. No middlemen. Complete control from day one.",
-      "ctaDeploy": "Deploy for Free",
-      "ctaDemo": "Try Live Demo",
+      "subtitleBottom": "10 minutes to your first sale.",
+      "ctaDeploy": "Self-host it (10 min)",
+      "ctaDemo": "Try the demo",
       "ctaGithub": "View on GitHub",
-      "trustNoFees": "No monthly fees",
-      "trustOwnData": "Own your data",
-      "trustDeployAnywhere": "Deploy anywhere",
-      "trustSecurity": "Enterprise security",
+      "trustNoFees": "Zero platform fees",
+      "trustOwnData": "Your data stays yours",
+      "trustDeployAnywhere": "Runs on any VPS",
+      "trustSecurity": "Bank-grade encryption",
       "revenueBadgeIdle": "What you keep vs Gumroad",
       "revenueBadgePrefix": "You'd save",
-      "revenueBadgeSuffix": "/year vs Gumroad"
+      "revenueBadgeSuffix": "/year vs Gumroad",
+      "tenMinBadge": "10 minutes from clone to first sale"
     },
     "socialProof": {
-      "openSource": "Open Source",
-      "monthlyFees": "Monthly Fees",
+      "openSource": "Open source",
+      "monthlyFees": "Monthly fees",
       "products": "Products",
-      "license": "License"
+      "license": "License",
+      "headline": "Real backing, not marketing fluff",
+      "githubLine": "Open source on GitHub — AGPL-3.0 + commercial white-label",
+      "testsLine": "2,650 automated tests covering checkout, payments, security",
+      "founderLine": "Built by Paweł — 17 years in IT, ex-Roche / IBM / Asseco",
+      "stripeLine": "Powered by Stripe — same payments stack as Gumroad, LemonSqueezy"
     },
     "feeComparison": {
-      "title": "See how much you really keep",
-      "subtitle": "Drag the slider to compare platform fees at your revenue level",
-      "monthlyRevenue": "Monthly Revenue",
-      "platformFees": "Platform Fees",
-      "youKeep": "You Keep",
-      "youSave": "You save {amount}/month vs Gumroad",
+      "title": "See how much actually stays with you",
+      "subtitle": "Drag the slider to compare platform fees at your revenue level.",
+      "monthlyRevenue": "Monthly revenue",
+      "platformFees": "Platform fees",
+      "youKeep": "You keep",
+      "youSave": "You save {amount}/mo vs Gumroad",
       "sellfLabel": "Sellf + Stripe",
       "sellfFeeNote": "~3.4% (Stripe only)",
       "gumroadLabel": "Gumroad",
@@ -3040,9 +3046,15 @@
       "paddleFeeNote": "5% + 3.5% + $0.30",
       "lemonLabel": "LemonSqueezy",
       "lemonFeeNote": "5% + 3.5% + $0.30",
-      "perMonth": "/month",
+      "perMonth": "/mo",
       "annualSavings": "Annual savings vs Gumroad: {amount}",
-      "categoryLabel": "PRICING"
+      "categoryLabel": "Pricing",
+      "beforeAfterTitle": "Real math, your scale",
+      "beforeLabel": "Before — Gumroad",
+      "beforeText": "On a $10,000/mo course business you pay ≈ $1,260/mo in Gumroad fees alone.",
+      "afterLabel": "After — Sellf on a VPS",
+      "afterText": "VPS for ~$6/mo. Stripe takes 3.4%. You pocket the rest.",
+      "diffLabel": "Yearly difference: $11,800 stays with you."
     },
     "features": {
       "title": "Everything you need to sell digital products",
@@ -3169,8 +3181,8 @@
       "stripeTestMode": "Stripe test mode, no real charges"
     },
     "tax": {
-      "title": "Your Stripe account, your money",
-      "subtitle": "Merchant of Record platforms charge 5-10% and your customer data lives on their platform. With Sellf, payments go directly to your Stripe account.",
+      "title": "Tax handling that grows with you",
+      "subtitle": "Stripe takes care of most of it. You start simple and only add complexity when your revenue actually demands it.",
       "morTitle": "Merchant of Record",
       "morSubtitle": "Paddle, LemonSqueezy, Gumroad",
       "morPlatformFees": "Platform fees",
@@ -3186,14 +3198,14 @@
       "sellfDataOwnership": "You own all customer data",
       "sellfTaxThresholds": "You use your own tax thresholds",
       "sellfSelfHosted": "Self-hosted. No platform risk",
-      "taxGrowthTitle": "Tax compliance grows with your business",
-      "taxStep1Title": "Starting out",
-      "taxStep1Desc": "Below €10,000 EU cross-border sales. Handle VAT in your own country only",
+      "taxGrowthTitle": "Grow into tax handling, not against it",
+      "taxStep1Title": "Just starting",
+      "taxStep1Desc": "Selling under €10,000/yr cross-border in the EU? You only declare VAT in your home country. Nothing extra to do.",
       "taxStep2Title": "Growing",
-      "taxStep2Desc": "Above €10,000. Register for EU OSS (one form) and add Stripe Tax (+0.5%) for automatic VAT calculation",
+      "taxStep2Desc": "Crossed €10,000/yr cross-border? Register once in EU OSS and flip on Stripe Tax (+0.5%) — VAT calculations become automatic.",
       "taxStep3Title": "Scaling",
-      "taxStep3Desc": "Optional: Stripe Managed Payments (Stripe as MoR) or a tax accountant for full compliance",
-      "taxDisclaimer": "This is general information, not tax or legal advice. Tax obligations vary by country and business type. Consult a qualified tax professional for your specific situation.",
+      "taxStep3Desc": "Optional: hand off accounting to a bookkeeper or switch to Stripe Managed Payments. You decide when.",
+      "taxDisclaimer": "General info, not tax or legal advice. Talk to your accountant before going live.",
       "recommended": "Recommended",
       "categoryLabel": "PAYMENTS"
     },
@@ -3273,8 +3285,8 @@
       }
     },
     "useCases": {
-      "title": "Built for creators, developers, and entrepreneurs",
-      "subtitle": "Whatever you sell, Sellf handles it",
+      "title": "Who Sellf is built for",
+      "subtitle": "If you sell digital goods online, Sellf likely fits",
       "courses": {
         "title": "Online Courses",
         "desc": "Share video courses with time-limited access. Simple and effective content delivery.",
@@ -3315,44 +3327,16 @@
       "title": "Frequently Asked Questions",
       "items": [
         {
-          "q": "Is it really free? What's the catch?",
-          "a": "Yes. The software is free forever under AGPL-3.0. You pay only for hosting (~$3/mo and up) and Stripe processing (~2.9%). No platform fees, no subscriptions, no lock-in."
+          "q": "Can I run this without sysadmin skills?",
+          "a": "Yes. We provide a one-line deploy script for any modern VPS (DigitalOcean, Hetzner, Mikrus). The provided guide walks through SSL, backups, and domain pointing step by step. If you can copy-paste a command, you can run Sellf."
         },
         {
-          "q": "I already use Gumroad. Why should I switch?",
-          "a": "Gumroad takes 10% per sale. Teachable charges $39-665/mo. Sellf is free - you self-host it, own the code and data. The only cost is Stripe's processing fee."
+          "q": "What does it actually cost me per year?",
+          "a": "A VPS that fits Sellf costs $5-15/month (Hetzner CX22, DigitalOcean basic). Stripe charges its normal ~3.4% per transaction. There's no Sellf subscription. Total: roughly $60-180/year of infrastructure regardless of how much you sell."
         },
         {
-          "q": "I'm not a developer. Can I still set this up?",
-          "a": "Yes. If you can follow step-by-step instructions and type a few SSH commands, you can deploy Sellf. We provide Docker configs and detailed guides."
-        },
-        {
-          "q": "How much will I actually pay per sale?",
-          "a": "Only Stripe's processing fee: ~2.9% + 30¢ per transaction. No platform fees on top. MoR platforms charge 5-10% total - significantly more."
-        },
-        {
-          "q": "Can I customize it to match my brand?",
-          "a": "Yes. AGPL-3.0 lets you run and modify the source. Change branding, colors, domain, and code; use the white-label license if you want to remove Sellf branding."
-        },
-        {
-          "q": "Is it secure enough for real customers?",
-          "a": "Yes. Regularly penetration-tested (280+ test cases, OWASP Top 10). RLS on every database table, AES-256 key encryption, HMAC webhooks, secure-by-default CORS. Your Stripe keys never leave your server. Built-in Security Audit panel checks your configuration automatically."
-        },
-        {
-          "q": "What if I get stuck during setup?",
-          "a": "Check the docs and GitHub issues. Any Next.js developer can customize or extend it for you."
-        },
-        {
-          "q": "Will it handle my traffic if I scale?",
-          "a": "Yes. Next.js 16 + PostgreSQL scale horizontally. Deploy on anything from a ~$3/mo VPS to Kubernetes. Supabase handles connection pooling."
-        },
-        {
-          "q": "Do I need a Merchant of Record?",
-          "a": "Most small creators don't. MoR platforms handle taxes but take 5-10% and tie your customer data to their platform. Below €10,000 EU cross-border, you handle VAT only in your country. Own Stripe = full control at ~2.9%. Add Stripe Tax (+0.5%) when you grow."
-        },
-        {
-          "q": "How do I handle VAT and taxes?",
-          "a": "Below €10,000/year EU cross-border B2C - handle VAT in your country only. Above that - register EU OSS (one form, all countries). Stripe Tax automates calculation for 0.5%. Consult a tax professional for your case."
+          "q": "What happens if the server goes down?",
+          "a": "Sellf creates automatic backups. If your VPS dies, you spin up a new one and restore from the latest backup — usually under 5 minutes. Your Stripe account and payment data are never lost (Stripe stores them)."
         },
         {
           "q": "What happens if a webhook fails?",
@@ -3400,27 +3384,35 @@
     },
     "licenseTier": {
       "title": "Pick the tier that fits where you are",
-      "subtitle": "Free covers most solopreneurs. Pro removes branding and unlocks themes. Business adds white-label.",
+      "subtitle": "Free covers most solopreneurs forever. Pro removes branding and adds power-user features. Business adds white-label.",
       "categoryLabel": "License",
       "free": {
         "name": "Free",
-        "tagline": "Solopreneurs starting out. No limits on products, sales, or buyers.",
-        "cta": "Self-host now"
+        "tagline": "AGPL-3.0 open source. No limits on products, sales, or buyers. Forever.",
+        "cta": "Self-host now",
+        "price": "0 zł",
+        "priceNote": "no payment, ever"
       },
       "registered": {
         "name": "Registered",
-        "tagline": "Free + CSV export of payments. Register your install in 30 seconds.",
-        "cta": "Register install"
+        "tagline": "Free + payment CSV export. Register your install in 30 seconds.",
+        "cta": "Register install",
+        "price": "0 zł",
+        "priceNote": "free upgrade"
       },
       "pro": {
         "name": "Pro",
         "tagline": "Hide \"Powered by Sellf\", save custom themes, expand API key scopes.",
-        "cta": "Go Pro"
+        "cta": "Go Pro",
+        "price": "199 zł",
+        "priceNote": "one-time, lifetime updates"
       },
       "business": {
         "name": "Business",
-        "tagline": "White-label commercial license. Resell to your own clients.",
-        "cta": "Talk to us"
+        "tagline": "White-label commercial license. Resell Sellf under your own brand.",
+        "cta": "Talk to us",
+        "price": "Contact",
+        "priceNote": "for resellers"
       },
       "rows": {
         "products": "Unlimited products",
@@ -3450,9 +3442,9 @@
       "demoNote": "This is a presentational mock. Real checkout flow is in the live demo."
     },
     "conversionStack": {
-      "categoryLabel": "Conversion stack",
-      "title": "Every dollar you can capture from one buyer — visualized.",
-      "subtitle": "Order bumps, coupons, and one-time offers. Click through the flow your customer sees.",
+      "categoryLabel": "Checkout walkthrough",
+      "title": "Click through the checkout your buyer sees.",
+      "subtitle": "Order bumps, coupons via URL, one-time offers — all of it on a single page.",
       "stages": {
         "product": "1. Product",
         "checkout": "2. Checkout",
@@ -3493,7 +3485,7 @@
       "completedTitle": "Order complete",
       "completedSummary": "Your cart unlocked. Bigger order, same effort.",
       "completedReplay": "Replay the flow",
-      "demoNote": "Demo runs in your browser. The real flow uses Stripe Embedded Checkout, magic-link guest receipts, and rolls upsells onto the saved card without re-typing.",
+      "demoNote": "Demo runs in your browser. The real checkout uses Stripe Embedded Checkout, magic-link receipts, and stacks upsells onto the saved card — no card re-entry.",
       "couponLinkSimulate": "Open with coupon link",
       "couponLinkActive": "shop.your-domain.com/?coupon=FRIENDS50",
       "couponLinkInactive": "shop.your-domain.com",
@@ -3501,7 +3493,9 @@
       "couponAutoBadgeShort": "FRIENDS50 −50% (from link)",
       "couponRemoveLabel": "Remove coupon link",
       "couponWhy": "Sellf only auto-applies coupons from URL parameters. No \"enter promo code\" field — protects you from code-hunting buyers.",
-      "couponInviteHint": "Curious? Try this checkout with a coupon link →"
+      "couponInviteHint": "Curious? Try this checkout with a coupon link →",
+      "endCta": "Want this on your own shop? Self-host in 10 min →",
+      "endCtaLink": "Set up Sellf"
     },
     "loginWallDemo": {
       "categoryLabel": "Lock premium content",
@@ -3517,20 +3511,22 @@
       "urlPlaceholder": "https://your-course.example/module-4",
       "unlockedHighlight": "Welcome back — your access is active until 2026-12-31.",
       "unlockedSubtle": "No card re-entry. Sellf remembers your purchase.",
-      "demoNote": "In production, Sellf checks the buyer's purchase before the page unlocks — the snippet works on any of your pages (Astro, WordPress, plain HTML). Protected content stays protected."
+      "demoNote": "In production, Sellf checks the buyer's purchase before the page unlocks — the snippet works on any of your pages (Astro, WordPress, plain HTML). Protected content stays protected.",
+      "endCta": "Want to lock your premium content? Self-host →",
+      "endCtaLink": "Set up Sellf"
     },
     "subscriptionsDemo": {
       "categoryLabel": "Recurring revenue",
-      "title": "Trial → first charge → monthly → easy cancel.",
-      "subtitle": "Watch a year of one subscriber. Sellf handles trials, retries, customer portal cancellation, and prorated refunds.",
+      "title": "How a recurring customer looks over a year.",
+      "subtitle": "Watch one subscriber for 12 months. Sellf handles trials, failed-card retries, customer-portal cancellations, and partial refunds.",
       "productLabel": "Membership — $29 / month",
       "trial": "7-day free trial",
       "firstCharge": "First charge",
       "month": "Month {n}",
-      "cardFailed": "Card declined — retry tomorrow",
-      "cardRetrySuccess": "Retry succeeded",
-      "customerCancels": "Customer cancels in portal",
-      "proratedRefund": "Prorated refund issued",
+      "cardFailed": "Card declined — Sellf retries tomorrow",
+      "cardRetrySuccess": "Retry succeeded — payment captured",
+      "customerCancels": "Customer cancels in their portal",
+      "proratedRefund": "Partial refund for unused days",
       "tags": {
         "trial": "TRIAL",
         "active": "ACTIVE",
@@ -3541,7 +3537,32 @@
       "playButton": "Play timeline",
       "pauseButton": "Pause",
       "resetButton": "Reset",
-      "demoNote": "Real subscriptions run on Stripe Billing. Retries, customer portal, and prorated refunds are built in."
+      "demoNote": "Subscriptions run on Stripe Billing — retries, customer portal, and partial refunds all work out of the box.",
+      "endCta": "Want recurring revenue on your products? Self-host →",
+      "endCtaLink": "Set up Sellf"
+    },
+    "objections": {
+      "categoryLabel": "Honest answers",
+      "title": "\"Yes, but…\" — let's talk about your concerns",
+      "subtitle": "The fears that stop most people from leaving Gumroad. Here's what actually happens.",
+      "items": [
+        {
+          "title": "\"I've never set up a server\"",
+          "body": "One-line deploy. You paste a command, the server installs itself. Detailed guide for SSL, domain, backups. Most users finish in 10 minutes. If you can paste a command, you can run Sellf."
+        },
+        {
+          "title": "\"What if the server crashes?\"",
+          "body": "Automatic backups. New VPS spins up in 5 minutes from the backup. Your Stripe account and payment data stay with Stripe — never lost."
+        },
+        {
+          "title": "\"How much will this actually cost me?\"",
+          "body": "VPS: 25-50 zł/mo (forever). Stripe: ~3.4% per sale (no subscription). Domain: 50 zł/year. Total: under 700 zł/year regardless of revenue. Save thousands vs Gumroad."
+        },
+        {
+          "title": "\"Is my buyers' data safe?\"",
+          "body": "Stripe keys never leave your .env file. Database has row-level security on every table. Sellf passed a security audit, has 2,650 automated tests. Your buyers' data lives on your server, not in someone else's cloud."
+        }
+      ]
     }
   },
   "notFound": {
