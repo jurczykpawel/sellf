@@ -3,7 +3,7 @@ import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
 import { SELLF_GITHUB_URL } from '@/lib/constants';
 
-const techs = ['nextjs', 'supabase', 'stripe', 'tailwind', 'typescript', 'docker', 'postgresql', 'bunny'] as const;
+const techs = ['nextjs', 'supabase', 'stripe', 'tailwind', 'typescript', 'docker', 'postgresql', 'bunny', 'mcp', 'bun'] as const;
 
 export async function TechStackGrid() {
   const t = await getTranslations('landing');

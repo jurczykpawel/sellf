@@ -94,6 +94,13 @@ export async function LandingFooter() {
               >
                 {t('footer.support')}
               </a>
+              <a
+                href="/llms.txt"
+                type="text/markdown"
+                className="block text-sm text-sf-muted hover:text-sf-heading transition-colors duration-200 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
+              >
+                {t('footer.llmsTxt')}
+              </a>
             </nav>
           </div>
 

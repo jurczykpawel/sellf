@@ -65,7 +65,7 @@ export async function SelfHostedComparison() {
                 {t('selfHosted.production.price')}
               </span>
               <ul className="space-y-3">
-                {(['pm2', 'db', 'deploy', 'specs'] as const).map((key) => (
+                {(['pm2', 'db', 'deploy', 'specs', 'mcpReady'] as const).map((key) => (
                   <li key={key} className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-sf-success shrink-0 mt-0.5" />
                     <span className="text-sf-body text-sm">{t(`selfHosted.production.${key}`)}</span>
