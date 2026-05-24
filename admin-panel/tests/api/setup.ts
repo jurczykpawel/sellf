@@ -111,6 +111,19 @@ async function getTestAdminUser(): Promise<string> {
 export async function createTestApiKey(): Promise<string> {
   if (testApiKey) return testApiKey;
 
+  // Prefer the key created once by global-setup.ts. Vitest forks inherit
+  // process.env, so this value is present in every test file without any
+  // additional DB round-trip. Falls back to ad-hoc creation only when
+  // running the setup helpers outside the API suite (e.g. one-off scripts).
+  const inherited = process.env.TEST_API_KEY_PLAINTEXT;
+  if (inherited) {
+    testApiKey = inherited;
+    testApiKeyId = process.env.TEST_API_KEY_ID ?? null;
+    testAdminUserId = process.env.TEST_ADMIN_USER_ID ?? null;
+    testAuthUserId = process.env.TEST_AUTH_USER_ID ?? null;
+    return testApiKey;
+  }
+
   // Ensure we have an admin user
   const adminUserId = await getTestAdminUser();
 
