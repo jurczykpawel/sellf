@@ -443,6 +443,54 @@ describe('Products API v1', () => {
     });
   });
 
+  describe('GET /api/v1/products embed param', () => {
+    it('returns NO categories/tags by default', async () => {
+      const { status, data } = await get<ApiResponse<Array<Product & Record<string, unknown>>>>('/api/v1/products?limit=1');
+      expect(status).toBe(200);
+      if (data.data!.length) {
+        expect(data.data![0]).not.toHaveProperty('categories');
+        expect(data.data![0]).not.toHaveProperty('tags');
+      }
+    });
+    it('includes categories when ?embed=categories', async () => {
+      const { status, data } = await get<ApiResponse<Array<Product & { categories?: unknown[] }>>>('/api/v1/products?limit=1&embed=categories');
+      expect(status).toBe(200);
+      if (data.data!.length) {
+        expect(data.data![0]).toHaveProperty('categories');
+        expect(Array.isArray(data.data![0].categories)).toBe(true);
+      }
+    });
+    it('includes both when ?embed=categories,tags', async () => {
+      const { data } = await get<ApiResponse<Array<Product & { categories?: unknown; tags?: unknown }>>>('/api/v1/products?limit=1&embed=categories,tags');
+      if (data.data!.length) {
+        expect(data.data![0]).toHaveProperty('categories');
+        expect(data.data![0]).toHaveProperty('tags');
+      }
+    });
+    it('ignores unknown embed keys gracefully', async () => {
+      const { status } = await get<ApiResponse<Array<Product>>>('/api/v1/products?limit=1&embed=evil');
+      expect(status).toBe(200);
+    });
+  });
+
+  describe('GET /api/v1/products/[id] embed shape', () => {
+    let createdId: string;
+    beforeAll(async () => {
+      const slug = uniqueSlug();
+      const r = await post<ApiResponse<Product & { id: string }>>('/api/v1/products', {
+        name: 'Embed shape test', slug, description: 'd', price: 1,
+      });
+      createdId = r.data.data!.id;
+      createdProductIds.push(createdId);
+    });
+    it('returns categories+tags arrays by default (single endpoint always embeds both)', async () => {
+      const { status, data } = await get<ApiResponse<Product & { categories: unknown[]; tags: unknown[] }>>(`/api/v1/products/${createdId}`);
+      expect(status).toBe(200);
+      expect(Array.isArray(data.data!.categories)).toBe(true);
+      expect(Array.isArray(data.data!.tags)).toBe(true);
+    });
+  });
+
   describe('Response Format', () => {
     it('should use standardized success response format', async () => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {

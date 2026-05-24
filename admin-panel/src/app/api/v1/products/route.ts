@@ -20,6 +20,9 @@ import {
   applyCursorToQuery,
   validateCursor,
   API_SCOPES,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
 } from '@/lib/api';
 import { z } from 'zod';
 import {
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
 
     // Validate sort column
     const sortBy = validateProductSortColumn(sortByRaw);
+    const embed = parseEmbed(searchParams.get('embed'));
 
     // Validate search length early
     if (search && search.length > 200) {
@@ -91,7 +95,7 @@ export async function GET(request: NextRequest) {
     // Build main query - fetch limit + 1 to detect next page
     let query = supabase
       .from('products')
-      .select(PRODUCT_API_FIELDS);
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed));
 
     // Apply search filter
     if (escapedSearch) {
@@ -125,14 +129,17 @@ export async function GET(request: NextRequest) {
 
     // Create pagination response
     const { items, pagination } = createPaginationResponse(
-      products || [],
+      (products || []) as unknown as Record<string, unknown>[],
       limit,
       sortBy,
       sortOrder,
       cursor
     );
 
-    return jsonResponse(successResponse(items, { ...pagination, total: count ?? undefined }), request);
+    const transformed = embed.size > 0
+      ? (items as unknown[]).map((row) => transformEmbeddedRelations(row as unknown as Record<string, unknown>))
+      : items;
+    return jsonResponse(successResponse(transformed, { ...pagination, total: count ?? undefined }), request);
   } catch (error) {
     return handleApiError(error, request);
   }

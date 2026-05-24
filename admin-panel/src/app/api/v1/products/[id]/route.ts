@@ -19,6 +19,9 @@ import {
   ApiValidationError,
   successResponse,
   API_SCOPES,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
 } from '@/lib/api';
 import { z } from 'zod';
 import {
@@ -55,45 +58,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
-    // Fetch product with categories
+    const embedParam = request.nextUrl.searchParams.get('embed') ?? 'categories,tags';
+    const embed = parseEmbed(embedParam);
+    const selectFields = buildProductSelect(PRODUCT_API_FIELDS, embed);
+
     const { data: product, error } = await supabase
       .from('products')
-      .select(`
-        ${PRODUCT_API_FIELDS},
-        product_categories (
-          category_id,
-          categories (
-            id,
-            name,
-            slug
-          )
-        )
-      `)
+      .select(selectFields)
       .eq('id', id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return apiError(request, 'NOT_FOUND', 'Product not found');
-      }
-      console.error('Error fetching product:', error);
+      if (error.code === 'PGRST116') return apiError(request, 'NOT_FOUND', 'Product not found');
+      console.error('[products.GET]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product');
     }
 
-    // Transform product_categories to simpler structure
-    const categories = product.product_categories?.map(
-      (pc: { category_id: unknown; categories: unknown }) =>
-        pc.categories
-    ) || [];
-
-    const productWithCategories = {
-      ...product,
-      categories,
-      product_categories: undefined,
-    };
-    delete productWithCategories.product_categories;
-
-    return jsonResponse(successResponse(productWithCategories), request);
+    const result = transformEmbeddedRelations(product as unknown as Record<string, unknown>);
+    return jsonResponse(successResponse(result), request);
   } catch (error) {
     return handleApiError(error, request);
   }
