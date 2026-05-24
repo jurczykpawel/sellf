@@ -9,7 +9,9 @@ import {
   Clock,
   PartyPopper,
   RotateCcw,
-  ChevronDown,
+  Ticket,
+  X,
+  Info,
 } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 
@@ -70,12 +72,17 @@ export function ConversionStack() {
 
   const [stage, setStage] = useState<Stage>('product');
   const [bumpAdded, setBumpAdded] = useState(false);
-  const [couponOpen, setCouponOpen] = useState(false);
-  const [couponInput, setCouponInput] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
+  // urlHasCoupon mirrors the real Sellf behavior: coupon auto-applies only
+  // when the buyer arrives via a /?coupon=… link. No manual input field is
+  // ever shown, which prevents code hunting.
+  const [urlHasCoupon, setUrlHasCoupon] = useState(false);
   const [otoAccepted, setOtoAccepted] = useState(false);
   const [downsellAccepted, setDownsellAccepted] = useState(false);
   const [otoTimer, setOtoTimer] = useState(OTO_COUNTDOWN_SECONDS);
+
+  // Derived: coupon is "applied" iff the buyer arrived via the coupon URL.
+  const couponApplied = urlHasCoupon;
+  const couponCode = 'FRIENDS50';
 
   // Typewriter state for card fields
   const [typedCard, setTypedCard] = useState('');
@@ -115,9 +122,7 @@ export function ConversionStack() {
   function reset() {
     setStage('product');
     setBumpAdded(false);
-    setCouponOpen(false);
-    setCouponInput('');
-    setCouponApplied(false);
+    setUrlHasCoupon(false);
     setOtoAccepted(false);
     setDownsellAccepted(false);
     setOtoTimer(OTO_COUNTDOWN_SECONDS);
@@ -125,11 +130,6 @@ export function ConversionStack() {
     setTypedExp('');
     setTypedCvc('');
     setTypedPostal('');
-  }
-
-  function applyCoupon() {
-    if (couponInput.trim().length === 0) return;
-    setCouponApplied(true);
   }
 
   function payNow() {
@@ -217,7 +217,7 @@ export function ConversionStack() {
                     className="inline-flex items-center gap-1 rounded-full bg-sf-success-soft border border-sf-success/30 px-2 py-0.5 text-sf-success"
                   >
                     <Check className="h-3 w-3" aria-hidden="true" />
-                    {couponInput || t('couponSample')} −50%
+                    {couponCode} −50%
                   </li>
                 )}
               </ul>
@@ -227,18 +227,53 @@ export function ConversionStack() {
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
             {/* Main stage screen */}
             <div className="rounded-2xl border border-sf-border-accent bg-sf-raised/80 overflow-hidden min-h-[480px]">
-              <div className="px-5 py-3 border-b border-sf-border-accent bg-black/20 flex items-center justify-between">
-                <span className="text-xs font-mono uppercase text-sf-muted">
-                  shop.your-domain.com
-                </span>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="inline-flex items-center gap-1 text-xs font-mono text-sf-muted hover:text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded px-2 py-1"
+              <div className="px-5 py-3 border-b border-sf-border-accent bg-black/20 flex items-center justify-between gap-3">
+                {/* Live URL bar — reflects the coupon link state */}
+                <span
+                  data-url-bar={urlHasCoupon ? 'with-coupon' : 'plain'}
+                  className="text-xs font-mono truncate text-sf-muted"
                 >
-                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
-                  Reset
-                </button>
+                  {urlHasCoupon ? (
+                    <>
+                      shop.your-domain.com/
+                      <span className="text-sf-accent">?coupon=FRIENDS50</span>
+                    </>
+                  ) : (
+                    <>shop.your-domain.com</>
+                  )}
+                </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {!urlHasCoupon && (
+                    <button
+                      type="button"
+                      onClick={() => setUrlHasCoupon(true)}
+                      data-action="apply-coupon-link"
+                      className="inline-flex items-center gap-1 text-xs font-mono text-sf-heading bg-sf-accent-soft border border-sf-border-accent rounded px-2 py-1 hover:bg-sf-accent-med transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+                    >
+                      <Ticket className="h-3 w-3" aria-hidden="true" />
+                      {t('couponLinkSimulate')}
+                    </button>
+                  )}
+                  {urlHasCoupon && (
+                    <button
+                      type="button"
+                      onClick={() => setUrlHasCoupon(false)}
+                      data-action="remove-coupon-link"
+                      aria-label={t('couponRemoveLabel')}
+                      className="inline-flex items-center gap-1 text-xs font-mono text-sf-muted hover:text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded px-2 py-1"
+                    >
+                      <X className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={reset}
+                    className="inline-flex items-center gap-1 text-xs font-mono text-sf-muted hover:text-sf-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded px-2 py-1"
+                  >
+                    <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                    Reset
+                  </button>
+                </div>
               </div>
 
               <div className="p-6" data-stage-screen={stage}>
@@ -451,76 +486,30 @@ export function ConversionStack() {
                         </div>
                       </label>
 
-                      {/* INLINE COUPON */}
-                      <div className="border-t border-slate-200 pt-3">
-                        {couponApplied ? (
-                          <div
-                            data-coupon-state="applied"
-                            className="flex items-center justify-between rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-sm"
-                          >
-                            <span className="inline-flex items-center gap-2 font-mono text-emerald-700">
-                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                              {t('couponBadge')}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCouponApplied(false);
-                                setCouponInput('');
-                                setCouponOpen(false);
-                              }}
-                              className="text-xs text-slate-500 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#635BFF] rounded px-1.5 py-0.5"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ) : couponOpen ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder={t('couponPlaceholder')}
-                              value={couponInput}
-                              onChange={(e) => setCouponInput(e.target.value)}
-                              data-action="coupon-input"
-                              className="flex-1 rounded-md border border-slate-300 focus:border-[#635BFF] focus:outline-none px-3 py-2 text-sm text-slate-900 font-mono transition-colors"
-                              aria-label={t('couponPlaceholder')}
+                      {/* COUPON — auto-applied from URL only (Sellf anti-hunting pattern) */}
+                      {couponApplied && (
+                        <div
+                          data-coupon-state="auto-applied"
+                          className="flex items-center justify-between gap-2 rounded-md bg-emerald-50 border-2 border-emerald-400 px-3 py-2.5 animate-[checkoutFadeIn_300ms_ease-out_both]"
+                        >
+                          <span className="inline-flex items-center gap-2 text-sm">
+                            <Ticket
+                              className="h-4 w-4 text-emerald-700"
+                              aria-hidden="true"
                             />
-                            <button
-                              type="button"
-                              onClick={applyCoupon}
-                              data-action="coupon-apply"
-                              className="bg-slate-900 hover:bg-slate-700 text-white rounded-md px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#635BFF]"
-                            >
-                              {t('couponApply')}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setCouponOpen(true)}
-                            data-action="coupon-toggle"
-                            className="inline-flex items-center gap-1 text-xs text-[#635BFF] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#635BFF] rounded"
-                          >
-                            <ChevronDown className="h-3 w-3" aria-hidden="true" />
-                            Have a promo code?
-                          </button>
-                        )}
-                        {couponOpen && !couponApplied && (
-                          <p className="text-[11px] text-slate-500 mt-2">
-                            Try:{' '}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCouponInput(t('couponSample'));
-                                setCouponApplied(true);
-                              }}
-                              className="font-mono text-[#635BFF] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#635BFF] rounded"
-                            >
-                              {t('couponSample')}
-                            </button>
-                          </p>
-                        )}
-                      </div>
+                            <span className="font-mono font-bold text-emerald-700">
+                              {couponCode}
+                            </span>
+                            <span className="text-emerald-700">−50%</span>
+                            <span className="text-[10px] uppercase tracking-wider rounded-full bg-emerald-700 text-white px-1.5 py-0.5">
+                              auto
+                            </span>
+                          </span>
+                          <span className="text-xs text-slate-500 font-mono">
+                            −{formatPLN(couponDiscount)}
+                          </span>
+                        </div>
+                      )}
 
                       <button
                         type="button"
@@ -728,7 +717,20 @@ export function ConversionStack() {
                   {formatPLN(grandTotal)}
                 </span>
               </div>
-              <p className="text-[11px] text-sf-muted mt-4">{t('demoNote')}</p>
+              <div className="mt-5 pt-4 border-t border-sf-border space-y-2">
+                <p className="text-[11px] text-sf-muted leading-relaxed">
+                  {t('demoNote')}
+                </p>
+                <div className="flex items-start gap-2 rounded-md bg-sf-accent-soft/40 border border-sf-border-accent/40 px-2.5 py-2">
+                  <Info
+                    className="h-3 w-3 mt-0.5 text-sf-accent flex-shrink-0"
+                    aria-hidden="true"
+                  />
+                  <p className="text-[10px] text-sf-body leading-relaxed">
+                    {t('couponWhy')}
+                  </p>
+                </div>
+              </div>
             </aside>
           </div>
         </Reveal>

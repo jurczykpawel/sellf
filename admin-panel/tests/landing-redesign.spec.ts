@@ -77,9 +77,10 @@ for (const path of ABOUT_PATHS) {
       await section.locator('[data-action="toggle-bump"]').check();
       await expect(section.locator('[data-cart-line="bump"]')).toBeVisible();
 
-      // Stage 2: checkout — coupon inline (open → apply sample)
-      await section.locator('[data-action="coupon-toggle"]').click();
-      await section.locator('button:has-text("FRIENDS50")').first().click();
+      // Stage 2: checkout — apply coupon via URL link (Sellf anti-hunting pattern)
+      await section.locator('[data-action="apply-coupon-link"]').click();
+      await expect(section.locator('[data-url-bar="with-coupon"]')).toBeVisible();
+      await expect(section.locator('[data-coupon-state="auto-applied"]')).toBeVisible();
       await expect(section.locator('[data-cart-line="coupon"]')).toBeVisible();
 
       // Pay → success splash → OTO modal

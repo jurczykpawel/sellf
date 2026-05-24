@@ -3493,7 +3493,15 @@
       "completedTitle": "Order complete",
       "completedSummary": "Your cart unlocked. Bigger order, same effort.",
       "completedReplay": "Replay the flow",
-      "demoNote": "Demo runs in your browser. The real flow uses Stripe Embedded Checkout, magic-link guest receipts, and rolls upsells onto the saved card without re-typing."
+      "demoNote": "Demo runs in your browser. The real flow uses Stripe Embedded Checkout, magic-link guest receipts, and rolls upsells onto the saved card without re-typing.",
+      "couponLinkSimulate": "Open with coupon link",
+      "couponLinkActive": "shop.your-domain.com/?coupon=FRIENDS50",
+      "couponLinkInactive": "shop.your-domain.com",
+      "couponAutoBadge": "FRIENDS50 −50% — applied from your link",
+      "couponAutoBadgeShort": "FRIENDS50 −50% (from link)",
+      "couponRemoveLabel": "Remove coupon link",
+      "couponWhy": "Sellf only auto-applies coupons from URL parameters. No \"enter promo code\" field — protects you from code-hunting buyers.",
+      "couponInviteHint": "Curious? Try this checkout with a coupon link →"
     },
     "loginWallDemo": {
       "categoryLabel": "Lock premium content",

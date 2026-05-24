@@ -3508,7 +3508,15 @@
       "completedTitle": "Zamówienie kompletne",
       "completedSummary": "Koszyk się rozrósł. Większe zamówienie, ten sam wysiłek.",
       "completedReplay": "Odpal flow ponownie",
-      "demoNote": "Demo działa w przeglądarce. Prawdziwy flow używa Stripe Embedded Checkout, magic-link receipts i dorzuca upsell'e na zapisaną kartę bez wpisywania jej ponownie."
+      "demoNote": "Demo działa w przeglądarce. Prawdziwy flow używa Stripe Embedded Checkout, magic-link receipts i dorzuca upsell'e na zapisaną kartę bez wpisywania jej ponownie.",
+      "couponLinkSimulate": "Otwórz z linkiem kuponowym",
+      "couponLinkActive": "shop.your-domain.com/?coupon=FRIENDS50",
+      "couponLinkInactive": "shop.your-domain.com",
+      "couponAutoBadge": "FRIENDS50 −50% — z Twojego linku",
+      "couponAutoBadgeShort": "FRIENDS50 −50% (z linku)",
+      "couponRemoveLabel": "Usuń link kuponu",
+      "couponWhy": "Sellf aplikuje kupony tylko z parametru w URL. Brak pola \"wpisz kod promo\" — chroni przed kupującymi szukającymi kodów w sieci.",
+      "couponInviteHint": "Ciekawe? Spróbuj tego checkoutu z linkiem kuponu →"
     },
     "loginWallDemo": {
       "categoryLabel": "Zablokuj premium content",
