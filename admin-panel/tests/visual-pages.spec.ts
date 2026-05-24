@@ -57,6 +57,8 @@ test('public pages', async ({ page }) => {
 
   const publicPages = [
     '/',
+    '/en/about',
+    '/pl/about',
     '/login',
     '/p/premium-course',
     '/checkout/free-tutorial',
