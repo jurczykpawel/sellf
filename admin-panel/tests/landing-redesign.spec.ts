@@ -65,39 +65,31 @@ for (const path of ABOUT_PATHS) {
       await expect(first).toHaveAttribute('aria-expanded', 'true');
     });
 
-    test('conversion stack walks product → bump → coupon → pay → OTO → done', async ({ page }) => {
+    test('conversion stack: product → checkout (inline bump+coupon) → pay → OTO → done', async ({ page }) => {
       const section = page.locator('[data-landing-section="conversion-stack"]').first();
       await section.scrollIntoViewIfNeeded();
 
-      // Stage: product → click Buy
+      // Stage 1: product → click Buy
       await section.locator('[data-action="buy-now"]').click();
       await expect(section.locator('[data-stage-screen="checkout"]')).toBeVisible();
 
-      // checkout → next
-      await section.locator('[data-action="checkout-next"]').click();
-
-      // bump → tick it + verify cart updates
+      // Stage 2: checkout — bump inline
       await section.locator('[data-action="toggle-bump"]').check();
       await expect(section.locator('[data-cart-line="bump"]')).toBeVisible();
-      await section.locator('[data-action="bump-next"]').click();
 
-      // coupon → apply sample
-      await section.locator('[data-action="coupon-apply"]').or(section.locator('button:has-text("FRIENDS50")')).first().click();
+      // Stage 2: checkout — coupon inline (open → apply sample)
+      await section.locator('[data-action="coupon-toggle"]').click();
+      await section.locator('button:has-text("FRIENDS50")').first().click();
       await expect(section.locator('[data-cart-line="coupon"]')).toBeVisible();
-      await section.locator('[data-action="coupon-next"]').click();
 
-      // pay → success → OTO modal
+      // Pay → success splash → OTO modal
       await section.locator('[data-action="pay-now"]').click();
       await expect(section.locator('[data-oto-state="open"]')).toBeVisible({ timeout: 2500 });
 
-      // OTO decline → done
+      // OTO decline → downsell → decline → done
       await section.locator('[data-action="oto-decline"]').click();
-      // either downsell or done
-      await section
-        .locator('[data-action="downsell-decline"]')
-        .or(section.locator('[data-action="replay"]'))
-        .first()
-        .click();
+      await section.locator('[data-action="downsell-decline"]').click();
+      await expect(section.locator('[data-action="replay"]')).toBeVisible();
     });
 
     test('login wall unlock reveals content and token fragment', async ({ page }) => {

@@ -3524,7 +3524,7 @@
       "urlPlaceholder": "https://twoj-kurs.example/modul-4",
       "unlockedHighlight": "Witaj z powrotem — Twój dostęp aktywny do 31.12.2026.",
       "unlockedSubtle": "Bez wpisywania karty. Sellf pamięta Twój zakup.",
-      "demoNote": "Token nigdy nie trafia do logów serwera. Demo w 100% w przeglądarce."
+      "demoNote": "W produkcji Sellf sprawdza zakup po swojej stronie zanim treść się odblokuje — snippet działa na dowolnej Twojej stronie (Astro, WordPress, zwykły HTML). Premium content jest chroniony."
     },
     "subscriptionsDemo": {
       "categoryLabel": "Stałe przychody",

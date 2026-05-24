@@ -3509,7 +3509,7 @@
       "urlPlaceholder": "https://your-course.example/module-4",
       "unlockedHighlight": "Welcome back — your access is active until 2026-12-31.",
       "unlockedSubtle": "No card re-entry. Sellf remembers your purchase.",
-      "demoNote": "The token never reaches your server logs. Demo runs entirely in your browser."
+      "demoNote": "In production, Sellf checks the buyer's purchase before the page unlocks — the snippet works on any of your pages (Astro, WordPress, plain HTML). Protected content stays protected."
     },
     "subscriptionsDemo": {
       "categoryLabel": "Recurring revenue",
