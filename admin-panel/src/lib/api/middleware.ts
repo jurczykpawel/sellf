@@ -298,9 +298,28 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   // Use platform client for public-schema operations (api_keys, admin_users, verify_api_key)
   const platformClient = createPlatformClient();
 
-  // Verify API key using database function
-  const { data: verifyResult, error: verifyError } = await platformClient
-    .rpc('verify_api_key', { p_key_hash: keyHash });
+  // Verify API key using database function.
+  //
+  // PostgREST occasionally returns "An invalid response was received from
+  // the upstream server" — this is a transient gateway error (Postgres
+  // connection hiccup, pool exhaustion, statement-cache invalidation),
+  // NOT an auth failure. Treating it as a missing key produces flaky 401s
+  // for legitimate API consumers. Retry up to 2× with short backoff
+  // before giving up.
+  let verifyResult: Awaited<ReturnType<typeof platformClient.rpc>>['data'] = null;
+  let verifyError: { message: string; code?: string } | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await platformClient.rpc('verify_api_key', { p_key_hash: keyHash });
+    verifyResult = res.data;
+    verifyError = res.error;
+    if (!verifyError) break;
+    const isTransientGatewayError =
+      verifyError.message.includes('upstream') ||
+      verifyError.message.includes('upstream server') ||
+      (verifyError as { code?: string }).code === 'PGRST002';
+    if (!isTransientGatewayError) break;
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 50 * attempt));
+  }
 
   if (verifyError) {
     console.error('Error verifying API key:', verifyError);
