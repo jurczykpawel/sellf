@@ -1756,7 +1756,19 @@
         "nextRetryAt": "Następna próba",
         "failedPermanentlyAt": "Trwale nieudane od",
         "dlqPageTitle": "Dostawy webhooków",
-        "dlqPageDescription": "Przeglądaj, powtarzaj i anuluj dostawy webhooków dla wszystkich endpointów."
+        "dlqPageDescription": "Przeglądaj, powtarzaj i anuluj dostawy webhooków dla wszystkich endpointów.",
+        "selectAllVisible": "Zaznacz wszystkie widoczne",
+        "selectRow": "Zaznacz wiersz {id}",
+        "selectedCount": "Zaznaczono: {count}",
+        "clearSelection": "Wyczyść",
+        "batchReplay": "Powtórz zaznaczone",
+        "batchCancel": "Anuluj zaznaczone",
+        "batchReplayConfirm": "Powtórzyć {count} dostarczeń? Wrócą do kolejki ponownej próby.",
+        "batchCancelConfirm": "Anulować {count} oczekujących? Zostaną zarchiwizowane i nie zostaną wysłane.",
+        "batchReplaySuccess": "Powtórzono {count} dostarczeń",
+        "batchReplayPartial": "Powtórzono {succeeded}, błędów {failed}",
+        "batchCancelSuccess": "Anulowano {count} dostarczeń",
+        "batchCancelPartial": "Anulowano {succeeded}, błędów {failed}"
       },
       "testModal": {
         "selectInstruction": "Wybierz typ zdarzenia do wysłania testowego payloadu:",

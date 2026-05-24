@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
 import type { AttemptResult } from '@/lib/services/webhook-queue/types';
 import { computeNextRetry, DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
+import { runBatch } from '@/lib/webhooks/batch-runner';
 import { post } from './setup';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -325,5 +326,78 @@ describe('POST /api/v1/webhooks/logs/[logId]/replay', () => {
     );
     expect(status).toBe(409);
     expect((data as any).error?.code).toBe('CONFLICT');
+  });
+});
+
+describe('Batch DLQ actions via runBatch + REST', () => {
+  async function insertDlq(label: string): Promise<string> {
+    const { data, error } = await sellerClient
+      .from('webhook_logs')
+      .insert({
+        endpoint_id: endpointId,
+        event_type: 'test.event',
+        payload: { event: 'test.event', data: { x: label } },
+        status: 'permanently_failed',
+        attempt_count: 5,
+        max_attempts: 5,
+        failed_permanently_at: new Date().toISOString(),
+        http_status: 503,
+        duration_ms: 0,
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+    createdLogIds.push(data.id);
+    return data.id;
+  }
+
+  it('replays N permanently_failed deliveries in parallel, all succeed', async () => {
+    const ids = await Promise.all([insertDlq('a'), insertDlq('b'), insertDlq('c')]);
+
+    const result = await runBatch(ids, (id) =>
+      post(`/api/v1/webhooks/logs/${id}/replay`, {}).then((r) => {
+        if (r.status !== 200) throw new Error(`replay ${id} → ${r.status}`);
+        return r;
+      }),
+    );
+
+    expect(result).toEqual({ succeeded: 3, failed: 0 });
+
+    const rows = await Promise.all(ids.map(fetchRow));
+    for (const row of rows) {
+      expect(row.status).toBe('pending_retry');
+      expect(row.attempt_count).toBe(0);
+      expect(row.failed_permanently_at).toBeNull();
+    }
+  });
+
+  it('reports partial failure when some replays target wrong-state deliveries', async () => {
+    const dlqId = await insertDlq('mixed-dlq');
+
+    // Insert a success row (replay should 409 — wrong state)
+    const { data: successRow } = await sellerClient
+      .from('webhook_logs')
+      .insert({
+        endpoint_id: endpointId,
+        event_type: 'test.event',
+        payload: { event: 'test.event', data: { x: 'wrong-state' } },
+        status: 'success',
+        attempt_count: 1,
+        max_attempts: 5,
+        http_status: 200,
+        duration_ms: 5,
+      })
+      .select('id')
+      .single();
+    createdLogIds.push(successRow!.id);
+
+    const result = await runBatch([dlqId, successRow!.id], (id) =>
+      post(`/api/v1/webhooks/logs/${id}/replay`, {}).then((r) => {
+        if (r.status !== 200) throw new Error(`replay ${id} → ${r.status}`);
+        return r;
+      }),
+    );
+
+    expect(result).toEqual({ succeeded: 1, failed: 1 });
   });
 });

@@ -16,6 +16,9 @@ interface WebhookLogsTableProps {
   onCancel?: (logId: string) => void;
   replayingId?: string | null;
   actingId?: string | null;
+  // When provided, render a checkbox column for actionable rows (DLQ page).
+  selectedIds?: Set<string>;
+  onToggleSelected?: (logId: string) => void;
 }
 
 export default function WebhookLogsTable({
@@ -29,7 +32,12 @@ export default function WebhookLogsTable({
   onCancel,
   replayingId = null,
   actingId = null,
+  selectedIds,
+  onToggleSelected,
 }: WebhookLogsTableProps) {
+  const selectionEnabled = !!selectedIds && !!onToggleSelected;
+  const isSelectable = (log: WebhookLog) =>
+    log.status === 'permanently_failed' || log.status === 'pending_retry';
   const t = useTranslations('admin.webhooks.logs');
   const tCommon = useTranslations('common');
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
@@ -107,6 +115,37 @@ export default function WebhookLogsTable({
       <table className="min-w-full divide-y divide-sf-border-subtle">
         <thead className="bg-sf-raised">
           <tr>
+            {selectionEnabled && (
+              <th className="px-3 py-3 w-10 text-left">
+                <input
+                  type="checkbox"
+                  aria-label={t('selectAllVisible')}
+                  className="rounded border-sf-border-medium accent-sf-accent"
+                  checked={
+                    logs.filter(isSelectable).length > 0 &&
+                    logs.filter(isSelectable).every((l) => selectedIds!.has(l.id))
+                  }
+                  ref={(el) => {
+                    if (!el) return;
+                    const selectable = logs.filter(isSelectable);
+                    const here = selectable.filter((l) => selectedIds!.has(l.id)).length;
+                    el.indeterminate = here > 0 && here < selectable.length;
+                  }}
+                  onChange={(e) => {
+                    const selectable = logs.filter(isSelectable);
+                    if (e.target.checked) {
+                      selectable.forEach((l) => {
+                        if (!selectedIds!.has(l.id)) onToggleSelected!(l.id);
+                      });
+                    } else {
+                      selectable.forEach((l) => {
+                        if (selectedIds!.has(l.id)) onToggleSelected!(l.id);
+                      });
+                    }
+                  }}
+                />
+              </th>
+            )}
             <th className="px-4 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{t('date')}</th>
             {showEndpointColumn && (
               <th className="px-4 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{t('endpoint')}</th>
@@ -120,7 +159,7 @@ export default function WebhookLogsTable({
         <tbody className="divide-y divide-sf-border-subtle">
           {logs.map((log) => (
             <React.Fragment key={log.id}>
-              <tr 
+              <tr
                 onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                 className={`cursor-pointer transition-colors ${
                   expandedLog === log.id
@@ -128,6 +167,19 @@ export default function WebhookLogsTable({
                     : 'hover:bg-sf-hover'
                 }`}
               >
+                {selectionEnabled && (
+                  <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                    {isSelectable(log) && (
+                      <input
+                        type="checkbox"
+                        aria-label={t('selectRow', { id: log.id.slice(0, 8) })}
+                        className="rounded border-sf-border-medium accent-sf-accent"
+                        checked={selectedIds!.has(log.id)}
+                        onChange={() => onToggleSelected!(log.id)}
+                      />
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3 text-sm text-sf-heading whitespace-nowrap">
                   {new Date(log.created_at).toLocaleString()}
                 </td>

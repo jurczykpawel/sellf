@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWebhookDeliveries, type DeliveryFilter } from '@/hooks/useWebhookDeliveries';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
@@ -31,8 +31,37 @@ function filterLabelKey(filter: DeliveryFilter): string {
 
 export default function WebhookDeliveriesPageContent() {
   const t = useTranslations('admin.webhooks.logs');
-  const { logs, loading, filter, setFilter, replay, forceRetry, cancel, replayingId, actingId, refresh } =
-    useWebhookDeliveries();
+  const {
+    logs, loading, filter, setFilter,
+    replay, forceRetry, cancel,
+    batchReplay, batchCancel, batchRunning,
+    replayingId, actingId, refresh,
+  } = useWebhookDeliveries();
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Derive visible-only selection in render (no effect → no cascading render).
+  // Stale IDs (from a previous filter) are filtered out for display + actions.
+  const visibleSelected = useMemo(() => {
+    const visible = new Set(logs.map((l) => l.id));
+    const next = new Set<string>();
+    selectedIds.forEach((id) => {
+      if (visible.has(id)) next.add(id);
+    });
+    return next;
+  }, [logs, selectedIds]);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectedArray = Array.from(visibleSelected);
+  const selectedCount = selectedArray.length;
 
   return (
     <div className="space-y-4">
@@ -57,6 +86,47 @@ export default function WebhookDeliveriesPageContent() {
         ))}
       </div>
 
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-sf-accent-soft border-2 border-sf-accent">
+          <span className="text-sm font-medium text-sf-heading">
+            {t('selectedCount', { count: selectedCount })}
+          </span>
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(t('batchReplayConfirm', { count: selectedCount }))) {
+                batchReplay(selectedArray);
+              }
+            }}
+            disabled={batchRunning}
+            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-accent hover:bg-sf-hover disabled:opacity-50"
+          >
+            {batchRunning ? '...' : t('batchReplay')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(t('batchCancelConfirm', { count: selectedCount }))) {
+                batchCancel(selectedArray);
+              }
+            }}
+            disabled={batchRunning}
+            className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-muted hover:text-sf-danger hover:bg-sf-hover disabled:opacity-50"
+          >
+            {batchRunning ? '...' : t('batchCancel')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={batchRunning}
+            className="px-3 py-1.5 text-xs text-sf-muted hover:text-sf-heading disabled:opacity-50"
+          >
+            {t('clearSelection')}
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sf-accent" />
@@ -79,6 +149,8 @@ export default function WebhookDeliveriesPageContent() {
           replayingId={replayingId}
           actingId={actingId}
           onRefresh={refresh}
+          selectedIds={visibleSelected}
+          onToggleSelected={toggleSelected}
         />
       )}
     </div>

@@ -1741,7 +1741,19 @@
         "nextRetryAt": "Next retry",
         "failedPermanentlyAt": "Failed permanently at",
         "dlqPageTitle": "Webhook deliveries",
-        "dlqPageDescription": "Browse, replay, and cancel webhook deliveries across all endpoints."
+        "dlqPageDescription": "Browse, replay, and cancel webhook deliveries across all endpoints.",
+        "selectAllVisible": "Select all visible",
+        "selectRow": "Select row {id}",
+        "selectedCount": "{count} selected",
+        "clearSelection": "Clear",
+        "batchReplay": "Replay selected",
+        "batchCancel": "Cancel selected",
+        "batchReplayConfirm": "Replay {count} delivery/ies? They will return to the retry queue.",
+        "batchCancelConfirm": "Cancel {count} pending retry/ies? They will be archived and not delivered.",
+        "batchReplaySuccess": "Replayed {count} deliveries",
+        "batchReplayPartial": "Replayed {succeeded}, failed {failed}",
+        "batchCancelSuccess": "Cancelled {count} deliveries",
+        "batchCancelPartial": "Cancelled {succeeded}, failed {failed}"
       },
       "testModal": {
         "selectInstruction": "Select an event type to send a mock payload to:",

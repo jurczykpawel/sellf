@@ -88,3 +88,107 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
     expect(updated!.next_retry_at).not.toBeNull();
   });
 });
+
+test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  let endpointId: string;
+  const batchLogIds: string[] = [];
+  let cleanupAdmin: (() => Promise<void>) | null = null;
+  let adminEmail: string;
+  let adminPassword: string;
+
+  test.beforeAll(async () => {
+    const random = Math.random().toString(36).slice(2, 8);
+
+    const { data: endpoint, error } = await supabaseAdmin
+      .from('webhook_endpoints')
+      .insert({
+        url: `https://example.com/dlq-batch-${random}`,
+        events: ['purchase.completed'],
+        is_active: true,
+        secret: `whsec_batch_${random}`,
+        description: 'DLQ batch UI test',
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+    endpointId = endpoint!.id;
+
+    // Three DLQ rows so select-all + batch is meaningful.
+    for (let i = 0; i < 3; i++) {
+      const { data: log, error: logErr } = await supabaseAdmin
+        .from('webhook_logs')
+        .insert({
+          endpoint_id: endpointId,
+          event_type: 'purchase.completed',
+          payload: { event: 'purchase.completed', data: { batch: i } },
+          status: 'permanently_failed',
+          attempt_count: 5,
+          max_attempts: 5,
+          failed_permanently_at: new Date().toISOString(),
+          http_status: 503,
+          duration_ms: 0,
+        })
+        .select('id')
+        .single();
+      if (logErr) throw logErr;
+      batchLogIds.push(log!.id);
+    }
+
+    const admin = await createTestAdmin('dlq-batch');
+    adminEmail = admin.email;
+    adminPassword = admin.password;
+    cleanupAdmin = admin.cleanup;
+  });
+
+  test.afterAll(async () => {
+    if (batchLogIds.length > 0) {
+      await supabaseAdmin.from('webhook_logs').delete().in('id', batchLogIds);
+    }
+    if (endpointId) await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
+    if (cleanupAdmin) await cleanupAdmin();
+  });
+
+  test('select-all checkbox + "Replay selected" toolbar resets all DLQ rows in one click', async ({ page }) => {
+    // Auto-accept the batch confirm() dialog.
+    page.on('dialog', (dialog) => dialog.accept());
+
+    await loginAsAdmin(page, adminEmail, adminPassword);
+    await page.goto('/pl/dashboard/webhooks/deliveries');
+
+    // Wait for the 3 rows to be visible
+    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(3, {
+      timeout: 10000,
+    });
+
+    // Click select-all header checkbox (aria-label set in WebhookLogsTable)
+    const selectAll = page.getByRole('checkbox', { name: /Zaznacz wszystkie|Select all/i });
+    await expect(selectAll).toBeVisible();
+    await selectAll.check();
+
+    // Toolbar should show selection count + Replay selected button
+    const batchReplayBtn = page.getByRole('button', { name: /Powtórz zaznaczone|Replay selected/i });
+    await expect(batchReplayBtn).toBeVisible();
+    await batchReplayBtn.click();
+
+    // After batch replay, no DLQ rows remain in the default filter view
+    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(0, {
+      timeout: 15000,
+    });
+
+    // Verify DB: all 3 reset to pending_retry
+    const { data: rows } = await supabaseAdmin
+      .from('webhook_logs')
+      .select('id, status, attempt_count, failed_permanently_at, next_retry_at')
+      .in('id', batchLogIds);
+
+    expect(rows!.length).toBe(3);
+    for (const row of rows!) {
+      expect(row.status).toBe('pending_retry');
+      expect(row.attempt_count).toBe(0);
+      expect(row.failed_permanently_at).toBeNull();
+      expect(row.next_retry_at).not.toBeNull();
+    }
+  });
+});

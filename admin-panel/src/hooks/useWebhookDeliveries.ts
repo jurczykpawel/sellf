@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api/client';
+import { runBatch } from '@/lib/webhooks/batch-runner';
 import type { WebhookLog } from '@/types/webhooks';
 
 export type DeliveryFilter =
@@ -94,6 +95,44 @@ export function useWebhookDeliveries() {
     [fetchLogs, t, tCommon],
   );
 
+  const [batchRunning, setBatchRunning] = useState(false);
+
+  const batchReplay = useCallback(
+    async (logIds: string[]) => {
+      if (logIds.length === 0) return;
+      setBatchRunning(true);
+      try {
+        const { succeeded, failed } = await runBatch(logIds, (id) =>
+          api.postCustom(`webhooks/logs/${id}/replay`, {}),
+        );
+        if (failed === 0) toast.success(t('batchReplaySuccess', { count: succeeded }));
+        else toast.warning(t('batchReplayPartial', { succeeded, failed }));
+        await fetchLogs();
+      } finally {
+        setBatchRunning(false);
+      }
+    },
+    [fetchLogs, t],
+  );
+
+  const batchCancel = useCallback(
+    async (logIds: string[]) => {
+      if (logIds.length === 0) return;
+      setBatchRunning(true);
+      try {
+        const { succeeded, failed } = await runBatch(logIds, (id) =>
+          api.postCustom(`webhooks/logs/${id}/cancel`, {}),
+        );
+        if (failed === 0) toast.success(t('batchCancelSuccess', { count: succeeded }));
+        else toast.warning(t('batchCancelPartial', { succeeded, failed }));
+        await fetchLogs();
+      } finally {
+        setBatchRunning(false);
+      }
+    },
+    [fetchLogs, t],
+  );
+
   return {
     logs,
     loading,
@@ -102,6 +141,9 @@ export function useWebhookDeliveries() {
     replay,
     forceRetry,
     cancel,
+    batchReplay,
+    batchCancel,
+    batchRunning,
     replayingId,
     actingId,
     refresh: fetchLogs,
