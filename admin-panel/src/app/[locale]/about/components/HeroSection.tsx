@@ -1,11 +1,66 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, Play, CheckCircle } from 'lucide-react'
+import { ArrowRight, Play, CheckCircle, TrendingUp, Clock } from 'lucide-react'
 import { motion } from 'motion/react'
 import { TextReveal } from './motion/TextReveal'
+
+interface RevenueSnapshot {
+  revenue: number;
+  monthlySavings: number;
+  annualSavings: number;
+}
+
+function RevenueBadge() {
+  const t = useTranslations('landing.hero')
+  const [snapshot, setSnapshot] = useState<RevenueSnapshot | null>(null)
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<RevenueSnapshot>).detail
+      if (
+        detail &&
+        typeof detail.revenue === 'number' &&
+        typeof detail.annualSavings === 'number'
+      ) {
+        setSnapshot(detail)
+      }
+    }
+    window.addEventListener('sellf:revenue-change', handler)
+    return () => window.removeEventListener('sellf:revenue-change', handler)
+  }, [])
+
+  const usdFmt = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  })
+
+  if (!snapshot || snapshot.annualSavings <= 0) {
+    return (
+      <span className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-sf-muted">
+        <TrendingUp className="h-3 w-3" aria-hidden="true" />
+        {t('revenueBadgeIdle')}
+      </span>
+    )
+  }
+
+  return (
+    <a
+      href="#fee-comparison"
+      data-revenue-badge="active"
+      className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-sf-heading bg-sf-accent-soft border border-sf-border-accent rounded-full px-3 py-1 transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+    >
+      <TrendingUp className="h-3 w-3" aria-hidden="true" />
+      <span>{t('revenueBadgePrefix')}</span>
+      <strong className="text-sf-accent">{usdFmt.format(snapshot.annualSavings)}</strong>
+      <span>{t('revenueBadgeSuffix')}</span>
+    </a>
+  )
+}
 
 export function HeroSection() {
   const t = useTranslations('landing')
@@ -14,11 +69,10 @@ export function HeroSection() {
     t('hero.trustNoFees'),
     t('hero.trustOwnData'),
     t('hero.trustDeployAnywhere'),
-    t('hero.trustSecurity'),
   ]
 
   return (
-    <section className="relative pt-32 pb-20 md:pb-32 overflow-hidden">
+    <section className="relative pt-32 pb-20 md:pb-32 overflow-hidden" data-landing-section="hero">
       {/* Mesh gradient background */}
       <div
         className="absolute inset-0"
@@ -91,30 +145,53 @@ export function HeroSection() {
           {t('hero.subtitleBottom')}
         </motion.p>
 
-        {/* CTA buttons — staggered */}
+        {/* Sellf-fx #1 — revenue impact ticker driven by FeeComparison slider */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.95, duration: 0.4 }}
+          className="mb-10"
+        >
+          <RevenueBadge />
+        </motion.div>
+
+        {/* CTA buttons — PRIMARY = demo (low friction), SECONDARY = deploy */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+          className="flex flex-col items-center gap-4 mb-6"
         >
-          <Link
-            href="#deployment"
-            className="group inline-flex items-center gap-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white rounded-full px-8 py-4 text-lg font-bold transition-[background-color,transform,box-shadow] duration-200 shadow-[var(--sf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--sf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
-          >
-            {t('hero.ctaDeploy')}
-            <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="https://demo.sellf.app/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white rounded-full px-8 py-4 text-lg font-bold transition-[background-color,transform,box-shadow] duration-200 shadow-[var(--sf-shadow-accent)] hover:shadow-[0_6px_40px_-4px_var(--sf-accent-glow)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+            >
+              <Play className="h-5 w-5" />
+              {t('hero.ctaDemo')}
+              <ArrowRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </a>
 
-          <a
-            href="https://demo.sellf.app/login"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-sf-accent-soft border border-sf-border-accent hover:bg-sf-accent-med text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[background-color,border-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
-          >
-            <Play className="h-5 w-5" />
-            {t('hero.ctaDemo')}
-          </a>
+            <Link
+              href="#deployment"
+              className="inline-flex items-center gap-2 bg-sf-accent-soft border border-sf-border-accent hover:bg-sf-accent-med text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[background-color,border-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+            >
+              {t('hero.ctaDeploy')}
+            </Link>
+          </div>
+
+          {/* 10-minute setup badge + honest prerequisites disclaimer */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="inline-flex items-center gap-2 text-sm text-sf-body bg-sf-success-soft border border-sf-success/30 rounded-full px-4 py-1.5">
+              <Clock className="h-3.5 w-3.5 text-sf-success" aria-hidden="true" />
+              <span>{t('hero.tenMinBadge')}</span>
+            </div>
+            <p className="text-[11px] text-sf-muted italic">
+              * {t('hero.tenMinDisclaimer')}
+            </p>
+          </div>
         </motion.div>
 
         {/* Product screenshot */}
@@ -122,7 +199,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.2, duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="hidden md:block mb-16"
+          className="hidden md:block mt-10 mb-16"
         >
           <div className="relative mx-auto max-w-5xl rounded-2xl border border-sf-border shadow-2xl overflow-hidden">
             <Image

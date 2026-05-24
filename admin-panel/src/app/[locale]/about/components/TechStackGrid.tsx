@@ -1,14 +1,15 @@
 import { getTranslations } from 'next-intl/server';
 import { Reveal } from '@/components/motion/Reveal';
 import { RevealGroup } from '@/components/motion/RevealGroup';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
-const techs = ['nextjs', 'supabase', 'stripe', 'tailwind', 'typescript', 'docker', 'postgresql', 'bunny'] as const;
+const techs = ['nextjs', 'supabase', 'stripe', 'tailwind', 'typescript', 'docker', 'postgresql', 'bunny', 'mcp', 'bun'] as const;
 
 export async function TechStackGrid() {
   const t = await getTranslations('landing');
 
   return (
-    <section className="py-20 md:py-24 bg-sf-deep">
+    <section className="py-20 md:py-24 bg-sf-deep" data-landing-section="tech-stack">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-12">
           <p className="text-sm font-medium text-sf-muted tracking-[0.08em] uppercase mb-3">
@@ -40,7 +41,7 @@ export async function TechStackGrid() {
 
         <div className="text-center mt-8">
           <a
-            href="https://github.com/jurczykpawel/sellf"
+            href={SELLF_GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"

@@ -1,12 +1,13 @@
 import { getTranslations } from 'next-intl/server';
 import { Rocket, Shield, ArrowRight, Check, ExternalLink } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
 export async function SelfHostedComparison() {
   const t = await getTranslations('landing');
 
   return (
-    <section id="deployment" className="py-24 md:py-32 bg-sf-base">
+    <section id="deployment" className="py-24 md:py-32 bg-sf-base" data-landing-section="self-hosted">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-16">
           <p className="text-sm font-medium text-sf-muted tracking-[0.08em] uppercase mb-3">
@@ -64,7 +65,7 @@ export async function SelfHostedComparison() {
                 {t('selfHosted.production.price')}
               </span>
               <ul className="space-y-3">
-                {(['pm2', 'db', 'deploy', 'specs'] as const).map((key) => (
+                {(['pm2', 'db', 'deploy', 'specs', 'mcpReady'] as const).map((key) => (
                   <li key={key} className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-sf-success shrink-0 mt-0.5" />
                     <span className="text-sf-body text-sm">{t(`selfHosted.production.${key}`)}</span>
@@ -90,7 +91,7 @@ export async function SelfHostedComparison() {
               <ExternalLink className="h-5 w-5" />
             </a>
             <a
-              href="https://github.com/jurczykpawel/sellf#deployment"
+              href={`${SELLF_GITHUB_URL}#deployment`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-sf-raised/80 border-2 border-sf-border hover:border-sf-border-accent text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[border-color,background-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"

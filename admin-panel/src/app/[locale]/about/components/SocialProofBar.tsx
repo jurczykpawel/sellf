@@ -1,20 +1,23 @@
 import { getTranslations } from 'next-intl/server';
-import { ExternalLink } from 'lucide-react';
-import { NumberCounter } from './motion/NumberCounter';
+import { ExternalLink, ShieldCheck, User, CreditCard, Code2 } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
 export async function SocialProofBar() {
   const t = await getTranslations('landing');
 
-  const stats = [
-    { value: '100%', label: t('socialProof.openSource') },
-    { value: '$0', label: t('socialProof.monthlyFees') },
-    { value: '∞', label: t('socialProof.products') },
-    { value: 'AGPL', label: t('socialProof.license') },
+  const proof = [
+    { Icon: Code2, text: t('socialProof.githubLine'), href: SELLF_GITHUB_URL },
+    { Icon: ShieldCheck, text: t('socialProof.testsLine') },
+    { Icon: User, text: t('socialProof.founderLine') },
+    { Icon: CreditCard, text: t('socialProof.stripeLine') },
   ];
 
   return (
-    <section className="relative py-12 overflow-hidden">
+    <section
+      className="relative py-12 overflow-hidden"
+      data-landing-section="social-proof"
+    >
       <div
         className="absolute inset-0"
         style={{
@@ -26,23 +29,43 @@ export async function SocialProofBar() {
         }}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {stats.map((stat) => (
-            <div key={stat.value}>
-              <NumberCounter
-                value={stat.value}
-                className="block text-4xl md:text-5xl font-black text-sf-heading mb-2"
-              />
-              <div className="text-sm md:text-base font-medium text-sf-muted">
-                {stat.label}
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <Reveal className="text-center mb-6">
+          <p className="text-sm font-medium text-sf-muted tracking-[0.08em] uppercase">
+            {t('socialProof.headline')}
+          </p>
+        </Reveal>
 
-        <Reveal className="text-center mt-10" animation="fade-up" delay={200}>
-          <p className="text-sm text-sf-body mb-3">{t('demo.subtitle')}</p>
+        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          {proof.map(({ Icon, text, href }, i) => {
+            const inner = (
+              <span className="flex items-start gap-3 rounded-xl border border-sf-border bg-sf-raised/40 px-4 py-3 hover:border-sf-border-accent transition-colors">
+                <Icon
+                  className="h-4 w-4 mt-0.5 text-sf-accent flex-shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="text-sf-body leading-relaxed">{text}</span>
+              </span>
+            );
+            if (href) {
+              return (
+                <li key={i}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded-xl"
+                  >
+                    {inner}
+                  </a>
+                </li>
+              );
+            }
+            return <li key={i}>{inner}</li>;
+          })}
+        </ul>
+
+        <Reveal className="text-center mt-8" animation="fade-up" delay={200}>
           <a
             href="https://demo.sellf.app/login"
             target="_blank"
@@ -52,9 +75,7 @@ export async function SocialProofBar() {
             {t('demo.cta')}
             <ExternalLink className="h-4 w-4" />
           </a>
-          <p className="text-xs text-sf-muted mt-2">
-            {t('demo.stripeTestMode')}
-          </p>
+          <p className="text-xs text-sf-muted mt-2">{t('demo.stripeTestMode')}</p>
         </Reveal>
       </div>
     </section>

@@ -119,3 +119,6 @@ export const PRODUCT_PAGE_FIELDS = [
   'allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets',
   'created_at', 'updated_at',
 ].join(', ');
+
+/** URL of the Sellf GitHub repository — used by landing page CTAs and JSON-LD. */
+export const SELLF_GITHUB_URL = 'https://github.com/jurczykpawel/sellf';

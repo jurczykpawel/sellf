@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
+import { SELLF_GITHUB_URL } from '@/lib/constants';
 
 export function FAQSection() {
   const t = useTranslations('landing');
@@ -16,7 +17,7 @@ export function FAQSection() {
   }
 
   return (
-    <section className="py-24 md:py-32 bg-sf-deep">
+    <section className="py-24 md:py-32 bg-sf-deep" data-landing-section="faq">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Split layout: sticky title left, accordion right */}
         <div className="flex flex-col md:flex-row md:gap-16">
@@ -27,7 +28,7 @@ export function FAQSection() {
                 {t('faq.title')}
               </h2>
               <a
-                href="https://github.com/jurczykpawel/sellf/issues"
+                href={`${SELLF_GITHUB_URL}/issues`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-medium text-sf-accent hover:text-sf-accent-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"

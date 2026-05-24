@@ -3014,35 +3014,45 @@
       "toggleMenu": "Przełącz menu"
     },
     "hero": {
-      "badge": "Open Source · Self-Hosted · Gotowe dla Firm",
-      "headlineTop": "Twoje Produkty.",
-      "headlineBottom": "Twoje Zasady.",
-      "metaDescription": "Sprzedawaj produkty cyfrowe i subskrypcje na własnych zasadach. Self-hosted, bezpieczna i w pełni Twoja. Bez opłat miesięcznych, bez pośredników.",
-      "subtitle": "Sprzedawaj produkty cyfrowe na własnych zasadach - bez oddawania przychodów platformom. <selfHosted>Self-hosted</selfHosted>, <secure>bezpieczna</secure> i <yours>w pełni Twoja</yours>.",
+      "badge": "Open source · Self-hosted · Bez prowizji",
+      "headlineTop": "Sprzedawaj kursy, e-booki, subskrypcje",
+      "headlineBottom": "bez prowizji platformy.",
+      "metaDescription": "Self-hosted alternatywa dla Gumroad i LemonSqueezy. Stawiasz na własnym VPS w 10 minut. Bez prowizji, bez abonamentu, Twoje dane zostają u Ciebie.",
+      "subtitle": "Dla twórców, freelancerów i solopreneurów, którzy nie chcą oddawać 5-10% z każdej sprzedaży pośrednikowi.",
       "subtitleSelfHosted": "Self-hosted",
       "subtitleSecure": "bezpieczna",
       "subtitleYours": "w pełni Twoja",
-      "subtitleBottom": "Bez opłat miesięcznych. Bez pośredników. Pełna kontrola od pierwszego dnia.",
-      "ctaDeploy": "Wdróż za 0 zł",
-      "ctaDemo": "Wypróbuj Demo",
+      "subtitleBottom": "10 minut setupu. Reszta to wklejenie linku na swojej stronie.",
+      "ctaDeploy": "Postaw u siebie (10 min)",
+      "ctaDemo": "Wypróbuj demo",
       "ctaGithub": "Zobacz na GitHub",
-      "trustNoFees": "Bez opłat miesięcznych",
-      "trustOwnData": "Własność danych",
-      "trustDeployAnywhere": "Wdrożenie wszędzie",
-      "trustSecurity": "Bezpieczeństwo korporacyjne"
+      "trustNoFees": "Bez prowizji platformy",
+      "trustOwnData": "Twoje dane zostają u Ciebie",
+      "trustDeployAnywhere": "Działa na dowolnym VPS",
+      "trustSecurity": "Szyfrowanie bankowe",
+      "revenueBadgeIdle": "Co zostaje vs Gumroad",
+      "revenueBadgePrefix": "Zaoszczędzasz",
+      "revenueBadgeSuffix": "/rok vs Gumroad",
+      "tenMinBadge": "10 minut od klona do działającego sklepu",
+      "tenMinDisclaimer": "Wymaga VPS i konta Stripe"
     },
     "socialProof": {
-      "openSource": "Open Source",
-      "monthlyFees": "Opłaty Miesięczne",
+      "openSource": "Open source",
+      "monthlyFees": "Opłaty miesięczne",
       "products": "Produkty",
-      "license": "Licencja"
+      "license": "Licencja",
+      "headline": "Realne fundamenty, nie marketing",
+      "githubLine": "Open source na GitHubie — AGPL-3.0 + komercyjna licencja white-label",
+      "testsLine": "2 650 testów automatycznych — checkout, płatności, bezpieczeństwo",
+      "founderLine": "Zbudowany przez Pawła — 17 lat IT, ex-Roche / IBM / Asseco",
+      "stripeLine": "Działa na Stripe — ten sam stack płatności co Gumroad i LemonSqueezy"
     },
     "feeComparison": {
-      "title": "Zobacz ile naprawdę zostajesz",
-      "subtitle": "Przesuń suwak, aby porównać opłaty platform przy Twoim poziomie przychodów",
+      "title": "Zobacz ile naprawdę zostaje u Ciebie",
+      "subtitle": "Przesuń suwak, żeby porównać prowizje platform przy Twoim poziomie sprzedaży.",
       "monthlyRevenue": "Miesięczny przychód",
-      "platformFees": "Opłaty platformy",
-      "youKeep": "Zostajesz z",
+      "platformFees": "Prowizje platformy",
+      "youKeep": "Zostaje u Ciebie",
       "youSave": "Oszczędzasz {amount}/mies vs Gumroad",
       "sellfLabel": "Sellf + Stripe",
       "sellfFeeNote": "~3,4% (tylko Stripe)",
@@ -3054,7 +3064,13 @@
       "lemonFeeNote": "5% + 3,5% + $0,30",
       "perMonth": "/mies",
       "annualSavings": "Roczne oszczędności vs Gumroad: {amount}",
-      "categoryLabel": "CENNIK"
+      "categoryLabel": "Cennik",
+      "beforeAfterTitle": "Konkretna matematyka, Twoja skala",
+      "beforeLabel": "Przed — Gumroad",
+      "beforeText": "Przy 40 000 zł / mies przychodu z kursów płacisz ≈ 5 040 zł / mies samych prowizji Gumroad.",
+      "afterLabel": "Po — Sellf na VPS",
+      "afterText": "VPS za ~25 zł / mies. Stripe bierze 3,4%. Resztę zostawiasz sobie.",
+      "diffLabel": "Roczna różnica: ≈ 47 200 zł zostaje u Ciebie."
     },
     "features": {
       "title": "Wszystko, czego potrzebujesz do sprzedaży produktów cyfrowych",
@@ -3127,11 +3143,39 @@
         "title": "Auto-uzupełnianie danych firmy",
         "desc": "Klient wpisuje NIP, a dane firmy uzupełniają się automatycznie z bazy GUS."
       },
-      "categoryLabel": "FUNKCJE"
+      "categoryLabel": "FUNKCJE",
+      "oto": {
+        "title": "Strony one-time-offer",
+        "desc": "Post-purchase OTO z własnym rabatem i analityką. Podpinasz dowolny produkt jako upsell."
+      },
+      "webhookRetry": {
+        "title": "Webhooki DLQ + retry",
+        "desc": "Nieudane delivery lądują w dead-letter queue z exponential backoff. Jeden klik i replay."
+      },
+      "pwyw": {
+        "title": "Zapłać ile uważasz",
+        "desc": "Klienci sami ustalają cenę, z minimalnym progiem albo bez. Większa konwersja na lead magnetach."
+      },
+      "tipJar": {
+        "title": "Tip jar",
+        "desc": "Opcjonalny napiwek w checkoucie. Nigdy przymusowy — kupujący decyduje."
+      },
+      "loginWall": {
+        "title": "Login wall (snippet)",
+        "desc": "Jedna linijka na Twojej stronie — content gated za Sellf sign-in + sprawdzenie aktywnego dostępu. Bez backendu."
+      },
+      "magicLink": {
+        "title": "Magic-link guest checkout",
+        "desc": "Kupują bez konta. Zakupy auto-claim'ują się, gdy później założą konto na ten sam email."
+      },
+      "mcp": {
+        "title": "MCP server",
+        "desc": "Podłącz Claude Desktop i innych agentów. 45 narzędzi, 4 zasoby, 6 promptów. Sterujesz sklepem z czatu."
+      }
     },
     "howItWorks": {
       "title": "Gotowy w 3 krokach",
-      "subtitle": "Od zera do sprzedaży w mniej niż 10 minut",
+      "subtitle": "Od klona do działającego sklepu w mniej niż 10 minut",
       "step1": {
         "title": "Wdróż",
         "desc": "Sklonuj repo i wdróż na dowolny VPS lub chmurę. Docker lub PM2, Twój wybór."
@@ -3144,7 +3188,8 @@
         "title": "Zacznij Sprzedawać",
         "desc": "Stwórz produkty, ustaw ceny, udostępnij linki. Twój sklep jest online."
       },
-      "categoryLabel": "SZYBKI START"
+      "categoryLabel": "SZYBKI START",
+      "disclaimer": "Wymaga VPS (np. Hetzner, Mikrus, DigitalOcean) i konta Stripe."
     },
     "demo": {
       "title": "Zobacz w akcji",
@@ -3153,8 +3198,8 @@
       "stripeTestMode": "Tryb testowy Stripe, bez prawdziwych opłat"
     },
     "tax": {
-      "title": "Twoje konto Stripe, Twoje pieniądze",
-      "subtitle": "Platformy Merchant of Record pobierają 5-10%, a dane Twoich klientów są na ich platformie. Z Sellf płatności trafiają bezpośrednio na Twoje konto Stripe.",
+      "title": "Podatki rosną razem z Twoim biznesem",
+      "subtitle": "Stripe ogarnia większość. Zaczynasz prosto i tylko dorzucasz komplikację, gdy przychody na to wymuszą.",
       "morTitle": "Merchant of Record",
       "morSubtitle": "Paddle, LemonSqueezy, Gumroad",
       "morPlatformFees": "Opłaty platformy",
@@ -3170,14 +3215,14 @@
       "sellfDataOwnership": "Dane klientów należą do Ciebie",
       "sellfTaxThresholds": "Korzystasz z własnych progów podatkowych",
       "sellfSelfHosted": "Self-hosted. Brak ryzyka platformy",
-      "taxGrowthTitle": "Obowiązki podatkowe rosną razem z Twoim biznesem",
+      "taxGrowthTitle": "Wjeżdżasz w temat podatków stopniowo",
       "taxStep1Title": "Na start",
-      "taxStep1Desc": "Poniżej €10 000 sprzedaży transgranicznej w UE. Rozliczasz VAT tylko w swoim kraju",
+      "taxStep1Desc": "Sprzedajesz poniżej 10 000 € / rok do innych krajów UE? Rozliczasz VAT tylko w Polsce. Nic dodatkowego nie musisz robić.",
       "taxStep2Title": "Wzrost",
-      "taxStep2Desc": "Powyżej €10 000. Rejestracja w EU OSS (jeden formularz) i włączenie Stripe Tax (+0,5%) do automatycznej kalkulacji VAT",
-      "taxStep3Title": "Skalowanie",
-      "taxStep3Desc": "Opcjonalnie: Stripe Managed Payments (Stripe jako MoR) lub biuro rachunkowe do pełnej obsługi",
-      "taxDisclaimer": "Powyższe informacje mają charakter ogólny i nie stanowią porady podatkowej ani prawnej. Obowiązki podatkowe zależą od kraju, formy działalności i przychodów. Skonsultuj się z doradcą podatkowym.",
+      "taxStep2Desc": "Przekroczyłeś 10 000 € / rok zagranicy? Rejestrujesz się raz w EU OSS i włączasz Stripe Tax (+0,5%) — Sellf przelicza VAT automatycznie.",
+      "taxStep3Title": "Skala",
+      "taxStep3Desc": "Opcjonalnie: oddajesz księgowość biurze albo przełączasz się na Stripe Managed Payments. Sam decydujesz kiedy.",
+      "taxDisclaimer": "Informacje ogólne, nie porada podatkowa ani prawna. Przed startem skonsultuj się z księgową.",
       "recommended": "Polecane",
       "categoryLabel": "PŁATNOŚCI"
     },
@@ -3201,7 +3246,8 @@
         "db": "Zarządzana baza danych",
         "deploy": "Wdrożenia bez przestojów",
         "price": "~17-56 zł/mies",
-        "specs": "2-rdzeniowy CPU, 8GB RAM, 100GB NVMe"
+        "specs": "2-rdzeniowy CPU, 8GB RAM, 100GB NVMe",
+        "mcpReady": "Serwer MCP (integracja z Claude Desktop)"
       },
       "demoPrompt": "Chcesz najpierw zobaczyć w akcji?",
       "demoPromptSubtitle": "Przejrzyj panel admina, przetestuj checkout kartami testowymi Stripe i zobacz przykładowe produkty. Bez instalacji.",
@@ -3245,11 +3291,19 @@
         "desc": "CDN i hosting wideo"
       },
       "viewStack": "Zobacz pełny stack na GitHub",
-      "categoryLabel": "TECHNOLOGIA"
+      "categoryLabel": "TECHNOLOGIA",
+      "mcp": {
+        "name": "MCP",
+        "desc": "Integracja z Claude Desktop przez serwer MCP (45 narzędzi)"
+      },
+      "bun": {
+        "name": "Bun",
+        "desc": "Runtime + package manager — szybsze cykle dev"
+      }
     },
     "useCases": {
-      "title": "Stworzone dla twórców, programistów i przedsiębiorców",
-      "subtitle": "Cokolwiek sprzedajesz, Sellf to obsługuje",
+      "title": "Dla kogo jest Sellf",
+      "subtitle": "Jeśli sprzedajesz cyfrowo, Sellf się sprawdzi",
       "courses": {
         "title": "Kursy Online",
         "desc": "Udostępniaj kursy wideo z ograniczeniem czasowym. Prosta i skuteczna dostawa treści.",
@@ -3290,54 +3344,38 @@
       "title": "Najczęściej Zadawane Pytania",
       "items": [
         {
-          "q": "Czy to naprawdę jest darmowe? Jaki jest haczyk?",
-          "a": "Tak. Oprogramowanie jest darmowe na zawsze na licencji AGPL-3.0. Płacisz tylko za hosting (11-56 zł/mies) i opłaty Stripe (od 1,5% + 1 zł). Bez opłat platformy, bez abonamentów, bez lock-in."
+          "q": "Czy ogarnę to bez znajomości Linuxa?",
+          "a": "Tak. Dajemy one-line deploy script na dowolny nowoczesny VPS (DigitalOcean, Hetzner, Mikrus). Guide prowadzi krok po kroku przez SSL, backupy i wskazanie domeny. Jeśli umiesz wkleić komendę w terminalu, ogarniesz Sellfa."
         },
         {
-          "q": "Używam Gumroad. Dlaczego miałbym się przesiąść?",
-          "a": "Gumroad pobiera 10% od sprzedaży. Teachable kosztuje $39-665/mies. Sellf jest darmowy - hostujesz sam, jesteś właścicielem kodu i danych. Jedyne opłaty to prowizja Stripe za przetwarzanie płatności."
+          "q": "Ile mnie to ostatecznie kosztuje rocznie?",
+          "a": "VPS pasujący do Sellfa kosztuje 25-65 zł / mies (Hetzner CX22, DigitalOcean basic, Mikrus). Stripe bierze normalne ~3,4% od każdej transakcji. Brak abonamentu Sellf. Łącznie: ok. 300-800 zł / rok infrastruktury, niezależnie od tego ile sprzedajesz."
         },
         {
-          "q": "Nie jestem programistą. Czy dam radę to postawić?",
-          "a": "Tak. Jeśli potrafisz postępować wg instrukcji krok po kroku i wpisać kilka komend SSH, dasz radę wdrożyć Sellf. Dajemy konfiguracje Docker i szczegółowe przewodniki."
+          "q": "Co jeśli serwer padnie?",
+          "a": "Sellf robi automatyczne backupy. Padnie VPS — stawiasz nowy i odtwarzasz z ostatniego backupu, zwykle w 5 minut. Twoje konto Stripe i dane płatności nigdy nie giną (są u Stripe'a)."
         },
         {
-          "q": "Ile tak naprawdę zapłacę od każdej sprzedaży?",
-          "a": "Tylko prowizję Stripe: od 1,5% + 1 zł za karty europejskie. Żadnych opłat platformy. Platformy MoR pobierają 5-10% łącznie - znacznie więcej."
+          "q": "Co się dzieje, jeśli webhook padnie?",
+          "a": "Nieudane delivery lądują w dead-letter queue z exponential backoff. Widzisz je w panelu i jednym kliknięciem replay'ujesz dowolne."
         },
         {
-          "q": "Czy mogę dostosować to do mojej marki?",
-          "a": "Tak. AGPL-3.0 pozwala uruchamiać i modyfikować kod. Zmieniaj branding, kolory, domenę i kod; licencja white-label usuwa branding Sellf."
+          "q": "Czy mogę sterować Sellfem z Claude / agenta AI?",
+          "a": "Tak — Sellf ma własny serwer MCP: 45 narzędzi, 4 zasoby, 6 promptów. Dodajesz do Claude Desktop i prosisz: wylistuj produkty, zrób refund, ściągnij analitykę."
         },
         {
-          "q": "Czy jest wystarczająco bezpieczne dla prawdziwych klientów?",
-          "a": "Tak. Regularnie testowane penetracyjnie (280+ przypadków testowych, OWASP Top 10). RLS na każdej tabeli, szyfrowanie kluczy AES-256, webhookami HMAC, domyślnie bezpieczny CORS. Twoje klucze Stripe nie opuszczają serwera. Wbudowany panel audytu bezpieczeństwa sprawdza konfigurację automatycznie."
-        },
-        {
-          "q": "Co jeśli utknę podczas instalacji?",
-          "a": "Sprawdź dokumentację i problemy na GitHub. Każdy programista Next.js może go dostosować lub rozbudować dla Ciebie."
-        },
-        {
-          "q": "Czy poradzi sobie z ruchem, gdy zacznę rosnąć?",
-          "a": "Tak. Next.js 16 + PostgreSQL skalują się horyzontalnie. Wdróż na czymkolwiek - od VPS za ~3 zł/mies po Kubernetes. Supabase zarządza pulą połączeń."
-        },
-        {
-          "q": "Czy potrzebuję Merchant of Record?",
-          "a": "Większość małych twórców nie. Platformy MoR obsługują podatki, ale pobierają 5-10% i przywiązują dane klientów do swojej platformy. Poniżej €10 000 sprzedaży transgranicznej w UE rozliczasz VAT w swoim kraju. Własny Stripe = pełna kontrola przy od 1,5% + 1 zł. Dodaj Stripe Tax (+0,5%) gdy urośniesz."
-        },
-        {
-          "q": "Jak rozliczać VAT i podatki?",
-          "a": "Poniżej €10 000/rok sprzedaży transgranicznej B2C w UE - VAT w swoim kraju. Powyżej - rejestracja EU OSS (jeden formularz, wszystkie kraje). Stripe Tax automatyzuje kalkulację za 0,5%. Skonsultuj się z doradcą podatkowym."
+          "q": "Co z VAT / JPK / OSS w Polsce?",
+          "a": "Sellf zapisuje dane i eksportuje CSV. Pozostajesz Merchant of Record, więc masz pełną kontrolę (i swoje dane), a w VAT / OSS wchodzisz we własnym tempie."
         }
       ],
       "githubIssues": "GitHub Issues →"
     },
     "finalCta": {
       "title": "Gotowy na start?",
-      "subtitle": "Wdróż Sellf w 10 minut. Zacznij sprzedawać bez miesięcznych opłat.",
+      "subtitle": "Wdróż Sellf w 10 minut. Sprzedawaj bez miesięcznych opłat platformy.",
       "ctaDeploy": "Wdróż za 0 zł",
       "ctaGithub": "Zobacz na GitHub",
-      "trust10min": "Wdrożenie w 10 min",
+      "trust10min": "Setup w 10 min",
       "trustSourceCode": "Pełny kod źródłowy",
       "trustMIT": "Licencja MIT"
     },
@@ -3358,7 +3396,190 @@
       "terms": "Warunki",
       "cookiePreferences": "Preferencje ciasteczek",
       "copyright": "© {year} Sellf. Open source i self-hosted",
-      "whiteLabelLicense": "Licencja White-Label"
+      "whiteLabelLicense": "Licencja White-Label",
+      "llmsTxt": "llms.txt (dla agentów AI)"
+    },
+    "licenseTier": {
+      "title": "Wybierz tier dopasowany do tego, gdzie jesteś",
+      "subtitle": "Free wystarcza większości solopreneurów na zawsze. Pro zdejmuje branding i dorzuca power-userowe ficzery. Business dorzuca white-label.",
+      "categoryLabel": "Licencja",
+      "free": {
+        "name": "Free",
+        "tagline": "AGPL-3.0 open source. Bez limitów na produkty, sprzedaż, kupujących. Na zawsze.",
+        "cta": "Postaw u siebie",
+        "price": "0 zł",
+        "priceNote": "nigdy żadnej opłaty"
+      },
+      "registered": {
+        "name": "Registered",
+        "tagline": "Free + eksport CSV płatności. Rejestrujesz instalację w 30 sekund.",
+        "cta": "Zarejestruj instalację",
+        "price": "0 zł",
+        "priceNote": "darmowy upgrade"
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "Ukryj \"Powered by Sellf\", zapisuj własne motywy, większe scope'y API.",
+        "cta": "Wejdź na Pro",
+        "price": "199 zł",
+        "priceNote": "jednorazowo, dożywotnie aktualizacje"
+      },
+      "business": {
+        "name": "Business",
+        "tagline": "Komercyjna licencja white-label. Sprzedawaj Sellfa pod swoim brandem.",
+        "cta": "Pogadajmy",
+        "price": "Kontakt",
+        "priceNote": "dla resellerów"
+      },
+      "rows": {
+        "products": "Nielimitowane produkty",
+        "buyers": "Nielimitowani kupujący",
+        "payments": "Stripe + 26 walut",
+        "webhooks": "Webhooki + DLQ + retry",
+        "csvExport": "Eksport płatności do CSV",
+        "watermark": "Ukrycie \"Powered by Sellf\"",
+        "themes": "Zapis własnych motywów",
+        "apiScopes": "Większe scope'y API",
+        "whiteLabel": "Licencja white-label"
+      }
+    },
+    "embedDemo": {
+      "categoryLabel": "Embed checkout",
+      "title": "Wklejasz 1 linijkę kodu. Checkout startuje na Twojej stronie.",
+      "subtitle": "Bez ceremonii z iframe'ami, bez popupów. Stripe Embedded Checkout ładuje się w Twoim HTML.",
+      "snippetLabel": "snippet",
+      "runButton": "Uruchom snippet",
+      "copyButton": "Kopiuj",
+      "copyDone": "Skopiowane",
+      "loading": "Ładowanie checkoutu…",
+      "shopBadge": "Demo sklepu",
+      "productLabel": "Przykładowy produkt",
+      "productPrice": "129 zł",
+      "payButton": "Zapłać (demo)",
+      "demoNote": "To prezentacyjny mock. Prawdziwy flow jest w live demo."
+    },
+    "conversionStack": {
+      "categoryLabel": "Demo checkoutu",
+      "title": "Przeklikaj checkout, który widzi Twój klient.",
+      "subtitle": "Order bumpy, kupony z linku, one-time offers — wszystko na jednej stronie.",
+      "stages": {
+        "product": "1. Produkt",
+        "checkout": "2. Checkout",
+        "bump": "3. Order bump",
+        "coupon": "4. Kupon",
+        "pay": "5. Płatność",
+        "oto": "6. One-time offer",
+        "done": "Gotowe"
+      },
+      "productLabel": "Premium course bundle",
+      "productPrice": "199 zł",
+      "productCompareAt": "399 zł",
+      "productOmnibus": "Najniższa cena z 30 dni: 239 zł",
+      "ctaBuy": "Kup teraz",
+      "bumpLabel": "Dorzuć workbook PDF za 39 zł",
+      "bumpDesc": "200-stronicowy companion. Jeden tick — nie wpisujesz karty ponownie.",
+      "couponPlaceholder": "Kod kuponu",
+      "couponApply": "Aplikuj",
+      "couponBadge": "FRIENDS50 zastosowany — oszczędzasz 119 zł",
+      "couponSample": "FRIENDS50",
+      "cartLabel": "Twój koszyk",
+      "cartProduct": "Premium course bundle",
+      "cartBump": "+ Workbook PDF",
+      "cartCoupon": "FRIENDS50 (-50%)",
+      "cartTotal": "Razem",
+      "payButton": "Zapłać {amount}",
+      "paySuccess": "Płatność zakończona sukcesem",
+      "otoTitle": "One-time offer — przez najbliższe",
+      "otoCountdown": "{seconds}s",
+      "otoOfferLabel": "Dorzuć konsultację 1:1 (799 zł → 319 zł)",
+      "otoOfferDesc": "Tylko teraz. Jeden klik — Twoja karta jest już zapisana.",
+      "otoAccept": "Tak, dodaję konsultację",
+      "otoDecline": "Dziękuję, nie",
+      "downsellTitle": "Chwila — coś lżejszego?",
+      "downsellOffer": "Dorzuć nagranie Q&A za 79 zł",
+      "downsellAccept": "Tak, dodaję Q&A",
+      "downsellDecline": "Pomijam",
+      "completedTitle": "Zamówienie kompletne",
+      "completedSummary": "Koszyk się rozrósł. Większe zamówienie, ten sam wysiłek.",
+      "completedReplay": "Odpal flow ponownie",
+      "demoNote": "Demo działa w przeglądarce. Prawdziwy checkout używa Stripe Embedded Checkout, magic-link receipts i dorzuca upsell'e na zapisaną kartę — bez wpisywania jej ponownie.",
+      "couponLinkSimulate": "Otwórz z linkiem kuponowym",
+      "couponLinkActive": "shop.your-domain.com/?coupon=FRIENDS50",
+      "couponLinkInactive": "shop.your-domain.com",
+      "couponAutoBadge": "FRIENDS50 −50% — z Twojego linku",
+      "couponAutoBadgeShort": "FRIENDS50 −50% (z linku)",
+      "couponRemoveLabel": "Usuń link kuponu",
+      "couponWhy": "Sellf aplikuje kupony tylko z parametru w URL. Brak pola \"wpisz kod promo\" — chroni przed kupującymi szukającymi kodów w sieci.",
+      "couponInviteHint": "Ciekawe? Spróbuj tego checkoutu z linkiem kuponu →",
+      "endCta": "Chcesz takiego checkoutu u siebie? Postaw Sellfa w 10 min →",
+      "endCtaLink": "Postaw u siebie"
+    },
+    "loginWallDemo": {
+      "categoryLabel": "Zablokuj premium content",
+      "title": "Zablokuj dowolną stronę za swoim produktem Sellf.",
+      "subtitle": "Wklejasz jedną linijkę na istniejącą stronę kursu. Sellf sprawdza dostęp kupującego zanim treść się pokaże.",
+      "lockedTitle": "Moduł 4 — Launche zaawansowane",
+      "lockedBlurb": "Ta lekcja jest tylko dla osób, które kupiły Premium. Zaloguj się, żeby odblokować.",
+      "lockedBullet1": "Praktyczny przykład: mój 4-dniowy launch, który zrobił 38 200 zł",
+      "lockedBullet2": "Szablony maili 1-6",
+      "lockedBullet3": "Przykładowy landing (źródło Astro)",
+      "unlockButton": "Zaloguj jako kursant (demo)",
+      "lockButton": "Zablokuj ponownie",
+      "urlPlaceholder": "https://twoj-kurs.example/modul-4",
+      "unlockedHighlight": "Witaj z powrotem — Twój dostęp aktywny do 31.12.2026.",
+      "unlockedSubtle": "Bez wpisywania karty. Sellf pamięta Twój zakup.",
+      "demoNote": "W produkcji Sellf sprawdza zakup po swojej stronie zanim treść się odblokuje — snippet działa na dowolnej Twojej stronie (Astro, WordPress, zwykły HTML). Premium content jest chroniony.",
+      "endCta": "Chcesz tak zablokować swój premium content? Postaw u siebie →",
+      "endCtaLink": "Postaw Sellfa"
+    },
+    "subscriptionsDemo": {
+      "categoryLabel": "Stałe przychody",
+      "title": "Jak wygląda klient subskrypcyjny przez cały rok.",
+      "subtitle": "Zobacz jednego subskrybenta przez 12 miesięcy. Sellf ogarnia triale, ponowne próby przy odrzuconej karcie, anulowanie w panelu klienta i proporcjonalne zwroty.",
+      "productLabel": "Membership — 129 zł / mies.",
+      "trial": "Trial 7 dni",
+      "firstCharge": "Pierwsza opłata",
+      "month": "Miesiąc {n}",
+      "cardFailed": "Karta odrzucona — Sellf spróbuje jutro",
+      "cardRetrySuccess": "Ponowna próba sukces — płatność pobrana",
+      "customerCancels": "Klient anuluje w swoim panelu",
+      "proratedRefund": "Proporcjonalny zwrot za niewykorzystane dni",
+      "tags": {
+        "trial": "TRIAL",
+        "active": "ACTIVE",
+        "retrying": "RETRY",
+        "cancelled": "ANULOWANE"
+      },
+      "summary": "12 miesięcy · 11 udanych obciążeń · 1 retry · 1 cancel · 1 419 zł zebrane",
+      "playButton": "Odtwórz oś czasu",
+      "pauseButton": "Pauza",
+      "resetButton": "Resetuj",
+      "demoNote": "Subskrypcje działają na Stripe Billing — retry, panel klienta i proporcjonalne zwroty są out of the box.",
+      "endCta": "Chcesz takiej stabilnej kasy co miesiąc? Postaw u siebie →",
+      "endCtaLink": "Postaw Sellfa"
+    },
+    "objections": {
+      "categoryLabel": "Szczere odpowiedzi",
+      "title": "\"Tak, ale…\" — pogadajmy o Twoich obawach",
+      "subtitle": "Lęki, które zatrzymują większość ludzi przed opuszczeniem Gumroad. Oto co realnie się dzieje.",
+      "items": [
+        {
+          "title": "\"Nigdy nie stawiałem serwera\"",
+          "body": "One-line deploy. Wklejasz komendę, serwer się sam instaluje. Szczegółowy guide do SSL, domeny, backupów. Większość kończy w 10 minut. Jeśli umiesz wkleić komendę — ogarniesz Sellfa."
+        },
+        {
+          "title": "\"A co jak serwer padnie?\"",
+          "body": "Automatyczne backupy. Nowy VPS stawiasz w 5 minut z backupu. Twoje konto Stripe i dane płatności są u Stripe'a — nigdy nie giną."
+        },
+        {
+          "title": "\"Ile mnie to realnie kosztuje?\"",
+          "body": "VPS: 25-50 zł / mies (na zawsze). Stripe: ~3,4% od sprzedaży (brak abonamentu). Domena: 50 zł / rok. Razem: poniżej 700 zł / rok niezależnie od przychodów. Zaoszczędzasz tysiące vs Gumroad."
+        },
+        {
+          "title": "\"Czy dane kupujących są bezpieczne?\"",
+          "body": "Klucze Stripe nigdy nie wychodzą z pliku .env. Baza ma row-level security na każdej tabeli. Sellf przeszedł audyt bezpieczeństwa, ma 2 650 testów automatycznych. Dane kupujących leżą na Twoim serwerze, nie w czyjejś chmurze."
+        }
+      ]
     }
   },
   "notFound": {
