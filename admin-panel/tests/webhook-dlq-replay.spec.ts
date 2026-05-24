@@ -151,9 +151,6 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
   });
 
   test('select-all checkbox + "Replay selected" toolbar resets all DLQ rows in one click', async ({ page }) => {
-    // Auto-accept the batch confirm() dialog.
-    page.on('dialog', (dialog) => dialog.accept());
-
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 
@@ -171,6 +168,12 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
     const batchReplayBtn = page.getByRole('button', { name: /Powtórz zaznaczone|Replay selected/i });
     await expect(batchReplayBtn).toBeVisible();
     await batchReplayBtn.click();
+
+    // Confirm modal appears (in-app modal, not native confirm())
+    const modal = page.getByRole('dialog');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await expect(modal).toContainText(/Powtórzyć|Replay/i);
+    await modal.getByRole('button', { name: /^Powtórz$|^Replay$/i }).click();
 
     // After batch replay, no DLQ rows remain in the default filter view
     await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(0, {

@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWebhookDeliveries, type DeliveryFilter } from '@/hooks/useWebhookDeliveries';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
+import WebhookBatchConfirmModal from './webhooks/WebhookBatchConfirmModal';
 
 const FILTER_ORDER: DeliveryFilter[] = [
   'permanently_failed',
@@ -63,6 +64,8 @@ export default function WebhookDeliveriesPageContent() {
   const selectedArray = Array.from(visibleSelected);
   const selectedCount = selectedArray.length;
 
+  const [confirmVariant, setConfirmVariant] = useState<'replay' | 'cancel' | null>(null);
+
   return (
     <div className="space-y-4">
       <header>
@@ -94,11 +97,7 @@ export default function WebhookDeliveriesPageContent() {
           <div className="flex-1" />
           <button
             type="button"
-            onClick={() => {
-              if (confirm(t('batchReplayConfirm', { count: selectedCount }))) {
-                batchReplay(selectedArray);
-              }
-            }}
+            onClick={() => setConfirmVariant('replay')}
             disabled={batchRunning}
             className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-accent hover:bg-sf-hover disabled:opacity-50"
           >
@@ -106,11 +105,7 @@ export default function WebhookDeliveriesPageContent() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (confirm(t('batchCancelConfirm', { count: selectedCount }))) {
-                batchCancel(selectedArray);
-              }
-            }}
+            onClick={() => setConfirmVariant('cancel')}
             disabled={batchRunning}
             className="px-3 py-1.5 text-xs font-medium border border-sf-border bg-sf-base text-sf-muted hover:text-sf-danger hover:bg-sf-hover disabled:opacity-50"
           >
@@ -126,6 +121,22 @@ export default function WebhookDeliveriesPageContent() {
           </button>
         </div>
       )}
+
+      <WebhookBatchConfirmModal
+        isOpen={confirmVariant !== null}
+        variant={confirmVariant ?? 'replay'}
+        count={selectedCount}
+        busy={batchRunning}
+        onClose={() => setConfirmVariant(null)}
+        onConfirm={async () => {
+          const ids = selectedArray;
+          const variant = confirmVariant;
+          setConfirmVariant(null);
+          if (variant === 'replay') await batchReplay(ids);
+          else if (variant === 'cancel') await batchCancel(ids);
+        }}
+      />
+
 
       {loading ? (
         <div className="flex justify-center py-12">
