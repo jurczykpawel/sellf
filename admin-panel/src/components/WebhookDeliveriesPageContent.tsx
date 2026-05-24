@@ -3,7 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWebhookDeliveries, type DeliveryFilter } from '@/hooks/useWebhookDeliveries';
-import type { WebhookLog } from '@/types/webhooks';
+import { computeEligibility } from '@/lib/webhooks/selection-eligibility';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
 import WebhookBatchConfirmModal from './webhooks/WebhookBatchConfirmModal';
 
@@ -65,26 +65,10 @@ export default function WebhookDeliveriesPageContent() {
   const selectedArray = Array.from(visibleSelected);
   const selectedCount = selectedArray.length;
 
-  // Split selected ids by the action each is eligible for. Endpoint contracts:
-  //   replay      → permanently_failed only
-  //   force-retry → pending_retry only
-  //   cancel      → pending_retry only
-  const eligibleByAction = useMemo(() => {
-    const byStatus = new Map<string, WebhookLog['status']>();
-    logs.forEach((l) => byStatus.set(l.id, l.status));
-    const replayIds: string[] = [];
-    const forceRetryIds: string[] = [];
-    const cancelIds: string[] = [];
-    selectedArray.forEach((id) => {
-      const s = byStatus.get(id);
-      if (s === 'permanently_failed') replayIds.push(id);
-      else if (s === 'pending_retry') {
-        forceRetryIds.push(id);
-        cancelIds.push(id);
-      }
-    });
-    return { replayIds, forceRetryIds, cancelIds };
-  }, [logs, selectedArray]);
+  const eligibleByAction = useMemo(
+    () => computeEligibility(logs, visibleSelected),
+    [logs, visibleSelected],
+  );
 
   const [confirmVariant, setConfirmVariant] = useState<'replay' | 'force-retry' | 'cancel' | null>(null);
 
