@@ -101,6 +101,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * - available_until: string ISO date (optional)
  * - auto_grant_duration_days: number (optional)
  * - categories: string[] (optional, replaces existing categories)
+ * - tags: string[] (optional, replace-semantics — replaces all existing tags)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -269,51 +270,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Re-fetch with categories and tags to match GET response shape
-    const { data: productWithRels } = await supabase
+    const embed = parseEmbed('categories,tags');
+    const { data: productWithRels, error: refetchErr } = await supabase
       .from('products')
-      .select(`
-        ${PRODUCT_API_FIELDS},
-        product_categories (
-          category_id,
-          categories (
-            id,
-            name,
-            slug
-          )
-        ),
-        product_tags (
-          tag_id,
-          tags (
-            id,
-            name,
-            slug
-          )
-        )
-      `)
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed))
       .eq('id', id)
       .single();
+
+    if (refetchErr) {
+      console.error('[products.PATCH refetch]', refetchErr);
+    }
 
     const refreshedSlug =
       (productWithRels as { slug?: string } | null)?.slug ??
       (product as { slug?: string } | null)?.slug ??
       undefined;
 
-    if (productWithRels) {
-      const cats = productWithRels.product_categories?.map(
-        (pc: { category_id: unknown; categories: unknown }) => pc.categories
-      ) || [];
-      const tgs = productWithRels.product_tags?.map(
-        (pt: { tag_id: unknown; tags: unknown }) => pt.tags
-      ) || [];
-      const result = { ...productWithRels, categories: cats, tags: tgs, product_categories: undefined, product_tags: undefined };
-      delete result.product_categories;
-      delete result.product_tags;
-      revalidateProductCaches(refreshedSlug);
-      return jsonResponse(successResponse(result), request);
-    }
-
+    const result = productWithRels
+      ? transformEmbeddedRelations(productWithRels as unknown as Record<string, unknown>)
+      : product;
     revalidateProductCaches(refreshedSlug);
-    return jsonResponse(successResponse(product), request);
+    return jsonResponse(successResponse(result), request);
   } catch (error) {
     return handleApiError(error, request);
   }

@@ -323,7 +323,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return jsonResponse(successResponse(product), request, 201);
+    const embed = parseEmbed('categories,tags');
+    const { data: productWithRels, error: refetchErr } = await supabase
+      .from('products')
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed))
+      .eq('id', product.id)
+      .single();
+    if (refetchErr) {
+      console.error('[products.POST refetch]', refetchErr);
+    }
+    const result = productWithRels
+      ? transformEmbeddedRelations(productWithRels as unknown as Record<string, unknown>)
+      : product;
+    return jsonResponse(successResponse(result), request, 201);
   } catch (error) {
     return handleApiError(error, request);
   }

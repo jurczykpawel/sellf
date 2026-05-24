@@ -634,14 +634,12 @@ describe('Products API v1', () => {
 
     it('POST stores tag links and returns them via embed', async () => {
       const slug = uniqueSlug();
-      const { status, data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+      const { status, data } = await post<ApiResponse<{ id: string; tags?: Array<{ id: string }> }>>('/api/v1/products', {
         name: 'WT', slug, description: 'd', price: 1, tags: [tagId],
       });
       expect(status).toBe(201);
+      expect(data.data!.tags?.map((t) => t.id)).toContain(tagId);
       createdProductIds.push(data.data!.id);
-
-      const got = await get<ApiResponse<{ tags: Array<{ id: string }> }>>(`/api/v1/products/${data.data!.id}`);
-      expect(got.data.data!.tags.map((t) => t.id)).toContain(tagId);
     });
 
     it('PATCH replaces existing tags (full replace semantics)', async () => {
