@@ -1,11 +1,66 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, Play, CheckCircle } from 'lucide-react'
+import { ArrowRight, Play, CheckCircle, TrendingUp } from 'lucide-react'
 import { motion } from 'motion/react'
 import { TextReveal } from './motion/TextReveal'
+
+interface RevenueSnapshot {
+  revenue: number;
+  monthlySavings: number;
+  annualSavings: number;
+}
+
+function RevenueBadge() {
+  const t = useTranslations('landing.hero')
+  const [snapshot, setSnapshot] = useState<RevenueSnapshot | null>(null)
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<RevenueSnapshot>).detail
+      if (
+        detail &&
+        typeof detail.revenue === 'number' &&
+        typeof detail.annualSavings === 'number'
+      ) {
+        setSnapshot(detail)
+      }
+    }
+    window.addEventListener('sellf:revenue-change', handler)
+    return () => window.removeEventListener('sellf:revenue-change', handler)
+  }, [])
+
+  const usdFmt = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  })
+
+  if (!snapshot || snapshot.annualSavings <= 0) {
+    return (
+      <span className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-sf-muted">
+        <TrendingUp className="h-3 w-3" aria-hidden="true" />
+        {t('revenueBadgeIdle')}
+      </span>
+    )
+  }
+
+  return (
+    <a
+      href="#fee-comparison"
+      data-revenue-badge="active"
+      className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-sf-heading bg-sf-accent-soft border border-sf-border-accent rounded-full px-3 py-1 transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
+    >
+      <TrendingUp className="h-3 w-3" aria-hidden="true" />
+      <span>{t('revenueBadgePrefix')}</span>
+      <strong className="text-sf-accent">{usdFmt.format(snapshot.annualSavings)}</strong>
+      <span>{t('revenueBadgeSuffix')}</span>
+    </a>
+  )
+}
 
 export function HeroSection() {
   const t = useTranslations('landing')
@@ -90,6 +145,16 @@ export function HeroSection() {
           <br />
           {t('hero.subtitleBottom')}
         </motion.p>
+
+        {/* Sellf-fx #1 — revenue impact ticker driven by FeeComparison slider */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.95, duration: 0.4 }}
+          className="mb-10"
+        >
+          <RevenueBadge />
+        </motion.div>
 
         {/* CTA buttons — staggered */}
         <motion.div

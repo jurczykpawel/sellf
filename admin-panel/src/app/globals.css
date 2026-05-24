@@ -759,3 +759,53 @@ input[type="date"]:focus::-webkit-datetime-edit-year-field {
 .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
+
+/* ===== Landing redesign — microinteractions ===== */
+
+@keyframes sellf-savings-pulse {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+}
+
+.savings-pulse-active {
+  animation: sellf-savings-pulse 320ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .savings-pulse-active {
+    animation: none;
+  }
+}
+
+@keyframes sellf-tier-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.tier-shimmer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.tier-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    var(--sf-accent-soft) 50%,
+    transparent 60%
+  );
+  animation: sellf-tier-shimmer 3s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tier-shimmer::before {
+    animation: none;
+    background: var(--sf-accent-soft);
+  }
+}

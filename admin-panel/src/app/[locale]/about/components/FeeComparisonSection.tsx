@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Reveal } from '@/components/motion/Reveal';
+
+const PULSE_THRESHOLDS = [1000, 10000, 100000] as const;
 
 interface PlatformFee {
   key: string;
@@ -61,6 +63,36 @@ export function FeeComparisonSection() {
   const monthlySavings = gumroadFee - sellfFee;
   const annualSavings = monthlySavings * 12;
 
+  // Sellf-fx #1 dispatch: broadcast slider state so the hero badge can listen.
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('sellf:revenue-change', {
+        detail: { revenue, monthlySavings, annualSavings },
+      }),
+    );
+  }, [revenue, monthlySavings, annualSavings]);
+
+  // Sellf-fx #2 — savings pulse on threshold crossings (1k, 10k, 100k)
+  const savingsRef = useRef<HTMLDivElement>(null);
+  const lastBucketRef = useRef<number>(-1);
+
+  useEffect(() => {
+    const bucket = PULSE_THRESHOLDS.filter((threshold) => revenue >= threshold).length;
+    if (bucket > lastBucketRef.current && savingsRef.current) {
+      const node = savingsRef.current;
+      node.classList.remove('savings-pulse-active');
+      void node.offsetWidth;
+      node.classList.add('savings-pulse-active');
+      node.dataset.pulseState = 'pulsing';
+      const timer = window.setTimeout(() => {
+        node.dataset.pulseState = 'idle';
+      }, 340);
+      lastBucketRef.current = bucket;
+      return () => window.clearTimeout(timer);
+    }
+    lastBucketRef.current = bucket;
+  }, [revenue]);
+
   return (
     <section className="py-24 md:py-32 bg-sf-base" data-landing-section="fee-comparison">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -89,6 +121,11 @@ export function FeeComparisonSection() {
               step={1000}
               value={revenue}
               onChange={(e) => setRevenue(Number(e.target.value))}
+              aria-label={t('feeComparison.monthlyRevenue')}
+              aria-valuemin={1000}
+              aria-valuemax={100000}
+              aria-valuenow={revenue}
+              aria-valuetext={revenueFmt.format(revenue)}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-sf-accent bg-sf-raised"
             />
             <div className="flex justify-between text-xs text-sf-muted mt-1">
@@ -132,9 +169,13 @@ export function FeeComparisonSection() {
           })}
         </div>
 
-        {/* Savings highlight */}
+        {/* Savings highlight (Sellf-fx #2: pulses on revenue threshold crossings) */}
         <Reveal animation="scale" delay={200}>
-          <div className="bg-sf-success-soft border border-sf-success/20 rounded-xl p-6 text-center mt-8">
+          <div
+            ref={savingsRef}
+            data-pulse-state="idle"
+            className="bg-sf-success-soft border border-sf-success/20 rounded-xl p-6 text-center mt-8"
+          >
             <p className="text-lg font-semibold text-sf-success">
               {t('feeComparison.youSave', { amount: fmt.format(monthlySavings) })}
             </p>
