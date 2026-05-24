@@ -18,10 +18,7 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY required');
 
-// Shared admin user + API key created once by tests/api/global-setup.ts and
-// published via process.env. Reusing it here eliminates one
-// supabase.auth.admin.createUser race per `test:api` run (GoTrue
-// occasionally returns "Database error creating new user" under load).
+// Shared admin from global-setup.ts (process.env) — avoids extra createUser race.
 const SHARED_ADMIN_PASSWORD = 'TestPassword123!';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);

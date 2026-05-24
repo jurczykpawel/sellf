@@ -298,14 +298,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
   // Use platform client for public-schema operations (api_keys, admin_users, verify_api_key)
   const platformClient = createPlatformClient();
 
-  // Verify API key using database function.
-  //
-  // PostgREST occasionally returns "An invalid response was received from
-  // the upstream server" — this is a transient gateway error (Postgres
-  // connection hiccup, pool exhaustion, statement-cache invalidation),
-  // NOT an auth failure. Treating it as a missing key produces flaky 401s
-  // for legitimate API consumers. Retry up to 2× with short backoff
-  // before giving up.
+  // Retry transient PostgREST upstream errors — they're gateway hiccups, not auth failures.
   let verifyResult: Awaited<ReturnType<typeof platformClient.rpc>>['data'] = null;
   let verifyError: { message: string; code?: string } | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -359,10 +352,7 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     .eq('id', keyData.key_id)
     .single();
 
-  // api_keys.last_used_ip is typed `inet` in Postgres — writing the
-  // literal string 'unknown' raises SQL 22P02 (invalid_text_representation)
-  // and the update silently fails. Send null instead when no trusted IP
-  // can be derived (e.g. local fetch with no X-Forwarded-For).
+  // last_used_ip is inet — string 'unknown' triggers 22P02 silent fail.
   const clientIp = extractTrustedClientIp(request.headers);
 
   await platformClient

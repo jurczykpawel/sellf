@@ -111,10 +111,7 @@ async function getTestAdminUser(): Promise<string> {
 export async function createTestApiKey(): Promise<string> {
   if (testApiKey) return testApiKey;
 
-  // Prefer the key created once by global-setup.ts. Vitest forks inherit
-  // process.env, so this value is present in every test file without any
-  // additional DB round-trip. Falls back to ad-hoc creation only when
-  // running the setup helpers outside the API suite (e.g. one-off scripts).
+  // Shared key from global-setup.ts via env (forks inherit). Fallback path for one-off scripts.
   const inherited = process.env.TEST_API_KEY_PLAINTEXT;
   if (inherited) {
     testApiKey = inherited;
@@ -154,25 +151,9 @@ export async function createTestApiKey(): Promise<string> {
   return testApiKey;
 }
 
-/**
- * No-op during tests. The real cleanup happens once in globalTeardown
- * (tests/api/global-setup.ts) — running it per-file caused races: file N's
- * afterAll cleared the module-level testApiKey cache and deleted the auth
- * user, then file N+1's beforeAll raced supabase.auth.admin.createUser and
- * occasionally hit "Database error creating new user", surfacing as a flaky
- * 401 on the first API call.
- *
- * Kept as an exported function so the existing call sites in test files
- * still compile without churn.
- */
-export async function deleteTestApiKey(): Promise<void> {
-  // intentional no-op — see _globalCleanupTestApiKey
-}
+// No-op — real cleanup runs once in globalTeardown (global-setup.ts).
+export async function deleteTestApiKey(): Promise<void> {}
 
-/**
- * Globally tear down the shared admin user, admin_users row, and API key.
- * Called once by tests/api/global-setup.ts after the whole suite finishes.
- */
 export async function _globalCleanupTestApiKey(): Promise<void> {
   if (testApiKeyId) {
     await supabase.from('api_keys').delete().eq('id', testApiKeyId);
@@ -184,9 +165,7 @@ export async function _globalCleanupTestApiKey(): Promise<void> {
     testAdminUserId = null;
   }
   if (testAuthUserId) {
-    // audit_log.user_id has a FK to auth.users with no cascade, so a raw
-    // deleteUser would fail silently and leak the row. Clear the audit
-    // trail for this test user first.
+    // audit_log FK has no cascade — wipe first or deleteUser silently fails.
     await supabase.from('audit_log').delete().eq('user_id', testAuthUserId);
     await supabase.auth.admin.deleteUser(testAuthUserId);
     testAuthUserId = null;

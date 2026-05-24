@@ -117,17 +117,8 @@ describe('POST /api/consent', () => {
   // ===== LOGGING ENABLED — SUCCESSFUL INSERT =====
 
   describe('Logging enabled', () => {
-    // Use beforeEach (not beforeAll) so each it() gets a guaranteed-true
-    // setting even if a sibling describe's test or another file flipped
-    // it back. Plus verify the write landed — supabase-js upsert returning
-    // doesn't prove the row matches the desired state under contention.
+    // beforeEach + write to seller_main directly (view upsert was racy via PostgREST).
     beforeEach(async () => {
-      // Write directly to seller_main.integrations_config rather than via
-      // the public.integrations_config view — upserts through the view
-      // were occasionally invisible to the /api/consent endpoint's read
-      // even after the test-side SELECT verified the new value. Writing
-      // straight to the underlying table eliminates the view layer as a
-      // possible source of read-after-write inconsistency.
       const { error: upsertError } = await supabase
         .schema('seller_main' as never)
         .from('integrations_config')

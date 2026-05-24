@@ -79,10 +79,7 @@ describe('Users API v1', () => {
     if (productError) throw productError;
     testProductId = product.id;
 
-    // /api/v1/users reads seller_customer_stats (INNER JOIN on user_product_access
-    // ∪ payment_transactions), so a freshly-created auth user is invisible until
-    // they have at least one access row. Grant unlimited access to make the test
-    // user appear in list/search/byId responses.
+    // seller_customer_stats is INNER JOIN — test user must have an access row to show up.
     const { error: accessError } = await supabase
       .from('user_product_access')
       .insert({ user_id: testUserId, product_id: testProductId });
