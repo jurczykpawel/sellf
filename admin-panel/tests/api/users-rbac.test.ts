@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 
 const API_URL = process.env.TEST_API_URL || 'http://localhost:3777';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
@@ -18,17 +18,15 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 if (!SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY required');
 
+// Shared admin user + API key created once by tests/api/global-setup.ts and
+// published via process.env. Reusing it here eliminates one
+// supabase.auth.admin.createUser race per `test:api` run (GoTrue
+// occasionally returns "Database error creating new user" under load).
+const SHARED_ADMIN_PASSWORD = 'TestPassword123!';
+
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 // ===== Helpers =====
-
-function generateApiKey() {
-  const prefix = 'sf_test_';
-  const randomPart = randomBytes(32).toString('hex');
-  const plaintext = `${prefix}${randomPart}`;
-  const hash = createHash('sha256').update(plaintext).digest('hex');
-  return { plaintext, prefix: plaintext.substring(0, 12), hash };
-}
 
 async function apiGet(path: string, apiKey: string) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -51,8 +49,10 @@ async function apiPost(path: string, body: unknown, apiKey: string) {
 
 // ===== Test state =====
 
+// Platform admin is the SHARED admin from global-setup.ts (reused across
+// all test files). We never create or delete it here — that's the
+// global setup's job.
 let platformAdminUserId: string;
-let platformAdminKeyId: string;
 let platformAdminApiKey: string;
 
 let regularUserId: string;
@@ -66,37 +66,14 @@ describe('Users API v1 — Per-Role Access Control', () => {
   beforeAll(async () => {
     const rnd = Math.random().toString(36).substring(7);
 
-    // ===== Platform admin + API key =====
-    const { data: { user: adminUser } } = await supabase.auth.admin.createUser({
-      email: `rbac-admin-${rnd}@example.com`,
-      password: 'password123',
-      email_confirm: true,
-    });
-    platformAdminUserId = adminUser!.id;
-
-    const { data: adminRecord } = await supabase
-      .from('admin_users')
-      .insert({ user_id: platformAdminUserId })
-      .select('id')
-      .single();
-
-    const adminKey = generateApiKey();
-    const { data: adminKeyRecord } = await supabase
-      .from('api_keys')
-      .insert({
-        name: `rbac-test-admin-${rnd}`,
-        key_prefix: adminKey.prefix,
-        key_hash: adminKey.hash,
-        admin_user_id: adminRecord!.id,
-        scopes: ['*'],
-        rate_limit_per_minute: 1000,
-        is_active: true,
-      })
-      .select('id')
-      .single();
-
-    platformAdminKeyId = adminKeyRecord!.id;
-    platformAdminApiKey = adminKey.plaintext;
+    // ===== Platform admin — reuse shared key from global-setup =====
+    platformAdminUserId = process.env.TEST_AUTH_USER_ID!;
+    platformAdminApiKey = process.env.TEST_API_KEY_PLAINTEXT!;
+    if (!platformAdminUserId || !platformAdminApiKey) {
+      throw new Error(
+        'Shared admin not initialized — global-setup.ts must run before this suite'
+      );
+    }
 
     // ===== Regular user (NOT admin) =====
     const { data: { user: regUser } } = await supabase.auth.admin.createUser({
@@ -133,18 +110,22 @@ describe('Users API v1 — Per-Role Access Control', () => {
   });
 
   afterAll(async () => {
-    // Cleanup API keys
-    if (platformAdminKeyId) await supabase.from('api_keys').delete().eq('id', platformAdminKeyId);
+    // Cleanup access for the buyer we created (not for the shared admin)
+    if (buyerMainUserId) {
+      await supabase.from('user_product_access').delete().eq('user_id', buyerMainUserId);
+    }
 
-    // Cleanup access
-    await supabase.from('user_product_access').delete().eq('user_id', buyerMainUserId);
+    // Cleanup audit_log for our auth users (audit_log_user_id_fkey has no
+    // cascade — deleteUser would 500 silently otherwise).
+    const ourUserIds = [regularUserId, buyerMainUserId].filter(Boolean);
+    if (ourUserIds.length > 0) {
+      await supabase.from('audit_log').delete().in('user_id', ourUserIds);
+    }
 
-    // Cleanup admin
-    await supabase.from('admin_users').delete().eq('user_id', platformAdminUserId);
-
-    // Cleanup auth users
-    for (const uid of [platformAdminUserId, regularUserId, buyerMainUserId]) {
-      if (uid) await supabase.auth.admin.deleteUser(uid);
+    // Delete auth users we created (NOT the shared platform admin —
+    // global-setup teardown handles that).
+    for (const uid of ourUserIds) {
+      await supabase.auth.admin.deleteUser(uid);
     }
   });
 
@@ -255,9 +236,10 @@ describe('Users API v1 — Per-Role Access Control', () => {
     }
 
     beforeAll(async () => {
-      await supabase.auth.admin.updateUserById(platformAdminUserId, { password: 'password123' });
+      // Shared admin already has SHARED_ADMIN_PASSWORD from global-setup —
+      // no need to update.
       const email = (await supabase.auth.admin.getUserById(platformAdminUserId)).data.user!.email!;
-      platformCookie = await getCookie(email, 'password123');
+      platformCookie = await getCookie(email, SHARED_ADMIN_PASSWORD);
     });
 
     it('can list users via session', async () => {
@@ -332,14 +314,12 @@ describe('Users API v1 — Per-Role Access Control', () => {
     let regularCookie: string;
 
     beforeAll(async () => {
-      // Set passwords for session login
-      await supabase.auth.admin.updateUserById(platformAdminUserId, { password: 'password123' });
-      await supabase.auth.admin.updateUserById(regularUserId, { password: 'password123' });
-
+      // Regular user already created with password 'password123' in outer beforeAll.
+      // Shared admin already has SHARED_ADMIN_PASSWORD from global-setup.
       const platformEmail = (await supabase.auth.admin.getUserById(platformAdminUserId)).data.user!.email!;
       const regularEmail = (await supabase.auth.admin.getUserById(regularUserId)).data.user!.email!;
 
-      platformCookie = await getCookie(platformEmail, 'password123');
+      platformCookie = await getCookie(platformEmail, SHARED_ADMIN_PASSWORD);
       regularCookie = await getCookie(regularEmail, 'password123');
     });
 
@@ -393,7 +373,7 @@ describe('Users API v1 — Per-Role Access Control', () => {
 
     beforeAll(async () => {
       const platformEmail = (await supabase.auth.admin.getUserById(platformAdminUserId)).data.user!.email!;
-      platformCookie = await getCookie(platformEmail, 'password123');
+      platformCookie = await getCookie(platformEmail, SHARED_ADMIN_PASSWORD);
     });
 
     it('platform admin can list user access', async () => {
