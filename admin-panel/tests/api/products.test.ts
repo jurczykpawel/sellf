@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { get, post, patch, del, testData, cleanup, deleteTestApiKey, API_URL } from './setup';
+import { get, post, patch, del, testData, cleanup, deleteTestApiKey, API_URL, supabaseAdmin } from './setup';
 
 interface Product {
   id: string;
@@ -488,6 +488,74 @@ describe('Products API v1', () => {
       expect(status).toBe(200);
       expect(Array.isArray(data.data!.categories)).toBe(true);
       expect(Array.isArray(data.data!.tags)).toBe(true);
+    });
+  });
+
+  describe('GET /api/v1/products ?category= filter', () => {
+    let catA: string;
+    let catB: string;
+    let catASlug: string;
+    let prodInA: string;
+    let prodInB: string;
+    let prodInBoth: string;
+
+    beforeAll(async () => {
+      catASlug = `cat-a-${Date.now()}`;
+      const catBSlug = `cat-b-${Date.now()}`;
+      const { data: ca, error: caErr } = await supabaseAdmin().from('categories').insert({ name: 'A', slug: catASlug }).select('id').single();
+      if (caErr) throw caErr;
+      const { data: cb, error: cbErr } = await supabaseAdmin().from('categories').insert({ name: 'B', slug: catBSlug }).select('id').single();
+      if (cbErr) throw cbErr;
+      catA = ca!.id; catB = cb!.id;
+
+      const make = async (cats: string[]) => {
+        const { data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+          name: 'F', slug: uniqueSlug(), description: 'd', price: 1, categories: cats,
+        });
+        const id = data.data!.id;
+        createdProductIds.push(id);
+        return id;
+      };
+      prodInA = await make([catA]);
+      prodInB = await make([catB]);
+      prodInBoth = await make([catA, catB]);
+    });
+
+    afterAll(async () => {
+      await supabaseAdmin().from('categories').delete().in('id', [catA, catB]);
+    });
+
+    it('filters by category UUID', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?category=${catA}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toEqual(expect.arrayContaining([prodInA, prodInBoth]));
+      expect(ids).not.toContain(prodInB);
+    });
+
+    it('filters by category slug (auto-detect)', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?category=${catASlug}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toEqual(expect.arrayContaining([prodInA, prodInBoth]));
+      expect(ids).not.toContain(prodInB);
+    });
+
+    it('AND-intersects when ?category=a,b (returns only prodInBoth)', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?category=${catA},${catB}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(prodInBoth);
+      expect(ids).not.toContain(prodInA);
+      expect(ids).not.toContain(prodInB);
+    });
+
+    it('returns 400 on invalid filter value', async () => {
+      const { status, data } = await get<ApiResponse<unknown>>('/api/v1/products?category=evil%20space');
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('INVALID_INPUT');
+    });
+
+    it('returns empty when category does not match any product', async () => {
+      const { data } = await get<ApiResponse<unknown[]>>('/api/v1/products?category=00000000-0000-0000-0000-000000000000');
+      expect(data.data).toEqual([]);
     });
   });
 

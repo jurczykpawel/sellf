@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 export const FILTER_MAX_VALUES = 20;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,4 +28,22 @@ export function parseCsvFilter(raw: string | null | undefined): ParsedFilter {
     }
   }
   return { ids: [...ids], slugs: [...slugs] };
+}
+
+export type FilterTable = 'categories' | 'tags';
+
+export async function resolveFilterIds(
+  supabase: SupabaseClient,
+  table: FilterTable,
+  parsed: ParsedFilter,
+): Promise<string[] | null> {
+  const ids = [...parsed.ids];
+  if (parsed.slugs.length > 0) {
+    const { data, error } = await supabase.from(table).select('id').in('slug', parsed.slugs);
+    if (error) throw error;
+    const found = (data ?? []).map((r) => r.id as string);
+    if (found.length !== parsed.slugs.length) return null;
+    ids.push(...found);
+  }
+  return ids;
 }

@@ -300,3 +300,4 @@ export async function cleanup(resources: {
  * Direct Supabase access for test setup (service role operations)
  */
 export { supabase };
+export const supabaseAdmin = () => supabase;

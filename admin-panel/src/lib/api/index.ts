@@ -64,7 +64,7 @@ export {
 } from './embed';
 
 // Filter helpers
-export { parseCsvFilter, FILTER_MAX_VALUES, type ParsedFilter } from './filters';
+export { parseCsvFilter, FILTER_MAX_VALUES, resolveFilterIds, type ParsedFilter, type FilterTable } from './filters';
 
 // API Keys
 export {

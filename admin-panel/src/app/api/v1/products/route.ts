@@ -24,6 +24,7 @@ import {
   buildProductSelect,
   transformEmbeddedRelations,
 } from '@/lib/api';
+import { parseCsvFilter, resolveFilterIds } from '@/lib/api/filters';
 import { z } from 'zod';
 import {
   validateCreateProduct,
@@ -78,6 +79,38 @@ export async function GET(request: NextRequest) {
     }
     const escapedSearch = search ? escapeIlikePattern(search) : null;
 
+    let categoryFilter;
+    try {
+      categoryFilter = parseCsvFilter(searchParams.get('category'));
+    } catch (e) {
+      return apiError(request, 'INVALID_INPUT', e instanceof Error ? e.message : 'Invalid category filter');
+    }
+
+    const categoryIds = await resolveFilterIds(supabase, 'categories', categoryFilter);
+    if (categoryIds === null) {
+      return jsonResponse(successResponse([], { cursor: null, next_cursor: null, has_more: false, limit, total: 0 }), request);
+    }
+
+    let restrictedIds: string[] | null = null;
+    if (categoryIds.length > 0) {
+      for (const cid of categoryIds) {
+        const { data: links, error: linkErr } = await supabase
+          .from('product_categories')
+          .select('product_id')
+          .eq('category_id', cid);
+        if (linkErr) {
+          console.error('[products.GET category]', linkErr);
+          return apiError(request, 'INTERNAL_ERROR', 'Failed to filter by category');
+        }
+        const matched = new Set((links ?? []).map((r) => r.product_id as string));
+        restrictedIds = restrictedIds == null ? [...matched] : restrictedIds.filter((id) => matched.has(id));
+        if (restrictedIds.length === 0) break;
+      }
+    }
+    if (restrictedIds && restrictedIds.length === 0) {
+      return jsonResponse(successResponse([], { cursor: null, next_cursor: null, has_more: false, limit, total: 0 }), request);
+    }
+
     // Count query (no cursor, no limit — accurate total for current filters)
     let countQuery = supabase
       .from('products')
@@ -90,6 +123,7 @@ export async function GET(request: NextRequest) {
     } else if (status === 'inactive') {
       countQuery = countQuery.eq('is_active', false);
     }
+    if (restrictedIds) countQuery = countQuery.in('id', restrictedIds);
     const { count } = await countQuery;
 
     // Build main query - fetch limit + 1 to detect next page
@@ -108,6 +142,8 @@ export async function GET(request: NextRequest) {
     } else if (status === 'inactive') {
       query = query.eq('is_active', false);
     }
+
+    if (restrictedIds) query = query.in('id', restrictedIds);
 
     // Apply cursor pagination
     query = applyCursorToQuery(query, cursor, sortBy, sortOrder);
