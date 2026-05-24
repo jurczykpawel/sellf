@@ -1,12 +1,16 @@
 export type EmbedKey = 'categories' | 'tags';
 const ALLOWED: ReadonlySet<EmbedKey> = new Set(['categories', 'tags']);
 
+function isEmbedKey(value: string): value is EmbedKey {
+  return ALLOWED.has(value as EmbedKey);
+}
+
 export function parseEmbed(raw: string | null | undefined): Set<EmbedKey> {
   if (!raw) return new Set();
   const out = new Set<EmbedKey>();
   for (const part of raw.split(',')) {
-    const key = part.trim() as EmbedKey;
-    if (ALLOWED.has(key)) out.add(key);
+    const trimmed = part.trim();
+    if (isEmbedKey(trimmed)) out.add(trimmed);
   }
   return out;
 }
@@ -22,24 +26,24 @@ export function buildProductSelect(baseFields: string, embed: ReadonlySet<EmbedK
   return parts.join(', ');
 }
 
-type EmbeddedRow = Record<string, unknown> & {
-  product_categories?: Array<{ category_id: unknown; categories: unknown }> | null;
-  product_tags?: Array<{ tag_id: unknown; tags: unknown }> | null;
+export interface EmbeddedCategory { id: string; name: string; slug: string; }
+export interface EmbeddedTag { id: string; name: string; slug: string; }
+
+type EmbeddedRow = {
+  product_categories?: Array<{ category_id: unknown; categories: EmbeddedCategory | null }> | null;
+  product_tags?: Array<{ tag_id: unknown; tags: EmbeddedTag | null }> | null;
 };
 
 export function transformEmbeddedRelations<T extends EmbeddedRow>(
   row: T,
-): Omit<T, 'product_categories' | 'product_tags'> & { categories?: unknown[]; tags?: unknown[] } {
+): Omit<T, 'product_categories' | 'product_tags'> & { categories?: EmbeddedCategory[]; tags?: EmbeddedTag[] } {
   const { product_categories, product_tags, ...rest } = row;
-  const out: Record<string, unknown> = { ...rest };
+  const out: Omit<T, 'product_categories' | 'product_tags'> & { categories?: EmbeddedCategory[]; tags?: EmbeddedTag[] } = { ...rest } as Omit<T, 'product_categories' | 'product_tags'>;
   if (Array.isArray(product_categories)) {
     out.categories = product_categories.map((pc) => pc.categories).filter((x) => x != null);
   }
   if (Array.isArray(product_tags)) {
     out.tags = product_tags.map((pt) => pt.tags).filter((x) => x != null);
   }
-  return out as Omit<T, 'product_categories' | 'product_tags'> & {
-    categories?: unknown[];
-    tags?: unknown[];
-  };
+  return out;
 }

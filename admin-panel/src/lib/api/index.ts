@@ -53,6 +53,16 @@ export {
   type PaginationOptions,
 } from './pagination';
 
+// Embed helpers
+export {
+  type EmbedKey,
+  type EmbeddedCategory,
+  type EmbeddedTag,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
+} from './embed';
+
 // API Keys
 export {
   API_SCOPES,
