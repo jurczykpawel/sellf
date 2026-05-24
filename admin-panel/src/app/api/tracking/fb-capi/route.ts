@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getClientIp } from '@/lib/security/client-ip';
 import {
@@ -118,14 +119,16 @@ export async function POST(request: NextRequest) {
           .map((id: string) => id.slice(0, 200))
       : [];
 
-    // Get config from database
-    const supabase = await createClient();
-
     // When a user is logged in, attribute the event to that user's email
     // instead of trusting whatever the client sent. Anonymous callers
     // fall back to the body value.
-    const { data: { user } } = await supabase.auth.getUser();
+    const userClient = await createClient();
+    const { data: { user } } = await userClient.auth.getUser();
     const userEmail = user?.email ?? bodyEmail;
+
+    // Public endpoint (anonymous frontend callers via Klaro/Pixel),
+    // so the anon-scoped client can't read integrations_config — use admin.
+    const supabase = createAdminClient();
 
     const { data: config, error: configError } = await supabase
       .from('integrations_config')
