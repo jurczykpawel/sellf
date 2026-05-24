@@ -340,11 +340,15 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     .eq('id', keyData.key_id)
     .single();
 
-  const clientIp = extractTrustedClientIp(request.headers) ?? 'unknown';
+  // api_keys.last_used_ip is typed `inet` in Postgres — writing the
+  // literal string 'unknown' raises SQL 22P02 (invalid_text_representation)
+  // and the update silently fails. Send null instead when no trusted IP
+  // can be derived (e.g. local fetch with no X-Forwarded-For).
+  const clientIp = extractTrustedClientIp(request.headers);
 
   await platformClient
     .from('api_keys')
-    .update({ last_used_ip: clientIp })
+    .update({ last_used_ip: clientIp ?? null })
     .eq('id', keyData.key_id);
 
   // Cast scopes from Json to string[]
