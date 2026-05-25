@@ -49,41 +49,43 @@ export class WebhookDispatcher {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-      // Security: callers can pass extra headers (e.g. X-Sellf-Retry), but the
-      // signature/timestamp/event/content-type headers are owned by the
-      // dispatcher and must never be overwritten by an extraHeaders entry.
-      const headers: Record<string, string> = {
-        ...(options.extraHeaders ?? {}),
-        'Content-Type': 'application/json',
-        'X-Sellf-Event': event,
-        'X-Sellf-Signature': signature,
-        'X-Sellf-Timestamp': timestamp,
-      };
-      if (options.attemptCount > 1) {
-        headers['X-Sellf-Retry-Attempt'] = String(options.attemptCount);
+      try {
+        // Security: callers can pass extra headers (e.g. X-Sellf-Retry), but the
+        // signature/timestamp/event/content-type headers are owned by the
+        // dispatcher and must never be overwritten by an extraHeaders entry.
+        const headers: Record<string, string> = {
+          ...(options.extraHeaders ?? {}),
+          'Content-Type': 'application/json',
+          'X-Sellf-Event': event,
+          'X-Sellf-Signature': signature,
+          'X-Sellf-Timestamp': timestamp,
+        };
+        if (options.attemptCount > 1) {
+          headers['X-Sellf-Retry-Attempt'] = String(options.attemptCount);
+        }
+
+        const response = await undiciFetch(endpoint.url, {
+          method: 'POST',
+          headers,
+          body: payloadString,
+          signal: controller.signal,
+          redirect: 'error',
+          dispatcher: getSsrfSafeAgent(),
+        });
+
+        const text = await response.text();
+        const trimmed = text ? text.substring(0, MAX_RESPONSE_BODY_CHARS) : '';
+
+        return {
+          ok: response.ok,
+          httpStatus: response.status,
+          responseBody: trimmed,
+          errorMessage: response.ok ? null : `HTTP ${response.status}`,
+          durationMs: Date.now() - startTime,
+        };
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      const response = await undiciFetch(endpoint.url, {
-        method: 'POST',
-        headers,
-        body: payloadString,
-        signal: controller.signal,
-        redirect: 'error',
-        dispatcher: getSsrfSafeAgent(),
-      });
-
-      clearTimeout(timeoutId);
-
-      const text = await response.text();
-      const trimmed = text ? text.substring(0, MAX_RESPONSE_BODY_CHARS) : '';
-
-      return {
-        ok: response.ok,
-        httpStatus: response.status,
-        responseBody: trimmed,
-        errorMessage: response.ok ? null : `HTTP ${response.status}`,
-        durationMs: Date.now() - startTime,
-      };
     } catch (err) {
       const error = err as Error;
       if (error.name === 'AbortError') {
