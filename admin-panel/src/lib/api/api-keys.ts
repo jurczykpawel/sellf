@@ -7,61 +7,30 @@
 
 import { createHash, randomBytes, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
 
+import {
+  API_SCOPES,
+  ALL_SCOPES,
+  WILDCARD_SCOPE,
+  scopeToI18nKey,
+  type ApiScope,
+  type WildcardScope,
+} from './scope-constants';
+
+// Re-export client-safe scope constants so existing callers can keep
+// importing from '@/lib/api/api-keys'. The runtime helpers below depend
+// on Node crypto and must not leak into client bundles.
+export { API_SCOPES, ALL_SCOPES, WILDCARD_SCOPE, scopeToI18nKey };
+export type { ApiScope, WildcardScope };
+
 // Key format: sf_{env}_{random}
 // Example: sf_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
 const KEY_PREFIX_LIVE = 'sf_live_';
 const KEY_PREFIX_TEST = 'sf_test_';
 const KEY_RANDOM_LENGTH = 32; // 32 bytes = 64 hex characters
 
-// Scopes for API key permissions
-export const API_SCOPES = {
-  // Products
-  PRODUCTS_READ: 'products:read',
-  PRODUCTS_WRITE: 'products:write',
-
-  // Users
-  USERS_READ: 'users:read',
-  USERS_WRITE: 'users:write',
-
-  // Coupons
-  COUPONS_READ: 'coupons:read',
-  COUPONS_WRITE: 'coupons:write',
-
-  // Analytics (includes payment read for backward compat)
-  ANALYTICS_READ: 'analytics:read',
-
-  // Payments
-  PAYMENTS_READ: 'payments:read',
-  PAYMENTS_WRITE: 'payments:write',
-  PAYMENTS_REFUND: 'payments:refund',
-
-  // Webhooks
-  WEBHOOKS_READ: 'webhooks:read',
-  WEBHOOKS_WRITE: 'webhooks:write',
-
-  // Integrations
-  INTEGRATIONS_WRITE: 'integrations:write',
-
-  // Refund Requests
-  REFUND_REQUESTS_READ: 'refund-requests:read',
-  REFUND_REQUESTS_WRITE: 'refund-requests:write',
-
-  // System
-  SYSTEM_READ: 'system:read',
-  SYSTEM_WRITE: 'system:write',
-
-  // Full access
-  FULL_ACCESS: '*',
-} as const;
-
-export type ApiScope = typeof API_SCOPES[keyof typeof API_SCOPES];
-
-// Scope groups for common use cases
 export const SCOPE_PRESETS = {
-  // Full access to everything
-  full: [API_SCOPES.FULL_ACCESS],
+  full: [...ALL_SCOPES],
 
-  // Read-only access (for dashboards, reporting)
   readOnly: [
     API_SCOPES.PRODUCTS_READ,
     API_SCOPES.USERS_READ,
@@ -73,18 +42,15 @@ export const SCOPE_PRESETS = {
     API_SCOPES.SYSTEM_READ,
   ],
 
-  // Analytics only (for BI tools)
   analyticsOnly: [API_SCOPES.ANALYTICS_READ],
 
-  // Support (read users, read products, no write)
   support: [
     API_SCOPES.PRODUCTS_READ,
     API_SCOPES.USERS_READ,
     API_SCOPES.COUPONS_READ,
   ],
 
-  // MCP Server (typically needs full access)
-  mcp: [API_SCOPES.FULL_ACCESS],
+  mcp: [...ALL_SCOPES],
 } as const;
 
 export type ScopePreset = keyof typeof SCOPE_PRESETS;
@@ -163,18 +129,11 @@ export function isValidScope(scope: string): scope is ApiScope {
  * @returns True if the key has the required permission
  */
 export function hasScope(keyScopes: string[], requiredScope: ApiScope): boolean {
-  // Full access grants everything
-  if (keyScopes.includes(API_SCOPES.FULL_ACCESS)) {
-    return true;
-  }
-
-  // Check for exact match
   if (keyScopes.includes(requiredScope)) {
     return true;
   }
 
-  // Check if write permission implies read permission
-  // e.g., products:write includes products:read
+  // Write permission implies read permission (e.g., products:write ⇒ products:read)
   if (requiredScope.endsWith(':read')) {
     const writeScope = requiredScope.replace(':read', ':write');
     if (keyScopes.includes(writeScope)) {
@@ -183,6 +142,27 @@ export function hasScope(keyScopes: string[], requiredScope: ApiScope): boolean 
   }
 
   return false;
+}
+
+/**
+ * Expand an input scope list, resolving the wildcard marker to the full
+ * concrete scope snapshot of THIS version. Returns a new array; preserves
+ * any explicit scopes already present and removes duplicates.
+ *
+ * This is the single point where '*' becomes a concrete list. Persistence
+ * layers downstream see only explicit ApiScope values.
+ */
+export function expandScopes(input: readonly string[]): ApiScope[] {
+  if (!input.includes(WILDCARD_SCOPE)) {
+    return [...input] as ApiScope[];
+  }
+  const expanded = new Set<ApiScope>(ALL_SCOPES);
+  for (const scope of input) {
+    if (scope !== WILDCARD_SCOPE) {
+      expanded.add(scope as ApiScope);
+    }
+  }
+  return [...expanded];
 }
 
 /**
@@ -293,7 +273,6 @@ export function getScopeDescription(scope: ApiScope): string {
     [API_SCOPES.REFUND_REQUESTS_WRITE]: 'Process refund requests',
     [API_SCOPES.SYSTEM_READ]: 'View system configuration',
     [API_SCOPES.SYSTEM_WRITE]: 'Trigger system operations (upgrade)',
-    [API_SCOPES.FULL_ACCESS]: 'Full access to all resources',
   };
 
   return descriptions[scope] || scope;
@@ -305,16 +284,20 @@ import type { LicenseTier } from '@/lib/license/verify';
 import { hasFeature } from '@/lib/license/features';
 
 interface ScopeGateResult {
-  /** Final scopes to use (may be overridden to ['*'] for free tier) */
-  scopes: string[];
-  /** True if scopes were forced due to license restriction */
+  /** Final concrete scopes to persist. Never contains the wildcard marker. */
+  scopes: ApiScope[];
+  /** True if scopes were forced due to license restriction. */
   gated: boolean;
 }
 
 /**
- * Enforce license-based scope gating on API key creation.
- * Free tier: scopes locked to ['*'] (full access, no granular control).
- * Pro+: full scope customization.
+ * Enforce license-based scope gating on API key creation. Resolves the
+ * wildcard marker to an explicit snapshot — the returned `scopes` list is
+ * always concrete and safe to persist.
+ *
+ * Free tier: forced full snapshot (no granular control).
+ * Pro+ default (no scopes / empty / wildcard): full snapshot.
+ * Pro+ with explicit scopes: those scopes (wildcard, if present, is expanded).
  */
 export function enforceApiKeyScopeGate(
   tier: LicenseTier,
@@ -323,12 +306,12 @@ export function enforceApiKeyScopeGate(
   const canCustomize = hasFeature(tier, 'api-key-scopes');
 
   if (!canCustomize) {
-    return { scopes: [API_SCOPES.FULL_ACCESS], gated: true };
+    return { scopes: [...ALL_SCOPES], gated: true };
   }
 
-  const scopes = requestedScopes && requestedScopes.length > 0
-    ? requestedScopes
-    : [API_SCOPES.FULL_ACCESS];
+  if (!requestedScopes || requestedScopes.length === 0) {
+    return { scopes: [...ALL_SCOPES], gated: false };
+  }
 
-  return { scopes, gated: false };
+  return { scopes: expandScopes(requestedScopes), gated: false };
 }

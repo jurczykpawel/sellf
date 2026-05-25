@@ -1847,9 +1847,16 @@
         "couponsRead": "Coupons (Read)",
         "couponsWrite": "Coupons (Write)",
         "analyticsRead": "Analytics (Read)",
+        "paymentsRead": "Payments (Read)",
+        "paymentsWrite": "Payments (Write)",
+        "paymentsRefund": "Payments (Refund)",
         "webhooksRead": "Webhooks (Read)",
         "webhooksWrite": "Webhooks (Write)",
-        "integrationsWrite": "Integrations (Write)"
+        "integrationsWrite": "Integrations (Write)",
+        "refundRequestsRead": "Refund Requests (Read)",
+        "refundRequestsWrite": "Refund Requests (Write)",
+        "systemRead": "System (Read)",
+        "systemWrite": "System (Write)"
       },
       "scopeDescriptions": {
         "fullAccess": "Access to all resources",
@@ -1860,9 +1867,16 @@
         "couponsRead": "View coupons",
         "couponsWrite": "Create, update, delete coupons",
         "analyticsRead": "View analytics data",
+        "paymentsRead": "View payment transactions",
+        "paymentsWrite": "Update payment metadata",
+        "paymentsRefund": "Issue refunds on payment transactions",
         "webhooksRead": "View webhook configurations",
         "webhooksWrite": "Manage webhooks",
-        "integrationsWrite": "Manage integrations configuration"
+        "integrationsWrite": "Manage integrations configuration",
+        "refundRequestsRead": "View refund requests",
+        "refundRequestsWrite": "Process refund requests",
+        "systemRead": "View system configuration",
+        "systemWrite": "Trigger system operations (upgrade)"
       },
       "presets": {
         "fullAccess": "Full Access",

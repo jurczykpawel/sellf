@@ -18,8 +18,13 @@ import {
   validateScopes,
   getScopeDescription,
   enforceApiKeyScopeGate,
+  expandScopes,
+  scopeToI18nKey,
   API_SCOPES,
+  ALL_SCOPES,
+  WILDCARD_SCOPE,
   SCOPE_PRESETS,
+  type ApiScope,
 } from '@/lib/api/api-keys';
 
 describe('API Keys', () => {
@@ -122,7 +127,6 @@ describe('API Keys', () => {
       expect(isValidScope('products:read')).toBe(true);
       expect(isValidScope('products:write')).toBe(true);
       expect(isValidScope('users:read')).toBe(true);
-      expect(isValidScope('*')).toBe(true);
     });
 
     it('should return false for invalid scopes', () => {
@@ -130,6 +134,10 @@ describe('API Keys', () => {
       expect(isValidScope('products')).toBe(false);
       expect(isValidScope('')).toBe(false);
       expect(isValidScope('PRODUCTS:READ')).toBe(false);
+    });
+
+    it('should reject wildcard marker (not a stored scope)', () => {
+      expect(isValidScope(WILDCARD_SCOPE)).toBe(false);
     });
 
     it('should validate all defined API_SCOPES', () => {
@@ -140,9 +148,18 @@ describe('API Keys', () => {
   });
 
   describe('hasScope', () => {
-    it('should return true for full access scope', () => {
-      expect(hasScope(['*'], API_SCOPES.PRODUCTS_READ)).toBe(true);
-      expect(hasScope(['*'], API_SCOPES.USERS_WRITE)).toBe(true);
+    it('should NOT treat "*" as wildcard in stored scopes', () => {
+      // Storage invariant: '*' must never be a stored scope after refactor.
+      // Backend expands '*' to ALL_SCOPES at create-time; hasScope is consulted
+      // against the stored snapshot. A bare '*' in storage must not grant access.
+      expect(hasScope([WILDCARD_SCOPE], API_SCOPES.PRODUCTS_READ)).toBe(false);
+      expect(hasScope([WILDCARD_SCOPE], API_SCOPES.USERS_WRITE)).toBe(false);
+    });
+
+    it('should grant every scope when given the full snapshot (ALL_SCOPES)', () => {
+      for (const scope of ALL_SCOPES) {
+        expect(hasScope([...ALL_SCOPES], scope)).toBe(true);
+      }
     });
 
     it('should return true for exact scope match', () => {
@@ -190,8 +207,8 @@ describe('API Keys', () => {
       expect(hasAllScopes(['products:read'], [])).toBe(true);
     });
 
-    it('should work with full access', () => {
-      expect(hasAllScopes(['*'], [API_SCOPES.PRODUCTS_READ, API_SCOPES.USERS_WRITE])).toBe(true);
+    it('should work with the expanded full snapshot', () => {
+      expect(hasAllScopes([...ALL_SCOPES], [API_SCOPES.PRODUCTS_READ, API_SCOPES.USERS_WRITE])).toBe(true);
     });
   });
 
@@ -292,12 +309,17 @@ describe('API Keys', () => {
       expect(result.isValid).toBe(false);
       expect(result.invalidScopes.length).toBe(2);
     });
+
+    it('should reject the wildcard marker as a stored scope', () => {
+      const result = validateScopes([WILDCARD_SCOPE]);
+      expect(result.isValid).toBe(false);
+      expect(result.invalidScopes).toContain(WILDCARD_SCOPE);
+    });
   });
 
   describe('getScopeDescription', () => {
     it('should return description for known scopes', () => {
       expect(getScopeDescription(API_SCOPES.PRODUCTS_READ)).toBe('View products');
-      expect(getScopeDescription(API_SCOPES.FULL_ACCESS)).toBe('Full access to all resources');
     });
 
     it('should return scope itself for unknown scope', () => {
@@ -307,8 +329,9 @@ describe('API Keys', () => {
   });
 
   describe('SCOPE_PRESETS', () => {
-    it('should have full preset with full access', () => {
-      expect(SCOPE_PRESETS.full).toContain(API_SCOPES.FULL_ACCESS);
+    it('should expand full preset to explicit scope list (no wildcard)', () => {
+      expect(SCOPE_PRESETS.full).not.toContain(WILDCARD_SCOPE);
+      expect(SCOPE_PRESETS.full).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
     it('should have readOnly preset without write scopes', () => {
@@ -316,8 +339,9 @@ describe('API Keys', () => {
       expect(readOnly.every(s => s.includes('read'))).toBe(true);
     });
 
-    it('should have mcp preset with full access', () => {
-      expect(SCOPE_PRESETS.mcp).toContain(API_SCOPES.FULL_ACCESS);
+    it('should expand mcp preset to explicit scope list (no wildcard)', () => {
+      expect(SCOPE_PRESETS.mcp).not.toContain(WILDCARD_SCOPE);
+      expect(SCOPE_PRESETS.mcp).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
     it('should have support preset with limited scopes', () => {
@@ -342,8 +366,8 @@ describe('API Keys', () => {
       expect(API_SCOPES.PAYMENTS_WRITE).toBe('payments:write');
     });
 
-    it('hasScope should grant payments:write with full access', () => {
-      expect(hasScope(['*'], API_SCOPES.PAYMENTS_WRITE)).toBe(true);
+    it('hasScope should grant payments:write via the expanded full snapshot', () => {
+      expect(hasScope([...ALL_SCOPES], API_SCOPES.PAYMENTS_WRITE)).toBe(true);
     });
 
     it('hasScope should grant payments:write with explicit scope', () => {
@@ -367,15 +391,17 @@ describe('API Keys', () => {
   // ===== API KEY SCOPE GATING (LICENSE TIER) =====
 
   describe('enforceApiKeyScopeGate', () => {
-    it('should force full access for free tier regardless of requested scopes', () => {
+    it('should snapshot full access for free tier regardless of requested scopes', () => {
       const result = enforceApiKeyScopeGate('free', ['products:read', 'users:read']);
-      expect(result.scopes).toEqual(['*']);
+      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
+      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
       expect(result.gated).toBe(true);
     });
 
-    it('should force full access for free tier when no scopes requested', () => {
+    it('should snapshot full access for free tier when no scopes requested', () => {
       const result = enforceApiKeyScopeGate('free', undefined);
-      expect(result.scopes).toEqual(['*']);
+      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
+      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
       expect(result.gated).toBe(true);
     });
 
@@ -391,22 +417,152 @@ describe('API Keys', () => {
       expect(result.gated).toBe(false);
     });
 
-    it('should default to full access for pro tier when no scopes provided', () => {
+    it('should snapshot full access for pro tier when no scopes provided', () => {
       const result = enforceApiKeyScopeGate('pro', undefined);
-      expect(result.scopes).toEqual(['*']);
+      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
+      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
       expect(result.gated).toBe(false);
     });
 
-    it('should default to full access for pro tier with empty array', () => {
+    it('should snapshot full access for pro tier with empty array', () => {
       const result = enforceApiKeyScopeGate('pro', []);
-      expect(result.scopes).toEqual(['*']);
+      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
+      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
       expect(result.gated).toBe(false);
     });
 
-    it('should force full access for free tier even when full access explicitly requested', () => {
-      const result = enforceApiKeyScopeGate('free', ['*']);
-      expect(result.scopes).toEqual(['*']);
+    it('should expand wildcard input to snapshot for pro tier (defense in depth)', () => {
+      const result = enforceApiKeyScopeGate('pro', [WILDCARD_SCOPE]);
+      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
+      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
+      expect(result.gated).toBe(false);
+    });
+
+    it('should snapshot full access for free tier when wildcard explicitly requested', () => {
+      const result = enforceApiKeyScopeGate('free', [WILDCARD_SCOPE]);
+      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
+      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
       expect(result.gated).toBe(true);
+    });
+  });
+
+  // ===== EXPAND SCOPES (snapshot expansion at create-time) =====
+
+  describe('expandScopes', () => {
+    it('should expand wildcard to the full concrete scope list', () => {
+      const result = expandScopes([WILDCARD_SCOPE]);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
+      expect(result.length).toBe(ALL_SCOPES.length);
+    });
+
+    it('should expand wildcard mixed with explicit scopes without duplicates', () => {
+      const result = expandScopes([API_SCOPES.PRODUCTS_READ, WILDCARD_SCOPE]);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(new Set(result).size).toBe(result.length);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
+    });
+
+    it('should pass through explicit scopes unchanged', () => {
+      expect(expandScopes(['products:read', 'users:write'])).toEqual([
+        'products:read',
+        'users:write',
+      ]);
+    });
+
+    it('should pass through empty array unchanged', () => {
+      expect(expandScopes([])).toEqual([]);
+    });
+
+    it('should return a new array (no mutation of input)', () => {
+      const input = ['products:read'];
+      const result = expandScopes(input);
+      expect(result).not.toBe(input);
+    });
+  });
+
+  // ===== ALL_SCOPES (versioned snapshot of every defined scope) =====
+
+  describe('ALL_SCOPES', () => {
+    it('should be a non-empty array', () => {
+      expect(Array.isArray(ALL_SCOPES)).toBe(true);
+      expect(ALL_SCOPES.length).toBeGreaterThan(0);
+    });
+
+    it('should never contain the wildcard marker', () => {
+      expect(ALL_SCOPES).not.toContain(WILDCARD_SCOPE);
+    });
+
+    it('should contain every value defined in API_SCOPES', () => {
+      for (const scope of Object.values(API_SCOPES)) {
+        expect(ALL_SCOPES).toContain(scope as ApiScope);
+      }
+    });
+
+    // The DB migration `20260525140000_expand_api_key_wildcard_scopes.sql`
+    // hardcodes the snapshot of scopes known at migration time so existing
+    // rows with "*" can be backfilled deterministically. If a new scope is
+    // added later, this guard reminds us that the migration is by design
+    // a point-in-time snapshot and does NOT auto-include the new scope.
+    it('should match the snapshot list hardcoded in the wildcard-expansion migration', () => {
+      const migrationSnapshot = [
+        'products:read',
+        'products:write',
+        'users:read',
+        'users:write',
+        'coupons:read',
+        'coupons:write',
+        'analytics:read',
+        'payments:read',
+        'payments:write',
+        'payments:refund',
+        'webhooks:read',
+        'webhooks:write',
+        'integrations:write',
+        'refund-requests:read',
+        'refund-requests:write',
+        'system:read',
+        'system:write',
+      ];
+      expect([...ALL_SCOPES].sort()).toEqual([...migrationSnapshot].sort());
+    });
+  });
+
+  // ===== scopeToI18nKey =====
+
+  describe('scopeToI18nKey', () => {
+    it('should convert simple read/write scopes to camelCase', () => {
+      expect(scopeToI18nKey('products:read')).toBe('productsRead');
+      expect(scopeToI18nKey('users:write')).toBe('usersWrite');
+    });
+
+    it('should handle scopes with multiple word parts (kebab-case)', () => {
+      expect(scopeToI18nKey('refund-requests:read')).toBe('refundRequestsRead');
+      expect(scopeToI18nKey('refund-requests:write')).toBe('refundRequestsWrite');
+    });
+
+    it('should handle non-read/write action names', () => {
+      expect(scopeToI18nKey('payments:refund')).toBe('paymentsRefund');
+    });
+
+    it('should produce a unique i18n key for every concrete scope', () => {
+      const keys = ALL_SCOPES.map(scopeToI18nKey);
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+  });
+
+  // ===== WILDCARD_SCOPE (input-only marker) =====
+
+  describe('WILDCARD_SCOPE', () => {
+    it('should equal "*"', () => {
+      expect(WILDCARD_SCOPE).toBe('*');
+    });
+
+    it('should not be a member of ApiScope (never stored)', () => {
+      // ApiScope union excludes WILDCARD_SCOPE. This test is a runtime guard
+      // that the marker is not accidentally present in the storage scope set.
+      const stored: ApiScope[] = [...ALL_SCOPES];
+      expect(stored as unknown as string[]).not.toContain(WILDCARD_SCOPE);
     });
   });
 });

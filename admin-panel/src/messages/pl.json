@@ -1862,9 +1862,16 @@
         "couponsRead": "Kupony (odczyt)",
         "couponsWrite": "Kupony (zapis)",
         "analyticsRead": "Analityka (odczyt)",
+        "paymentsRead": "Płatności (odczyt)",
+        "paymentsWrite": "Płatności (zapis)",
+        "paymentsRefund": "Płatności (zwrot)",
         "webhooksRead": "Webhooki (odczyt)",
         "webhooksWrite": "Webhooki (zapis)",
-        "integrationsWrite": "Integracje (zapis)"
+        "integrationsWrite": "Integracje (zapis)",
+        "refundRequestsRead": "Wnioski o zwrot (odczyt)",
+        "refundRequestsWrite": "Wnioski o zwrot (obsługa)",
+        "systemRead": "System (odczyt)",
+        "systemWrite": "System (operacje)"
       },
       "scopeDescriptions": {
         "fullAccess": "Dostęp do wszystkich zasobów",
@@ -1875,9 +1882,16 @@
         "couponsRead": "Przeglądanie kuponów",
         "couponsWrite": "Tworzenie, aktualizacja i usuwanie kuponów",
         "analyticsRead": "Przeglądanie danych analitycznych",
+        "paymentsRead": "Przeglądanie transakcji płatniczych",
+        "paymentsWrite": "Aktualizacja metadanych płatności",
+        "paymentsRefund": "Realizacja zwrotów dla transakcji płatniczych",
         "webhooksRead": "Przeglądanie konfiguracji webhooków",
         "webhooksWrite": "Zarządzanie webhookami",
-        "integrationsWrite": "Zarządzanie konfiguracją integracji"
+        "integrationsWrite": "Zarządzanie konfiguracją integracji",
+        "refundRequestsRead": "Przeglądanie wniosków o zwrot",
+        "refundRequestsWrite": "Obsługa wniosków o zwrot",
+        "systemRead": "Przeglądanie konfiguracji systemu",
+        "systemWrite": "Uruchamianie operacji systemowych (aktualizacja)"
       },
       "presets": {
         "fullAccess": "Pełny dostęp",

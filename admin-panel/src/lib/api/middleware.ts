@@ -29,8 +29,7 @@ import {
   hashApiKey,
   hasScope,
   ApiScope,
-  API_SCOPES,
-  SCOPE_PRESETS,
+  ALL_SCOPES,
 } from './api-keys';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { extractTrustedClientIp } from '@/lib/security/client-ip';
@@ -201,7 +200,7 @@ async function authenticateViaSession(request: NextRequest): Promise<SessionAuth
           adminId: adminRecord.id,
           email: user.email,
         },
-        scopes: [API_SCOPES.FULL_ACCESS],
+        scopes: [...ALL_SCOPES],
       };
     }
 
@@ -405,7 +404,7 @@ export async function authenticate(
   // Try session auth first
   const sessionAuth = await authenticateViaSession(request);
   if (sessionAuth) {
-    // Platform admins have FULL_ACCESS
+    // Session admins receive the full scope snapshot
     if (requiredScopes && requiredScopes.length > 0) {
       for (const scope of requiredScopes) {
         if (!hasScope(sessionAuth.scopes, scope)) {

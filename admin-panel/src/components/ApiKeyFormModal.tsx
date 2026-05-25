@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 import { useTranslations } from 'next-intl';
 import { Key } from 'lucide-react';
+import {
+  ALL_SCOPES,
+  WILDCARD_SCOPE,
+  API_SCOPES,
+  scopeToI18nKey,
+} from '@/lib/api/scope-constants';
 
 interface ApiKeyFormData {
   name: string;
@@ -40,25 +46,32 @@ export default function ApiKeyFormModal({
 
   const isEditMode = !!initialData;
 
+  // Wildcard first (preset shortcut), then every concrete scope from the
+  // single source of truth. New scopes added to API_SCOPES surface here
+  // automatically; their label/description must be added to messages JSON.
   const AVAILABLE_SCOPES = [
-    { value: '*', label: t('scopes.fullAccess'), description: t('scopeDescriptions.fullAccess') },
-    { value: 'products:read', label: t('scopes.productsRead'), description: t('scopeDescriptions.productsRead') },
-    { value: 'products:write', label: t('scopes.productsWrite'), description: t('scopeDescriptions.productsWrite') },
-    { value: 'users:read', label: t('scopes.usersRead'), description: t('scopeDescriptions.usersRead') },
-    { value: 'users:write', label: t('scopes.usersWrite'), description: t('scopeDescriptions.usersWrite') },
-    { value: 'coupons:read', label: t('scopes.couponsRead'), description: t('scopeDescriptions.couponsRead') },
-    { value: 'coupons:write', label: t('scopes.couponsWrite'), description: t('scopeDescriptions.couponsWrite') },
-    { value: 'analytics:read', label: t('scopes.analyticsRead'), description: t('scopeDescriptions.analyticsRead') },
-    { value: 'webhooks:read', label: t('scopes.webhooksRead'), description: t('scopeDescriptions.webhooksRead') },
-    { value: 'webhooks:write', label: t('scopes.webhooksWrite'), description: t('scopeDescriptions.webhooksWrite') },
-    { value: 'integrations:write', label: t('scopes.integrationsWrite'), description: t('scopeDescriptions.integrationsWrite') },
+    { value: WILDCARD_SCOPE, label: t('scopes.fullAccess'), description: t('scopeDescriptions.fullAccess') },
+    ...ALL_SCOPES.map(scope => {
+      const i18n = scopeToI18nKey(scope);
+      return {
+        value: scope,
+        label: t(`scopes.${i18n}` as Parameters<typeof t>[0]),
+        description: t(`scopeDescriptions.${i18n}` as Parameters<typeof t>[0]),
+      };
+    }),
   ];
 
   const SCOPE_PRESETS = [
-    { id: 'fullAccess', name: t('presets.fullAccess'), scopes: ['*'] },
-    { id: 'readOnly', name: t('presets.readOnly'), scopes: ['products:read', 'users:read', 'coupons:read', 'analytics:read', 'webhooks:read'] },
-    { id: 'productsOnly', name: t('presets.productsOnly'), scopes: ['products:read', 'products:write'] },
-    { id: 'usersOnly', name: t('presets.usersOnly'), scopes: ['users:read', 'users:write'] },
+    { id: 'fullAccess', name: t('presets.fullAccess'), scopes: [WILDCARD_SCOPE] },
+    { id: 'readOnly', name: t('presets.readOnly'), scopes: [
+      API_SCOPES.PRODUCTS_READ,
+      API_SCOPES.USERS_READ,
+      API_SCOPES.COUPONS_READ,
+      API_SCOPES.ANALYTICS_READ,
+      API_SCOPES.WEBHOOKS_READ,
+    ] },
+    { id: 'productsOnly', name: t('presets.productsOnly'), scopes: [API_SCOPES.PRODUCTS_READ, API_SCOPES.PRODUCTS_WRITE] },
+    { id: 'usersOnly', name: t('presets.usersOnly'), scopes: [API_SCOPES.USERS_READ, API_SCOPES.USERS_WRITE] },
   ];
 
   const buildFormData = (data: ApiKeyInitialData | undefined): ApiKeyFormData => data
@@ -70,7 +83,7 @@ export default function ApiKeyFormModal({
       }
     : {
         name: '',
-        scopes: ['*'],
+        scopes: [WILDCARD_SCOPE],
         rate_limit_per_minute: 60,
         expires_at: '',
       };
@@ -90,16 +103,16 @@ export default function ApiKeyFormModal({
   }
 
   const toggleScope = (scope: string) => {
-    if (scope === '*') {
+    if (scope === WILDCARD_SCOPE) {
       setFormData(prev => ({
         ...prev,
-        scopes: prev.scopes.includes('*') ? [] : ['*']
+        scopes: prev.scopes.includes(WILDCARD_SCOPE) ? [] : [WILDCARD_SCOPE]
       }));
       return;
     }
 
     setFormData(prev => {
-      let newScopes = prev.scopes.filter(s => s !== '*');
+      let newScopes = prev.scopes.filter(s => s !== WILDCARD_SCOPE);
       if (newScopes.includes(scope)) {
         newScopes = newScopes.filter(s => s !== scope);
       } else {
@@ -117,7 +130,7 @@ export default function ApiKeyFormModal({
     e.preventDefault();
     const submitData: ApiKeyFormData = {
       name: formData.name,
-      scopes: formData.scopes.length > 0 ? formData.scopes : ['*'],
+      scopes: formData.scopes.length > 0 ? formData.scopes : [WILDCARD_SCOPE],
     };
     if (formData.rate_limit_per_minute && formData.rate_limit_per_minute !== 60) {
       submitData.rate_limit_per_minute = formData.rate_limit_per_minute;
@@ -165,7 +178,7 @@ export default function ApiKeyFormModal({
                       <label key={scope.value} className="flex items-start space-x-3">
                         <input
                           type="checkbox"
-                          checked={scope.value === '*'}
+                          checked={scope.value === WILDCARD_SCOPE}
                           disabled
                           className="mt-1 h-4 w-4 rounded border-sf-border text-sf-accent disabled:opacity-50"
                         />
@@ -219,11 +232,11 @@ export default function ApiKeyFormModal({
                           type="checkbox"
                           checked={formData.scopes.includes(scope.value)}
                           onChange={() => toggleScope(scope.value)}
-                          disabled={scope.value !== '*' && formData.scopes.includes('*')}
+                          disabled={scope.value !== WILDCARD_SCOPE && formData.scopes.includes(WILDCARD_SCOPE)}
                           className="mt-1 h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors disabled:opacity-50"
                         />
                         <div className="flex flex-col">
-                          <span className={`text-sm font-medium ${formData.scopes.includes('*') && scope.value !== '*' ? 'text-sf-muted' : 'text-sf-heading group-hover:text-sf-accent'} transition-colors`}>
+                          <span className={`text-sm font-medium ${formData.scopes.includes(WILDCARD_SCOPE) && scope.value !== WILDCARD_SCOPE ? 'text-sf-muted' : 'text-sf-heading group-hover:text-sf-accent'} transition-colors`}>
                             {scope.label}
                           </span>
                           <span className="text-xs text-sf-muted">{scope.description}</span>

@@ -21,18 +21,14 @@ interface ApiKey {
   revoked_at: string | null;
 }
 
+import { ALL_SCOPES, WILDCARD_SCOPE, scopeToI18nKey } from '@/lib/api/scope-constants';
+
+// Stored scopes resolve to the matching i18n key. The wildcard marker is
+// never persisted (resolved at create-time) but is mapped for defensive
+// rendering should a stale row ever surface.
 const SCOPE_KEY_MAP: Record<string, string> = {
-  '*': 'scopes.fullAccess',
-  'products:read': 'scopes.productsRead',
-  'products:write': 'scopes.productsWrite',
-  'users:read': 'scopes.usersRead',
-  'users:write': 'scopes.usersWrite',
-  'coupons:read': 'scopes.couponsRead',
-  'coupons:write': 'scopes.couponsWrite',
-  'analytics:read': 'scopes.analyticsRead',
-  'webhooks:read': 'scopes.webhooksRead',
-  'webhooks:write': 'scopes.webhooksWrite',
-  'integrations:write': 'scopes.integrationsWrite',
+  [WILDCARD_SCOPE]: 'scopes.fullAccess',
+  ...Object.fromEntries(ALL_SCOPES.map(scope => [scope, `scopes.${scopeToI18nKey(scope)}`])),
 };
 
 export default function ApiKeysPageContent({ scopesLocked = false }: { scopesLocked?: boolean }) {

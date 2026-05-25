@@ -97,7 +97,9 @@ export async function GET(request: NextRequest) {
  *
  * Request body:
  * - name: string (required) - Descriptive name for the key
- * - scopes: string[] (optional) - Array of permission scopes, defaults to ["*"]
+ * - scopes: string[] (optional) - Array of permission scopes; "*" expands to
+ *   every scope known at creation time and is persisted as an explicit list
+ *   (new scopes added in later versions are NOT auto-granted). Defaults to ["*"].
  * - rate_limit_per_minute: number (optional) - Rate limit, default 60
  * - expires_at: string ISO date (optional) - Expiration date
  */
@@ -122,19 +124,18 @@ export async function POST(request: NextRequest) {
       throw new ApiValidationError('Name must be less than 100 characters');
     }
 
-    // License-based scope gating: free tier = locked to ['*']
+    // License-based gating + wildcard expansion. The returned `scopes` is a
+    // concrete snapshot — '*' is never persisted.
     const tier = await resolveCurrentTier();
-    const scopeGate = enforceApiKeyScopeGate(tier, body.scopes);
-    const scopes = scopeGate.scopes;
+    const { scopes } = enforceApiKeyScopeGate(tier, body.scopes);
 
-    // Only validate custom scopes (gated scopes are always valid)
-    if (!scopeGate.gated) {
-      const scopeValidation = validateScopes(scopes);
-      if (!scopeValidation.isValid) {
-        throw new ApiValidationError(
-          `Invalid scopes: ${scopeValidation.invalidScopes.join(', ')}`
-        );
-      }
+    // Defense in depth: validate the post-expansion list. If a future change
+    // ever lets a non-concrete scope leak through gating, this catches it.
+    const scopeValidation = validateScopes(scopes);
+    if (!scopeValidation.isValid) {
+      throw new ApiValidationError(
+        `Invalid scopes: ${scopeValidation.invalidScopes.join(', ')}`
+      );
     }
 
     // Validate rate limit
