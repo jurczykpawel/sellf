@@ -97,9 +97,10 @@ export const CreateApiKeyResponseSchema = z.object({
 // Update API Key
 // ============================================================================
 
+// `scopes` is intentionally NOT updatable: each key carries the snapshot
+// it was issued with. To change a key's scopes, rotate or re-issue it.
 export const UpdateApiKeySchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  scopes: z.array(ApiScopeSchema).optional(),
   rate_limit_per_minute: z.number().int().min(1).max(1000).optional(),
   is_active: z.boolean().optional(),
 }).openapi('UpdateApiKeyRequest');

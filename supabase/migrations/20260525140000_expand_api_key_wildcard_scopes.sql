@@ -77,4 +77,8 @@ ALTER TABLE api_keys
     'system:write'
   );
 
+-- Replace the stale column comment that still documents wildcard semantics.
+COMMENT ON COLUMN api_keys.scopes IS
+  'JSONB array of explicit scope strings. The "*" wildcard is never persisted: it is expanded to the current scope snapshot at key-creation time (see expandScopes in admin-panel/src/lib/api/api-keys.ts).';
+
 COMMIT;

@@ -391,58 +391,52 @@ describe('API Keys', () => {
   // ===== API KEY SCOPE GATING (LICENSE TIER) =====
 
   describe('enforceApiKeyScopeGate', () => {
-    it('should snapshot full access for free tier regardless of requested scopes', () => {
-      const result = enforceApiKeyScopeGate('free', ['products:read', 'users:read']);
-      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
-      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
-      expect(result.gated).toBe(true);
+    it('should honor a narrower request from free tier (least privilege)', () => {
+      // Free tier UI locks scope selection, but if a free-tier admin bypasses
+      // the form and asks for fewer scopes explicitly, the backend must
+      // honor that. Forcing the request wider violates least-privilege.
+      const result = enforceApiKeyScopeGate('free', ['products:read']);
+      expect(result).toEqual(['products:read']);
     });
 
     it('should snapshot full access for free tier when no scopes requested', () => {
       const result = enforceApiKeyScopeGate('free', undefined);
-      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
-      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
-      expect(result.gated).toBe(true);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
     it('should allow custom scopes for pro tier', () => {
       const result = enforceApiKeyScopeGate('pro', ['products:read', 'analytics:read']);
-      expect(result.scopes).toEqual(['products:read', 'analytics:read']);
-      expect(result.gated).toBe(false);
+      expect(result).toEqual(['products:read', 'analytics:read']);
     });
 
     it('should allow custom scopes for business tier', () => {
       const result = enforceApiKeyScopeGate('business', ['users:write']);
-      expect(result.scopes).toEqual(['users:write']);
-      expect(result.gated).toBe(false);
+      expect(result).toEqual(['users:write']);
     });
 
     it('should snapshot full access for pro tier when no scopes provided', () => {
       const result = enforceApiKeyScopeGate('pro', undefined);
-      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
-      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
-      expect(result.gated).toBe(false);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
     it('should snapshot full access for pro tier with empty array', () => {
       const result = enforceApiKeyScopeGate('pro', []);
-      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
-      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
-      expect(result.gated).toBe(false);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
     it('should expand wildcard input to snapshot for pro tier (defense in depth)', () => {
       const result = enforceApiKeyScopeGate('pro', [WILDCARD_SCOPE]);
-      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
-      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
-      expect(result.gated).toBe(false);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
-    it('should snapshot full access for free tier when wildcard explicitly requested', () => {
+    it('should expand wildcard input to snapshot for free tier', () => {
       const result = enforceApiKeyScopeGate('free', [WILDCARD_SCOPE]);
-      expect(result.scopes).not.toContain(WILDCARD_SCOPE);
-      expect(result.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
-      expect(result.gated).toBe(true);
+      expect(result).not.toContain(WILDCARD_SCOPE);
+      expect(result).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
   });
 
@@ -478,6 +472,18 @@ describe('API Keys', () => {
       const input = ['products:read'];
       const result = expandScopes(input);
       expect(result).not.toBe(input);
+    });
+
+    it('should reject unknown scope strings at the boundary', () => {
+      // The signature claims ApiScope[]; back the claim at runtime instead
+      // of trusting upstream validation. Garbage must never reach storage.
+      expect(() => expandScopes(['products:read', 'admin:everything']))
+        .toThrow(/Invalid scope/);
+    });
+
+    it('should reject unknown scope strings even when wildcard expands the rest', () => {
+      expect(() => expandScopes([WILDCARD_SCOPE, 'admin:everything']))
+        .toThrow(/Invalid scope/);
     });
   });
 

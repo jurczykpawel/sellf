@@ -124,13 +124,14 @@ export async function POST(request: NextRequest) {
       throw new ApiValidationError('Name must be less than 100 characters');
     }
 
-    // License-based gating + wildcard expansion. The returned `scopes` is a
-    // concrete snapshot — '*' is never persisted.
+    // Resolve scopes: wildcard expansion + per-tier policy. The returned
+    // list is concrete (no '*') and validated; '*' is never persisted.
     const tier = await resolveCurrentTier();
-    const { scopes } = enforceApiKeyScopeGate(tier, body.scopes);
+    const scopes = enforceApiKeyScopeGate(tier, body.scopes);
 
-    // Defense in depth: validate the post-expansion list. If a future change
-    // ever lets a non-concrete scope leak through gating, this catches it.
+    // Defense in depth: validate after gating. expandScopes already throws
+    // on unknown values, but this also catches any future code path that
+    // returns scopes without going through expansion.
     const scopeValidation = validateScopes(scopes);
     if (!scopeValidation.isValid) {
       throw new ApiValidationError(

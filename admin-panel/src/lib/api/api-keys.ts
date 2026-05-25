@@ -15,6 +15,7 @@ import {
   type ApiScope,
   type WildcardScope,
 } from './scope-constants';
+import { ApiValidationError } from './errors';
 
 // Re-export client-safe scope constants so existing callers can keep
 // importing from '@/lib/api/api-keys'. The runtime helpers below depend
@@ -146,23 +147,30 @@ export function hasScope(keyScopes: string[], requiredScope: ApiScope): boolean 
 
 /**
  * Expand an input scope list, resolving the wildcard marker to the full
- * concrete scope snapshot of THIS version. Returns a new array; preserves
- * any explicit scopes already present and removes duplicates.
+ * concrete scope snapshot of THIS version. Returns a new array of valid
+ * ApiScope values with duplicates removed.
  *
- * This is the single point where '*' becomes a concrete list. Persistence
- * layers downstream see only explicit ApiScope values.
+ * Every non-wildcard entry is validated against `isValidScope` and an
+ * `ApiValidationError` is thrown for unknown strings — the function's
+ * return type claims a runtime guarantee, so we back it here rather than
+ * trusting upstream validation. Persistence layers downstream see only
+ * explicit, validated ApiScope values.
  */
 export function expandScopes(input: readonly string[]): ApiScope[] {
-  if (!input.includes(WILDCARD_SCOPE)) {
-    return [...input] as ApiScope[];
-  }
-  const expanded = new Set<ApiScope>(ALL_SCOPES);
+  const out = new Set<ApiScope>();
   for (const scope of input) {
-    if (scope !== WILDCARD_SCOPE) {
-      expanded.add(scope as ApiScope);
+    if (scope === WILDCARD_SCOPE) {
+      for (const known of ALL_SCOPES) {
+        out.add(known);
+      }
+      continue;
     }
+    if (!isValidScope(scope)) {
+      throw new ApiValidationError(`Invalid scope: ${scope}`);
+    }
+    out.add(scope);
   }
-  return [...expanded];
+  return [...out];
 }
 
 /**
@@ -281,37 +289,30 @@ export function getScopeDescription(scope: ApiScope): string {
 // ===== LICENSE-GATED SCOPE CUSTOMIZATION =====
 
 import type { LicenseTier } from '@/lib/license/verify';
-import { hasFeature } from '@/lib/license/features';
-
-interface ScopeGateResult {
-  /** Final concrete scopes to persist. Never contains the wildcard marker. */
-  scopes: ApiScope[];
-  /** True if scopes were forced due to license restriction. */
-  gated: boolean;
-}
 
 /**
- * Enforce license-based scope gating on API key creation. Resolves the
- * wildcard marker to an explicit snapshot — the returned `scopes` list is
- * always concrete and safe to persist.
+ * Resolve the final, concrete scope list for a new API key.
  *
- * Free tier: forced full snapshot (no granular control).
- * Pro+ default (no scopes / empty / wildcard): full snapshot.
- * Pro+ with explicit scopes: those scopes (wildcard, if present, is expanded).
+ * - No request (undefined / empty / wildcard-only): snapshot full access
+ *   (`ALL_SCOPES`). This is the default for both UI-driven creation and
+ *   integrations that don't know which scopes they need yet.
+ * - Explicit narrower request: returned as-is (after wildcard expansion
+ *   and validation). This holds for every tier — a free-tier admin who
+ *   bypasses the locked UI and asks for `['products:read']` MUST get
+ *   exactly that list. Forcing the request wider violates least-privilege
+ *   and turns a "read-only" key into a refund/user-mutation key.
+ *
+ * The `tier` parameter is retained for the signature shape: future gating
+ * (e.g., a paid tier required for certain high-risk scopes) plugs in here
+ * without changing call-sites. Today, no scope is tier-restricted.
  */
 export function enforceApiKeyScopeGate(
-  tier: LicenseTier,
+  _tier: LicenseTier,
   requestedScopes: string[] | undefined,
-): ScopeGateResult {
-  const canCustomize = hasFeature(tier, 'api-key-scopes');
-
-  if (!canCustomize) {
-    return { scopes: [...ALL_SCOPES], gated: true };
-  }
-
+): ApiScope[] {
   if (!requestedScopes || requestedScopes.length === 0) {
-    return { scopes: [...ALL_SCOPES], gated: false };
+    return [...ALL_SCOPES];
   }
 
-  return { scopes: expandScopes(requestedScopes), gated: false };
+  return expandScopes(requestedScopes);
 }

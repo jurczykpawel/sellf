@@ -31,6 +31,7 @@ import {
   ApiScope,
   ALL_SCOPES,
 } from './api-keys';
+import { ApiAuthError, ApiValidationError } from './errors';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { extractTrustedClientIp } from '@/lib/security/client-ip';
 
@@ -476,31 +477,7 @@ export function requireScope(auth: AuthResult, scope: ApiScope): void {
   }
 }
 
-/**
- * Custom error class for API authentication errors
- */
-export class ApiAuthError extends Error {
-  code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INVALID_TOKEN' | 'RATE_LIMITED';
-
-  constructor(code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INVALID_TOKEN' | 'RATE_LIMITED', message: string) {
-    super(message);
-    this.code = code;
-    this.name = 'ApiAuthError';
-  }
-}
-
-/**
- * Custom error class for validation errors
- */
-export class ApiValidationError extends Error {
-  details?: Record<string, string[]>;
-
-  constructor(message: string, details?: Record<string, string[]>) {
-    super(message);
-    this.details = details;
-    this.name = 'ApiValidationError';
-  }
-}
+export { ApiAuthError, ApiValidationError };
 
 /**
  * Handle errors in API routes
