@@ -11,6 +11,11 @@ import type {
 
 const MAX_RESPONSE_BODY_CHARS = 5000;
 
+// replay/forceRetryNow/cancel intentionally have no tenant ownership filter:
+// Sellf is single-tenant and webhook admin actions go through API key auth
+// guarded by webhooks:write scope. If multi-tenant API keys land later, add an
+// owner check at the route layer or pass an owner predicate into these methods.
+
 // Supabase clients with different schema types can't be unified via generics.
 // This alias accepts any schema-scoped client (seller_main, seller_X, etc.).
 type SupabaseClientLike = SupabaseClient<any, any, any>;
@@ -128,7 +133,8 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
         next_retry_at: new Date().toISOString(),
         failed_permanently_at: null,
       })
-      .eq('id', deliveryId);
+      .eq('id', deliveryId)
+      .eq('status', 'permanently_failed');
     if (error) throw new Error(`replay failed: ${error.message}`);
   }
 
