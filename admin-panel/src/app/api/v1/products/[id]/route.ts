@@ -27,10 +27,9 @@ import { z } from 'zod';
 import {
   validateProductId,
   validateUpdateProduct,
-  validateUUID,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
-import { mapApiInputToProductRow } from '@/lib/api/dto/product';
+import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema } from '@/lib/api/dto/product';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
 interface RouteParams {
@@ -118,7 +117,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
     // Extract categories and tags separately
-    const { categories, tags, ...productDataRaw } = body;
+    const { categories: categoriesRaw, tags: tagsRaw, ...productDataRaw } = body;
+
+    let categories: string[] | undefined;
+    let tags: string[] | undefined;
+    try {
+      categories = ProductCategoriesSchema.parse(categoriesRaw);
+      tags = ProductTagsSchema.parse(tagsRaw);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: err.issues.map((i) => `${i.path.join('.') || '_'}: ${i.message}`),
+        });
+      }
+      throw err;
+    }
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -226,7 +239,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update categories if provided
-    if (Array.isArray(categories)) {
+    if (categories !== undefined) {
       const { error: deleteError } = await supabase
         .from('product_categories')
         .delete()
@@ -237,35 +250,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
 
       if (categories.length > 0) {
-        for (const catId of categories) {
-          const catValidation = validateUUID(String(catId));
-          if (!catValidation.isValid) {
-            return apiError(request, 'VALIDATION_ERROR', `Invalid category ID format: ${catId}`);
-          }
-        }
-
-        const categoryInserts = categories.map((catId: unknown) => ({
-          product_id: id,
-          category_id: String(catId),
-        }));
-
         const { error: catError } = await supabase
           .from('product_categories')
-          .insert(categoryInserts);
-
-        if (catError) {
-          console.error('Error adding categories:', catError);
-        }
+          .insert(categories.map((category_id) => ({ product_id: id, category_id })));
+        if (catError) console.error('[products.PATCH categories]', catError);
       }
     }
 
     // Replace tags if provided (empty array clears all)
-    if (Array.isArray(tags)) {
+    if (tags !== undefined) {
       const { error: tagDeleteErr } = await supabase.from('product_tags').delete().eq('product_id', id);
       if (tagDeleteErr) console.error('[products.PATCH tags]', tagDeleteErr);
       if (tags.length > 0) {
         const { error: linkErr } = await supabase.from('product_tags').insert(
-          tags.map((tag_id: unknown) => ({ product_id: id, tag_id: String(tag_id) })),
+          tags.map((tag_id) => ({ product_id: id, tag_id })),
         );
         if (linkErr) {
           console.error('[products.PATCH tags]', linkErr);

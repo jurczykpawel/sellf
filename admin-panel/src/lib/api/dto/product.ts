@@ -76,7 +76,6 @@ const baseShape = {
   // Post-purchase redirect (success page)
   success_redirect_url: z.string().max(2048).nullable().optional(),
   pass_params_to_redirect: z.boolean().optional(),
-  tags: z.array(z.string().uuid()).max(50).optional(),
 };
 
 export const ProductCreateDTO = z.object(baseShape).strip();
@@ -84,6 +83,9 @@ export const ProductUpdateDTO = z.object(baseShape).partial().strip();
 
 export type ProductCreateInput = z.infer<typeof ProductCreateDTO>;
 export type ProductUpdateInput = z.infer<typeof ProductUpdateDTO>;
+
+export const ProductCategoriesSchema = z.array(z.string().uuid()).max(50).optional();
+export const ProductTagsSchema = z.array(z.string().uuid()).max(50).optional();
 
 const DATE_FIELDS = ['available_from', 'available_until', 'sale_price_until'] as const;
 type DateField = (typeof DATE_FIELDS)[number];

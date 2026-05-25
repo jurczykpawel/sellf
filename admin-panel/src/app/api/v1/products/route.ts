@@ -30,10 +30,9 @@ import {
   validateCreateProduct,
   escapeIlikePattern,
   validateProductSortColumn,
-  validateUUID,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
-import { mapApiInputToProductRow } from '@/lib/api/dto/product';
+import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema } from '@/lib/api/dto/product';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -217,7 +216,21 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
     // Extract categories and tags separately
-    const { categories, tags, ...productDataRaw } = body;
+    const { categories: categoriesRaw, tags: tagsRaw, ...productDataRaw } = body;
+
+    let categories: string[] | undefined;
+    let tags: string[] | undefined;
+    try {
+      categories = ProductCategoriesSchema.parse(categoriesRaw);
+      tags = ProductTagsSchema.parse(tagsRaw);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: err.issues.map((i) => `${i.path.join('.') || '_'}: ${i.message}`),
+        });
+      }
+      throw err;
+    }
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -269,61 +282,18 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create product');
     }
 
-    // Add categories if provided
-    if (product && Array.isArray(categories) && categories.length > 50) {
-      return apiError(request, 'VALIDATION_ERROR', 'Too many categories', {
-        categories: ['A product can have at most 50 categories']
-      });
-    }
-    if (product && Array.isArray(categories) && categories.length > 0) {
-      for (const catId of categories) {
-        const catValidation = validateUUID(String(catId));
-        if (!catValidation.isValid) {
-          return apiError(request, 'VALIDATION_ERROR', `Invalid category ID format: ${catId}`);
-        }
-      }
-
-      const categoryInserts = categories.map((catId: unknown) => ({
-        product_id: product.id,
-        category_id: String(catId),
-      }));
-
+    if (product && categories && categories.length > 0) {
       const { error: catError } = await supabase
         .from('product_categories')
-        .insert(categoryInserts);
-
-      if (catError) {
-        console.error('Error adding categories:', catError);
-        // Don't fail the request, just log the error
-      }
+        .insert(categories.map((category_id) => ({ product_id: product.id, category_id })));
+      if (catError) console.error('[products.POST categories]', catError);
     }
 
-    // Add tags if provided
-    if (product && Array.isArray(tags) && tags.length > 50) {
-      return apiError(request, 'VALIDATION_ERROR', 'Too many tags', {
-        tags: ['A product can have at most 50 tags']
-      });
-    }
-    if (product && Array.isArray(tags) && tags.length > 0) {
-      for (const tagId of tags) {
-        const tagValidation = validateUUID(String(tagId));
-        if (!tagValidation.isValid) {
-          return apiError(request, 'VALIDATION_ERROR', `Invalid tag ID format: ${tagId}`);
-        }
-      }
-
-      const tagInserts = tags.map((tag_id: unknown) => ({
-        product_id: product.id,
-        tag_id: String(tag_id),
-      }));
-
+    if (product && tags && tags.length > 0) {
       const { error: tagLinkErr } = await supabase
         .from('product_tags')
-        .insert(tagInserts);
-
-      if (tagLinkErr) {
-        console.error('[products.POST tags]', tagLinkErr);
-      }
+        .insert(tags.map((tag_id) => ({ product_id: product.id, tag_id })));
+      if (tagLinkErr) console.error('[products.POST tags]', tagLinkErr);
     }
 
     const embed = parseEmbed('categories,tags');
