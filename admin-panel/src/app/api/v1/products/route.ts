@@ -20,7 +20,11 @@ import {
   applyCursorToQuery,
   validateCursor,
   API_SCOPES,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
 } from '@/lib/api';
+import { parseCsvFilter, resolveFilterIds, intersectProductIdsByMembership } from '@/lib/api/filters';
 import { z } from 'zod';
 import {
   validateCreateProduct,
@@ -33,6 +37,13 @@ import { mapApiInputToProductRow } from '@/lib/api/dto/product';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
+}
+
+function intersectNullable(a: string[] | null, b: string[] | null): string[] | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  const setB = new Set(b);
+  return a.filter((x) => setB.has(x));
 }
 
 /**
@@ -67,12 +78,45 @@ export async function GET(request: NextRequest) {
 
     // Validate sort column
     const sortBy = validateProductSortColumn(sortByRaw);
+    const embed = parseEmbed(searchParams.get('embed'));
 
     // Validate search length early
     if (search && search.length > 200) {
       return apiError(request, 'INVALID_INPUT', 'Search query must be 200 characters or less');
     }
     const escapedSearch = search ? escapeIlikePattern(search) : null;
+
+    const safeParse = (raw: string | null, label: string) => {
+      try { return parseCsvFilter(raw); }
+      catch (e) {
+        return apiError(request, 'INVALID_INPUT', e instanceof Error ? e.message : `Invalid ${label}`);
+      }
+    };
+
+    const categoryFilterRaw = safeParse(searchParams.get('category'), 'category');
+    if (categoryFilterRaw instanceof Response) return categoryFilterRaw;
+    const tagFilterRaw = safeParse(searchParams.get('tag'), 'tag');
+    if (tagFilterRaw instanceof Response) return tagFilterRaw;
+
+    const categoryIds = await resolveFilterIds(supabase, 'categories', categoryFilterRaw);
+    const tagIds = await resolveFilterIds(supabase, 'tags', tagFilterRaw);
+    if (categoryIds === null || tagIds === null) {
+      return jsonResponse(successResponse([], { cursor: null, next_cursor: null, has_more: false, limit, total: 0 }), request);
+    }
+
+    const categoryProductIds = await intersectProductIdsByMembership(supabase, categoryIds, {
+      junctionTable: 'product_categories',
+      fkColumn: 'category_id',
+    });
+    const tagProductIds = await intersectProductIdsByMembership(supabase, tagIds, {
+      junctionTable: 'product_tags',
+      fkColumn: 'tag_id',
+    });
+
+    const filteredIds = intersectNullable(categoryProductIds, tagProductIds);
+    if (filteredIds && filteredIds.length === 0) {
+      return jsonResponse(successResponse([], { cursor: null, next_cursor: null, has_more: false, limit, total: 0 }), request);
+    }
 
     // Count query (no cursor, no limit — accurate total for current filters)
     let countQuery = supabase
@@ -86,12 +130,13 @@ export async function GET(request: NextRequest) {
     } else if (status === 'inactive') {
       countQuery = countQuery.eq('is_active', false);
     }
+    if (filteredIds) countQuery = countQuery.in('id', filteredIds);
     const { count } = await countQuery;
 
     // Build main query - fetch limit + 1 to detect next page
     let query = supabase
       .from('products')
-      .select(PRODUCT_API_FIELDS);
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed));
 
     // Apply search filter
     if (escapedSearch) {
@@ -104,6 +149,8 @@ export async function GET(request: NextRequest) {
     } else if (status === 'inactive') {
       query = query.eq('is_active', false);
     }
+
+    if (filteredIds) query = query.in('id', filteredIds);
 
     // Apply cursor pagination
     query = applyCursorToQuery(query, cursor, sortBy, sortOrder);
@@ -125,14 +172,17 @@ export async function GET(request: NextRequest) {
 
     // Create pagination response
     const { items, pagination } = createPaginationResponse(
-      products || [],
+      (products || []) as unknown as Record<string, unknown>[],
       limit,
       sortBy,
       sortOrder,
       cursor
     );
 
-    return jsonResponse(successResponse(items, { ...pagination, total: count ?? undefined }), request);
+    const transformed = embed.size > 0
+      ? (items as unknown[]).map((row) => transformEmbeddedRelations(row as unknown as Record<string, unknown>))
+      : items;
+    return jsonResponse(successResponse(transformed, { ...pagination, total: count ?? undefined }), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -166,8 +216,8 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories separately
-    const { categories, ...productDataRaw } = body;
+    // Extract categories and tags separately
+    const { categories, tags, ...productDataRaw } = body;
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -245,7 +295,47 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return jsonResponse(successResponse(product), request, 201);
+    // Add tags if provided
+    if (product && Array.isArray(tags) && tags.length > 50) {
+      return apiError(request, 'VALIDATION_ERROR', 'Too many tags', {
+        tags: ['A product can have at most 50 tags']
+      });
+    }
+    if (product && Array.isArray(tags) && tags.length > 0) {
+      for (const tagId of tags) {
+        const tagValidation = validateUUID(String(tagId));
+        if (!tagValidation.isValid) {
+          return apiError(request, 'VALIDATION_ERROR', `Invalid tag ID format: ${tagId}`);
+        }
+      }
+
+      const tagInserts = tags.map((tag_id: unknown) => ({
+        product_id: product.id,
+        tag_id: String(tag_id),
+      }));
+
+      const { error: tagLinkErr } = await supabase
+        .from('product_tags')
+        .insert(tagInserts);
+
+      if (tagLinkErr) {
+        console.error('[products.POST tags]', tagLinkErr);
+      }
+    }
+
+    const embed = parseEmbed('categories,tags');
+    const { data: productWithRels, error: refetchErr } = await supabase
+      .from('products')
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed))
+      .eq('id', product.id)
+      .single();
+    if (refetchErr) {
+      console.error('[products.POST refetch]', refetchErr);
+    }
+    const result = productWithRels
+      ? transformEmbeddedRelations(productWithRels as unknown as Record<string, unknown>)
+      : product;
+    return jsonResponse(successResponse(result), request, 201);
   } catch (error) {
     return handleApiError(error, request);
   }

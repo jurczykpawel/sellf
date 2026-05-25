@@ -282,9 +282,15 @@ export async function cleanup(resources: {
   coupons?: string[];
   webhooks?: string[];
   payments?: string[];
+  tags?: string[];
   userAccess?: Array<{ userId: string; accessId: string }>;
 }) {
   const promises: Promise<unknown>[] = [];
+
+  if (resources.tags?.length) {
+    const { error } = await supabase.from('tags').delete().in('id', resources.tags);
+    if (error) console.error('[test-cleanup] tags', error);
+  }
 
   if (resources.products?.length) {
     resources.products.forEach((id) => {
@@ -317,3 +323,4 @@ export async function cleanup(resources: {
  * Direct Supabase access for test setup (service role operations)
  */
 export { supabase };
+export const supabaseAdmin = () => supabase;

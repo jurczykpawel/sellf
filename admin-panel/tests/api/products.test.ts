@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { get, post, patch, del, testData, cleanup, deleteTestApiKey, API_URL } from './setup';
+import { get, post, patch, del, testData, cleanup, deleteTestApiKey, API_URL, supabaseAdmin } from './setup';
 
 interface Product {
   id: string;
@@ -439,6 +439,236 @@ describe('Products API v1', () => {
     it('should return 400 for invalid ID format', async () => {
       const { status } = await del<ApiResponse<null>>('/api/v1/products/invalid-id');
 
+      expect(status).toBe(400);
+    });
+  });
+
+  describe('GET /api/v1/products embed param', () => {
+    it('returns NO categories/tags by default', async () => {
+      const { status, data } = await get<ApiResponse<Array<Product & Record<string, unknown>>>>('/api/v1/products?limit=1');
+      expect(status).toBe(200);
+      if (data.data!.length) {
+        expect(data.data![0]).not.toHaveProperty('categories');
+        expect(data.data![0]).not.toHaveProperty('tags');
+      }
+    });
+    it('includes categories when ?embed=categories', async () => {
+      const { status, data } = await get<ApiResponse<Array<Product & { categories?: unknown[] }>>>('/api/v1/products?limit=1&embed=categories');
+      expect(status).toBe(200);
+      if (data.data!.length) {
+        expect(data.data![0]).toHaveProperty('categories');
+        expect(Array.isArray(data.data![0].categories)).toBe(true);
+      }
+    });
+    it('includes both when ?embed=categories,tags', async () => {
+      const { data } = await get<ApiResponse<Array<Product & { categories?: unknown; tags?: unknown }>>>('/api/v1/products?limit=1&embed=categories,tags');
+      if (data.data!.length) {
+        expect(data.data![0]).toHaveProperty('categories');
+        expect(data.data![0]).toHaveProperty('tags');
+      }
+    });
+    it('ignores unknown embed keys gracefully', async () => {
+      const { status } = await get<ApiResponse<Array<Product>>>('/api/v1/products?limit=1&embed=evil');
+      expect(status).toBe(200);
+    });
+  });
+
+  describe('GET /api/v1/products/[id] embed shape', () => {
+    let createdId: string;
+    beforeAll(async () => {
+      const slug = uniqueSlug();
+      const r = await post<ApiResponse<Product & { id: string }>>('/api/v1/products', {
+        name: 'Embed shape test', slug, description: 'd', price: 1,
+      });
+      createdId = r.data.data!.id;
+      createdProductIds.push(createdId);
+    });
+    it('returns categories+tags arrays by default (single endpoint always embeds both)', async () => {
+      const { status, data } = await get<ApiResponse<Product & { categories: unknown[]; tags: unknown[] }>>(`/api/v1/products/${createdId}`);
+      expect(status).toBe(200);
+      expect(Array.isArray(data.data!.categories)).toBe(true);
+      expect(Array.isArray(data.data!.tags)).toBe(true);
+    });
+  });
+
+  describe('GET /api/v1/products ?category= filter', () => {
+    let catA: string;
+    let catB: string;
+    let catASlug: string;
+    let prodInA: string;
+    let prodInB: string;
+    let prodInBoth: string;
+
+    beforeAll(async () => {
+      catASlug = `cat-a-${Date.now()}`;
+      const catBSlug = `cat-b-${Date.now()}`;
+      const { data: ca, error: caErr } = await supabaseAdmin().from('categories').insert({ name: 'A', slug: catASlug }).select('id').single();
+      if (caErr) throw caErr;
+      const { data: cb, error: cbErr } = await supabaseAdmin().from('categories').insert({ name: 'B', slug: catBSlug }).select('id').single();
+      if (cbErr) throw cbErr;
+      catA = ca!.id; catB = cb!.id;
+
+      const make = async (cats: string[]) => {
+        const { data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+          name: 'F', slug: uniqueSlug(), description: 'd', price: 1, categories: cats,
+        });
+        const id = data.data!.id;
+        createdProductIds.push(id);
+        return id;
+      };
+      prodInA = await make([catA]);
+      prodInB = await make([catB]);
+      prodInBoth = await make([catA, catB]);
+    });
+
+    afterAll(async () => {
+      await supabaseAdmin().from('categories').delete().in('id', [catA, catB]);
+    });
+
+    it('filters by category UUID', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?category=${catA}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toEqual(expect.arrayContaining([prodInA, prodInBoth]));
+      expect(ids).not.toContain(prodInB);
+    });
+
+    it('filters by category slug (auto-detect)', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?category=${catASlug}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toEqual(expect.arrayContaining([prodInA, prodInBoth]));
+      expect(ids).not.toContain(prodInB);
+    });
+
+    it('AND-intersects when ?category=a,b (returns only prodInBoth)', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?category=${catA},${catB}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(prodInBoth);
+      expect(ids).not.toContain(prodInA);
+      expect(ids).not.toContain(prodInB);
+    });
+
+    it('returns 400 on invalid filter value', async () => {
+      const { status, data } = await get<ApiResponse<unknown>>('/api/v1/products?category=evil%20space');
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('INVALID_INPUT');
+    });
+
+    it('returns empty when category does not match any product', async () => {
+      const { data } = await get<ApiResponse<unknown[]>>('/api/v1/products?category=00000000-0000-0000-0000-000000000000');
+      expect(data.data).toEqual([]);
+    });
+  });
+
+  describe('GET /api/v1/products ?tag= filter', () => {
+    let tagA: string;
+    let tagB: string;
+    let tagASlug: string;
+    let pA: string;
+    let pB: string;
+    let pBoth: string;
+
+    beforeAll(async () => {
+      tagASlug = `tag-a-${Date.now()}`;
+      const tagBSlug = `tag-b-${Date.now()}`;
+      const r1 = await post<ApiResponse<{ id: string }>>('/api/v1/tags', { name: 'A', slug: tagASlug });
+      const r2 = await post<ApiResponse<{ id: string }>>('/api/v1/tags', { name: 'B', slug: tagBSlug });
+      tagA = r1.data.data!.id;
+      tagB = r2.data.data!.id;
+
+      const make = async (tags: string[]) => {
+        const { data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+          name: 'TF', slug: uniqueSlug(), description: 'd', price: 1,
+        });
+        const id = data.data!.id;
+        createdProductIds.push(id);
+        if (tags.length) {
+          const rows = tags.map((tag_id) => ({ product_id: id, tag_id }));
+          const { error } = await supabaseAdmin().from('product_tags').insert(rows);
+          if (error) throw error;
+        }
+        return id;
+      };
+      pA = await make([tagA]);
+      pB = await make([tagB]);
+      pBoth = await make([tagA, tagB]);
+    });
+
+    afterAll(async () => {
+      await supabaseAdmin().from('tags').delete().in('id', [tagA, tagB]);
+    });
+
+    it('filters by tag UUID', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?tag=${tagA}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toEqual(expect.arrayContaining([pA, pBoth]));
+      expect(ids).not.toContain(pB);
+    });
+    it('filters by tag slug', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?tag=${tagASlug}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(pA);
+    });
+    it('AND-intersects ?tag=a,b', async () => {
+      const { data } = await get<ApiResponse<Array<{ id: string }>>>(`/api/v1/products?tag=${tagA},${tagB}&limit=100`);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(pBoth);
+      expect(ids).not.toContain(pA);
+      expect(ids).not.toContain(pB);
+    });
+    it('returns 400 on invalid tag value', async () => {
+      const { status, data } = await get<ApiResponse<unknown>>('/api/v1/products?tag=evil%20space');
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('INVALID_INPUT');
+    });
+  });
+
+  describe('POST/PATCH /api/v1/products tags array', () => {
+    let tagId: string;
+    beforeAll(async () => {
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/tags', { name: 'Assign', slug: `assign-${Date.now()}` });
+      tagId = r.data.data!.id;
+    });
+    afterAll(async () => {
+      await supabaseAdmin().from('tags').delete().eq('id', tagId);
+    });
+
+    it('POST stores tag links and returns them via embed', async () => {
+      const slug = uniqueSlug();
+      const { status, data } = await post<ApiResponse<{ id: string; tags?: Array<{ id: string }> }>>('/api/v1/products', {
+        name: 'WT', slug, description: 'd', price: 1, tags: [tagId],
+      });
+      expect(status).toBe(201);
+      expect(data.data!.tags?.map((t) => t.id)).toContain(tagId);
+      createdProductIds.push(data.data!.id);
+    });
+
+    it('PATCH replaces existing tags (full replace semantics)', async () => {
+      const slug = uniqueSlug();
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'PT', slug, description: 'd', price: 1, tags: [tagId],
+      });
+      const pid = r.data.data!.id;
+      createdProductIds.push(pid);
+
+      await patch<ApiResponse<unknown>>(`/api/v1/products/${pid}`, { tags: [] });
+      const after = await get<ApiResponse<{ tags: unknown[] }>>(`/api/v1/products/${pid}`);
+      expect(after.data.data!.tags).toEqual([]);
+    });
+
+    it('POST rejects >50 tags', async () => {
+      const slug = uniqueSlug();
+      const bogus = Array.from({ length: 51 }, () => crypto.randomUUID());
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'TooMany', slug, description: 'd', price: 1, tags: bogus,
+      });
+      expect(status).toBe(400);
+    });
+
+    it('POST rejects non-UUID in tags array', async () => {
+      const slug = uniqueSlug();
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'Bad', slug, description: 'd', price: 1, tags: ['not-a-uuid'],
+      });
       expect(status).toBe(400);
     });
   });

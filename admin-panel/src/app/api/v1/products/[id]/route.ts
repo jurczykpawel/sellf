@@ -19,6 +19,9 @@ import {
   ApiValidationError,
   successResponse,
   API_SCOPES,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
 } from '@/lib/api';
 import { z } from 'zod';
 import {
@@ -55,45 +58,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
-    // Fetch product with categories
+    const embedParam = request.nextUrl.searchParams.get('embed') ?? 'categories,tags';
+    const embed = parseEmbed(embedParam);
+    const selectFields = buildProductSelect(PRODUCT_API_FIELDS, embed);
+
     const { data: product, error } = await supabase
       .from('products')
-      .select(`
-        ${PRODUCT_API_FIELDS},
-        product_categories (
-          category_id,
-          categories (
-            id,
-            name,
-            slug
-          )
-        )
-      `)
+      .select(selectFields)
       .eq('id', id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return apiError(request, 'NOT_FOUND', 'Product not found');
-      }
-      console.error('Error fetching product:', error);
+      if (error.code === 'PGRST116') return apiError(request, 'NOT_FOUND', 'Product not found');
+      console.error('[products.GET]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product');
     }
 
-    // Transform product_categories to simpler structure
-    const categories = product.product_categories?.map(
-      (pc: { category_id: unknown; categories: unknown }) =>
-        pc.categories
-    ) || [];
-
-    const productWithCategories = {
-      ...product,
-      categories,
-      product_categories: undefined,
-    };
-    delete productWithCategories.product_categories;
-
-    return jsonResponse(successResponse(productWithCategories), request);
+    const result = transformEmbeddedRelations(product as unknown as Record<string, unknown>);
+    return jsonResponse(successResponse(result), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -119,6 +101,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * - available_until: string ISO date (optional)
  * - auto_grant_duration_days: number (optional)
  * - categories: string[] (optional, replaces existing categories)
+ * - tags: string[] (optional, replace-semantics — replaces all existing tags)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -134,8 +117,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories separately
-    const { categories, ...productDataRaw } = body;
+    // Extract categories and tags separately
+    const { categories, tags, ...productDataRaw } = body;
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -240,7 +223,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Update categories if provided
     if (Array.isArray(categories)) {
-      // Delete existing categories
       const { error: deleteError } = await supabase
         .from('product_categories')
         .delete()
@@ -248,10 +230,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       if (deleteError) {
         console.error('Error deleting categories:', deleteError);
-        // Don't fail the request
       }
 
-      // Insert new categories
       if (categories.length > 0) {
         for (const catId of categories) {
           const catValidation = validateUUID(String(catId));
@@ -271,45 +251,46 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
         if (catError) {
           console.error('Error adding categories:', catError);
-          // Don't fail the request
         }
       }
     }
 
-    // Re-fetch with categories to match GET response shape
-    const { data: productWithCats } = await supabase
+    // Replace tags if provided (empty array clears all)
+    if (Array.isArray(tags)) {
+      const { error: tagDeleteErr } = await supabase.from('product_tags').delete().eq('product_id', id);
+      if (tagDeleteErr) console.error('[products.PATCH tags]', tagDeleteErr);
+      if (tags.length > 0) {
+        const { error: linkErr } = await supabase.from('product_tags').insert(
+          tags.map((tag_id: unknown) => ({ product_id: id, tag_id: String(tag_id) })),
+        );
+        if (linkErr) {
+          console.error('[products.PATCH tags]', linkErr);
+        }
+      }
+    }
+
+    // Re-fetch with categories and tags to match GET response shape
+    const embed = parseEmbed('categories,tags');
+    const { data: productWithRels, error: refetchErr } = await supabase
       .from('products')
-      .select(`
-        ${PRODUCT_API_FIELDS},
-        product_categories (
-          category_id,
-          categories (
-            id,
-            name,
-            slug
-          )
-        )
-      `)
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed))
       .eq('id', id)
       .single();
 
+    if (refetchErr) {
+      console.error('[products.PATCH refetch]', refetchErr);
+    }
+
     const refreshedSlug =
-      (productWithCats as { slug?: string } | null)?.slug ??
+      (productWithRels as { slug?: string } | null)?.slug ??
       (product as { slug?: string } | null)?.slug ??
       undefined;
 
-    if (productWithCats) {
-      const cats = productWithCats.product_categories?.map(
-        (pc: { category_id: unknown; categories: unknown }) => pc.categories
-      ) || [];
-      const result = { ...productWithCats, categories: cats, product_categories: undefined };
-      delete result.product_categories;
-      revalidateProductCaches(refreshedSlug);
-      return jsonResponse(successResponse(result), request);
-    }
-
+    const result = productWithRels
+      ? transformEmbeddedRelations(productWithRels as unknown as Record<string, unknown>)
+      : product;
     revalidateProductCaches(refreshedSlug);
-    return jsonResponse(successResponse(product), request);
+    return jsonResponse(successResponse(result), request);
   } catch (error) {
     return handleApiError(error, request);
   }
