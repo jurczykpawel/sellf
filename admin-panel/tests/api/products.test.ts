@@ -664,6 +664,33 @@ describe('Products API v1', () => {
       expect(status).toBe(400);
     });
 
+    it('POST with >50 tags does not orphan a product row', async () => {
+      const slug = uniqueSlug();
+      const bogus = Array.from({ length: 51 }, () => crypto.randomUUID());
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'NoOrphan', slug, description: 'd', price: 1, tags: bogus,
+      });
+      expect(status).toBe(400);
+      const { count } = await supabaseAdmin()
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('slug', slug);
+      expect(count).toBe(0);
+    });
+
+    it('POST with non-UUID tag does not orphan a product row', async () => {
+      const slug = uniqueSlug();
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'NoOrphan2', slug, description: 'd', price: 1, tags: ['not-a-uuid'],
+      });
+      expect(status).toBe(400);
+      const { count } = await supabaseAdmin()
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('slug', slug);
+      expect(count).toBe(0);
+    });
+
     it('POST rejects non-UUID in tags array', async () => {
       const slug = uniqueSlug();
       const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
