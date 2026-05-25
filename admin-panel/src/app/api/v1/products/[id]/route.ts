@@ -162,7 +162,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .maybeSingle();
 
       if (slugCheckError) {
-        console.error('Error checking slug:', slugCheckError);
+        console.error('[products.PATCH]', slugCheckError);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to validate slug');
       }
 
@@ -232,7 +232,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching product:', fetchError);
+        console.error('[products.PATCH]', fetchError);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product');
       }
       product = currentProduct;
@@ -349,7 +349,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('product_id', id);
 
     if (catDeleteError) {
-      console.error('Error deleting product categories:', catDeleteError);
+      console.error('[products.DELETE categories]', catDeleteError);
       // Continue anyway - might not have any categories
     }
 
@@ -360,7 +360,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Error deleting product:', deleteError);
+      console.error('[products.DELETE]', deleteError);
 
       // Check for foreign key constraint violations
       if (deleteError.code === '23503') {

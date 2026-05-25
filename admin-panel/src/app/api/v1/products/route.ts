@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
     const { data: products, error } = await query;
 
     if (error) {
-      console.error('Error fetching products:', error);
+      console.error('[products.GET]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch products');
     }
 
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (slugCheckError) {
-      console.error('Error checking slug:', slugCheckError);
+      console.error('[products.POST]', slugCheckError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to validate slug');
     }
 
