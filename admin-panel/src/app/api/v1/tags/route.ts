@@ -1,3 +1,13 @@
+/**
+ * Tags API v1 — list and create.
+ *
+ * GET  /api/v1/tags — cursor pagination, ?search=, ?sort_by=, ?sort_order=
+ * POST /api/v1/tags — create a tag. Slug uniqueness enforced by DB.
+ *
+ * Scopes: PRODUCTS_READ (GET), PRODUCTS_WRITE (POST).
+ * @see supabase/migrations/20250101000000_core_schema.sql (seller_main.tags)
+ */
+
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import {

@@ -1,3 +1,11 @@
+/**
+ * Query-string filter helpers shared by /api/v1/products list endpoint.
+ * Provides CSV parsing with UUID/slug auto-detect, slug resolution against the
+ * categories/tags dictionaries, AND-intersection across junction tables, and
+ * a PostgREST .or() value quoter that keeps user input from rewriting filter
+ * syntax.
+ */
+
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const FILTER_MAX_VALUES = 20;

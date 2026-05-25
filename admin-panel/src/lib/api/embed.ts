@@ -1,3 +1,9 @@
+/**
+ * Embed helpers for projecting Supabase joined relations on /api/v1/products.
+ * Lets list and single endpoints share the same allowlist, SELECT builder and
+ * post-fetch flatten — see route handlers in @/app/api/v1/products.
+ */
+
 export type EmbedKey = 'categories' | 'tags';
 const ALLOWED: ReadonlySet<EmbedKey> = new Set(['categories', 'tags']);
 

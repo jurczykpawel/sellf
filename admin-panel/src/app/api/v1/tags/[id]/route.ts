@@ -1,3 +1,13 @@
+/**
+ * Tags API v1 — single-resource operations.
+ *
+ * GET    /api/v1/tags/:id
+ * PATCH  /api/v1/tags/:id  — partial update, slug uniqueness enforced by DB.
+ * DELETE /api/v1/tags/:id  — junction product_tags rows cascade.
+ *
+ * Scopes: PRODUCTS_READ (GET), PRODUCTS_WRITE (PATCH/DELETE).
+ */
+
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
