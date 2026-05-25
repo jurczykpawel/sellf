@@ -254,6 +254,30 @@ describe('SupabaseWebhookQueue admin actions', () => {
     expect(after.failed_permanently_at).not.toBeNull();
     expect(after.next_retry_at).toBeNull();
   });
+
+  it('replay refuses to re-arm a success delivery (status guard)', async () => {
+    const { data: row } = await sellerClient
+      .from('webhook_logs')
+      .insert({
+        endpoint_id: endpointId,
+        event_type: 'test.event',
+        payload: { event: 'test.event', data: { x: 's' } },
+        status: 'success',
+        attempt_count: 1,
+        max_attempts: 5,
+        http_status: 200,
+        duration_ms: 5,
+      })
+      .select('id')
+      .single();
+    createdLogIds.push(row!.id);
+
+    await queue.replay(row!.id);
+
+    const after = await fetchRow(row!.id);
+    expect(after.status).toBe('success');
+    expect(after.attempt_count).toBe(1);
+  });
 });
 
 describe('POST /api/v1/webhooks/logs/[logId]/replay', () => {
