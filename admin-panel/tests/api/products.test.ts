@@ -742,6 +742,78 @@ describe('Products API v1', () => {
       });
       expect(status).toBe(400);
     });
+
+    it('POST rejects non-UUID in categories array (parity with tags)', async () => {
+      const slug = uniqueSlug();
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'Bad', slug, description: 'd', price: 1, categories: ['not-a-uuid'],
+      });
+      expect(status).toBe(400);
+      const { count } = await supabaseAdmin()
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('slug', slug);
+      expect(count).toBe(0);
+    });
+
+    it('POST rejects >50 categories without orphaning the product', async () => {
+      const slug = uniqueSlug();
+      const bogus = Array.from({ length: 51 }, () => crypto.randomUUID());
+      const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
+        name: 'Bad', slug, description: 'd', price: 1, categories: bogus,
+      });
+      expect(status).toBe(400);
+      const { count } = await supabaseAdmin()
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('slug', slug);
+      expect(count).toBe(0);
+    });
+
+    it('POST accepts categories+tags together and embeds both in response', async () => {
+      const catSlug = `cat-combo-${Date.now()}`;
+      const { data: cat } = await supabaseAdmin()
+        .from('categories')
+        .insert({ name: 'Combo', slug: catSlug })
+        .select('id')
+        .single();
+      const catId = cat!.id as string;
+
+      const slug = uniqueSlug();
+      const { status, data } = await post<ApiResponse<{ id: string; categories?: Array<{ id: string }>; tags?: Array<{ id: string }> }>>('/api/v1/products', {
+        name: 'Combo', slug, description: 'd', price: 1,
+        categories: [catId], tags: [tagId],
+      });
+      expect(status).toBe(201);
+      createdProductIds.push(data.data!.id);
+      expect(data.data!.categories?.map((c) => c.id)).toContain(catId);
+      expect(data.data!.tags?.map((t) => t.id)).toContain(tagId);
+
+      await supabaseAdmin().from('categories').delete().eq('id', catId);
+    });
+
+    it('PATCH categories alone (without tags) replaces existing set', async () => {
+      const catSlugA = `cat-pa-${Date.now()}`;
+      const catSlugB = `cat-pb-${Date.now()}`;
+      const { data: cA } = await supabaseAdmin().from('categories').insert({ name: 'PA', slug: catSlugA }).select('id').single();
+      const { data: cB } = await supabaseAdmin().from('categories').insert({ name: 'PB', slug: catSlugB }).select('id').single();
+      const idA = cA!.id as string;
+      const idB = cB!.id as string;
+
+      const slug = uniqueSlug();
+      const created = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'PC', slug, description: 'd', price: 1, categories: [idA],
+      });
+      const pid = created.data.data!.id;
+      createdProductIds.push(pid);
+
+      await patch<ApiResponse<unknown>>(`/api/v1/products/${pid}`, { categories: [idB] });
+      const after = await get<ApiResponse<{ categories: Array<{ id: string }> }>>(`/api/v1/products/${pid}`);
+      const ids = after.data.data!.categories.map((c) => c.id);
+      expect(ids).toEqual([idB]);
+
+      await supabaseAdmin().from('categories').delete().in('id', [idA, idB]);
+    });
   });
 
   describe('Response Format', () => {
