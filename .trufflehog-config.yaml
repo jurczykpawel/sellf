@@ -1,0 +1,29 @@
+# TruffleHog custom detectors for Sellf-specific token formats.
+# Standard built-in detectors (~700 providers) run regardless; this file only
+# adds patterns TruffleHog cannot recognize on its own.
+
+detectors:
+  - name: SellfApiKeyLive
+    keywords:
+      - sf_live_
+    regex:
+      key: 'sf_live_[a-f0-9]{64}'
+
+  - name: SellfApiKeyTest
+    keywords:
+      - sf_test_
+    regex:
+      key: 'sf_test_[a-f0-9]{64}'
+
+  - name: SellfApiKeyAdmin
+    keywords:
+      - sf_admin_
+    regex:
+      key: 'sf_admin_[a-f0-9]{64}'
+
+  - name: SellfWebhookSecret
+    keywords:
+      - whsec_
+    regex:
+      # webhook_endpoints.secret default: whsec_ + 32-byte uuid stripped of dashes
+      secret: 'whsec_[a-f0-9]{32}'

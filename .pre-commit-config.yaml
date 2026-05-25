@@ -3,8 +3,8 @@ repos:
     rev: v3.88.24
     hooks:
       - id: trufflehog
-        name: TruffleHog secret scan
-        entry: trufflehog git file://. --since-commit HEAD --results verified,unknown --fail
+        name: TruffleHog secret scan (incremental, with Sellf custom detectors)
+        entry: trufflehog git file://. --since-commit HEAD --config .trufflehog-config.yaml --results=verified,unverified,unknown --fail
         language: golang
         pass_filenames: false
         stages: [pre-commit]
