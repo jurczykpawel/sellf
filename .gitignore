@@ -85,3 +85,6 @@ priv/
 # Local build artifacts
 release/
 sellf-build.tar.gz
+
+# Worktrees
+.worktrees/
