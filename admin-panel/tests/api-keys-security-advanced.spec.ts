@@ -12,6 +12,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { setAuthSession } from './helpers/admin-auth';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -79,7 +80,7 @@ test.describe('API Keys Security - Hash Exposure Prevention', () => {
         name: 'Hash Exposure Test Key',
         key_hash: keyHash,
         key_prefix: keyValue.substring(0, 12),
-        scopes: ['*'],
+        scopes: [...ALL_SCOPES],
         is_active: true,
         admin_user_id: testAdminRowId,
       })
@@ -214,7 +215,7 @@ test.describe('API Keys Security - IDOR Prevention', () => {
         name: 'Admin1 Secret Key',
         key_hash: await hashKey(key1),
         key_prefix: key1.substring(0, 12),
-        scopes: ['*'],
+        scopes: [...ALL_SCOPES],
         is_active: true,
         admin_user_id: admin1RowId,
       })
@@ -271,7 +272,7 @@ test.describe('API Keys Security - IDOR Prevention', () => {
     const response = await page.request.patch(`/api/v1/api-keys/${admin1KeyId}`, {
       data: {
         name: 'Hacked by Admin2',
-        scopes: ['*'],
+        scopes: [...ALL_SCOPES],
       },
     });
 
@@ -416,7 +417,7 @@ test.describe('API Keys Security - Key Rotation', () => {
         name: 'Rotation Test Key',
         key_hash: await hashKey(testApiKey),
         key_prefix: testApiKey.substring(0, 12),
-        scopes: ['*'],
+        scopes: [...ALL_SCOPES],
         is_active: true,
         admin_user_id: testAdminRowId,
       })
