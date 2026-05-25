@@ -1,8 +1,14 @@
--- Webhook delivery retry + DLQ
+-- Webhook secret prefix + delivery retry / DLQ
 --
--- Adds state for automatic retries (attempt_count, max_attempts, next_retry_at)
--- and dead-letter queue (failed_permanently_at), plus two helper functions
--- used by the worker (atomic claim+lease) and the queue (attempt bump).
+-- 1) New webhook endpoints get a Stripe-style `whsec_` prefix so the UI mask
+--    and the visible secret share a recognizable shape. Existing rows are NOT
+--    backfilled — rotating their secrets would break already-deployed handlers.
+-- 2) webhook_logs gains retry state (attempt_count, max_attempts, next_retry_at)
+--    and dead-letter queue (failed_permanently_at). Helper functions cover the
+--    worker's atomic claim+lease pattern and the queue's attempt bump.
+
+ALTER TABLE seller_main.webhook_endpoints
+  ALTER COLUMN secret SET DEFAULT 'whsec_' || replace(gen_random_uuid()::text, '-', '');
 
 ALTER TABLE seller_main.webhook_logs
   ADD COLUMN IF NOT EXISTS attempt_count int NOT NULL DEFAULT 1,
