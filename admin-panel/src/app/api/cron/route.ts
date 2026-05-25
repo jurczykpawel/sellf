@@ -44,11 +44,13 @@ function isAuthorized(request: NextRequest): boolean {
   const candidate = authHeader.slice(7);
   if (!candidate) return false;
 
-  // Timing-safe comparison (prevents secret length/content oracle attacks)
+  // Hash both inputs to fixed-length digests so timingSafeEqual never sees a
+  // length difference — even the length of the secret stays out of the
+  // observable timing channel.
   try {
-    const a = Buffer.from(candidate);
-    const b = Buffer.from(cronSecret);
-    return a.length === b.length && timingSafeEqual(a, b);
+    const a = createHash('sha256').update(candidate).digest();
+    const b = createHash('sha256').update(cronSecret).digest();
+    return timingSafeEqual(a, b);
   } catch {
     return false;
   }
@@ -297,8 +299,7 @@ export async function GET(request: NextRequest) {
     const result = await handler();
     return NextResponse.json({ job, ...result });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[cron/${job}] Fatal error:`, err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Cron job failed' }, { status: 500 });
   }
 }
