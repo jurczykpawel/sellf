@@ -443,6 +443,32 @@ describe('Products API v1', () => {
     });
   });
 
+  describe('GET /api/v1/products search input handling', () => {
+    let inactiveId: string;
+    const inactiveSlug = `hidden-${Date.now()}`;
+
+    beforeAll(async () => {
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'Hidden', slug: inactiveSlug, description: 'd', price: 1, is_active: false,
+      });
+      inactiveId = r.data.data!.id;
+      createdProductIds.push(inactiveId);
+    });
+
+    it('treats commas in search as literal value, not filter syntax', async () => {
+      const payload = encodeURIComponent(`${inactiveSlug},is_active.eq.false`);
+      const { status, data } = await get<ApiResponse<Product[]>>(`/api/v1/products?status=active&search=${payload}&limit=100`);
+      expect(status).toBe(200);
+      const ids = (data.data ?? []).map((p) => p.id);
+      expect(ids).not.toContain(inactiveId);
+    });
+
+    it('does not crash on parentheses and dots in search', async () => {
+      const { status } = await get<ApiResponse<Product[]>>('/api/v1/products?search=foo.bar(baz)&limit=1');
+      expect(status).toBe(200);
+    });
+  });
+
   describe('GET /api/v1/products embed param', () => {
     it('returns NO categories/tags by default', async () => {
       const { status, data } = await get<ApiResponse<Array<Product & Record<string, unknown>>>>('/api/v1/products?limit=1');

@@ -16,7 +16,7 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { TagCreateDTO, TAG_API_FIELDS, validateTagSortColumn } from '@/lib/api/dto/tag';
-import { escapeIlikePattern } from '@/lib/validations/product';
+import { escapeIlikePattern, quoteForPostgrestOr } from '@/lib/validations/product';
 
 export async function OPTIONS(request: NextRequest) { return handleCorsPreFlight(request); }
 
@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
     const cursorErr = validateCursor(cursor);
     if (cursorErr) return apiError(request, 'INVALID_INPUT', cursorErr);
     if (search.length > 200) return apiError(request, 'INVALID_INPUT', 'Search must be 200 chars or less');
-    const esc = search ? escapeIlikePattern(search) : null;
+    const pattern = search ? quoteForPostgrestOr(`%${escapeIlikePattern(search)}%`) : null;
 
     let countQ = supabase.from('tags').select('id', { count: 'exact', head: true });
-    if (esc) countQ = countQ.or(`name.ilike.%${esc}%,slug.ilike.%${esc}%`);
+    if (pattern) countQ = countQ.or(`name.ilike.${pattern},slug.ilike.${pattern}`);
     const { count } = await countQ;
 
     let q = supabase.from('tags').select(TAG_API_FIELDS);
-    if (esc) q = q.or(`name.ilike.%${esc}%,slug.ilike.%${esc}%`);
+    if (pattern) q = q.or(`name.ilike.${pattern},slug.ilike.${pattern}`);
     q = applyCursorToQuery(q, cursor, sortBy, sortOrder);
     q = q.order(sortBy, { ascending: sortOrder === 'asc' })
          .order('id', { ascending: sortOrder === 'asc' })

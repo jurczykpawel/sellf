@@ -29,6 +29,7 @@ import { z } from 'zod';
 import {
   validateCreateProduct,
   escapeIlikePattern,
+  quoteForPostgrestOr,
   validateProductSortColumn,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
     if (search && search.length > 200) {
       return apiError(request, 'INVALID_INPUT', 'Search query must be 200 characters or less');
     }
-    const escapedSearch = search ? escapeIlikePattern(search) : null;
+    const searchPattern = search ? quoteForPostgrestOr(`%${escapeIlikePattern(search)}%`) : null;
 
     const safeParse = (raw: string | null, label: string) => {
       try { return parseCsvFilter(raw); }
@@ -121,8 +122,8 @@ export async function GET(request: NextRequest) {
     let countQuery = supabase
       .from('products')
       .select('id', { count: 'exact', head: true });
-    if (escapedSearch) {
-      countQuery = countQuery.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`);
+    if (searchPattern) {
+      countQuery = countQuery.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
     }
     if (status === 'active') {
       countQuery = countQuery.eq('is_active', true);
@@ -138,8 +139,8 @@ export async function GET(request: NextRequest) {
       .select(buildProductSelect(PRODUCT_API_FIELDS, embed));
 
     // Apply search filter
-    if (escapedSearch) {
-      query = query.or(`name.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`);
+    if (searchPattern) {
+      query = query.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
     }
 
     // Apply status filter
