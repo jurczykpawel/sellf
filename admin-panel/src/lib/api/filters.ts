@@ -59,16 +59,27 @@ export async function intersectProductIdsByMembership(
   cfg: MembershipFilterConfig,
 ): Promise<string[] | null> {
   if (ids.length === 0) return null;
-  let acc: string[] | null = null;
-  for (const id of ids) {
-    const { data, error } = await supabase
-      .from(cfg.junctionTable)
-      .select('product_id')
-      .eq(cfg.fkColumn, id);
-    if (error) throw error;
-    const matched = new Set((data ?? []).map((r) => r.product_id as string));
-    acc = acc == null ? [...matched] : acc.filter((pid) => matched.has(pid));
-    if (acc.length === 0) return [];
+  const { data, error } = await supabase
+    .from(cfg.junctionTable)
+    .select(`product_id, ${cfg.fkColumn}`)
+    .in(cfg.fkColumn, ids);
+  if (error) throw error;
+
+  const counts = new Map<string, Set<string>>();
+  for (const row of (data ?? []) as unknown as Array<Record<string, unknown>>) {
+    const pid = row.product_id as string;
+    const fk = row[cfg.fkColumn] as string;
+    let bucket = counts.get(pid);
+    if (!bucket) {
+      bucket = new Set();
+      counts.set(pid, bucket);
+    }
+    bucket.add(fk);
   }
-  return acc;
+  const required = ids.length;
+  const result: string[] = [];
+  for (const [pid, bucket] of counts) {
+    if (bucket.size === required) result.push(pid);
+  }
+  return result;
 }
