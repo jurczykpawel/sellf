@@ -871,10 +871,14 @@ test.describe('PWYW Free Option — Admin Wizard', () => {
 
     await page.fill('input#name', 'PWYW Reset Test');
     const priceInput = page.locator('input#price');
-    await priceInput.fill('100');
     // Anchor: price commit must be in formData before the PWYW toggle reads
-    // latestPriceRef.current, otherwise getDefaultMin(0)=1 sticks.
-    await expect(priceInput).toHaveValue('100');
+    // latestPriceRef.current, otherwise getDefaultMin(0)=1 sticks. Under
+    // full-suite load a single fill() can race with React's controlled-input
+    // re-render and leave the value empty — retry the fill+assert pair.
+    await expect(async () => {
+      await priceInput.fill('100');
+      await expect(priceInput).toHaveValue('100', { timeout: 1500 });
+    }).toPass({ timeout: 10000 });
 
     // Enable PWYW
     const pwywCheckbox = page.locator('label').filter({ hasText: /Pozwól klientowi wybrać cenę/i }).locator('input[type="checkbox"]');

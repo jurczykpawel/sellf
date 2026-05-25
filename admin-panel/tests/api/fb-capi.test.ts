@@ -10,7 +10,7 @@
  * @see admin-panel/src/app/api/tracking/fb-capi/route.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
@@ -111,8 +111,18 @@ describe('POST /api/tracking/fb-capi', () => {
   // ===== CAPI NOT CONFIGURED =====
 
   describe('CAPI not configured', () => {
+    // Explicitly turn off the sibling GTM SS destination too — a leftover
+    // gtm_ss_enabled=true (e.g. from a prior Playwright integrations test on
+    // the same DB) would piggyback as an active destination and turn this
+    // suite's "no destination" assertions (expected 400) into 500s.
+    beforeEach(async () => {
+      await supabase
+        .schema('seller_main' as never)
+        .from('integrations_config')
+        .upsert({ id: 1, gtm_ss_enabled: false, gtm_server_container_url: null });
+    });
+
     it('should return 400 when fb_capi_enabled is false', async () => {
-      // Set up config with CAPI disabled
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: false,

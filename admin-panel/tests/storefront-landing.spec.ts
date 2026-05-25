@@ -726,16 +726,17 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }).select().single();
     if (data) testProductIds.push(data.id);
 
-    // Navigate with network throttling to catch loading state
+    // Navigate with network throttling to catch loading state. Retry the
+    // goto+assert pair — under full-suite load the Next.js dev server can
+    // briefly hit transient runtime errors (e.g. "spawn EBADF" from child
+    // process FD exhaustion) and serve an error overlay instead of the page.
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'commit' });
-
-    // Wait for full load and verify content eventually appears
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
-
-    // Verify storefront renders after mount
-    await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 15000 });
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'commit' });
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(2000);
+      await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 45000, intervals: [3000, 5000, 8000] });
   });
 
   test('PRODUCT COUNT BADGE: Should show correct count and singular/plural text', async ({ page }) => {
