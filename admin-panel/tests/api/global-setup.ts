@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHash, randomBytes } from 'crypto';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 // Vitest globalSetup: one shared admin+key per test:api run (env-distributed to forks).
 
@@ -54,7 +55,9 @@ async function createSharedKey(): Promise<SharedKey> {
       key_prefix: plaintext.substring(0, 12),
       key_hash: createHash('sha256').update(plaintext).digest('hex'),
       admin_user_id: adminRow!.id,
-      scopes: ['*'],
+      // DB rows always carry an explicit scope list after the snapshot
+      // refactor — hasScope no longer interprets '*' at request time.
+      scopes: [...ALL_SCOPES],
       rate_limit_per_minute: 1000,
       is_active: true,
     })
