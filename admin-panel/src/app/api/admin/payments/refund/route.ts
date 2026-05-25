@@ -17,6 +17,44 @@ export async function POST(request: NextRequest) {
     // SECURITY: Authenticate before initializing service client
     const { user } = await requireAdminApiWithRequest(request);
 
+    const { transactionId, amount, reason } = await request.json();
+
+    // Validate body BEFORE consuming rate-limit budget so a bad payload
+    // can't burn the admin's 10/h refund quota.
+    if (!transactionId) {
+      return NextResponse.json(
+        { error: 'Transaction ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const MAX_REFUND_AMOUNT = 99999999; // Same as DB constraint (~$999,999.99)
+    if (amount !== undefined && amount !== null) {
+      const candidate = Number(amount);
+      if (!Number.isInteger(candidate) || candidate <= 0) {
+        return NextResponse.json(
+          { error: 'Refund amount must be a positive integer (in cents)' },
+          { status: 400 }
+        );
+      }
+      if (candidate > MAX_REFUND_AMOUNT) {
+        return NextResponse.json(
+          { error: `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const VALID_REFUND_REASONS: Stripe.RefundCreateParams.Reason[] = [
+      'duplicate', 'fraudulent', 'requested_by_customer',
+    ];
+    if (reason && !VALID_REFUND_REASONS.includes(reason)) {
+      return NextResponse.json(
+        { error: `Invalid refund reason. Must be one of: ${VALID_REFUND_REASONS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     // Initialize service client only after auth validation
     const stripe = await getStripeServer();
 
@@ -38,15 +76,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { transactionId, amount, reason } = await request.json();
-
-    if (!transactionId) {
-      return NextResponse.json(
-        { error: 'Transaction ID is required' },
-        { status: 400 }
-      );
-    }
-
     // Get transaction details from database
     const { data: transaction, error: transactionError } = await supabase
       .from('payment_transactions')
@@ -65,23 +94,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate refund amount to prevent integer overflow/abuse
-    const MAX_REFUND_AMOUNT = 99999999; // Same as DB constraint (~$999,999.99)
     const refundAmount = amount ? Number(amount) : transaction.amount;
-
-    if (!Number.isInteger(refundAmount) || refundAmount <= 0) {
-      return NextResponse.json(
-        { error: 'Refund amount must be a positive integer (in cents)' },
-        { status: 400 }
-      );
-    }
-
-    if (refundAmount > MAX_REFUND_AMOUNT) {
-      return NextResponse.json(
-        { error: `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents` },
-        { status: 400 }
-      );
-    }
 
     const alreadyRefunded = transaction.refunded_amount || 0;
     const maxRefundable = transaction.amount - alreadyRefunded;
@@ -103,16 +116,7 @@ export async function POST(request: NextRequest) {
       refundData.amount = refundAmount;
     }
 
-    const VALID_REFUND_REASONS: Stripe.RefundCreateParams.Reason[] = [
-      'duplicate', 'fraudulent', 'requested_by_customer',
-    ];
     if (reason) {
-      if (!VALID_REFUND_REASONS.includes(reason)) {
-        return NextResponse.json(
-          { error: `Invalid refund reason. Must be one of: ${VALID_REFUND_REASONS.join(', ')}` },
-          { status: 400 }
-        );
-      }
       refundData.reason = reason;
     }
 

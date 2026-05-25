@@ -45,6 +45,29 @@ export async function POST(request: NextRequest) {
 
     const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
 
+    const filters = await parseJsonBody<{
+      status?: string;
+      date_from?: string;
+      date_to?: string;
+      product_id?: string;
+      dateRange?: string;
+    }>(request);
+
+    // Validate inputs BEFORE consuming the rate-limit budget so a garbage
+    // request can't burn through a legitimate user's per-hour quota.
+    if (filters.status && filters.status !== 'all') {
+      const validStatuses = ['completed', 'refunded', 'failed', 'pending'];
+      if (!validStatuses.includes(filters.status)) {
+        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${validStatuses.join(', ')}`);
+      }
+    }
+    if (filters.product_id) {
+      const idValidation = validateUUID(filters.product_id);
+      if (!idValidation.isValid) {
+        return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
+      }
+    }
+
     // Rate limit export operations (heavy DB queries)
     const userId = auth.method === 'session' ? auth.admin.userId : auth.apiKey?.id;
 
@@ -60,14 +83,6 @@ export async function POST(request: NextRequest) {
         return apiError(request, 'RATE_LIMITED', 'Rate limit exceeded. Maximum 5 exports per hour.');
       }
     }
-
-    const filters = await parseJsonBody<{
-      status?: string;
-      date_from?: string;
-      date_to?: string;
-      product_id?: string;
-      dateRange?: string;
-    }>(request);
 
     // Build query for transactions
     let query = auth.supabase
@@ -88,12 +103,7 @@ export async function POST(request: NextRequest) {
       `)
       .order('created_at', { ascending: false });
 
-    // Apply status filter (validate against whitelist)
     if (filters.status && filters.status !== 'all') {
-      const validStatuses = ['completed', 'refunded', 'failed', 'pending'];
-      if (!validStatuses.includes(filters.status)) {
-        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${validStatuses.join(', ')}`);
-      }
       query = query.eq('status', filters.status);
     }
 
@@ -112,12 +122,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Apply product filter
     if (filters.product_id) {
-      const idValidation = validateUUID(filters.product_id);
-      if (!idValidation.isValid) {
-        return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
-      }
       query = query.eq('product_id', filters.product_id);
     }
 
