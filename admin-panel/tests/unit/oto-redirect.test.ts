@@ -77,14 +77,22 @@ describe('OTO Redirect URL Builder', () => {
     });
 
     it('should use default baseUrl when not provided', () => {
-      const result = buildOtoRedirectUrl({
-        locale: 'pl',
-        otoProductSlug: 'test',
-        customerEmail: 'a@b.com',
-        couponCode: 'CODE'
-      });
-
-      expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
+      // Isolate from .env.local so the literal fallback is what we actually test.
+      const prev = { SITE_URL: process.env.SITE_URL, NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL };
+      delete process.env.SITE_URL;
+      delete process.env.NEXT_PUBLIC_BASE_URL;
+      try {
+        const result = buildOtoRedirectUrl({
+          locale: 'pl',
+          otoProductSlug: 'test',
+          customerEmail: 'a@b.com',
+          couponCode: 'CODE'
+        });
+        expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
+      } finally {
+        if (prev.SITE_URL !== undefined) process.env.SITE_URL = prev.SITE_URL;
+        if (prev.NEXT_PUBLIC_BASE_URL !== undefined) process.env.NEXT_PUBLIC_BASE_URL = prev.NEXT_PUBLIC_BASE_URL;
+      }
     });
 
     it('should handle empty string email as missing', () => {
@@ -418,12 +426,20 @@ describe('Success Redirect URL Builder', () => {
     });
 
     it('should use default baseUrl when not provided', () => {
-      const result = buildSuccessRedirectUrl({
-        targetUrl: '/success',
-        passParams: true
-      });
-
-      expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
+      // Isolate from .env.local so the literal fallback is what we actually test.
+      const prev = { SITE_URL: process.env.SITE_URL, NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL };
+      delete process.env.SITE_URL;
+      delete process.env.NEXT_PUBLIC_BASE_URL;
+      try {
+        const result = buildSuccessRedirectUrl({
+          targetUrl: '/success',
+          passParams: true
+        });
+        expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
+      } finally {
+        if (prev.SITE_URL !== undefined) process.env.SITE_URL = prev.SITE_URL;
+        if (prev.NEXT_PUBLIC_BASE_URL !== undefined) process.env.NEXT_PUBLIC_BASE_URL = prev.NEXT_PUBLIC_BASE_URL;
+      }
     });
 
     it('should handle URL with existing params and add new ones', () => {
