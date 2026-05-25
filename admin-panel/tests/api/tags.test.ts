@@ -123,5 +123,15 @@ describe('Tags API v1', () => {
       const after = await get<ApiResp<Tag>>(`/api/v1/tags/${tmpId}`);
       expect(after.status).toBe(404);
     });
+
+    it('DELETE returns 404 for non-existent id', async () => {
+      const r = await del<ApiResp<unknown>>('/api/v1/tags/00000000-0000-0000-0000-000000000000');
+      expect(r.status).toBe(404);
+    });
+
+    it('DELETE returns 400 for invalid uuid', async () => {
+      const r = await del<ApiResp<unknown>>('/api/v1/tags/not-a-uuid');
+      expect(r.status).toBe(400);
+    });
   });
 });

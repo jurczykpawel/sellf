@@ -76,11 +76,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     if (!validateUUID(id).isValid) return apiError(request, 'INVALID_INPUT', 'Invalid tag ID');
 
-    const { error } = await supabase.from('tags').delete().eq('id', id);
+    const { count, error } = await supabase.from('tags').delete({ count: 'exact' }).eq('id', id);
     if (error) {
       console.error('[tags.DELETE]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to delete tag');
     }
+    if (count === 0) return apiError(request, 'NOT_FOUND', 'Tag not found');
     return noContentResponse(request);
   } catch (e) { return handleApiError(e, request); }
 }
