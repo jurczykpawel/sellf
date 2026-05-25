@@ -138,10 +138,14 @@ export async function checkRateLimit(
   windowMinutes: number,
   userId?: string
 ): Promise<boolean> {
-  // Skip rate limiting in development and test mode
-  // Unless RATE_LIMIT_TEST_MODE is enabled (for running rate limit tests)
-  const isTestMode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
-  if (isTestMode && process.env.RATE_LIMIT_TEST_MODE !== 'true') {
+  // Only enforce rate limits in production or when explicitly opted-in for
+  // tests. Any other NODE_ENV value (unset, 'development', 'test', 'staging',
+  // or an unexpected string from a Turbopack/Bun compile race) skips the
+  // check, so dev runs can't sporadically fail closed on transient env state.
+  const enforceRateLimit =
+    process.env.NODE_ENV === 'production' ||
+    process.env.RATE_LIMIT_TEST_MODE === 'true';
+  if (!enforceRateLimit) {
     return true;
   }
 
@@ -168,8 +172,10 @@ export async function checkRateLimitForIdentifier(
   windowMinutes: number,
   identifier: string
 ): Promise<boolean> {
-  const isTestMode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
-  if (isTestMode && process.env.RATE_LIMIT_TEST_MODE !== 'true') {
+  const enforceRateLimit =
+    process.env.NODE_ENV === 'production' ||
+    process.env.RATE_LIMIT_TEST_MODE === 'true';
+  if (!enforceRateLimit) {
     return true;
   }
 
