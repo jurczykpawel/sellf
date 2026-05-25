@@ -37,16 +37,6 @@ export function escapeIlikePattern(input: string): string {
     .replace(/_/g, '\\_');   // _ -> \_
 }
 
-/**
- * Wraps an ILIKE-escaped value in a PostgREST double-quoted string so that
- * commas, dots, parens and colons inside the value cannot be parsed as
- * PostgREST .or() filter syntax. Inside the quoted form, the only meta-chars
- * are `\` and `"`, both of which we escape with a backslash.
- */
-export function quoteForPostgrestOr(value: string): string {
-  if (typeof value !== 'string') return '""';
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-}
 
 /**
  * Allowed sort columns for product queries - prevents SQL injection via sortBy

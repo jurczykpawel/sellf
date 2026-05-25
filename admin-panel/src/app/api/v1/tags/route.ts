@@ -16,7 +16,8 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { TagCreateDTO, TAG_API_FIELDS, validateTagSortColumn } from '@/lib/api/dto/tag';
-import { escapeIlikePattern, quoteForPostgrestOr } from '@/lib/validations/product';
+import { escapeIlikePattern } from '@/lib/validations/product';
+import { quoteForPostgrestOr } from '@/lib/api/filters';
 
 export async function OPTIONS(request: NextRequest) { return handleCorsPreFlight(request); }
 

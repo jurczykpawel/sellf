@@ -65,7 +65,7 @@ export {
 } from './embed';
 
 // Filter helpers
-export { parseCsvFilter, FILTER_MAX_VALUES, resolveFilterIds, intersectProductIdsByMembership, type ParsedFilter, type FilterTable, type MembershipFilterConfig } from './filters';
+export { parseCsvFilter, FILTER_MAX_VALUES, resolveFilterIds, intersectProductIdsByMembership, quoteForPostgrestOr, type ParsedFilter, type FilterTable, type MembershipFilterConfig } from './filters';
 
 // API Keys
 export {

@@ -10,6 +10,17 @@ export interface ParsedFilter {
   slugs: string[];
 }
 
+/**
+ * Wraps a value in a PostgREST double-quoted string so that commas, dots,
+ * parentheses and colons inside the value cannot be parsed as .or() filter
+ * syntax. Inside the quoted form, only backslash and double-quote need to be
+ * escaped with a backslash.
+ */
+export function quoteForPostgrestOr(value: string): string {
+  if (typeof value !== 'string') return '""';
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 export function parseCsvFilter(raw: string | null | undefined): ParsedFilter {
   if (!raw) return { ids: [], slugs: [] };
   const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);

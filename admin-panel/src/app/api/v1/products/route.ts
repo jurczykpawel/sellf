@@ -24,12 +24,11 @@ import {
   buildProductSelect,
   transformEmbeddedRelations,
 } from '@/lib/api';
-import { parseCsvFilter, resolveFilterIds, intersectProductIdsByMembership } from '@/lib/api/filters';
+import { parseCsvFilter, resolveFilterIds, intersectProductIdsByMembership, quoteForPostgrestOr } from '@/lib/api/filters';
 import { z } from 'zod';
 import {
   validateCreateProduct,
   escapeIlikePattern,
-  quoteForPostgrestOr,
   validateProductSortColumn,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
