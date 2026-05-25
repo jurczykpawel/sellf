@@ -63,6 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { data, error } = await supabase.from('tags').update(input).eq('id', id).select(TAG_API_FIELDS).single();
     if (error) {
       if (error.code === 'PGRST116') return apiError(request, 'NOT_FOUND', 'Tag not found');
+      if (error.code === '23505') return apiError(request, 'CONFLICT', 'Tag slug already exists');
       console.error('[tags.PATCH]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to update tag');
     }

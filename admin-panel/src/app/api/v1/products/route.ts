@@ -262,7 +262,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
-      console.error('Error creating product:', createError);
+      if (createError.code === '23505') {
+        return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
+      }
+      console.error('[products.POST]', createError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create product');
     }
 

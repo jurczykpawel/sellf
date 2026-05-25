@@ -197,12 +197,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .single();
 
       if (updateError) {
-        console.error('Error updating product:', updateError);
-        if ((updateError as { code?: string }).code === '23514') {
+        const code = (updateError as { code?: string }).code;
+        if (code === '23505') {
+          return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
+        }
+        if (code === '23514') {
           throw new ApiValidationError('Validation failed', {
             _errors: [`Database constraint violation: ${updateError.message}`],
           });
         }
+        console.error('[products.PATCH]', updateError);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to update product');
       }
       product = updatedProduct;
