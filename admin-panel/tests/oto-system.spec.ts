@@ -801,13 +801,16 @@ test.describe('OTO Duration Settings', () => {
 
     expect(otoResult.duration_minutes).toBe(5);
 
-    // Verify expiry time is approximately 5 minutes from now
+    // Verify expiry time is approximately 5 minutes from now. Upper bound
+    // gets a small slack — `expires_at = NOW() + INTERVAL '5 minutes'` is
+    // evaluated by Postgres at COMMIT time, then we read Date.now() after
+    // the round-trip, so the DB clock can land a few ms ahead of ours.
     const expiresAt = new Date(otoResult.expires_at).getTime();
     const now = Date.now();
     const diffMinutes = (expiresAt - now) / 1000 / 60;
 
     expect(diffMinutes).toBeGreaterThan(4);
-    expect(diffMinutes).toBeLessThanOrEqual(5);
+    expect(diffMinutes).toBeLessThanOrEqual(5.1);
 
     // Cleanup
     await supabaseAdmin.from('coupons').delete().eq('code', otoResult.coupon_code);
@@ -847,13 +850,13 @@ test.describe('OTO Duration Settings', () => {
 
     expect(otoResult.duration_minutes).toBe(30);
 
-    // Verify expiry time is approximately 30 minutes from now
+    // Same DB-clock-vs-test-clock slack as the 5-minute variant above.
     const expiresAt = new Date(otoResult.expires_at).getTime();
     const now = Date.now();
     const diffMinutes = (expiresAt - now) / 1000 / 60;
 
     expect(diffMinutes).toBeGreaterThan(29);
-    expect(diffMinutes).toBeLessThanOrEqual(30);
+    expect(diffMinutes).toBeLessThanOrEqual(30.1);
 
     // Cleanup
     await supabaseAdmin.from('coupons').delete().eq('code', otoResult.coupon_code);

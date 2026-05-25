@@ -534,13 +534,16 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
 
-    // Poll: page may serve stale RSC cache from previous test
+    // Poll: page may serve stale RSC cache from previous test. Mirror the
+    // longer-timeout + warmup pattern used by the free-resources test above —
+    // creating 12 products + waiting for the storefront query to repopulate
+    // can take longer than 5s under full-suite load.
     await expect(async () => {
-      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
       await page.waitForLoadState('domcontentloaded');
-      // "Show All 8 Premium Products" proves all 8 were loaded from DB
+      await page.waitForTimeout(3000);
       await expect(page.getByRole('button', { name: /Show All 8 Premium Products/i })).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 25000, intervals: [2000, 3000, 5000] });
+    }).toPass({ timeout: 30000, intervals: [2000, 3000, 5000] });
 
     // Verify NO "Show All" button for free products (only 4)
     await expect(page.getByRole('button', { name: /Show All.*Free Resources/i })).not.toBeVisible();
