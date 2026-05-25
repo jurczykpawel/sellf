@@ -69,7 +69,7 @@ jobs:
           bun-version: 1.3.14
 
       - name: Install SSH deploy key (read-only to playerstack)
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.PLAYERSTACK_DEPLOY_KEY }}
 
