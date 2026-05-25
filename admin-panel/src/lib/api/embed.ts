@@ -26,19 +26,20 @@ export function buildProductSelect(baseFields: string, embed: ReadonlySet<EmbedK
   return parts.join(', ');
 }
 
-export interface EmbeddedCategory { id: string; name: string; slug: string; }
-export interface EmbeddedTag { id: string; name: string; slug: string; }
+export interface EmbeddedTaxonomy { id: string; name: string; slug: string; }
+export type EmbeddedCategory = EmbeddedTaxonomy;
+export type EmbeddedTag = EmbeddedTaxonomy;
 
 type EmbeddedRow = {
-  product_categories?: Array<{ category_id: unknown; categories: EmbeddedCategory | null }> | null;
-  product_tags?: Array<{ tag_id: unknown; tags: EmbeddedTag | null }> | null;
+  product_categories?: Array<{ category_id: unknown; categories: EmbeddedTaxonomy | null }> | null;
+  product_tags?: Array<{ tag_id: unknown; tags: EmbeddedTaxonomy | null }> | null;
 };
 
 export function transformEmbeddedRelations<T extends EmbeddedRow>(
   row: T,
-): Omit<T, 'product_categories' | 'product_tags'> & { categories?: EmbeddedCategory[]; tags?: EmbeddedTag[] } {
+): Omit<T, 'product_categories' | 'product_tags'> & { categories?: EmbeddedTaxonomy[]; tags?: EmbeddedTaxonomy[] } {
   const { product_categories, product_tags, ...rest } = row;
-  const out: Omit<T, 'product_categories' | 'product_tags'> & { categories?: EmbeddedCategory[]; tags?: EmbeddedTag[] } = { ...rest } as Omit<T, 'product_categories' | 'product_tags'>;
+  const out: Omit<T, 'product_categories' | 'product_tags'> & { categories?: EmbeddedTaxonomy[]; tags?: EmbeddedTaxonomy[] } = { ...rest } as Omit<T, 'product_categories' | 'product_tags'>;
   if (Array.isArray(product_categories)) {
     out.categories = product_categories.map((pc) => pc.categories).filter((x) => x != null);
   }

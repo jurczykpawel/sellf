@@ -56,6 +56,7 @@ export {
 // Embed helpers
 export {
   type EmbedKey,
+  type EmbeddedTaxonomy,
   type EmbeddedCategory,
   type EmbeddedTag,
   parseEmbed,
