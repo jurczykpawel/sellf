@@ -207,7 +207,8 @@ export async function GET(request: NextRequest) {
  * - available_from: string ISO date (optional)
  * - available_until: string ISO date (optional)
  * - auto_grant_duration_days: number (optional)
- * - categories: string[] (optional, array of category IDs)
+ * - categories: string[] (optional, array of category UUIDs, max 50)
+ * - tags: string[] (optional, array of tag UUIDs, max 50)
  */
 export async function POST(request: NextRequest) {
   try {

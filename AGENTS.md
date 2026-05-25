@@ -84,8 +84,9 @@ bunx vitest run -t "test name pattern"     # Single test by name
 ### API integration tests (Vitest, separate config) — admin-panel/
 
 ```bash
-bun run test:api                           # Requires running dev server
+bun run test:api                           # Requires running dev server on :3777
 bun run test:api:watch
+bun run test:api:auto                      # Auto-starts dev server, runs suite, cleans up
 bunx vitest run --config vitest.config.api.ts tests/api/products.test.ts  # Single file
 ```
 
@@ -104,8 +105,8 @@ bunx playwright test -g "test name"        # Single test by title
 ```bash
 bun run t              # vitest unit + smoke E2E
 bun run tt             # vitest unit only
-bun run ttt            # all Playwright E2E
-bun run tttt           # supabase db reset + all Playwright E2E
+bun run ttt            # API integration + all Playwright E2E
+bun run tttt           # supabase db reset + API integration + all Playwright E2E
 ```
 
 ### Test file naming conventions
@@ -131,6 +132,10 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
   - Protected: `/dashboard`, `/my-products`
   - Admin: `/admin/products`, `/admin/users`, `/admin/payments`, `/admin/analytics`
 - API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`
+- Public v1 API (API key auth, `PRODUCTS_READ`/`PRODUCTS_WRITE` scopes):
+  - `GET /api/v1/products` — cursor pagination, accepts `?search=`, `?status=`, `?sort_by=`, `?embed=categories,tags` (opt-in), `?category=<uuid-or-slug>` and `?tag=<uuid-or-slug>` (CSV, AND-intersection; auto-detect UUID vs slug)
+  - `GET/POST /api/v1/products` and `GET/PATCH/DELETE /api/v1/products/:id` accept `categories: string[]` and `tags: string[]` (UUID arrays, max 50; PATCH uses replace semantics; partial junction failures surface as `_warnings` with HTTP 207)
+  - `GET/POST /api/v1/tags` and `GET/PATCH/DELETE /api/v1/tags/:id` — full CRUD for tag dictionary; slug regex `^[a-zA-Z0-9_-]+$`
 
 **2. Database (PostgreSQL + Supabase)**
 - Core tables: `products`, `user_product_access`, `payment_transactions`, `guest_purchases`, `rate_limits`, `audit_log`
