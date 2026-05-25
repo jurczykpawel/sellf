@@ -35,6 +35,21 @@ describe('Tags API v1', () => {
       const { data } = await get<ApiResp<Tag[]>>('/api/v1/tags?search=ZUnique');
       expect(data.data!.some((t) => t.slug === slug)).toBe(true);
     });
+
+    it('sorts by name ascending when ?sort_by=name&sort_order=asc', async () => {
+      const ts = Date.now();
+      const a = await post<ApiResp<Tag>>('/api/v1/tags', { name: `AAA-${ts}`, slug: `aaa-${ts}` });
+      const b = await post<ApiResp<Tag>>('/api/v1/tags', { name: `ZZZ-${ts}`, slug: `zzz-${ts}` });
+      created.push(a.data.data!.id, b.data.data!.id);
+      const { data } = await get<ApiResp<Tag[]>>(`/api/v1/tags?sort_by=name&sort_order=asc&search=-${ts}&limit=100`);
+      const names = data.data!.map((t) => t.name);
+      expect(names.indexOf(`AAA-${ts}`)).toBeLessThan(names.indexOf(`ZZZ-${ts}`));
+    });
+
+    it('falls back to created_at when sort_by is unknown', async () => {
+      const { status } = await get<ApiResp<Tag[]>>('/api/v1/tags?sort_by=evil&limit=1');
+      expect(status).toBe(200);
+    });
   });
 
   describe('POST /api/v1/tags', () => {

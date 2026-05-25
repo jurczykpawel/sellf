@@ -15,7 +15,7 @@ import {
   validateCursor,
   API_SCOPES,
 } from '@/lib/api';
-import { TagCreateDTO, TAG_API_FIELDS } from '@/lib/api/dto/tag';
+import { TagCreateDTO, TAG_API_FIELDS, validateTagSortColumn } from '@/lib/api/dto/tag';
 import { escapeIlikePattern } from '@/lib/validations/product';
 
 export async function OPTIONS(request: NextRequest) { return handleCorsPreFlight(request); }
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const cursor = sp.get('cursor');
     const limit = parseLimit(sp.get('limit'));
     const search = sp.get('search') ?? '';
-    const sortBy = 'created_at';
+    const sortBy = validateTagSortColumn(sp.get('sort_by'));
     const sortOrder = sp.get('sort_order') === 'asc' ? 'asc' : 'desc';
 
     const cursorErr = validateCursor(cursor);

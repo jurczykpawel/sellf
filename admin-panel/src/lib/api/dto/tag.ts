@@ -20,3 +20,14 @@ export type TagCreateInput = z.infer<typeof TagCreateDTO>;
 export type TagUpdateInput = z.infer<typeof TagUpdateDTO>;
 
 export const TAG_API_FIELDS = 'id, name, slug, created_at';
+
+export const TAG_SORT_COLUMNS: Record<string, string> = {
+  created_at: 'created_at',
+  name: 'name',
+  slug: 'slug',
+};
+
+export function validateTagSortColumn(sortBy: string | null): string {
+  if (!sortBy || typeof sortBy !== 'string') return 'created_at';
+  return TAG_SORT_COLUMNS[sortBy] ?? 'created_at';
+}
