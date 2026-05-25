@@ -271,29 +271,33 @@ test.describe('Smart Landing Page', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
-    // Should see main headline (TextReveal uses \u00A0 between words, so match with \s)
+    // Landing hero headline (split across two lines via headlineTop + headlineBottom)
     const mainHeadline = page.locator('h1');
-    await expect(mainHeadline.filter({ hasText: /Your\s+Products|Twoje\s+Produkty/i })).toBeVisible({ timeout: 10000 });
-    await expect(mainHeadline.filter({ hasText: /Your\s+Rules|Twoje\s+Zasady/i })).toBeVisible();
+    await expect(
+      mainHeadline.filter({ hasText: /Sell\s+courses|Sprzedawaj\s+kursy/i })
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      mainHeadline.filter({ hasText: /platform\s+fees|prowizji\s+platformy/i })
+    ).toBeVisible();
 
-    // Should see "Self-Hosted" in subtitle
+    // Self-hosted trust badge
     const subtitle = page.locator('text=/Self-hosted/i').first();
     await expect(subtitle).toBeVisible();
 
-    // Should see GitHub link in navigation or CTA section
+    // GitHub link in navigation or CTA section
     const githubLink = page.locator('a[href*="github.com/jurczykpawel/sellf"]');
     await expect(githubLink.first()).toBeVisible();
 
-    // Should see "Open Source" badge or text
-    const openSourceBadge = page.locator('text=/Open Source/i').first();
+    // "Open source" badge in trust strip
+    const openSourceBadge = page.getByText(/Open[\s ]+source/i).first();
     await expect(openSourceBadge).toBeVisible();
 
-    // Should see Sellf branding in navigation
+    // Sellf branding in navigation
     const sellfBrand = page.locator('text=Sellf').first();
     await expect(sellfBrand).toBeVisible();
 
-    // Should see "Start Free Demo" or similar CTA
-    const ctaButton = page.locator('a', { hasText: /Start Free Demo|Get Started/i }).first();
+    // Primary CTA \u2014 "Try the demo" / "Self-host it"
+    const ctaButton = page.locator('a', { hasText: /Try the demo|Self-host|Wypr\u00F3buj|Zobacz demo/i }).first();
     await expect(ctaButton).toBeVisible();
   });
 
@@ -312,9 +316,11 @@ test.describe('Smart Landing Page', () => {
     await aboutLink.click();
     await page.waitForURL(/\/about(\?|$|\/)/, { timeout: 15000 });
 
-    // Should see marketing content headline (TextReveal uses \u00A0 between words)
+    // Landing hero headline after RSC navigation completes
     const mainHeadline = page.locator('h1');
-    await expect(mainHeadline.filter({ hasText: /Your\s+Products|Twoje\s+Produkty/i })).toBeVisible({ timeout: 15000 });
+    await expect(
+      mainHeadline.filter({ hasText: /Sell\s+courses|Sprzedawaj\s+kursy/i })
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test('Onboarding CTA quick links should navigate correctly', async ({ page }) => {

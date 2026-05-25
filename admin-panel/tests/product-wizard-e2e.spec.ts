@@ -193,14 +193,22 @@ test.describe('Product Creation Wizard', () => {
     await page.fill('input#name', productName);
     await page.fill('input#price', '99');
 
-    // Continue to step 2
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
-    await page.waitForTimeout(500);
+    // Step 1 validation requires slug — wait for auto-gen before advancing.
+    await expect(page.locator('input#slug')).not.toHaveValue('', { timeout: 5000 });
+
+    const dialog = page.getByRole('dialog');
+    const nextBtn = dialog.getByRole('button', { name: /Dalej/i });
+    await expect(async () => {
+      if (await nextBtn.isVisible().catch(() => false)) await nextBtn.click();
+      await expect(page.locator('textarea#description')).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 10000 });
 
     // Step 2: Content & Details — fill description here
     await page.fill('textarea#description', 'Product created through all 3 steps');
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
-    await page.waitForTimeout(500);
+    await expect(async () => {
+      if (await nextBtn.isVisible().catch(() => false)) await nextBtn.click();
+      await expect(nextBtn).not.toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 10000 });
 
     // Step 3: Sales & Settings — publish
     await expect(page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i })).toBeVisible();
