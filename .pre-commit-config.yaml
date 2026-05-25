@@ -18,3 +18,11 @@ repos:
         files: ^admin-panel/src/.+\.(ts|tsx)$
         pass_filenames: false
         stages: [pre-commit]
+
+      - id: no-agent-plans
+        name: Block agent implementation plans in public repo
+        entry: scripts/pre-commit/no-agent-plans.sh
+        language: system
+        files: ^(.*/)?(docs/superpowers/|docs/plans/).+\.md$
+        pass_filenames: true
+        stages: [pre-commit]
