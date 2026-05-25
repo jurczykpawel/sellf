@@ -55,11 +55,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
     if (Object.keys(input).length === 0) return apiError(request, 'INVALID_INPUT', 'No fields to update');
 
-    if (input.slug) {
-      const { data: dup } = await supabase.from('tags').select('id').eq('slug', input.slug).neq('id', id).maybeSingle();
-      if (dup) return apiError(request, 'CONFLICT', 'Tag slug already exists');
-    }
-
     const { data, error } = await supabase.from('tags').update(input).eq('id', id).select(TAG_API_FIELDS).single();
     if (error) {
       if (error.code === 'PGRST116') return apiError(request, 'NOT_FOUND', 'Tag not found');

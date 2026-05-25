@@ -72,9 +72,6 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
-    const { data: existing } = await supabase.from('tags').select('id').eq('slug', input.slug).maybeSingle();
-    if (existing) return apiError(request, 'CONFLICT', 'Tag slug already exists');
-
     const { data, error } = await supabase.from('tags').insert(input).select(TAG_API_FIELDS).single();
     if (error) {
       if (error.code === '23505') return apiError(request, 'CONFLICT', 'Tag slug already exists');
