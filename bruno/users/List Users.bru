@@ -22,7 +22,7 @@ auth:bearer {
   token: {{API_KEY}}
 }
 
-script:after-response {
+script:post-response {
   const body = res.getBody();
   const nextCursor = body?.pagination?.next_cursor;
   if (nextCursor) {

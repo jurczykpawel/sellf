@@ -1,0 +1,32 @@
+meta {
+  name: List Products by Tag
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/products
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~tag: {{last_tag_slug}}
+  ~embed: tags
+  ~limit: 50
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+docs {
+  # List Products by Tag
+
+  Filter products by tag (UUID or slug, auto-detected). Comma-separated
+  values AND-intersect. Combinable with `?category=` to filter on both
+  dimensions at once.
+
+  By default uses `last_tag_slug` saved by "Create Tag" in the tags
+  collection — replace with any tag UUID or slug.
+}

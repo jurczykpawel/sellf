@@ -1,0 +1,40 @@
+meta {
+  name: Create Product with Tags
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/products
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+body:json {
+  {
+    "name": "Bruno tagged product",
+    "slug": "bruno-tagged-product",
+    "description": "Created via Bruno smoke test",
+    "price": 49,
+    "currency": "PLN",
+    "tags": ["{{last_tag_id}}"]
+  }
+}
+
+docs {
+  # Create Product with Tags
+
+  Accepts `tags: string[]` (UUIDs, max 50). Invalid format or count
+  rejects with 400 before any product row is created (Zod pre-insert
+  validation — no orphan products).
+
+  Response includes embedded `tags[]` and `categories[]` by default
+  (POST/PATCH always embed both, matching GET single).
+
+  Uses `last_tag_id` from the tags collection. Run "Create Tag" first
+  or replace the UUID manually.
+}

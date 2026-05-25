@@ -1,0 +1,25 @@
+meta {
+  name: Delete Tag
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_URL}}/api/v1/tags/{{last_tag_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+docs {
+  # Delete Tag
+
+  Removes the tag and cascades all rows in `product_tags`. Returns 204 on
+  success, 404 when the id does not exist, 400 for an invalid UUID.
+
+  ## Required scope
+  `PRODUCTS_WRITE`
+}
