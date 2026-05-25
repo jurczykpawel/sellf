@@ -14,21 +14,24 @@ export default function LicenseSettings() {
  const [envLicenseStatus, setEnvLicenseStatus] = useState<EnvLicenseStatus | null>(null);
 
  useEffect(() => {
+ let cancelled = false;
  async function loadLicense() {
  try {
  const result = await getIntegrationsConfig();
+ if (cancelled) return;
  const data = result?.success ? result.data as Record<string, unknown> : null;
  if (data?.sellf_license) {
  setLicense(data.sellf_license as string);
  }
  setEnvLicenseStatus((data?.sellf_license_env_status as EnvLicenseStatus | undefined) ?? null);
  } catch (error) {
- console.error('Failed to load license:', error);
+ if (!cancelled) console.error('Failed to load license:', error);
  } finally {
- setLoading(false);
+ if (!cancelled) setLoading(false);
  }
  }
  loadLicense();
+ return () => { cancelled = true; };
  }, []);
 
  const [validationError, setValidationError] = useState<string | null>(null);

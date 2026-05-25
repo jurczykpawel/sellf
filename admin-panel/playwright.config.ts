@@ -151,7 +151,7 @@ export default defineConfig({
         : 'NODE_OPTIONS=--max-old-space-size=8192 PORT=3777 bun run dev',
       url: 'http://localhost:3777',
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
-      reuseExistingServer: false,
+      reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
       stdout: quietMode ? 'ignore' : 'pipe',
       stderr: quietMode ? 'ignore' : 'pipe',
       timeout: 60000,
