@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { updateProfile } from '@/lib/actions/profile'
 import { ProfileInput } from '@/lib/validations/profile'
@@ -26,9 +26,15 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
   const [isLoadingGUS, setIsLoadingGUS] = useState(false)
   const [gusError, setGusError] = useState<string | null>(null)
   const [gusSuccess, setGusSuccess] = useState(false)
+  const gusAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => { gusAbortRef.current?.abort() }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    gusAbortRef.current?.abort()
     setLoading(true)
     setMessage(null)
 
@@ -86,6 +92,9 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
 
     // Auto-fill from GUS for Polish NIP
     if (validation.isPolish && validation.normalized) {
+      gusAbortRef.current?.abort()
+      const controller = new AbortController()
+      gusAbortRef.current = controller
       setIsLoadingGUS(true)
       setGusError(null)
       setGusSuccess(false)
@@ -95,8 +104,10 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nip: validation.normalized }),
+          signal: controller.signal,
         })
 
+        if (controller.signal.aborted) return
         const result = await response.json()
 
         if (result.success && result.data) {
@@ -126,10 +137,11 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
           }
         }
       } catch (error) {
+        if (controller.signal.aborted) return
         console.error('GUS fetch error:', error)
         setGusError(t('gus.fetchError'))
       } finally {
-        setIsLoadingGUS(false)
+        if (!controller.signal.aborted) setIsLoadingGUS(false)
       }
     }
   }
