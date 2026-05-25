@@ -238,7 +238,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       product = currentProduct;
     }
 
-    // Update categories if provided
+    const warnings: string[] = [];
+
     if (categories !== undefined) {
       const { error: deleteError } = await supabase
         .from('product_categories')
@@ -246,27 +247,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .eq('product_id', id);
 
       if (deleteError) {
-        console.error('Error deleting categories:', deleteError);
-      }
-
-      if (categories.length > 0) {
+        console.error('[products.PATCH categories]', deleteError);
+        warnings.push('failed to clear existing categories');
+      } else if (categories.length > 0) {
         const { error: catError } = await supabase
           .from('product_categories')
           .insert(categories.map((category_id) => ({ product_id: id, category_id })));
-        if (catError) console.error('[products.PATCH categories]', catError);
+        if (catError) {
+          console.error('[products.PATCH categories]', catError);
+          warnings.push('failed to attach one or more categories');
+        }
       }
     }
 
-    // Replace tags if provided (empty array clears all)
     if (tags !== undefined) {
       const { error: tagDeleteErr } = await supabase.from('product_tags').delete().eq('product_id', id);
-      if (tagDeleteErr) console.error('[products.PATCH tags]', tagDeleteErr);
-      if (tags.length > 0) {
+      if (tagDeleteErr) {
+        console.error('[products.PATCH tags]', tagDeleteErr);
+        warnings.push('failed to clear existing tags');
+      } else if (tags.length > 0) {
         const { error: linkErr } = await supabase.from('product_tags').insert(
           tags.map((tag_id) => ({ product_id: id, tag_id })),
         );
         if (linkErr) {
           console.error('[products.PATCH tags]', linkErr);
+          warnings.push('failed to attach one or more tags');
         }
       }
     }
@@ -288,11 +293,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       (product as { slug?: string } | null)?.slug ??
       undefined;
 
-    const result = productWithRels
+    const baseResult = productWithRels
       ? transformEmbeddedRelations(productWithRels as unknown as Record<string, unknown>)
       : product;
+    const result = warnings.length > 0
+      ? { ...(baseResult as Record<string, unknown>), _warnings: warnings }
+      : baseResult;
     revalidateProductCaches(refreshedSlug);
-    return jsonResponse(successResponse(result), request);
+    const status = warnings.length > 0 ? 207 : 200;
+    return jsonResponse(successResponse(result), request, status);
   } catch (error) {
     return handleApiError(error, request);
   }

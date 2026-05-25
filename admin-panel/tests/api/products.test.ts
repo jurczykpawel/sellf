@@ -704,6 +704,24 @@ describe('Products API v1', () => {
       expect(count).toBe(0);
     });
 
+    it('PATCH returns 207 with warnings when tag link insert fails', async () => {
+      const slug = uniqueSlug();
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'PartFail', slug, description: 'd', price: 1,
+      });
+      const pid = r.data.data!.id;
+      createdProductIds.push(pid);
+
+      const ghostTag = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      const resp = await patch<ApiResponse<{ id: string; _warnings?: string[] }>>(
+        `/api/v1/products/${pid}`,
+        { tags: [ghostTag] },
+      );
+      expect(resp.status).toBe(207);
+      expect(Array.isArray(resp.data.data?._warnings)).toBe(true);
+      expect(resp.data.data!._warnings!.length).toBeGreaterThan(0);
+    });
+
     it('POST with non-UUID tag does not orphan a product row', async () => {
       const slug = uniqueSlug();
       const { status } = await post<ApiResponse<unknown>>('/api/v1/products', {
