@@ -1,0 +1,32 @@
+meta {
+  name: List Products with Embed
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/products
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~status: active
+  ~embed: categories,tags
+  ~limit: 20
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+docs {
+  # List Products with Embed
+
+  Same as "List Products" but each item includes `categories[]` and `tags[]`
+  arrays (each with `{ id, name, slug }`). Use `?embed=categories` or
+  `?embed=tags` to opt in to just one.
+
+  Without `?embed=`, the response shape stays scalar-only — no extra joins,
+  no extra round-trips.
+}

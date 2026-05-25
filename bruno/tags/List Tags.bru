@@ -1,0 +1,50 @@
+meta {
+  name: List Tags
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/tags
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~search:
+  ~cursor:
+  ~limit: 20
+  ~sort_by: created_at
+  ~sort_order: desc
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+script:post-response {
+  const body = res.getBody();
+  const nextCursor = body?.pagination?.next_cursor;
+  if (nextCursor) {
+    bru.setVar("tags_next_cursor", nextCursor);
+  } else {
+    bru.setVar("tags_next_cursor", "");
+  }
+}
+
+docs {
+  # List Tags
+
+  Returns cursor-paginated list of tags. After the request `tags_next_cursor`
+  is saved as a collection variable for pagination.
+
+  ## Query Parameters
+  - `search`: substring match on name or slug
+  - `cursor`: pagination cursor from previous response
+  - `limit`: items per page, max 100 (default: 20)
+  - `sort_by`: created_at | name | slug (default: created_at)
+  - `sort_order`: asc | desc (default: desc)
+
+  ## Required scope
+  `PRODUCTS_READ`
+}

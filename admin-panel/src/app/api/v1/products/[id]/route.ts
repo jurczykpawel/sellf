@@ -19,15 +19,17 @@ import {
   ApiValidationError,
   successResponse,
   API_SCOPES,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
 } from '@/lib/api';
 import { z } from 'zod';
 import {
   validateProductId,
   validateUpdateProduct,
-  validateUUID,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
-import { mapApiInputToProductRow } from '@/lib/api/dto/product';
+import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema } from '@/lib/api/dto/product';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
 interface RouteParams {
@@ -55,45 +57,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INVALID_INPUT', 'Invalid product ID format');
     }
 
-    // Fetch product with categories
+    const embedParam = request.nextUrl.searchParams.get('embed') ?? 'categories,tags';
+    const embed = parseEmbed(embedParam);
+    const selectFields = buildProductSelect(PRODUCT_API_FIELDS, embed);
+
     const { data: product, error } = await supabase
       .from('products')
-      .select(`
-        ${PRODUCT_API_FIELDS},
-        product_categories (
-          category_id,
-          categories (
-            id,
-            name,
-            slug
-          )
-        )
-      `)
+      .select(selectFields)
       .eq('id', id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return apiError(request, 'NOT_FOUND', 'Product not found');
-      }
-      console.error('Error fetching product:', error);
+      if (error.code === 'PGRST116') return apiError(request, 'NOT_FOUND', 'Product not found');
+      console.error('[products.GET]', error);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product');
     }
 
-    // Transform product_categories to simpler structure
-    const categories = product.product_categories?.map(
-      (pc: { category_id: unknown; categories: unknown }) =>
-        pc.categories
-    ) || [];
-
-    const productWithCategories = {
-      ...product,
-      categories,
-      product_categories: undefined,
-    };
-    delete productWithCategories.product_categories;
-
-    return jsonResponse(successResponse(productWithCategories), request);
+    const result = transformEmbeddedRelations(product as unknown as Record<string, unknown>);
+    return jsonResponse(successResponse(result), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -119,6 +100,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * - available_until: string ISO date (optional)
  * - auto_grant_duration_days: number (optional)
  * - categories: string[] (optional, replaces existing categories)
+ * - tags: string[] (optional, replace-semantics — replaces all existing tags)
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -134,8 +116,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories separately
-    const { categories, ...productDataRaw } = body;
+    // Extract categories and tags separately
+    const { categories: categoriesRaw, tags: tagsRaw, ...productDataRaw } = body;
+
+    let categories: string[] | undefined;
+    let tags: string[] | undefined;
+    try {
+      categories = ProductCategoriesSchema.parse(categoriesRaw);
+      tags = ProductTagsSchema.parse(tagsRaw);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: err.issues.map((i) => `${i.path.join('.') || '_'}: ${i.message}`),
+        });
+      }
+      throw err;
+    }
 
     let sanitizedData: Record<string, unknown>;
     try {
@@ -166,7 +162,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .maybeSingle();
 
       if (slugCheckError) {
-        console.error('Error checking slug:', slugCheckError);
+        console.error('[products.PATCH]', slugCheckError);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to validate slug');
       }
 
@@ -214,12 +210,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .single();
 
       if (updateError) {
-        console.error('Error updating product:', updateError);
-        if ((updateError as { code?: string }).code === '23514') {
+        const code = (updateError as { code?: string }).code;
+        if (code === '23505') {
+          return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
+        }
+        if (code === '23514') {
           throw new ApiValidationError('Validation failed', {
             _errors: [`Database constraint violation: ${updateError.message}`],
           });
         }
+        console.error('[products.PATCH]', updateError);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to update product');
       }
       product = updatedProduct;
@@ -232,84 +232,76 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching product:', fetchError);
+        console.error('[products.PATCH]', fetchError);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product');
       }
       product = currentProduct;
     }
 
-    // Update categories if provided
-    if (Array.isArray(categories)) {
-      // Delete existing categories
+    const warnings: string[] = [];
+
+    if (categories !== undefined) {
       const { error: deleteError } = await supabase
         .from('product_categories')
         .delete()
         .eq('product_id', id);
 
       if (deleteError) {
-        console.error('Error deleting categories:', deleteError);
-        // Don't fail the request
-      }
-
-      // Insert new categories
-      if (categories.length > 0) {
-        for (const catId of categories) {
-          const catValidation = validateUUID(String(catId));
-          if (!catValidation.isValid) {
-            return apiError(request, 'VALIDATION_ERROR', `Invalid category ID format: ${catId}`);
-          }
-        }
-
-        const categoryInserts = categories.map((catId: unknown) => ({
-          product_id: id,
-          category_id: String(catId),
-        }));
-
+        console.error('[products.PATCH categories]', deleteError);
+        warnings.push('failed to clear existing categories');
+      } else if (categories.length > 0) {
         const { error: catError } = await supabase
           .from('product_categories')
-          .insert(categoryInserts);
-
+          .insert(categories.map((category_id) => ({ product_id: id, category_id })));
         if (catError) {
-          console.error('Error adding categories:', catError);
-          // Don't fail the request
+          console.error('[products.PATCH categories]', catError);
+          warnings.push('failed to attach one or more categories');
         }
       }
     }
 
-    // Re-fetch with categories to match GET response shape
-    const { data: productWithCats } = await supabase
+    if (tags !== undefined) {
+      const { error: tagDeleteErr } = await supabase.from('product_tags').delete().eq('product_id', id);
+      if (tagDeleteErr) {
+        console.error('[products.PATCH tags]', tagDeleteErr);
+        warnings.push('failed to clear existing tags');
+      } else if (tags.length > 0) {
+        const { error: linkErr } = await supabase.from('product_tags').insert(
+          tags.map((tag_id) => ({ product_id: id, tag_id })),
+        );
+        if (linkErr) {
+          console.error('[products.PATCH tags]', linkErr);
+          warnings.push('failed to attach one or more tags');
+        }
+      }
+    }
+
+    // Re-fetch with categories and tags to match GET response shape
+    const embed = parseEmbed('categories,tags');
+    const { data: productWithRels, error: refetchErr } = await supabase
       .from('products')
-      .select(`
-        ${PRODUCT_API_FIELDS},
-        product_categories (
-          category_id,
-          categories (
-            id,
-            name,
-            slug
-          )
-        )
-      `)
+      .select(buildProductSelect(PRODUCT_API_FIELDS, embed))
       .eq('id', id)
       .single();
 
+    if (refetchErr) {
+      console.error('[products.PATCH refetch]', refetchErr);
+    }
+
     const refreshedSlug =
-      (productWithCats as { slug?: string } | null)?.slug ??
+      (productWithRels as { slug?: string } | null)?.slug ??
       (product as { slug?: string } | null)?.slug ??
       undefined;
 
-    if (productWithCats) {
-      const cats = productWithCats.product_categories?.map(
-        (pc: { category_id: unknown; categories: unknown }) => pc.categories
-      ) || [];
-      const result = { ...productWithCats, categories: cats, product_categories: undefined };
-      delete result.product_categories;
-      revalidateProductCaches(refreshedSlug);
-      return jsonResponse(successResponse(result), request);
-    }
-
+    const baseResult = productWithRels
+      ? transformEmbeddedRelations(productWithRels as unknown as Record<string, unknown>)
+      : product;
+    const result = warnings.length > 0
+      ? { ...(baseResult as Record<string, unknown>), _warnings: warnings }
+      : baseResult;
     revalidateProductCaches(refreshedSlug);
-    return jsonResponse(successResponse(product), request);
+    const status = warnings.length > 0 ? 207 : 200;
+    return jsonResponse(successResponse(result), request, status);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -357,7 +349,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('product_id', id);
 
     if (catDeleteError) {
-      console.error('Error deleting product categories:', catDeleteError);
+      console.error('[products.DELETE categories]', catDeleteError);
       // Continue anyway - might not have any categories
     }
 
@@ -368,7 +360,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Error deleting product:', deleteError);
+      console.error('[products.DELETE]', deleteError);
 
       // Check for foreign key constraint violations
       if (deleteError.code === '23503') {

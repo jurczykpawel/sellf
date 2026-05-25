@@ -1,0 +1,43 @@
+meta {
+  name: Create Tag
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/tags
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+body:json {
+  {
+    "name": "Beta access",
+    "slug": "beta-access"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (res.getStatus() === 201 && body?.data?.id) {
+    bru.setVar("last_tag_id", body.data.id);
+    bru.setVar("last_tag_slug", body.data.slug);
+  }
+}
+
+docs {
+  # Create Tag
+
+  Creates a new tag in the seller's dictionary. Slug must match
+  `^[a-zA-Z0-9_-]+$` (1-50 chars). Duplicate slug → 409 CONFLICT.
+
+  On success the response shape is `{ data: { id, name, slug, created_at } }`,
+  and `last_tag_id` / `last_tag_slug` are saved for follow-up requests.
+
+  ## Required scope
+  `PRODUCTS_WRITE`
+}

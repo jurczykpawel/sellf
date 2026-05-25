@@ -74,6 +74,10 @@ export async function GET(request: NextRequest) {
         error_message,
         duration_ms,
         status,
+        attempt_count,
+        max_attempts,
+        next_retry_at,
+        failed_permanently_at,
         created_at,
         endpoint:webhook_endpoints (
           id,
@@ -93,12 +97,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by status
-    if (status !== 'all') {
-      const validStatuses = ['success', 'failed', 'archived', 'retried'];
+    if (status === 'all_failed') {
+      query = query.in('status', ['failed', 'pending_retry', 'permanently_failed']);
+    } else if (status !== 'all') {
+      const validStatuses = ['success', 'failed', 'archived', 'retried', 'pending_retry', 'permanently_failed'];
       if (validStatuses.includes(status)) {
         query = query.eq('status', status);
       } else {
-        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: ${validStatuses.join(', ')}`);
+        return apiError(
+          request,
+          'INVALID_INPUT',
+          `Invalid status. Valid values: ${validStatuses.join(', ')}, all_failed, all`,
+        );
       }
     }
 
@@ -141,6 +151,10 @@ export async function GET(request: NextRequest) {
       error_message: log.error_message,
       duration_ms: log.duration_ms,
       status: log.status,
+      attempt_count: log.attempt_count,
+      max_attempts: log.max_attempts,
+      next_retry_at: log.next_retry_at,
+      failed_permanently_at: log.failed_permanently_at,
       created_at: log.created_at,
     }));
 

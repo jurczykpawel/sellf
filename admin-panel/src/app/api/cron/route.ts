@@ -6,8 +6,10 @@
  *   curl -H "Authorization: Bearer $CRON_SECRET" "https://yourdomain.com/api/cron?job=access-expired"
  *
  * Jobs:
- *   access-expired        — dispatch access.expired webhooks for newly expired access records
- *   cleanup-webhook-logs  — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
+ *   access-expired             — dispatch access.expired webhooks for newly expired access records
+ *   cleanup-webhook-logs       — delete webhook_logs older than WEBHOOK_LOG_RETENTION_DAYS
+ *   webhook-deliveries-retry   — process due retries (status=pending_retry) with exp backoff;
+ *                                push to DLQ (permanently_failed) after max_attempts
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,6 +18,9 @@ import { createPlatformClient } from '@/lib/supabase/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { getWebhookQueue } from '@/lib/services/webhook-queue';
+import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
+import { computeNextRetry, hasMoreAttempts } from '@/lib/services/webhook-queue/retry-policy';
 
 // ===== TYPES =====
 
@@ -39,11 +44,13 @@ function isAuthorized(request: NextRequest): boolean {
   const candidate = authHeader.slice(7);
   if (!candidate) return false;
 
-  // Timing-safe comparison (prevents secret length/content oracle attacks)
+  // Hash both inputs to fixed-length digests so timingSafeEqual never sees a
+  // length difference — even the length of the secret stays out of the
+  // observable timing channel.
   try {
-    const a = Buffer.from(candidate);
-    const b = Buffer.from(cronSecret);
-    return a.length === b.length && timingSafeEqual(a, b);
+    const a = createHash('sha256').update(candidate).digest();
+    const b = createHash('sha256').update(cronSecret).digest();
+    return timingSafeEqual(a, b);
   } catch {
     return false;
   }
@@ -180,11 +187,75 @@ async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
   };
 }
 
+// ===== JOB: webhook-deliveries-retry =====
+
+const WEBHOOK_RETRY_BATCH = 50;
+
+async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
+  const adminClient = createAdminClient();
+  const queue = getWebhookQueue();
+
+  const due = await queue.pickDue(WEBHOOK_RETRY_BATCH);
+  if (due.length === 0) {
+    return { processed: 0, errors: 0 };
+  }
+
+  let processed = 0;
+  let errors = 0;
+
+  await Promise.allSettled(
+    due.map(async (delivery) => {
+      try {
+        const { data: endpoint, error } = await adminClient
+          .from('webhook_endpoints')
+          .select('id, url, secret, is_active')
+          .eq('id', delivery.endpointId)
+          .single();
+
+        if (error || !endpoint || !endpoint.is_active) {
+          await queue.markPermanentlyFailed(delivery.id, {
+            ok: false,
+            httpStatus: 0,
+            responseBody: null,
+            errorMessage: 'Endpoint missing or inactive',
+            durationMs: 0,
+          });
+          errors++;
+          return;
+        }
+
+        const nextAttempt = delivery.attemptCount + 1;
+        const result = await WebhookDispatcher.dispatch(
+          { id: endpoint.id, url: endpoint.url, secret: endpoint.secret },
+          delivery.eventType,
+          delivery.payload,
+          { attemptCount: nextAttempt },
+        );
+
+        if (result.ok) {
+          await queue.markDelivered(delivery.id, result);
+        } else if (!hasMoreAttempts(nextAttempt, delivery.maxAttempts)) {
+          await queue.markPermanentlyFailed(delivery.id, result);
+        } else {
+          await queue.markFailed(delivery.id, result, computeNextRetry(nextAttempt));
+        }
+        processed++;
+      } catch (err) {
+        console.error('[cron/webhook-deliveries-retry] processing error', delivery.id, err);
+        errors++;
+      }
+    }),
+  );
+
+  return { processed, errors };
+}
+
 // ===== JOB REGISTRY =====
 
 const JOB_REGISTRY: Record<string, () => Promise<CronJobResult>> = {
   'access-expired': handleAccessExpired,
   'cleanup-webhook-logs': handleCleanupWebhookLogs,
+  'webhook-deliveries-retry': handleWebhookDeliveriesRetry,
 };
 
 // ===== HANDLER =====
@@ -228,8 +299,7 @@ export async function GET(request: NextRequest) {
     const result = await handler();
     return NextResponse.json({ job, ...result });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
     console.error(`[cron/${job}] Fatal error:`, err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Cron job failed' }, { status: 500 });
   }
 }

@@ -1,0 +1,28 @@
+meta {
+  name: Get Tag
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/tags/{{last_tag_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+docs {
+  # Get Tag
+
+  Fetches a single tag by UUID. Uses `last_tag_id` from "Create Tag" by
+  default — override the path variable to fetch any other tag.
+
+  Responses: 200 with `{ data }`, 404 NOT_FOUND, 400 INVALID_INPUT for
+  malformed UUID.
+
+  ## Required scope
+  `PRODUCTS_READ`
+}

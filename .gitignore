@@ -58,6 +58,14 @@ ecosystem.config.js
 # Claude AI local configuration
 .claude/
 
+# Agent implementation plans / briefs — keep out of public repo.
+# CLAUDE.md / AGENTS.md stay tracked; these dirs hold task-specific
+# REQUIRED-SUB-SKILL briefs that reference private vault paths.
+docs/superpowers/
+**/docs/superpowers/
+docs/plans/
+**/docs/plans/
+
 # Sellf license private key (NEVER commit!)
 scripts/.sellf-private-key.pem
 

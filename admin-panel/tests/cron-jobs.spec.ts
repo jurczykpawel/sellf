@@ -171,8 +171,10 @@ test.describe('Cron job: access-expired', () => {
     expect(error).toBeNull();
     expect(logs).toHaveLength(1);
     expect(logs![0].event_type).toBe('access.expired');
-    // Status is 'failed' because the endpoint URL is unreachable — that's expected
-    expect(['failed', 'success']).toContain(logs![0].status);
+    // Status is 'pending_retry' because the endpoint URL is unreachable (SSRF guard rejects
+    // localhost) — a failed first attempt now schedules a retry instead of staying as 'failed'.
+    // 'success' is kept in the list for the rare case where the endpoint actually answers.
+    expect(['pending_retry', 'permanently_failed', 'success']).toContain(logs![0].status);
   });
 
   test('does not re-process already-notified records', async ({ request }) => {
@@ -289,5 +291,93 @@ test.describe('Cron job: cleanup-webhook-logs', () => {
         .maybeSingle();
       expect(checkNew?.id).toBe(newLogId);
     }
+  });
+});
+
+test.describe('Cron job: webhook-deliveries-retry', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  let endpointId: string;
+  const insertedLogIds: string[] = [];
+
+  test.beforeAll(async () => {
+    const random = Math.random().toString(36).slice(2, 8);
+    const { data: endpoint, error } = await supabaseAdmin
+      .from('webhook_endpoints')
+      .insert({
+        url: `https://example.com/cron-retry-${random}`,
+        events: ['purchase.completed'],
+        is_active: true,
+        secret: `whsec_test_${random}`,
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
+    endpointId = endpoint.id;
+  });
+
+  test.afterAll(async () => {
+    if (insertedLogIds.length > 0) {
+      await supabaseAdmin.from('webhook_logs').delete().in('id', insertedLogIds);
+    }
+    if (endpointId) {
+      await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
+    }
+  });
+
+  test('processes due retries, advances state, and reports counts', async ({ request }) => {
+    const past = new Date(Date.now() - 5_000).toISOString();
+    const { data: row } = await supabaseAdmin
+      .from('webhook_logs')
+      .insert({
+        endpoint_id: endpointId,
+        event_type: 'purchase.completed',
+        payload: { event: 'purchase.completed', timestamp: new Date().toISOString(), data: { test: true } },
+        status: 'pending_retry',
+        attempt_count: 1,
+        max_attempts: 5,
+        next_retry_at: past,
+        http_status: 503,
+        duration_ms: 0,
+      })
+      .select('id')
+      .single();
+    insertedLogIds.push(row!.id);
+
+    const res = await request.get(cronUrl('webhook-deliveries-retry'), { headers: authHeader() });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.job).toBe('webhook-deliveries-retry');
+    expect(typeof body.processed).toBe('number');
+    expect(body.processed).toBeGreaterThanOrEqual(1);
+
+    const { data: updated } = await supabaseAdmin
+      .from('webhook_logs')
+      .select('status, attempt_count')
+      .eq('id', row!.id)
+      .single();
+    expect(updated!.attempt_count).toBeGreaterThanOrEqual(2);
+    expect(['success', 'pending_retry', 'permanently_failed']).toContain(updated!.status);
+  });
+
+  test('returns processed=0 when no rows are due', async ({ request }) => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    await supabaseAdmin
+      .from('webhook_logs')
+      .update({ next_retry_at: future })
+      .eq('endpoint_id', endpointId)
+      .eq('status', 'pending_retry');
+
+    const res = await request.get(cronUrl('webhook-deliveries-retry'), { headers: authHeader() });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.processed).toBe(0);
+  });
+
+  test('reports webhook-deliveries-retry in JOB_REGISTRY listing', async ({ request }) => {
+    const res = await request.get(`${BASE_URL}/api/cron`, { headers: authHeader() });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.available).toContain('webhook-deliveries-retry');
   });
 });

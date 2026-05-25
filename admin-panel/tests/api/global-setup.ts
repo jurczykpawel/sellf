@@ -1,22 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHash, randomBytes } from 'crypto';
 
-/**
- * Vitest globalSetup for the API integration suite.
- *
- * `pool: 'forks'` isolates module state per test file by default, so the
- * naive `let testApiKey: string | null = null;` cache in setup.ts becomes
- * 14 separate caches — one per file — each creating its own admin user
- * and key. That's where the flaky 401s came from: 14× the surface area
- * for a transient `supabase.auth.admin.createUser` race per `test:api`
- * invocation, and 14 leaked rows in api_keys / admin_users / auth.users
- * on every cleanup miss.
- *
- * Fix: create the admin + key here, ONCE, before any test file loads.
- * Pass the plaintext to each file via process.env (forked workers
- * inherit it). setup.ts then prefers the inherited value over creating
- * its own.
- */
+// Vitest globalSetup: one shared admin+key per test:api run (env-distributed to forks).
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -35,7 +20,7 @@ async function createSharedKey(): Promise<SharedKey> {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // 1. Create auth user (retry — auth.admin.createUser races on busy machines)
+  // Retry — auth.admin.createUser races on busy machines.
   let authUserId = '';
   let lastErr = '';
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -54,7 +39,6 @@ async function createSharedKey(): Promise<SharedKey> {
   }
   if (!authUserId) throw new Error(`globalSetup: createUser failed: ${lastErr}`);
 
-  // 2. admin_users row
   const { data: adminRow, error: adminErr } = await supabase
     .from('admin_users')
     .insert({ user_id: authUserId })
@@ -62,7 +46,6 @@ async function createSharedKey(): Promise<SharedKey> {
     .single();
   if (adminErr) throw new Error(`globalSetup: admin_users insert failed: ${adminErr.message}`);
 
-  // 3. API key
   const plaintext = `sf_test_${randomBytes(32).toString('hex')}`;
   const { data: keyRow, error: keyErr } = await supabase
     .from('api_keys')
@@ -95,8 +78,7 @@ async function destroySharedKey(s: SharedKey) {
 
 export default async function () {
   shared = await createSharedKey();
-  // Workers inherit process.env from the parent — this is how the key
-  // reaches setup.ts in each forked test file.
+  // Forks inherit process.env from parent.
   process.env.TEST_API_KEY_PLAINTEXT = shared.plaintext;
   process.env.TEST_API_KEY_ID = shared.apiKeyId;
   process.env.TEST_ADMIN_USER_ID = shared.adminUserId;

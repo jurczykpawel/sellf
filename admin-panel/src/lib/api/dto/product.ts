@@ -84,6 +84,9 @@ export const ProductUpdateDTO = z.object(baseShape).partial().strip();
 export type ProductCreateInput = z.infer<typeof ProductCreateDTO>;
 export type ProductUpdateInput = z.infer<typeof ProductUpdateDTO>;
 
+export const ProductCategoriesSchema = z.array(z.string().uuid()).max(50).optional();
+export const ProductTagsSchema = z.array(z.string().uuid()).max(50).optional();
+
 const DATE_FIELDS = ['available_from', 'available_until', 'sale_price_until'] as const;
 type DateField = (typeof DATE_FIELDS)[number];
 

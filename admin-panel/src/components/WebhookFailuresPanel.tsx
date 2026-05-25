@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { WebhookLog } from '@/types/webhooks';
@@ -133,6 +134,12 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
         showEndpointColumn={true}
         onRefresh={fetchFailures}
       />
+
+      <div className="px-6 py-3 border-t border-sf-danger/20 text-right">
+        <Link href="/dashboard/webhooks/deliveries" className="text-xs text-sf-accent hover:underline font-medium">
+          {t('viewAllDlq')}
+        </Link>
+      </div>
 
       {/* Inactive Endpoint Warning Modal */}
       {showInactiveWarning && pendingRetryLog && (

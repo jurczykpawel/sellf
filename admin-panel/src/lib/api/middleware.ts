@@ -272,8 +272,9 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     return null;
   }
 
-  const verifyIdentifier = extractTrustedClientIp(request.headers)
-    ? `ip:${extractTrustedClientIp(request.headers)}`
+  const trustedIp = extractTrustedClientIp(request.headers);
+  const verifyIdentifier = trustedIp
+    ? `ip:${trustedIp}`
     : `ua:${(request.headers.get('user-agent') || 'unknown').slice(0, 64)}`;
   const verifyAttemptAllowed = await checkRateLimitForIdentifier(
     'api_key_verify',

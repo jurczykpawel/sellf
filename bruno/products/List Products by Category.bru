@@ -1,0 +1,32 @@
+meta {
+  name: List Products by Category
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/products
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~category: CATEGORY_UUID_OR_SLUG
+  ~embed: categories
+  ~limit: 50
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+docs {
+  # List Products by Category
+
+  Filter products by category. Value may be a UUID or a slug —
+  auto-detected by regex. Comma-separated values AND-intersect:
+  `?category=courses,featured` returns only products in BOTH.
+
+  Up to 20 values per filter (`FILTER_MAX_VALUES`). Invalid format or
+  unresolved slugs return 400 / empty array respectively.
+}

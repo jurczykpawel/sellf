@@ -53,6 +53,20 @@ export {
   type PaginationOptions,
 } from './pagination';
 
+// Embed helpers
+export {
+  type EmbedKey,
+  type EmbeddedTaxonomy,
+  type EmbeddedCategory,
+  type EmbeddedTag,
+  parseEmbed,
+  buildProductSelect,
+  transformEmbeddedRelations,
+} from './embed';
+
+// Filter helpers
+export { parseCsvFilter, FILTER_MAX_VALUES, resolveFilterIds, intersectProductIdsByMembership, quoteForPostgrestOr, type ParsedFilter, type FilterTable, type MembershipFilterConfig } from './filters';
+
 // API Keys
 export {
   API_SCOPES,

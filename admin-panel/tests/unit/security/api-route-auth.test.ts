@@ -291,6 +291,26 @@ describe('Area 4: API Route Authentication & Authorization', () => {
       /searchParams\.get\(\s*['"]secret['"]/.test(cron.source),
       'cron route must accept the secret only via Authorization: Bearer'
     ).toBe(false);
+
+    // Constant-time comparison must not short-circuit on length: hash both
+    // candidate and secret to fixed-size buffers before timingSafeEqual.
+    expect(
+      /a\.length\s*===\s*b\.length\s*&&\s*timingSafeEqual/.test(cron.source),
+      'cron auth must hash both inputs before timingSafeEqual — early length check is a length oracle'
+    ).toBe(false);
+
+    expect(
+      /createHash\(\s*['"]sha256['"]\s*\)/.test(cron.source) && /timingSafeEqual/.test(cron.source),
+      'cron auth must derive fixed-length digests before timingSafeEqual'
+    ).toBe(true);
+
+    // Fatal handler must not propagate raw err.message — wraps PostgREST /
+    // constraint errors that reveal schema/table internals to anyone holding
+    // CRON_SECRET. Mirror handleApiError: log internally, return generic.
+    expect(
+      /NextResponse\.json\(\s*\{\s*error:\s*message\s*\}/.test(cron.source),
+      'cron fatal handler must not return raw err.message — use a generic string'
+    ).toBe(false);
   });
 
   it('service-role client must not be initialized before auth verification in admin routes', () => {

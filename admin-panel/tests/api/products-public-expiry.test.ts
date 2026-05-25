@@ -202,10 +202,7 @@ describe('Public product endpoints — expiry semantics', () => {
     });
 
     it('product past available_until is hidden from regular user (RLS) — endpoint returns 404', async () => {
-      // Mirror of the inactive case above: migration 20260521000000 tightened
-      // the products SELECT policy so non-admin callers only see rows inside
-      // their availability window. Past-window products short-circuit to 404
-      // before the route can compute reason='temporal'.
+      // Past-window products short-circuit to 404 (migr. 20260521000000 RLS).
       const { status } = await publicGet(`/api/public/products/${pTemporal.slug}/access`, userCookie);
       expect(status).toBe(404);
     });

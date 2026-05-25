@@ -37,6 +37,7 @@ export function escapeIlikePattern(input: string): string {
     .replace(/_/g, '\\_');   // _ -> \_
 }
 
+
 /**
  * Allowed sort columns for product queries - prevents SQL injection via sortBy
  * SECURITY: Only whitelisted columns can be used for sorting

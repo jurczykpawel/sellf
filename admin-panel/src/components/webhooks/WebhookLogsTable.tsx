@@ -11,6 +11,14 @@ interface WebhookLogsTableProps {
   retryingId: string | null;
   showEndpointColumn?: boolean;
   onRefresh?: () => void;
+  onReplay?: (logId: string) => void;
+  onForceRetry?: (logId: string) => void;
+  onCancel?: (logId: string) => void;
+  replayingId?: string | null;
+  actingId?: string | null;
+  // When provided, render a checkbox column for actionable rows (DLQ page).
+  selectedIds?: Set<string>;
+  onToggleSelected?: (logId: string) => void;
 }
 
 export default function WebhookLogsTable({
@@ -18,8 +26,18 @@ export default function WebhookLogsTable({
   onRetry,
   retryingId,
   showEndpointColumn = false,
-  onRefresh
+  onRefresh,
+  onReplay,
+  onForceRetry,
+  onCancel,
+  replayingId = null,
+  actingId = null,
+  selectedIds,
+  onToggleSelected,
 }: WebhookLogsTableProps) {
+  const selectionEnabled = !!selectedIds && !!onToggleSelected;
+  const isSelectable = (log: WebhookLog) =>
+    log.status === 'permanently_failed' || log.status === 'pending_retry';
   const t = useTranslations('admin.webhooks.logs');
   const tCommon = useTranslations('common');
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
@@ -47,8 +65,22 @@ export default function WebhookLogsTable({
           </span>
         );
     }
-    
-    // Failed
+    if (log.status === 'pending_retry') {
+      return (
+        <span className="px-2 py-1 bg-sf-warning-soft text-sf-warning rounded text-xs font-medium border border-sf-warning/20">
+          {t('filterPendingRetry')}
+        </span>
+      );
+    }
+    if (log.status === 'permanently_failed') {
+      return (
+        <span className="px-2 py-1 bg-sf-danger-soft text-sf-danger rounded text-xs font-medium border border-sf-danger/20">
+          DLQ
+        </span>
+      );
+    }
+
+    // Legacy 'failed'
     if (log.http_status === 0) {
       return <span className="px-2 py-1 bg-sf-danger-soft text-sf-danger rounded text-xs font-medium border border-sf-danger/20">{t('networkError')}</span>;
     }
@@ -83,6 +115,37 @@ export default function WebhookLogsTable({
       <table className="min-w-full divide-y divide-sf-border-subtle">
         <thead className="bg-sf-raised">
           <tr>
+            {selectionEnabled && (
+              <th className="px-3 py-3 w-10 text-left">
+                <input
+                  type="checkbox"
+                  aria-label={t('selectAllVisible')}
+                  className="rounded border-sf-border-medium accent-sf-accent"
+                  checked={
+                    logs.filter(isSelectable).length > 0 &&
+                    logs.filter(isSelectable).every((l) => selectedIds!.has(l.id))
+                  }
+                  ref={(el) => {
+                    if (!el) return;
+                    const selectable = logs.filter(isSelectable);
+                    const here = selectable.filter((l) => selectedIds!.has(l.id)).length;
+                    el.indeterminate = here > 0 && here < selectable.length;
+                  }}
+                  onChange={(e) => {
+                    const selectable = logs.filter(isSelectable);
+                    if (e.target.checked) {
+                      selectable.forEach((l) => {
+                        if (!selectedIds!.has(l.id)) onToggleSelected!(l.id);
+                      });
+                    } else {
+                      selectable.forEach((l) => {
+                        if (selectedIds!.has(l.id)) onToggleSelected!(l.id);
+                      });
+                    }
+                  }}
+                />
+              </th>
+            )}
             <th className="px-4 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{t('date')}</th>
             {showEndpointColumn && (
               <th className="px-4 py-3 text-left text-xs font-medium text-sf-muted uppercase tracking-wider">{t('endpoint')}</th>
@@ -96,7 +159,7 @@ export default function WebhookLogsTable({
         <tbody className="divide-y divide-sf-border-subtle">
           {logs.map((log) => (
             <React.Fragment key={log.id}>
-              <tr 
+              <tr
                 onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                 className={`cursor-pointer transition-colors ${
                   expandedLog === log.id
@@ -104,6 +167,19 @@ export default function WebhookLogsTable({
                     : 'hover:bg-sf-hover'
                 }`}
               >
+                {selectionEnabled && (
+                  <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                    {isSelectable(log) && (
+                      <input
+                        type="checkbox"
+                        aria-label={t('selectRow', { id: log.id.slice(0, 8) })}
+                        className="rounded border-sf-border-medium accent-sf-accent"
+                        checked={selectedIds!.has(log.id)}
+                        onChange={() => onToggleSelected!(log.id)}
+                      />
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3 text-sm text-sf-heading whitespace-nowrap">
                   {new Date(log.created_at).toLocaleString()}
                 </td>
@@ -129,8 +205,35 @@ export default function WebhookLogsTable({
                   {log.duration_ms !== undefined ? `${log.duration_ms}ms` : '---'}
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap space-x-2">
-                  {/* Resend button - available for all statuses except 'retried' */}
-                  {log.status !== 'retried' && log.status !== 'archived' && (
+                  {log.status === 'permanently_failed' && onReplay && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReplay(log.id); }}
+                      disabled={replayingId === log.id}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded border-sf-border text-sf-accent bg-sf-accent-soft hover:bg-sf-hover disabled:opacity-50"
+                    >
+                      {replayingId === log.id ? '...' : t('replay')}
+                    </button>
+                  )}
+                  {log.status === 'pending_retry' && onForceRetry && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onForceRetry(log.id); }}
+                      disabled={actingId === log.id}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded border-sf-border text-sf-accent bg-sf-raised hover:bg-sf-hover disabled:opacity-50"
+                    >
+                      {actingId === log.id ? '...' : t('forceRetry')}
+                    </button>
+                  )}
+                  {log.status === 'pending_retry' && onCancel && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onCancel(log.id); }}
+                      disabled={actingId === log.id}
+                      className="inline-flex items-center px-2.5 py-1.5 border text-xs font-medium rounded border-sf-border text-sf-muted bg-sf-raised hover:text-sf-danger disabled:opacity-50"
+                    >
+                      {actingId === log.id ? '...' : t('cancel')}
+                    </button>
+                  )}
+                  {/* Legacy Resend/Retry — kept for success/failed states */}
+                  {(log.status === 'success' || log.status === 'failed') && (
                     <button
                       onClick={(e) => handleRetryClick(e, log.id)}
                       disabled={retryingId === log.id}
@@ -187,6 +290,28 @@ export default function WebhookLogsTable({
                             {log.response_body || t('emptyResponse')}
                           </pre>
                         </div>
+                      </div>
+                      <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                        {typeof log.attempt_count === 'number' && (
+                          <div>
+                            <span className="text-sf-muted">{t('attemptCount')}: </span>
+                            <span className="text-sf-heading font-mono">
+                              {t('attemptOf', { count: log.attempt_count, max: log.max_attempts })}
+                            </span>
+                          </div>
+                        )}
+                        {log.next_retry_at && (
+                          <div>
+                            <span className="text-sf-muted">{t('nextRetryAt')}: </span>
+                            <span className="text-sf-heading font-mono">{new Date(log.next_retry_at).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {log.failed_permanently_at && (
+                          <div>
+                            <span className="text-sf-muted">{t('failedPermanentlyAt')}: </span>
+                            <span className="text-sf-heading font-mono">{new Date(log.failed_permanently_at).toLocaleString()}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>

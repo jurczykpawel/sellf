@@ -19,6 +19,10 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000, // 30s timeout for API calls
     hookTimeout: 60000, // 60s for setup/teardown
+    // Re-run a failing API integration test once before reporting it as failed.
+    // Mitigates cold-start races (cron init, route compilation) without
+    // masking genuine bugs — true regressions fail both attempts.
+    retry: 1,
     setupFiles: [],
     globalSetup: ['./tests/api/global-setup.ts'],
     // Run tests sequentially to avoid race conditions

@@ -1,0 +1,32 @@
+meta {
+  name: Update Tag
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{BASE_URL}}/api/v1/tags/{{last_tag_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{API_KEY}}
+}
+
+body:json {
+  {
+    "name": "Beta access (renamed)"
+  }
+}
+
+docs {
+  # Update Tag
+
+  Partial update. Empty body → 400. Slug uniqueness enforced by DB; a
+  conflicting slug returns 409. Send `{ "slug": "..." }` and/or
+  `{ "name": "..." }`.
+
+  ## Required scope
+  `PRODUCTS_WRITE`
+}
