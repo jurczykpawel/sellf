@@ -64,20 +64,8 @@ Auto-request reviews after purchase, rich media support (photos/videos), display
 Generate conversion-focused landing pages using AI. One-click generation from product name & description with persuasive copy and design automation.
 
 ### Outgoing Webhooks v2.0
-**Status**: 🟡 Partial — auto-retry + DLQ + Replay + batch ops shipped 2026-05-23/24. Remaining: pagination beyond 50, partial-outcome toast, per-endpoint custom retry policy, undo, delivery analytics, advanced filtering/transforms.
-Auto-retry with exponential backoff (1m/5m/30m/2h/12h), dead-letter queue with admin Replay UI, atomic concurrent-worker safety, and pluggable queue driver (`WEBHOOK_QUEUE_DRIVER=supabase|sqs`) are now in `/dashboard/webhooks/deliveries`. See [docs/webhooks.md](docs/webhooks.md). 2026-05-24 follow-up added batch operations to that page: select-all checkbox + smart toolbar with per-action counts (Replay/Retry now/Cancel), in-app confirm modal, and an honest copy explaining the receiver gets the same payload (no clone, no duplicates).
-
-Remaining gaps tracked here for the next sprint:
-- **Pagination beyond 50 visible rows** — `useWebhookDeliveries` hardcodes `limit: 50`. Heavy DLQ recovery (500+) needs page-aware select-all.
-- **Toast partial-outcome detail** — when a mixed selection runs Replay, only eligible (DLQ) items act; toast should say "Replayed 3 of 8 selected (5 were not eligible)" instead of `Replayed 3`.
-- **Per-endpoint custom retry policy** — `RETRY_DELAYS_SECONDS` is global. Some endpoints want 1 attempt (Slack alert), others 10 (paid CRM). Needs `max_attempts` column on `webhook_endpoints` + override in `recordFirstAttempt`.
-- **Rate-limit awareness in batch loop** — `runBatch` fires N parallel POSTs; no jitter/backoff. Risks 429 against receivers with strict rate limits when batches exceed ~100.
-- **Server-side batch endpoint** — client loop via `Promise.allSettled` is not atomic. For 500+-item recovery a real `POST /api/v1/webhooks/logs/batch/replay` endpoint would survive a network drop mid-batch.
-- **Undo window** — Replay/Cancel are irreversible without SQL. A 5s undo toast (sonner `action` prop) would catch fat-finger clicks.
-- **Delivery analytics** — success-rate trend per endpoint, p99 latency, per-event breakdown.
-- **Filtering / transforms** — per-endpoint event filter expressions, payload transforms before send.
-
-Core refund, waitlist, purchase, subscription, and invoice events were already shipped.
+**Status**: 🟡 Partial — auto-retry + DLQ + Replay shipped 2026-05-23. Remaining: delivery analytics (success rate, p99 latency), advanced filtering/transforms.
+Auto-retry with exponential backoff (1m/5m/30m/2h/12h), dead-letter queue with admin Replay UI, atomic concurrent-worker safety, and pluggable queue driver (`WEBHOOK_QUEUE_DRIVER=supabase|sqs`) are now in `/dashboard/webhooks/deliveries`. See [docs/webhooks.md](docs/webhooks.md). Core refund, waitlist, purchase, subscription, and invoice events were already shipped.
 
 ### API Extensions & SDKs
 **Status**: 📋 Planned
