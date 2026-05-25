@@ -208,7 +208,7 @@ npx supabase gen types typescript --local > admin-panel/src/types/database.ts
 
 ### H. GitHub repo rename
 - `jurczykpawel/gateflow` → `jurczykpawel/sellf`
-- Po rename: update `GITHUB_REPO` w `mikrus-toolbox/apps/gateflow/update.sh`
+- Po rename: update `GITHUB_REPO` w `stackpilot/apps/gateflow/update.sh`
   ```bash
   GITHUB_REPO="jurczykpawel/sellf"
   ```
@@ -278,7 +278,7 @@ grep -r "sellf-keeper\|sellfkeeper\|sellf_keeper" admin-panel/src -l  # powinno 
 | Format licencji `GF-` | → `SF-` ✅ |
 | `deploy-gateflow.sh` | → `deploy-sellf.sh` ✅ |
 | `setup-gateflow-config.sh` | → `setup-sellf-config.sh` ✅ |
-| Katalog `apps/gateflow/` | zostaje (wewnętrzna nazwa mikrus-toolbox) |
+| Katalog `apps/gateflow/` | zostaje (wewnętrzna nazwa stackpilot) |
 | GitHub repo rename | `jurczykpawel/gateflow` → `jurczykpawel/sellf` ✅ |
 | Migracje SQL | replace w plikach + db reset, nie ALTER TABLE ✅ |
 | `AGENTS.md` / `CLAUDE.md` | zmienić nazwy na Sellf ✅ |

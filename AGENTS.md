@@ -664,23 +664,27 @@ The tar.gz contains: `.next/` (with `standalone/admin-panel/server.js`), `packag
 
 **Important:** The standalone output has a nested `admin-panel/` directory inside `.next/standalone/` because the CI builds from `admin-panel/` with a parent `package.json` at repo root. Next.js file tracing detects the parent and creates this nested structure.
 
-### Deploying to server (mikrus-toolbox)
+### Deploying to server (stackpilot)
 
-Deploy scripts live in a separate repo: `jurczykpawel/mikrus-toolbox`.
+Deploy scripts live in a separate repo: `jurczykpawel/stackpilot`.
 
 ```bash
 # Fresh install
 ./local/deploy.sh sellf --ssh=mikrus --domain=example.com
 
-# Update (downloads latest release from GitHub automatically)
-./local/deploy.sh sellf --ssh=mikrus --update
+# Update an existing instance (downloads latest GitHub release tarball)
+./local/deploy.sh sellf --ssh=mikrus --update --instance=tsa
+./local/deploy.sh sellf --ssh=mikrus --update --instance=demo
 
 # Update with local build file (when no release exists yet)
-./local/deploy.sh sellf --ssh=mikrus --update --build-file=~/sellf-build.tar.gz
+./local/deploy.sh sellf --ssh=mikrus --update --instance=tsa --build-file=~/sellf-build.tar.gz
 
 # Restart only (after .env.local changes, no file update)
-./local/deploy.sh sellf --ssh=mikrus --update --restart
+./local/deploy.sh sellf --ssh=mikrus --update --instance=tsa --restart
 ```
+
+Multi-instance: pass `--instance=<name>` so the script targets the right
+`/opt/stacks/sellf-<name>/` directory and `pm2 restart sellf-<name>`.
 
 ### Server instances
 
