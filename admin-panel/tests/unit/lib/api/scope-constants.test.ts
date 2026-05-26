@@ -1,10 +1,4 @@
-/**
- * Guards against scope-list drift between the TS source of truth
- * (`ALL_SCOPES`) and the hardcoded SQL literal that backs the
- * `api_keys.scopes` column DEFAULT. The migration sits outside the TS
- * build so a stale DEFAULT would silently grant fewer scopes to rows
- * inserted via raw SQL — this test fails CI before that can ship.
- */
+// Guards against ALL_SCOPES (TS) drifting from the api_keys.scopes SQL DEFAULT.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -19,9 +13,6 @@ const MIGRATION_PATH = path.resolve(
 );
 
 function extractScopesFromMigration(sql: string): string[] {
-  // Pull every quoted scope literal inside the DEFAULT clause that uses
-  // jsonb_build_array(...). The migration is the only one in scope today;
-  // future migrations that change the DEFAULT should update this test too.
   const defaultMatch = sql.match(/SET DEFAULT jsonb_build_array\(([\s\S]+?)\)/);
   if (!defaultMatch) throw new Error('jsonb_build_array DEFAULT not found in migration');
   return Array.from(defaultMatch[1].matchAll(/'([^']+)'/g), (m) => m[1]);

@@ -8,17 +8,10 @@
  * @see ./api-keys.ts
  */
 
-// Concrete scopes that can be persisted on an api_keys row.
-//
-// Adding a new entry expands the set of permissions granted by `expandScopes`
-// to NEW keys only. Existing keys keep the explicit snapshot they were created
-// with — the wildcard is resolved at create-time, not at request-time.
-//
-// IMPORTANT: adding or removing an entry here requires a paired DB migration
-// to update the `api_keys.scopes` column DEFAULT — that DEFAULT is a hardcoded
-// SQL literal in 20260525140000_expand_api_key_wildcard_scopes.sql and any
-// later "scope set" migration. The unit test in
-// tests/unit/lib/api/scope-constants.test.ts asserts the parity.
+// Concrete scopes persisted on api_keys rows. Wildcard is resolved at
+// create-time, not at request-time — existing keys keep their snapshot.
+// Changing this list requires a paired migration for the api_keys.scopes
+// DEFAULT (parity enforced by tests/unit/lib/api/scope-constants.test.ts).
 export const API_SCOPES = {
   PRODUCTS_READ: 'products:read',
   PRODUCTS_WRITE: 'products:write',

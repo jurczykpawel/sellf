@@ -310,9 +310,7 @@ export function enforceApiKeyScopeGate(
   tier: LicenseTier,
   requestedScopes: string[] | undefined,
 ): ApiScope[] {
-  // Intentional pass-through — narrower-than-full requests are always honored
-  // regardless of tier (see header doc). Don't "fix" this by enforcing tier.
-  void tier;
+  void tier; // intentional pass-through — see header doc
   if (!requestedScopes || requestedScopes.length === 0) {
     return [...ALL_SCOPES];
   }
