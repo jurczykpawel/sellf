@@ -196,6 +196,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (dispatch.skipped) {
+      if (dispatch.skipped.reason === 'no_destination_configured') {
+        return NextResponse.json(
+          { error: 'No tracking destination configured' },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json({
         success: false,
         skipped: true,
