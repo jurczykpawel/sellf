@@ -405,12 +405,15 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (timedProduct) testProductIds.push(timedProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
-
-    // Verify product is displayed
-    await expect(page.getByText('30-Day Access Course')).toBeVisible({ timeout: 15000 });
+    // Retry the goto + initial assertion — under full-suite load page.goto
+    // itself can hang past 45s on the dev server (same Turbopack/FD-pressure
+    // class as #707).
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(2000);
+      await expect(page.getByText('30-Day Access Course')).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 45000, intervals: [3000, 5000, 8000] });
 
     // Verify duration badge shows "30d access" - look for the small badge specifically
     const durationBadge = page.locator('text=/^30d access$|^30 days access$/i').first();

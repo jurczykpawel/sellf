@@ -69,6 +69,10 @@ test.describe('Authenticated Admin Dashboard', () => {
   });
 
   test('should perform full CRUD on a product', async ({ page }) => {
+    // Force local VAT mode — leftover tax_mode='stripe_tax' from sibling
+    // suites hides #vat_rate and the fill below times out.
+    await supabaseAdmin.from('shop_config').update({ tax_mode: 'local' }).not('id', 'is', null);
+
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/products');
 
