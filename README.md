@@ -327,8 +327,10 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 ### One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL&envDescription=Required%20environment%20variables%20for%20Sellf.%20See%20.env.example%20for%20all%20options.&envLink=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf%2Fblob%2Fmain%2Fadmin-panel%2F.env.example&project-name=sellf&repository-name=sellf)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL,CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET&envDescription=All%20variables%20required%20for%20a%20production%20deploy.%20The%20%2Asecret%2A%2Fkey%20fields%20need%20to%20be%20generated%20locally%20—%20see%20guide%20for%20one-liner%20commands.%20Set%20TRUSTED_PROXY%3Dtrue%20literally.&envLink=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf%2Fblob%2Fmain%2Fdocs%2FDEPLOYMENT-VERCEL-NETLIFY.md&project-name=sellf&repository-name=sellf)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/jurczykpawel/sellf&base=admin-panel)
+
+> **⚠️ Read the [Vercel/Netlify deploy guide](./docs/DEPLOYMENT-VERCEL-NETLIFY.md) first.** The one-click button creates the app, but you still need to (a) generate a few secrets locally, (b) run Supabase migrations after deploy, and (c) wire up the Stripe webhook in a second pass. The guide walks through all three in ~15 minutes.
 
 > **Coolify / Docker:** Create a new Application in Coolify, point to this repo, set **Base Directory** to `admin-panel`, and configure env vars from [.env.example](./admin-panel/.env.example).
 
