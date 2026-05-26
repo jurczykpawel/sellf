@@ -308,7 +308,7 @@
           "title": "Zgody cookies",
           "desc": "Zgodność z RODO:",
           "step1": "Włącz 'Wymagaj zgody'",
-          "step2": "Włącz 'Konwersje bez zgody'"
+          "step2": "Wybierz tryb 'Ograniczony — LDU' (zalecany)"
         },
         "result": "Po wykonaniu tych kroków będziesz mieć: analitykę, śledzenie konwersji i zgodność z RODO. Konwersje będą działać nawet z adblockerami."
       },
@@ -377,7 +377,7 @@
           "step4": "Zaznacz checkbox 'Włącz Conversions API'"
         },
         "quickStartResult": "Gotowe! Twoje zakupy i leady będą śledzone w Meta. Działa nawet z adblockerami.",
-        "quickStartOptional": "Opcjonalnie: Wejdź w zakładkę Zgody i włącz 'Wysyłaj konwersje bez zgody na cookies' żeby śledzić konwersje nawet gdy użytkownicy odrzucą cookies.",
+        "quickStartOptional": "Opcjonalnie: Wejdź w zakładkę Zgody i wybierz tryb 'Ograniczony — LDU' (zalecany) lub 'Pełny', żeby śledzić konwersje również gdy użytkownicy odrzucą cookies.",
         "whatIs": "Czym jest Meta Conversions API?",
         "whatIsDesc": "Meta Conversions API (CAPI) wysyła zdarzenia bezpośrednio z serwera do Meta, omijając ograniczenia przeglądarki. Działa razem z Pixelem dla lepszej dokładności śledzenia i optymalizacji reklam.",
         "howToSetup": "Kroki Konfiguracji",
@@ -411,7 +411,7 @@
         "successPage": "Strona sukcesu",
         "grantAccess": "Przyznanie dostępu",
         "recommendation": "Które rozwiązanie wybrać?",
-        "recommendationDesc": "Do wysyłania konwersji bez zgody na cookies zalecamy nasze wbudowane CAPI:",
+        "recommendationDesc": "Żeby śledzić konwersje po odrzuceniu cookies (tryb Ograniczony lub Pełny) zalecamy nasze wbudowane CAPI:",
         "recommendationTable": {
           "feature": "Funkcja",
           "ourCapi": "Nasze CAPI (Zalecane)",

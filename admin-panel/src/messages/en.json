@@ -302,7 +302,7 @@
           "title": "Cookie Consent",
           "desc": "GDPR compliance:",
           "step1": "Enable 'Require Consent'",
-          "step2": "Enable 'Send conversions without consent'"
+          "step2": "Pick the 'Limited — LDU' mode (recommended)"
         },
         "result": "After completing these steps you'll have: analytics, conversion tracking, and GDPR compliance. Conversions will work even with adblockers."
       },
@@ -371,7 +371,7 @@
           "step4": "Check 'Enable Conversions API' checkbox"
         },
         "quickStartResult": "Done! Your purchases and leads will be tracked to Meta. Works even with adblockers.",
-        "quickStartOptional": "Optional: Go to Consents tab and enable 'Send conversions without cookie consent' to track conversions even when users decline cookies.",
+        "quickStartOptional": "Optional: Go to the Consents tab and pick the 'Limited — LDU' mode (recommended) or 'Permissive' to keep conversion tracking even when visitors decline cookies.",
         "whatIs": "What is Meta Conversions API?",
         "whatIsDesc": "Meta Conversions API (CAPI) sends events directly from your server to Meta, bypassing browser limitations. It works alongside the Pixel for better tracking accuracy and ad optimization.",
         "howToSetup": "Setup Steps",
@@ -383,7 +383,7 @@
         "deduplication": "Event Deduplication",
         "deduplicationDesc": "Both Pixel and CAPI send the same event with matching event_id. Meta automatically deduplicates so you don't get double counting.",
         "recommendation": "Which solution to choose?",
-        "recommendationDesc": "For sending conversions without cookie consent, we recommend using our built-in CAPI:",
+        "recommendationDesc": "To keep tracking conversions after cookies are declined (Limited or Permissive mode), we recommend using our built-in CAPI:",
         "recommendationTable": {
           "feature": "Feature",
           "ourCapi": "Our CAPI (Recommended)",
