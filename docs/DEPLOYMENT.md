@@ -12,7 +12,7 @@ The guides below are for **advanced use cases**:
 - Self-hosted full stack (Sellf + Supabase) on your own VPS
 - Auto TLS + GitHub auto-deploy on push
 
-**Requirements:** 4GB+ RAM VPS, Coolify installed (free), 10 min setup
+**Requirements:** 8GB+ RAM VPS (4 GB is enough at runtime but the build OOMs — see guide), Coolify installed (free), 10 min setup
 
 ---
 

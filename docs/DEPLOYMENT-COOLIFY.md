@@ -9,7 +9,7 @@ Time required: **~10 minutes** once Coolify is installed.
 ## When this is the right choice
 
 Pick Coolify if:
-- You have a VPS with **4 GB+ RAM** (the full stack runs 11 containers — Sellf needs ~500 MB, Supabase the rest)
+- You have a VPS with **8 GB+ RAM** (the build itself needs ~3 GB free for `bun run build` on Next.js 16 with Turbopack; on a 4 GB VPS Coolify + Postgres + Redis already eat ~1 GB, leaving the build to OOM — verified 2026-05-26 on a Hetzner CX22)
 - You want everything on your own infrastructure (no Supabase Cloud, no Vercel)
 - You're OK self-hosting Postgres (and your own backups)
 - You want a real "deploy and forget" — Coolify handles auto-renew TLS, updates, restarts
@@ -162,6 +162,18 @@ Fix: check the file exists at the path `docker-compose.fullstack.yml` expects (`
 ### "Service quota exceeded" from Coolify
 
 Coolify free tier allows N resources per server. Check the Coolify pricing page — if you're over, either delete unused resources or upgrade.
+
+### Build OOM-kills `bun` on a 4 GB VPS
+
+Symptom: Coolify shows the deploy as "in progress" but the build container disappears with no error in the UI logs. `dmesg` on the host shows:
+
+```
+Out of memory: Killed process <pid> (bun) total-vm:76GB ...
+```
+
+Cause: Next.js 16 + Turbopack + `bun run build` peaks around 3 GB resident, and Coolify's own services + Postgres + Redis already use ~1 GB. A 4 GB VPS doesn't fit.
+
+Fix: upgrade to **8 GB+** (Hetzner CX32, Contabo VPS 200, Linode g6-standard-2, etc.) and redeploy. Or build the image elsewhere and let Coolify just pull it (see "Build server" in Coolify settings).
 
 ### Stripe webhooks return 400 "Missing signature"
 
