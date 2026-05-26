@@ -40,6 +40,16 @@ Keep the output handy — you'll paste each value into the deploy form in Step 4
 
 ## Step 2 — Create a Supabase project (3 min)
 
+You have two paths here. Pick one:
+
+### Path A — Vercel's Supabase integration (Vercel only, saves typing)
+
+After clicking the Deploy button in Step 4 and finishing the deploy, open your project in the Vercel dashboard → **Storage → Connect Database → Supabase**. Vercel will create the Supabase project for you and inject the three env vars automatically (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — Sellf reads all of those names). You still need to grab the **project ref** + **database password** from the Supabase dashboard for Step 6.
+
+If you take this path, skip the 4 env vars for Supabase in Step 4's form and leave them blank — Vercel fills them in after the integration is added.
+
+### Path B — Create the project manually (works on Vercel and Netlify)
+
 1. Go to **https://supabase.com/dashboard** and sign in (GitHub works).
 2. Click **New project** → fill in:
    - **Name:** `sellf` (or anything)
@@ -172,12 +182,11 @@ You're hitting **Vercel Authentication** (formerly "Deployment Protection"), whi
 
 The clone URL flow doesn't enable this for production aliases — but if you create the project via CLI, you'll need to toggle it off explicitly.
 
-### Build fails on Netlify with "Cannot find @netlify/plugin-nextjs version that supports Next.js 16"
+### Netlify + Next.js 16
 
-Sellf uses Next.js 16. The Netlify Next plugin officially supports up to 15.x at the time of writing. You have two options:
+`@netlify/plugin-nextjs@5.15.11` doesn't declare a peer dependency on Next.js, so it's unclear from the manifest whether Next 16 is supported. **Verified to work in practice** (2026-05-26): a clean Netlify deploy of Sellf builds in ~55 seconds and serves all routes correctly. No special configuration needed beyond what's in `netlify.toml`.
 
-- **Switch to Vercel** — first-party Next.js support, no compatibility risk
-- **Wait for plugin update** — `@netlify/plugin-nextjs` has historically caught up with new Next.js majors within a few weeks. Check https://github.com/netlify/next-runtime-minimal/releases.
+If a future Sellf release upgrades Next.js and the plugin breaks, the failure mode is typically a build error referencing missing exports from `next/server` or similar. Either downgrade Sellf temporarily or switch to Vercel until the plugin catches up.
 
 ### App crashes immediately after deploy with "Refusing to start: CHECKOUT_BINDING_SECRET is not set"
 

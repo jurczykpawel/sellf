@@ -5,15 +5,17 @@ import { buildSupabaseCookieOptions } from './cookie-options'
 export async function createClient() {
   const cookieStore = await cookies()
 
-  // Use server-side environment variables
-  const supabaseUrl = process.env.SUPABASE_URL
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+  // Accept either the bare names (what Sellf docs ask for) or Vercel's
+  // Supabase integration names — the integration sets NEXT_PUBLIC_SUPABASE_*
+  // automatically when you add it from the project's Integrations panel.
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl) {
-    throw new Error('SUPABASE_URL is not defined. Server client cannot be created.')
+    throw new Error('SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is not defined. Server client cannot be created.')
   }
   if (!supabaseAnonKey) {
-    throw new Error('SUPABASE_ANON_KEY is not defined. Server client cannot be created.')
+    throw new Error('SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY) is not defined. Server client cannot be created.')
   }
   const isProduction = process.env.NODE_ENV === 'production'
 
@@ -61,11 +63,14 @@ export async function createClient() {
  * - Authenticated operations
  */
 export function createPublicClient() {
-  // Fallback to publicly available env vars for build-time static generation
-  // Runtime: SUPABASE_URL / SUPABASE_ANON_KEY (if set)
-  // Build time: NEXT_PUBLIC_SUPABASE_URL / ANON_KEY (from .env.fullstack)
+  // Fallback chain:
+  //   1. SUPABASE_URL / SUPABASE_ANON_KEY — what Sellf docs ask for
+  //   2. NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY — Vercel's
+  //      Supabase integration sets these, so the integration just works
+  //   3. ANON_KEY — legacy fallback from .env.fullstack
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY
+  const supabaseAnonKey =
+    process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.ANON_KEY
 
   // At build time (next build), env vars may not be available.
   // Throw at runtime to prevent accidental use with missing config.

@@ -85,3 +85,5 @@ priv/
 # Local build artifacts
 release/
 sellf-build.tar.gz
+.netlify/
+deno.lock
