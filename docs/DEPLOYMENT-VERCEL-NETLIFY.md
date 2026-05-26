@@ -221,6 +221,122 @@ The Supabase database stays the same — test and live payments are tracked side
 
 ---
 
+## Appendix: Fully scripted deploy (for agents / CI)
+
+When you're driving this from an agent or CI rather than the web form, the whole flow collapses to ~12 CLI commands. Save this once, replay it on demand. Assumes `vercel`, `supabase`, and `stripe` CLIs are installed and logged in.
+
+```bash
+set -e
+
+# === Step 1: Generate the four secrets ===
+CHECKOUT_BINDING_SECRET=$(openssl rand -base64 32)
+APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+LOGINWALL_SECRET=$(openssl rand -hex 32)
+DB_PASS=$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-24)
+
+# === Step 2: Create the Supabase project ===
+ORG_ID=$(supabase orgs list | awk -F'|' '/[a-z]{20}/ {gsub(/^ +| +$/,"",$1); print $1; exit}')
+PROJECT_NAME="sellf-$(date +%s)"
+supabase projects create "$PROJECT_NAME" --org-id "$ORG_ID" --db-password "$DB_PASS" --region eu-central-1
+PROJECT_REF=$(supabase projects list | awk -F'|' -v n="$PROJECT_NAME" '$0 ~ n {gsub(/^ +| +$/,"",$3); print $3; exit}')
+
+# === Step 3: Wait for provisioning + fetch keys ===
+for i in 1 2 3 4 5; do
+  KEYS=$(supabase projects api-keys --project-ref "$PROJECT_REF" 2>&1)
+  echo "$KEYS" | grep -q "anon" && break || sleep 20
+done
+SB_URL="https://${PROJECT_REF}.supabase.co"
+SB_ANON=$(echo "$KEYS" | grep -E '^\s+anon\s+\|' | sed 's/.*| //' | tr -d ' ')
+SB_SVC=$(echo "$KEYS"  | grep -E '^\s+service_role\s+\|' | sed 's/.*| //' | tr -d ' ')
+
+# === Step 4: Bring your own Stripe sk_test_ / pk_test_ (CLI can't fetch pk) ===
+# Either paste them into env or pull from a known-good test env (see below).
+: "${STRIPE_SK:?set STRIPE_SK to your sk_test_...}"
+: "${STRIPE_PK:?set STRIPE_PK to your pk_test_...}"
+
+# === Step 5: Create the Vercel project ===
+cd admin-panel
+vercel project add "$PROJECT_NAME"
+vercel link --project "$PROJECT_NAME" --yes
+
+# === Step 5b: CRITICAL — set framework to nextjs ===
+# Without this, every URL returns x-vercel-error: NOT_FOUND. The clone URL flow
+# does this automatically; the CLI doesn't when --yes is passed.
+PROJECT_ID=$(jq -r .projectId .vercel/project.json)
+TEAM_ID=$(jq -r .orgId .vercel/project.json)
+VTOKEN=$(jq -r .token "$HOME/Library/Application Support/com.vercel.cli/auth.json")
+curl -s -X PATCH "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$TEAM_ID" \
+  -H "Authorization: Bearer $VTOKEN" -H "Content-Type: application/json" \
+  -d '{"framework":"nextjs"}' > /dev/null
+
+# === Step 5c: CRITICAL — disable Vercel Authentication on new Hobby projects ===
+# Without this, *.vercel.app returns 401 with an SSO cookie. Custom domains are fine.
+vercel project protection disable "$PROJECT_NAME" --sso
+
+# === Step 6: Set env vars — MUST use --value flag (NOT pipe-to-stdin) ===
+# Piping to stdin silently sets empty values. Always use --value.
+# vercel env pull will show sensitive vars as "" — that's a display quirk, not the
+# stored value. Trust the deploy, not the pull, for sensitive envs.
+SITE_URL="https://${PROJECT_NAME}.vercel.app"
+add_env() { vercel env add "$1" production --value "$2" --yes; }
+
+add_env SUPABASE_URL                "$SB_URL"
+add_env SUPABASE_ANON_KEY           "$SB_ANON"
+add_env SUPABASE_SERVICE_ROLE_KEY   "$SB_SVC"
+add_env STRIPE_SECRET_KEY           "$STRIPE_SK"
+add_env STRIPE_PUBLISHABLE_KEY      "$STRIPE_PK"
+add_env STRIPE_WEBHOOK_SECRET       "whsec_PLACEHOLDER_for_first_deploy_replace_after_xxxxxxxxxx"
+add_env SITE_URL                    "$SITE_URL"
+add_env CHECKOUT_BINDING_SECRET     "$CHECKOUT_BINDING_SECRET"
+add_env TRUSTED_PROXY               "true"
+add_env APP_ENCRYPTION_KEY          "$APP_ENCRYPTION_KEY"
+add_env LOGINWALL_SECRET            "$LOGINWALL_SECRET"
+
+# === Step 7: First deploy ===
+vercel --prod --yes
+
+# === Step 8: Apply database migrations (the deploy can't do this) ===
+cd ..
+supabase link --project-ref "$PROJECT_REF" --password "$DB_PASS"
+supabase db push --password "$DB_PASS" --yes
+
+# === Step 9: Create the Stripe webhook + capture its signing secret ===
+WH=$(stripe webhook_endpoints create --url="${SITE_URL}/api/webhooks/stripe" \
+  --enabled-events="checkout.session.completed" \
+  --enabled-events="checkout.session.async_payment_succeeded" \
+  --enabled-events="checkout.session.async_payment_failed" \
+  --enabled-events="customer.subscription.created" \
+  --enabled-events="customer.subscription.updated" \
+  --enabled-events="customer.subscription.deleted" \
+  --enabled-events="customer.subscription.trial_will_end" \
+  --enabled-events="invoice.paid" --enabled-events="invoice.payment_failed" \
+  --enabled-events="payment_intent.succeeded" --enabled-events="payment_intent.payment_failed" \
+  --enabled-events="charge.refunded")
+WH_SECRET=$(echo "$WH" | jq -r .secret)
+
+# === Step 10: Replace the placeholder webhook secret + redeploy ===
+cd admin-panel
+yes y | vercel env rm STRIPE_WEBHOOK_SECRET production --yes
+vercel env add STRIPE_WEBHOOK_SECRET production --value "$WH_SECRET" --yes
+vercel --prod --yes
+
+# === Step 11: Smoke test ===
+sleep 5
+curl -sf "$SITE_URL/api/health" > /dev/null && echo "✓ /api/health OK"
+curl -sf "$SITE_URL/api/runtime-config" | jq -e '.supabaseUrl and .stripePublishableKey' > /dev/null && echo "✓ /api/runtime-config OK"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$SITE_URL/api/webhooks/stripe" -d '{}')" = "400" ] && echo "✓ webhook signature validation OK"
+```
+
+### Gotchas this script avoids
+
+The first time I tried this end-to-end the deploy died at the homepage with `Missing SUPABASE_URL`. Three things turned out to bite:
+
+1. **`vercel env add KEY production --value "..."`** — the documented `echo "$val" | vercel env add KEY production` pattern can silently set empty values in non-interactive contexts. The `--value` flag is the only reliable way.
+2. **`vercel env pull` shows sensitive env vars as `""`** — that's a display quirk, not the stored value. Don't use `pull` output to verify sensitive envs are non-empty.
+3. **`framework: null` after `vercel link --yes`** — Vercel didn't auto-detect Next.js, every URL returned 404 from the edge. PATCH `framework: "nextjs"` via API before deploying.
+
+(The clone URL in the README handles items 2 and 3 automatically. Only the CLI path needs them.)
+
 ## What about the `.env.example` file?
 
 [`.env.example`](../admin-panel/.env.example) lists every optional env var Sellf supports (~30 of them). The 11 above are the minimum required for a working production deploy. Optional things you might want later:
