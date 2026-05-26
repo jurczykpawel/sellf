@@ -11,6 +11,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { createHash, randomBytes } from 'crypto';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 // Test configuration
 export const API_URL = process.env.TEST_API_URL || 'http://localhost:3777';
@@ -135,7 +136,9 @@ export async function createTestApiKey(): Promise<string> {
       key_prefix: keyData.prefix,
       key_hash: keyData.hash,
       admin_user_id: adminUserId,
-      scopes: ['*'],
+      // Snapshot the full scope set explicitly — '*' is never persisted
+      // post-refactor; hasScope() doesn't interpret it at request time.
+      scopes: [...ALL_SCOPES],
       rate_limit_per_minute: 1000,
       is_active: true,
     })

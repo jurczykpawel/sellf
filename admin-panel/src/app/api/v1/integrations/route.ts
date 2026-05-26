@@ -28,7 +28,7 @@ const ALLOWED_FIELDS = [
   'facebook_capi_token',
   'facebook_test_event_code',
   'fb_capi_enabled',
-  'send_conversions_without_consent',
+  'conversion_tracking_mode',
   'umami_website_id',
   'umami_script_url',
   'cookie_consent_enabled',
@@ -38,7 +38,6 @@ const ALLOWED_FIELDS = [
 const BOOLEAN_FIELDS = new Set<keyof IntegrationsInput>([
   'gtm_ss_enabled',
   'fb_capi_enabled',
-  'send_conversions_without_consent',
   'cookie_consent_enabled',
   'consent_logging_enabled',
 ]);

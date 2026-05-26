@@ -1,27 +1,27 @@
 /**
- * Server-side tracking utilities
+ * Server-side tracking facade.
  *
- * Supports two destinations (both can be active simultaneously):
- * 1. GTM Server-Side container (primary) — forwards to FB, TikTok, etc. via GTM tags
- * 2. Facebook CAPI (fallback) — direct Graph API integration
+ * Thin wrapper around the dispatcher for legacy callers (Stripe webhook).
+ * New code should call dispatchTrackingEvent directly.
  *
- * Only conversion events (Purchase, Lead) are sent without client-side consent
- * under legitimate interest legal basis (GDPR Art. 6(1)(f)).
+ * Also owns:
+ *   - sha256 hashing for user_data matching
+ *   - resolveDestinations (back-compat helper still used by route guards)
+ *   - logTrackingEvent — the only writer to the tracking_logs audit table
  *
- * @see tracking_logs table for persistent event logging
+ * @see lib/tracking/dispatcher.ts — orchestration
+ * @see lib/tracking/destinations.ts — adapters
+ * @see lib/tracking/consent-mode.ts — decision policy
  */
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { assertSafeOutboundUrl } from '@/lib/security/outbound-url';
-import { FB_GRAPH_API_VERSION } from './types';
 import type { FBEventName, EcommerceItem } from './types';
+import type { ConversionTrackingMode } from './consent-mode';
+import type { DestinationConfig, TrackingEvent } from './destinations';
 
 // ===== SHARED HELPERS =====
 
-/**
- * SHA256 hash for user data matching (Facebook, GTM SS)
- */
 export function sha256(value: string): string {
   return crypto
     .createHash('sha256')
@@ -29,18 +29,10 @@ export function sha256(value: string): string {
     .digest('hex');
 }
 
-const SERVER_SIDE_ALLOWED_EVENTS: FBEventName[] = ['Purchase', 'Lead'];
-
-/**
- * Determine which server-side destinations are configured and ready to receive events.
- */
-export function resolveDestinations(config: {
-  fb_capi_enabled?: boolean | null;
-  facebook_pixel_id?: string | null;
-  facebook_capi_token?: string | null;
-  gtm_ss_enabled?: boolean | null;
-  gtm_server_container_url?: string | null;
-} | null): { fbCAPI: boolean; gtmSS: boolean } {
+export function resolveDestinations(config: DestinationConfig | null): {
+  fbCAPI: boolean;
+  gtmSS: boolean;
+} {
   return {
     fbCAPI: !!(config?.fb_capi_enabled && config?.facebook_pixel_id && config?.facebook_capi_token),
     gtmSS: !!(config?.gtm_ss_enabled && config?.gtm_server_container_url),
@@ -48,6 +40,8 @@ export function resolveDestinations(config: {
 }
 
 // ===== TYPES =====
+
+const SERVER_SIDE_ALLOWED_EVENTS: FBEventName[] = ['Purchase', 'Lead'];
 
 export interface ServerTrackingData {
   eventName: FBEventName;
@@ -70,14 +64,9 @@ interface TrackingResult {
   error?: string;
 }
 
-export interface DestinationResult {
-  destination: 'gtm_ss' | 'fb_capi';
-  success: boolean;
-  httpStatus?: number;
-  eventsReceived?: number;
-  error?: string;
-}
+export type { DestinationResult } from './destinations';
 
+/** Legacy alias retained so the existing payload-builder shape stays exported. */
 export interface ServerEventPayload {
   event_name: string;
   event_time: number;
@@ -92,7 +81,7 @@ export function generateServerEventId(): string {
   return crypto.randomUUID();
 }
 
-// ===== TRACKING LOG =====
+// ===== AUDIT LOG =====
 
 interface TrackingLogData {
   eventName: string;
@@ -115,12 +104,13 @@ interface TrackingLogData {
 
 /**
  * Persist a tracking event to the tracking_logs table.
- * Creates its own service client if none provided.
  * Fire-and-forget — never throws.
  */
 export async function logTrackingEvent(
   log: TrackingLogData,
-  supabaseClient?: { from: (table: string) => { insert: (data: Record<string, unknown>) => PromiseLike<unknown> } }
+  supabaseClient?: {
+    from: (table: string) => { insert: (data: Record<string, unknown>) => PromiseLike<unknown> };
+  }
 ): Promise<void> {
   try {
     const supabase = supabaseClient || createServiceClient();
@@ -149,10 +139,6 @@ export async function logTrackingEvent(
   }
 }
 
-/**
- * Create a service-role Supabase client for server-side operations.
- * Returns null if env vars are missing.
- */
 function createServiceClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -163,191 +149,49 @@ function createServiceClient() {
   });
 }
 
-// ===== EVENT PAYLOAD BUILDER =====
+// ===== LEGACY FACADE =====
 
-/**
- * Build destination-agnostic event payload from tracking data.
- * Shared by both GTM SS and FB CAPI destinations.
- */
-export function buildServerEventPayload(
-  data: ServerTrackingData,
-  eventId: string
-): ServerEventPayload {
-  const userData: Record<string, unknown> = {};
+interface IntegrationsConfigRow extends DestinationConfig {
+  conversion_tracking_mode?: string | null;
+  facebook_test_event_code?: string | null;
+}
 
-  if (data.clientIp) {
-    userData.client_ip_address = data.clientIp;
-  }
-  if (data.userAgent) {
-    userData.client_user_agent = data.userAgent;
-  }
-  if (data.userEmail) {
-    userData.em = [sha256(data.userEmail)];
-  }
-
+function toTrackingEvent(data: ServerTrackingData, eventId: string): TrackingEvent {
   return {
-    event_name: data.eventName,
-    event_time: Math.floor(Date.now() / 1000),
-    event_id: eventId,
-    event_source_url: data.eventSourceUrl,
-    action_source: 'website',
-    user_data: userData,
-    custom_data: {
-      currency: data.currency,
-      value: data.value,
-      content_ids: data.items.map((i) => i.item_id),
-      content_name: data.items[0]?.item_name,
-      content_type: 'product',
-      ...(data.orderId && { order_id: data.orderId }),
+    eventName: data.eventName,
+    eventId,
+    eventTime: Math.floor(Date.now() / 1000),
+    eventSourceUrl: data.eventSourceUrl,
+    value: data.value,
+    currency: data.currency,
+    contentIds: data.items.map((i) => i.item_id),
+    contentName: data.items[0]?.item_name,
+    orderId: data.orderId,
+    items: data.items,
+    userData: {
+      emailHashed: data.userEmail ? sha256(data.userEmail) : undefined,
+      clientIp: data.clientIp,
+      userAgent: data.userAgent,
     },
   };
 }
 
-// ===== DESTINATIONS =====
-
 /**
- * Send event to GTM Server-Side container.
- * Posts JSON to {containerUrl}/mp/collect — requires a Custom Client tag in GTM SS.
- */
-export async function sendToGtmSS(
-  containerUrl: string,
-  payload: ServerEventPayload
-): Promise<DestinationResult> {
-  try {
-    const url = `${containerUrl.replace(/\/$/, '')}/mp/collect`;
-    await assertSafeOutboundUrl(url);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      redirect: 'error',
-      signal: AbortSignal.timeout(5_000),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      return {
-        destination: 'gtm_ss',
-        success: false,
-        httpStatus: response.status,
-        error: text || `GTM SS returned ${response.status}`,
-      };
-    }
-
-    return {
-      destination: 'gtm_ss',
-      success: true,
-      httpStatus: response.status,
-    };
-  } catch (error) {
-    return {
-      destination: 'gtm_ss',
-      success: false,
-      error: error instanceof Error ? error.message : 'GTM SS request failed',
-    };
-  }
-}
-
-/**
- * Send event to Facebook CAPI via Graph API.
- */
-export async function sendToFacebookCAPI(
-  pixelId: string,
-  token: string,
-  payload: ServerEventPayload,
-  testEventCode?: string | null
-): Promise<DestinationResult> {
-  try {
-    const fbPayload = {
-      data: [payload],
-      ...(testEventCode && { test_event_code: testEventCode }),
-    };
-
-    const response = await fetch(
-      `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/${pixelId}/events`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(fbPayload),
-        redirect: 'error',
-        signal: AbortSignal.timeout(5_000),
-      }
-    );
-
-    // Parse response — handle non-JSON responses gracefully
-    let result: Record<string, unknown>;
-    try {
-      result = await response.json();
-    } catch {
-      return {
-        destination: 'fb_capi',
-        success: false,
-        httpStatus: response.status,
-        error: `Facebook API returned non-JSON response (HTTP ${response.status})`,
-      };
-    }
-
-    if (!response.ok) {
-      const fbError = result.error as Record<string, unknown> | undefined;
-      return {
-        destination: 'fb_capi',
-        success: false,
-        httpStatus: response.status,
-        error: (typeof fbError?.message === 'string' ? fbError.message : null) || 'Facebook API request failed',
-      };
-    }
-
-    return {
-      destination: 'fb_capi',
-      success: true,
-      httpStatus: 200,
-      eventsReceived: typeof result.events_received === 'number' ? result.events_received : undefined,
-    };
-  } catch (error) {
-    return {
-      destination: 'fb_capi',
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to send event to Facebook',
-    };
-  }
-}
-
-/** Wrap a destination send with timing measurement */
-async function timedSend(
-  fn: () => Promise<DestinationResult>
-): Promise<{ result: DestinationResult; durationMs: number }> {
-  const startTime = Date.now();
-  const result = await fn();
-  return { result, durationMs: Date.now() - startTime };
-}
-
-// ===== MAIN TRACKING FUNCTION =====
-
-/**
- * Send a conversion event to configured server-side destinations.
+ * Send a conversion event from a context that has no client-side consent
+ * signal (e.g. a Stripe webhook). Behaviour is driven entirely by the
+ * configured conversion_tracking_mode in the database.
  *
- * Destinations (both can be active simultaneously):
- * 1. GTM Server-Side container (primary) — forwards to FB, TikTok, etc.
- * 2. Facebook CAPI (fallback) — direct Graph API
- *
- * Features:
- * - Sends to all configured destinations in parallel
- * - Respects send_conversions_without_consent setting from DB
- * - Only allows conversion events (Purchase, Lead) without consent
- * - Hashes user email for matching
- * - Logs every attempt to tracking_logs table
+ * For browser-initiated paths use dispatchTrackingEvent directly with the
+ * real consent state — the proxy route does so.
  */
 export async function trackServerSideConversion(
   data: ServerTrackingData
 ): Promise<TrackingResult> {
+  const { dispatchTrackingEvent } = await import('./dispatcher');
   const eventId = data.eventId || generateServerEventId();
 
-  // Only allow conversion events from server-side
   if (!SERVER_SIDE_ALLOWED_EVENTS.includes(data.eventName)) {
-    logTrackingEvent({
+    await logTrackingEvent({
       eventName: data.eventName,
       eventId,
       source: 'server',
@@ -357,36 +201,26 @@ export async function trackServerSideConversion(
       customerEmail: data.userEmail,
       value: data.value,
       currency: data.currency,
-    }).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
-
-    return {
-      success: false,
-      skipped: true,
-      reason: 'event_not_allowed_server_side',
-    };
+    });
+    return { success: false, skipped: true, reason: 'event_not_allowed_server_side' };
   }
 
-  // Get configuration from database
   const supabase = createServiceClient();
-
   if (!supabase) {
     console.error('[Tracking Server] Missing Supabase configuration');
-    return {
-      success: false,
-      error: 'Server configuration error',
-    };
+    return { success: false, error: 'Server configuration error' };
   }
 
   const { data: config, error: configError } = await supabase
     .from('integrations_config')
     .select(
-      'facebook_pixel_id, facebook_capi_token, facebook_test_event_code, fb_capi_enabled, send_conversions_without_consent, gtm_ss_enabled, gtm_server_container_url'
+      'facebook_pixel_id, facebook_capi_token, facebook_test_event_code, fb_capi_enabled, conversion_tracking_mode, gtm_ss_enabled, gtm_server_container_url'
     )
-    .single();
+    .single<IntegrationsConfigRow>();
 
   if (configError) {
     console.error('[Tracking Server] Config fetch error:', configError);
-    logTrackingEvent({
+    await logTrackingEvent({
       eventName: data.eventName,
       eventId,
       source: 'server',
@@ -396,121 +230,34 @@ export async function trackServerSideConversion(
       customerEmail: data.userEmail,
       value: data.value,
       currency: data.currency,
-    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
-
-    return {
-      success: false,
-      error: 'Failed to fetch configuration',
-    };
+    });
+    return { success: false, error: 'Failed to fetch configuration' };
   }
 
-  // Determine which destinations are configured
-  const destinations = resolveDestinations(config);
+  const mode = (config?.conversion_tracking_mode ?? 'strict') as ConversionTrackingMode;
+  const event = toTrackingEvent(data, eventId);
 
-  if (!destinations.fbCAPI && !destinations.gtmSS) {
-    logTrackingEvent({
-      eventName: data.eventName,
-      eventId,
-      source: 'server',
-      status: 'skipped',
-      skipReason: 'no_destination_configured',
-      orderId: data.orderId,
-      customerEmail: data.userEmail,
-      value: data.value,
-      currency: data.currency,
-    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
+  const dispatch = await dispatchTrackingEvent(event, config ?? {}, {
+    mode,
+    hasConsent: false,
+    source: 'server',
+    customerEmailForAudit: data.userEmail,
+  });
 
-    return {
-      success: false,
-      skipped: true,
-      reason: 'no_destination_configured',
-    };
+  if (dispatch.skipped) {
+    return { success: false, skipped: true, reason: dispatch.skipped.reason };
   }
 
-  // Check if server-side conversions without consent are allowed
-  if (!config.send_conversions_without_consent) {
-    logTrackingEvent({
-      eventName: data.eventName,
-      eventId,
-      source: 'server',
-      status: 'skipped',
-      skipReason: 'server_side_conversions_disabled',
-      orderId: data.orderId,
-      customerEmail: data.userEmail,
-      value: data.value,
-      currency: data.currency,
-    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
-
-    return {
-      success: false,
-      skipped: true,
-      reason: 'server_side_conversions_disabled',
-    };
+  const fbResult = dispatch.results.find((r) => r.destination === 'fb_capi');
+  if (dispatch.anySuccess) {
+    return { success: true, eventsReceived: fbResult?.eventsReceived };
   }
 
-  // Build shared event payload
-  const eventPayload = buildServerEventPayload(data, eventId);
-
-  // Send to all configured destinations in parallel
-  const sends: Promise<{ result: DestinationResult; durationMs: number }>[] = [];
-
-  if (destinations.gtmSS) {
-    sends.push(timedSend(() => sendToGtmSS(config.gtm_server_container_url!, eventPayload)));
-  }
-  if (destinations.fbCAPI) {
-    sends.push(timedSend(() => sendToFacebookCAPI(
-      config.facebook_pixel_id!,
-      config.facebook_capi_token!,
-      eventPayload,
-      config.facebook_test_event_code
-    )));
-  }
-
-  const timedResults = await Promise.all(sends);
-  const results: DestinationResult[] = [];
-
-  for (const { result, durationMs } of timedResults) {
-    results.push(result);
-
-    logTrackingEvent({
-      eventName: data.eventName,
-      eventId,
-      source: 'server',
-      status: result.success ? 'success' : 'failed',
-      destination: result.destination,
-      httpStatus: result.httpStatus,
-      eventsReceived: result.eventsReceived,
-      errorMessage: result.error,
-      durationMs,
-      orderId: data.orderId,
-      productId: data.items[0]?.item_id,
-      customerEmail: data.userEmail,
-      value: data.value,
-      currency: data.currency,
-      eventSourceUrl: data.eventSourceUrl,
-    }, supabase).catch((err) => { console.warn('[tracking] Non-critical error:', err); });
-
-    if (!result.success) {
-      console.error(`[Tracking Server] ${result.destination} error:`, result.error);
-    }
-  }
-
-  // At least one destination succeeded → success
-  const anySuccess = results.some((r) => r.success);
-  const fbResult = results.find((r) => r.destination === 'fb_capi');
-
-  if (anySuccess) {
-    return {
-      success: true,
-      eventsReceived: fbResult?.eventsReceived,
-    };
-  }
-
-  // All destinations failed
   return {
     success: false,
-    error: results.length === 1
-      ? results[0].error
-      : results.map((r) => `${r.destination}: ${r.error}`).join('; '),
+    error:
+      dispatch.results.length === 1
+        ? dispatch.results[0].error
+        : dispatch.results.map((r) => `${r.destination}: ${r.error}`).join('; '),
   };
 }

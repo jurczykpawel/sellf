@@ -405,12 +405,15 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     if (timedProduct) testProductIds.push(timedProduct.id);
 
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
-
-    // Verify product is displayed
-    await expect(page.getByText('30-Day Access Course')).toBeVisible({ timeout: 15000 });
+    // Retry the goto + initial assertion — under full-suite load page.goto
+    // itself can hang past 45s on the dev server (same Turbopack/FD-pressure
+    // class as #707).
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(2000);
+      await expect(page.getByText('30-Day Access Course')).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 45000, intervals: [3000, 5000, 8000] });
 
     // Verify duration badge shows "30d access" - look for the small badge specifically
     const durationBadge = page.locator('text=/^30d access$|^30 days access$/i').first();
@@ -534,13 +537,16 @@ test.describe('Modern Storefront Landing Page 2026', () => {
 
     await acceptAllCookies(page);
 
-    // Poll: page may serve stale RSC cache from previous test
+    // Poll: page may serve stale RSC cache from previous test. Mirror the
+    // longer-timeout + warmup pattern used by the free-resources test above —
+    // creating 12 products + waiting for the storefront query to repopulate
+    // can take longer than 5s under full-suite load.
     await expect(async () => {
-      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 10000 });
       await page.waitForLoadState('domcontentloaded');
-      // "Show All 8 Premium Products" proves all 8 were loaded from DB
+      await page.waitForTimeout(3000);
       await expect(page.getByRole('button', { name: /Show All 8 Premium Products/i })).toBeVisible({ timeout: 5000 });
-    }).toPass({ timeout: 25000, intervals: [2000, 3000, 5000] });
+    }).toPass({ timeout: 30000, intervals: [2000, 3000, 5000] });
 
     // Verify NO "Show All" button for free products (only 4)
     await expect(page.getByRole('button', { name: /Show All.*Free Resources/i })).not.toBeVisible();
@@ -723,16 +729,17 @@ test.describe('Modern Storefront Landing Page 2026', () => {
     }).select().single();
     if (data) testProductIds.push(data.id);
 
-    // Navigate with network throttling to catch loading state
+    // Navigate with network throttling to catch loading state. Retry the
+    // goto+assert pair — under full-suite load the Next.js dev server can
+    // briefly hit transient runtime errors (e.g. "spawn EBADF" from child
+    // process FD exhaustion) and serve an error overlay instead of the page.
     await acceptAllCookies(page);
-    await page.goto('/', { waitUntil: 'commit' });
-
-    // Wait for full load and verify content eventually appears
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
-
-    // Verify storefront renders after mount
-    await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 15000 });
+    await expect(async () => {
+      await page.goto('/', { waitUntil: 'commit' });
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(2000);
+      await expect(page.locator('[data-testid="storefront"]')).toBeVisible({ timeout: 8000 });
+    }).toPass({ timeout: 45000, intervals: [3000, 5000, 8000] });
   });
 
   test('PRODUCT COUNT BADGE: Should show correct count and singular/plural text', async ({ page }) => {

@@ -7,61 +7,31 @@
 
 import { createHash, randomBytes, timingSafeEqual as cryptoTimingSafeEqual } from 'crypto';
 
+import {
+  API_SCOPES,
+  ALL_SCOPES,
+  WILDCARD_SCOPE,
+  scopeToI18nKey,
+  type ApiScope,
+  type WildcardScope,
+} from './scope-constants';
+import { ApiValidationError } from './errors';
+
+// Re-export client-safe scope constants so existing callers can keep
+// importing from '@/lib/api/api-keys'. The runtime helpers below depend
+// on Node crypto and must not leak into client bundles.
+export { API_SCOPES, ALL_SCOPES, WILDCARD_SCOPE, scopeToI18nKey };
+export type { ApiScope, WildcardScope };
+
 // Key format: sf_{env}_{random}
 // Example: sf_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
 const KEY_PREFIX_LIVE = 'sf_live_';
 const KEY_PREFIX_TEST = 'sf_test_';
 const KEY_RANDOM_LENGTH = 32; // 32 bytes = 64 hex characters
 
-// Scopes for API key permissions
-export const API_SCOPES = {
-  // Products
-  PRODUCTS_READ: 'products:read',
-  PRODUCTS_WRITE: 'products:write',
-
-  // Users
-  USERS_READ: 'users:read',
-  USERS_WRITE: 'users:write',
-
-  // Coupons
-  COUPONS_READ: 'coupons:read',
-  COUPONS_WRITE: 'coupons:write',
-
-  // Analytics (includes payment read for backward compat)
-  ANALYTICS_READ: 'analytics:read',
-
-  // Payments
-  PAYMENTS_READ: 'payments:read',
-  PAYMENTS_WRITE: 'payments:write',
-  PAYMENTS_REFUND: 'payments:refund',
-
-  // Webhooks
-  WEBHOOKS_READ: 'webhooks:read',
-  WEBHOOKS_WRITE: 'webhooks:write',
-
-  // Integrations
-  INTEGRATIONS_WRITE: 'integrations:write',
-
-  // Refund Requests
-  REFUND_REQUESTS_READ: 'refund-requests:read',
-  REFUND_REQUESTS_WRITE: 'refund-requests:write',
-
-  // System
-  SYSTEM_READ: 'system:read',
-  SYSTEM_WRITE: 'system:write',
-
-  // Full access
-  FULL_ACCESS: '*',
-} as const;
-
-export type ApiScope = typeof API_SCOPES[keyof typeof API_SCOPES];
-
-// Scope groups for common use cases
 export const SCOPE_PRESETS = {
-  // Full access to everything
-  full: [API_SCOPES.FULL_ACCESS],
+  full: [...ALL_SCOPES],
 
-  // Read-only access (for dashboards, reporting)
   readOnly: [
     API_SCOPES.PRODUCTS_READ,
     API_SCOPES.USERS_READ,
@@ -73,18 +43,15 @@ export const SCOPE_PRESETS = {
     API_SCOPES.SYSTEM_READ,
   ],
 
-  // Analytics only (for BI tools)
   analyticsOnly: [API_SCOPES.ANALYTICS_READ],
 
-  // Support (read users, read products, no write)
   support: [
     API_SCOPES.PRODUCTS_READ,
     API_SCOPES.USERS_READ,
     API_SCOPES.COUPONS_READ,
   ],
 
-  // MCP Server (typically needs full access)
-  mcp: [API_SCOPES.FULL_ACCESS],
+  mcp: [...ALL_SCOPES],
 } as const;
 
 export type ScopePreset = keyof typeof SCOPE_PRESETS;
@@ -163,18 +130,11 @@ export function isValidScope(scope: string): scope is ApiScope {
  * @returns True if the key has the required permission
  */
 export function hasScope(keyScopes: string[], requiredScope: ApiScope): boolean {
-  // Full access grants everything
-  if (keyScopes.includes(API_SCOPES.FULL_ACCESS)) {
-    return true;
-  }
-
-  // Check for exact match
   if (keyScopes.includes(requiredScope)) {
     return true;
   }
 
-  // Check if write permission implies read permission
-  // e.g., products:write includes products:read
+  // Write permission implies read permission (e.g., products:write ⇒ products:read)
   if (requiredScope.endsWith(':read')) {
     const writeScope = requiredScope.replace(':read', ':write');
     if (keyScopes.includes(writeScope)) {
@@ -183,6 +143,34 @@ export function hasScope(keyScopes: string[], requiredScope: ApiScope): boolean 
   }
 
   return false;
+}
+
+/**
+ * Expand an input scope list, resolving the wildcard marker to the full
+ * concrete scope snapshot of THIS version. Returns a new array of valid
+ * ApiScope values with duplicates removed.
+ *
+ * Every non-wildcard entry is validated against `isValidScope` and an
+ * `ApiValidationError` is thrown for unknown strings — the function's
+ * return type claims a runtime guarantee, so we back it here rather than
+ * trusting upstream validation. Persistence layers downstream see only
+ * explicit, validated ApiScope values.
+ */
+export function expandScopes(input: readonly string[]): ApiScope[] {
+  const out = new Set<ApiScope>();
+  for (const scope of input) {
+    if (scope === WILDCARD_SCOPE) {
+      for (const known of ALL_SCOPES) {
+        out.add(known);
+      }
+      continue;
+    }
+    if (!isValidScope(scope)) {
+      throw new ApiValidationError(`Invalid scope: ${scope}`);
+    }
+    out.add(scope);
+  }
+  return [...out];
 }
 
 /**
@@ -293,7 +281,6 @@ export function getScopeDescription(scope: ApiScope): string {
     [API_SCOPES.REFUND_REQUESTS_WRITE]: 'Process refund requests',
     [API_SCOPES.SYSTEM_READ]: 'View system configuration',
     [API_SCOPES.SYSTEM_WRITE]: 'Trigger system operations (upgrade)',
-    [API_SCOPES.FULL_ACCESS]: 'Full access to all resources',
   };
 
   return descriptions[scope] || scope;
@@ -302,33 +289,31 @@ export function getScopeDescription(scope: ApiScope): string {
 // ===== LICENSE-GATED SCOPE CUSTOMIZATION =====
 
 import type { LicenseTier } from '@/lib/license/verify';
-import { hasFeature } from '@/lib/license/features';
-
-interface ScopeGateResult {
-  /** Final scopes to use (may be overridden to ['*'] for free tier) */
-  scopes: string[];
-  /** True if scopes were forced due to license restriction */
-  gated: boolean;
-}
 
 /**
- * Enforce license-based scope gating on API key creation.
- * Free tier: scopes locked to ['*'] (full access, no granular control).
- * Pro+: full scope customization.
+ * Resolve the final, concrete scope list for a new API key.
+ *
+ * - No request (undefined / empty / wildcard-only): snapshot full access
+ *   (`ALL_SCOPES`). This is the default for both UI-driven creation and
+ *   integrations that don't know which scopes they need yet.
+ * - Explicit narrower request: returned as-is (after wildcard expansion
+ *   and validation). This holds for every tier — a free-tier admin who
+ *   bypasses the locked UI and asks for `['products:read']` MUST get
+ *   exactly that list. Forcing the request wider violates least-privilege
+ *   and turns a "read-only" key into a refund/user-mutation key.
+ *
+ * The `tier` parameter is retained for the signature shape: future gating
+ * (e.g., a paid tier required for certain high-risk scopes) plugs in here
+ * without changing call-sites. Today, no scope is tier-restricted.
  */
 export function enforceApiKeyScopeGate(
   tier: LicenseTier,
   requestedScopes: string[] | undefined,
-): ScopeGateResult {
-  const canCustomize = hasFeature(tier, 'api-key-scopes');
-
-  if (!canCustomize) {
-    return { scopes: [API_SCOPES.FULL_ACCESS], gated: true };
+): ApiScope[] {
+  void tier; // intentional pass-through — see header doc
+  if (!requestedScopes || requestedScopes.length === 0) {
+    return [...ALL_SCOPES];
   }
 
-  const scopes = requestedScopes && requestedScopes.length > 0
-    ? requestedScopes
-    : [API_SCOPES.FULL_ACCESS];
-
-  return { scopes, gated: false };
+  return expandScopes(requestedScopes);
 }

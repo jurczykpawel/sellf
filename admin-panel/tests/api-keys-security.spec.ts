@@ -13,6 +13,7 @@
 
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -59,7 +60,7 @@ test.describe('API Keys Security - Self-Management Prevention', () => {
         name: 'Security Test Key - Full Access',
         key_hash: keyHash,
         key_prefix: keyValue.substring(0, 12),
-        scopes: ['*'], // Full access
+        scopes: [...ALL_SCOPES], // Full access (explicit snapshot — '*' is never persisted)
         is_active: true,
         rate_limit_per_minute: 100,
         admin_user_id: testAdminRowId, // admin_users.id, NOT auth.users.id

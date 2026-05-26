@@ -143,7 +143,7 @@ function trackFBPixel(
  * Send event to Facebook CAPI (server-side)
  *
  * Always sends the request - the server decides whether to forward to Facebook
- * based on consent status and send_conversions_without_consent setting.
+ * based on consent status and the configured conversion_tracking_mode.
  */
 async function sendToCAPI(
   eventName: FBEventName,
@@ -183,7 +183,7 @@ async function sendToCAPI(
  *
  * Respects user consent for client-side tracking (GTM, Pixel).
  * Server-side CAPI is always called - the server decides whether to forward
- * based on consent and send_conversions_without_consent configuration.
+ * based on consent and the configured conversion_tracking_mode.
  *
  * @param eventName - GA4 event name (e.g., 'purchase', 'begin_checkout')
  * @param data - Event data (value, currency, items, etc.)

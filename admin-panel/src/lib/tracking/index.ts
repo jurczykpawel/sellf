@@ -18,10 +18,28 @@ export {
   trackServerSideConversion,
   generateServerEventId,
   logTrackingEvent,
-  buildServerEventPayload,
-  sendToGtmSS,
-  sendToFacebookCAPI,
 } from './server';
+
+export { dispatchTrackingEvent } from './dispatcher';
+export type { DispatchContext, DispatchResult } from './dispatcher';
+
+export {
+  fbCapiDestination,
+  gtmSsDestination,
+  ALL_DESTINATIONS,
+} from './destinations';
+export type {
+  TrackingEvent,
+  DestinationConfig,
+  TrackingDestination,
+} from './destinations';
+
+export {
+  resolveTrackingDecision,
+  CONVERSION_TRACKING_MODES,
+  DEFAULT_CONVERSION_TRACKING_MODE,
+} from './consent-mode';
+export type { ConversionTrackingMode, TrackingDecision } from './consent-mode';
 
 export { generatePurchaseEventId } from './types';
 

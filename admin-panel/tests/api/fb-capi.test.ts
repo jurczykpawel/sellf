@@ -10,7 +10,7 @@
  * @see admin-panel/src/app/api/tracking/fb-capi/route.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
@@ -28,12 +28,32 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // ---------------------------------------------------------------------------
 
 /** POST to /api/tracking/fb-capi with JSON body */
-async function postCapi(body: Record<string, unknown>) {
+async function postCapi(body: Record<string, unknown>, cookies?: Record<string, string>) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (cookies && Object.keys(cookies).length > 0) {
+    headers.Cookie = Object.entries(cookies)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('; ');
+  }
   return fetch(`${API_URL}/api/tracking/fb-capi`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
+}
+
+/** Build a sellf_consent cookie value with the given marketing decision */
+function consentCookie(marketingAccepted: boolean) {
+  return encodeURIComponent(
+    JSON.stringify({
+      categories: ['necessary', 'analytics', 'marketing'],
+      services: {
+        necessary: [],
+        analytics: ['gtm'],
+        marketing: marketingAccepted ? ['pixel'] : [],
+      },
+    })
+  );
 }
 
 /** Generate a minimal valid CAPI request body */
@@ -111,8 +131,18 @@ describe('POST /api/tracking/fb-capi', () => {
   // ===== CAPI NOT CONFIGURED =====
 
   describe('CAPI not configured', () => {
+    // Explicitly turn off the sibling GTM SS destination too — a leftover
+    // gtm_ss_enabled=true (e.g. from a prior Playwright integrations test on
+    // the same DB) would piggyback as an active destination and turn this
+    // suite's "no destination" assertions (expected 400) into 500s.
+    beforeEach(async () => {
+      await supabase
+        .schema('seller_main' as never)
+        .from('integrations_config')
+        .upsert({ id: 1, gtm_ss_enabled: false, gtm_server_container_url: null });
+    });
+
     it('should return 400 when fb_capi_enabled is false', async () => {
-      // Set up config with CAPI disabled
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: false,
@@ -147,17 +177,17 @@ describe('POST /api/tracking/fb-capi', () => {
 
   describe('Consent logic', () => {
     beforeAll(async () => {
-      // Set up config with CAPI enabled and fake credentials
+      // Set up config with CAPI enabled, fake credentials, strict mode.
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: false,
+        conversion_tracking_mode: 'strict',
       });
     });
 
-    it('should skip ViewContent when has_consent=false and send_conversions_without_consent=false', async () => {
+    it('should skip ViewContent when has_consent=false and mode=strict', async () => {
       const res = await postCapi(
         validBody({
           event_name: 'ViewContent',
@@ -168,17 +198,17 @@ describe('POST /api/tracking/fb-capi', () => {
 
       expect(res.status).toBe(200);
       expect(body.skipped).toBe(true);
-      expect(body.reason).toBe('no_consent');
+      expect(body.reason).toBe('browsing_event_requires_consent');
     });
 
-    it('should skip ViewContent when has_consent=false even if send_conversions_without_consent=true', async () => {
-      // ViewContent is NOT in CONSENT_EXEMPT_EVENTS (only Purchase, Lead)
+    it('should skip ViewContent when has_consent=false even in permissive mode', async () => {
+      // Browsing events always require consent; permissive only opens up Purchase/Lead.
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: true,
+        conversion_tracking_mode: 'permissive',
       });
 
       const res = await postCapi(
@@ -191,18 +221,17 @@ describe('POST /api/tracking/fb-capi', () => {
 
       expect(res.status).toBe(200);
       expect(body.skipped).toBe(true);
-      expect(body.reason).toBe('no_consent');
+      expect(body.reason).toBe('browsing_event_requires_consent');
     });
 
-    it('should forward Purchase to Facebook when has_consent=false and send_conversions_without_consent=true', async () => {
-      // Purchase IS in CONSENT_EXEMPT_EVENTS → should pass consent check
-      // Will fail at the Facebook API call (fake token) → 500
+    it('should forward Purchase to Facebook when has_consent=false and mode=permissive', async () => {
+      // Purchase is allowed without consent under permissive mode → passes through.
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: true,
+        conversion_tracking_mode: 'permissive',
       });
 
       const res = await postCapi(
@@ -217,9 +246,6 @@ describe('POST /api/tracking/fb-capi', () => {
 
       // Passed consent check → reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      // Endpoint wording is destination-agnostic since the GTM+FB refactor
-      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
-      // failed" instead of the old "Facebook API ..." message.
       expect(body.error).toMatch(/(failed|destination)/i);
     });
 
@@ -229,7 +255,7 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: false,
+        conversion_tracking_mode: 'strict',
       });
 
       const res = await postCapi(
@@ -242,9 +268,6 @@ describe('POST /api/tracking/fb-capi', () => {
 
       // Passed consent check → reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      // Endpoint wording is destination-agnostic since the GTM+FB refactor
-      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
-      // failed" instead of the old "Facebook API ..." message.
       expect(body.error).toMatch(/(failed|destination)/i);
     });
 
@@ -254,13 +277,13 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: false,
+        conversion_tracking_mode: 'strict',
       });
 
       // No has_consent field → defaults to true → forwards to Facebook
       const res = await postCapi(
         validBody({
-          event_name: 'AddToCart',
+          event_name: 'ViewContent',
         })
       );
       const body = await res.json();
@@ -269,10 +292,83 @@ describe('POST /api/tracking/fb-capi', () => {
       expect(body.skipped).toBeUndefined();
       // Reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      // Endpoint wording is destination-agnostic since the GTM+FB refactor
-      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
-      // failed" instead of the old "Facebook API ..." message.
       expect(body.error).toMatch(/(failed|destination)/i);
+    });
+  });
+
+  // ===== EVENT NAME ALLOWLIST =====
+
+  describe('Event name allowlist', () => {
+    beforeAll(async () => {
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
+        id: 1,
+        fb_capi_enabled: true,
+        facebook_pixel_id: 'fake-pixel-id-000',
+        facebook_capi_token: 'fake-capi-token-000',
+        conversion_tracking_mode: 'permissive',
+      });
+    });
+
+    it('should reject unknown event_name with 400', async () => {
+      const res = await postCapi(validBody({ event_name: 'FakePurchase', has_consent: true }));
+      const body = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(body.error).toMatch(/event_name/i);
+    });
+
+    it.each(['ViewContent', 'InitiateCheckout', 'AddPaymentInfo', 'Purchase', 'Lead'])(
+      'should accept canonical event_name %s',
+      async (eventName) => {
+        const res = await postCapi(validBody({ event_name: eventName, has_consent: true }));
+        // Either 500 (forwarded → fake token rejected) or 200 (skipped legitimately)
+        expect(res.status).not.toBe(400);
+      }
+    );
+  });
+
+  // ===== SERVER-SIDE CONSENT VERIFICATION =====
+
+  describe('Server-side consent verification (cookie wins over body)', () => {
+    beforeAll(async () => {
+      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
+        id: 1,
+        fb_capi_enabled: true,
+        facebook_pixel_id: 'fake-pixel-id-000',
+        facebook_capi_token: 'fake-capi-token-000',
+        conversion_tracking_mode: 'strict',
+      });
+    });
+
+    it('skips ViewContent when body says has_consent=true but cookie says rejected', async () => {
+      const res = await postCapi(
+        validBody({ event_name: 'ViewContent', has_consent: true }),
+        { sellf_consent: consentCookie(false) }
+      );
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.skipped).toBe(true);
+      expect(body.reason).toBe('browsing_event_requires_consent');
+    });
+
+    it('forwards ViewContent when body says has_consent=false but cookie says accepted', async () => {
+      const res = await postCapi(
+        validBody({ event_name: 'ViewContent', has_consent: false }),
+        { sellf_consent: consentCookie(true) }
+      );
+
+      // Cookie says yes → forwarded → fake token rejected by FB (500)
+      expect(res.status).toBe(500);
+    });
+
+    it('falls back to body has_consent when cookie is absent', async () => {
+      const res = await postCapi(validBody({ event_name: 'ViewContent', has_consent: false }));
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.skipped).toBe(true);
+      expect(body.reason).toBe('browsing_event_requires_consent');
     });
   });
 

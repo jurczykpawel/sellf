@@ -8,28 +8,22 @@ import {
   DateTimeSchema,
   PaginationQuerySchema,
 } from './common';
+import { ALL_SCOPES, WILDCARD_SCOPE } from '../api-keys';
 
 // ============================================================================
 // API Scopes
 // ============================================================================
 
-export const ApiScopeSchema = z.enum([
-  '*',
-  'products:read',
-  'products:write',
-  'users:read',
-  'users:write',
-  'coupons:read',
-  'coupons:write',
-  'analytics:read',
-  'webhooks:read',
-  'webhooks:write',
-  'refund-requests:read',
-  'refund-requests:write',
-  'system:read',
-]).openapi('ApiScope');
+// Stored scope: every concrete value in ALL_SCOPES. The wildcard marker is
+// never persisted — it is resolved to ALL_SCOPES by `expandScopes` before
+// hitting the database.
+export const ApiScopeSchema = z.enum(ALL_SCOPES as readonly [string, ...string[]]).openapi('ApiScope');
 
 export type ApiScope = z.infer<typeof ApiScopeSchema>;
+
+// Input scope: accepts either a concrete scope or the wildcard marker. Used
+// only for CreateApiKey requests; backend expands the wildcard at create-time.
+export const ApiScopeInputSchema = z.union([ApiScopeSchema, z.literal(WILDCARD_SCOPE)]).openapi('ApiScopeInput');
 
 // ============================================================================
 // API Key Schema
@@ -68,8 +62,8 @@ export const CreateApiKeySchema = z.object({
     description: 'Descriptive name for the API key',
     example: 'Production API Key',
   }),
-  scopes: z.array(ApiScopeSchema).default(['*']).openapi({
-    description: 'Permissions granted to this key',
+  scopes: z.array(ApiScopeInputSchema).default([WILDCARD_SCOPE]).openapi({
+    description: 'Permissions to grant. "*" expands to every scope known at creation time; new scopes added later are not auto-granted.',
     example: ['products:read', 'users:read'],
   }),
   rate_limit_per_minute: z.number().int().min(1).max(1000).default(60).openapi({
@@ -103,9 +97,10 @@ export const CreateApiKeyResponseSchema = z.object({
 // Update API Key
 // ============================================================================
 
+// `scopes` is intentionally NOT updatable: each key carries the snapshot
+// it was issued with. To change a key's scopes, rotate or re-issue it.
 export const UpdateApiKeySchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  scopes: z.array(ApiScopeSchema).optional(),
   rate_limit_per_minute: z.number().int().min(1).max(1000).optional(),
   is_active: z.boolean().optional(),
 }).openapi('UpdateApiKeyRequest');

@@ -70,8 +70,11 @@ export { parseCsvFilter, FILTER_MAX_VALUES, resolveFilterIds, intersectProductId
 // API Keys
 export {
   API_SCOPES,
+  ALL_SCOPES,
+  WILDCARD_SCOPE,
   SCOPE_PRESETS,
   type ApiScope,
+  type WildcardScope,
   type ScopePreset,
   type GeneratedApiKey,
   generateApiKey,
@@ -85,5 +88,7 @@ export {
   validateScopes,
   getScopeDescription,
   isValidScope,
+  expandScopes,
   enforceApiKeyScopeGate,
+  scopeToI18nKey,
 } from './api-keys';

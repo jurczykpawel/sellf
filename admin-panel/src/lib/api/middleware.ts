@@ -29,9 +29,9 @@ import {
   hashApiKey,
   hasScope,
   ApiScope,
-  API_SCOPES,
-  SCOPE_PRESETS,
+  ALL_SCOPES,
 } from './api-keys';
+import { ApiAuthError, ApiValidationError } from './errors';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { extractTrustedClientIp } from '@/lib/security/client-ip';
 
@@ -201,7 +201,7 @@ async function authenticateViaSession(request: NextRequest): Promise<SessionAuth
           adminId: adminRecord.id,
           email: user.email,
         },
-        scopes: [API_SCOPES.FULL_ACCESS],
+        scopes: [...ALL_SCOPES],
       };
     }
 
@@ -272,13 +272,13 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     return null;
   }
 
+  // No trusted IP → use one global bucket; per-UA is attacker-shardable.
   const trustedIp = extractTrustedClientIp(request.headers);
-  const verifyIdentifier = trustedIp
-    ? `ip:${trustedIp}`
-    : `ua:${(request.headers.get('user-agent') || 'unknown').slice(0, 64)}`;
+  const verifyIdentifier = trustedIp ? `ip:${trustedIp}` : 'global:unknown-source';
+  const verifyAttemptCap = trustedIp ? 60 : 600;
   const verifyAttemptAllowed = await checkRateLimitForIdentifier(
     'api_key_verify',
-    60,
+    verifyAttemptCap,
     1,
     verifyIdentifier,
   );
@@ -405,7 +405,7 @@ export async function authenticate(
   // Try session auth first
   const sessionAuth = await authenticateViaSession(request);
   if (sessionAuth) {
-    // Platform admins have FULL_ACCESS
+    // Session admins receive the full scope snapshot
     if (requiredScopes && requiredScopes.length > 0) {
       for (const scope of requiredScopes) {
         if (!hasScope(sessionAuth.scopes, scope)) {
@@ -477,31 +477,7 @@ export function requireScope(auth: AuthResult, scope: ApiScope): void {
   }
 }
 
-/**
- * Custom error class for API authentication errors
- */
-export class ApiAuthError extends Error {
-  code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INVALID_TOKEN' | 'RATE_LIMITED';
-
-  constructor(code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INVALID_TOKEN' | 'RATE_LIMITED', message: string) {
-    super(message);
-    this.code = code;
-    this.name = 'ApiAuthError';
-  }
-}
-
-/**
- * Custom error class for validation errors
- */
-export class ApiValidationError extends Error {
-  details?: Record<string, string[]>;
-
-  constructor(message: string, details?: Record<string, string[]>) {
-    super(message);
-    this.details = details;
-    this.name = 'ApiValidationError';
-  }
-}
+export { ApiAuthError, ApiValidationError };
 
 /**
  * Handle errors in API routes

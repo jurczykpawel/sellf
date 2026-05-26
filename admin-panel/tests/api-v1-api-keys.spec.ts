@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { setAuthSession } from './helpers/admin-auth';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -100,7 +101,10 @@ test.describe('API Keys v1', () => {
       expect(body.data).toHaveProperty('key');
       expect(body.data.name).toBe('Test Key');
       expect(body.data.key).toMatch(/^sf_live_/);
-      expect(body.data.scopes).toContain('*');
+      // Default (no scopes in body) snapshots the full concrete list — the
+      // '*' wildcard is never persisted; it is expanded at create-time.
+      expect(body.data.scopes).not.toContain('*');
+      expect(body.data.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
       expect(body.data).toHaveProperty('warning');
 
       createdKeyIds.push(body.data.id);
@@ -265,13 +269,15 @@ test.describe('API Keys v1', () => {
 
       expect(response.status()).toBe(200);
 
-      // Scopes must be unchanged in DB
+      // Scopes must be unchanged in DB — the key was created with default
+      // (full snapshot, expanded from '*'), so DB still holds that snapshot.
       const { data: dbKey } = await supabaseAdmin
         .from('api_keys')
         .select('scopes')
         .eq('id', key.id)
         .single();
-      expect(dbKey?.scopes).toContain('*');
+      expect(dbKey?.scopes).not.toContain('*');
+      expect(dbKey?.scopes).toEqual(expect.arrayContaining([...ALL_SCOPES]));
     });
 
     test('should silently ignore rate_limit_per_minute — DB rate_limit unchanged even when sent with valid field', async ({ page }) => {

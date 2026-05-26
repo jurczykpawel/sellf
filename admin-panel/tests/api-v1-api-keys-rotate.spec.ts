@@ -8,6 +8,7 @@ import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { setAuthSession } from './helpers/admin-auth';
 import { ProductStateGuard } from './helpers/product-state';
+import { ALL_SCOPES } from '@/lib/api/scope-constants';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -93,7 +94,7 @@ test.describe('API Key Rotation', () => {
         key_prefix: keyPrefix,
         key_hash: keyHash,
         admin_user_id: adminDbId,
-        scopes: ['*'],
+        scopes: [...ALL_SCOPES],
         is_active: true,
       })
       .select()
@@ -428,7 +429,7 @@ test.describe('API Key Rotation', () => {
           key_prefix: keyPrefix,
           key_hash: keyHash,
           admin_user_id: otherAdmin!.id,
-          scopes: ['*'],
+          scopes: [...ALL_SCOPES],
           is_active: true,
         })
         .select()
