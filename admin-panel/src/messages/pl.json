@@ -393,7 +393,7 @@
         },
         "capi": {
           "title": "Conversions API (Server-Side)",
-          "desc": "Zdarzenia wysyłane z serwera bezpośrednio do Meta. Nie może być blokowane przez przeglądarkę. Może działać bez zgody na cookies (dla konwersji - uzasadniony interes)."
+          "desc": "Zdarzenia wysyłane z serwera bezpośrednio do Meta. Nie może być blokowane przez przeglądarkę. Zachowanie po odrzuceniu cookies zależy od trybu konwersji w zakładce Zgody (Ścisły / Ograniczony LDU / Pełny)."
         },
         "deduplication": "Deduplikacja Zdarzeń",
         "deduplicationDesc": "Gdy włączone są oba (Pixel + CAPI), używamy tego samego event_id dla deduplikacji. Meta automatycznie liczy zdarzenie tylko raz.",

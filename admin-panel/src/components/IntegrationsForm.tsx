@@ -498,11 +498,6 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                             <td className="py-2">✅ {t('guide.consent.allEvents')}</td>
                           </tr>
                           <tr className="border-b border-sf-border">
-                            <td className="py-2 pr-2">{t('guide.consent.userDeclines')}</td>
-                            <td className="py-2 pr-2">❌ {t('guide.consent.blocked')}</td>
-                            <td className="py-2">❌ {t('guide.consent.blocked')}</td>
-                          </tr>
-                          <tr className="border-b border-sf-border">
                             <td className="py-2 pr-2">{t('guide.consent.userDeclinesStrict')}</td>
                             <td className="py-2 pr-2">❌ {t('guide.consent.blocked')}</td>
                             <td className="py-2">❌ {t('guide.consent.blocked')}</td>
