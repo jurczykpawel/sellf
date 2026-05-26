@@ -268,11 +268,17 @@
       "requireConsent": "Require Consent (Recommended)"
     },
     "consent": {
-      "sendConversionsWithoutConsent": "Send conversions without cookie consent",
-      "sendConversionsWithoutConsentHelp": "Send Purchase and Lead events server-side even when user hasn't given cookie consent. Uses legitimate interest legal basis (GDPR Art. 6(1)(f)). Only conversion events are sent - no page views or browsing data.",
-      "requiresCAPI": "Requires Meta CAPI to be enabled first",
-      "legalWarning": "Legal notice: This feature relies on legitimate interest basis. Consult your legal advisor for GDPR/ePrivacy compliance in your jurisdiction.",
-      "documentsWarning": "This feature requires proper Terms & Conditions and Privacy Policy that mention server-side conversion tracking.",
+      "modeTitle": "Conversion tracking mode",
+      "modeHelp": "What happens with conversion events (Purchase, Lead) when the visitor declines cookie consent. Applies to both CAPI and server-side GTM.",
+      "modeStrict": "Strict — nothing without consent",
+      "modeStrictDesc": "Server-side conversions are not sent when consent is declined. Full GDPR/ePrivacy compliance. You lose some EU conversion data — but zero legal exposure.",
+      "modeLimited": "Limited — LDU mode",
+      "modeLimitedDesc": "Conversions are sent with the Limited Data Use flag. Meta/Google get the signal for ROAS reporting but cannot use it for audience targeting or ad optimization. Defensible under legitimate interest.",
+      "modeLimitedRecommended": "Recommended",
+      "modePermissive": "Permissive — legitimate interest",
+      "modePermissiveDesc": "Conversions are sent with full data (hashed email, IP) and no LDU restriction. Meta/Google use it for full optimization and audiences. Relies on legitimate interest (GDPR Art. 6(1)(f)) — requires a written LIA and a privacy policy that names Meta/Google as recipients.",
+      "modePermissiveWarning": "Legal notice: several regulators (CNIL, AEPD, LfDI BW) reject this interpretation. Consult a lawyer before enabling.",
+      "requiresCAPI": "Requires Meta CAPI or server-side GTM to be enabled first",
       "documentsLink": "Configure legal documents in Settings"
     },
     "guide": {
@@ -415,22 +421,19 @@
       "consent": {
         "title": "How does consent management work?",
         "howItWorks": "How It Works",
-        "howItWorksDesc": "When consent is enabled, users see a cookie banner. Tracking scripts only run after consent is given. This ensures GDPR/ePrivacy compliance.",
+        "howItWorksDesc": "When consent is enabled, users see a cookie banner. Client-side scripts only run after acceptance. On the server side (CAPI / GTM SS), the chosen conversion mode decides what happens.",
         "consentModes": "Tracking Behavior",
         "scenario": "Scenario",
         "clientSide": "Client-Side (Pixel, GTM)",
-        "serverSide": "Server-Side (CAPI)",
+        "serverSide": "Server-Side (CAPI / GTM SS)",
         "userAccepts": "User accepts cookies",
-        "userDeclines": "User declines cookies",
-        "userDeclinesWithServer": "User declines + Server conversions ON",
+        "userDeclinesStrict": "Declines + mode: Strict",
+        "userDeclinesLimited": "Declines + mode: Limited (LDU)",
+        "userDeclinesPermissive": "Declines + mode: Permissive",
         "allEvents": "All events",
         "blocked": "Blocked",
-        "legitimateInterest": "Legitimate Interest (GDPR Art. 6(1)(f))",
-        "legitimateInterestDesc": "You can track conversions without consent under legitimate interest if tracking is essential for your business and doesn't override user rights. This is a legal gray area - consult your lawyer.",
-        "allowedWithoutConsent": "Events allowed without consent:",
-        "purchaseDesc": "Payment completed - essential for order tracking",
-        "leadDesc": "Free product signup - essential for lead generation",
-        "notAllowed": "ViewContent, InitiateCheckout, AddPaymentInfo - NOT allowed without consent"
+        "purchaseLeadLdu": "Purchase/Lead in LDU mode",
+        "purchaseLeadFull": "Purchase/Lead full payload"
       }
     },
     "messages": {

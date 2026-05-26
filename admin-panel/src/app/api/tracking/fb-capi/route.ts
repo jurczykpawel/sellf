@@ -5,32 +5,15 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { getClientIp } from '@/lib/security/client-ip';
 import {
   sha256,
-  resolveDestinations,
   logTrackingEvent,
-  sendToGtmSS,
-  sendToFacebookCAPI,
+  dispatchTrackingEvent,
+  type ConversionTrackingMode,
+  type TrackingEvent,
 } from '@/lib/tracking';
-import type { ServerEventPayload, DestinationResult } from '@/lib/tracking';
-
-/**
- * Events that can be sent without explicit cookie consent
- * Based on legitimate interest legal basis (GDPR Art. 6(1)(f))
- */
-const CONSENT_EXEMPT_EVENTS = ['Purchase', 'Lead'];
 
 /** Max length for free-form string fields to prevent storage exhaustion */
 const MAX_STRING_LEN = 500;
 const MAX_URL_LEN = 2000;
-
-function canSendWithoutConsent(
-  eventName: string,
-  hasConsent: boolean,
-  sendConversionsWithoutConsent: boolean
-): boolean {
-  if (hasConsent) return true;
-  if (!sendConversionsWithoutConsent) return false;
-  return CONSENT_EXEMPT_EVENTS.includes(eventName);
-}
 
 /** Sanitize a string field: enforce type, trim, and limit length */
 function sanitizeString(val: unknown, maxLen = MAX_STRING_LEN): string | undefined {
@@ -52,18 +35,24 @@ function sanitizeValue(val: unknown): number | undefined {
   return val;
 }
 
+interface FbCapiConfigRow {
+  facebook_pixel_id: string | null;
+  facebook_capi_token: string | null;
+  facebook_test_event_code: string | null;
+  fb_capi_enabled: boolean | null;
+  conversion_tracking_mode: string | null;
+  gtm_ss_enabled: boolean | null;
+  gtm_server_container_url: string | null;
+}
+
 /**
- * Server-side tracking proxy endpoint
+ * Server-side tracking proxy endpoint.
  *
- * Receives events from the frontend and forwards them to configured destinations:
- * 1. GTM Server-Side container (primary)
- * 2. Facebook CAPI via Graph API (fallback)
+ * Browser callers send an event here with `has_consent` reflecting the
+ * cookieconsent state; the dispatcher decides what to do based on the
+ * configured conversion_tracking_mode.
  *
- * Supports two modes:
- * - With consent: Full tracking with cookies (_fbc, _fbp)
- * - Without consent: Only conversion events (Purchase, Lead) with hashed data
- *
- * @see https://developers.facebook.com/docs/marketing-api/conversions-api
+ * @see lib/tracking/dispatcher.ts
  */
 export async function POST(request: NextRequest) {
   try {
@@ -76,7 +65,9 @@ export async function POST(request: NextRequest) {
         source: 'client_proxy',
         status: 'failed',
         errorMessage: 'Rate limited',
-      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
+      }).catch((err) => {
+        console.warn('[fb-capi] Non-critical error:', err);
+      });
 
       return NextResponse.json(
         { error: 'Too many tracking requests. Please try again later.' },
@@ -86,7 +77,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Sanitize all client-provided fields (type checking + length limits)
     const eventName = sanitizeString(body.event_name, 100);
     const eventId = sanitizeString(body.event_id, 200);
 
@@ -97,7 +87,9 @@ export async function POST(request: NextRequest) {
         source: 'client_proxy',
         status: 'failed',
         errorMessage: 'Missing required fields: event_name, event_id',
-      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
+      }).catch((err) => {
+        console.warn('[fb-capi] Non-critical error:', err);
+      });
 
       return NextResponse.json(
         { error: 'Missing required fields: event_name, event_id' },
@@ -119,23 +111,21 @@ export async function POST(request: NextRequest) {
           .map((id: string) => id.slice(0, 200))
       : [];
 
-    // When a user is logged in, attribute the event to that user's email
-    // instead of trusting whatever the client sent. Anonymous callers
-    // fall back to the body value.
+    // Trust the session email over body for authenticated callers.
     const userClient = await createClient();
-    const { data: { user } } = await userClient.auth.getUser();
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
     const userEmail = user?.email ?? bodyEmail;
 
-    // Public endpoint (anonymous frontend callers via Klaro/Pixel),
-    // so the anon-scoped client can't read integrations_config — use admin.
     const supabase = createAdminClient();
 
     const { data: config, error: configError } = await supabase
       .from('integrations_config')
       .select(
-        'facebook_pixel_id, facebook_capi_token, facebook_test_event_code, fb_capi_enabled, send_conversions_without_consent, gtm_ss_enabled, gtm_server_container_url'
+        'facebook_pixel_id, facebook_capi_token, facebook_test_event_code, fb_capi_enabled, conversion_tracking_mode, gtm_ss_enabled, gtm_server_container_url'
       )
-      .maybeSingle();
+      .maybeSingle<FbCapiConfigRow>();
 
     if (configError) {
       console.error('[Tracking Proxy] Config fetch error:', configError);
@@ -149,18 +139,14 @@ export async function POST(request: NextRequest) {
         customerEmail: userEmail,
         value,
         currency,
-      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
+      }).catch((err) => {
+        console.warn('[fb-capi] Non-critical error:', err);
+      });
 
-      return NextResponse.json(
-        { error: 'Failed to fetch configuration' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to fetch configuration' }, { status: 500 });
     }
 
-    // Determine which destinations are configured
-    const destinations = resolveDestinations(config);
-
-    if (!config || (!destinations.fbCAPI && !destinations.gtmSS)) {
+    if (!config) {
       logTrackingEvent({
         eventName,
         eventId,
@@ -171,134 +157,63 @@ export async function POST(request: NextRequest) {
         customerEmail: userEmail,
         value,
         currency,
-      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
-
-      return NextResponse.json(
-        { error: 'No tracking destination configured' },
-        { status: 400 }
-      );
-    }
-
-    // Check consent
-    const sendConversionsWithoutConsent = config.send_conversions_without_consent ?? false;
-
-    if (!canSendWithoutConsent(eventName, hasConsent, sendConversionsWithoutConsent)) {
-      logTrackingEvent({
-        eventName,
-        eventId,
-        source: 'client_proxy',
-        status: 'skipped',
-        skipReason: 'no_consent',
-        orderId,
-        customerEmail: userEmail,
-        value,
-        currency,
-      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
-
-      return NextResponse.json({
-        success: false,
-        skipped: true,
-        reason: 'no_consent',
-        message: 'Event skipped: user has not given consent and event type requires consent',
+      }).catch((err) => {
+        console.warn('[fb-capi] Non-critical error:', err);
       });
+
+      return NextResponse.json({ error: 'No tracking destination configured' }, { status: 400 });
     }
 
-    // Extract client info from headers
     const clientIp = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || '';
 
-    // Build user_data with hashing
-    const userData: Record<string, unknown> = {
-      client_ip_address: clientIp,
-      client_user_agent: userAgent,
-    };
-
-    if (userEmail) {
-      userData.em = [sha256(userEmail)];
-    }
-
-    // Add Facebook cookies only with consent (legitimate interest doesn't allow cookie data)
-    if (hasConsent) {
-      const fbc = request.cookies.get('_fbc')?.value;
-      const fbp = request.cookies.get('_fbp')?.value;
-      if (fbc) userData.fbc = fbc;
-      if (fbp) userData.fbp = fbp;
-    }
-
-    // Build shared event payload
-    const eventPayload: ServerEventPayload = {
-      event_name: eventName,
-      event_time: Math.floor(Date.now() / 1000),
-      event_id: eventId,
-      event_source_url: eventSourceUrl,
-      action_source: 'website',
-      user_data: userData,
-      custom_data: {
-        currency,
-        value,
-        content_ids: contentIds,
-        content_name: contentName,
-        content_type: 'product',
-        ...(orderId && { order_id: orderId }),
+    const trackingEvent: TrackingEvent = {
+      eventName: eventName as TrackingEvent['eventName'],
+      eventId,
+      eventTime: Math.floor(Date.now() / 1000),
+      eventSourceUrl,
+      value: value ?? 0,
+      currency: currency ?? '',
+      contentIds,
+      contentName,
+      orderId,
+      userData: {
+        emailHashed: userEmail ? sha256(userEmail) : undefined,
+        clientIp,
+        userAgent,
+        fbc: hasConsent ? request.cookies.get('_fbc')?.value : undefined,
+        fbp: hasConsent ? request.cookies.get('_fbp')?.value : undefined,
       },
     };
 
-    // Send to all configured destinations in parallel
-    const sends: Promise<{ result: DestinationResult; durationMs: number }>[] = [];
+    const mode = (config.conversion_tracking_mode ?? 'strict') as ConversionTrackingMode;
 
-    if (destinations.gtmSS) {
-      sends.push(timedSend(() => sendToGtmSS(config.gtm_server_container_url!, eventPayload)));
-    }
-    if (destinations.fbCAPI) {
-      sends.push(timedSend(() => sendToFacebookCAPI(
-        config.facebook_pixel_id!,
-        config.facebook_capi_token!,
-        eventPayload,
-        config.facebook_test_event_code
-      )));
-    }
+    const dispatch = await dispatchTrackingEvent(trackingEvent, config, {
+      mode,
+      hasConsent,
+      source: 'client_proxy',
+      customerEmailForAudit: userEmail,
+    });
 
-    const timedResults = await Promise.all(sends);
-    const results: DestinationResult[] = [];
-
-    for (const { result, durationMs } of timedResults) {
-      results.push(result);
-
-      logTrackingEvent({
-        eventName,
-        eventId,
-        source: 'client_proxy',
-        status: result.success ? 'success' : 'failed',
-        destination: result.destination,
-        httpStatus: result.httpStatus,
-        eventsReceived: result.eventsReceived,
-        errorMessage: result.error,
-        durationMs,
-        orderId,
-        customerEmail: userEmail,
-        value,
-        currency,
-        eventSourceUrl,
-      }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
-
-      if (!result.success) {
-        console.error(`[Tracking Proxy] ${result.destination} error:`, result.error);
-      }
+    if (dispatch.skipped) {
+      return NextResponse.json({
+        success: false,
+        skipped: true,
+        reason: dispatch.skipped.reason,
+        message: `Event skipped: ${dispatch.skipped.reason}`,
+      });
     }
 
-    // At least one destination succeeded → success
-    const anySuccess = results.some((r) => r.success);
-    const fbResult = results.find((r) => r.destination === 'fb_capi');
+    const fbResult = dispatch.results.find((r) => r.destination === 'fb_capi');
 
-    if (anySuccess) {
+    if (dispatch.anySuccess) {
       return NextResponse.json({
         success: true,
         events_received: fbResult?.eventsReceived,
       });
     }
 
-    // All destinations failed
-    console.error('[Tracking Proxy] All destinations failed:', results);
+    console.error('[Tracking Proxy] All destinations failed:', dispatch.results);
     return NextResponse.json(
       {
         error: 'All tracking destinations failed',
@@ -314,20 +229,10 @@ export async function POST(request: NextRequest) {
       source: 'client_proxy',
       status: 'failed',
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
-    }).catch((err) => { console.warn('[fb-capi] Non-critical error:', err); });
+    }).catch((err) => {
+      console.warn('[fb-capi] Non-critical error:', err);
+    });
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-/** Wrap a destination send with timing measurement */
-async function timedSend(
-  fn: () => Promise<DestinationResult>
-): Promise<{ result: DestinationResult; durationMs: number }> {
-  const startTime = Date.now();
-  const result = await fn();
-  return { result, durationMs: Date.now() - startTime };
 }

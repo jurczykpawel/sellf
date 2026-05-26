@@ -4,9 +4,9 @@ import React, { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { updateIntegrationsConfig } from '@/lib/actions/integrations'
 import { IntegrationsInput } from '@/lib/validations/integrations'
+import ConversionTrackingModeField from '@/components/ConversionTrackingModeField'
 import CurrencySettings from '@/components/settings/CurrencySettings'
 import GUSSettings from '@/components/settings/GUSSettings'
-import Link from 'next/link'
 import { toast } from 'sonner'
 
 interface IntegrationsFormProps {
@@ -502,26 +502,23 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                             <td className="py-2 pr-2">❌ {t('guide.consent.blocked')}</td>
                             <td className="py-2">❌ {t('guide.consent.blocked')}</td>
                           </tr>
-                          <tr>
-                            <td className="py-2 pr-2">{t('guide.consent.userDeclinesWithServer')}</td>
+                          <tr className="border-b border-sf-border">
+                            <td className="py-2 pr-2">{t('guide.consent.userDeclinesStrict')}</td>
                             <td className="py-2 pr-2">❌ {t('guide.consent.blocked')}</td>
-                            <td className="py-2">✅ Purchase/Lead</td>
+                            <td className="py-2">❌ {t('guide.consent.blocked')}</td>
+                          </tr>
+                          <tr className="border-b border-sf-border">
+                            <td className="py-2 pr-2">{t('guide.consent.userDeclinesLimited')}</td>
+                            <td className="py-2 pr-2">❌ {t('guide.consent.blocked')}</td>
+                            <td className="py-2">⚠️ {t('guide.consent.purchaseLeadLdu')}</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 pr-2">{t('guide.consent.userDeclinesPermissive')}</td>
+                            <td className="py-2 pr-2">❌ {t('guide.consent.blocked')}</td>
+                            <td className="py-2">✅ {t('guide.consent.purchaseLeadFull')}</td>
                           </tr>
                         </tbody>
                       </table>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-sf-heading mb-2">{t('guide.consent.legitimateInterest')}</h4>
-                      <p className="text-sf-body text-xs mb-2">{t('guide.consent.legitimateInterestDesc')}</p>
-                      <div className="p-3 bg-sf-base rounded border-2 border-sf-border-medium">
-                        <p className="text-xs font-medium text-sf-body mb-1">{t('guide.consent.allowedWithoutConsent')}</p>
-                        <ul className="text-xs text-sf-body list-disc list-inside">
-                          <li><strong>Purchase</strong> - {t('guide.consent.purchaseDesc')}</li>
-                          <li><strong>Lead</strong> - {t('guide.consent.leadDesc')}</li>
-                        </ul>
-                        <p className="text-xs text-sf-danger mt-2">{t('guide.consent.notAllowed')}</p>
-                      </div>
                     </div>
                   </div>
                 </details>
@@ -531,39 +528,13 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                     <label htmlFor="consent" className="text-sm font-medium text-sf-heading">{t('cookieConsent.requireConsent')}</label>
                  </div>
 
-                 {/* Server-side conversions without consent */}
-                 <div className="mt-6 p-4 border border-sf-warning/20 bg-sf-warning-soft">
-                   <div className="flex items-start gap-3">
-                     <input
-                       id="send_conversions_without_consent"
-                       type="checkbox"
-                       checked={formData.send_conversions_without_consent ?? false}
-                       onChange={(e) => handleChange('send_conversions_without_consent', e.target.checked)}
-                       disabled={!formData.fb_capi_enabled}
-                       className="w-4 h-4 mt-0.5 text-amber-600 rounded border-gray-300 focus:ring-amber-500 disabled:opacity-50"
-                     />
-                     <div className="flex-1">
-                       <label htmlFor="send_conversions_without_consent" className={`text-sm font-medium ${!formData.fb_capi_enabled ? 'text-sf-muted' : 'text-sf-heading'}`}>
-                         {t('consent.sendConversionsWithoutConsent')}
-                       </label>
-                       <p className="mt-1 text-xs text-sf-body">
-                         {t('consent.sendConversionsWithoutConsentHelp')}
-                       </p>
-                       {!formData.fb_capi_enabled && (
-                         <p className="mt-2 text-xs text-amber-600">{t('consent.requiresCAPI')}</p>
-                       )}
-                       <div className="mt-2 p-2 bg-sf-warning-soft rounded text-xs text-sf-warning">
-                         <strong>⚠️ {t('consent.legalWarning')}</strong>
-                       </div>
-                       <div className="mt-2 p-2 bg-sf-raised rounded text-xs text-sf-body">
-                         <span>📄 {t('consent.documentsWarning')}</span>
-                         <Link href="/dashboard/settings" className="ml-1 underline hover:no-underline font-medium text-sf-heading">
-                           {t('consent.documentsLink')} →
-                         </Link>
-                       </div>
-                     </div>
-                   </div>
-                 </div>
+                 {/* Conversion tracking mode (radio group) */}
+                 <ConversionTrackingModeField
+                   value={formData.conversion_tracking_mode ?? 'strict'}
+                   onChange={(mode) => handleChange('conversion_tracking_mode', mode)}
+                   disabled={!formData.fb_capi_enabled && !formData.gtm_ss_enabled}
+                   t={t}
+                 />
               </div>
             )}
 

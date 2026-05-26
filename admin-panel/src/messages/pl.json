@@ -274,11 +274,17 @@
       "requireConsent": "Wymagaj Zgody (Zalecane)"
     },
     "consent": {
-      "sendConversionsWithoutConsent": "Wysyłaj konwersje bez zgody na cookies",
-      "sendConversionsWithoutConsentHelp": "Wysyłaj zdarzenia Purchase i Lead server-side nawet gdy użytkownik nie wyraził zgody na cookies. Opiera się na podstawie prawnej uzasadnionego interesu (RODO Art. 6(1)(f)). Wysyłane są tylko konwersje - bez danych o przeglądaniu.",
-      "requiresCAPI": "Wymaga wcześniejszego włączenia Meta CAPI",
-      "legalWarning": "Uwaga prawna: Ta funkcja opiera się na uzasadnionym interesie. Skonsultuj się z prawnikiem w sprawie zgodności z RODO/ePrivacy w Twojej jurysdykcji.",
-      "documentsWarning": "Ta funkcja wymaga odpowiednich Regulaminu i Polityki Prywatności, które wspominają o server-side śledzeniu konwersji.",
+      "modeTitle": "Tryb wysyłania konwersji",
+      "modeHelp": "Co robić z konwersjami (Purchase, Lead) gdy użytkownik odrzucił zgodę na cookies. Wybór dotyczy zarówno CAPI jak i GTM Server-Side.",
+      "modeStrict": "Ścisły — nic bez zgody",
+      "modeStrictDesc": "Konwersje server-side nie są wysyłane gdy zgoda została odrzucona. Pełna zgodność z RODO/ePrivacy. Tracisz część danych w UE — ale brak ryzyka.",
+      "modeLimited": "Ograniczony — tryb LDU",
+      "modeLimitedDesc": "Konwersje są wysyłane z flagą Limited Data Use (LDU). Meta/Google dostają sygnał do raportowania ROAS, ale nie używają danych do audience targeting ani optymalizacji reklam. Defensible pod uzasadnionym interesem.",
+      "modeLimitedRecommended": "Zalecane",
+      "modePermissive": "Pełny — uzasadniony interes",
+      "modePermissiveDesc": "Konwersje są wysyłane z pełnymi danymi (zhashowany email, IP) i bez ograniczeń LDU. Meta/Google używają tego do pełnej optymalizacji i audience. Opiera się na uzasadnionym interesie (RODO Art. 6(1)(f)) — wymaga LIA na piśmie i polityki prywatności wymieniającej Meta/Google jako odbiorców.",
+      "modePermissiveWarning": "Uwaga prawna: kilka regulatorów (CNIL, AEPD, LfDI BW) odrzuca tę interpretację. Skonsultuj prawnika przed włączeniem.",
+      "requiresCAPI": "Wymaga wcześniejszego włączenia Meta CAPI lub GTM Server-Side",
       "documentsLink": "Skonfiguruj dokumenty prawne w Ustawieniach"
     },
     "guide": {
@@ -430,22 +436,19 @@
       "consent": {
         "title": "Jak działa zarządzanie zgodami?",
         "howItWorks": "Jak to działa",
-        "howItWorksDesc": "Gdy zgoda jest włączona, użytkownicy widzą baner cookies. Skrypty śledzące uruchamiają się dopiero po wyrażeniu zgody. Zapewnia to zgodność z RODO/ePrivacy.",
+        "howItWorksDesc": "Gdy zgoda jest włączona, użytkownicy widzą baner cookies. Skrypty client-side uruchamiają się dopiero po akceptacji. Po stronie serwera (CAPI / GTM SS) decyduje wybrany tryb konwersji.",
         "consentModes": "Zachowanie śledzenia",
         "scenario": "Scenariusz",
         "clientSide": "Client-Side (Pixel, GTM)",
-        "serverSide": "Server-Side (CAPI)",
+        "serverSide": "Server-Side (CAPI / GTM SS)",
         "userAccepts": "Użytkownik akceptuje cookies",
-        "userDeclines": "Użytkownik odrzuca cookies",
-        "userDeclinesWithServer": "Użytkownik odrzuca + Konwersje server ON",
+        "userDeclinesStrict": "Odrzuca + tryb: Ścisły",
+        "userDeclinesLimited": "Odrzuca + tryb: Ograniczony (LDU)",
+        "userDeclinesPermissive": "Odrzuca + tryb: Pełny",
         "allEvents": "Wszystkie zdarzenia",
         "blocked": "Zablokowane",
-        "legitimateInterest": "Uzasadniony Interes (RODO Art. 6(1)(f))",
-        "legitimateInterestDesc": "Gdy 'Wysyłaj konwersje bez zgody' jest włączone, tylko zdarzenia Purchase i Lead są wysyłane przez CAPI. Ta podstawa prawna jest dozwolona gdy śledzisz tylko finalne konwersje.",
-        "allowedWithoutConsent": "Dozwolone bez zgody:",
-        "purchaseDesc": "zakończone transakcje",
-        "leadDesc": "rejestracje/pobrania darmowych produktów",
-        "notAllowed": "Niedozwolone: ViewContent, InitiateCheckout, AddPaymentInfo (zdarzenia przeglądania)"
+        "purchaseLeadLdu": "Purchase/Lead w trybie LDU",
+        "purchaseLeadFull": "Purchase/Lead pełne dane"
       }
     },
     "messages": {

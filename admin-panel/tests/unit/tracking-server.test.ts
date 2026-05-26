@@ -4,7 +4,7 @@
  * Tests the server-side conversion tracking logic including:
  * - Event type filtering (only Purchase/Lead allowed)
  * - Configuration validation (Supabase env vars, destination settings)
- * - Consent checking (send_conversions_without_consent)
+ * - Consent checking (conversion_tracking_mode strict/limited/permissive)
  * - Destination routing (GTM SS, FB CAPI, both)
  * - Parallel destination sending
  * - Facebook Graph API payload construction and sending
@@ -59,7 +59,7 @@ function createDefaultConfig(overrides: Record<string, unknown> = {}) {
     facebook_pixel_id: '123456789',
     facebook_capi_token: 'test_capi_token_abc',
     facebook_test_event_code: null,
-    send_conversions_without_consent: true,
+    conversion_tracking_mode: 'permissive',
     gtm_ss_enabled: false,
     gtm_server_container_url: null,
     ...overrides,
@@ -375,17 +375,29 @@ describe('trackServerSideConversion', () => {
   // ----- Consent settings -----
 
   describe('consent settings', () => {
-    it('should return server_side_conversions_disabled when send_conversions_without_consent is false', async () => {
+    it('should skip with no_consent_strict_mode when mode is strict', async () => {
       const trackServerSideConversion = await getTrackFn();
-      setupSupabaseMock(createDefaultConfig({ send_conversions_without_consent: false }));
+      setupSupabaseMock(createDefaultConfig({ conversion_tracking_mode: 'strict' }));
 
       const result = await trackServerSideConversion(createDefaultTrackingData());
 
       expect(result).toEqual({
         success: false,
         skipped: true,
-        reason: 'server_side_conversions_disabled',
+        reason: 'no_consent_strict_mode',
       });
+    });
+
+    it('should send under LDU when mode is limited (Purchase)', async () => {
+      const trackServerSideConversion = await getTrackFn();
+      setupSupabaseMock(createDefaultConfig({ conversion_tracking_mode: 'limited' }));
+      setupFetchMock({ events_received: 1 });
+
+      const result = await trackServerSideConversion(createDefaultTrackingData());
+
+      expect(result.success).toBe(true);
+      const body = JSON.parse(vi.mocked(global.fetch).mock.calls[0][1]?.body as string);
+      expect(body.data[0].data_processing_options).toEqual(['LDU']);
     });
   });
 
@@ -721,178 +733,10 @@ describe('trackServerSideConversion', () => {
 
 // ===== buildServerEventPayload =====
 
-describe('buildServerEventPayload', () => {
-  it('should build correct payload structure', async () => {
-    const { buildServerEventPayload } = await import('@/lib/tracking/server');
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'test_event_123'
-    );
-
-    expect(payload.event_name).toBe('Purchase');
-    expect(payload.event_id).toBe('test_event_123');
-    expect(payload.event_source_url).toBe('https://example.com/p/test-product');
-    expect(payload.action_source).toBe('website');
-    expect(payload.event_time).toBeTypeOf('number');
-
-    expect(payload.user_data.client_ip_address).toBe('1.2.3.4');
-    expect(payload.user_data.client_user_agent).toBe('Mozilla/5.0 Test');
-    expect(payload.user_data.em).toEqual([KNOWN_HASH_TEST_EMAIL]);
-
-    expect(payload.custom_data.currency).toBe('PLN');
-    expect(payload.custom_data.value).toBe(49.99);
-    expect(payload.custom_data.content_ids).toEqual(['prod_1']);
-    expect(payload.custom_data.content_name).toBe('Test Product');
-    expect(payload.custom_data.order_id).toBe('order_123');
-  });
-
-  it('should omit user_data fields when not provided', async () => {
-    const { buildServerEventPayload } = await import('@/lib/tracking/server');
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData({ clientIp: undefined, userAgent: undefined, userEmail: undefined }),
-      'test_123'
-    );
-
-    expect(payload.user_data.client_ip_address).toBeUndefined();
-    expect(payload.user_data.client_user_agent).toBeUndefined();
-    expect(payload.user_data.em).toBeUndefined();
-  });
-
-  it('should omit order_id from custom_data when not provided', async () => {
-    const { buildServerEventPayload } = await import('@/lib/tracking/server');
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData({ orderId: undefined }),
-      'test_123'
-    );
-
-    expect(payload.custom_data.order_id).toBeUndefined();
-  });
-});
-
-// ===== sendToGtmSS =====
-
-describe('sendToGtmSS', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('should POST to /mp/collect endpoint', async () => {
-    const { sendToGtmSS, buildServerEventPayload } = await import('@/lib/tracking/server');
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(''),
-    } as Response);
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'gtm_test_123'
-    );
-    const result = await sendToGtmSS('https://gtm.example.com', payload);
-
-    expect(result.destination).toBe('gtm_ss');
-    expect(result.success).toBe(true);
-    expect(result.httpStatus).toBe(200);
-
-    const [url, options] = vi.mocked(global.fetch).mock.calls[0];
-    expect(url).toBe('https://gtm.example.com/mp/collect');
-    expect(options?.method).toBe('POST');
-  });
-
-  it('should handle non-ok response', async () => {
-    const { sendToGtmSS, buildServerEventPayload } = await import('@/lib/tracking/server');
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: false,
-      status: 502,
-      text: () => Promise.resolve('Bad Gateway'),
-    } as Response);
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'gtm_fail_123'
-    );
-    const result = await sendToGtmSS('https://gtm.example.com', payload);
-
-    expect(result.success).toBe(false);
-    expect(result.httpStatus).toBe(502);
-    expect(result.error).toBe('Bad Gateway');
-  });
-
-  it('should handle network error', async () => {
-    const { sendToGtmSS, buildServerEventPayload } = await import('@/lib/tracking/server');
-    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('DNS resolution failed'));
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'gtm_net_err'
-    );
-    const result = await sendToGtmSS('https://gtm.example.com', payload);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('DNS resolution failed');
-  });
-});
-
-// ===== sendToFacebookCAPI =====
-
-describe('sendToFacebookCAPI', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('should send correctly to Graph API', async () => {
-    const { sendToFacebookCAPI, buildServerEventPayload } = await import('@/lib/tracking/server');
-    setupFetchMock({ events_received: 1 });
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'fb_test_123'
-    );
-    const result = await sendToFacebookCAPI('123456789', 'token_abc', payload);
-
-    expect(result.destination).toBe('fb_capi');
-    expect(result.success).toBe(true);
-    expect(result.eventsReceived).toBe(1);
-
-    const [url] = vi.mocked(global.fetch).mock.calls[0];
-    expect(url).toContain('graph.facebook.com');
-    expect(url).toContain('123456789');
-  });
-
-  it('should include test_event_code when provided', async () => {
-    const { sendToFacebookCAPI, buildServerEventPayload } = await import('@/lib/tracking/server');
-    setupFetchMock({ events_received: 1 });
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'fb_test_code'
-    );
-    await sendToFacebookCAPI('123456789', 'token_abc', payload, 'TEST99');
-
-    const body = JSON.parse(
-      vi.mocked(global.fetch).mock.calls[0][1]?.body as string
-    );
-    expect(body.test_event_code).toBe('TEST99');
-  });
-
-  it('should handle API error', async () => {
-    const { sendToFacebookCAPI, buildServerEventPayload } = await import('@/lib/tracking/server');
-    setupFetchMock({ error: { message: 'Invalid token' } }, false, 401);
-
-    const payload = buildServerEventPayload(
-      createDefaultTrackingData(),
-      'fb_err'
-    );
-    const result = await sendToFacebookCAPI('123456789', 'bad_token', payload);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('Invalid token');
-    expect(result.httpStatus).toBe(401);
-  });
-});
+// buildServerEventPayload / sendToGtmSS / sendToFacebookCAPI were extracted
+// into lib/tracking/destinations.ts. Direct behaviour for those primitives
+// lives in tests/unit/tracking-destinations.test.ts now; this file keeps the
+// trackServerSideConversion facade tests that exercise them end-to-end.
 
 // ===== logTrackingEvent =====
 
@@ -1078,16 +922,16 @@ describe('trackServerSideConversion logging integration', () => {
     );
   });
 
-  it('should log skipped event when server-side conversions disabled', async () => {
+  it('should log skipped event when mode is strict (no consent path)', async () => {
     const trackServerSideConversion = await getTrackFn();
-    setupSupabaseMock(createDefaultConfig({ send_conversions_without_consent: false }));
+    setupSupabaseMock(createDefaultConfig({ conversion_tracking_mode: 'strict' }));
 
     await trackServerSideConversion(createDefaultTrackingData());
 
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'skipped',
-        skip_reason: 'server_side_conversions_disabled',
+        skip_reason: 'no_consent_strict_mode',
       })
     );
   });

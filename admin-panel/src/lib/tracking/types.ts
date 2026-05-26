@@ -53,7 +53,7 @@ export interface TrackingConfigFromDB {
   gtm_ss_enabled?: boolean | null;
   facebook_pixel_id?: string | null;
   fb_capi_enabled?: boolean | null;
-  send_conversions_without_consent?: boolean | null;
+  conversion_tracking_mode?: string | null;
 }
 
 // FB CAPI Request payload (sent to /api/tracking/fb-capi)

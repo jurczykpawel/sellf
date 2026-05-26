@@ -157,17 +157,17 @@ describe('POST /api/tracking/fb-capi', () => {
 
   describe('Consent logic', () => {
     beforeAll(async () => {
-      // Set up config with CAPI enabled and fake credentials
+      // Set up config with CAPI enabled, fake credentials, strict mode.
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: false,
+        conversion_tracking_mode: 'strict',
       });
     });
 
-    it('should skip ViewContent when has_consent=false and send_conversions_without_consent=false', async () => {
+    it('should skip ViewContent when has_consent=false and mode=strict', async () => {
       const res = await postCapi(
         validBody({
           event_name: 'ViewContent',
@@ -178,17 +178,17 @@ describe('POST /api/tracking/fb-capi', () => {
 
       expect(res.status).toBe(200);
       expect(body.skipped).toBe(true);
-      expect(body.reason).toBe('no_consent');
+      expect(body.reason).toBe('browsing_event_requires_consent');
     });
 
-    it('should skip ViewContent when has_consent=false even if send_conversions_without_consent=true', async () => {
-      // ViewContent is NOT in CONSENT_EXEMPT_EVENTS (only Purchase, Lead)
+    it('should skip ViewContent when has_consent=false even in permissive mode', async () => {
+      // Browsing events always require consent; permissive only opens up Purchase/Lead.
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: true,
+        conversion_tracking_mode: 'permissive',
       });
 
       const res = await postCapi(
@@ -201,18 +201,17 @@ describe('POST /api/tracking/fb-capi', () => {
 
       expect(res.status).toBe(200);
       expect(body.skipped).toBe(true);
-      expect(body.reason).toBe('no_consent');
+      expect(body.reason).toBe('browsing_event_requires_consent');
     });
 
-    it('should forward Purchase to Facebook when has_consent=false and send_conversions_without_consent=true', async () => {
-      // Purchase IS in CONSENT_EXEMPT_EVENTS → should pass consent check
-      // Will fail at the Facebook API call (fake token) → 500
+    it('should forward Purchase to Facebook when has_consent=false and mode=permissive', async () => {
+      // Purchase is allowed without consent under permissive mode → passes through.
       await supabase.schema('seller_main' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: true,
+        conversion_tracking_mode: 'permissive',
       });
 
       const res = await postCapi(
@@ -227,9 +226,6 @@ describe('POST /api/tracking/fb-capi', () => {
 
       // Passed consent check → reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      // Endpoint wording is destination-agnostic since the GTM+FB refactor
-      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
-      // failed" instead of the old "Facebook API ..." message.
       expect(body.error).toMatch(/(failed|destination)/i);
     });
 
@@ -239,7 +235,7 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: false,
+        conversion_tracking_mode: 'strict',
       });
 
       const res = await postCapi(
@@ -252,9 +248,6 @@ describe('POST /api/tracking/fb-capi', () => {
 
       // Passed consent check → reached Facebook API → fails with invalid token
       expect(res.status).toBe(500);
-      // Endpoint wording is destination-agnostic since the GTM+FB refactor
-      // (e11ae1a): a downstream failure surfaces as "All tracking destinations
-      // failed" instead of the old "Facebook API ..." message.
       expect(body.error).toMatch(/(failed|destination)/i);
     });
 
@@ -264,7 +257,7 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
-        send_conversions_without_consent: false,
+        conversion_tracking_mode: 'strict',
       });
 
       // No has_consent field → defaults to true → forwards to Facebook

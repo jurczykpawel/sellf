@@ -742,6 +742,7 @@ export type Database = {
       integrations_config: {
         Row: {
           consent_logging_enabled: boolean | null
+          conversion_tracking_mode: string | null
           cookie_consent_enabled: boolean | null
           created_at: string | null
           currency_api_enabled: boolean | null
@@ -764,13 +765,13 @@ export type Database = {
           gus_api_key_tag: string | null
           id: number | null
           sellf_license: string | null
-          send_conversions_without_consent: boolean | null
           umami_script_url: string | null
           umami_website_id: string | null
           updated_at: string | null
         }
         Insert: {
           consent_logging_enabled?: boolean | null
+          conversion_tracking_mode?: string | null
           cookie_consent_enabled?: boolean | null
           created_at?: string | null
           currency_api_enabled?: boolean | null
@@ -793,13 +794,13 @@ export type Database = {
           gus_api_key_tag?: string | null
           id?: number | null
           sellf_license?: string | null
-          send_conversions_without_consent?: boolean | null
           umami_script_url?: string | null
           umami_website_id?: string | null
           updated_at?: string | null
         }
         Update: {
           consent_logging_enabled?: boolean | null
+          conversion_tracking_mode?: string | null
           cookie_consent_enabled?: boolean | null
           created_at?: string | null
           currency_api_enabled?: boolean | null
@@ -822,7 +823,6 @@ export type Database = {
           gus_api_key_tag?: string | null
           id?: number | null
           sellf_license?: string | null
-          send_conversions_without_consent?: boolean | null
           umami_script_url?: string | null
           umami_website_id?: string | null
           updated_at?: string | null
@@ -3244,6 +3244,7 @@ export type Database = {
       integrations_config: {
         Row: {
           consent_logging_enabled: boolean | null
+          conversion_tracking_mode: string
           cookie_consent_enabled: boolean | null
           created_at: string
           currency_api_enabled: boolean
@@ -3266,13 +3267,13 @@ export type Database = {
           gus_api_key_tag: string | null
           id: number
           sellf_license: string | null
-          send_conversions_without_consent: boolean | null
           umami_script_url: string | null
           umami_website_id: string | null
           updated_at: string
         }
         Insert: {
           consent_logging_enabled?: boolean | null
+          conversion_tracking_mode?: string
           cookie_consent_enabled?: boolean | null
           created_at?: string
           currency_api_enabled?: boolean
@@ -3295,13 +3296,13 @@ export type Database = {
           gus_api_key_tag?: string | null
           id?: number
           sellf_license?: string | null
-          send_conversions_without_consent?: boolean | null
           umami_script_url?: string | null
           umami_website_id?: string | null
           updated_at?: string
         }
         Update: {
           consent_logging_enabled?: boolean | null
+          conversion_tracking_mode?: string
           cookie_consent_enabled?: boolean | null
           created_at?: string
           currency_api_enabled?: boolean
@@ -3324,7 +3325,6 @@ export type Database = {
           gus_api_key_tag?: string | null
           id?: number
           sellf_license?: string | null
-          send_conversions_without_consent?: boolean | null
           umami_script_url?: string | null
           umami_website_id?: string | null
           updated_at?: string
@@ -5847,10 +5847,6 @@ export type Database = {
         Args: { bucketid: string; metadata: Json; name: string; owner: string }
         Returns: undefined
       }
-      delete_leaf_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
-      }
       extension: { Args: { name: string }; Returns: string }
       filename: { Args: { name: string }; Returns: string }
       foldername: { Args: { name: string }; Returns: string[] }
@@ -5858,9 +5854,6 @@ export type Database = {
         Args: { p_delimiter: string; p_key: string; p_prefix: string }
         Returns: string
       }
-      get_level: { Args: { name: string }; Returns: number }
-      get_prefix: { Args: { name: string }; Returns: string }
-      get_prefixes: { Args: { name: string }; Returns: string[] }
       get_size_by_bucket: {
         Args: never
         Returns: {
@@ -5938,26 +5931,6 @@ export type Database = {
           created_at: string
           id: string
           key: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_legacy_v1: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
           last_accessed_at: string
           metadata: Json
           name: string
