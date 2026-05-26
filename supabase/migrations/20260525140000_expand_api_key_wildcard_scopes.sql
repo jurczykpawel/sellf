@@ -9,9 +9,13 @@
 -- through any concrete scopes that may already be present alongside "*"
 -- and the SELECT DISTINCT/ORDER BY in the source dedupes the result.
 
-SET client_min_messages = warning;
+-- NOTE: no top-level BEGIN/COMMIT — the upgrade.sh deploy path applies
+-- migrations via the apply_migration RPC, which executes each migration
+-- inside its own EXECUTE-wrapped transaction and rejects nested
+-- BEGIN/COMMIT/ROLLBACK with SQLSTATE 0A000. Each statement below is
+-- independently safe to retry; the file is idempotent.
 
-BEGIN;
+SET client_min_messages = warning;
 
 WITH scope_snapshot AS (
   SELECT jsonb_agg(scope ORDER BY scope) AS scopes
@@ -80,5 +84,3 @@ ALTER TABLE api_keys
 -- Replace the stale column comment that still documents wildcard semantics.
 COMMENT ON COLUMN api_keys.scopes IS
   'JSONB array of explicit scope strings. The "*" wildcard is never persisted: it is expanded to the current scope snapshot at key-creation time (see expandScopes in admin-panel/src/lib/api/api-keys.ts).';
-
-COMMIT;
