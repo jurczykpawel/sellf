@@ -160,6 +160,18 @@ If all of that works — you're live. 🎉
 
 ## Troubleshooting
 
+### Vercel: every page returns 404 right after deploy
+
+If `/`, `/en`, `/api/health` all return `HTTP 404` with `x-vercel-error: NOT_FOUND`, the deploy succeeded but Vercel didn't auto-detect the project as Next.js. Confirm by going to your project's **Settings → Build & Deployment** in the Vercel dashboard — the "Framework Preset" should say `Next.js`. If it says `Other` or is blank, switch it to `Next.js` and redeploy.
+
+(This happens when the project is created from the CLI with `--yes` rather than through the clone URL. The clone URL handles framework detection automatically; CLI sometimes doesn't.)
+
+### Vercel: every page returns 401 with a Vercel SSO login
+
+You're hitting **Vercel Authentication** (formerly "Deployment Protection"), which is on by default for new Hobby-tier projects and blocks anonymous traffic to all `*.vercel.app` URLs. Disable it in **Settings → Deployment Protection → Vercel Authentication → Disabled** (or via CLI: `vercel project protection disable <name> --sso`).
+
+The clone URL flow doesn't enable this for production aliases — but if you create the project via CLI, you'll need to toggle it off explicitly.
+
 ### Build fails on Netlify with "Cannot find @netlify/plugin-nextjs version that supports Next.js 16"
 
 Sellf uses Next.js 16. The Netlify Next plugin officially supports up to 15.x at the time of writing. You have two options:
