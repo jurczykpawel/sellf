@@ -332,7 +332,7 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 > **⚠️ Read the [Vercel/Netlify deploy guide](./docs/DEPLOYMENT-VERCEL-NETLIFY.md) first.** The one-click button creates the app, but you still need to (a) generate a few secrets locally, (b) run Supabase migrations after deploy, and (c) wire up the Stripe webhook in a second pass. The guide walks through all three in ~15 minutes.
 
-> **Coolify / Docker:** Create a new Application in Coolify, point to this repo, set **Base Directory** to `admin-panel`, and configure env vars from [.env.example](./admin-panel/.env.example).
+> **Coolify (self-hosted, closest to true one-click):** see [docs/DEPLOYMENT-COOLIFY.md](./docs/DEPLOYMENT-COOLIFY.md). Bundles Sellf + Supabase + supporting services in one Docker Compose; migrations run automatically on first boot. Needs a VPS with 4 GB+ RAM.
 
 ### Manual Deploy
 

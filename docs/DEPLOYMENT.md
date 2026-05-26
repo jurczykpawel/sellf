@@ -6,6 +6,16 @@ The guides below are for **advanced use cases**:
 
 ---
 
+### [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md) — Coolify (one-click self-hosted)
+**Use if you need:**
+- Closest to "true one-click" — migrations run automatically
+- Self-hosted full stack (Sellf + Supabase) on your own VPS
+- Auto TLS + GitHub auto-deploy on push
+
+**Requirements:** 4GB+ RAM VPS, Coolify installed (free), 10 min setup
+
+---
+
 ### [FULL-STACK.md](./FULL-STACK.md) — Self-Hosted Supabase + Docker
 **Use if you need:**
 - Full control over all infrastructure (11 Docker containers)
