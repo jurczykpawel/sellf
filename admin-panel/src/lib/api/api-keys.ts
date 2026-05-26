@@ -307,9 +307,12 @@ import type { LicenseTier } from '@/lib/license/verify';
  * without changing call-sites. Today, no scope is tier-restricted.
  */
 export function enforceApiKeyScopeGate(
-  _tier: LicenseTier,
+  tier: LicenseTier,
   requestedScopes: string[] | undefined,
 ): ApiScope[] {
+  // Intentional pass-through — narrower-than-full requests are always honored
+  // regardless of tier (see header doc). Don't "fix" this by enforcing tier.
+  void tier;
   if (!requestedScopes || requestedScopes.length === 0) {
     return [...ALL_SCOPES];
   }

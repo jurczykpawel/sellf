@@ -272,13 +272,16 @@ async function authenticateViaApiKey(request: NextRequest): Promise<ApiKeyAuthRe
     return null;
   }
 
+  // Without a trusted client IP (TRUSTED_PROXY=false or no edge headers set)
+  // a per-UA bucket is attacker-controlled — rotating User-Agent shards the
+  // throttle into infinitely many buckets and defeats it. Fall back to a
+  // single global bucket sized for legit anonymous traffic instead.
   const trustedIp = extractTrustedClientIp(request.headers);
-  const verifyIdentifier = trustedIp
-    ? `ip:${trustedIp}`
-    : `ua:${(request.headers.get('user-agent') || 'unknown').slice(0, 64)}`;
+  const verifyIdentifier = trustedIp ? `ip:${trustedIp}` : 'global:unknown-source';
+  const verifyAttemptCap = trustedIp ? 60 : 600;
   const verifyAttemptAllowed = await checkRateLimitForIdentifier(
     'api_key_verify',
-    60,
+    verifyAttemptCap,
     1,
     verifyIdentifier,
   );
