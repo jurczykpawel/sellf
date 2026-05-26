@@ -51,7 +51,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_per_user: 1,
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -165,7 +165,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_per_user: 1,
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -230,7 +230,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_per_user: 1, // Only 1 use per user
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -298,7 +298,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_global: 1,
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -383,7 +383,7 @@ test.describe('Coupon Race Condition - Edge Cases', () => {
         usage_limit_global: 1,
         current_usage_count: 1, // Already used!
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();

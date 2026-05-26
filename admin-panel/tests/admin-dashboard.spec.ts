@@ -69,23 +69,26 @@ test.describe('Authenticated Admin Dashboard', () => {
   });
 
   test('should perform full CRUD on a product', async ({ page }) => {
-    // Force local VAT mode — leftover tax_mode='stripe_tax' from sibling
-    // suites hides #vat_rate and the fill below times out.
+    // Force local VAT mode in case a sibling suite flipped it.
     await supabaseAdmin.from('shop_config').update({ tax_mode: 'local' }).not('id', 'is', null);
 
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/dashboard/products');
 
-    // 1. Create
-    await page.getByRole('button', { name: /Add Product|Dodaj produkt/i }).first().click();
-    
     const productName = `CRUD-Prod-${Date.now()}`;
     const productSlug = `crud-${Date.now()}`;
-    
-    // Scope to the product wizard via its stable form id — the wizard footer
-    // swaps Cancel→Back after step 1, so filtering by /Cancel|Anuluj/ silently
-    // matches an empty locator on step 2+.
+
+    // Scope to the product wizard via its stable form id.
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#wizard-form') });
+    const addBtn = page.getByRole('button', { name: /Add Product|Dodaj produkt/i }).first();
+
+    // Open wizard with a retry — under load the first click can land before
+    // the page is fully hydrated and the modal never mounts.
+    await expect(async () => {
+      await addBtn.click();
+      await expect(modal).toBeVisible({ timeout: 3000 });
+    }).toPass({ timeout: 20000 });
+
     await modal.locator('input[name="name"]').fill(productName);
     await modal.locator('input[name="slug"]').fill(productSlug);
     await modal.locator('input[name="price"]').fill('50');
