@@ -1,4 +1,4 @@
--- Replace the wildcard scope marker on existing api_keys rows with the
+-- Replace the wildcard scope marker on existing public.api_keys rows with the
 -- explicit snapshot of every scope known at this version.
 --
 -- After this migration, application code expands "*" to a concrete list
@@ -41,7 +41,7 @@ WITH scope_snapshot AS (
     ]) AS scope
   ) s
 )
-UPDATE api_keys k
+UPDATE public.api_keys k
 SET scopes = (
   SELECT jsonb_agg(DISTINCT s ORDER BY s)
   FROM (
@@ -60,7 +60,7 @@ WHERE jsonb_typeof(k.scopes) = 'array'
 -- Tighten the column default so new INSERTs that omit `scopes` no longer
 -- write the marker. Application code calls expandScopes() before INSERT,
 -- so this is a belt-and-braces guard against direct SQL.
-ALTER TABLE api_keys
+ALTER TABLE public.api_keys
   ALTER COLUMN scopes SET DEFAULT jsonb_build_array(
     'products:read',
     'products:write',
@@ -82,5 +82,5 @@ ALTER TABLE api_keys
   );
 
 -- Replace the stale column comment that still documents wildcard semantics.
-COMMENT ON COLUMN api_keys.scopes IS
+COMMENT ON COLUMN public.api_keys.scopes IS
   'JSONB array of explicit scope strings. The "*" wildcard is never persisted: it is expanded to the current scope snapshot at key-creation time (see expandScopes in admin-panel/src/lib/api/api-keys.ts).';
