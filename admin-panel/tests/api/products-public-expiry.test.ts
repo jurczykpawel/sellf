@@ -59,7 +59,7 @@ async function createProduct(opts: {
 }): Promise<CreatedProduct> {
   const slug = `pub-expiry-${opts.suffix}-${TEST_ID}`;
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as never)
+    .schema('public' as never)
     .from('products')
     .insert({
       name: `Public Expiry ${opts.suffix}`,
@@ -89,7 +89,7 @@ async function grantAccess(userId: string, productId: string, expiresAt: Date | 
     ? new Date(expiresAt.getTime() - 60 * 60 * 1000) // 1h before expiry
     : new Date();
   const { error } = await supabaseAdmin
-    .schema('seller_main' as never)
+    .schema('public' as never)
     .from('user_product_access')
     .insert({
       user_id: userId,
@@ -151,12 +151,12 @@ describe('Public product endpoints — expiry semantics', () => {
       .filter(Boolean)
       .map((p) => p.id);
     await supabaseAdmin
-      .schema('seller_main' as never)
+      .schema('public' as never)
       .from('user_product_access')
       .delete()
       .eq('user_id', userId);
     for (const id of productIds) {
-      await supabaseAdmin.schema('seller_main' as never).from('products').delete().eq('id', id);
+      await supabaseAdmin.schema('public' as never).from('products').delete().eq('id', id);
     }
     if (userId) await supabaseAdmin.auth.admin.deleteUser(userId);
   });

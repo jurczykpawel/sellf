@@ -9,8 +9,8 @@
  * longer exposed through the public RPC or rendered by TrackingProvider.
  */
 
--- Update seller_main function to stop returning scripts
-CREATE OR REPLACE FUNCTION seller_main.get_public_integrations_config()
+-- Update public function to stop returning scripts
+CREATE OR REPLACE FUNCTION public.get_public_integrations_config()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -19,7 +19,7 @@ AS $$
 DECLARE
   config_record RECORD;
 BEGIN
-  SELECT * INTO config_record FROM seller_main.integrations_config WHERE id = 1;
+  SELECT * INTO config_record FROM public.integrations_config WHERE id = 1;
 
   RETURN jsonb_build_object(
     'gtm_container_id', config_record.gtm_container_id,
@@ -35,4 +35,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION seller_main.get_public_integrations_config() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_public_integrations_config() TO anon, authenticated, service_role;

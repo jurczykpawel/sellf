@@ -9,18 +9,18 @@ import {
 describe('lintSqlForMissingRevoke', () => {
   it('ignores plain CREATE OR REPLACE (grants preserved or covered by default privileges)', () => {
     const sql = `
-      CREATE OR REPLACE FUNCTION seller_main.foo() RETURNS void AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;
+      CREATE OR REPLACE FUNCTION public.foo() RETURNS void AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;
     `;
     expect(lintSqlForMissingRevoke('test.sql', sql)).toHaveLength(0);
   });
 
-  it('flags DROP + CREATE in seller_main without REVOKE', () => {
+  it('flags DROP + CREATE in public without REVOKE', () => {
     const sql = `
-      DROP FUNCTION IF EXISTS seller_main.foo();
-      CREATE OR REPLACE FUNCTION seller_main.foo() RETURNS void AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;
+      DROP FUNCTION IF EXISTS public.foo();
+      CREATE OR REPLACE FUNCTION public.foo() RETURNS void AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;
     `;
     const missing = lintSqlForMissingRevoke('test.sql', sql);
-    expect(missing.map((m) => m.qualified)).toEqual(['seller_main.foo']);
+    expect(missing.map((m) => m.qualified)).toEqual(['public.foo']);
   });
 
   it('flags DROP + CREATE in public without REVOKE', () => {
@@ -34,9 +34,9 @@ describe('lintSqlForMissingRevoke', () => {
 
   it('passes when DROP + CREATE has matching REVOKE', () => {
     const sql = `
-      DROP FUNCTION IF EXISTS seller_main.foo();
-      CREATE OR REPLACE FUNCTION seller_main.foo() RETURNS void AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;
-      REVOKE EXECUTE ON FUNCTION seller_main.foo() FROM PUBLIC, anon, authenticated;
+      DROP FUNCTION IF EXISTS public.foo();
+      CREATE OR REPLACE FUNCTION public.foo() RETURNS void AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;
+      REVOKE EXECUTE ON FUNCTION public.foo() FROM PUBLIC, anon, authenticated;
     `;
     expect(lintSqlForMissingRevoke('test.sql', sql)).toHaveLength(0);
   });
@@ -51,11 +51,11 @@ describe('lintSqlForMissingRevoke', () => {
 
   it('reports multiple DROP + CREATE definitions independently', () => {
     const sql = `
-      DROP FUNCTION IF EXISTS seller_main.a();
+      DROP FUNCTION IF EXISTS public.a();
       DROP FUNCTION IF EXISTS public.b();
-      CREATE OR REPLACE FUNCTION seller_main.a() RETURNS void AS $$ BEGIN END $$ LANGUAGE plpgsql;
+      CREATE OR REPLACE FUNCTION public.a() RETURNS void AS $$ BEGIN END $$ LANGUAGE plpgsql;
       CREATE OR REPLACE FUNCTION public.b() RETURNS void AS $$ BEGIN END $$ LANGUAGE plpgsql;
-      REVOKE EXECUTE ON FUNCTION seller_main.a() FROM PUBLIC, anon, authenticated;
+      REVOKE EXECUTE ON FUNCTION public.a() FROM PUBLIC, anon, authenticated;
     `;
     const missing = lintSqlForMissingRevoke('test.sql', sql);
     expect(missing.map((m) => m.qualified)).toEqual(['public.b']);
@@ -64,17 +64,17 @@ describe('lintSqlForMissingRevoke', () => {
 
 describe('lintSqlForTopLevelTransaction', () => {
   it('flags top-level BEGIN / COMMIT', () => {
-    const sql = `BEGIN;\nGRANT SELECT ON seller_main.foo TO authenticated;\nCOMMIT;`;
+    const sql = `BEGIN;\nGRANT SELECT ON public.foo TO authenticated;\nCOMMIT;`;
     expect(lintSqlForTopLevelTransaction(sql)).toEqual(['BEGIN', 'COMMIT']);
   });
 
   it('ignores BEGIN / END inside dollar-quoted function bodies', () => {
-    const sql = `CREATE FUNCTION seller_main.foo() RETURNS void AS $$\nBEGIN\n  NULL;\nEND;\n$$ LANGUAGE plpgsql;`;
+    const sql = `CREATE FUNCTION public.foo() RETURNS void AS $$\nBEGIN\n  NULL;\nEND;\n$$ LANGUAGE plpgsql;`;
     expect(lintSqlForTopLevelTransaction(sql)).toEqual([]);
   });
 
   it('ignores BEGIN / END inside named dollar-quoted blocks', () => {
-    const sql = `CREATE FUNCTION seller_main.foo() RETURNS void AS $body$\nBEGIN\n  NULL;\nEND;\n$body$ LANGUAGE plpgsql;`;
+    const sql = `CREATE FUNCTION public.foo() RETURNS void AS $body$\nBEGIN\n  NULL;\nEND;\n$body$ LANGUAGE plpgsql;`;
     expect(lintSqlForTopLevelTransaction(sql)).toEqual([]);
   });
 
@@ -106,12 +106,12 @@ describe('lintSqlForUnqualifiedCreate', () => {
   });
 
   it('ignores CREATE INDEX (parent table carries the schema)', () => {
-    const sql = `CREATE INDEX idx_foo ON seller_main.products(id);`;
+    const sql = `CREATE INDEX idx_foo ON public.products(id);`;
     expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
   });
 
   it('ignores CREATE POLICY (target is ON schema.table)', () => {
-    const sql = `CREATE POLICY "read" ON seller_main.products FOR SELECT USING (true);`;
+    const sql = `CREATE POLICY "read" ON public.products FOR SELECT USING (true);`;
     expect(lintSqlForUnqualifiedCreate(sql)).toEqual([]);
   });
 

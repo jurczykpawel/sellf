@@ -20,14 +20,14 @@ SET client_min_messages = warning;
 -- 1. Extend oto_offers with downsell branch
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE seller_main.oto_offers
+ALTER TABLE public.oto_offers
   ADD COLUMN IF NOT EXISTS downsell_product_id UUID
-    REFERENCES seller_main.products(id) ON DELETE SET NULL,
+    REFERENCES public.products(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS downsell_discount_type TEXT,
   ADD COLUMN IF NOT EXISTS downsell_discount_value NUMERIC,
   ADD COLUMN IF NOT EXISTS downsell_duration_minutes INTEGER;
 
-ALTER TABLE seller_main.oto_offers
+ALTER TABLE public.oto_offers
   DROP CONSTRAINT IF EXISTS oto_offers_downsell_not_source,
   DROP CONSTRAINT IF EXISTS oto_offers_downsell_not_upsell,
   DROP CONSTRAINT IF EXISTS oto_offers_downsell_consistency,
@@ -35,7 +35,7 @@ ALTER TABLE seller_main.oto_offers
   DROP CONSTRAINT IF EXISTS oto_offers_downsell_discount_value_check,
   DROP CONSTRAINT IF EXISTS oto_offers_downsell_duration_check;
 
-ALTER TABLE seller_main.oto_offers
+ALTER TABLE public.oto_offers
   ADD CONSTRAINT oto_offers_downsell_not_source
     CHECK (downsell_product_id IS NULL OR downsell_product_id <> source_product_id),
   ADD CONSTRAINT oto_offers_downsell_not_upsell
@@ -61,27 +61,26 @@ ALTER TABLE seller_main.oto_offers
            OR (downsell_duration_minutes > 0 AND downsell_duration_minutes <= 1440));
 
 CREATE INDEX IF NOT EXISTS idx_oto_offers_downsell_product
-  ON seller_main.oto_offers(downsell_product_id)
+  ON public.oto_offers(downsell_product_id)
   WHERE downsell_product_id IS NOT NULL;
 
-COMMENT ON COLUMN seller_main.oto_offers.downsell_product_id IS
+COMMENT ON COLUMN public.oto_offers.downsell_product_id IS
   'Optional product offered when the buyer declines the upsell. Forms the second branch of the post-purchase funnel.';
 
 -- public.oto_offers is a SELECT * view; Postgres freezes the column list at
 -- view creation time, so the new downsell_* columns are invisible until we
 -- recreate it. Without this PostgREST returns PGRST204 "column not found".
-CREATE OR REPLACE VIEW public.oto_offers WITH (security_invoker = on) AS
-  SELECT * FROM seller_main.oto_offers;
+
 
 -- -----------------------------------------------------------------------------
 -- 2. Allow 'oto' template on products
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE seller_main.products
+ALTER TABLE public.products
   DROP CONSTRAINT IF EXISTS products_checkout_template_check,
   DROP CONSTRAINT IF EXISTS products_tipjar_requires_pwyw;
 
-ALTER TABLE seller_main.products
+ALTER TABLE public.products
   ADD CONSTRAINT products_checkout_template_check
   CHECK (checkout_template IN ('default', 'tip-jar', 'oto')),
   ADD CONSTRAINT products_tipjar_requires_pwyw
@@ -95,44 +94,43 @@ ALTER TABLE seller_main.products
 -- source_transaction_id (or oto_offer_id+allowed_emails for free products)
 -- would collide on the second INSERT. We re-key them to include coupon_role.
 
-ALTER TABLE seller_main.coupons
+ALTER TABLE public.coupons
   ADD COLUMN IF NOT EXISTS coupon_role TEXT;
 
-ALTER TABLE seller_main.coupons
+ALTER TABLE public.coupons
   DROP CONSTRAINT IF EXISTS coupons_coupon_role_check;
 
-ALTER TABLE seller_main.coupons
+ALTER TABLE public.coupons
   ADD CONSTRAINT coupons_coupon_role_check
   CHECK (coupon_role IS NULL OR coupon_role IN ('upsell', 'downsell'));
 
 -- Backfill BEFORE recreating the unique index so existing rows pick up role.
-UPDATE seller_main.coupons
+UPDATE public.coupons
   SET coupon_role = 'upsell'
   WHERE is_oto_coupon = true AND coupon_role IS NULL;
 
-DROP INDEX IF EXISTS seller_main.idx_coupons_oto_transaction_unique;
+DROP INDEX IF EXISTS public.idx_coupons_oto_transaction_unique;
 CREATE UNIQUE INDEX idx_coupons_oto_transaction_unique
-  ON seller_main.coupons(source_transaction_id, coupon_role)
+  ON public.coupons(source_transaction_id, coupon_role)
   WHERE source_transaction_id IS NOT NULL AND is_oto_coupon = true;
 
-DROP INDEX IF EXISTS seller_main.idx_coupons_oto_free_unique;
+DROP INDEX IF EXISTS public.idx_coupons_oto_free_unique;
 CREATE UNIQUE INDEX idx_coupons_oto_free_unique
-  ON seller_main.coupons(oto_offer_id, allowed_emails, coupon_role)
+  ON public.coupons(oto_offer_id, allowed_emails, coupon_role)
   WHERE source_transaction_id IS NULL AND is_oto_coupon = true;
 
 CREATE INDEX IF NOT EXISTS idx_coupons_role
-  ON seller_main.coupons(coupon_role) WHERE coupon_role IS NOT NULL;
+  ON public.coupons(coupon_role) WHERE coupon_role IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_coupons_offer_role
-  ON seller_main.coupons(oto_offer_id, coupon_role)
+  ON public.coupons(oto_offer_id, coupon_role)
   WHERE oto_offer_id IS NOT NULL;
 
-COMMENT ON COLUMN seller_main.coupons.coupon_role IS
+COMMENT ON COLUMN public.coupons.coupon_role IS
   'Funnel role: upsell or downsell. NULL for non-funnel coupons (manual, campaign, etc.).';
 
 -- Refresh proxy view so PostgREST exposes the new column.
-CREATE OR REPLACE VIEW public.coupons WITH (security_invoker = on) AS
-  SELECT * FROM seller_main.coupons;
+
 
 -- =============================================================================
 -- 4. generate_oto_coupon: now emits BOTH upsell and downsell branches
@@ -141,7 +139,7 @@ CREATE OR REPLACE VIEW public.coupons WITH (security_invoker = on) AS
 -- optional (free-product flow). Idempotency keys now include coupon_role so
 -- the same transaction can hold both an upsell and a downsell coupon.
 
-CREATE OR REPLACE FUNCTION seller_main.generate_oto_coupon(
+CREATE OR REPLACE FUNCTION public.generate_oto_coupon(
   source_product_id_param UUID,
   customer_email_param TEXT,
   transaction_id_param UUID DEFAULT NULL
@@ -190,9 +188,9 @@ BEGIN
            p.slug AS oto_product_slug, p.name AS oto_product_name,
            p.price AS oto_product_price, p.currency AS oto_product_currency
       INTO upsell_existing
-      FROM seller_main.coupons c
-      INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
-      INNER JOIN seller_main.products p ON o.oto_product_id = p.id
+      FROM public.coupons c
+      INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
+      INNER JOIN public.products p ON o.oto_product_id = p.id
      WHERE c.source_transaction_id = transaction_id_param
        AND c.is_oto_coupon = true
        AND c.coupon_role = 'upsell'
@@ -205,9 +203,9 @@ BEGIN
            dp.currency AS downsell_product_currency,
            o.downsell_duration_minutes
       INTO downsell_existing
-      FROM seller_main.coupons c
-      INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
-      INNER JOIN seller_main.products dp ON o.downsell_product_id = dp.id
+      FROM public.coupons c
+      INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
+      INNER JOIN public.products dp ON o.downsell_product_id = dp.id
      WHERE c.source_transaction_id = transaction_id_param
        AND c.is_oto_coupon = true
        AND c.coupon_role = 'downsell'
@@ -220,9 +218,9 @@ BEGIN
            p.slug AS oto_product_slug, p.name AS oto_product_name,
            p.price AS oto_product_price, p.currency AS oto_product_currency
       INTO upsell_existing
-      FROM seller_main.coupons c
-      INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
-      INNER JOIN seller_main.products p ON o.oto_product_id = p.id
+      FROM public.coupons c
+      INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
+      INNER JOIN public.products p ON o.oto_product_id = p.id
      WHERE o.source_product_id = source_product_id_param
        AND c.is_oto_coupon = true
        AND c.source_transaction_id IS NULL
@@ -238,9 +236,9 @@ BEGIN
            dp.currency AS downsell_product_currency,
            o.downsell_duration_minutes
       INTO downsell_existing
-      FROM seller_main.coupons c
-      INNER JOIN seller_main.oto_offers o ON c.oto_offer_id = o.id
-      INNER JOIN seller_main.products dp ON o.downsell_product_id = dp.id
+      FROM public.coupons c
+      INNER JOIN public.oto_offers o ON c.oto_offer_id = o.id
+      INNER JOIN public.products dp ON o.downsell_product_id = dp.id
      WHERE o.source_product_id = source_product_id_param
        AND c.is_oto_coupon = true
        AND c.source_transaction_id IS NULL
@@ -303,8 +301,8 @@ BEGIN
   SELECT o.*, p.slug AS oto_product_slug, p.name AS oto_product_name,
          p.price AS oto_product_price, p.currency AS oto_product_currency
     INTO oto_config
-    FROM seller_main.oto_offers o
-    INNER JOIN seller_main.products p ON p.id = o.oto_product_id AND p.is_active = true
+    FROM public.oto_offers o
+    INNER JOIN public.products p ON p.id = o.oto_product_id AND p.is_active = true
    WHERE o.source_product_id = source_product_id_param
      AND o.is_active = true
    ORDER BY o.display_order ASC, o.created_at ASC
@@ -317,14 +315,14 @@ BEGIN
   -- Customer already owns the upsell product → suppress entire funnel
   IF EXISTS (
     SELECT 1
-      FROM seller_main.user_product_access upa
+      FROM public.user_product_access upa
       INNER JOIN auth.users au ON au.id = upa.user_id
      WHERE au.email = customer_email_param
        AND upa.product_id = oto_config.oto_product_id
        AND (upa.access_expires_at IS NULL OR upa.access_expires_at > NOW())
   ) OR EXISTS (
     SELECT 1
-      FROM seller_main.guest_purchases gp
+      FROM public.guest_purchases gp
      WHERE gp.customer_email = customer_email_param
        AND gp.product_id = oto_config.oto_product_id
   ) THEN
@@ -343,7 +341,7 @@ BEGIN
   upsell_expires := NOW() + (oto_config.duration_minutes || ' minutes')::INTERVAL;
 
   BEGIN
-    INSERT INTO seller_main.coupons (
+    INSERT INTO public.coupons (
       code, name, discount_type, discount_value, currency,
       allowed_emails, allowed_product_ids,
       usage_limit_global, usage_limit_per_user,
@@ -365,14 +363,14 @@ BEGIN
     WHEN unique_violation THEN
       IF transaction_id_param IS NOT NULL THEN
         SELECT id, code, expires_at INTO upsell_id, upsell_code, upsell_expires
-          FROM seller_main.coupons
+          FROM public.coupons
          WHERE source_transaction_id = transaction_id_param
            AND is_oto_coupon = true
            AND coupon_role = 'upsell'
          LIMIT 1;
       ELSE
         SELECT id, code, expires_at INTO upsell_id, upsell_code, upsell_expires
-          FROM seller_main.coupons
+          FROM public.coupons
          WHERE oto_offer_id = oto_config.id
            AND allowed_emails = email_array
            AND is_oto_coupon = true
@@ -390,7 +388,7 @@ BEGIN
   IF oto_config.downsell_product_id IS NOT NULL THEN
     SELECT id, slug, name, price, currency, is_active
       INTO downsell_product
-      FROM seller_main.products
+      FROM public.products
      WHERE id = oto_config.downsell_product_id;
 
     IF downsell_product IS NOT NULL AND downsell_product.is_active THEN
@@ -403,7 +401,7 @@ BEGIN
       downsell_expires := NOW() + (oto_config.downsell_duration_minutes || ' minutes')::INTERVAL;
 
       BEGIN
-        INSERT INTO seller_main.coupons (
+        INSERT INTO public.coupons (
           code, name, discount_type, discount_value, currency,
           allowed_emails, allowed_product_ids,
           usage_limit_global, usage_limit_per_user,
@@ -425,14 +423,14 @@ BEGIN
         WHEN unique_violation THEN
           IF transaction_id_param IS NOT NULL THEN
             SELECT id, code, expires_at INTO downsell_id, downsell_code, downsell_expires
-              FROM seller_main.coupons
+              FROM public.coupons
              WHERE source_transaction_id = transaction_id_param
                AND is_oto_coupon = true
                AND coupon_role = 'downsell'
              LIMIT 1;
           ELSE
             SELECT id, code, expires_at INTO downsell_id, downsell_code, downsell_expires
-              FROM seller_main.coupons
+              FROM public.coupons
              WHERE oto_offer_id = oto_config.id
                AND allowed_emails = email_array
                AND is_oto_coupon = true
@@ -474,7 +472,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION seller_main.generate_oto_coupon TO service_role;
+GRANT EXECUTE ON FUNCTION public.generate_oto_coupon TO service_role;
 
 -- =============================================================================
 -- 5. admin_save_oto_offer with downsell params
@@ -483,11 +481,11 @@ GRANT EXECUTE ON FUNCTION seller_main.generate_oto_coupon TO service_role;
 -- parameter defaults via CREATE OR REPLACE, and we're adding 4 new
 -- DEFAULT-NULL parameters at the tail.
 
-DROP FUNCTION IF EXISTS seller_main.admin_save_oto_offer(
+DROP FUNCTION IF EXISTS public.admin_save_oto_offer(
   UUID, UUID, TEXT, NUMERIC, INTEGER, BOOLEAN
 );
 
-CREATE FUNCTION seller_main.admin_save_oto_offer(
+CREATE FUNCTION public.admin_save_oto_offer(
   source_product_id_param UUID,
   oto_product_id_param UUID,
   discount_type_param TEXT,
@@ -548,7 +546,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Duration must be between 1 and 1440 minutes');
   END IF;
 
-  INSERT INTO seller_main.oto_offers (
+  INSERT INTO public.oto_offers (
     source_product_id, oto_product_id,
     discount_type, discount_value, duration_minutes,
     is_active,
@@ -577,6 +575,6 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION seller_main.admin_save_oto_offer(
+GRANT EXECUTE ON FUNCTION public.admin_save_oto_offer(
   UUID, UUID, TEXT, NUMERIC, INTEGER, BOOLEAN, UUID, TEXT, NUMERIC, INTEGER
 ) TO authenticated;

@@ -77,7 +77,7 @@ export async function getLowestPriceInLast30Days(
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   // Query the public Omnibus surface — narrowed projection over
-  // seller_main.product_price_history limited to active+listed products.
+  // public.product_price_history limited to active+listed products.
   const { data: history, error } = await client
     .from('omnibus_price_history')
     .select('price, sale_price, currency, effective_from')

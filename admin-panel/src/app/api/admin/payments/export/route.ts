@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const { user } = await requireAdminApiWithRequest(request);
 
-    // Use admin client for seller_main data (FK embedding requires correct schema)
+    // Use admin client for public data (FK embedding requires correct schema)
     const supabase = createAdminClient();
 
     // SECURITY: Rate limit export operations (heavy DB queries)

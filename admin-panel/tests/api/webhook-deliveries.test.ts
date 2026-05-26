@@ -1,6 +1,6 @@
 /**
  * API Integration: SupabaseWebhookQueue state machine + REST replay endpoint.
- * Hits the real local Supabase via a seller_main-scoped client and the
+ * Hits the real local Supabase via a public-scoped client and the
  * running dev server. Run with `bun run test:api`.
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
@@ -15,7 +15,7 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const sellerClient = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: 'seller_main' },
+  db: { schema: 'public' },
   auth: { persistSession: false, autoRefreshToken: false },
 }) as any;
 

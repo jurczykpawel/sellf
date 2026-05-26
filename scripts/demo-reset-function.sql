@@ -50,10 +50,10 @@ BEGIN
     EXECUTE 'TRUNCATE TABLE public.' || quote_ident(r.tablename) || ' CASCADE';
   END LOOP;
 
-  -- Explicitly truncate all seller_main tables (they are not in the public schema loop)
-  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'seller_main'
+  -- Explicitly truncate all public tables (they are not in the public schema loop)
+  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public'
             AND tablename != 'payment_method_config') LOOP
-    EXECUTE 'TRUNCATE TABLE seller_main.' || quote_ident(r.tablename) || ' CASCADE';
+    EXECUTE 'TRUNCATE TABLE public.' || quote_ident(r.tablename) || ' CASCADE';
   END LOOP;
 
   TRUNCATE auth.sessions CASCADE;
@@ -63,12 +63,12 @@ BEGIN
   TRUNCATE auth.users CASCADE;
 
   -- =========================================================
-  -- STEP 1b: RESTORE seller_main singletons
+  -- STEP 1b: RESTORE public singletons
   -- =========================================================
-  -- payment_method_config is a singleton in seller_main (not in public schema loop).
+  -- payment_method_config is a singleton in public (not in public schema loop).
   -- TRUNCATE CASCADE from auth.users wipes it via last_modified_by FK (SET NULL cascade
   -- clears the row indirectly if triggered). Restore it unconditionally.
-  INSERT INTO seller_main.payment_method_config (id, config_mode)
+  INSERT INTO public.payment_method_config (id, config_mode)
   VALUES (1, 'automatic')
   ON CONFLICT (id) DO UPDATE SET
     config_mode             = 'automatic',
@@ -118,7 +118,7 @@ BEGIN
   -- STEP 3: SEED — SHOP CONFIG
   -- =========================================================
 
-  INSERT INTO seller_main.shop_config (
+  INSERT INTO public.shop_config (
     default_currency, shop_name, logo_url,
     font_family, custom_settings, tax_mode, stripe_tax_rate_cache
   ) VALUES (

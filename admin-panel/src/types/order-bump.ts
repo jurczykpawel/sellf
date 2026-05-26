@@ -7,9 +7,9 @@
 import type { Database } from './database';
 
 // Database table types
-export type OrderBump = Database['seller_main']['Tables']['order_bumps']['Row'];
-export type OrderBumpInsert = Database['seller_main']['Tables']['order_bumps']['Insert'];
-export type OrderBumpUpdate = Database['seller_main']['Tables']['order_bumps']['Update'];
+export type OrderBump = Database['public']['Tables']['order_bumps']['Row'];
+export type OrderBumpInsert = Database['public']['Tables']['order_bumps']['Insert'];
+export type OrderBumpUpdate = Database['public']['Tables']['order_bumps']['Update'];
 
 // API Response types
 

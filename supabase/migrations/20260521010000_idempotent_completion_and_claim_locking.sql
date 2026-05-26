@@ -1,13 +1,13 @@
 -- Idempotent payment completion + concurrent guest claim locking.
 --
 -- Two surgical changes to existing functions:
--- 1) seller_main.process_stripe_payment_completion: when a duplicate webhook
+-- 1) public.process_stripe_payment_completion: when a duplicate webhook
 --    arrives for a row already in 'pending' state, promote it to the new
 --    status instead of silently doing nothing. The old DO NOTHING left rows
 --    stuck in 'pending' when Stripe retried a webhook after the first one
 --    recorded 'pending' (rare with the current code path, but cheap to
 --    harden).
--- 2) seller_main.claim_guest_purchases_for_user: serialize concurrent
+-- 2) public.claim_guest_purchases_for_user: serialize concurrent
 --    callers via FOR UPDATE SKIP LOCKED so two parallel sign-ups against
 --    the same email do not both try to claim the same guest row and trip
 --    the optimistic locking retry path.
@@ -21,7 +21,7 @@
 -- (apply_migration RPC) wraps the apply in its own transaction and cannot
 -- execute transaction commands via PL/pgSQL EXECUTE.
 
-CREATE OR REPLACE FUNCTION seller_main.process_stripe_payment_completion(
+CREATE OR REPLACE FUNCTION public.process_stripe_payment_completion(
     session_id_param TEXT,
     product_id_param UUID,
     customer_email_param TEXT,
@@ -132,12 +132,12 @@ BEGIN
     SELECT 
         p.id, p.name, p.slug, p.auto_grant_duration_days, p.price, p.currency as product_currency,
         EXISTS(
-            SELECT 1 FROM seller_main.payment_transactions pt 
+            SELECT 1 FROM public.payment_transactions pt 
             WHERE pt.session_id = session_id_param 
                OR (process_stripe_payment_completion.stripe_payment_intent_id IS NOT NULL AND pt.stripe_payment_intent_id = process_stripe_payment_completion.stripe_payment_intent_id)
         ) as transaction_exists
     INTO product_record
-    FROM seller_main.products p
+    FROM public.products p
     WHERE p.id = product_id_param AND p.is_active = true;
 
     -- Check if product exists
@@ -224,7 +224,7 @@ BEGIN
     END IF;
 
     -- NEW TRANSACTION: Process payment and grant access
-    INSERT INTO seller_main.payment_transactions (
+    INSERT INTO public.payment_transactions (
         session_id, user_id, product_id, customer_email, amount, currency, 
         stripe_payment_intent_id, status, metadata
     ) VALUES (
@@ -240,7 +240,7 @@ BEGIN
     ) ON CONFLICT (session_id) DO UPDATE
         SET status = EXCLUDED.status,
             updated_at = NOW()
-      WHERE seller_main.payment_transactions.status = 'pending'
+      WHERE public.payment_transactions.status = 'pending'
         AND EXCLUDED.status IN ('completed', 'failed');
 
     -- SCENARIO 1: User is logged in
@@ -249,7 +249,7 @@ BEGIN
         
         -- Use optimistic locking function with enhanced error handling
         BEGIN
-            SELECT seller_main.grant_product_access_service_role(current_user_id, product_id_param) INTO result;
+            SELECT public.grant_product_access_service_role(current_user_id, product_id_param) INTO result;
             IF (result->>'success')::boolean = false THEN
                 -- Handle specific optimistic locking failures
                 IF (result->>'retry_exceeded')::boolean = true THEN
@@ -342,7 +342,7 @@ BEGIN
         scenario := 'existing_user_email';
         
         BEGIN
-            SELECT seller_main.grant_product_access_service_role(existing_user_id, product_id_param) INTO result;
+            SELECT public.grant_product_access_service_role(existing_user_id, product_id_param) INTO result;
 
             IF (result->>'success')::boolean = false THEN
                 -- Handle specific optimistic locking failures
@@ -430,7 +430,7 @@ BEGIN
         
         -- Enhanced idempotency: Use INSERT with proper conflict handling
         BEGIN
-            INSERT INTO seller_main.guest_purchases (customer_email, product_id, session_id, transaction_amount)
+            INSERT INTO public.guest_purchases (customer_email, product_id, session_id, transaction_amount)
             VALUES (customer_email_param, product_id_param, session_id_param, amount_total);
         EXCEPTION 
             WHEN unique_violation THEN
@@ -529,10 +529,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '15s'; -- Increased for production webhook traffic and complex transactions
 
-REVOKE EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion(TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion(TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.process_stripe_payment_completion(TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.process_stripe_payment_completion(TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID) TO service_role;
 
-CREATE OR REPLACE FUNCTION seller_main.claim_guest_purchases_for_user(
+CREATE OR REPLACE FUNCTION public.claim_guest_purchases_for_user(
   p_user_id UUID
 ) RETURNS json AS $$
 DECLARE
@@ -565,13 +565,13 @@ BEGIN
 
   FOR guest_purchase_record IN
     SELECT gp.*, pt.id as transaction_id
-    FROM seller_main.guest_purchases gp
-    LEFT JOIN seller_main.payment_transactions pt ON pt.session_id = gp.session_id
+    FROM public.guest_purchases gp
+    LEFT JOIN public.payment_transactions pt ON pt.session_id = gp.session_id
     WHERE gp.customer_email = user_email_var
       AND gp.claimed_by_user_id IS NULL
     FOR UPDATE OF gp SKIP LOCKED
   LOOP
-    UPDATE seller_main.guest_purchases
+    UPDATE public.guest_purchases
     SET claimed_by_user_id = p_user_id, claimed_at = NOW()
     WHERE id = guest_purchase_record.id;
 
@@ -580,12 +580,12 @@ BEGIN
       DECLARE
         grant_result JSONB;
       BEGIN
-        SELECT seller_main.grant_product_access_service_role(p_user_id, guest_purchase_record.product_id) INTO grant_result;
+        SELECT public.grant_product_access_service_role(p_user_id, guest_purchase_record.product_id) INTO grant_result;
 
         IF (grant_result->>'success')::boolean = true THEN
           claimed_count := claimed_count + 1;
 
-          UPDATE seller_main.payment_transactions
+          UPDATE public.payment_transactions
           SET user_id = p_user_id,
               updated_at = NOW()
           WHERE session_id = guest_purchase_record.session_id
@@ -615,7 +615,7 @@ BEGIN
             );
           END IF;
 
-          UPDATE seller_main.guest_purchases
+          UPDATE public.guest_purchases
           SET claimed_by_user_id = NULL, claimed_at = NULL
           WHERE id = guest_purchase_record.id;
         END IF;
@@ -633,7 +633,7 @@ BEGIN
             'function_name', 'claim_guest_purchases_for_user'
           )
         );
-        UPDATE seller_main.guest_purchases
+        UPDATE public.guest_purchases
         SET claimed_by_user_id = NULL, claimed_at = NULL
         WHERE id = guest_purchase_record.id;
         NULL;
@@ -646,12 +646,12 @@ BEGIN
     IF guest_purchase_record.transaction_id IS NOT NULL THEN
       FOR line_item_rec IN
         SELECT pli.product_id, pli.access_duration_override
-        FROM seller_main.payment_line_items pli
+        FROM public.payment_line_items pli
         WHERE pli.transaction_id = guest_purchase_record.transaction_id
           AND pli.item_type = 'order_bump'
       LOOP
         BEGIN
-          PERFORM seller_main.grant_product_access_service_role(
+          PERFORM public.grant_product_access_service_role(
             p_user_id,
             line_item_rec.product_id,
             override_duration_days_param => line_item_rec.access_duration_override
@@ -684,5 +684,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '30s';
 
-REVOKE EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user(UUID) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION seller_main.claim_guest_purchases_for_user(UUID) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.claim_guest_purchases_for_user(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_guest_purchases_for_user(UUID) TO service_role;

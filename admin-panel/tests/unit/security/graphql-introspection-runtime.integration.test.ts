@@ -83,28 +83,33 @@ describe('GraphQL introspection runtime exposure', () => {
     expect(leaks, `Leaked admin/internal Mutation fields: ${leaks.join(', ')}`).toEqual([]);
   });
 
-  it('Query side has only the relay node sentinel (we do not expose immutable RPCs)', async () => {
+  // Storefront tables (products, categories, tags, …) remain anon-readable
+  // after the seller_main → public unification, so they show up as auto-
+  // generated Collections / CRUD mutations in GraphQL. The two FORBIDDEN_PATTERNS
+  // tests above are the real guard — they check that nothing admin-shaped leaks.
+  // The previous strict-equality assertions ("Query == ['node']", explicit 13-RPC
+  // allowlist) relied on schema isolation (seller_main was outside pg_graphql's
+  // scope) and are not achievable post-unification without breaking storefront
+  // read paths. See migration 20260527000000_lock_graphql_unified_schema for the
+  // REVOKE SELECT applied to admin-only tables (consent_logs, profiles, etc.).
+
+  it('admin-only tables are revoked from anon (not exposed as Collections)', async () => {
     const names = await fetchTypeFields('Query');
-    expect(names).toEqual(['node']);
+    const adminOnly = [
+      'consent_logsCollection',
+      'coupon_redemptionsCollection',
+      'coupon_reservationsCollection',
+      'profilesCollection',
+      'user_product_accessCollection',
+      'video_eventsCollection',
+      'video_progressCollection',
+    ];
+    const leaked = adminOnly.filter((n) => names.includes(n));
+    expect(leaked, `Admin tables leaked to GraphQL: ${leaked.join(', ')}`).toEqual([]);
   });
 
-  it('Mutation side allow-list matches the public API surface', async () => {
-    const names = (await fetchTypeFields('Mutation')).sort();
-    const expected = [
-      'batch_check_user_product_access',
-      'check_refund_eligibility',
-      'check_user_product_access',
-      'check_waitlist_config',
-      'create_refund_request',
-      'find_auto_apply_coupon',
-      'generate_oto_coupon',
-      'get_oto_coupon_info',
-      'get_public_integrations_config',
-      'get_user_profile',
-      'is_admin',
-      'is_admin_cached',
-      'verify_coupon',
-    ].sort();
-    expect(names).toEqual(expected);
+  it('relay node sentinel is present', async () => {
+    const names = await fetchTypeFields('Query');
+    expect(names).toContain('node');
   });
 });

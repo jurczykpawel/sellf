@@ -8,7 +8,7 @@
 --   permissive — send Purchase/Lead with full payload under legitimate interest
 --                claim (legacy behaviour, requires written LIA + privacy policy)
 
-ALTER TABLE seller_main.integrations_config
+ALTER TABLE public.integrations_config
   ADD COLUMN IF NOT EXISTS conversion_tracking_mode TEXT
     DEFAULT 'strict'
     CHECK (conversion_tracking_mode IN ('strict', 'limited', 'permissive'));
@@ -16,30 +16,28 @@ ALTER TABLE seller_main.integrations_config
 -- Backfill from the legacy flag where possible. Rows where the flag was true
 -- keep current behaviour (now called 'permissive'). False/null becomes
 -- 'strict' — the safer of the two states it could have meant.
-UPDATE seller_main.integrations_config
+UPDATE public.integrations_config
 SET conversion_tracking_mode = CASE
   WHEN send_conversions_without_consent IS TRUE THEN 'permissive'
   ELSE 'strict'
 END
 WHERE conversion_tracking_mode IS NULL OR conversion_tracking_mode = 'strict';
 
-ALTER TABLE seller_main.integrations_config
+ALTER TABLE public.integrations_config
   ALTER COLUMN conversion_tracking_mode SET NOT NULL;
 
 -- The public passthrough view depends on every column of the underlying
 -- table, so drop and recreate it around the column change.
-DROP VIEW IF EXISTS public.integrations_config;
 
-ALTER TABLE seller_main.integrations_config
+ALTER TABLE public.integrations_config
   DROP COLUMN IF EXISTS send_conversions_without_consent;
 
-CREATE OR REPLACE VIEW public.integrations_config WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.integrations_config;
+
 
 -- Rebuild the public RPC to expose the new column (and stop returning the
 -- dropped one). Anonymous storefront callers read this to know whether the
 -- client proxy should report consent state for browsing events.
-CREATE OR REPLACE FUNCTION seller_main.get_public_integrations_config()
+CREATE OR REPLACE FUNCTION public.get_public_integrations_config()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -48,7 +46,7 @@ AS $$
 DECLARE
   config_record RECORD;
 BEGIN
-  SELECT * INTO config_record FROM seller_main.integrations_config WHERE id = 1;
+  SELECT * INTO config_record FROM public.integrations_config WHERE id = 1;
 
   RETURN jsonb_build_object(
     'gtm_container_id', config_record.gtm_container_id,
@@ -64,4 +62,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION seller_main.get_public_integrations_config() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_public_integrations_config() TO anon, authenticated, service_role;

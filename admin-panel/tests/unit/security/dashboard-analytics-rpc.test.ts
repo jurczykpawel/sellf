@@ -104,7 +104,7 @@ beforeAll(async () => {
 
   // Create two test products
   const { data: pA, error: pAErr } = await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('products')
     .insert({
       name: `Dashboard Test A ${TS}`,
@@ -121,7 +121,7 @@ beforeAll(async () => {
   createdProductIds.push(pA.id);
 
   const { data: pB, error: pBErr } = await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('products')
     .insert({
       name: `Dashboard Test B ${TS}`,
@@ -223,7 +223,7 @@ beforeAll(async () => {
 
   for (const tx of transactions) {
     const { data, error } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_transactions')
       .insert(tx)
       .select('id')
@@ -234,7 +234,7 @@ beforeAll(async () => {
 
   // Create user_product_access for active users count
   const { data: access, error: accessErr } = await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('user_product_access')
     .insert({
       user_id: regularUser.userId,
@@ -250,14 +250,14 @@ afterAll(async () => {
   // Clean up revenue goals
   for (const pid of createdProductIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('revenue_goals')
       .delete()
       .eq('product_id', pid);
   }
   // Global goal
   await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('revenue_goals')
     .delete()
     .is('product_id', null);
@@ -265,7 +265,7 @@ afterAll(async () => {
   // Clean up access
   for (const id of createdAccessIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .delete()
       .eq('id', id);
@@ -274,7 +274,7 @@ afterAll(async () => {
   // Clean up transactions
   for (const id of createdTransactionIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_transactions')
       .delete()
       .eq('id', id);
@@ -282,7 +282,7 @@ afterAll(async () => {
 
   // Clean up products
   for (const id of createdProductIds) {
-    await supabaseAdmin.schema('seller_main' as any).from('products').delete().eq('id', id);
+    await supabaseAdmin.schema('public' as any).from('products').delete().eq('id', id);
   }
 
   // Clean up users
@@ -301,13 +301,13 @@ describe('get_dashboard_stats', () => {
   it('returns correct dashboard stats via service_role', async () => {
     // Query actual counts directly to establish baseline for comparison
     const { count: actualProductCount } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true);
 
     const { count: actualAccessCount } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('*', { count: 'exact', head: true });
 
@@ -690,13 +690,13 @@ describe('set_revenue_goal / get_revenue_goal', () => {
   async function clearAllGoals() {
     for (const pid of createdProductIds) {
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('revenue_goals')
         .delete()
         .eq('product_id', pid);
     }
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('revenue_goals')
       .delete()
       .is('product_id', null);
@@ -845,7 +845,7 @@ describe('set_revenue_goal / get_revenue_goal', () => {
 
       // Delete via direct table access (service_role)
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('revenue_goals')
         .delete()
         .eq('product_id', productB.id);
@@ -884,9 +884,9 @@ describe('set_revenue_goal / get_revenue_goal', () => {
       expect(error).not.toBeNull();
       expect(error!.message).toContain('Access denied');
 
-      // Verify no goal was written to DB (query the correct schema: seller_main)
+      // Verify no goal was written to DB (query the correct schema: public)
       const { data: goals } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('revenue_goals')
         .select('id')
         .eq('goal_amount', 10000);

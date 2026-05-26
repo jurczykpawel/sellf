@@ -100,7 +100,7 @@ export const getShopConfig = cache(async (): Promise<ShopConfig | null> => {
 
 /**
  * Get shop config for the current admin/seller's own schema.
- * Seller admins get their seller schema config, platform admins get seller_main.
+ * Seller admins get their seller schema config, platform admins get public.
  * Use this in Settings UI. For public pages, use getShopConfig() (always platform).
  */
 export async function getMyShopConfig(): Promise<ShopConfig | null> {
@@ -128,7 +128,7 @@ export async function getDefaultCurrency(): Promise<string> {
 
 /**
  * Get default currency for the caller's own schema.
- * Seller admins get their seller schema currency, platform admins get seller_main.
+ * Seller admins get their seller schema currency, platform admins get public.
  * Use this in dashboard/admin UI. For public pages, use getDefaultCurrency().
  */
 export async function getMyDefaultCurrency(): Promise<string> {

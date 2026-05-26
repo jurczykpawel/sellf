@@ -96,7 +96,7 @@ describe('Users API v1 — Per-Role Access Control', () => {
     // seed/leftover product can disappear (CASCADE delete) or flip is_active
     // and quietly break this suite's access-list assertion.
     const { data: ourProduct, error: prodErr } = await supabase
-      .schema('seller_main' as never)
+      .schema('public' as never)
       .from('products')
       .insert({
         name: `rbac-test-product-${rnd}`,
@@ -137,7 +137,7 @@ describe('Users API v1 — Per-Role Access Control', () => {
 
     if (buyerMainProductId) {
       await supabase
-        .schema('seller_main' as never)
+        .schema('public' as never)
         .from('products')
         .delete()
         .eq('id', buyerMainProductId);

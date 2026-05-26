@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '100'), 1), 1000);
     const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0);
 
-    // Use adminClient (seller_main schema) for FK embedding queries —
+    // Use adminClient (public schema) for FK embedding queries —
     // PostgREST can't resolve FK relationships through proxy views in public schema.
     const adminClient = createAdminClient();
     let query = adminClient

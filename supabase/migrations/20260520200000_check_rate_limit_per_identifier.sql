@@ -125,7 +125,7 @@ GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER, TEXT) 
 -- ===== verify_coupon: opt in to per-identifier rate limit =====
 -- Layer 1 (per-code, 5/min): spam on one code doesn't affect others
 -- Layer 2 (global, 100/min): caps namespace enumeration
-CREATE OR REPLACE FUNCTION seller_main.verify_coupon(
+CREATE OR REPLACE FUNCTION public.verify_coupon(
   code_param TEXT,
   product_id_param UUID,
   customer_email_param TEXT DEFAULT NULL,
@@ -164,10 +164,10 @@ BEGIN
     clean_email := NULL;
   END IF;
 
-  DELETE FROM seller_main.coupon_reservations WHERE expires_at < NOW();
+  DELETE FROM public.coupon_reservations WHERE expires_at < NOW();
 
   SELECT * INTO coupon_record
-  FROM seller_main.coupons
+  FROM public.coupons
   WHERE code = code_param AND is_active = true
   FOR UPDATE;
 
@@ -201,7 +201,7 @@ BEGIN
 
   IF clean_email IS NOT NULL THEN
     SELECT COUNT(*) INTO user_usage_count
-    FROM seller_main.coupon_redemptions
+    FROM public.coupon_redemptions
     WHERE coupon_id = coupon_record.id AND customer_email = clean_email;
 
     IF user_usage_count >= coupon_record.usage_limit_per_user THEN
@@ -211,7 +211,7 @@ BEGIN
 
   IF clean_email IS NOT NULL THEN
     SELECT id INTO existing_reservation_id
-    FROM seller_main.coupon_reservations
+    FROM public.coupon_reservations
     WHERE coupon_id = coupon_record.id
       AND customer_email = clean_email
       AND expires_at > NOW();
@@ -233,7 +233,7 @@ BEGIN
 
   IF coupon_record.usage_limit_global IS NOT NULL THEN
     SELECT COUNT(*) INTO reserved_count
-    FROM seller_main.coupon_reservations
+    FROM public.coupon_reservations
     WHERE coupon_id = coupon_record.id AND expires_at > NOW();
 
     available_slots := coupon_record.usage_limit_global
@@ -246,7 +246,7 @@ BEGIN
   END IF;
 
   IF clean_email IS NOT NULL THEN
-    INSERT INTO seller_main.coupon_reservations (
+    INSERT INTO public.coupon_reservations (
       coupon_id,
       customer_email,
       expires_at

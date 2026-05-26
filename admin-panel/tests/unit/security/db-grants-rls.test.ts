@@ -6,12 +6,12 @@
  * Area 3: Grant Permissions — Principle of Least Privilege
  *   - Sensitive public tables (admin_users, audit_log, rate_limits, etc.)
  *     must NOT have grants to anon or authenticated roles
- *   - seller_main tables must NOT have GRANT ALL to anon
+ *   - public tables must NOT have GRANT ALL to anon
  *
  * Area 8: RLS Policy Completeness
- *   - Every table in seller_main and sensitive public tables must have
+ *   - Every table in public and sensitive public tables must have
  *     Row Level Security ENABLED
- *   - Every seller_main table must have at least one RLS policy
+ *   - Every public table must have at least one RLS policy
  *   - No policy uses USING (true) on sensitive tables (unrestricted read)
  *   - Policies must use auth.uid() or auth.role(), not client-supplied params
  *
@@ -95,21 +95,21 @@ describe('Area 3: Grant Permissions — Principle of Least Privilege', () => {
     ).toHaveLength(0);
   });
 
-  it('anon must not have GRANT ALL on any seller_main real table', () => {
+  it('anon must not have GRANT ALL on any public real table', () => {
     const files = getMigrationFiles();
     const violations: string[] = [];
 
     for (const { name, sql } of files) {
-      // Match GRANT ALL ON seller_main.<table> TO anon
-      const grantAllAnonRe = /GRANT\s+ALL\s+(?:PRIVILEGES\s+)?ON\s+(?:TABLE\s+)?seller_main\.(\w+)\s+TO\s+anon/gi;
+      // Match GRANT ALL ON public.<table> TO anon
+      const grantAllAnonRe = /GRANT\s+ALL\s+(?:PRIVILEGES\s+)?ON\s+(?:TABLE\s+)?public\.(\w+)\s+TO\s+anon/gi;
       for (const m of sql.matchAll(grantAllAnonRe)) {
-        violations.push(`  ${name}: GRANT ALL ON seller_main.${m[1]} TO anon`);
+        violations.push(`  ${name}: GRANT ALL ON public.${m[1]} TO anon`);
       }
     }
 
     expect(
       violations,
-      `anon must never have ALL privileges on seller_main tables — RLS-bypass risk:\n${violations.join('\n')}`
+      `anon must never have ALL privileges on public tables — RLS-bypass risk:\n${violations.join('\n')}`
     ).toHaveLength(0);
   });
 
@@ -150,7 +150,7 @@ describe('Area 3: Grant Permissions — Principle of Least Privilege', () => {
 describe('Area 8: RLS Policy Completeness', () => {
 
   /**
-   * All seller_main tables that hold user/payment data and MUST have RLS.
+   * All public tables that hold user/payment data and MUST have RLS.
    * Derived from the actual table list in the migrations.
    */
   const SELLER_MAIN_TABLES_REQUIRING_RLS = [
@@ -198,17 +198,17 @@ describe('Area 8: RLS Policy Completeness', () => {
     'tracking_logs',
   ] as const;
 
-  it('every seller_main table must have ROW LEVEL SECURITY enabled', () => {
+  it('every public table must have ROW LEVEL SECURITY enabled', () => {
     const allSql = getAllMigrationSql();
     const missing: string[] = [];
 
     for (const table of SELLER_MAIN_TABLES_REQUIRING_RLS) {
       const rlsRe = new RegExp(
-        `ALTER\\s+TABLE\\s+(?:seller_main\\.)?${table}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`,
+        `ALTER\\s+TABLE\\s+(?:public\\.)?${table}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`,
         'i'
       );
       if (!rlsRe.test(allSql)) {
-        missing.push(`  seller_main.${table}`);
+        missing.push(`  public.${table}`);
       }
     }
 
@@ -239,19 +239,19 @@ describe('Area 8: RLS Policy Completeness', () => {
     ).toHaveLength(0);
   });
 
-  it('every seller_main table must have at least one CREATE POLICY', () => {
+  it('every public table must have at least one CREATE POLICY', () => {
     const allSql = getAllMigrationSql();
     const missing: string[] = [];
 
     for (const table of SELLER_MAIN_TABLES_REQUIRING_RLS) {
-      // Match: CREATE POLICY anywhere followed by ON seller_main.<table> or ON <table>
+      // Match: CREATE POLICY anywhere followed by ON public.<table> or ON <table>
       // The table name can appear anywhere between CREATE POLICY and the semicolon
       const policyRe = new RegExp(
-        `CREATE\\s+POLICY\\b[^;]+\\bON\\s+(?:seller_main\\.)?${table}\\b`,
+        `CREATE\\s+POLICY\\b[^;]+\\bON\\s+(?:public\\.)?${table}\\b`,
         'i'
       );
       if (!policyRe.test(allSql)) {
-        missing.push(`  seller_main.${table}`);
+        missing.push(`  public.${table}`);
       }
     }
 
@@ -262,7 +262,7 @@ describe('Area 8: RLS Policy Completeness', () => {
     ).toHaveLength(0);
   });
 
-  it('no sensitive seller_main table has a permissive USING (true) policy for anon', () => {
+  it('no sensitive public table has a permissive USING (true) policy for anon', () => {
     /**
      * USING (true) = unrestricted access for that operation.
      * Acceptable on: products (public catalog), categories, tags (public reads).
@@ -291,7 +291,7 @@ describe('Area 8: RLS Policy Completeness', () => {
       for (const table of SENSITIVE_NO_OPEN_READ) {
         // Find policy blocks for this table that use USING (true)
         const policyBlockRe = new RegExp(
-          `CREATE\\s+POLICY[^;]+ON\\s+(?:seller_main\\.)?${table}[^;]+USING\\s*\\(\\s*true\\s*\\)`,
+          `CREATE\\s+POLICY[^;]+ON\\s+(?:public\\.)?${table}[^;]+USING\\s*\\(\\s*true\\s*\\)`,
           'gi'
         );
         for (const m of sql.matchAll(policyBlockRe)) {
@@ -355,18 +355,18 @@ describe('Area 8: RLS Policy Completeness', () => {
     for (const table of CRITICAL_TABLES) {
       // First check if there is a FOR ALL policy — that covers everything
       const forAllRe = new RegExp(
-        `CREATE\\s+POLICY\\b[^;]+\\bON\\s+(?:seller_main\\.)?${table}\\b[^;]+FOR\\s+ALL\\b`,
+        `CREATE\\s+POLICY\\b[^;]+\\bON\\s+(?:public\\.)?${table}\\b[^;]+FOR\\s+ALL\\b`,
         'i'
       );
       if (forAllRe.test(allSql)) continue; // FOR ALL covers SELECT/INSERT/UPDATE/DELETE
 
       for (const op of REQUIRED_OPS) {
         const policyRe = new RegExp(
-          `CREATE\\s+POLICY\\b[^;]+\\bON\\s+(?:seller_main\\.)?${table}\\b[^;]+FOR\\s+${op}\\b`,
+          `CREATE\\s+POLICY\\b[^;]+\\bON\\s+(?:public\\.)?${table}\\b[^;]+FOR\\s+${op}\\b`,
           'i'
         );
         if (!policyRe.test(allSql)) {
-          missing.push(`  seller_main.${table}: missing FOR ${op} (or FOR ALL) policy`);
+          missing.push(`  public.${table}: missing FOR ${op} (or FOR ALL) policy`);
         }
       }
     }

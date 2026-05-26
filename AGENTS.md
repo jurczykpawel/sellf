@@ -476,9 +476,9 @@ plain static page.
 **Pieces:**
 
 - Pure crypto: `src/lib/loginwall/token.ts` — HMAC-SHA256 sign + verify with constant-time compare; no DB, no env.
-- Nonce store: `src/lib/loginwall/store.ts` — single-use ledger in `seller_main.loginwall_tokens` (service-role only; hourly cron cleanup).
+- Nonce store: `src/lib/loginwall/store.ts` — single-use ledger in `public.loginwall_tokens` (service-role only; hourly cron cleanup).
 - Snippet builder: `src/lib/loginwall/snippet.ts` — `buildLoginwallSnippet` (HTML the seller pastes) and `buildLoginwallScript` (the JS served at `/api/loginwall/login.js`). Per-product variable hash so the global flag name doesn't collide across products.
-- Redirect allowlist: reuses `loadAllowedOriginsForProduct` from `src/lib/embed/checkout-embed.ts` (shared with the embed checkout flow). Sellers register origins in `seller_main.seller_embed_settings.allowed_embed_origins`; the `SELLF_EMBED_ALLOWED_ORIGINS` env var is the fallback for solo deployments.
+- Redirect allowlist: reuses `loadAllowedOriginsForProduct` from `src/lib/embed/checkout-embed.ts` (shared with the embed checkout flow). Sellers register origins in `public.seller_embed_settings.allowed_embed_origins`; the `SELLF_EMBED_ALLOWED_ORIGINS` env var is the fallback for solo deployments.
 - Routes: `src/app/[locale]/loginwall/protect/route.ts` and `src/app/api/loginwall/login.js/route.ts`.
 - Admin UI: `LoginwallSnippetModal` + the "Generate login wall snippet" action in `ProductsTable`.
 
@@ -755,19 +755,19 @@ Every new table MUST have all three. Zero-policy tables with RLS enabled are a t
 
 ```sql
 -- CORRECT pattern for a new table:
-CREATE TABLE seller_main.my_table (...);
-ALTER TABLE seller_main.my_table ENABLE ROW LEVEL SECURITY;
+CREATE TABLE public.my_table (...);
+ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 
 -- Explicit policies (even if service_role-only)
-CREATE POLICY "Service role full access" ON seller_main.my_table
+CREATE POLICY "Service role full access" ON public.my_table
   FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Admin read" ON seller_main.my_table
+CREATE POLICY "Admin read" ON public.my_table
   FOR SELECT TO authenticated USING ((select public.is_admin()));
 
 -- Explicit grants (NEVER rely on default privileges)
-REVOKE ALL ON seller_main.my_table FROM anon, authenticated;
-GRANT SELECT ON seller_main.my_table TO authenticated;
-GRANT ALL ON seller_main.my_table TO service_role;
+REVOKE ALL ON public.my_table FROM anon, authenticated;
+GRANT SELECT ON public.my_table TO authenticated;
+GRANT ALL ON public.my_table TO service_role;
 ```
 
 #### 2. Admin checks in RLS policies: use `(select public.is_admin())`
@@ -819,16 +819,16 @@ and only for `service_role`.
 
 ```sql
 -- WRONG:
-GRANT ALL ON ALL TABLES IN SCHEMA seller_main TO authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
 
 -- CORRECT: explicit per-table
-GRANT SELECT ON seller_main.products TO anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.user_product_access TO authenticated;
-GRANT ALL ON seller_main.products TO service_role;
+GRANT SELECT ON public.products TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_product_access TO authenticated;
+GRANT ALL ON public.products TO service_role;
 -- Default privileges only for service_role:
-ALTER DEFAULT PRIVILEGES IN SCHEMA seller_main
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT ALL ON TABLES TO service_role;
 ```
 

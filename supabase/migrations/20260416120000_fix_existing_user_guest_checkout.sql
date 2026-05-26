@@ -23,14 +23,14 @@
 --      user's own auth.users.email AND there is an unclaimed guest_purchase,
 --      claim it now (grant access + mark guest_purchase claimed).
 --
--- Both paths reuse seller_main.grant_product_access_service_role for the
+-- Both paths reuse public.grant_product_access_service_role for the
 -- actual access record write.
 --
 -- @see vault/brands/_shared/reference/sellf-production-readiness-tests.md
 -- @see admin-panel/tests/unit/security/payment-completion-rpc.test.ts
 -- =============================================================================
 
-CREATE OR REPLACE FUNCTION seller_main.process_stripe_payment_completion_with_bump(
+CREATE OR REPLACE FUNCTION public.process_stripe_payment_completion_with_bump(
   session_id_param TEXT,
   product_id_param UUID,
   customer_email_param TEXT,
@@ -97,7 +97,7 @@ BEGIN
   END IF;
 
   -- Idempotency check
-  IF EXISTS (SELECT 1 FROM seller_main.payment_transactions WHERE session_id = session_id_param AND status != 'pending') THEN
+  IF EXISTS (SELECT 1 FROM public.payment_transactions WHERE session_id = session_id_param AND status != 'pending') THEN
     -- BUG #2 FIX: retroactive claim path.
     -- If the caller is now logged in AND owns the customer email, claim any
     -- unclaimed guest_purchase for this session and grant access.
@@ -105,16 +105,16 @@ BEGIN
       SELECT email INTO caller_email FROM auth.users WHERE id = current_user_id;
       IF caller_email IS NOT NULL AND lower(caller_email) = lower(customer_email_param) THEN
         SELECT id INTO existing_transaction_id
-        FROM seller_main.payment_transactions
+        FROM public.payment_transactions
         WHERE session_id = session_id_param
         LIMIT 1;
 
         IF EXISTS (
-          SELECT 1 FROM seller_main.guest_purchases
+          SELECT 1 FROM public.guest_purchases
           WHERE session_id = session_id_param AND claimed_by_user_id IS NULL
         ) THEN
           -- Grant access for the main product
-          PERFORM seller_main.grant_product_access_service_role(current_user_id, product_id_param);
+          PERFORM public.grant_product_access_service_role(current_user_id, product_id_param);
 
           -- Grant access for any bump products recorded as line items.
           -- Use the snapshotted access_duration_override per line item so the
@@ -122,11 +122,11 @@ BEGIN
           -- order_bumps row has since been edited or deleted.
           FOR bump_rec IN
             SELECT pli.product_id, pli.access_duration_override
-            FROM seller_main.payment_line_items pli
+            FROM public.payment_line_items pli
             WHERE pli.transaction_id = existing_transaction_id
               AND pli.item_type = 'order_bump'
           LOOP
-            PERFORM seller_main.grant_product_access_service_role(
+            PERFORM public.grant_product_access_service_role(
               current_user_id,
               bump_rec.product_id,
               override_duration_days_param => bump_rec.access_duration_override
@@ -134,13 +134,13 @@ BEGIN
           END LOOP;
 
           -- Mark guest_purchase as claimed
-          UPDATE seller_main.guest_purchases
+          UPDATE public.guest_purchases
           SET claimed_by_user_id = current_user_id,
               claimed_at = NOW()
           WHERE session_id = session_id_param;
 
           -- Backfill user_id on the transaction so future lookups treat it as owned
-          UPDATE seller_main.payment_transactions
+          UPDATE public.payment_transactions
           SET user_id = current_user_id,
               updated_at = NOW()
           WHERE id = existing_transaction_id AND user_id IS NULL;
@@ -158,7 +158,7 @@ BEGIN
       END IF;
     END IF;
 
-    IF EXISTS (SELECT 1 FROM seller_main.guest_purchases WHERE session_id = session_id_param AND claimed_by_user_id IS NULL) THEN
+    IF EXISTS (SELECT 1 FROM public.guest_purchases WHERE session_id = session_id_param AND claimed_by_user_id IS NULL) THEN
       RETURN jsonb_build_object(
         'success', true,
         'scenario', 'guest_purchase_new_user_with_bump',
@@ -181,7 +181,7 @@ BEGIN
 
   -- Get product (include name for line item snapshot)
   SELECT id, name, auto_grant_duration_days, price, currency, allow_custom_price, custom_price_min INTO product_record
-  FROM seller_main.products
+  FROM public.products
   WHERE id = product_id_param AND is_active = true;
 
   IF NOT FOUND THEN
@@ -214,8 +214,8 @@ BEGIN
         COALESCE(ob.bump_price, p.price) as price,
         p.currency
       FROM unnest(bump_product_ids_param) AS bid(id)
-      JOIN seller_main.products p ON p.id = bid.id
-      JOIN seller_main.order_bumps ob ON ob.bump_product_id = p.id AND ob.main_product_id = product_id_param
+      JOIN public.products p ON p.id = bid.id
+      JOIN public.order_bumps ob ON ob.bump_product_id = p.id AND ob.main_product_id = product_id_param
       WHERE p.is_active = true
         AND ob.is_active = true
     LOOP
@@ -281,13 +281,13 @@ BEGIN
 
     -- Check for existing pending transaction and update it
     SELECT pt.id INTO pending_transaction_id
-    FROM seller_main.payment_transactions pt
+    FROM public.payment_transactions pt
     WHERE pt.stripe_payment_intent_id = process_stripe_payment_completion_with_bump.stripe_payment_intent_id
       AND pt.status = 'pending'
     LIMIT 1;
 
     IF pending_transaction_id IS NOT NULL THEN
-      UPDATE seller_main.payment_transactions
+      UPDATE public.payment_transactions
       SET
         status = 'completed',
         user_id = current_user_id,
@@ -304,7 +304,7 @@ BEGIN
       WHERE id = pending_transaction_id
       RETURNING id INTO transaction_id_var;
     ELSE
-      INSERT INTO seller_main.payment_transactions (
+      INSERT INTO public.payment_transactions (
         session_id, user_id, product_id, customer_email, amount, currency,
         stripe_payment_intent_id, status, metadata
       ) VALUES (
@@ -321,14 +321,14 @@ BEGIN
     END IF;
 
     -- Increment sale quantity sold
-    PERFORM seller_main.increment_sale_quantity_sold(product_id_param);
+    PERFORM public.increment_sale_quantity_sold(product_id_param);
 
     -- ==========================================
     -- LINE ITEMS: Record order composition
     -- Main product is always the first line item.
     -- Each validated bump gets its own line item.
     -- ==========================================
-    INSERT INTO seller_main.payment_line_items (
+    INSERT INTO public.payment_line_items (
       transaction_id, product_id, item_type, quantity, unit_price, total_price,
       currency, product_name
     ) VALUES (
@@ -350,11 +350,11 @@ BEGIN
           COALESCE(ob.bump_price, p.price) as price,
           p.currency
         FROM unnest(bump_ids_found) AS bid(id)
-        JOIN seller_main.products p ON p.id = bid.id
-        JOIN seller_main.order_bumps ob ON ob.bump_product_id = p.id AND ob.main_product_id = product_id_param
+        JOIN public.products p ON p.id = bid.id
+        JOIN public.order_bumps ob ON ob.bump_product_id = p.id AND ob.main_product_id = product_id_param
         WHERE p.is_active = true AND ob.is_active = true
       LOOP
-        INSERT INTO seller_main.payment_line_items (
+        INSERT INTO public.payment_line_items (
           transaction_id, product_id, item_type, quantity, unit_price, total_price,
           currency, product_name, order_bump_id, access_duration_override
         ) VALUES (
@@ -368,7 +368,7 @@ BEGIN
 
     -- Coupon redemption
     IF coupon_id_param IS NOT NULL THEN
-      DELETE FROM seller_main.coupon_reservations
+      DELETE FROM public.coupon_reservations
       WHERE coupon_id = coupon_id_param
         AND customer_email = customer_email_param
         AND expires_at > NOW();
@@ -377,7 +377,7 @@ BEGIN
         RAISE EXCEPTION 'No valid coupon reservation found. Coupon may have expired or reached limit.';
       END IF;
 
-      UPDATE seller_main.coupons
+      UPDATE public.coupons
       SET current_usage_count = COALESCE(current_usage_count, 0) + 1
       WHERE id = coupon_id_param
         AND is_active = true
@@ -387,7 +387,7 @@ BEGIN
         RAISE EXCEPTION 'Coupon limit reached despite reservation (system error)';
       END IF;
 
-      INSERT INTO seller_main.coupon_redemptions (
+      INSERT INTO public.coupon_redemptions (
         coupon_id, user_id, customer_email, transaction_id, discount_amount
       ) VALUES (
         coupon_id_param,
@@ -400,7 +400,7 @@ BEGIN
 
     -- SCENARIO 1: Logged-in user OR existing-user-auto-claimed (current_user_id was set above)
     IF current_user_id IS NOT NULL THEN
-      PERFORM seller_main.grant_product_access_service_role(current_user_id, product_id_param);
+      PERFORM public.grant_product_access_service_role(current_user_id, product_id_param);
 
       -- Pass each bump's access_duration_days as override to the helper so
       -- renewal/extension uses the bump's UI override (NULL = use bump
@@ -409,10 +409,10 @@ BEGIN
         FOR bump_rec IN
           SELECT u.bid AS product_id, ob.access_duration_days AS access_duration_override
           FROM unnest(bump_ids_found) AS u(bid)
-          JOIN seller_main.order_bumps ob
+          JOIN public.order_bumps ob
             ON ob.bump_product_id = u.bid AND ob.main_product_id = product_id_param
         LOOP
-          PERFORM seller_main.grant_product_access_service_role(
+          PERFORM public.grant_product_access_service_role(
             current_user_id,
             bump_rec.product_id,
             override_duration_days_param => bump_rec.access_duration_override
@@ -447,7 +447,7 @@ BEGIN
 
     -- SCENARIO 2: Pure guest purchase, no matching user
     ELSE
-      INSERT INTO seller_main.guest_purchases (customer_email, product_id, transaction_amount, session_id)
+      INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id)
       VALUES (customer_email_param, product_id_param, amount_total, session_id_param);
 
       RETURN jsonb_build_object(
@@ -473,4 +473,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '30s';
 
-GRANT EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump TO service_role;
+GRANT EXECUTE ON FUNCTION public.process_stripe_payment_completion_with_bump TO service_role;

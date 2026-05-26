@@ -3,10 +3,10 @@
  *
  * Single source of truth for "give me the Stripe customer id for this email/user".
  * Resolution order, fastest-first:
- *   1. DB cache: seller_main.stripe_customers (when userId is known)
+ *   1. DB cache: public.stripe_customers (when userId is known)
  *   2. Stripe customer search by email (handles guests + customers migrated from one-time payments)
  *   3. Create a fresh Stripe customer
- * After resolution, the mapping is persisted to seller_main.stripe_customers when userId is provided.
+ * After resolution, the mapping is persisted to public.stripe_customers when userId is provided.
  *
  * Stripe Customer Search has eventual consistency (~few seconds). The DB cache covers the
  * deterministic path; Stripe search is the fallback for cold lookups.

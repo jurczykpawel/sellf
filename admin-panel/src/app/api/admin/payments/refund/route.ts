@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Initialize service client only after auth validation
     const stripe = await getStripeServer();
 
-    // Use admin client for seller_main data operations
+    // Use admin client for public data operations
     const supabase = createAdminClient();
 
     // SECURITY: Rate limit refund operations (prevents abuse of compromised admin accounts)

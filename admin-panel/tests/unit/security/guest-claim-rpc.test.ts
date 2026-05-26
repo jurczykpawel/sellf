@@ -70,7 +70,7 @@ async function createTestProduct(overrides: Record<string, unknown> = {}): Promi
     is_active: true,
   };
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('products')
     .insert({ ...defaults, ...overrides })
     .select('id, slug')
@@ -86,7 +86,7 @@ async function createGuestPurchase(
   amount: number = 1000,
 ): Promise<string> {
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('guest_purchases')
     .insert({
       customer_email: email,
@@ -111,7 +111,7 @@ async function createAuthenticatedClient(email: string, password: string): Promi
 
 async function getUserAccess(userId: string, productId: string) {
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as any)
+    .schema('public' as any)
     .from('user_product_access')
     .select('*')
     .eq('user_id', userId)
@@ -195,7 +195,7 @@ describe('claim_guest_purchases_for_user', () => {
 
     // Verify guest_purchase was marked as claimed
     const { data: gp } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('guest_purchases')
       .select('claimed_by_user_id, claimed_at')
       .eq('id', gpId)
@@ -275,7 +275,7 @@ describe('claim_guest_purchases_for_user', () => {
 
     // Create a payment_transaction linked by session_id
     const { data: txData, error: txErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_transactions')
       .insert({
         session_id: sessionId,
@@ -293,7 +293,7 @@ describe('claim_guest_purchases_for_user', () => {
 
     // Create a payment_line_item for the bump
     const { error: liErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_line_items')
       .insert({
         transaction_id: (txData as { id: string }).id,
@@ -309,7 +309,7 @@ describe('claim_guest_purchases_for_user', () => {
 
     // Also insert main product line item (required by unique constraint validation)
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_line_items')
       .insert({
         transaction_id: (txData as { id: string }).id,
@@ -340,7 +340,7 @@ describe('claim_guest_purchases_for_user', () => {
 
     // Additionally verify via a scoped query that only our products were granted
     const { data: allAccess } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('product_id')
       .eq('user_id', userBump);
@@ -416,7 +416,7 @@ describe('claim_guest_purchases_for_user', () => {
 
     // Verify only one access record exists
     const { data: accessRecords } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('id')
       .eq('user_id', userIdem)
@@ -511,7 +511,7 @@ describe('grant_free_product_access', () => {
 
     // Still only one access record
     const { data: records } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('id')
       .eq('user_id', userId)
@@ -557,7 +557,7 @@ describe('grant_free_product_access', () => {
     const pastExpiry = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const oldGrantedAt = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .update({ access_expires_at: pastExpiry, access_granted_at: oldGrantedAt })
       .eq('user_id', uid)
@@ -573,7 +573,7 @@ describe('grant_free_product_access', () => {
     const after = await getUserAccess(uid, product.id);
     // Row still unique (ON CONFLICT updated, not duplicated)
     const { data: rows } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('id')
       .eq('user_id', uid)
@@ -606,7 +606,7 @@ describe('grant_free_product_access', () => {
 
     // Remove the access so the next call doesn't hit the "already has access" early return
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .delete()
       .eq('user_id', rlUser)
@@ -764,7 +764,7 @@ describe('grant_free_product_access — PWYW-free branch', () => {
     expect(second.data).toBe(true);
 
     const { data: rows } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('id')
       .eq('user_id', uid)
@@ -789,7 +789,7 @@ describe('grant_free_product_access — PWYW-free branch', () => {
     const pastExpiry = new Date(Date.now() - 60_000).toISOString();
     const oldGrantedAt = new Date(Date.now() - 60 * 60_000).toISOString();
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .update({ access_expires_at: pastExpiry, access_granted_at: oldGrantedAt })
       .eq('user_id', uid)
@@ -805,7 +805,7 @@ describe('grant_free_product_access — PWYW-free branch', () => {
     expect(new Date(after!.access_granted_at).getTime()).toBeGreaterThan(new Date(oldGrantedAt).getTime());
 
     const { data: rows } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .select('id')
       .eq('user_id', uid)
@@ -861,7 +861,7 @@ describe('grant_free_product_access — PWYW-free branch', () => {
     expect(baseline.data).toBe(true);
 
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .delete()
       .eq('user_id', rlUser)
@@ -1076,7 +1076,7 @@ describe('handle_new_user_registration', () => {
     let profile = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const { data } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('profiles')
         .select('id')
         .eq('id', userId)
@@ -1091,7 +1091,7 @@ describe('handle_new_user_registration', () => {
 
     // Verify guest purchase was claimed
     const { data: gp } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('guest_purchases')
       .select('claimed_by_user_id')
       .eq('id', gpId)
@@ -1119,7 +1119,7 @@ describe('handle_new_user_registration', () => {
     let profile = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const { data } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('profiles')
         .select('id')
         .eq('id', userId)
@@ -1153,7 +1153,7 @@ afterAll(async () => {
   // 1. Remove user_product_access for test users
   for (const uid of createdUserIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .delete()
       .eq('user_id', uid);
@@ -1162,7 +1162,7 @@ afterAll(async () => {
   // 2. Remove payment_line_items for created transactions
   for (const txId of createdTransactionIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_line_items')
       .delete()
       .eq('transaction_id', txId);
@@ -1171,7 +1171,7 @@ afterAll(async () => {
   // 3. Remove payment_transactions
   for (const txId of createdTransactionIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('payment_transactions')
       .delete()
       .eq('id', txId);
@@ -1180,7 +1180,7 @@ afterAll(async () => {
   // 4. Remove guest_purchases
   for (const gpId of createdGuestPurchaseIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('guest_purchases')
       .delete()
       .eq('id', gpId);
@@ -1189,7 +1189,7 @@ afterAll(async () => {
   // 5. Remove profiles for test users
   for (const uid of createdUserIds) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('profiles')
       .delete()
       .eq('id', uid);
@@ -1198,7 +1198,7 @@ afterAll(async () => {
   // 6. Remove products
   if (createdProductIds.length > 0) {
     await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .delete()
       .in('id', createdProductIds);

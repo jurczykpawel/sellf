@@ -11,7 +11,7 @@ interface EnvelopePayload {
 }
 
 // Supabase clients with different schema types can't be unified via generics.
-// This alias accepts any schema-scoped client (seller_main, seller_X, etc.).
+// This alias accepts any schema-scoped client (public, seller_X, etc.).
 type SupabaseClientLike = any;
 
 interface EndpointRow {

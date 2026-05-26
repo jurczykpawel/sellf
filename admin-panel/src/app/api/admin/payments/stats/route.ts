@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAdminApiWithRequest(request);
 
-    // Use admin client for seller_main data operations
+    // Use admin client for public data operations
     const supabase = createAdminClient();
 
     // SECURITY: Rate limit analytics operations (aggregation queries can be expensive)
