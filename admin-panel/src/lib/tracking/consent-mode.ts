@@ -67,3 +67,60 @@ export function resolveTrackingDecision(input: ResolveTrackingDecisionInput): Tr
       return { action: 'skip', reason: 'no_consent_strict_mode' };
   }
 }
+
+interface ConsentCookieShape {
+  services?: Record<string, string[]>;
+}
+
+/**
+ * Server-side echo of the cookieconsent v3 marketing decision.
+ *
+ * Returns:
+ *   true  — cookie present, services.marketing contains 'pixel'
+ *   false — cookie present but pixel not accepted (explicit reject)
+ *   null  — cookie absent or unparseable (caller should fall back to body)
+ *
+ * Closes the audit gap where a client could send `has_consent: true` while
+ * the consent cookie says otherwise: the cookie is the trusted source for
+ * same-origin storefront calls, the body is only a fallback for callers
+ * that never had a cookie (e.g. SSR pages, tests without a browser).
+ */
+export function readMarketingConsentFromCookieValue(
+  raw: string | undefined
+): boolean | null {
+  if (!raw) return null;
+
+  // cookieconsent v3 URL-encodes the JSON before storing; Next surfaces the
+  // raw cookie value, so we try decoded form first and fall back to raw.
+  const candidates = [tryDecode(raw), raw];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const parsed = tryParseJson(candidate);
+    if (!parsed) continue;
+    const services = parsed.services;
+    if (!services || typeof services !== 'object') return null;
+    const marketing = services.marketing;
+    if (!Array.isArray(marketing)) return false;
+    return marketing.includes('pixel');
+  }
+
+  return null;
+}
+
+function tryDecode(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
+function tryParseJson(value: string): ConsentCookieShape | null {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? (parsed as ConsentCookieShape) : null;
+  } catch {
+    return null;
+  }
+}

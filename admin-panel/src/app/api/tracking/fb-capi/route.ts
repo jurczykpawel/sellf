@@ -10,6 +10,8 @@ import {
   type ConversionTrackingMode,
   type TrackingEvent,
 } from '@/lib/tracking';
+import { readMarketingConsentFromCookieValue } from '@/lib/tracking/consent-mode';
+import { isValidFbEventName } from '@/lib/tracking/types';
 
 /** Max length for free-form string fields to prevent storage exhaustion */
 const MAX_STRING_LEN = 500;
@@ -97,13 +99,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!isValidFbEventName(eventName)) {
+      logTrackingEvent({
+        eventName,
+        eventId,
+        source: 'client_proxy',
+        status: 'failed',
+        errorMessage: 'Unsupported event_name',
+      }).catch((err) => {
+        console.warn('[fb-capi] Non-critical error:', err);
+      });
+
+      return NextResponse.json(
+        { error: 'Unsupported event_name' },
+        { status: 400 }
+      );
+    }
+
     const value = sanitizeValue(body.value);
     const currency = sanitizeString(body.currency, 10);
     const orderId = sanitizeString(body.order_id, 200);
     const bodyEmail = sanitizeString(body.user_email, 320);
     const contentName = sanitizeString(body.content_name, 200);
     const eventSourceUrl = sanitizeUrl(body.event_source_url);
-    const hasConsent = typeof body.has_consent === 'boolean' ? body.has_consent : true;
+    const bodyConsent = typeof body.has_consent === 'boolean' ? body.has_consent : true;
+    // Server-side override: when the visitor has a consent cookie, trust it
+    // over whatever the body claims. Body is only the fallback for callers
+    // that never had a cookie (legacy tests, SSR pages).
+    const cookieConsent = readMarketingConsentFromCookieValue(
+      request.cookies.get('sellf_consent')?.value
+    );
+    const hasConsent = cookieConsent !== null ? cookieConsent : bodyConsent;
     const contentIds = Array.isArray(body.content_ids)
       ? body.content_ids
           .filter((id: unknown): id is string => typeof id === 'string')

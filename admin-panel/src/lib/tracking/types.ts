@@ -13,12 +13,20 @@ export type GA4EventName =
   | 'generate_lead';
 
 // Facebook Event Names (used in Pixel and CAPI)
-export type FBEventName =
-  | 'ViewContent'
-  | 'InitiateCheckout'
-  | 'AddPaymentInfo'
-  | 'Purchase'
-  | 'Lead';
+export const FB_EVENT_NAMES = [
+  'ViewContent',
+  'InitiateCheckout',
+  'AddPaymentInfo',
+  'Purchase',
+  'Lead',
+] as const;
+
+export type FBEventName = (typeof FB_EVENT_NAMES)[number];
+
+/** Runtime allowlist guard — closes the type-assertion gap at the request boundary. */
+export function isValidFbEventName(value: unknown): value is FBEventName {
+  return typeof value === 'string' && (FB_EVENT_NAMES as readonly string[]).includes(value);
+}
 
 // GA4 Ecommerce Item
 export interface EcommerceItem {
