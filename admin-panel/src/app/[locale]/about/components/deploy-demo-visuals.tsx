@@ -333,21 +333,21 @@ function TerminalMock({ kind }: { kind: 'ssh' | 'install' | 'env' }) {
       )}
       {kind === 'install' && (
         <>
-          <div className="flex items-center gap-2 text-zinc-500">
-            <span>root@vps:~#</span>
-            <span className="text-emerald-300 font-semibold break-all">curl -fsSL stackpilot.dev/sellf | bash</span>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>~/stackpilot $</span>
+            <span className="text-emerald-300 font-semibold break-all">./local/deploy.sh sellf --ssh=root@vps --domain=mystore.com</span>
           </div>
-          <div className="text-zinc-400">▸ Installing Node 22…</div>
-          <div className="text-zinc-400">▸ Pulling Sellf v2026.5.x…</div>
-          <div className="text-zinc-400">▸ Configuring PM2…</div>
-          <div className="text-zinc-400">▸ Setting up Caddy + HTTPS…</div>
-          <div className="text-emerald-300">✓ Sellf running on :3000</div>
+          <div className="text-zinc-400">▸ Building Sellf locally…</div>
+          <div className="text-zinc-400">▸ Connecting to root@vps over SSH…</div>
+          <div className="text-zinc-400">▸ Installing Node + Caddy + PM2…</div>
+          <div className="text-zinc-400">▸ Uploading build, starting service…</div>
+          <div className="text-emerald-300">✓ Sellf live at mystore.com</div>
         </>
       )}
       {kind === 'env' && (
         <>
-          <div className="flex items-center gap-2 text-zinc-500">
-            <span>root@vps:/opt/sellf#</span>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:/opt/stacks/sellf#</span>
             <span className="text-emerald-300 font-semibold">nano .env.local</span>
           </div>
           <div className="mt-2 text-zinc-400 leading-relaxed">

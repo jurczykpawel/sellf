@@ -3381,15 +3381,15 @@
             "visual": "terminal-ssh"
           },
           {
-            "title": "Odpalasz jedną komendę",
-            "url": "root@vps:~ ▸ terminal",
-            "caption": "Pojedyncza komenda curl-bash ze StackPilot. Instaluje Node, Postgres (lub łączy Supabase Cloud), pobiera Sellf, ustawia PM2, konfiguruje Caddy z HTTPS. ~5 min.",
+            "title": "Odpalasz jedną komendę z laptopa",
+            "url": "~/stackpilot ▸ terminal",
+            "caption": "Klonujesz repo StackPilot na laptopie, potem ./local/deploy.sh sellf z hostem VPS i domeną. Skrypt sam się łączy przez SSH i instaluje Node, Caddy (HTTPS), PM2 oraz Sellf w ~5 min.",
             "visual": "terminal-install"
           },
           {
             "title": "Wklejasz klucze Stripe",
-            "url": "root@vps:/opt/sellf ▸ .env.local",
-            "caption": "Otwierasz .env.local, wklejasz Stripe pk/sk/whsec, Supabase URL + klucze. Te same wartości co przy one-click — tylko w pliku zamiast formularza.",
+            "url": "root@vps:/opt/stacks/sellf ▸ .env.local",
+            "caption": "Wracasz SSH-em, otwierasz .env.local, wklejasz Stripe pk/sk/whsec, Supabase URL + klucze. Te same wartości co przy one-click — tylko w pliku zamiast formularza. Potem pm2 restart sellf.",
             "visual": "terminal-env"
           },
           {
