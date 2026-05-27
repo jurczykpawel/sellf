@@ -3387,9 +3387,9 @@
             "visual": "terminal-install"
           },
           {
-            "title": "Wklejasz klucze Stripe",
-            "url": "root@vps:/opt/stacks/sellf ▸ .env.local",
-            "caption": "Wracasz SSH-em, otwierasz .env.local, wklejasz Stripe pk/sk/whsec, Supabase URL + klucze. Te same wartości co przy one-click — tylko w pliku zamiast formularza. Potem pm2 restart sellf.",
+            "title": "Wklejasz klucze Stripe gdy zapyta",
+            "url": "twoj-laptop ▸ terminal (w trakcie deploya)",
+            "caption": "W połowie skrypt pauzuje i pyta o klucze Stripe (pk/sk/whsec) oraz Supabase URL+klucze. Wklejasz raz — StackPilot sam zapisuje je do .env.local na VPS i restartuje PM2. (Możesz też pominąć i dodać później przez panel Sellf.)",
             "visual": "terminal-env"
           },
           {

@@ -353,16 +353,16 @@ function TerminalMock({ kind }: { kind: 'ssh' | 'install' | 'env' }) {
       )}
       {kind === 'env' && (
         <>
-          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>root@vps:/opt/stacks/sellf#</span>
-            <span className="text-emerald-300 font-semibold">nano .env.local</span>
-          </div>
+          <div className="text-zinc-300 font-semibold">💳 STRIPE CONFIGURATION</div>
+          <div className="text-zinc-500">────────────────────────────</div>
+          <div className="text-zinc-400">Configure Stripe now? [y/N]: <span className="text-emerald-300">y</span></div>
           <div className="mt-2 text-zinc-400 leading-relaxed">
-            <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_...</span></div>
-            <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_...</span></div>
-            <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://...</span></div>
-            <div className="text-zinc-600">[...]</div>
+            <div>STRIPE_PUBLISHABLE_KEY (pk_...): <span className="text-yellow-300">pk_test_51...</span></div>
+            <div>STRIPE_SECRET_KEY (sk_...): <span className="text-yellow-300">sk_test_51...</span></div>
+            <div>STRIPE_WEBHOOK_SECRET (optional): <span className="text-yellow-300">whsec_...</span></div>
           </div>
+          <div className="mt-2 text-emerald-300">✓ Stripe keys written to .env.local on VPS</div>
+          <div className="text-emerald-300">✓ PM2 restarted — Sellf reloaded</div>
         </>
       )}
     </div>

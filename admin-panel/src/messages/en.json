@@ -3372,9 +3372,9 @@
             "visual": "terminal-install"
           },
           {
-            "title": "Paste your Stripe keys",
-            "url": "root@vps:/opt/stacks/sellf ▸ .env.local",
-            "caption": "SSH back in, open .env.local, paste Stripe pk/sk/whsec, Supabase URL + keys. Same values as one-click — just in a file instead of a web form. Then pm2 restart sellf.",
+            "title": "Paste your Stripe keys when asked",
+            "url": "your-laptop ▸ terminal (during deploy)",
+            "caption": "Halfway through, the deploy script pauses and asks for your Stripe keys (pk/sk/whsec) and Supabase URL+keys. Paste them once — StackPilot writes them to .env.local on the VPS and restarts PM2 automatically. (You can also skip and add them later via the Sellf admin UI.)",
             "visual": "terminal-env"
           },
           {
