@@ -28,7 +28,7 @@ const TS = Date.now();
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
-  db: { schema: 'seller_main' as 'public' },
+  db: { schema: 'public' as 'public' },
 });
 
 // ============================================================================

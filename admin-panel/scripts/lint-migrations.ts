@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Migration lint: every CREATE FUNCTION targeting seller_main or public
+ * Migration lint: every CREATE FUNCTION targeting public or public
  * must have a matching REVOKE EXECUTE … FROM PUBLIC, anon, authenticated
  * in the same migration file. Catches the class of issue where a fresh
  * DROP + CREATE OR REPLACE silently restores default PUBLIC EXECUTE.
@@ -10,7 +10,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SCHEMAS = new Set(['seller_main', 'public']);
+const SCHEMAS = new Set(['public', 'public']);
 const CREATE_FUNCTION_RE =
   /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:(\w+)\.)?(\w+)\s*\(/gi;
 const DROP_FUNCTION_RE =
@@ -19,7 +19,7 @@ const REVOKE_RE =
   /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+(?:(\w+)\.)?(\w+)/gi;
 
 // 20260302000000_restrict_rpc_function_access.sql installs the catch-all
-// REVOKE on public + seller_main and ALTER DEFAULT PRIVILEGES so any later
+// REVOKE on public + public and ALTER DEFAULT PRIVILEGES so any later
 // migration's CREATE FUNCTION inherits the deny. Migrations dated at or
 // before that timestamp are covered by the catch-all and do not need an
 // inline REVOKE block.

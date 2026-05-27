@@ -17,7 +17,7 @@ const MAX_RESPONSE_BODY_CHARS = 5000;
 // owner check at the route layer or pass an owner predicate into these methods.
 
 // Supabase clients with different schema types can't be unified via generics.
-// This alias accepts any schema-scoped client (seller_main, seller_X, etc.).
+// This alias accepts any schema-scoped client (public, seller_X, etc.).
 type SupabaseClientLike = SupabaseClient<any, any, any>;
 
 interface InitialState {

@@ -44,7 +44,7 @@ test.beforeAll(async () => {
   testSeller = { id: sellerUser.id, email: sellerEmail };
 
   const { error: settingsErr } = await supabaseAdmin
-    .schema('seller_main')
+    .schema('public')
     .from('seller_embed_settings')
     .upsert({
       seller_id: sellerUser.id,
@@ -75,7 +75,7 @@ test.afterAll(async () => {
   }
   if (testSeller?.id) {
     await supabaseAdmin
-      .schema('seller_main')
+      .schema('public')
       .from('seller_embed_settings')
       .delete()
       .eq('seller_id', testSeller.id);

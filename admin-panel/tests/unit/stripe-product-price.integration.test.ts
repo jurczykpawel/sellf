@@ -2,7 +2,7 @@
  * 001 — durable Stripe Price binding per Sellf product.
  *
  * The helper creates a real Stripe Price object once per Sellf product and
- * persists its id into seller_main.products.stripe_price_id. Subsequent calls
+ * persists its id into public.products.stripe_price_id. Subsequent calls
  * reuse the persisted id when its parameters still match the product. When the
  * product's recurring config drifts, a new Price is created (Stripe Prices are
  * immutable) and the column is updated.
@@ -19,7 +19,7 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const canRun = !!STRIPE_SECRET_KEY?.startsWith('sk_test_') && !!SUPABASE_URL && !!SERVICE_ROLE_KEY;
 const stripe = canRun ? new Stripe(STRIPE_SECRET_KEY!) : null;
 const supabase = canRun
-  ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { db: { schema: 'seller_main' } })
+  ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { db: { schema: 'public' } })
   : null;
 
 const createdProductIds: string[] = [];

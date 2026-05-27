@@ -206,7 +206,7 @@ describe('RLS-E01: profiles must have INSERT and DELETE handling', () => {
   it('profiles table has an INSERT or ALL policy', () => {
     const policies = extractPolicyBlocks(ALL_SQL)
       .filter(p =>
-        /seller_main\.profiles\b|ON\s+profiles\b/i.test(p.body) &&
+        /public\.profiles\b|ON\s+profiles\b/i.test(p.body) &&
         (/FOR INSERT/i.test(p.body) || /FOR ALL/i.test(p.body))
       );
     expect(policies.length, 'profiles: no INSERT policy found').toBeGreaterThan(0);
@@ -215,10 +215,10 @@ describe('RLS-E01: profiles must have INSERT and DELETE handling', () => {
   it('profiles has a DELETE policy or DELETE is revoked', () => {
     const hasDeletePolicy = extractPolicyBlocks(ALL_SQL)
       .some(p =>
-        /seller_main\.profiles\b/i.test(p.body) &&
+        /public\.profiles\b/i.test(p.body) &&
         /FOR DELETE/i.test(p.body)
       );
-    const hasRevokeDelete = /REVOKE\s+(?:ALL|DELETE)\s+ON\s+(?:TABLE\s+)?seller_main\.profiles\b/i.test(ALL_SQL);
+    const hasRevokeDelete = /REVOKE\s+(?:ALL|DELETE)\s+ON\s+(?:TABLE\s+)?public\.profiles\b/i.test(ALL_SQL);
     expect(hasDeletePolicy || hasRevokeDelete, 'profiles: no DELETE policy and DELETE not revoked').toBe(true);
   });
 });
@@ -228,33 +228,33 @@ describe('RLS-E01: profiles must have INSERT and DELETE handling', () => {
 // ============================================================================
 
 describe('GRANT-B01: default privileges must be explicit, not blanket', () => {
-  it('no ALTER DEFAULT PRIVILEGES granting SELECT to anon in seller_main', () => {
+  it('no ALTER DEFAULT PRIVILEGES granting SELECT to anon in public', () => {
     const coreSchema = migration('20250101000000_core_schema.sql');
-    const blanketAnonSelect = /ALTER DEFAULT PRIVILEGES\s+IN SCHEMA\s+seller_main\s+GRANT\s+SELECT\s+ON\s+TABLES\s+TO\s+anon/i;
+    const blanketAnonSelect = /ALTER DEFAULT PRIVILEGES\s+IN SCHEMA\s+public\s+GRANT\s+SELECT\s+ON\s+TABLES\s+TO\s+anon/i;
     expect(blanketAnonSelect.test(coreSchema), 'Blanket anon SELECT via default privileges').toBe(false);
   });
 
-  it('no ALTER DEFAULT PRIVILEGES granting full DML to authenticated in seller_main', () => {
+  it('no ALTER DEFAULT PRIVILEGES granting full DML to authenticated in public', () => {
     const coreSchema = migration('20250101000000_core_schema.sql');
-    const blanketDML = /ALTER DEFAULT PRIVILEGES\s+IN SCHEMA\s+seller_main\s+GRANT\s+SELECT,\s*INSERT,\s*UPDATE,\s*DELETE\s+ON\s+TABLES\s+TO\s+authenticated/i;
+    const blanketDML = /ALTER DEFAULT PRIVILEGES\s+IN SCHEMA\s+public\s+GRANT\s+SELECT,\s*INSERT,\s*UPDATE,\s*DELETE\s+ON\s+TABLES\s+TO\s+authenticated/i;
     expect(blanketDML.test(coreSchema), 'Blanket authenticated DML via default privileges').toBe(false);
   });
 });
 
 // ============================================================================
-// GRANT-D01: Default EXECUTE privileges revoked in seller_main
+// GRANT-D01: Default EXECUTE privileges revoked in public
 // ============================================================================
 
 describe('GRANT-D01: function execute privilege controls', () => {
-  it('default EXECUTE on new functions revoked from anon/authenticated in seller_main', () => {
+  it('default EXECUTE on new functions revoked from anon/authenticated in public', () => {
     const revokePattern =
-      /ALTER\s+DEFAULT\s+PRIVILEGES\s+.*IN\s+SCHEMA\s+seller_main[\s\S]*?REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+(?:anon|authenticated|PUBLIC)/i;
+      /ALTER\s+DEFAULT\s+PRIVILEGES\s+.*IN\s+SCHEMA\s+public[\s\S]*?REVOKE\s+EXECUTE\s+ON\s+FUNCTIONS\s+FROM\s+(?:anon|authenticated|PUBLIC)/i;
     expect(ALL_SQL).toMatch(revokePattern);
   });
 
   it('REVOKE EXECUTE from anon on payment-critical functions', () => {
     expect(ALL_SQL).toMatch(
-      /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+seller_main\.process_stripe_payment_completion_with_bump/i
+      /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.process_stripe_payment_completion_with_bump/i
     );
   });
 
@@ -481,9 +481,9 @@ describe('GRANT-E01: unused table grant restriction', () => {
     const sql = migration('20250103000000_features.sql');
     // After REVOKE ALL, there should be no GRANT ... TO authenticated for revenue_goals
     // or at most GRANT SELECT (read-only) — never INSERT/UPDATE/DELETE
-    const afterRevoke = sql.split(/REVOKE ALL ON seller_main\.revenue_goals/i).pop() || '';
+    const afterRevoke = sql.split(/REVOKE ALL ON public\.revenue_goals/i).pop() || '';
     const grantMatch = afterRevoke.match(
-      /GRANT\s+(SELECT|INSERT|UPDATE|DELETE)[^;]*ON\s+seller_main\.revenue_goals[^;]*TO\s+authenticated/i
+      /GRANT\s+(SELECT|INSERT|UPDATE|DELETE)[^;]*ON\s+public\.revenue_goals[^;]*TO\s+authenticated/i
     );
     expect(
       grantMatch === null || (grantMatch && !/INSERT|UPDATE|DELETE/i.test(grantMatch[0])),

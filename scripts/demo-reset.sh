@@ -35,7 +35,7 @@ fi
 
 echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] Starting demo database reset..."
 
-# Content-Profile=public — demo_reset_data lives in public, not seller_main (the PostgREST default).
+# Content-Profile=public — demo_reset_data lives in public, not public (the PostgREST default).
 # `|| echo …000` keeps curl failures in the error branch under `set -e`.
 RESPONSE=$(curl -s -w "\n%{http_code}" \
   -X POST "${SUPABASE_URL}/rest/v1/rpc/demo_reset_data" \

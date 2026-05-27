@@ -32,7 +32,7 @@
 
 -- ===== APPLY MIGRATION FUNCTION =====
 
-CREATE OR REPLACE FUNCTION seller_main.apply_migration(
+CREATE OR REPLACE FUNCTION public.apply_migration(
   migration_version TEXT,
   migration_sql TEXT,
   content_checksum TEXT
@@ -125,8 +125,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION seller_main.apply_migration(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION seller_main.apply_migration(TEXT, TEXT, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.apply_migration(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_migration(TEXT, TEXT, TEXT) TO service_role;
 
 
 -- ===== GET MIGRATION STATUS FUNCTION =====
@@ -136,7 +136,7 @@ GRANT EXECUTE ON FUNCTION seller_main.apply_migration(TEXT, TEXT, TEXT) TO servi
 -- SECURITY DEFINER required: service_role does not have USAGE on the
 -- supabase_migrations schema, but the function owner (postgres) does.
 -- Only service_role can call (REVOKE/GRANT below), so this is safe.
-CREATE OR REPLACE FUNCTION seller_main.get_migration_status()
+CREATE OR REPLACE FUNCTION public.get_migration_status()
 RETURNS JSONB
 LANGUAGE sql
 SECURITY DEFINER
@@ -151,5 +151,5 @@ AS $$
   FROM supabase_migrations.schema_migrations sm;
 $$;
 
-REVOKE ALL ON FUNCTION seller_main.get_migration_status() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION seller_main.get_migration_status() TO service_role;
+REVOKE ALL ON FUNCTION public.get_migration_status() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_migration_status() TO service_role;

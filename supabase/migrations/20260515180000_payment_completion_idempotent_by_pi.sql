@@ -8,7 +8,7 @@
 
 SET client_min_messages = warning;
 
-ALTER FUNCTION seller_main.process_stripe_payment_completion_with_bump(
+ALTER FUNCTION public.process_stripe_payment_completion_with_bump(
   TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID, UUID[], UUID
 ) RENAME TO _process_stripe_payment_completion_with_bump_impl;
 
@@ -22,7 +22,7 @@ DECLARE
 BEGIN
   SELECT pg_get_functiondef(p.oid) INTO body
     FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid
-   WHERE n.nspname = 'seller_main'
+   WHERE n.nspname = 'public'
      AND p.proname = '_process_stripe_payment_completion_with_bump_impl';
 
   body := replace(
@@ -42,7 +42,7 @@ BEGIN
 END
 $patch$;
 
-CREATE OR REPLACE FUNCTION seller_main.process_stripe_payment_completion_with_bump(
+CREATE OR REPLACE FUNCTION public.process_stripe_payment_completion_with_bump(
   session_id_param TEXT,
   product_id_param UUID,
   customer_email_param TEXT,
@@ -63,7 +63,7 @@ DECLARE
 BEGIN
   IF pi_param IS NOT NULL THEN
     SELECT pt.session_id INTO resolved_sid
-      FROM seller_main.payment_transactions pt
+      FROM public.payment_transactions pt
      WHERE pt.stripe_payment_intent_id = pi_param
        AND pt.status <> 'pending'
        AND pt.session_id <> session_id_param
@@ -74,7 +74,7 @@ BEGIN
     END IF;
   END IF;
 
-  RETURN seller_main._process_stripe_payment_completion_with_bump_impl(
+  RETURN public._process_stripe_payment_completion_with_bump_impl(
     session_id_param,
     product_id_param,
     customer_email_param,
@@ -88,13 +88,13 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION seller_main.process_stripe_payment_completion_with_bump(
+GRANT EXECUTE ON FUNCTION public.process_stripe_payment_completion_with_bump(
   TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID, UUID[], UUID
 ) TO service_role;
 
-REVOKE EXECUTE ON FUNCTION seller_main._process_stripe_payment_completion_with_bump_impl(
+REVOKE EXECUTE ON FUNCTION public._process_stripe_payment_completion_with_bump_impl(
   TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID, UUID[], UUID
 ) FROM anon, authenticated, PUBLIC;
-GRANT EXECUTE ON FUNCTION seller_main._process_stripe_payment_completion_with_bump_impl(
+GRANT EXECUTE ON FUNCTION public._process_stripe_payment_completion_with_bump_impl(
   TEXT, UUID, TEXT, NUMERIC, TEXT, TEXT, UUID, UUID[], UUID
 ) TO service_role;

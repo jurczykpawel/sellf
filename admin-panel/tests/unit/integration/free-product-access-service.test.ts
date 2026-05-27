@@ -25,10 +25,10 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
 
 const TS = Date.now();
 
-// Admin client — bypasses RLS. Targets seller_main schema for all seller data.
+// Admin client — bypasses RLS. Targets public schema for all seller data.
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
-  db: { schema: 'seller_main' as 'public' },
+  db: { schema: 'public' as 'public' },
 });
 
 // Helpers target internal tables that the service itself reads/writes.

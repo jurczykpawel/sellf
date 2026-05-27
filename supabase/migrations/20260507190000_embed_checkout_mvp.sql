@@ -1,20 +1,20 @@
-ALTER TABLE seller_main.products
+ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS embed_enabled boolean NOT NULL DEFAULT false;
 
-ALTER TABLE seller_main.products
+ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS seller_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_products_seller_id
-  ON seller_main.products(seller_id);
+  ON public.products(seller_id);
 
-CREATE TABLE IF NOT EXISTS seller_main.seller_embed_settings (
+CREATE TABLE IF NOT EXISTS public.seller_embed_settings (
   seller_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   allowed_embed_origins text[] NOT NULL DEFAULT ARRAY[]::text[],
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE OR REPLACE FUNCTION seller_main.validate_seller_embed_origins()
+CREATE OR REPLACE FUNCTION public.validate_seller_embed_origins()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -38,34 +38,34 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS seller_embed_settings_validate_origins
-  ON seller_main.seller_embed_settings;
+  ON public.seller_embed_settings;
 
 CREATE TRIGGER seller_embed_settings_validate_origins
 BEFORE INSERT OR UPDATE OF allowed_embed_origins
-ON seller_main.seller_embed_settings
-FOR EACH ROW EXECUTE FUNCTION seller_main.validate_seller_embed_origins();
+ON public.seller_embed_settings
+FOR EACH ROW EXECUTE FUNCTION public.validate_seller_embed_origins();
 
-REVOKE ALL ON FUNCTION seller_main.validate_seller_embed_origins() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION seller_main.validate_seller_embed_origins() TO service_role;
+REVOKE ALL ON FUNCTION public.validate_seller_embed_origins() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_seller_embed_origins() TO service_role;
 
-ALTER TABLE seller_main.seller_embed_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.seller_embed_settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY seller_embed_settings_owner_or_admin_all
-  ON seller_main.seller_embed_settings
+  ON public.seller_embed_settings
   FOR ALL
   TO authenticated
   USING (seller_id = (select auth.uid()) OR (select public.is_admin()))
   WITH CHECK (seller_id = (select auth.uid()) OR (select public.is_admin()));
 
-REVOKE ALL ON seller_main.seller_embed_settings FROM anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.seller_embed_settings TO authenticated;
-GRANT ALL ON seller_main.seller_embed_settings TO service_role;
+REVOKE ALL ON public.seller_embed_settings FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.seller_embed_settings TO authenticated;
+GRANT ALL ON public.seller_embed_settings TO service_role;
 
-CREATE TABLE IF NOT EXISTS seller_main.embed_checkout_log (
+CREATE TABLE IF NOT EXISTS public.embed_checkout_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   action text NOT NULL CHECK (action IN ('paid_checkout', 'free_email_gate')),
   status text NOT NULL,
-  product_id uuid REFERENCES seller_main.products(id) ON DELETE SET NULL,
+  product_id uuid REFERENCES public.products(id) ON DELETE SET NULL,
   product_slug text NOT NULL,
   origin text,
   email text,
@@ -74,19 +74,17 @@ CREATE TABLE IF NOT EXISTS seller_main.embed_checkout_log (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE seller_main.embed_checkout_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.embed_checkout_log ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY embed_checkout_log_admin_all
-  ON seller_main.embed_checkout_log
+  ON public.embed_checkout_log
   FOR ALL
   TO authenticated
   USING ((select public.is_admin()))
   WITH CHECK ((select public.is_admin()));
 
-REVOKE ALL ON seller_main.embed_checkout_log FROM anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON seller_main.embed_checkout_log TO authenticated;
-GRANT ALL ON seller_main.embed_checkout_log TO service_role;
+REVOKE ALL ON public.embed_checkout_log FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.embed_checkout_log TO authenticated;
+GRANT ALL ON public.embed_checkout_log TO service_role;
 
-CREATE OR REPLACE VIEW public.products
-WITH (security_invoker = on)
-AS SELECT * FROM seller_main.products;
+

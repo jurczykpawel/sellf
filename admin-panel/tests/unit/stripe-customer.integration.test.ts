@@ -33,7 +33,7 @@ const supabaseAdmin = hasSupabase
   ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
   : null;
 const supabaseSeller = hasSupabase
-  ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { db: { schema: 'seller_main' } })
+  ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { db: { schema: 'public' } })
   : null;
 
 const createdStripeCustomerIds = new Set<string>();

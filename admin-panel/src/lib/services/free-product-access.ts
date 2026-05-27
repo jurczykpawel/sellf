@@ -28,7 +28,7 @@ export interface FreeProductAccessResult {
 /**
  * Grants free access to a product and generates an OTO coupon if configured.
  *
- * The unified seller_main.grant_free_product_access RPC handles eligibility
+ * The unified public.grant_free_product_access RPC handles eligibility
  * across all three paths (price=0 / PWYW-free / full-discount coupon) in a
  * single atomic transaction, so the service stays thin: detect "already had
  * access", call the RPC, generate OTO.

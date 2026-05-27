@@ -1,7 +1,7 @@
 /**
  * DTOs for /api/v1/tags create/update bodies and the API field projection.
  * Slug regex mirrors the DB CHECK constraint defined in
- * supabase/migrations/20250101000000_core_schema.sql (seller_main.tags).
+ * supabase/migrations/20250101000000_core_schema.sql (public.tags).
  */
 
 import { z } from 'zod';

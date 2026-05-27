@@ -7,7 +7,7 @@
  * database. Requires `npx supabase start` and `npx supabase db reset`.
  *
  * These tests verify that no security/performance lint violations exist in
- * public and seller_main schemas. They mirror the checks from Supabase
+ * public and public schemas. They mirror the checks from Supabase
  * Dashboard > Database > Security Advisor.
  *
  * @see https://github.com/supabase/splinter
@@ -23,7 +23,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 // ============================================================================
 
 const CONTAINER = 'supabase_db_sellf';
-const SCHEMAS = "'public', 'seller_main'";
+const SCHEMAS = "'public', 'public'";
 
 /**
  * Execute SQL query on the local Supabase database via docker exec.
@@ -74,7 +74,7 @@ describe.skipIf(!isDatabaseAvailable())(
     // 0011: Function Search Path Mutable
     // ------------------------------------------------------------------
     describe('SA-0011: functions must SET search_path', () => {
-      it('no functions in public/seller_main have mutable search_path', () => {
+      it('no functions in public/public have mutable search_path', () => {
         const EXCLUDED_THIRD_PARTY: string[] = [];
 
         const violations = query<{ fn: string }>(`
@@ -247,7 +247,7 @@ describe.skipIf(!isDatabaseAvailable())(
     // 0010: Security Definer Views
     // ------------------------------------------------------------------
     describe('SA-0010: views must use SECURITY INVOKER', () => {
-      it('no views in public/seller_main use SECURITY DEFINER', () => {
+      it('no views in public/public use SECURITY DEFINER', () => {
         // Check views that do NOT have security_invoker=on in their reloptions
         const violations = query<{ view_name: string }>(`
           SELECT n.nspname || '.' || c.relname AS view_name

@@ -4,8 +4,8 @@ SET statement_timeout = '10s';
 --
 -- Without this, a new magic-link user receives product access via
 -- user_product_access, but /my-purchases remains empty because the purchase
--- history RPC reads seller_main.payment_transactions.user_id.
-CREATE OR REPLACE FUNCTION seller_main.claim_guest_purchases_for_user(
+-- history RPC reads public.payment_transactions.user_id.
+CREATE OR REPLACE FUNCTION public.claim_guest_purchases_for_user(
   p_user_id UUID
 ) RETURNS json AS $$
 DECLARE
@@ -38,12 +38,12 @@ BEGIN
 
   FOR guest_purchase_record IN
     SELECT gp.*, pt.id as transaction_id
-    FROM seller_main.guest_purchases gp
-    LEFT JOIN seller_main.payment_transactions pt ON pt.session_id = gp.session_id
+    FROM public.guest_purchases gp
+    LEFT JOIN public.payment_transactions pt ON pt.session_id = gp.session_id
     WHERE gp.customer_email = user_email_var
       AND gp.claimed_by_user_id IS NULL
   LOOP
-    UPDATE seller_main.guest_purchases
+    UPDATE public.guest_purchases
     SET claimed_by_user_id = p_user_id, claimed_at = NOW()
     WHERE id = guest_purchase_record.id;
 
@@ -52,12 +52,12 @@ BEGIN
       DECLARE
         grant_result JSONB;
       BEGIN
-        SELECT seller_main.grant_product_access_service_role(p_user_id, guest_purchase_record.product_id) INTO grant_result;
+        SELECT public.grant_product_access_service_role(p_user_id, guest_purchase_record.product_id) INTO grant_result;
 
         IF (grant_result->>'success')::boolean = true THEN
           claimed_count := claimed_count + 1;
 
-          UPDATE seller_main.payment_transactions
+          UPDATE public.payment_transactions
           SET user_id = p_user_id,
               updated_at = NOW()
           WHERE session_id = guest_purchase_record.session_id
@@ -87,7 +87,7 @@ BEGIN
             );
           END IF;
 
-          UPDATE seller_main.guest_purchases
+          UPDATE public.guest_purchases
           SET claimed_by_user_id = NULL, claimed_at = NULL
           WHERE id = guest_purchase_record.id;
         END IF;
@@ -105,7 +105,7 @@ BEGIN
             'function_name', 'claim_guest_purchases_for_user'
           )
         );
-        UPDATE seller_main.guest_purchases
+        UPDATE public.guest_purchases
         SET claimed_by_user_id = NULL, claimed_at = NULL
         WHERE id = guest_purchase_record.id;
         NULL;
@@ -118,12 +118,12 @@ BEGIN
     IF guest_purchase_record.transaction_id IS NOT NULL THEN
       FOR line_item_rec IN
         SELECT pli.product_id, pli.access_duration_override
-        FROM seller_main.payment_line_items pli
+        FROM public.payment_line_items pli
         WHERE pli.transaction_id = guest_purchase_record.transaction_id
           AND pli.item_type = 'order_bump'
       LOOP
         BEGIN
-          PERFORM seller_main.grant_product_access_service_role(
+          PERFORM public.grant_product_access_service_role(
             p_user_id,
             line_item_rec.product_id,
             override_duration_days_param => line_item_rec.access_duration_override

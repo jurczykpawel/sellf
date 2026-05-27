@@ -69,7 +69,7 @@ describe('Access Control RPC Functions', () => {
 
     // Create test products using service role (bypasses RLS)
     const { data: activeProduct, error: activeErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .insert({
         name: 'Active Product',
@@ -84,7 +84,7 @@ describe('Access Control RPC Functions', () => {
     productActiveId = activeProduct.id;
 
     const { data: noAccessProduct, error: noAccessErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .insert({
         name: 'No Access Product',
@@ -99,7 +99,7 @@ describe('Access Control RPC Functions', () => {
     productNoAccessId = noAccessProduct.id;
 
     const { data: expiredProduct, error: expiredErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .insert({
         name: 'Expired Product',
@@ -115,7 +115,7 @@ describe('Access Control RPC Functions', () => {
 
     // Grant access to active product (permanent)
     const { error: grantActiveErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .insert({
         user_id: testUserId,
@@ -127,7 +127,7 @@ describe('Access Control RPC Functions', () => {
     // Grant expired access to expired product
     const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // yesterday
     const { error: grantExpiredErr } = await supabaseAdmin
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('user_product_access')
       .insert({
         user_id: testUserId,
@@ -157,7 +157,7 @@ describe('Access Control RPC Functions', () => {
     // Clean up in reverse dependency order
     if (testUserId) {
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('user_product_access')
         .delete()
         .eq('user_id', testUserId);
@@ -166,7 +166,7 @@ describe('Access Control RPC Functions', () => {
     const productIds = [productActiveId, productNoAccessId, productExpiredId].filter(Boolean);
     if (productIds.length > 0) {
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('products')
         .delete()
         .in('id', productIds);
@@ -271,7 +271,7 @@ describe('Access Control RPC Functions', () => {
 
       // Create product with the sanitized slug
       const { data: sqliProduct, error: createErr } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('products')
         .insert({
           name: 'SQLi Sanitization Test',
@@ -286,7 +286,7 @@ describe('Access Control RPC Functions', () => {
 
       // Grant access
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('user_product_access')
         .insert({ user_id: testUserId, product_id: sqliProduct.id, access_expires_at: null });
 
@@ -309,7 +309,7 @@ describe('Access Control RPC Functions', () => {
         const otherAttacks = [
           "'; DROP TABLE products;--",
           "' OR '1'='1",
-          "test; DELETE FROM seller_main.products WHERE true;--",
+          "test; DELETE FROM public.products WHERE true;--",
         ];
         for (const attack of otherAttacks) {
           const { data: d, error: e } = await authenticatedClient.rpc('check_user_product_access', {
@@ -329,9 +329,9 @@ describe('Access Control RPC Functions', () => {
         expect(positiveControl).toBe(true);
       } finally {
         // Clean up
-        await supabaseAdmin.schema('seller_main' as any).from('user_product_access')
+        await supabaseAdmin.schema('public' as any).from('user_product_access')
           .delete().eq('product_id', sqliProduct.id);
-        await supabaseAdmin.schema('seller_main' as any).from('products')
+        await supabaseAdmin.schema('public' as any).from('products')
           .delete().eq('id', sqliProduct.id);
       }
     });
@@ -348,7 +348,7 @@ describe('Access Control RPC Functions', () => {
       const sanitized = sanitizeSlug(unsanitized);
 
       const { data: specialProduct, error: createErr } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('products')
         .insert({
           name: 'Special Chars Sanitization Test',
@@ -362,7 +362,7 @@ describe('Access Control RPC Functions', () => {
       if (createErr) throw createErr;
 
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('user_product_access')
         .insert({ user_id: testUserId, product_id: specialProduct.id, access_expires_at: null });
 
@@ -374,9 +374,9 @@ describe('Access Control RPC Functions', () => {
         expect(error).toBeNull();
         expect(data).toBe(true);
       } finally {
-        await supabaseAdmin.schema('seller_main' as any).from('user_product_access')
+        await supabaseAdmin.schema('public' as any).from('user_product_access')
           .delete().eq('product_id', specialProduct.id);
-        await supabaseAdmin.schema('seller_main' as any).from('products')
+        await supabaseAdmin.schema('public' as any).from('products')
           .delete().eq('id', specialProduct.id);
       }
     });
@@ -451,7 +451,7 @@ describe('Access Control RPC Functions', () => {
       const boundarySlug = `test-boundary-expires-now-${TEST_ID}`;
 
       const { data: boundaryProduct, error: createErr } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('products')
         .insert({
           name: 'Boundary Expiry Test',
@@ -470,7 +470,7 @@ describe('Access Control RPC Functions', () => {
       const expiresAt = new Date(Date.now() + 5000).toISOString();
 
       const { error: grantErr } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('user_product_access')
         .insert({
           user_id: testUserId,
@@ -488,9 +488,9 @@ describe('Access Control RPC Functions', () => {
         // Access should be valid since expires_at >= NOW()
         expect(data).toBe(true);
       } finally {
-        await supabaseAdmin.schema('seller_main' as any).from('user_product_access')
+        await supabaseAdmin.schema('public' as any).from('user_product_access')
           .delete().eq('product_id', boundaryProduct.id);
-        await supabaseAdmin.schema('seller_main' as any).from('products')
+        await supabaseAdmin.schema('public' as any).from('products')
           .delete().eq('id', boundaryProduct.id);
       }
     });
@@ -591,7 +591,7 @@ describe('Access Control RPC Functions', () => {
       const sanitized = sanitizeSlug(unsanitized);
 
       const { data: batchSanitizeProduct, error: createErr } = await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('products')
         .insert({
           name: 'Batch Sanitize Test',
@@ -605,7 +605,7 @@ describe('Access Control RPC Functions', () => {
       if (createErr) throw createErr;
 
       await supabaseAdmin
-        .schema('seller_main' as any)
+        .schema('public' as any)
         .from('user_product_access')
         .insert({ user_id: testUserId, product_id: batchSanitizeProduct.id, access_expires_at: null });
 
@@ -623,9 +623,9 @@ describe('Access Control RPC Functions', () => {
         expect(data[unsanitized]).toBeUndefined();
         expect(Object.keys(data)).not.toContain(unsanitized);
       } finally {
-        await supabaseAdmin.schema('seller_main' as any).from('user_product_access')
+        await supabaseAdmin.schema('public' as any).from('user_product_access')
           .delete().eq('product_id', batchSanitizeProduct.id);
-        await supabaseAdmin.schema('seller_main' as any).from('products')
+        await supabaseAdmin.schema('public' as any).from('products')
           .delete().eq('id', batchSanitizeProduct.id);
       }
     });

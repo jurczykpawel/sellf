@@ -127,7 +127,7 @@ interface SubscriptionContext {
   email: string;
   stripeCustomerId: string;
   /**
-   * Status of the existing seller_main.subscriptions row at the moment
+   * Status of the existing public.subscriptions row at the moment
    * we resolved context, BEFORE this webhook's upsertSubscriptionRow
    * runs. Lets the caller decide based on the DB-known state instead of
    * the Stripe-API-side state which may be stale (cached / out-of-order
@@ -204,7 +204,7 @@ async function resolveSubscriptionContext(
   email: string
 ): Promise<SubscriptionContextResult> {
   // The first webhook for a given stripe_subscription_id stores the
-  // product_id mapping in seller_main.subscriptions. Subsequent events read
+  // product_id mapping in public.subscriptions. Subsequent events read
   // back the stored binding instead of trusting subscription.metadata, and
   // also load the per-sub stripe_price_id captured at first webhook so the
   // binding survives admin product-price rollover.

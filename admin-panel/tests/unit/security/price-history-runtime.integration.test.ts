@@ -4,7 +4,7 @@
  * Static SQL grep tests cover the migration shape; THIS test exercises the
  * real anon path end-to-end, which is what production traffic uses. Catches
  * regressions where the migration is correct but PostgREST schema resolution
- * (`schemas = ["seller_main", "public", ...]` order, default Accept-Profile,
+ * (`schemas = ["public", "public", ...]` order, default Accept-Profile,
  * etc.) routes the call somewhere unsafe.
  *
  * REQUIRES: Supabase running locally (`npx supabase start`).
@@ -122,9 +122,9 @@ describe('Price-history runtime exposure (live PostgREST probe)', () => {
     expect(error!.code).toBe('42703');
   });
 
-  it('anon is denied direct access to the raw seller_main.product_price_history table', async () => {
+  it('anon is denied direct access to the raw public.product_price_history table', async () => {
     const { error } = await supabaseAnon
-      .schema('seller_main')
+      .schema('public')
       .from('product_price_history')
       .select('id, product_id, price, changed_by')
       .limit(1);
