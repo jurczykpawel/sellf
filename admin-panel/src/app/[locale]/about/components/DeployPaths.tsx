@@ -1,5 +1,18 @@
-import { getTranslations } from 'next-intl/server';
-import { Cloud, Globe, Server, ArrowRight, Clock, MousePointerClick, DollarSign, Check, ExternalLink } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import {
+  Cloud,
+  Globe,
+  Server,
+  Clock,
+  MousePointerClick,
+  DollarSign,
+  Check,
+  ExternalLink,
+  Play,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 import {
@@ -7,26 +20,28 @@ import {
   SELLF_NETLIFY_DEPLOY_URL,
   SELLF_QUICKSTART_URL,
 } from '@/lib/constants';
-
-type PathKey = 'vercel' | 'netlify' | 'vps';
+import { DeployDemoModal, type DemoPathKey } from './DeployDemoModal';
 
 interface PathConfig {
-  key: PathKey;
+  key: DemoPathKey;
   icon: LucideIcon;
   href: string;
   highlighted: boolean;
   hasBadge: boolean;
-  external: boolean;
+  accent: 'vercel' | 'netlify' | 'vps';
 }
 
 const PATHS: PathConfig[] = [
-  { key: 'vercel',  icon: Cloud,  href: SELLF_VERCEL_DEPLOY_URL,  highlighted: true,  hasBadge: true,  external: true },
-  { key: 'netlify', icon: Globe,  href: SELLF_NETLIFY_DEPLOY_URL, highlighted: false, hasBadge: false, external: true },
-  { key: 'vps',     icon: Server, href: SELLF_QUICKSTART_URL,     highlighted: false, hasBadge: false, external: true },
+  { key: 'vercel',  icon: Cloud,  href: SELLF_VERCEL_DEPLOY_URL,  highlighted: true,  hasBadge: true,  accent: 'vercel' },
+  { key: 'netlify', icon: Globe,  href: SELLF_NETLIFY_DEPLOY_URL, highlighted: false, hasBadge: false, accent: 'netlify' },
+  { key: 'vps',     icon: Server, href: SELLF_QUICKSTART_URL,     highlighted: false, hasBadge: false, accent: 'vps' },
 ];
 
-export async function DeployPaths() {
-  const t = await getTranslations('landing.deployPaths');
+export function DeployPaths() {
+  const t = useTranslations('landing.deployPaths');
+  const [openPath, setOpenPath] = useState<DemoPathKey | null>(null);
+
+  const openModal = openPath ? PATHS.find((p) => p.key === openPath) ?? null : null;
 
   return (
     <section
@@ -58,17 +73,11 @@ export async function DeployPaths() {
               : 'border border-sf-border shadow-[var(--sf-shadow)]';
 
             return (
-              <Reveal
-                key={path.key}
-                animation="fade-up"
-                delay={i * 120}
-              >
-                <a
-                  href={path.href}
-                  {...(path.external
-                    ? { target: '_blank', rel: 'noopener noreferrer' }
-                    : {})}
-                  className={`group relative flex flex-col h-full p-7 md:p-8 rounded-2xl bg-sf-raised/80 ${cardBaseClasses} transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-sf-accent hover:shadow-[0_12px_48px_-12px_var(--sf-accent-glow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent`}
+              <Reveal key={path.key} animation="fade-up" delay={i * 120}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPath(path.key)}
+                  className={`group relative flex flex-col h-full w-full text-left p-7 md:p-8 rounded-2xl bg-sf-raised/80 ${cardBaseClasses} transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-sf-accent hover:shadow-[0_12px_48px_-12px_var(--sf-accent-glow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent cursor-pointer`}
                 >
                   {path.hasBadge && (
                     <div className="absolute -top-3 left-6">
@@ -150,7 +159,7 @@ export async function DeployPaths() {
                     {t(`${path.key}.footnote`)}
                   </p>
 
-                  {/* CTA */}
+                  {/* Preview CTA */}
                   <div
                     className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition-[background-color,transform,box-shadow] duration-200 ${
                       path.highlighted
@@ -158,14 +167,22 @@ export async function DeployPaths() {
                         : 'bg-sf-accent-soft border border-sf-border-accent text-sf-heading group-hover:bg-sf-accent-med'
                     }`}
                   >
-                    {t(`${path.key}.ctaLabel`)}
-                    {path.external ? (
-                      <ExternalLink className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                    )}
+                    <Play className="h-4 w-4 fill-current" />
+                    {t('previewLabel')}
                   </div>
-                </a>
+
+                  {/* Tiny direct deploy link — bypass demo */}
+                  <a
+                    href={path.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-3 inline-flex items-center justify-center gap-1.5 text-[11px] text-sf-muted hover:text-sf-body transition-colors underline underline-offset-2"
+                  >
+                    {t(`${path.key}.ctaLabel`)}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </button>
               </Reveal>
             );
           })}
@@ -183,6 +200,44 @@ export async function DeployPaths() {
           </div>
         </Reveal>
       </div>
+
+      {/* Demo modal — only mounts when open to keep idle perf clean.
+          key={openModal.key} forces remount on path change → fresh state. */}
+      {openModal && (
+        <DeployDemoModal
+          key={openModal.key}
+          pathKey={openModal.key}
+          open={openPath !== null}
+          onClose={() => setOpenPath(null)}
+          deployUrl={openModal.href}
+          deployCtaLabel={t(`${openModal.key}.ctaLabel`)}
+          accent={openModal.accent}
+        />
+      )}
+
+      {/* Shared keyframes for visual mockup pulses */}
+      <style jsx global>{`
+        @keyframes demoPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 16px -4px var(--sf-accent-glow);
+          }
+          50% {
+            transform: scale(1.02);
+            box-shadow: 0 0 32px -2px var(--sf-accent-glow);
+          }
+        }
+        @keyframes demoNudge {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(4px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-\\[demoPulse_1\\.6s_ease-in-out_infinite\\],
+          .animate-\\[demoNudge_1\\.4s_ease-in-out_infinite\\] {
+            animation: none !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

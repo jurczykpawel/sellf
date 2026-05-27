@@ -3274,6 +3274,116 @@
         ],
         "footnote": "Sweet spot: ~$5/mo VPS + Supabase Cloud free. Scales to $25–45/mo only when you actually hit usage limits.",
         "ctaLabel": "Self-host guide"
+      },
+      "previewLabel": "Preview the flow",
+      "demo": {
+        "modalAriaLabel": "Deploy walkthrough",
+        "closeLabel": "Close",
+        "prevLabel": "Previous step",
+        "nextLabel": "Next step",
+        "playLabel": "Play",
+        "pauseLabel": "Pause",
+        "slideOf": "Step {current} of {total}",
+        "skipLabel": "Skip — take me to deploy",
+        "vercelTitle": "Vercel deploy — what you'll actually see",
+        "netlifyTitle": "Netlify deploy — what you'll actually see",
+        "vpsTitle": "Own-VPS deploy — what you'll actually see",
+        "vercelSlides": [
+          {
+            "title": "Click 'Deploy with Vercel'",
+            "url": "github.com/jurczykpawel/sellf",
+            "caption": "GitHub README has a big black 'Deploy' button right at the top. One click takes you straight to Vercel — you don't need to fork anything by hand.",
+            "visual": "github-button"
+          },
+          {
+            "title": "Sign in to Vercel",
+            "url": "vercel.com/login",
+            "caption": "First time? Click 'Continue with GitHub' — fastest signup. A free Hobby account is all you need.",
+            "visual": "vercel-signin"
+          },
+          {
+            "title": "Add the Supabase integration",
+            "url": "vercel.com/integrations/supabase",
+            "caption": "Vercel asks if you want to connect a database. Click 'Add Integration' → Supabase → free tier. The database creates itself and the keys fill in automatically.",
+            "visual": "supabase-integration"
+          },
+          {
+            "title": "Paste 6 env values",
+            "url": "vercel.com/new",
+            "caption": "Stripe keys (publishable, secret, webhook) + 3 random secrets. The QUICK-START guide has copy-paste one-liner commands that generate each secret for you.",
+            "visual": "env-form"
+          },
+          {
+            "title": "Build runs — coffee break",
+            "url": "vercel.com/deployments",
+            "caption": "About 3 minutes. When the green checkmark appears, your store is live at your-shop.vercel.app. Last step: paste the URL into Stripe Dashboard → Webhooks. Done.",
+            "visual": "build-success"
+          }
+        ],
+        "netlifySlides": [
+          {
+            "title": "Click 'Deploy to Netlify'",
+            "url": "github.com/jurczykpawel/sellf",
+            "caption": "Same README, second button below the Vercel one. Green Netlify badge. Click it.",
+            "visual": "github-button-netlify"
+          },
+          {
+            "title": "Sign in to Netlify",
+            "url": "app.netlify.com",
+            "caption": "Continue with GitHub. Free tier, no card. Netlify forks the Sellf repo into your GitHub account.",
+            "visual": "netlify-signin"
+          },
+          {
+            "title": "Create a Supabase project",
+            "url": "supabase.com/dashboard",
+            "caption": "Netlify doesn't auto-create the database — open supabase.com in another tab, click 'New project', and copy the URL + anon key + service role key.",
+            "visual": "supabase-manual"
+          },
+          {
+            "title": "Paste 11 env vars",
+            "url": "app.netlify.com/sites/your-shop/settings/env",
+            "caption": "More fields than Vercel (no auto-integration). The guide lists every value with one-liner commands. Paste, save.",
+            "visual": "env-form-large"
+          },
+          {
+            "title": "Build runs — coffee break",
+            "url": "app.netlify.com/sites/your-shop",
+            "caption": "About 3 minutes. Live at your-shop.netlify.app. Last step: configure the Stripe webhook URL. Done.",
+            "visual": "build-success-netlify"
+          }
+        ],
+        "vpsSlides": [
+          {
+            "title": "Buy a $5/mo VPS",
+            "url": "hetzner.com or mikr.us",
+            "caption": "Hetzner CX22 ($5/mo, 4GB RAM is enough), DigitalOcean droplet, mikr.us — any will do. You'll get an IP and an SSH key.",
+            "visual": "vps-provider"
+          },
+          {
+            "title": "Connect over SSH",
+            "url": "your-laptop ▸ terminal",
+            "caption": "Open your terminal. Type ssh root@<your-vps-ip>. That's it — you're inside.",
+            "visual": "terminal-ssh"
+          },
+          {
+            "title": "Run one install command",
+            "url": "root@vps:~ ▸ terminal",
+            "caption": "Single curl-bash command from StackPilot. It installs Node, Postgres (or connects Supabase Cloud), pulls Sellf, sets up PM2, configures Caddy for HTTPS. ~5 min.",
+            "visual": "terminal-install"
+          },
+          {
+            "title": "Paste your Stripe keys",
+            "url": "root@vps:/opt/sellf ▸ .env.local",
+            "caption": "Open .env.local, paste Stripe pk/sk/whsec, Supabase URL + keys. Same values as one-click — just in a file instead of a web form.",
+            "visual": "terminal-env"
+          },
+          {
+            "title": "Point your domain — live",
+            "url": "your-domain.com",
+            "caption": "Add an A record at your DNS provider pointing to the VPS IP. Caddy fetches a free Let's Encrypt cert. Your shop is live on your own domain.",
+            "visual": "browser-success"
+          }
+        ]
       }
     },
     "demo": {
