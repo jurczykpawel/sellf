@@ -8,7 +8,7 @@
 > - **Wymagane umiejętności:** żadne — tylko przeglądarka
 > - **Czas konfiguracji:** ~20 minut
 > - **Koszt na start:** **$0/miesiąc**
-> - **Koszt gdy sklep ma płacących klientów:** **$25/miesiąc** (Supabase Pro żeby baza nie pauzowała)
+> - **Koszt gdy nie możesz pozwolić sobie żeby baza pauzowała:** **$25/miesiąc** (Supabase Pro — zobacz "Co znaczy 'pauza'" niżej)
 > - **Prowizja Stripe** (na każdej ścieżce): ~2,9% + 0,30 zł od transakcji
 >
 > **Dla kogo:** dla każdego kto nigdy nie stawiał oprogramowania na serwerze. Jeśli to Ty, przestań czytać zielony blok niżej i podążaj za tym przewodnikiem.
@@ -18,17 +18,37 @@
 > - **Co:** Sellf na VPS-ie [mikr.us](https://mikr.us/?r=pavvel) (35 zł/rok) + darmowy Supabase
 > - **Wymagane umiejętności:** komfort z SSH, kopiowanie komend Linuksowych, uruchomienie skryptu w terminalu
 > - **Czas konfiguracji:** ~45 minut
-> - **Koszt na start:** **~3 zł/miesiąc** (35 zł/rok + darmowy Supabase pod warunkiem tygodniowego ruchu)
-> - **Koszt jeśli sklep jest spokojny:** ~$26/miesiąc (przejście na Supabase Pro żeby nie pauzowało — albo utrzymanie codziennego ruchu)
+> - **Koszt na start:** **~3 zł/miesiąc** (sama subskrypcja mikr.us; darmowy Supabase działa pod warunkiem tygodniowego ruchu)
+> - **Koszt gdy nie możesz pozwolić sobie żeby baza pauzowała:** ~$26/miesiąc (Supabase Pro)
 > - **Prowizja Stripe** (na każdej ścieżce): te same ~2,9% + 0,30 zł od transakcji
 >
 > **Dla kogo:** osoby przyzwyczajone do serwerów Linuksowych które chcą minimalizować miesięczne koszty. Trade-off: więcej odpowiedzialności, sam utrzymujesz serwer, brak ładnego panelu.
 >
 > **Chcesz pełne instrukcje najtańszej ścieżki?** Zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Albo dla nieco droższej ale z pełną kontrolą opcji [Coolify](./DEPLOYMENT-COOLIFY.md) (~$9/miesiąc na Hetznerze, z ładnym panelem).
 >
+> ## Co znaczy "baza pauzuje"?
+>
+> Darmowy plan Supabase **pauzuje bazę po 7 dniach bez ruchu** na sklep. Gdy baza jest spauzowana:
+>
+> - Odwiedzający widzą błąd 500 na każdej stronie
+> - Nikt nie może się zarejestrować ani zalogować
+> - Ty (admin) też nie wejdziesz dopóki nie obudzisz bazy
+>
+> Obudzenie zajmuje 1 minutę (Supabase Dashboard → Twój projekt → **Restore**), ale najpierw musisz to zauważyć. Jeśli spokojny weekend zabije sklep w niedzielę a Ty zauważysz w poniedziałek rano, to realny problem klienta.
+>
+> **Nie potrzebujesz Supabase Pro po prostu dlatego że masz klientów.** Potrzebujesz gdy sklep nie może być offline nawet w spokojne okresy. Z grubsza:
+>
+> | Twoja sytuacja | Darmowy Supabase OK? |
+> |----------------|----------------------|
+> | Dopiero testujesz | ✅ Tak |
+> | Wystartowany sklep, co najmniej jeden gość tygodniowo | ✅ Tak — każda wizyta resetuje zegar nieaktywności |
+> | Wystartowany sklep, codzienni goście | ✅ Tak (Pro dodaje backupy + większe limity ale nie musisz mieć) |
+> | Wystartowany sklep, czasem mijają tygodnie bez ruchu | ❌ Upgrade do Pro — $25/miesiąc unika pauzy |
+> | Robisz reklamy albo masz email listę dającą skokowy ruch | ❌ Upgrade do Pro — żeby nie być offline akurat gdy kampania uderza |
+>
 > ---
 >
-> **Nie jesteś pewien co wybrać?** Jeśli nigdy nie używałeś SSH do serwera, najłatwiejsza metoda to właściwy wybór — różnica $25/miesiąc kupuje Ci spokój. Zawsze możesz przenieść się później na tańszą ścieżkę; dane i sklep zostają te same.
+> **Nie jesteś pewien co wybrać?** Jeśli nigdy nie używałeś SSH do serwera, najłatwiejsza metoda to właściwy wybór — różnica $25/miesiąc (gdy będzie potrzebna) kupuje Ci spokój. Zawsze możesz przenieść się później na tańszą ścieżkę; dane i sklep zostają te same.
 
 Ten przewodnik pokazuje krok po kroku tę najprostszą ścieżkę: **wszystko w przeglądarce, bez instalowania programów, bez terminala**.
 

@@ -8,7 +8,7 @@
 > - **Skills needed:** none — only a web browser
 > - **Setup time:** ~20 minutes
 > - **Cost to start:** **$0/month**
-> - **Cost when your store has paying customers:** **$25/month** (Supabase Pro so the database doesn't pause)
+> - **Cost when you can't afford the database to pause:** **$25/month** (Supabase Pro — see "What does 'pause' mean" below)
 > - **Stripe fee** (every path): ~2.9% + $0.30 per transaction
 >
 > **Best for:** anyone who hasn't put software on a server before. If that's you, stop reading the green box below and just follow this guide.
@@ -18,17 +18,37 @@
 > - **What:** Sellf on a [mikr.us](https://mikr.us/?r=pavvel) VPS (35 PLN/year ≈ $9/year) + free Supabase
 > - **Skills needed:** comfort with SSH, copy-pasting Linux commands, running a script in your terminal
 > - **Setup time:** ~45 minutes
-> - **Cost to start:** **~$1/month** (35 PLN/year + free Supabase as long as your store has weekly traffic)
-> - **Cost if your store is quiet:** ~$26/month (upgrade Supabase to Pro so it doesn't pause — or keep daily traffic flowing)
+> - **Cost to start:** **~$1/month** (just the mikr.us subscription; free Supabase works as long as your store has weekly traffic)
+> - **Cost when you can't afford the database to pause:** ~$26/month (Supabase Pro)
 > - **Stripe fee** (every path): same ~2.9% + $0.30 per transaction
 >
 > **Best for:** people already used to Linux servers who want to minimize monthly costs. Trade-off: more responsibility, you maintain the server, no fancy dashboard.
 >
 > **Want full instructions for the cheapest path?** See [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Or for the slightly-more-expensive but full-control [Coolify](./DEPLOYMENT-COOLIFY.md) option (~$9/month on Hetzner, comes with a nice dashboard).
 >
+> ## What does "the database pauses" actually mean?
+>
+> The free Supabase plan **pauses your database after 7 days of zero traffic** to the site. When paused:
+>
+> - Visitors see a 500 error on every page
+> - No one can sign up or log in
+> - You (admin) can't log in until you wake it up
+>
+> Waking it up takes 1 minute (Supabase Dashboard → your project → **Restore**), but you have to notice first. If a quiet weekend kills your store on Sunday and you find out Monday morning, that's a real customer experience problem.
+>
+> **You don't need Supabase Pro just because you have customers.** You need it when your store can't be down even during quiet stretches. As a rough guide:
+>
+> | Your situation | Free Supabase OK? |
+> |----------------|------------------|
+> | Just testing | ✅ Yes |
+> | Launched, at least one visitor per week | ✅ Yes — any visit resets the inactivity clock |
+> | Launched, daily visitors | ✅ Yes (Pro adds backups + higher limits but you don't strictly need it) |
+> | Launched, sometimes weeks go by with no traffic | ❌ Upgrade to Pro — $25/month avoids the pause |
+> | Running ads or have an email list that drives spiky traffic | ❌ Upgrade to Pro — to avoid being down right when a campaign lands |
+>
 > ---
 >
-> **Not sure which to pick?** If you've never SSHed into a server, the easiest method is the right answer — the $25/month difference buys you peace of mind. You can always migrate to a cheaper path later; the data and store stay the same.
+> **Not sure which to pick?** If you've never SSHed into a server, the easiest method is the right answer — the $25/month difference (when you need it) buys you peace of mind. You can always migrate to a cheaper path later; the data and store stay the same.
 
 This guide walks you through that easiest path: **everything in your web browser, no programs to install, no terminal**.
 
