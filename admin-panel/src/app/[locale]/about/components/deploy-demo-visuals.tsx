@@ -25,6 +25,7 @@ export type DemoVisualKind =
   | 'terminal-bootstrap'
   | 'terminal-config'
   | 'terminal-deploy'
+  | 'admin-webhook'
   | 'terminal-env'
   | 'browser-success';
 
@@ -58,6 +59,8 @@ export function DemoVisual({ kind }: { kind: DemoVisualKind }) {
       return <TerminalMock kind="config" />;
     case 'terminal-deploy':
       return <TerminalMock kind="deploy" />;
+    case 'admin-webhook':
+      return <AdminWebhookMock />;
     case 'terminal-env':
       return <TerminalMock kind="env" />;
     case 'browser-success':
@@ -298,35 +301,53 @@ function VpsPrereqsMock() {
       label: 'VPS 1GB+',
       sub: 'Hetzner · Mikrus · DO — any provider',
       tone: 'accent' as const,
+      delay: '0s',
     },
     {
       icon: Database,
       label: 'Supabase project',
       sub: 'Free tier, 3 min on supabase.com',
       tone: 'emerald' as const,
+      delay: '0.15s',
     },
     {
       icon: Globe,
       label: 'Domain in Cloudflare',
       sub: 'Free zone, you only need the API token',
       tone: 'orange' as const,
+      delay: '0.3s',
+    },
+    {
+      icon: Key,
+      label: 'Stripe account (test mode)',
+      sub: 'Free, no bank account required',
+      tone: 'purple' as const,
+      delay: '0.45s',
     },
   ];
   return (
     <div className="w-full max-w-md mx-auto space-y-2">
-      <div className="text-xs font-mono text-sf-muted text-center mb-1">3 free things, before you SSH in:</div>
-      {items.map(({ icon: Icon, label, sub, tone }) => {
+      <div className="text-xs font-mono text-sf-muted text-center mb-1">4 free accounts, before you SSH in:</div>
+      {items.map(({ icon: Icon, label, sub, tone, delay }) => {
         const ring = tone === 'accent'
           ? 'border-sf-accent bg-sf-accent-soft'
           : tone === 'emerald'
           ? 'border-emerald-500/40 bg-emerald-500/10'
-          : 'border-orange-500/40 bg-orange-500/10';
-        const iconColor = tone === 'accent' ? 'text-sf-accent' : tone === 'emerald' ? 'text-emerald-400' : 'text-orange-400';
+          : tone === 'orange'
+          ? 'border-orange-500/40 bg-orange-500/10'
+          : 'border-purple-500/40 bg-purple-500/10';
+        const iconColor = tone === 'accent'
+          ? 'text-sf-accent'
+          : tone === 'emerald'
+          ? 'text-emerald-400'
+          : tone === 'orange'
+          ? 'text-orange-400'
+          : 'text-purple-400';
         return (
           <div
             key={label}
-            className={`flex items-center gap-3 rounded-lg p-3 border ${ring} animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none`}
-            style={{ animationDelay: tone === 'emerald' ? '0.2s' : tone === 'orange' ? '0.4s' : '0s' }}
+            className={`flex items-center gap-3 rounded-lg p-2.5 border ${ring} animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none`}
+            style={{ animationDelay: delay }}
           >
             <Icon className={`w-5 h-5 ${iconColor} shrink-0`} aria-hidden="true" />
             <div className="flex-1 min-w-0">
@@ -364,32 +385,37 @@ function TerminalMock({ kind }: { kind: 'bootstrap' | 'config' | 'deploy' | 'env
       {kind === 'config' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>root@vps:~/stackpilot#</span>
+            <span>$</span>
             <span className="text-emerald-300 font-semibold">./local/setup-cloudflare.sh</span>
           </div>
-          <div className="text-zinc-400">Paste your Cloudflare API token (Zone:DNS:Edit):</div>
-          <div className="text-yellow-300">  ••••••••••••••••••••••••</div>
+          <div className="text-zinc-400">CF API token (Zone:DNS:Edit): <span className="text-yellow-300">•••••••</span></div>
           <div className="text-emerald-300">✓ CF token saved</div>
           <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>root@vps:~/stackpilot#</span>
+            <span>$</span>
             <span className="text-emerald-300 font-semibold">./local/setup-sellf-config.sh</span>
           </div>
-          <div className="text-zinc-400">▸ Opening browser to authorize Supabase…</div>
+          <div className="text-zinc-400">▸ Authorising Supabase in browser…</div>
           <div className="text-emerald-300">✓ Supabase URL + keys saved</div>
+          <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>$</span>
+            <span className="text-emerald-300 font-semibold">./local/setup-stripe.sh</span>
+          </div>
+          <div className="text-zinc-400">STRIPE_PUBLISHABLE_KEY: <span className="text-yellow-300">pk_test_51…</span></div>
+          <div className="text-zinc-400">STRIPE_SECRET_KEY: <span className="text-yellow-300">sk_test_51…</span></div>
+          <div className="text-emerald-300">✓ Stripe keys saved</div>
         </>
       )}
       {kind === 'deploy' && (
         <>
           <div className="text-zinc-500 break-all">
-            <span>root@vps:~/stackpilot# </span>
-            <span className="text-emerald-300 font-semibold">./local/deploy.sh sellf \</span>
+            <span>$ </span>
+            <span className="text-emerald-300 font-semibold">./local/deploy.sh sellf --domain=sellf.yourdomain.com --yes</span>
           </div>
-          <div className="text-zinc-500 break-all pl-4">
-            <span className="text-emerald-300 font-semibold">--domain=sellf.yourdomain.com --yes</span>
-          </div>
-          <div className="text-zinc-400 mt-1">▸ Cloudflare DNS: sellf.yourdomain.com → your.server.ip</div>
+          <div className="text-zinc-400 mt-1">📂 Loaded config: CF + Supabase + Stripe</div>
+          <div className="text-zinc-400">▸ Cloudflare DNS: sellf.yourdomain.com → your.server.ip</div>
           <div className="text-zinc-400">▸ Installing Bun + Caddy + PM2…</div>
           <div className="text-zinc-400">▸ Fetching Sellf release (47 MB)…</div>
+          <div className="text-zinc-400">▸ Writing .env.local (Supabase + Stripe filled)</div>
           <div className="text-zinc-400">▸ Let&apos;s Encrypt cert issued</div>
           <div className="text-zinc-400">▸ PM2: sellf-sellf online</div>
           <div className="text-emerald-300">✓ Live: https://sellf.yourdomain.com → HTTP 200</div>
@@ -415,6 +441,42 @@ function TerminalMock({ kind }: { kind: 'bootstrap' | 'config' | 'deploy' | 'env
           <div className="mt-1 text-zinc-500 italic text-[11px]">Then in the admin: Settings → Payments → Register webhook.</div>
         </>
       )}
+    </div>
+  );
+}
+
+function AdminWebhookMock() {
+  return (
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="text-xs font-mono text-sf-muted">
+        <Globe className="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true" />
+        sellf.yourdomain.com/dashboard/settings
+      </div>
+      <div className="rounded-lg border border-sf-border bg-sf-raised/80 overflow-hidden">
+        <div className="px-4 py-2 bg-sf-float border-b border-sf-border flex items-center gap-2">
+          <Key className="w-3.5 h-3.5 text-sf-accent" aria-hidden="true" />
+          <span className="text-xs font-semibold text-sf-heading">Stripe Webhook</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="text-xs text-sf-muted leading-relaxed">
+            Webhook URL:
+            <span className="block mt-1 font-mono text-sf-body bg-sf-base border border-sf-border rounded px-2 py-1 truncate">
+              https://sellf.yourdomain.com/api/webhooks/stripe
+            </span>
+          </div>
+          <button
+            type="button"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 bg-sf-accent-bg text-white text-sm font-bold shadow-[var(--sf-shadow-accent)] ring-2 ring-sf-accent shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            <Key className="w-4 h-4" /> Register webhook
+          </button>
+          <div className="text-[10px] text-sf-muted italic text-center">
+            One click → Stripe endpoint created, signing secret saved in DB
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

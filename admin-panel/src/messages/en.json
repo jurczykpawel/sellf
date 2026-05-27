@@ -3266,11 +3266,11 @@
         "cost": "~$5/mo",
         "bestFor": "Commercial shops, full control, custom domain, no platform ToS to worry about",
         "steps": [
-          "Have 3 free things ready: VPS (1GB+), Supabase project, Cloudflare-managed domain",
+          "Have 4 free accounts ready: VPS, Supabase, Cloudflare-managed domain, Stripe (test mode)",
           "SSH in and bootstrap StackPilot with one curl",
-          "Configure Cloudflare + Supabase (two interactive scripts)",
-          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2 set up automatically",
-          "(Optional) paste Stripe keys to start taking payments"
+          "Three setup scripts collect CF + Supabase + Stripe credentials",
+          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2, .env.local all auto",
+          "Sign up (first user = admin) → Settings → Payments → Register webhook"
         ],
         "footnote": "Sweet spot: ~$5/mo VPS + Supabase Cloud free. Scales to $25–45/mo only when you actually hit usage limits.",
         "ctaLabel": "Self-host guide"
@@ -3354,9 +3354,9 @@
         ],
         "vpsSlides": [
           {
-            "title": "Get 3 free things ready",
+            "title": "Get 4 free accounts ready",
             "url": "before-you-start",
-            "caption": "1GB+ VPS (Hetzner ~$5/mo, Mikrus, DigitalOcean — anything works), a free Supabase project (3 min on supabase.com), and a domain you'll manage in Cloudflare (free zone). All three are free to set up.",
+            "caption": "1GB+ VPS (Hetzner ~$5/mo, Mikrus, DigitalOcean — anything works), a Supabase project, a Cloudflare-managed domain, and a Stripe account in test mode. All free to set up — Stripe doesn't need a bank account for test mode.",
             "visual": "vps-prereqs"
           },
           {
@@ -3366,22 +3366,22 @@
             "visual": "terminal-bootstrap"
           },
           {
-            "title": "Configure Cloudflare + Supabase",
+            "title": "Configure CF + Supabase + Stripe",
             "url": "root@vps:~/stackpilot ▸ terminal",
-            "caption": "Two interactive setup scripts. setup-cloudflare.sh asks for a CF API token (Zone:DNS:Edit). setup-sellf-config.sh fetches your Supabase keys. Done once, reused by every StackPilot deploy on this server.",
+            "caption": "Three interactive setup scripts collect your credentials once. CF API token (Zone:DNS:Edit), Supabase URL + keys, Stripe pk + sk. Saved to ~/.config/stackpilot/ and reused by every StackPilot deploy on this server.",
             "visual": "terminal-config"
           },
           {
             "title": "Deploy Sellf — one command, ~3 min",
             "url": "root@vps:~/stackpilot ▸ terminal",
-            "caption": "./local/deploy.sh sellf --domain=sellf.yourdomain.com — sets the CF DNS record, installs Bun + Caddy + PM2, fetches a Let's Encrypt cert, boots the app. When it finishes, the shop is live at https://sellf.yourdomain.com.",
+            "caption": "./local/deploy.sh sellf --domain=sellf.yourdomain.com. Sets the CF DNS record, installs Bun + Caddy + PM2, writes .env.local with ALL credentials (Supabase + Stripe both pre-filled from setup), fetches a Let's Encrypt cert, boots the app. No post-deploy editing.",
             "visual": "terminal-deploy"
           },
           {
-            "title": "(Optional) Add Stripe to take payments",
-            "url": "root@vps:/opt/stacks/sellf-sellf/admin-panel ▸ .env.local",
-            "caption": "The shop already runs — but to charge cards you need Stripe. Edit .env.local, paste your Stripe pk/sk, pm2 restart. Then sign up as admin (first user gets admin), open Settings → Payments, click 'Register webhook'. Skip this if you're just running a catalog or waitlist.",
-            "visual": "terminal-env"
+            "title": "Sign up + register webhook → done",
+            "url": "https://sellf.yourdomain.com/dashboard/settings",
+            "caption": "Open the live URL, sign up (first user automatically becomes admin), then Settings → Payments → Register webhook. Sellf calls Stripe for you, stores the signing secret in the DB. Now the shop is fully live — sells, receives webhooks, processes payments.",
+            "visual": "admin-webhook"
           }
         ]
       }

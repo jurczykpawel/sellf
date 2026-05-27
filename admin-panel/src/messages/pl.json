@@ -3281,11 +3281,11 @@
         "cost": "~$5/mies",
         "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
         "steps": [
-          "Masz gotowe 3 darmowe rzeczy: VPS (1GB+), projekt Supabase, domena w Cloudflare",
+          "Masz gotowe 4 darmowe konta: VPS, Supabase, domena w Cloudflare, Stripe (tryb test)",
           "SSH-ujesz się i bootstrapujesz StackPilot jedną komendą curl",
-          "Konfigurujesz Cloudflare + Supabase (dwa interaktywne skrypty)",
-          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2 ustawiane automatycznie",
-          "(Opcjonalnie) wklejasz klucze Stripe żeby zacząć przyjmować płatności"
+          "Trzy skrypty setup zbierają dane CF + Supabase + Stripe",
+          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2, .env.local — wszystko auto",
+          "Rejestracja (pierwszy user = admin) → Settings → Payments → Register webhook"
         ],
         "footnote": "Sweet spot: ~$5/mies VPS + Supabase Cloud free. Skaluje do $25–45/mies dopiero gdy faktycznie złapiesz limity.",
         "ctaLabel": "Przewodnik self-host"
@@ -3369,9 +3369,9 @@
         ],
         "vpsSlides": [
           {
-            "title": "Miej gotowe 3 darmowe rzeczy",
+            "title": "Miej gotowe 4 darmowe konta",
             "url": "zanim-zaczniesz",
-            "caption": "VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek), darmowy projekt Supabase (3 min na supabase.com) i domena którą będziesz ogarniał w Cloudflare (darmowa zone). Wszystkie trzy są free.",
+            "caption": "VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek), projekt Supabase, domena w Cloudflare i konto Stripe w trybie test. Wszystko za darmo — Stripe nie wymaga konta bankowego dla trybu test.",
             "visual": "vps-prereqs"
           },
           {
@@ -3381,22 +3381,22 @@
             "visual": "terminal-bootstrap"
           },
           {
-            "title": "Konfigurujesz Cloudflare + Supabase",
+            "title": "Konfigurujesz CF + Supabase + Stripe",
             "url": "root@vps:~/stackpilot ▸ terminal",
-            "caption": "Dwa interaktywne skrypty setup. setup-cloudflare.sh pyta o token CF API (Zone:DNS:Edit). setup-sellf-config.sh pobiera klucze Supabase. Robisz raz, każdy kolejny deploy StackPilot to wykorzystuje.",
+            "caption": "Trzy interaktywne skrypty setup zbierają Twoje dane raz. Token CF API (Zone:DNS:Edit), Supabase URL + klucze, Stripe pk + sk. Zapisywane do ~/.config/stackpilot/ i używane przez każdy kolejny deploy StackPilot.",
             "visual": "terminal-config"
           },
           {
             "title": "Deploy Sellf — jedna komenda, ~3 min",
             "url": "root@vps:~/stackpilot ▸ terminal",
-            "caption": "./local/deploy.sh sellf --domain=sellf.twojadomena.com — ustawia rekord DNS w CF, instaluje Bun + Caddy + PM2, pobiera cert Let's Encrypt, odpala apkę. Po zakończeniu sklep żyje na https://sellf.twojadomena.com.",
+            "caption": "./local/deploy.sh sellf --domain=sellf.twojadomena.com. Ustawia rekord DNS w CF, instaluje Bun + Caddy + PM2, pisze .env.local ze WSZYSTKIMI danymi (Supabase + Stripe — oba wpisane z config), pobiera cert Let's Encrypt, odpala apkę. Zero post-deploy edycji.",
             "visual": "terminal-deploy"
           },
           {
-            "title": "(Opcjonalnie) dodaj Stripe żeby przyjmować płatności",
-            "url": "root@vps:/opt/stacks/sellf-sellf/admin-panel ▸ .env.local",
-            "caption": "Sklep już chodzi — ale żeby przyjmować karty potrzebujesz Stripe. Edytujesz .env.local, wklejasz Stripe pk/sk, pm2 restart. Potem rejestracja jako admin (pierwszy user = admin), Settings → Payments, klik 'Register webhook'. Pomijasz jeśli to katalog/lista oczekujących.",
-            "visual": "terminal-env"
+            "title": "Rejestracja + webhook → gotowe",
+            "url": "https://sellf.twojadomena.com/dashboard/settings",
+            "caption": "Otwierasz live URL, rejestrujesz się (pierwszy user automatycznie staje się adminem), potem Settings → Payments → Register webhook. Sellf woła Stripe za Ciebie, zapisuje signing secret w bazie. Teraz sklep jest w pełni live — sprzedaje, łapie webhooki, przetwarza płatności.",
+            "visual": "admin-webhook"
           }
         ]
       }
