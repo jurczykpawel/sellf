@@ -334,35 +334,34 @@ function TerminalMock({ kind }: { kind: 'ssh' | 'install' | 'env' }) {
       {kind === 'install' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>~ $</span>
-            <span className="text-emerald-300 font-semibold break-all">git clone https://github.com/jurczykpawel/stackpilot</span>
+            <span>root@vps:~#</span>
+            <span className="text-emerald-300 font-semibold break-all">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
           </div>
-          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>~ $</span>
-            <span className="text-emerald-300 font-semibold">cd stackpilot</span>
-          </div>
-          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>~/stackpilot $</span>
-            <span className="text-emerald-300 font-semibold break-all">./local/deploy.sh sellf --ssh=root@vps --domain=mystore.com</span>
-          </div>
-          <div className="text-zinc-400 mt-1">▸ Connecting to root@vps over SSH…</div>
+          <div className="text-zinc-400 mt-1">Application domain (e.g. app.example.com): <span className="text-yellow-300">mystore.com</span></div>
           <div className="text-zinc-400">▸ Installing Node + Caddy + PM2…</div>
-          <div className="text-zinc-400">▸ Uploading Sellf build, starting service…</div>
-          <div className="text-emerald-300">✓ Sellf live at mystore.com</div>
+          <div className="text-zinc-400">▸ Fetching Sellf release tarball…</div>
+          <div className="text-zinc-400">▸ Writing /opt/stacks/sellf/admin-panel/.env.local…</div>
+          <div className="text-zinc-400">▸ Starting Sellf under PM2…</div>
+          <div className="text-emerald-300">✓ Sellf live at https://mystore.com</div>
         </>
       )}
       {kind === 'env' && (
         <>
-          <div className="text-zinc-300 font-semibold">💳 STRIPE CONFIGURATION</div>
-          <div className="text-zinc-500">────────────────────────────</div>
-          <div className="text-zinc-400">Configure Stripe now? [y/N]: <span className="text-emerald-300">y</span></div>
-          <div className="mt-2 text-zinc-400 leading-relaxed">
-            <div>STRIPE_PUBLISHABLE_KEY (pk_...): <span className="text-yellow-300">pk_test_51...</span></div>
-            <div>STRIPE_SECRET_KEY (sk_...): <span className="text-yellow-300">sk_test_51...</span></div>
-            <div>STRIPE_WEBHOOK_SECRET (optional): <span className="text-yellow-300">whsec_...</span></div>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:/opt/stacks/sellf/admin-panel#</span>
+            <span className="text-emerald-300 font-semibold">nano .env.local</span>
           </div>
-          <div className="mt-2 text-emerald-300">✓ Stripe keys written to .env.local on VPS</div>
-          <div className="text-emerald-300">✓ PM2 restarted — Sellf reloaded</div>
+          <div className="mt-2 text-zinc-400 leading-relaxed">
+            <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51...</span></div>
+            <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51...</span></div>
+            <div><span className="text-purple-400">STRIPE_WEBHOOK_SECRET</span>=<span className="text-yellow-300">whsec_...</span></div>
+            <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+            <div className="text-zinc-600">[...]</div>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:~#</span>
+            <span className="text-emerald-300 font-semibold">pm2 restart sellf</span>
+          </div>
         </>
       )}
     </div>

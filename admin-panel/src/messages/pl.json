@@ -3381,15 +3381,15 @@
             "visual": "terminal-ssh"
           },
           {
-            "title": "Klonujesz StackPilot + odpalasz jedną komendę",
-            "url": "twoj-laptop ▸ terminal",
-            "caption": "git clone repo StackPilot (jurczykpawel/stackpilot), cd do środka, potem ./local/deploy.sh sellf z hostem VPS i domeną. Skrypt sam się łączy przez SSH i instaluje Node, Caddy (HTTPS), PM2 oraz Sellf w ~5 min.",
+            "title": "Jedna komenda curl-bash na VPS",
+            "url": "root@vps:~ ▸ terminal",
+            "caption": "Ciągle w sesji SSH, wklejasz jedną linijkę: curl -fsSL stackpilot.techskills.academy/sellf | bash. W ~5 minut instaluje Node, Caddy (HTTPS), PM2 i Sellf — a jeśli wskazałeś już domenę, też pobiera darmowy cert Let's Encrypt.",
             "visual": "terminal-install"
           },
           {
-            "title": "Wklejasz klucze Stripe gdy zapyta",
-            "url": "twoj-laptop ▸ terminal (w trakcie deploya)",
-            "caption": "W połowie skrypt pauzuje i pyta o klucze Stripe (pk/sk/whsec) oraz Supabase URL+klucze. Wklejasz raz — StackPilot sam zapisuje je do .env.local na VPS i restartuje PM2. (Możesz też pominąć i dodać później przez panel Sellf.)",
+            "title": "Wklejasz klucze Stripe do .env.local",
+            "url": "root@vps:/opt/stacks/sellf/admin-panel ▸ .env.local",
+            "caption": "Ta sama sesja SSH: otwierasz .env.local który StackPilot wygenerował, wklejasz Stripe pk/sk/whsec + Supabase URL+klucze. Te same wartości co byś wpisał w formularzu Vercela — tylko tu w pliku. Potem pm2 restart sellf.",
             "visual": "terminal-env"
           },
           {
