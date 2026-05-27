@@ -304,60 +304,40 @@ function VpsPrereqsMock() {
       delay: '0s',
     },
     {
-      icon: Database,
-      label: 'Supabase project',
-      sub: 'Free tier, 3 min on supabase.com',
-      tone: 'emerald' as const,
-      delay: '0.15s',
-    },
-    {
       icon: Globe,
       label: 'Domain in Cloudflare',
       sub: 'Free zone, you only need the API token',
       tone: 'orange' as const,
-      delay: '0.3s',
-    },
-    {
-      icon: Key,
-      label: 'Stripe account (test mode)',
-      sub: 'Free, no bank account required',
-      tone: 'purple' as const,
-      delay: '0.45s',
+      delay: '0.15s',
     },
   ];
   return (
-    <div className="w-full max-w-md mx-auto space-y-2">
-      <div className="text-xs font-mono text-sf-muted text-center mb-1">4 free accounts, before you SSH in:</div>
-      {items.map(({ icon: Icon, label, sub, tone, delay }) => {
-        const ring = tone === 'accent'
-          ? 'border-sf-accent bg-sf-accent-soft'
-          : tone === 'emerald'
-          ? 'border-emerald-500/40 bg-emerald-500/10'
-          : tone === 'orange'
-          ? 'border-orange-500/40 bg-orange-500/10'
-          : 'border-purple-500/40 bg-purple-500/10';
-        const iconColor = tone === 'accent'
-          ? 'text-sf-accent'
-          : tone === 'emerald'
-          ? 'text-emerald-400'
-          : tone === 'orange'
-          ? 'text-orange-400'
-          : 'text-purple-400';
-        return (
-          <div
-            key={label}
-            className={`flex items-center gap-3 rounded-lg p-2.5 border ${ring} animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none`}
-            style={{ animationDelay: delay }}
-          >
-            <Icon className={`w-5 h-5 ${iconColor} shrink-0`} aria-hidden="true" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-sf-heading">{label}</p>
-              <p className="text-xs text-sf-muted">{sub}</p>
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="text-xs font-mono text-sf-muted text-center">
+        On top of the shared Stripe + Supabase prereqs:
+      </div>
+      <div className="space-y-2">
+        {items.map(({ icon: Icon, label, sub, tone, delay }) => {
+          const ring = tone === 'accent'
+            ? 'border-sf-accent bg-sf-accent-soft'
+            : 'border-orange-500/40 bg-orange-500/10';
+          const iconColor = tone === 'accent' ? 'text-sf-accent' : 'text-orange-400';
+          return (
+            <div
+              key={label}
+              className={`flex items-center gap-3 rounded-lg p-3 border ${ring} animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none`}
+              style={{ animationDelay: delay }}
+            >
+              <Icon className={`w-5 h-5 ${iconColor} shrink-0`} aria-hidden="true" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-sf-heading">{label}</p>
+                <p className="text-xs text-sf-muted">{sub}</p>
+              </div>
+              <CheckCircle2 className={`w-4 h-4 ${iconColor}`} aria-hidden="true" />
             </div>
-            <CheckCircle2 className={`w-4 h-4 ${iconColor}`} aria-hidden="true" />
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

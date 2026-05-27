@@ -3238,6 +3238,13 @@
       "bestForLabel": "Dla kogo",
       "stepsLabel": "Co konkretnie klikasz",
       "reassurance": "Każda ścieżka powyżej jest przetestowana od początku do końca — te same przyciski one-click są w GitHub README. Wybierasz to, co Ci pasuje dziś; przejście na inną opcję później nie wymaga zmian w kodzie.",
+      "prereqs": {
+        "label": "Darmowe konta potrzebne na każdej ścieżce",
+        "stripe": "Stripe",
+        "stripeSub": "Tryb test — bez konta bankowego",
+        "supabase": "Supabase",
+        "supabaseSub": "Free tier — 3 min na supabase.com"
+      },
       "vercel": {
         "name": "Vercel + Supabase",
         "tagline": "Najprostszy start. Oba na darmowym tierze, oba zostają darmowe dla małych sklepów.",
@@ -3281,7 +3288,7 @@
         "cost": "~$5/mies",
         "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
         "steps": [
-          "Masz gotowe 4 darmowe konta: VPS, Supabase, domena w Cloudflare, Stripe (tryb test)",
+          "Dodatkowo VPS (1GB+) i domena w Cloudflare — tylko ścieżka self-host wymaga tych dwóch",
           "SSH-ujesz się i bootstrapujesz StackPilot jedną komendą curl",
           "Trzy skrypty setup zbierają dane CF + Supabase + Stripe",
           "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2, .env.local — wszystko auto",
@@ -3369,9 +3376,9 @@
         ],
         "vpsSlides": [
           {
-            "title": "Miej gotowe 4 darmowe konta",
+            "title": "VPS path — co dodatkowo poza globalnymi prereqs",
             "url": "zanim-zaczniesz",
-            "caption": "VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek), projekt Supabase, domena w Cloudflare i konto Stripe w trybie test. Wszystko za darmo — Stripe nie wymaga konta bankowego dla trybu test.",
+            "caption": "Poza kontami Stripe + Supabase które są wymagane na każdej ścieżce, ścieżka self-host dorzuca dwie rzeczy: VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek) i domenę z DNS-em w Cloudflare (darmowa zone — wystarczy token API).",
             "visual": "vps-prereqs"
           },
           {

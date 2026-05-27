@@ -3223,6 +3223,13 @@
       "bestForLabel": "Best for",
       "stepsLabel": "What you'll click through",
       "reassurance": "Every path above is tested end-to-end — same one-click buttons live in the GitHub README. Pick what fits today; you can move to another later without touching the code.",
+      "prereqs": {
+        "label": "Free accounts you'll need on any path",
+        "stripe": "Stripe",
+        "stripeSub": "Test mode — no bank account needed",
+        "supabase": "Supabase",
+        "supabaseSub": "Free tier — 3 min on supabase.com"
+      },
       "vercel": {
         "name": "Vercel + Supabase",
         "tagline": "Easiest start. Both on a free tier, both stay free for small shops.",
@@ -3266,7 +3273,7 @@
         "cost": "~$5/mo",
         "bestFor": "Commercial shops, full control, custom domain, no platform ToS to worry about",
         "steps": [
-          "Have 4 free accounts ready: VPS, Supabase, Cloudflare-managed domain, Stripe (test mode)",
+          "Plus a VPS (1GB+) and a Cloudflare-managed domain — only the self-host path needs these two",
           "SSH in and bootstrap StackPilot with one curl",
           "Three setup scripts collect CF + Supabase + Stripe credentials",
           "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2, .env.local all auto",
@@ -3354,9 +3361,9 @@
         ],
         "vpsSlides": [
           {
-            "title": "Get 4 free accounts ready",
+            "title": "VPS path extras — beyond the shared prereqs",
             "url": "before-you-start",
-            "caption": "1GB+ VPS (Hetzner ~$5/mo, Mikrus, DigitalOcean — anything works), a Supabase project, a Cloudflare-managed domain, and a Stripe account in test mode. All free to set up — Stripe doesn't need a bank account for test mode.",
+            "caption": "On top of the Stripe + Supabase accounts you'd need for any path, the self-host route adds two things: a 1GB+ VPS (Hetzner ~$5/mo, Mikrus, DigitalOcean — anything works) and a domain whose DNS lives in Cloudflare (free zone — you just need the API token).",
             "visual": "vps-prereqs"
           },
           {

@@ -12,6 +12,8 @@ import {
   Check,
   ExternalLink,
   Play,
+  Key,
+  Database,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
@@ -60,6 +62,30 @@ export function DeployPaths() {
           <p className="text-lg text-sf-body max-w-3xl mx-auto">
             {t('subtitle')}
           </p>
+        </Reveal>
+
+        {/* Shared prereqs — applies to all 3 paths. Surfaced once here
+            instead of being repeated inside every tutorial. */}
+        <Reveal animation="fade-up" delay={50}>
+          <div className="max-w-3xl mx-auto mb-12">
+            <p className="text-center text-xs font-mono uppercase tracking-wider text-sf-muted mb-3">
+              {t('prereqs.label')}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PrereqPill
+                icon={Key}
+                label={t('prereqs.stripe')}
+                sub={t('prereqs.stripeSub')}
+                tone="purple"
+              />
+              <PrereqPill
+                icon={Database}
+                label={t('prereqs.supabase')}
+                sub={t('prereqs.supabaseSub')}
+                tone="emerald"
+              />
+            </div>
+          </div>
         </Reveal>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
@@ -268,6 +294,34 @@ function MetricPill({ icon: Icon, value, label, accent = false }: MetricPillProp
       <span className="text-[10px] uppercase tracking-wider text-sf-muted leading-none">
         {label}
       </span>
+    </div>
+  );
+}
+
+interface PrereqPillProps {
+  icon: LucideIcon;
+  label: string;
+  sub: string;
+  tone: 'purple' | 'emerald';
+}
+
+function PrereqPill({ icon: Icon, label, sub, tone }: PrereqPillProps) {
+  const styles = tone === 'purple'
+    ? { bg: 'bg-purple-500/10', border: 'border-purple-500/40', icon: 'text-purple-400' }
+    : { bg: 'bg-emerald-500/10', border: 'border-emerald-500/40', icon: 'text-emerald-400' };
+
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl ${styles.bg} ${styles.border} border px-4 py-3 transition-transform duration-300 hover:scale-[1.02] motion-reduce:transition-none`}
+    >
+      <div className={`w-9 h-9 rounded-lg ${styles.bg} ${styles.border} border flex items-center justify-center shrink-0`}>
+        <Icon className={`w-4 h-4 ${styles.icon}`} aria-hidden="true" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-sf-heading">{label}</p>
+        <p className="text-xs text-sf-muted leading-snug">{sub}</p>
+      </div>
+      <Check className={`w-4 h-4 ${styles.icon} shrink-0`} aria-hidden="true" />
     </div>
   );
 }
