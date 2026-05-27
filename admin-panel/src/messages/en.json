@@ -3597,35 +3597,35 @@
     },
     "licenseTier": {
       "title": "Pick the tier that fits where you are",
-      "subtitle": "Free covers most solopreneurs forever. Pro removes branding and adds power-user features. Business adds white-label.",
+      "subtitle": "Free covers most solopreneurs forever. Pro removes branding and adds power-user features. Business is anything custom — talk to us.",
       "categoryLabel": "License",
       "free": {
         "name": "Free",
         "tagline": "AGPL-3.0 open source. No limits on products, sales, or buyers. Forever.",
         "cta": "Self-host now",
-        "price": "0 zł",
+        "price": "$0",
         "priceNote": "no payment, ever"
       },
       "registered": {
         "name": "Registered",
         "tagline": "Free + payment CSV export. Register your install in 30 seconds.",
         "cta": "Register install",
-        "price": "0 zł",
+        "price": "$0",
         "priceNote": "free upgrade"
       },
       "pro": {
         "name": "Pro",
         "tagline": "Hide \"Powered by Sellf\", save custom themes, expand API key scopes.",
         "cta": "Go Pro",
-        "price": "199 zł",
+        "price": "$59",
         "priceNote": "one-time, lifetime updates"
       },
       "business": {
         "name": "Business",
-        "tagline": "White-label commercial license. Resell Sellf under your own brand.",
+        "tagline": "Custom needs, enterprise support, volume licensing — talk to us.",
         "cta": "Talk to us",
         "price": "Contact",
-        "priceNote": "for resellers"
+        "priceNote": "tailored"
       },
       "rows": {
         "products": "Unlimited products",
@@ -3635,8 +3635,7 @@
         "csvExport": "Payment CSV export",
         "watermark": "Hide \"Powered by Sellf\"",
         "themes": "Save custom themes",
-        "apiScopes": "Expanded API scopes",
-        "whiteLabel": "White-label resale"
+        "apiScopes": "Expanded API scopes"
       }
     },
     "embedDemo": {

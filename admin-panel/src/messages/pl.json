@@ -3611,36 +3611,36 @@
       "llmsTxt": "llms.txt (dla agentów AI)"
     },
     "licenseTier": {
-      "title": "Wybierz tier dopasowany do tego, gdzie jesteś",
-      "subtitle": "Free wystarcza większości solopreneurów na zawsze. Pro zdejmuje branding i dorzuca power-userowe ficzery. Business dorzuca white-label.",
+      "title": "Wybierz wariant pasujący do tego gdzie jesteś",
+      "subtitle": "Free wystarcza większości solopreneurów na zawsze. Pro zdejmuje branding i dodaje narzędzia dla zaawansowanych. Business to wszystko spoza półki — pogadajmy.",
       "categoryLabel": "Licencja",
       "free": {
         "name": "Free",
         "tagline": "AGPL-3.0 open source. Bez limitów na produkty, sprzedaż, kupujących. Na zawsze.",
         "cta": "Postaw u siebie",
-        "price": "0 zł",
+        "price": "$0",
         "priceNote": "nigdy żadnej opłaty"
       },
       "registered": {
         "name": "Registered",
         "tagline": "Free + eksport CSV płatności. Rejestrujesz instalację w 30 sekund.",
         "cta": "Zarejestruj instalację",
-        "price": "0 zł",
+        "price": "$0",
         "priceNote": "darmowy upgrade"
       },
       "pro": {
         "name": "Pro",
-        "tagline": "Ukryj \"Powered by Sellf\", zapisuj własne motywy, większe scope'y API.",
+        "tagline": "Ukryj \"Powered by Sellf\", zapisuj własne motywy, szersze uprawnienia API.",
         "cta": "Wejdź na Pro",
-        "price": "199 zł",
+        "price": "$59",
         "priceNote": "jednorazowo, dożywotnie aktualizacje"
       },
       "business": {
         "name": "Business",
-        "tagline": "Komercyjna licencja white-label. Sprzedawaj Sellfa pod swoim brandem.",
+        "tagline": "Niestandardowe potrzeby, enterprise support, licencje wolumenowe — pogadajmy.",
         "cta": "Pogadajmy",
         "price": "Kontakt",
-        "priceNote": "dla resellerów"
+        "priceNote": "dopasowane"
       },
       "rows": {
         "products": "Nielimitowane produkty",
@@ -3650,8 +3650,7 @@
         "csvExport": "Eksport płatności do CSV",
         "watermark": "Ukrycie \"Powered by Sellf\"",
         "themes": "Zapis własnych motywów",
-        "apiScopes": "Większe scope'y API",
-        "whiteLabel": "Licencja white-label"
+        "apiScopes": "Szersze uprawnienia API"
       }
     },
     "embedDemo": {

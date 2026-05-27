@@ -25,8 +25,7 @@ type RowKey =
   | 'csvExport'
   | 'watermark'
   | 'themes'
-  | 'apiScopes'
-  | 'whiteLabel';
+  | 'apiScopes';
 
 const ROW_KEYS: RowKey[] = [
   'products',
@@ -37,7 +36,6 @@ const ROW_KEYS: RowKey[] = [
   'watermark',
   'themes',
   'apiScopes',
-  'whiteLabel',
 ];
 
 const MATRIX: Record<RowKey, Record<TierKey, boolean>> = {
@@ -49,7 +47,6 @@ const MATRIX: Record<RowKey, Record<TierKey, boolean>> = {
   watermark:  { free: false, registered: false, pro: true,  business: true  },
   themes:     { free: false, registered: false, pro: true,  business: true  },
   apiScopes:  { free: false, registered: false, pro: true,  business: true  },
-  whiteLabel: { free: false, registered: false, pro: false, business: true  },
 };
 
 export async function LicenseTier() {
