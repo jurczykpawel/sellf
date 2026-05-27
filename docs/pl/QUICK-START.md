@@ -2,13 +2,41 @@
 
 # Uruchamianie sklepu Sellf — najprostszy sposób
 
-Ten przewodnik pokazuje krok po kroku jak postawić własny sklep Sellf w internecie, używając najprostszej dostępnej metody: **wszystko w przeglądarce, bez instalowania programów, bez terminala**.
+> ## 🏆 Najłatwiejsza metoda (ten przewodnik)
+>
+> - **Co:** przycisk one-click Vercel + wbudowana baza Supabase w Vercelu
+> - **Wymagane umiejętności:** żadne — tylko przeglądarka
+> - **Czas konfiguracji:** ~20 minut
+> - **Koszt na start:** **$0/miesiąc**
+> - **Koszt gdy sklep ma płacących klientów:** **$25/miesiąc** (Supabase Pro żeby baza nie pauzowała)
+> - **Prowizja Stripe** (na każdej ścieżce): ~2,9% + 0,30 zł od transakcji
+>
+> **Dla kogo:** dla każdego kto nigdy nie stawiał oprogramowania na serwerze. Jeśli to Ty, przestań czytać zielony blok niżej i podążaj za tym przewodnikiem.
+>
+> ## 💰 Najtańsza metoda (wymaga terminala)
+>
+> - **Co:** Sellf na VPS-ie [mikr.us](https://mikr.us/?r=pavvel) (35 zł/rok) + darmowy Supabase
+> - **Wymagane umiejętności:** komfort z SSH, kopiowanie komend Linuksowych, uruchomienie skryptu w terminalu
+> - **Czas konfiguracji:** ~45 minut
+> - **Koszt na start:** **~3 zł/miesiąc** (35 zł/rok + darmowy Supabase pod warunkiem tygodniowego ruchu)
+> - **Koszt jeśli sklep jest spokojny:** ~$26/miesiąc (przejście na Supabase Pro żeby nie pauzowało — albo utrzymanie codziennego ruchu)
+> - **Prowizja Stripe** (na każdej ścieżce): te same ~2,9% + 0,30 zł od transakcji
+>
+> **Dla kogo:** osoby przyzwyczajone do serwerów Linuksowych które chcą minimalizować miesięczne koszty. Trade-off: więcej odpowiedzialności, sam utrzymujesz serwer, brak ładnego panelu.
+>
+> **Chcesz pełne instrukcje najtańszej ścieżki?** Zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Albo dla nieco droższej ale z pełną kontrolą opcji [Coolify](./DEPLOYMENT-COOLIFY.md) (~$9/miesiąc na Hetznerze, z ładnym panelem).
+>
+> ---
+>
+> **Nie jesteś pewien co wybrać?** Jeśli nigdy nie używałeś SSH do serwera, najłatwiejsza metoda to właściwy wybór — różnica $25/miesiąc kupuje Ci spokój. Zawsze możesz przenieść się później na tańszą ścieżkę; dane i sklep zostają te same.
+
+Ten przewodnik pokazuje krok po kroku tę najprostszą ścieżkę: **wszystko w przeglądarce, bez instalowania programów, bez terminala**.
 
 **Łączny czas:** około 20 minut (większość to czekanie).
 
 **Co będziesz miał na końcu:** działający sklep pod adresem typu `https://twoj-sklep.vercel.app`, gdzie możesz dodawać produkty i przyjmować płatności.
 
-**Ile to kosztuje:** $0 na start. Wszystko czego tu używamy ma darmowy plan, który wystarczy na pierwsze miesiące. Gdy sklep będzie miał płacących klientów, najprawdopodobniej zapłacisz za dwie rzeczy (~$50/miesiąc razem) — wyjaśnione na końcu.
+**Ile to kosztuje:** $0 na start. Wszystko czego tu używamy ma darmowy plan, który wystarczy na pierwsze miesiące. Gdy sklep będzie miał płacących klientów, najprawdopodobniej przejdziesz na Supabase za $25/miesiąc — wyjaśnione na końcu.
 
 ---
 
@@ -315,6 +343,26 @@ Darmowy plan pokrywa Cię aż do momentu gdy zarabiasz sensowne pieniądze. Oto 
 Realnie: $0 na start, $25/miesiąc gdy masz klientów (Supabase Pro), $45/miesiąc jak sklep ma duży ruch.
 
 Stripe pobiera prowizję od każdej transakcji (~2,9% + 0,30 zł w większości krajów) — zobacz https://stripe.com/pl/pricing dla swojego kraju.
+
+## Wszystkie opcje wdrożenia wg kosztów
+
+Ten przewodnik używa **najprostszej ścieżki** (Vercel + wbudowana Supabase). Są tańsze opcje jeśli jesteś chętny używać terminala i sam zarządzać serwerem. Pełen krajobraz:
+
+| Ścieżka | Koszt miesięczny (gdy masz klientów) | Czas konfiguracji | Wymagana wiedza techniczna | Dla kogo |
+|---------|--------------------------------------|-------------------|----------------------------|----------|
+| **Vercel + Vercel-Supabase (ten przewodnik)** | **$25/mies** (Supabase Pro żeby uniknąć pauzy) | ~20 min | 🟢 Żadna — tylko przeglądarka | **Pierwszy własny sklep, użytkownik nietechniczny.** Ta ścieżka jest rekomendowana. |
+| Vercel + Supabase Free + codzienny ruch | $0/mies (ale musisz utrzymać codzienny ruch albo baza pauzuje) | ~20 min | 🟢 Żadna — tylko przeglądarka | Projekty hobbystyczne, sklepy o małym ruchu |
+| [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | $25/mies | ~20 min | 🟢 Żadna — tylko przeglądarka | To samo co Vercel, inny host |
+| [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mies** ($5 Coolify Cloud + $9 Hetzner CX32) | ~30 min | 🟡 Podstawowa — wklejenie klucza SSH do VPS | Pełna kontrola + zarządzany panel Coolify |
+| [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mies** ($9 Hetzner CX32, reszta darmowa) | ~45 min | 🟡 Podstawowa — komendy SSH, kilka sekretów | Pełna kontrola, najmniejszy rozsądny koszt |
+| [mikr.us VPS + Supabase Free + codzienny ruch](./DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** (35 zł/rok mikr.us + darmowa reszta) | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
+| [mikr.us + Supabase Pro](./DEPLOYMENT-MIKRUS.md) | ~$26/mies | ~45 min | 🔴 Średnia | Najtańsza opcja która nie pauzuje |
+
+**Prowizja Stripe od transakcji** (~2,9% + 0,30 zł) jest taka sama na każdej ścieżce — tak Stripe zarabia. Wybierz ścieżkę pasującą do Twoich umiejętności; Stripe to nie obchodzi.
+
+**Rekomendacja dla użytkownika nietechnicznego:** **zostań przy tym przewodniku**. Vercel + Vercel-Supabase to $25/miesiąc drożej niż mikr.us, ale jeśli nie jesteś komfortowy z terminalami i Linuksem, te $25/mies kupują Ci spokój. Zawsze możesz przejść na tańszą ścieżkę później — to nie jednokierunkowe drzwi.
+
+**Rekomendacja dla osoby komfortowej z serwerami:** **Coolify self-hosted na Hetznerze** za ~$9/miesiąc. Najlepszy balans kosztu, kontroli i wygody. Zobacz [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md).
 
 ---
 
