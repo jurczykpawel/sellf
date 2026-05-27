@@ -10,11 +10,15 @@ interface TierAction {
   external: boolean;
 }
 
+// Business intentionally goes to a mailto contact — not a paid product.
+// The Business-tier features (RBAC, SSO, advanced analytics) aren't
+// implemented in code yet, so selling a fixed-price product would be vapor.
+// Everything Business is negotiated 1-on-1.
 const TIER_ACTIONS: Record<TierKey, TierAction> = {
-  free:       { href: '#deploy-paths',                external: false },
-  registered: { href: `${TSA_SHOP}/p/sellf-registered`, external: true },
-  pro:        { href: `${TSA_SHOP}/p/sellf-pro`,        external: true },
-  business:   { href: `${TSA_SHOP}/p/sellf-business`,   external: true },
+  free:       { href: '#deploy-paths',                  external: false },
+  registered: { href: `${TSA_SHOP}/p/sellf-registered`, external: true  },
+  pro:        { href: `${TSA_SHOP}/p/sellf-pro`,        external: true  },
+  business:   { href: 'mailto:hello@sellf.app?subject=Sellf%20Business%20%E2%80%94%20inquiry', external: false },
 };
 
 type RowKey =
