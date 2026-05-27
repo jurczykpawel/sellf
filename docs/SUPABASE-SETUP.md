@@ -1,3 +1,5 @@
+**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/SUPABASE-SETUP.md)
+
 # Setting up Supabase for your Sellf store
 
 Sellf needs a place to store your products, customers, and orders. That place is called **Supabase** — a free service that gives you everything Sellf needs to run. You don't have to install or configure anything technical; Supabase runs on their computers, and Sellf simply talks to it over the internet.

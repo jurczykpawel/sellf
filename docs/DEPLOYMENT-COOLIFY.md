@@ -1,3 +1,5 @@
+**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/DEPLOYMENT-COOLIFY.md)
+
 # Deploying Sellf to Coolify (self-hosted, true one-click)
 
 Coolify is a self-hosted PaaS (think Vercel/Heroku, but on your own VPS). It can run Sellf alongside its **own** Supabase instance from a single Docker Compose file — no external Supabase account, no manual Stripe webhook chicken-egg dance, no per-deploy env var data entry.

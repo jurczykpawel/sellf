@@ -1,3 +1,5 @@
+**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/DEPLOYMENT.md)
+
 # Deployment Options
 
 This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a server). All produce a working Sellf store.

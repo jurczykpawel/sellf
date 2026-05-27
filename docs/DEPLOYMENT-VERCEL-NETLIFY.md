@@ -1,3 +1,5 @@
+**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/DEPLOYMENT-VERCEL-NETLIFY.md)
+
 # Deploying Sellf to Vercel or Netlify (one-click)
 
 Time required: **~15 minutes** if you already have GitHub, Supabase, Stripe, and Vercel/Netlify accounts. Add 5–10 minutes per account you need to create.

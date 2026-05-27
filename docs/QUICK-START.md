@@ -1,3 +1,5 @@
+**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/QUICK-START.md)
+
 # Putting your Sellf store online — easiest way
 
 This guide walks you through getting your own Sellf store running on the internet, using the simplest method available: **everything in your web browser, no programs to install, no terminal**.
