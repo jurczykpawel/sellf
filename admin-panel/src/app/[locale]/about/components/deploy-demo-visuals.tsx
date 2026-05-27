@@ -1,0 +1,566 @@
+'use client';
+
+import { Database, Key, CheckCircle2, Server, Globe, Terminal, ArrowRight } from 'lucide-react';
+
+function GithubMark(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2 .37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+    </svg>
+  );
+}
+
+export type DemoVisualKind =
+  | 'github-button'
+  | 'github-button-netlify'
+  | 'vercel-signin'
+  | 'netlify-signin'
+  | 'supabase-integration'
+  | 'supabase-manual'
+  | 'env-form'
+  | 'env-form-large'
+  | 'build-success'
+  | 'build-success-netlify'
+  | 'vps-prereqs'
+  | 'install-variants'
+  | 'terminal-deploy'
+  | 'admin-webhook'
+  | 'terminal-env'
+  | 'browser-success';
+
+export function DemoVisual({ kind }: { kind: DemoVisualKind }) {
+  switch (kind) {
+    case 'github-button':
+      return <GitHubDeployButton variant="vercel" />;
+    case 'github-button-netlify':
+      return <GitHubDeployButton variant="netlify" />;
+    case 'vercel-signin':
+      return <SignInMock variant="vercel" />;
+    case 'netlify-signin':
+      return <SignInMock variant="netlify" />;
+    case 'supabase-integration':
+      return <SupabaseIntegrationMock />;
+    case 'supabase-manual':
+      return <SupabaseManualMock />;
+    case 'env-form':
+      return <EnvFormMock count={6} />;
+    case 'env-form-large':
+      return <EnvFormMock count={11} />;
+    case 'build-success':
+      return <BuildSuccessMock url="your-shop.vercel.app" accent="zinc" />;
+    case 'build-success-netlify':
+      return <BuildSuccessMock url="your-shop.netlify.app" accent="teal" />;
+    case 'vps-prereqs':
+      return <VpsPrereqsMock />;
+    case 'install-variants':
+      return <InstallVariantsMock />;
+    case 'terminal-deploy':
+      return <TerminalMock kind="deploy" />;
+    case 'admin-webhook':
+      return <AdminWebhookMock />;
+    case 'terminal-env':
+      return <TerminalMock kind="env" />;
+    case 'browser-success':
+      return <BrowserSuccessMock />;
+    default:
+      return null;
+  }
+}
+
+/* ─── Mockups ────────────────────────────────────────────── */
+
+function GitHubDeployButton({ variant }: { variant: 'vercel' | 'netlify' }) {
+  return (
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="flex items-center gap-2 text-xs font-mono text-sf-muted">
+        <GithubMark className="w-3.5 h-3.5" />
+        <span>README.md · jurczykpawel/sellf</span>
+      </div>
+      <div className="rounded-lg border border-sf-border bg-sf-raised/50 p-4 space-y-3">
+        <p className="text-sm text-sf-body">## Quick deploy</p>
+        <div className="space-y-2">
+          {variant === 'vercel' ? (
+            <>
+              <DeployButtonChip variant="vercel" highlighted />
+              <DeployButtonChip variant="netlify" />
+            </>
+          ) : (
+            <>
+              <DeployButtonChip variant="vercel" />
+              <DeployButtonChip variant="netlify" highlighted />
+            </>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-sf-muted italic">↑ click the highlighted button</p>
+    </div>
+  );
+}
+
+function DeployButtonChip({ variant, highlighted = false }: { variant: 'vercel' | 'netlify'; highlighted?: boolean }) {
+  if (variant === 'vercel') {
+    return (
+      <div
+        className={`inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-white bg-zinc-900 border border-zinc-700 transition-[transform,box-shadow] ${
+          highlighted
+            ? 'ring-2 ring-sf-accent ring-offset-2 ring-offset-sf-raised shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]'
+            : 'opacity-50'
+        }`}
+      >
+        <span className="text-white">▲</span>
+        <span>Deploy with Vercel</span>
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-bold text-white bg-teal-700 border border-teal-600 transition-[transform,box-shadow] ${
+        highlighted
+          ? 'ring-2 ring-sf-accent ring-offset-2 ring-offset-sf-raised shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]'
+          : 'opacity-50'
+      }`}
+    >
+      <span>◇</span>
+      <span>Deploy to Netlify</span>
+    </div>
+  );
+}
+
+function SignInMock({ variant }: { variant: 'vercel' | 'netlify' }) {
+  const tagBg = variant === 'vercel' ? 'bg-zinc-900' : 'bg-teal-700';
+  return (
+    <div className="w-full max-w-sm mx-auto space-y-4">
+      <div className={`mx-auto w-12 h-12 rounded-xl ${tagBg} flex items-center justify-center text-white font-bold text-xl`}>
+        {variant === 'vercel' ? '▲' : '◇'}
+      </div>
+      <p className="text-center text-sm text-sf-heading font-semibold">
+        Sign in to {variant === 'vercel' ? 'Vercel' : 'Netlify'}
+      </p>
+      <div className="space-y-2">
+        <div className="rounded-lg border border-sf-border bg-sf-base p-3 flex items-center gap-3 ring-2 ring-sf-accent ring-offset-2 ring-offset-sf-base shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]">
+          <GithubMark className="w-5 h-5 text-sf-heading" />
+          <span className="text-sm font-medium text-sf-heading">Continue with GitHub</span>
+        </div>
+        <div className="rounded-lg border border-sf-border bg-sf-base p-3 opacity-50">
+          <span className="text-sm text-sf-muted">Continue with Email</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SupabaseIntegrationMock() {
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <div className="flex items-center justify-around gap-2">
+        <div className="flex-1 rounded-lg border border-sf-border bg-sf-raised p-4 text-center">
+          <div className="mx-auto w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center text-white font-bold mb-2">▲</div>
+          <p className="text-xs font-bold text-sf-heading">Vercel</p>
+          <p className="text-[10px] text-sf-muted">your shop</p>
+        </div>
+        <div className="relative flex flex-col items-center text-sf-accent">
+          <ArrowRight className="w-5 h-5 animate-[demoNudge_1.4s_ease-in-out_infinite]" />
+          <span className="absolute -bottom-5 text-[10px] font-mono text-sf-muted whitespace-nowrap">auto-connect</span>
+        </div>
+        <div className="flex-1 rounded-lg border-2 border-sf-accent bg-sf-accent-soft p-4 text-center ring-2 ring-sf-accent/40 shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]">
+          <div className="mx-auto w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center mb-2">
+            <Database className="w-5 h-5 text-white" />
+          </div>
+          <p className="text-xs font-bold text-sf-heading">Supabase</p>
+          <p className="text-[10px] text-sf-muted">free tier</p>
+        </div>
+      </div>
+      <div className="mt-8 inline-block bg-sf-accent-bg text-white text-xs font-bold rounded-full px-4 py-1.5 mx-auto" style={{ display: 'block', textAlign: 'center', width: 'fit-content', margin: '24px auto 0' }}>
+        + Add Integration
+      </div>
+    </div>
+  );
+}
+
+function SupabaseManualMock() {
+  return (
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="flex items-center gap-2 text-xs font-mono text-sf-muted">
+        <Database className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+        <span>supabase.com/dashboard</span>
+      </div>
+      <div className="rounded-lg border-2 border-sf-accent bg-emerald-950/30 p-4 ring-2 ring-sf-accent/30 animate-[demoPulse_1.6s_ease-in-out_infinite]">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-sf-heading">Create new project</span>
+          <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded">Free</span>
+        </div>
+      </div>
+      <div className="space-y-1.5 text-xs font-mono">
+        <div className="flex items-center gap-2 px-3 py-2 rounded bg-sf-base border border-sf-border">
+          <span className="text-sf-muted">URL:</span>
+          <span className="text-sf-heading">https://xxx.supabase.co</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2 rounded bg-sf-base border border-sf-border">
+          <span className="text-sf-muted">anon key:</span>
+          <span className="text-sf-heading">eyJhbGciOi...</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2 rounded bg-sf-base border border-sf-border">
+          <span className="text-sf-muted">service key:</span>
+          <span className="text-sf-heading">eyJhbGciOi...</span>
+        </div>
+      </div>
+      <p className="text-xs text-sf-muted italic">↑ copy these three values</p>
+    </div>
+  );
+}
+
+function EnvFormMock({ count }: { count: number }) {
+  const fields = count <= 6
+    ? [
+        { name: 'STRIPE_PUBLISHABLE_KEY', state: 'paste', value: 'pk_test_...' },
+        { name: 'STRIPE_SECRET_KEY', state: 'paste', value: 'sk_test_...' },
+        { name: 'CHECKOUT_BINDING_SECRET', state: 'gen', value: '$ openssl rand ...' },
+        { name: 'APP_ENCRYPTION_KEY', state: 'gen', value: '$ openssl rand ...' },
+        { name: 'LOGINWALL_SECRET', state: 'gen', value: '$ openssl rand ...' },
+      ]
+    : [
+        { name: 'SUPABASE_URL', state: 'paste', value: 'https://xxx...' },
+        { name: 'SUPABASE_ANON_KEY', state: 'paste', value: 'eyJ...' },
+        { name: 'SUPABASE_SERVICE_ROLE_KEY', state: 'paste', value: 'eyJ...' },
+        { name: 'STRIPE_PUBLISHABLE_KEY', state: 'paste', value: 'pk_...' },
+        { name: 'STRIPE_SECRET_KEY', state: 'paste', value: 'sk_...' },
+        { name: 'SITE_URL', state: 'paste', value: 'https://...' },
+        { name: 'TRUSTED_PROXY', state: 'lit', value: 'true' },
+        { name: 'CHECKOUT_BINDING_SECRET', state: 'gen', value: 'random hex' },
+        { name: 'APP_ENCRYPTION_KEY', state: 'gen', value: 'random hex' },
+        { name: 'LOGINWALL_SECRET', state: 'gen', value: 'random hex' },
+      ];
+
+  return (
+    <div className="w-full max-w-md mx-auto space-y-2 max-h-[260px] overflow-hidden">
+      <div className="text-xs font-mono text-sf-muted mb-2">Environment variables</div>
+      {fields.slice(0, 6).map((f, i) => (
+        <div
+          key={f.name}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-mono border border-sf-border bg-sf-base ${
+            i === 0 ? 'ring-2 ring-sf-accent shadow-[0_0_16px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]' : ''
+          }`}
+        >
+          <span className="text-sf-heading shrink-0 truncate max-w-[180px]">{f.name}</span>
+          <span className="text-sf-muted">=</span>
+          <span className="text-sf-accent truncate">{f.value}</span>
+        </div>
+      ))}
+      {fields.length > 6 && (
+        <div className="text-xs text-sf-muted italic text-center">+ {fields.length - 6} more</div>
+      )}
+    </div>
+  );
+}
+
+function BuildSuccessMock({ url, accent }: { url: string; accent: 'zinc' | 'teal' }) {
+  const accentBg = accent === 'zinc' ? 'bg-zinc-900' : 'bg-teal-700';
+  return (
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="space-y-1.5 font-mono text-xs">
+        <div className="flex items-center gap-2 text-sf-success">
+          <span className="text-sf-success">✓</span> Installing dependencies (45s)
+        </div>
+        <div className="flex items-center gap-2 text-sf-success">
+          <span className="text-sf-success">✓</span> Building Next.js (1m 38s)
+        </div>
+        <div className="flex items-center gap-2 text-sf-success">
+          <span className="text-sf-success">✓</span> Running migrations (12s)
+        </div>
+        <div className="flex items-center gap-2 text-sf-success">
+          <span className="text-sf-success">✓</span> Deployment ready
+        </div>
+      </div>
+      <div className={`rounded-lg ${accentBg} p-4 ring-2 ring-sf-accent shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]`}>
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-white/60">Your store is live at</p>
+            <p className="text-sm font-mono font-bold text-white truncate">{url}</p>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-lg border border-sf-border-accent bg-sf-accent-soft p-3 flex items-center gap-2.5">
+        <Globe className="w-4 h-4 text-sf-accent shrink-0" aria-hidden="true" />
+        <p className="text-xs text-sf-body leading-snug">
+          <span className="font-semibold text-sf-heading">Custom domain?</span>{' '}
+          Settings → Domains → add <span className="font-mono text-sf-accent">yourshop.com</span>. Free SSL, ~5 min.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function VpsPrereqsMock() {
+  const items = [
+    {
+      icon: Server,
+      label: 'VPS 1GB+',
+      sub: 'Hetzner · Mikrus · DO — any provider',
+      tone: 'accent' as const,
+      delay: '0s',
+    },
+    {
+      icon: Globe,
+      label: 'Domain in Cloudflare',
+      sub: 'Free zone, you only need the API token',
+      tone: 'orange' as const,
+      delay: '0.15s',
+    },
+  ];
+  return (
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="text-xs font-mono text-sf-muted text-center">
+        On top of the shared Stripe + Supabase prereqs:
+      </div>
+      <div className="space-y-2">
+        {items.map(({ icon: Icon, label, sub, tone, delay }) => {
+          const ring = tone === 'accent'
+            ? 'border-sf-accent bg-sf-accent-soft'
+            : 'border-orange-500/40 bg-orange-500/10';
+          const iconColor = tone === 'accent' ? 'text-sf-accent' : 'text-orange-400';
+          return (
+            <div
+              key={label}
+              className={`flex items-center gap-3 rounded-lg p-3 border ${ring} animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none`}
+              style={{ animationDelay: delay }}
+            >
+              <Icon className={`w-5 h-5 ${iconColor} shrink-0`} aria-hidden="true" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-sf-heading">{label}</p>
+                <p className="text-xs text-sf-muted">{sub}</p>
+              </div>
+              <CheckCircle2 className={`w-4 h-4 ${iconColor}`} aria-hidden="true" />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InstallVariantsMock() {
+  return (
+    <div className="w-full max-w-lg mx-auto space-y-4">
+      {/* Variant A — Edit env + 1 curl */}
+      <VariantBlock letter="A" title="Edit env + 1 curl" subtitle="Fewer commands, you paste keys into a file once">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>~ $</span>
+          <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
+        </div>
+        <div className="text-zinc-500 mt-1">root@vps:~#</div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">nano ~/.config/stackpilot/sellf.env</span>
+        </div>
+        <div className="pl-2 mt-1">
+          <div><span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>=<span className="text-yellow-300">your-cf-token</span></div>
+          <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+          <div><span className="text-purple-400">SUPABASE_ANON_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+          <div><span className="text-purple-400">SUPABASE_SERVICE_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+        </div>
+        <div className="text-zinc-600 italic">(Ctrl+O save, Ctrl+X exit)</div>
+        <div className="mt-2 text-zinc-500">root@vps:~#</div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+        </div>
+      </VariantBlock>
+
+      {/* OR divider */}
+      <div className="relative flex items-center" aria-hidden="true">
+        <div className="flex-grow border-t border-sf-border" />
+        <span className="mx-3 px-3 py-0.5 rounded-full bg-sf-accent-soft border border-sf-border-accent text-xs font-mono uppercase tracking-wider text-sf-accent font-bold">
+          OR
+        </span>
+        <div className="flex-grow border-t border-sf-border" />
+      </div>
+
+      {/* Variant B — 3 OAuth curls */}
+      <VariantBlock letter="B" title="3 curls (OAuth)" subtitle="More commands, never paste keys into your shell">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>~ $</span>
+          <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
+        </div>
+        <div className="text-zinc-500 mt-1">root@vps:~#</div>
+        <div className="break-all">
+          <span className="text-zinc-600"># 1. CF token (paste once into prompt)</span>
+        </div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/cloudflare | bash</span>
+        </div>
+        <div className="text-zinc-400 pl-2">Paste CF API token: <span className="text-yellow-300">•••••••</span> ✓</div>
+
+        <div className="break-all mt-2">
+          <span className="text-zinc-600"># 2. Supabase (browser OAuth)</span>
+        </div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf-config | bash</span>
+        </div>
+        <div className="text-zinc-400 pl-2">▸ Open browser → authorize → ✓</div>
+
+        <div className="break-all mt-2">
+          <span className="text-zinc-600"># 3. Deploy</span>
+        </div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+        </div>
+      </VariantBlock>
+    </div>
+  );
+}
+
+function VariantBlock({
+  letter,
+  title,
+  subtitle,
+  children,
+}: {
+  letter: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-sf-border bg-sf-raised/40 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start gap-3 px-4 py-3 bg-sf-float/60 border-b border-sf-border">
+        <span className="shrink-0 w-7 h-7 rounded-full bg-sf-accent-bg text-white text-sm font-bold flex items-center justify-center shadow-[var(--sf-shadow-accent)]">
+          {letter}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-sf-heading leading-tight">{title}</p>
+          <p className="text-[11px] text-sf-muted leading-snug">{subtitle}</p>
+        </div>
+      </div>
+      {/* Terminal body */}
+      <div className="font-mono text-xs text-emerald-400 bg-zinc-950 p-4 space-y-1.5">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function TerminalMock({ kind }: { kind: 'deploy' | 'env' }) {
+  return (
+    <div className="w-full max-w-lg mx-auto font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-1.5 border border-zinc-800">
+      {kind === 'deploy' && (
+        <>
+          <div className="text-zinc-500">root@vps:~# <span className="text-zinc-600">(installer streaming…)</span></div>
+          <div className="text-zinc-400 mt-1">📂 Loaded credentials from env (CF + Supabase)</div>
+          <div className="text-zinc-400">▸ Cloudflare DNS: sellf.example.com → your.server.ip</div>
+          <div className="text-zinc-400">▸ Installing Bun + Caddy + PM2…</div>
+          <div className="text-zinc-400">▸ Fetching Sellf release (47 MB)…</div>
+          <div className="text-zinc-400">▸ Writing /opt/stacks/sellf-sellf/admin-panel/.env.local</div>
+          <div className="text-zinc-400">▸ Let&apos;s Encrypt cert issued</div>
+          <div className="text-zinc-400">▸ PM2: sellf-sellf online</div>
+          <div className="text-emerald-300 mt-1">✓ Live: https://sellf.example.com → HTTP 200</div>
+          <div className="text-zinc-500 italic text-[11px] mt-1">First signup at the URL above becomes admin.</div>
+        </>
+      )}
+      {kind === 'env' && (
+        <>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:/opt/stacks/sellf-sellf/admin-panel#</span>
+            <span className="text-emerald-300 font-semibold">nano .env.local</span>
+          </div>
+          <div className="mt-2 text-zinc-400 leading-relaxed">
+            <div><span className="text-zinc-600"># Supabase — already filled by StackPilot</span></div>
+            <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+            <div className="mt-1"><span className="text-zinc-600"># Stripe — paste yours to enable payments</span></div>
+            <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51…</span></div>
+            <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51…</span></div>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:~#</span>
+            <span className="text-emerald-300 font-semibold">pm2 restart sellf-sellf</span>
+          </div>
+          <div className="mt-1 text-zinc-500 italic text-[11px]">Then in the admin: Settings → Payments → Register webhook.</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AdminWebhookMock() {
+  return (
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="text-xs font-mono text-sf-muted">
+        <Globe className="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true" />
+        sellf.example.com/dashboard/settings
+      </div>
+
+      {/* Card 1: Stripe API keys */}
+      <div className="rounded-lg border border-sf-border bg-sf-raised/80 overflow-hidden">
+        <div className="px-4 py-2 bg-sf-float border-b border-sf-border flex items-center gap-2">
+          <Key className="w-3.5 h-3.5 text-purple-400" aria-hidden="true" />
+          <span className="text-xs font-semibold text-sf-heading">Stripe API keys</span>
+          <span className="ml-auto text-[10px] uppercase tracking-wider text-sf-muted">Step 1</span>
+        </div>
+        <div className="p-3 space-y-2">
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-sf-muted">Publishable key</p>
+            <div className="font-mono text-xs text-sf-body bg-sf-base border border-sf-border rounded px-2 py-1 truncate">
+              pk_test_51N…
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-sf-muted">Secret key</p>
+            <div className="font-mono text-xs text-sf-body bg-sf-base border border-sf-border rounded px-2 py-1 truncate">
+              sk_test_51N…
+            </div>
+          </div>
+          <div className="text-[10px] text-sf-muted italic">Encrypted in your Supabase DB on save.</div>
+        </div>
+      </div>
+
+      {/* Card 2: Stripe Webhook */}
+      <div className="rounded-lg border-2 border-sf-accent bg-sf-raised/80 overflow-hidden ring-2 ring-sf-accent/30 shadow-[0_0_16px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none">
+        <div className="px-4 py-2 bg-sf-accent-soft border-b border-sf-border-accent flex items-center gap-2">
+          <Key className="w-3.5 h-3.5 text-sf-accent" aria-hidden="true" />
+          <span className="text-xs font-semibold text-sf-heading">Stripe Webhook</span>
+          <span className="ml-auto text-[10px] uppercase tracking-wider text-sf-accent font-bold">Step 2</span>
+        </div>
+        <div className="p-3 space-y-2">
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-sf-muted">Endpoint URL (read-only)</p>
+            <div className="font-mono text-[11px] text-sf-body bg-sf-base border border-sf-border rounded px-2 py-1 truncate">
+              https://sellf.example.com/api/webhooks/stripe
+            </div>
+          </div>
+          <button
+            type="button"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 bg-sf-accent-bg text-white text-sm font-bold shadow-[var(--sf-shadow-accent)]"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            <Key className="w-4 h-4" /> Register webhook
+          </button>
+          <div className="text-[10px] text-sf-muted italic text-center leading-snug">
+            One click → Stripe endpoint created, signing secret saved in DB.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrowserSuccessMock() {
+  return (
+    <div className="w-full max-w-md mx-auto space-y-4">
+      <div className="rounded-lg border border-sf-border bg-sf-deep p-6 text-center space-y-3 ring-2 ring-sf-accent shadow-[0_0_24px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]">
+        <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+          <Globe className="w-6 h-6 text-emerald-400" />
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wider text-sf-muted">Live</p>
+          <p className="text-sm font-mono font-bold text-sf-heading">your-domain.com</p>
+        </div>
+        <div className="inline-flex items-center gap-1.5 text-[10px] text-sf-success bg-sf-success-soft px-2 py-0.5 rounded-full">
+          <Key className="w-3 h-3" /> HTTPS · Let&apos;s Encrypt
+        </div>
+      </div>
+      <p className="text-xs text-sf-muted italic text-center">Your shop. Your domain. Your data.</p>
+    </div>
+  );
+}

@@ -10,6 +10,7 @@ import { SubscriptionsDemo } from './components/SubscriptionsDemo';
 import { UseCases } from './components/UseCases';
 import { TaxSection } from './components/TaxSection';
 import { HowItWorks } from './components/HowItWorks';
+import { DeployPaths } from './components/DeployPaths';
 import { SelfHostedComparison } from './components/SelfHostedComparison';
 import { TechStackGrid } from './components/TechStackGrid';
 import { LicenseTier } from './components/LicenseTier';
@@ -85,6 +86,7 @@ export default async function AboutPage({
         {/* Fast onboarding promise + flagship sales demo + pricing — answer
             "ile to kosztuje?" before piling on feature dump */}
         <HowItWorks />
+        <DeployPaths />
         <ConversionStack />
         <LicenseTier />
         {/* Feature dump + deep demos for buyers who want details */}

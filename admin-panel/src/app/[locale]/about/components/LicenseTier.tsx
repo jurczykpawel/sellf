@@ -3,6 +3,24 @@ import { Check } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 import { TIER_KEYS, type TierKey } from '@/lib/landing/feature-keys';
 
+const TSA_SHOP = 'https://sellf.techskills.academy';
+
+interface TierAction {
+  href: string;
+  external: boolean;
+}
+
+// Business intentionally goes to a mailto contact — not a paid product.
+// The Business-tier features (RBAC, SSO, advanced analytics) aren't
+// implemented in code yet, so selling a fixed-price product would be vapor.
+// Everything Business is negotiated 1-on-1.
+const TIER_ACTIONS: Record<TierKey, TierAction> = {
+  free:       { href: '#deploy-paths',                  external: false },
+  registered: { href: `${TSA_SHOP}/p/sellf-registered`, external: true  },
+  pro:        { href: `${TSA_SHOP}/p/sellf-pro`,        external: true  },
+  business:   { href: 'mailto:hello@sellf.app?subject=Sellf%20Business%20%E2%80%94%20inquiry', external: false },
+};
+
 type RowKey =
   | 'products'
   | 'buyers'
@@ -11,8 +29,7 @@ type RowKey =
   | 'csvExport'
   | 'watermark'
   | 'themes'
-  | 'apiScopes'
-  | 'whiteLabel';
+  | 'apiScopes';
 
 const ROW_KEYS: RowKey[] = [
   'products',
@@ -23,7 +40,6 @@ const ROW_KEYS: RowKey[] = [
   'watermark',
   'themes',
   'apiScopes',
-  'whiteLabel',
 ];
 
 const MATRIX: Record<RowKey, Record<TierKey, boolean>> = {
@@ -35,7 +51,6 @@ const MATRIX: Record<RowKey, Record<TierKey, boolean>> = {
   watermark:  { free: false, registered: false, pro: true,  business: true  },
   themes:     { free: false, registered: false, pro: true,  business: true  },
   apiScopes:  { free: false, registered: false, pro: true,  business: true  },
-  whiteLabel: { free: false, registered: false, pro: false, business: true  },
 };
 
 export async function LicenseTier() {
@@ -115,12 +130,21 @@ export async function LicenseTier() {
                         );
                       })}
                     </ul>
-                    <button
-                      type="button"
-                      className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-sf-accent text-white rounded-lg py-2 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent-hover transition-colors hover:bg-sf-accent-hover"
-                    >
-                      {t(`${tier}.cta`)}
-                    </button>
+                    {(() => {
+                      const action = TIER_ACTIONS[tier];
+                      const externalProps = action.external
+                        ? { target: '_blank' as const, rel: 'noopener noreferrer' }
+                        : {};
+                      return (
+                        <a
+                          href={action.href}
+                          {...externalProps}
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-sf-accent text-white rounded-lg py-2 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent-hover transition-colors hover:bg-sf-accent-hover"
+                        >
+                          {t(`${tier}.cta`)}
+                        </a>
+                      );
+                    })()}
                   </div>
                 </div>
               );

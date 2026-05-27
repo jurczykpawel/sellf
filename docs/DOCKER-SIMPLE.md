@@ -160,27 +160,15 @@ sudo systemctl restart caddy
 
 ### 9. Configure Stripe Webhooks
 
+**Easiest path — register from the Sellf admin (after Step 10 below):**
+
+After your first login as admin, open **Settings → Payments** in the Sellf admin. Two cards: paste your Stripe `pk_…` and `sk_…` into the API keys card, then click **Register webhook** in the second card. Sellf creates the endpoint on Stripe for you, subscribes to all the events, and stores the signing secret encrypted in your Supabase DB. No Dashboard hopping, no env-var edits.
+
+**Env-config path** — only needed if you can't (or don't want to) click in the admin (e.g. CI-driven Docker deploys):
+
 1. https://dashboard.stripe.com/webhooks
 2. Add endpoint: `https://your-domain.com/api/webhooks/stripe`
-3. Events:
-   - `checkout.session.completed`
-   - `checkout.session.async_payment_succeeded`
-   - `payment_intent.succeeded`
-   - `charge.refunded`
-   - `refund.created`
-   - `refund.updated`
-   - `charge.dispute.created`
-   - `customer.subscription.created`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-   - `customer.subscription.trial_will_end`
-   - `customer.subscription.paused`
-   - `customer.subscription.resumed`
-   - `invoice.paid`
-   - `invoice.upcoming`
-   - `invoice.payment_succeeded`
-   - `invoice.payment_failed`
-   - `invoice.payment_action_required`
+3. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `payment_intent.succeeded`, `charge.refunded`, `refund.created`, `refund.updated`, `charge.dispute.created`, `customer.subscription.{created,updated,deleted,trial_will_end,paused,resumed}`, `invoice.{paid,upcoming,payment_succeeded,payment_failed,payment_action_required}`
 4. Copy the **Signing secret**
 5. Add to `.env` as `STRIPE_WEBHOOK_SECRET`
 6. Restart: `docker compose restart`

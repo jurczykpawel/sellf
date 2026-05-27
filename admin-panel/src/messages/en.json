@@ -3072,8 +3072,8 @@
       "revenueBadgeIdle": "What you keep vs Gumroad",
       "revenueBadgePrefix": "You'd save",
       "revenueBadgeSuffix": "/year vs Gumroad",
-      "tenMinBadge": "10 minutes from clone to a working shop",
-      "tenMinDisclaimer": "Requires a VPS and a Stripe account"
+      "tenMinBadge": "~10 minutes · ~10 clicks · $0 to start",
+      "tenMinDisclaimer": "Free tier on Vercel + Supabase. Stripe account required (also free to create)."
     },
     "socialProof": {
       "openSource": "Open source",
@@ -3217,7 +3217,7 @@
       "subtitle": "From clone to a working shop in under 10 minutes",
       "step1": {
         "title": "Deploy",
-        "desc": "Clone the repo and deploy to any VPS or cloud provider. Docker or PM2, your choice."
+        "desc": "One-click deploy to Vercel or Netlify (free tier) — or run on your own VPS. Whatever works."
       },
       "step2": {
         "title": "Connect Stripe",
@@ -3228,7 +3228,181 @@
         "desc": "Create products, set prices, share links. Your store is live."
       },
       "categoryLabel": "QUICK START",
-      "disclaimer": "Requires a VPS (e.g. Hetzner, Mikrus, DigitalOcean) and a Stripe account."
+      "disclaimer": "Free path: Vercel + Supabase + Stripe (all free tier). VPS path for commercial production."
+    },
+    "deployPaths": {
+      "categoryLabel": "Deploy",
+      "title": "Pick the path that fits you",
+      "subtitle": "Three honest options from clone to live shop. Every one tested end-to-end. No marketing magic — what you'll actually click is listed below.",
+      "clicksLabel": "clicks",
+      "minutesLabel": "minutes",
+      "costLabel": "cost",
+      "bestForLabel": "Best for",
+      "stepsLabel": "What you'll click through",
+      "reassurance": "Every path above is tested end-to-end — same one-click buttons live in the GitHub README. Pick what fits today; you can move to another later without touching the code.",
+      "prereqs": {
+        "label": "Free accounts you'll need on any path",
+        "stripe": "Stripe",
+        "stripeSub": "Free, ~2 min to sign up at stripe.com",
+        "supabase": "Supabase",
+        "supabaseSub": "Free tier, ~3 min at supabase.com"
+      },
+      "vercel": {
+        "name": "Vercel + Supabase",
+        "tagline": "Easiest start. Both on a free tier, both stay free for small shops.",
+        "badge": "Recommended for first store",
+        "clicks": "~10",
+        "minutes": "~10",
+        "cost": "$0/mo",
+        "bestFor": "Hobby projects, first store, side gigs, validating an idea",
+        "steps": [
+          "Click the 'Deploy with Vercel' button",
+          "Sign in to Vercel and add the Supabase integration",
+          "Paste 5 Stripe + secret values (one-liner commands in guide)",
+          "Hit deploy, wait ~3 min for first build",
+          "Sign up (first user = admin) → click 'Register webhook' in admin"
+        ],
+        "footnote": "Vercel Hobby is for personal / non-commercial use (rarely enforced for small sites). For commercial shops at scale → VPS path or Vercel Pro ($20/mo).",
+        "ctaLabel": "Deploy to Vercel"
+      },
+      "netlify": {
+        "name": "Netlify + Supabase",
+        "tagline": "Same idea on a different host. Netlify free tier + Supabase free tier.",
+        "clicks": "~10",
+        "minutes": "~10",
+        "cost": "$0/mo",
+        "bestFor": "Netlify users, JAMstack-style preferences, alternative if Vercel ToS is a worry",
+        "steps": [
+          "Click the 'Deploy to Netlify' button",
+          "Sign in to Netlify, fork the repo",
+          "Create a Supabase project (manual — no integration yet)",
+          "Paste 10 env vars in Netlify (full list in guide)",
+          "Sign up (first user = admin) → click 'Register webhook' in admin"
+        ],
+        "footnote": "Netlify free tier: 100 GB bandwidth, 300 build minutes / month. Plenty for early-stage shops.",
+        "ctaLabel": "Deploy to Netlify"
+      },
+      "vps": {
+        "name": "Your own VPS",
+        "tagline": "True self-hosted. Best fit when the shop is your livelihood.",
+        "clicks": "1 or 3",
+        "minutes": "~5",
+        "cost": "~$5/mo",
+        "bestFor": "Commercial shops, full control, custom domain, no platform ToS to worry about",
+        "steps": [
+          "Plus a VPS (1GB+) and a Cloudflare-managed domain — only the self-host path needs these two",
+          "Pick A) edit one env file + 1 curl-bash OR B) 3 OAuth-style curl-bashes (no key pasting)",
+          "DNS, Caddy, Let's Encrypt cert, PM2 — all automatic, ~3 min build",
+          "First signup at the live URL becomes admin",
+          "(Optional) Stripe via admin Settings → Payments → Register webhook"
+        ],
+        "footnote": "Sweet spot: ~$5/mo VPS + Supabase Cloud free. Scales to $25–45/mo only when you actually hit usage limits.",
+        "ctaLabel": "Self-host guide"
+      },
+      "previewLabel": "Preview the flow",
+      "demo": {
+        "modalAriaLabel": "Deploy walkthrough",
+        "closeLabel": "Close",
+        "prevLabel": "Previous step",
+        "nextLabel": "Next step",
+        "playLabel": "Play",
+        "pauseLabel": "Pause",
+        "slideOf": "Step {current} of {total}",
+        "skipLabel": "Skip — take me to deploy",
+        "vercelTitle": "Vercel deploy — what you'll actually see",
+        "netlifyTitle": "Netlify deploy — what you'll actually see",
+        "vpsTitle": "Own-VPS deploy — what you'll actually see",
+        "vercelSlides": [
+          {
+            "title": "Click 'Deploy with Vercel'",
+            "url": "github.com/jurczykpawel/sellf",
+            "caption": "GitHub README has a big black 'Deploy' button right at the top. One click takes you straight to Vercel — you don't need to fork anything by hand.",
+            "visual": "github-button"
+          },
+          {
+            "title": "Sign in to Vercel",
+            "url": "vercel.com/login",
+            "caption": "First time? Click 'Continue with GitHub' — fastest signup. A free Hobby account is all you need.",
+            "visual": "vercel-signin"
+          },
+          {
+            "title": "Add the Supabase integration",
+            "url": "vercel.com/integrations/supabase",
+            "caption": "Vercel asks if you want to connect a database. Click 'Add Integration' → Supabase → free tier. The database creates itself and the keys fill in automatically.",
+            "visual": "supabase-integration"
+          },
+          {
+            "title": "Paste 5 env values",
+            "url": "vercel.com/new",
+            "caption": "Stripe publishable + secret keys + 3 random secrets. The QUICK-START guide has copy-paste one-liner commands that generate each secret for you. No webhook secret needed — you'll register it from the admin panel with one click after deploy.",
+            "visual": "env-form"
+          },
+          {
+            "title": "Build runs — coffee break",
+            "url": "vercel.com/deployments",
+            "caption": "About 3 minutes. Default URL is your-shop.vercel.app — sign up (first user = admin), open Settings → Payments, click 'Register webhook'. Done. Optionally add your own yourshop.com in Settings → Domains (free SSL, ~5 min).",
+            "visual": "build-success"
+          }
+        ],
+        "netlifySlides": [
+          {
+            "title": "Click 'Deploy to Netlify'",
+            "url": "github.com/jurczykpawel/sellf",
+            "caption": "Same README, second button below the Vercel one. Green Netlify badge. Click it.",
+            "visual": "github-button-netlify"
+          },
+          {
+            "title": "Sign in to Netlify",
+            "url": "app.netlify.com",
+            "caption": "Continue with GitHub. Free tier, no card. Netlify forks the Sellf repo into your GitHub account.",
+            "visual": "netlify-signin"
+          },
+          {
+            "title": "Create a Supabase project",
+            "url": "supabase.com/dashboard",
+            "caption": "Netlify doesn't auto-create the database — open supabase.com in another tab, click 'New project', and copy the URL + anon key + service role key.",
+            "visual": "supabase-manual"
+          },
+          {
+            "title": "Paste 10 env vars",
+            "url": "app.netlify.com/sites/your-shop/settings/env",
+            "caption": "More fields than Vercel (no auto-integration). The guide lists every value with one-liner commands. Paste, save. No webhook secret needed — that comes via the admin click after deploy.",
+            "visual": "env-form-large"
+          },
+          {
+            "title": "Build runs — coffee break",
+            "url": "app.netlify.com/sites/your-shop",
+            "caption": "About 3 minutes. Default URL is your-shop.netlify.app — sign up (first user = admin), open Settings → Payments, click 'Register webhook'. Done. Optionally add your own yourshop.com in Domain management (free SSL, no card).",
+            "visual": "build-success-netlify"
+          }
+        ],
+        "vpsSlides": [
+          {
+            "title": "VPS path extras — beyond the shared prereqs",
+            "url": "before-you-start",
+            "caption": "On top of the Stripe + Supabase accounts you'd need for any path, the self-host route adds two things: a 1GB+ VPS (Hetzner ~$5/mo, Mikrus, DigitalOcean — anything works, identical commands) and a domain whose DNS lives in Cloudflare (free zone — you only need an API token).",
+            "visual": "vps-prereqs"
+          },
+          {
+            "title": "SSH in + pick a variant",
+            "url": "root@vps:~ ▸ terminal",
+            "caption": "Two ways to install — both deploy the same thing. Pick whichever you prefer; both shown below.",
+            "visual": "install-variants"
+          },
+          {
+            "title": "~3 min build → live URL",
+            "url": "root@vps:~ ▸ output",
+            "caption": "Streamed log shows Bun + Caddy + PM2 installing, the Cloudflare DNS record going green, Let's Encrypt cert issued, PM2 marking the app online. When the last line reads ✓ Live, you can open https://sellf.example.com in a browser. The first person who signs up automatically becomes the admin.",
+            "visual": "terminal-deploy"
+          },
+          {
+            "title": "(Optional) Add Stripe — admin UI, two cards in one page",
+            "url": "https://sellf.example.com/dashboard/settings",
+            "caption": "The shop already runs without Stripe — catalog, lead magnets and waitlist signups all work out of the box. Wire Stripe in only when you actually want to sell paid products: sign in as admin, open Settings → Payments. Two cards on the same page — paste Stripe pk + sk into the API keys card (saved encrypted to your Supabase DB), then click 'Register webhook' in the second card. Sellf calls Stripe for you and stores the signing secret. Prefer editing files? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf works too.",
+            "visual": "admin-webhook"
+          }
+        ]
+      }
     },
     "demo": {
       "title": "See it in action",
@@ -3392,7 +3566,7 @@
         },
         {
           "q": "What happens if the server goes down?",
-          "a": "Sellf creates automatic backups. If your VPS dies, you spin up a new one and restore from the latest backup — usually under 5 minutes. Your Stripe account and payment data are never lost (Stripe stores them)."
+          "a": "Set up automatic backups once (not complicated — a single cron job or your VPS provider's built-in snapshots). If your VPS dies, spin up a new one and restore from the latest backup — usually under 5 minutes. Your Stripe account and payment data are never lost (Stripe stores them)."
         },
         {
           "q": "What happens if a webhook fails?",
@@ -3440,35 +3614,35 @@
     },
     "licenseTier": {
       "title": "Pick the tier that fits where you are",
-      "subtitle": "Free covers most solopreneurs forever. Pro removes branding and adds power-user features. Business adds white-label.",
+      "subtitle": "Free covers most solopreneurs forever. Pro removes branding and adds power-user features. Business is anything custom — talk to us.",
       "categoryLabel": "License",
       "free": {
         "name": "Free",
         "tagline": "AGPL-3.0 open source. No limits on products, sales, or buyers. Forever.",
         "cta": "Self-host now",
-        "price": "0 zł",
+        "price": "$0",
         "priceNote": "no payment, ever"
       },
       "registered": {
         "name": "Registered",
         "tagline": "Free + payment CSV export. Register your install in 30 seconds.",
         "cta": "Register install",
-        "price": "0 zł",
+        "price": "$0",
         "priceNote": "free upgrade"
       },
       "pro": {
         "name": "Pro",
         "tagline": "Hide \"Powered by Sellf\", save custom themes, expand API key scopes.",
         "cta": "Go Pro",
-        "price": "199 zł",
+        "price": "$59",
         "priceNote": "one-time, lifetime updates"
       },
       "business": {
         "name": "Business",
-        "tagline": "White-label commercial license. Resell Sellf under your own brand.",
+        "tagline": "Custom needs, enterprise support, volume licensing — talk to us.",
         "cta": "Talk to us",
         "price": "Contact",
-        "priceNote": "for resellers"
+        "priceNote": "tailored"
       },
       "rows": {
         "products": "Unlimited products",
@@ -3478,8 +3652,7 @@
         "csvExport": "Payment CSV export",
         "watermark": "Hide \"Powered by Sellf\"",
         "themes": "Save custom themes",
-        "apiScopes": "Expanded API scopes",
-        "whiteLabel": "White-label resale"
+        "apiScopes": "Expanded API scopes"
       }
     },
     "embedDemo": {
@@ -3608,7 +3781,7 @@
         },
         {
           "title": "\"What if the server crashes?\"",
-          "body": "Automatic backups. New VPS spins up in 5 minutes from the backup. Your Stripe account and payment data stay with Stripe — never lost."
+          "body": "Set up automatic backups once (not complicated — a single cron job or your VPS provider's built-in snapshots). Server dies? Spin up a new VPS, restore from the latest backup — usually 5 minutes. Your Stripe account and payment data stay with Stripe — never lost."
         },
         {
           "title": "\"How much will this actually cost me?\"",

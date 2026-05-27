@@ -175,7 +175,7 @@ export function HeroSection() {
             </a>
 
             <Link
-              href="#deployment"
+              href="#deploy-paths"
               className="inline-flex items-center gap-2 bg-sf-accent-soft border border-sf-border-accent hover:bg-sf-accent-med text-sf-heading rounded-full px-8 py-4 text-lg font-bold transition-[background-color,border-color] duration-200 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent"
             >
               {t('hero.ctaDeploy')}
