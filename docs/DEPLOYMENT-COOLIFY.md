@@ -9,7 +9,7 @@ Time required: **~10 minutes** once Coolify is installed.
 ## When this is the right choice
 
 Pick Coolify if:
-- You have a VPS with **8 GB+ RAM** (the build itself needs ~3 GB free for `bun run build` on Next.js 16 with Turbopack; on a 4 GB VPS Coolify + Postgres + Redis already eat ~1 GB, leaving the build to OOM — verified 2026-05-26 on a Hetzner CX22)
+- You have a VPS with **8 GB+ RAM**. The build itself needs ~3 GB free for `bun run build` on Next.js 16 with Turbopack; on a 4 GB VPS Coolify + Postgres + Redis already eat ~1 GB, leaving the build to OOM. Verified 2026-05-27: 4 GB Hetzner CX22 OOM-kills the build; 8 GB Hetzner CX32 builds in ~8 minutes and serves successfully.
 - You want everything on your own infrastructure (no Supabase Cloud, no Vercel)
 - You're OK self-hosting Postgres (and your own backups)
 - You want a real "deploy and forget" — Coolify handles auto-renew TLS, updates, restarts
