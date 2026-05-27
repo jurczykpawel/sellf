@@ -560,6 +560,14 @@ A      api      YOUR_SERVER_IP       3600
 
 ## Stripe Webhooks Configuration
 
+> **Quick path:** After your first login as admin (next major section below), open
+> **Settings → Payments** in the Sellf admin. Paste your Stripe keys, click
+> **Register webhook** — Sellf creates the endpoint on Stripe and saves the
+> signing secret encrypted in your Supabase DB. Skips the manual flow below.
+>
+> The env-config flow in this section is still valid for CI-driven Docker
+> deploys where you don't want to log into the Sellf admin to click things.
+
 ### 1. Create a Webhook Endpoint in Stripe Dashboard
 
 1. Go to: https://dashboard.stripe.com/webhooks

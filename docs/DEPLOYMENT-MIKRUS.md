@@ -4,6 +4,17 @@
 
 This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for **high performance** on resource-constrained environments.
 
+> **Quick path:** If you just want Sellf live on Mikrus, the StackPilot one-liner
+> handles everything in this guide automatically — same DNS + Caddy + PM2 setup,
+> ~5 minutes instead of ~30. See the [landing demo](https://sellf.app/en/about#deploy-paths)
+> for the click-by-click walkthrough. This document remains as the **manual path**
+> if you want full control over every step or need to debug a broken install.
+>
+> **Stripe webhook:** Whichever path you pick, register the webhook from the Sellf
+> admin (`Settings → Payments → Register webhook`) — no Stripe Dashboard hopping,
+> no `STRIPE_WEBHOOK_SECRET` env var to manage. The env var entry below is kept
+> for the env-config / CI deploy path.
+
 ---
 
 ## 📊 Performance Expectations
@@ -127,10 +138,11 @@ NEXT_PUBLIC_SUPABASE_URL=https://api.yourdomain.com
 GOTRUE_SITE_URL=https://yourdomain.com
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 
-# Stripe
+# Stripe — pk/sk required, webhook secret optional (auto-managed via
+# the admin's Register-webhook button by default — see top of this doc)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_SECRET_KEY=sk_live_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
+# STRIPE_WEBHOOK_SECRET=whsec_xxx   # env-config path only
 
 # Cloudflare Turnstile
 NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=your_site_key

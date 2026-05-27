@@ -143,7 +143,8 @@ SUPABASE_SERVICE_ROLE_KEY=<same as SERVICE_ROLE_KEY>
 SITE_URL=https://<your-coolify-app-domain>
 STRIPE_SECRET_KEY=sk_test_…                # or sk_live_… for production
 STRIPE_PUBLISHABLE_KEY=pk_test_…
-STRIPE_WEBHOOK_SECRET=whsec_PLACEHOLDER     # replace in Step 5
+# STRIPE_WEBHOOK_SECRET — leave unset; you'll register the webhook from
+# the Sellf admin in Step 5 and the signing secret will land in the DB.
 CHECKOUT_BINDING_SECRET=<from step 3>
 APP_ENCRYPTION_KEY=<from step 3>
 LOGINWALL_SECRET=<from step 3>
@@ -156,16 +157,16 @@ Click **Deploy** in Coolify. First deploy takes 5–10 minutes (it builds Sellf'
 
 **No separate migration step** — `docker-compose.fullstack.yml` mounts `./supabase/migrations` into the Postgres container's `/docker-entrypoint-initdb.d`, so migrations run automatically on first boot. This is the main reason Coolify is closer to true one-click than Vercel/Netlify.
 
-## Step 5 — Stripe webhook
+## Step 5 — Sign up + register Stripe webhook (1 min, 1 click)
 
-After deploy, your app is at `https://<your-coolify-app-domain>`. Set up the webhook the same way as the Vercel/Netlify guide:
+After deploy, your app is at `https://<your-coolify-app-domain>`.
 
-1. https://dashboard.stripe.com/test/webhooks → **Add endpoint**
-2. **URL:** `https://<your-domain>/api/webhooks/stripe`
-3. **Events:** see [DEPLOYMENT-VERCEL-NETLIFY.md Step 7](./DEPLOYMENT-VERCEL-NETLIFY.md#step-7--wire-up-the-stripe-webhook-3-min)
-4. Copy the `whsec_…` signing secret
-5. In Coolify: **Environment Variables → STRIPE_WEBHOOK_SECRET** → paste the real value → **Save**
-6. **Restart** the application from Coolify dashboard
+1. Open the URL → sign up with your email → click the magic link from your inbox. **The first registered user automatically becomes admin.**
+2. In the admin, go to **Settings → Payments** (or `/dashboard/settings`).
+3. **API keys card:** paste your Stripe Publishable Key and Secret Key. Saved encrypted to your Supabase DB.
+4. **Stripe Webhook card:** click **Register webhook**. Sellf calls Stripe for you — creates the endpoint pointing at `https://<your-domain>/api/webhooks/stripe`, subscribes to all the events it needs, and stores the signing secret encrypted in `stripe_configurations`. No Stripe Dashboard hopping, no env var dance.
+
+> **Env-config alt:** If you'd rather keep secrets in Coolify env vars (e.g. for CI-driven redeploys), use the legacy flow — create the webhook manually at https://dashboard.stripe.com/test/webhooks, paste the `whsec_…` into Coolify's `STRIPE_WEBHOOK_SECRET`, restart. Same outcome.
 
 ## Step 6 — Custom domain + TLS
 
