@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Database, Key, CheckCircle2, Server, Globe, Terminal, ArrowRight } from 'lucide-react';
 
 function GithubMark(props: React.SVGProps<SVGSVGElement>) {
@@ -341,104 +340,102 @@ function VpsPrereqsMock() {
 }
 
 function InstallVariantsMock() {
-  const [tab, setTab] = useState<'env-file' | 'oauth'>('env-file');
   return (
-    <div className="w-full max-w-lg mx-auto space-y-3">
-      {/* Tab selector */}
-      <div
-        role="tablist"
-        aria-label="Install variant"
-        className="grid grid-cols-2 gap-2 p-1 bg-sf-float/60 border border-sf-border rounded-lg"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'env-file'}
-          onClick={() => setTab('env-file')}
-          className={`text-xs font-semibold py-2 px-3 rounded-md transition-colors ${
-            tab === 'env-file'
-              ? 'bg-sf-accent-bg text-white shadow-[var(--sf-shadow-accent)]'
-              : 'text-sf-body hover:text-sf-heading hover:bg-sf-base'
-          }`}
-        >
-          A · Edit env + 1 curl
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'oauth'}
-          onClick={() => setTab('oauth')}
-          className={`text-xs font-semibold py-2 px-3 rounded-md transition-colors ${
-            tab === 'oauth'
-              ? 'bg-sf-accent-bg text-white shadow-[var(--sf-shadow-accent)]'
-              : 'text-sf-body hover:text-sf-heading hover:bg-sf-base'
-          }`}
-        >
-          B · 3 curls (OAuth)
-        </button>
+    <div className="w-full max-w-lg mx-auto space-y-4">
+      {/* Variant A — Edit env + 1 curl */}
+      <VariantBlock letter="A" title="Edit env + 1 curl" subtitle="Fewer commands, you paste keys into a file once">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>~ $</span>
+          <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
+        </div>
+        <div className="text-zinc-500 mt-1">root@vps:~#</div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">nano ~/.config/stackpilot/sellf.env</span>
+        </div>
+        <div className="pl-2 mt-1">
+          <div><span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>=<span className="text-yellow-300">your-cf-token</span></div>
+          <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+          <div><span className="text-purple-400">SUPABASE_ANON_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+          <div><span className="text-purple-400">SUPABASE_SERVICE_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+        </div>
+        <div className="text-zinc-600 italic">(Ctrl+O save, Ctrl+X exit)</div>
+        <div className="mt-2 text-zinc-500">root@vps:~#</div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+        </div>
+      </VariantBlock>
+
+      {/* OR divider */}
+      <div className="relative flex items-center" aria-hidden="true">
+        <div className="flex-grow border-t border-sf-border" />
+        <span className="mx-3 px-3 py-0.5 rounded-full bg-sf-accent-soft border border-sf-border-accent text-xs font-mono uppercase tracking-wider text-sf-accent font-bold">
+          OR
+        </span>
+        <div className="flex-grow border-t border-sf-border" />
       </div>
 
-      {/* Terminal */}
-      <div
-        role="tabpanel"
-        className="font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-1.5 border border-zinc-800 animate-[demoSlideIn_180ms_ease-out] motion-reduce:animate-none"
-        key={tab}
-      >
-        {tab === 'env-file' ? (
-          <>
-            <div className="flex items-center gap-2 text-zinc-500">
-              <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>~ $</span>
-              <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
-            </div>
-            <div className="text-zinc-500 mt-1">root@vps:~#</div>
-            <div className="break-all">
-              <span className="text-emerald-300 font-semibold">nano ~/.config/stackpilot/sellf.env</span>
-            </div>
-            <div className="pl-2 mt-1">
-              <div><span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>=<span className="text-yellow-300">your-cf-token</span></div>
-              <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
-              <div><span className="text-purple-400">SUPABASE_ANON_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
-              <div><span className="text-purple-400">SUPABASE_SERVICE_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
-            </div>
-            <div className="text-zinc-600 italic">(Ctrl+O save, Ctrl+X exit)</div>
-            <div className="mt-2 text-zinc-500">root@vps:~#</div>
-            <div className="break-all">
-              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 text-zinc-500">
-              <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>~ $</span>
-              <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
-            </div>
-            <div className="text-zinc-500 mt-1">root@vps:~#</div>
-            <div className="break-all">
-              <span className="text-zinc-600"># 1. CF token (paste once)</span>
-            </div>
-            <div className="break-all">
-              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/cloudflare | bash</span>
-            </div>
-            <div className="text-zinc-400 pl-2">Paste CF API token: <span className="text-yellow-300">•••••••</span> ✓</div>
+      {/* Variant B — 3 OAuth curls */}
+      <VariantBlock letter="B" title="3 curls (OAuth)" subtitle="More commands, never paste keys into your shell">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>~ $</span>
+          <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
+        </div>
+        <div className="text-zinc-500 mt-1">root@vps:~#</div>
+        <div className="break-all">
+          <span className="text-zinc-600"># 1. CF token (paste once into prompt)</span>
+        </div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/cloudflare | bash</span>
+        </div>
+        <div className="text-zinc-400 pl-2">Paste CF API token: <span className="text-yellow-300">•••••••</span> ✓</div>
 
-            <div className="break-all mt-2">
-              <span className="text-zinc-600"># 2. Supabase (browser OAuth)</span>
-            </div>
-            <div className="break-all">
-              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf-config | bash</span>
-            </div>
-            <div className="text-zinc-400 pl-2">▸ Open browser → authorize → ✓</div>
+        <div className="break-all mt-2">
+          <span className="text-zinc-600"># 2. Supabase (browser OAuth)</span>
+        </div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf-config | bash</span>
+        </div>
+        <div className="text-zinc-400 pl-2">▸ Open browser → authorize → ✓</div>
 
-            <div className="break-all mt-2">
-              <span className="text-zinc-600"># 3. Deploy</span>
-            </div>
-            <div className="break-all">
-              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
-            </div>
-          </>
-        )}
+        <div className="break-all mt-2">
+          <span className="text-zinc-600"># 3. Deploy</span>
+        </div>
+        <div className="break-all">
+          <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+        </div>
+      </VariantBlock>
+    </div>
+  );
+}
+
+function VariantBlock({
+  letter,
+  title,
+  subtitle,
+  children,
+}: {
+  letter: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-sf-border bg-sf-raised/40 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start gap-3 px-4 py-3 bg-sf-float/60 border-b border-sf-border">
+        <span className="shrink-0 w-7 h-7 rounded-full bg-sf-accent-bg text-white text-sm font-bold flex items-center justify-center shadow-[var(--sf-shadow-accent)]">
+          {letter}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-sf-heading leading-tight">{title}</p>
+          <p className="text-[11px] text-sf-muted leading-snug">{subtitle}</p>
+        </div>
+      </div>
+      {/* Terminal body */}
+      <div className="font-mono text-xs text-emerald-400 bg-zinc-950 p-4 space-y-1.5">
+        {children}
       </div>
     </div>
   );

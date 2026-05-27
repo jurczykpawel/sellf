@@ -3384,7 +3384,7 @@
           {
             "title": "SSH + wybierz wariant",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Dwa sposoby instalacji — oba dają to samo. A) Edytujesz jeden plik env z tokenem CF + kluczami Supabase, potem jedna komenda curl-bash która te wartości czyta. B) Trzy komendy curl-bash w stylu OAuth — żadnych kluczy paste'owanych do shell. Token CF wpisujesz raz w promptcie instalatora, klucze Supabase łapane przez browser auth. Klik między zakładkami żeby zobaczyć obie.",
+            "caption": "Dwa sposoby instalacji — oba dają to samo. Wybierasz to co Ci wygodniej; oba pokazane poniżej.",
             "visual": "install-variants"
           },
           {
