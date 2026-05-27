@@ -8,7 +8,7 @@
 > - **Skills needed:** none — only a web browser
 > - **Setup time:** ~20 minutes
 > - **Cost to start:** **$0/month**
-> - **Cost when your store outgrows the free Supabase limits:** **$25/month** (Supabase Pro — see "When do you actually have to upgrade?" below)
+> - **Cost once you're a real commercial store:** **$20/month** for Vercel Pro (Hobby is technically personal/non-commercial use), **+$25/month** for Supabase Pro when you outgrow the free database (typically takes 3+ years for a small store)
 > - **Stripe fee** (every path): ~2.9% + $0.30 per transaction
 >
 > **Best for:** anyone who hasn't put software on a server before. If that's you, stop reading the green box below and just follow this guide.
@@ -353,11 +353,32 @@ The free plan covers most small Sellf stores for years. Here's when you'll likel
 | First paying customer | Nothing yet | Free plan still works | $0/month |
 | Your database approaches 500 MB | **Supabase Pro** ($25/mo) | More database room (8 GB) + automated daily backups | $25/month |
 | You hit 50,000 monthly active users | **Supabase Pro** ($25/mo) | Higher MAU limit | $25/month |
-| You hit Vercel's bandwidth limit (100 GB/month) | **Vercel Pro** ($20/mo) | More bandwidth | $20/month |
+| You hit a Vercel Hobby limit (see table below) | **Vercel Pro** ($20/mo + usage) | Higher limits + commercial use allowed | $20/month + overages |
 
-So realistically: **$0 to start, $25/month if you outgrow Supabase Free** (database size, MAU, or wanting backups), **$45/month if you also outgrow Vercel's bandwidth limit**.
+### Vercel Hobby limits (the free tier this guide uses)
 
-For a typical small digital store, the 500 MB database covers 3–4 years of growth. You don't need to budget for $25/month from day one — start free, upgrade only when usage graphs in the Supabase dashboard show you closing in on a limit.
+Vercel Hobby is generous but has hard stops — when you hit a limit your store returns 503 until the next billing cycle (no automatic overage billing).
+
+| Resource | Free monthly limit | What it covers for a Sellf store |
+|----------|---------------------|----------------------------------|
+| **Fast Data Transfer** (bandwidth) | 100 GB | Each page view costs ~200–500 KB → 100 GB covers ~200,000 monthly visits |
+| **Function Invocations** | 1,000,000 | One per page load + a few per webhook → covers 50–200k visits |
+| **Active CPU** | 4 hours | Total compute time across all functions; Sellf uses very little per request |
+| **Edge Requests** | 1,000,000 | Cached static assets — covers ~50k unique visits per month |
+| **Image Transformations** | 5,000 | Product images scaled on the fly |
+| **Build Memory** | 360 GB-hrs | Essentially unlimited for Sellf |
+| **Deployments** | unlimited | Redeploy as often as you want |
+| **Team members** | 1 seat | Solo operation only |
+
+### Vercel Hobby is for personal use, not commercial
+
+This is the part Vercel buries: **the Hobby plan is "for personal, non-commercial use."** Strictly speaking, running a store that takes money from customers is commercial use and should be on Pro.
+
+In practice Vercel rarely flags small commercial sites — you can experiment, launch, validate. But once you have real customers and steady revenue, you should upgrade to Pro both for legal compliance and to avoid hitting hard limits during a busy day.
+
+So realistically: **$0 while you're validating, $20/month once you're a real commercial store** (Vercel Pro), **$45/month if you also outgrow Supabase Free** (Supabase Pro on top).
+
+For a typical small digital store the 500 MB database covers 3–4 years of growth. You don't need to budget for $45/month from day one — start free, upgrade Vercel when revenue justifies it, upgrade Supabase when usage graphs in the dashboard show you closing in on a limit.
 
 Stripe takes a per-transaction fee (~2.9% + $0.30 in most countries) — see https://stripe.com/pricing for your country.
 

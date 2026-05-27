@@ -8,7 +8,7 @@
 > - **Wymagane umiejętności:** żadne — tylko przeglądarka
 > - **Czas konfiguracji:** ~20 minut
 > - **Koszt na start:** **$0/miesiąc**
-> - **Koszt gdy sklep przerośnie darmowe limity Supabase:** **$25/miesiąc** (Supabase Pro — zobacz "Kiedy faktycznie musisz aktualizować" niżej)
+> - **Koszt gdy jesteś prawdziwym sklepem komercyjnym:** **$20/miesiąc** za Vercel Pro (Hobby technicznie jest osobisty/niekomercyjny), **+$25/miesiąc** za Supabase Pro gdy przerośniesz darmową bazę (typowo 3+ lata dla małego sklepu)
 > - **Prowizja Stripe** (na każdej ścieżce): ~2,9% + 0,30 zł od transakcji
 >
 > **Dla kogo:** dla każdego kto nigdy nie stawiał oprogramowania na serwerze. Jeśli to Ty, przestań czytać zielony blok niżej i podążaj za tym przewodnikiem.
@@ -353,11 +353,32 @@ Darmowy plan pokrywa większość małych sklepów Sellf przez lata. Oto kiedy z
 | Pierwszy płacący klient | Jeszcze nic | Darmowy plan dalej wystarcza | $0/miesiąc |
 | Twoja baza zbliża się do 500 MB | **Supabase Pro** ($25/mies) | Więcej miejsca w bazie (8 GB) + automatyczne codzienne backupy | $25/miesiąc |
 | Przekroczysz 50 000 miesięcznie aktywnych użytkowników | **Supabase Pro** ($25/mies) | Wyższy limit MAU | $25/miesiąc |
-| Przekroczysz limit Vercel (100 GB/miesiąc) | **Vercel Pro** ($20/mies) | Więcej transferu | $20/miesiąc |
+| Uderzysz w limit Vercel Hobby (tabela niżej) | **Vercel Pro** ($20/mies + zużycie) | Wyższe limity + użycie komercyjne dozwolone | $20/miesiąc + nadwyżki |
 
-Realnie: **$0 na start, $25/miesiąc jeśli przerośniesz darmowego Supabase** (rozmiar bazy, MAU albo gdy chcesz backupy), **$45/miesiąc jeśli przerośniesz też limit transferu Vercela**.
+### Limity Vercel Hobby (darmowy plan którego używa ten przewodnik)
 
-Dla typowego małego sklepu cyfrowego 500 MB bazy pokrywa 3-4 lata wzrostu. Nie musisz planować $25/miesiąc od dnia pierwszego — zacznij za darmo, aktualizuj dopiero gdy wykresy zużycia w panelu Supabase pokażą że zbliżasz się do limitu.
+Vercel Hobby jest hojny ale ma twarde stopery — gdy uderzysz w limit sklep zwraca 503 do następnego cyklu rozliczeniowego (bez automatycznych nadwyżek).
+
+| Zasób | Limit darmowy miesięczny | Co pokrywa dla sklepu Sellf |
+|-------|--------------------------|------------------------------|
+| **Fast Data Transfer** (transfer) | 100 GB | Każda wizyta ~200-500 KB → 100 GB pokrywa ~200 000 wizyt/miesiąc |
+| **Function Invocations** | 1 000 000 | Jedno na ładowanie strony + kilka per webhook → 50-200k wizyt |
+| **Active CPU** | 4 godziny | Sumaryczny czas procesora przez wszystkie funkcje; Sellf używa bardzo mało |
+| **Edge Requests** | 1 000 000 | Cachowane statyczne assety — ~50k unikalnych wizyt miesięcznie |
+| **Image Transformations** | 5 000 | Zdjęcia produktów scaled-on-the-fly |
+| **Pamięć buildów** | 360 GB-godzin | Praktycznie nieograniczone dla Sellfa |
+| **Deploymenty** | bez limitu | Redeploy ile chcesz |
+| **Team members** | 1 seat | Tylko Ty |
+
+### Vercel Hobby jest do użytku osobistego, nie komercyjnego
+
+To rzecz którą Vercel zakopuje: **plan Hobby jest "do osobistego, niekomercyjnego użytku."** Ściśle mówiąc, prowadzenie sklepu który przyjmuje pieniądze od klientów to użycie komercyjne i powinno być na Pro.
+
+W praktyce Vercel rzadko flaguje małe sklepy komercyjne — możesz eksperymentować, wystartować, walidować. Ale gdy masz prawdziwych klientów i stały przychód, powinieneś przejść na Pro zarówno dla zgodności z regulaminem jak i żeby nie uderzać w twarde limity w pracowity dzień.
+
+Realnie: **$0 podczas walidacji, $20/miesiąc gdy jesteś prawdziwym sklepem komercyjnym** (Vercel Pro), **$45/miesiąc jeśli też przerośniesz darmowego Supabase** (Supabase Pro na wierzchu).
+
+Dla typowego małego sklepu cyfrowego 500 MB bazy pokrywa 3-4 lata wzrostu. Nie musisz planować $45/miesiąc od dnia pierwszego — zacznij za darmo, aktualizuj Vercel gdy przychody to uzasadniają, aktualizuj Supabase gdy wykresy zużycia w dashboardzie pokażą że zbliżasz się do limitu.
 
 Stripe pobiera prowizję od każdej transakcji (~2,9% + 0,30 zł w większości krajów) — zobacz https://stripe.com/pl/pricing dla swojego kraju.
 
