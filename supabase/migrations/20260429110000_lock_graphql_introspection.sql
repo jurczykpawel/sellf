@@ -50,12 +50,8 @@ REVOKE EXECUTE ON FUNCTION public.process_refund_request(uuid, text, text) FROM 
 REVOKE EXECUTE ON FUNCTION public.set_revenue_goal(bigint, timestamptz, uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.update_video_progress(uuid, text, integer, integer, boolean) FROM PUBLIC;
 
--- 1b. Table-level REVOKE for admin-only tables. pg_graphql does not support
---     excluding tables via comment directives (supabase/pg_graphql#470), so
---     anon-readable tables in public are auto-exposed as Collections + CRUD
---     mutations. REVOKE SELECT from anon/authenticated is the only mechanism
---     that hides them. Storefront tables (products, categories, tags, …) stay
---     anon-readable intentionally.
+-- 1b. Hide admin-only tables from anon GraphQL — pg_graphql has no exclude
+--     directive (supabase/pg_graphql#470), only REVOKE SELECT works.
 REVOKE SELECT ON public.consent_logs FROM anon, authenticated;
 REVOKE SELECT ON public.coupon_redemptions FROM anon, authenticated;
 REVOKE SELECT ON public.coupon_reservations FROM anon, authenticated;
@@ -64,8 +60,6 @@ REVOKE SELECT ON public.user_product_access FROM anon, authenticated;
 REVOKE SELECT ON public.video_events FROM anon, authenticated;
 REVOKE SELECT ON public.video_progress FROM anon, authenticated;
 
--- Service-role still needs to read these, plus authenticated needs RLS-gated
--- access to its own rows (profiles, user_product_access, video_*).
 GRANT SELECT ON public.consent_logs TO service_role;
 GRANT SELECT ON public.coupon_redemptions TO service_role;
 GRANT SELECT ON public.coupon_reservations TO service_role;
@@ -73,6 +67,26 @@ GRANT SELECT ON public.profiles TO authenticated, service_role;
 GRANT SELECT ON public.user_product_access TO authenticated, service_role;
 GRANT SELECT ON public.video_events TO authenticated, service_role;
 GRANT SELECT ON public.video_progress TO authenticated, service_role;
+
+-- 1c. Drop anon/authenticated write grants on service-role-only tables.
+DO $$
+DECLARE t text;
+BEGIN
+  FOR t IN SELECT unnest(ARRAY[
+    'consent_logs','coupon_redemptions','coupon_reservations',
+    'profiles','user_product_access','video_events','video_progress',
+    'shop_config'
+  ]) LOOP
+    EXECUTE format(
+      'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.%I FROM anon, authenticated', t
+    );
+  END LOOP;
+END;
+$$;
+
+-- 1d. is_admin/is_admin_cached — authenticated-only (anon exposure = recon).
+REVOKE EXECUTE ON FUNCTION public.is_admin(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.is_admin_cached() FROM anon;
 
 -- 2. pg_graphql `@graphql({"include": false})` directive on functions that
 --    are not part of the public API (admin, helpers, internal upserts).

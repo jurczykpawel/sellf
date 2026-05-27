@@ -73,14 +73,13 @@ const ADMIN_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Functions intentionally exposed despite matching a pattern. Each entry
- * needs a justification (the SQL grep is permissive — security-relevant
- * exemptions must be explicit).
+ * Functions intentionally exposed despite matching one of ADMIN_PATTERNS.
+ * Empty by design — every admin-shaped function currently in tree should
+ * have a matching REVOKE. Add an entry here ONLY if a function name has
+ * to retain a forbidden prefix for storefront reasons (rare); the value
+ * must be a one-line justification that survives code review.
  */
-const EXEMPT: Record<string, string> = {
-  is_sale_price_active:
-    'Public-facing helper used in storefront product pages; matches no pattern actually, kept as documentation example.',
-};
+const EXEMPT: Record<string, string> = {};
 
 /**
  * The catch-all REVOKE migration (20260302000000_restrict_rpc_function_access)

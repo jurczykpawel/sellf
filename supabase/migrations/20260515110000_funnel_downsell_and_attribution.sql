@@ -575,10 +575,7 @@ BEGIN
 END;
 $$;
 
--- The DROP+CREATE above replaced the 6-arg admin_save_oto_offer with this
--- 10-arg version (added downsell params). Any REVOKE/GRANT/COMMENT attached
--- to the old 6-arg signature was silently invalidated by the DROP, so we
--- re-apply the GraphQL exposure lock here on the new signature.
+-- DROP+CREATE above invalidated REVOKE/COMMENT from 20260429110000 (6-arg sig).
 REVOKE EXECUTE ON FUNCTION public.admin_save_oto_offer(
   UUID, UUID, TEXT, NUMERIC, INTEGER, BOOLEAN, UUID, TEXT, NUMERIC, INTEGER
 ) FROM PUBLIC, anon, authenticated;

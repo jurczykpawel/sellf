@@ -20,6 +20,13 @@ if (!SUPABASE_URL || !ANON_KEY) {
   throw new Error('Missing Supabase env variables for testing');
 }
 
+// Local-only: the authz spot-check below POSTs to real admin RPCs.
+const isLocalSupabase =
+  /(^https?:\/\/)?(127\.0\.0\.1|localhost)(:\d+)?/.test(SUPABASE_URL);
+if (!isLocalSupabase) {
+  throw new Error(`Refusing to run against non-local Supabase: ${SUPABASE_URL}`);
+}
+
 async function fetchTypeFields(typeName: 'Query' | 'Mutation'): Promise<string[]> {
   const res = await fetch(`${SUPABASE_URL}/graphql/v1`, {
     method: 'POST',
@@ -156,8 +163,7 @@ describe('GraphQL introspection runtime exposure', () => {
     'get_oto_coupon_info',
     'get_public_integrations_config',
     'get_user_profile',
-    'is_admin',
-    'is_admin_cached',
+    // is_admin / is_admin_cached: REVOKE'd from anon in 20260429110000.
     'verify_coupon',
   ]);
 
