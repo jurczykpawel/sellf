@@ -3241,9 +3241,9 @@
       "prereqs": {
         "label": "Darmowe konta potrzebne na każdej ścieżce",
         "stripe": "Stripe",
-        "stripeSub": "Tryb test — bez konta bankowego",
+        "stripeSub": "Darmowe, ~2 min na stripe.com",
         "supabase": "Supabase",
-        "supabaseSub": "Free tier — 3 min na supabase.com"
+        "supabaseSub": "Free tier, ~3 min na supabase.com"
       },
       "vercel": {
         "name": "Vercel + Supabase",
@@ -3283,16 +3283,16 @@
       "vps": {
         "name": "Własny VPS",
         "tagline": "Prawdziwy self-hosting. Najlepszy fit gdy sklep to Twój biznes.",
-        "clicks": "4 komendy",
-        "minutes": "~10",
+        "clicks": "1 komenda",
+        "minutes": "~5",
         "cost": "~$5/mies",
         "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
         "steps": [
           "Dodatkowo VPS (1GB+) i domena w Cloudflare — tylko ścieżka self-host wymaga tych dwóch",
-          "SSH-ujesz się i bootstrapujesz StackPilot jedną komendą curl",
-          "Trzy skrypty setup zbierają dane CF + Supabase + Stripe",
-          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2, .env.local — wszystko auto",
-          "Rejestracja (pierwszy user = admin) → Settings → Payments → Register webhook"
+          "SSH-ujesz się, potem jedna komenda curl-bash z kluczami CF + Supabase jako env vars",
+          "DNS, Caddy, cert Let's Encrypt, PM2 — wszystko automatycznie, build ~3 min",
+          "Pierwsza rejestracja na live URL staje się adminem",
+          "(Opcjonalnie) Stripe przez Settings → Payments → Register webhook w adminie"
         ],
         "footnote": "Sweet spot: ~$5/mies VPS + Supabase Cloud free. Skaluje do $25–45/mies dopiero gdy faktycznie złapiesz limity.",
         "ctaLabel": "Przewodnik self-host"
@@ -3378,31 +3378,25 @@
           {
             "title": "VPS path — co dodatkowo poza globalnymi prereqs",
             "url": "zanim-zaczniesz",
-            "caption": "Poza kontami Stripe + Supabase które są wymagane na każdej ścieżce, ścieżka self-host dorzuca dwie rzeczy: VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek) i domenę z DNS-em w Cloudflare (darmowa zone — wystarczy token API).",
+            "caption": "Poza kontami Stripe + Supabase wymaganymi na każdej ścieżce, self-host dorzuca dwie rzeczy: VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek, identyczne komendy) i domenę z DNS-em w Cloudflare (darmowa zone — wystarczy token API).",
             "visual": "vps-prereqs"
           },
           {
-            "title": "SSH + bootstrap StackPilota",
+            "title": "SSH + wklejasz one-liner",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Dwie linijki. Najpierw ssh na VPS, potem jedna komenda curl-bash która klonuje StackPilot i dodaje go do PATH. Ten sam flow dla każdego providera — żadnych różnic Hetzner-vs-Mikrus.",
-            "visual": "terminal-bootstrap"
+            "caption": "Jedna komenda curl-bash. Token Cloudflare API i klucze Supabase przekazujesz jako env vars w tej samej linii. StackPilot czyta je, ustawia rekord DNS, instaluje Bun + Caddy + PM2, pobiera cert Let's Encrypt, odpala apkę. Wolisz OAuth zamiast paste'ować klucze w shell? Użyj wariantu z 3 komendami: stackpilot.techskills.academy/cloudflare + /sellf-config (link w docs).",
+            "visual": "terminal-oneliner"
           },
           {
-            "title": "Konfigurujesz CF + Supabase + Stripe",
-            "url": "root@vps:~/stackpilot ▸ terminal",
-            "caption": "Trzy interaktywne skrypty setup zbierają Twoje dane raz. Token CF API (Zone:DNS:Edit), Supabase URL + klucze, Stripe pk + sk. Zapisywane do ~/.config/stackpilot/ i używane przez każdy kolejny deploy StackPilot.",
-            "visual": "terminal-config"
-          },
-          {
-            "title": "Deploy Sellf — jedna komenda, ~3 min",
-            "url": "root@vps:~/stackpilot ▸ terminal",
-            "caption": "./local/deploy.sh sellf --domain=sellf.twojadomena.com. Ustawia rekord DNS w CF, instaluje Bun + Caddy + PM2, pisze .env.local ze WSZYSTKIMI danymi (Supabase + Stripe — oba wpisane z config), pobiera cert Let's Encrypt, odpala apkę. Zero post-deploy edycji.",
+            "title": "~3 min build → live URL",
+            "url": "root@vps:~ ▸ output",
+            "caption": "Streamowany log pokazuje instalację Bun + Caddy + PM2, rekord DNS Cloudflare na zielono, cert Let's Encrypt wystawiony, PM2 oznaczające apkę jako online. Gdy ostatnia linia pokaże ✓ Live, otwierasz https://sellf.example.com w przeglądarce. Pierwsza osoba która się zarejestruje automatycznie staje się adminem.",
             "visual": "terminal-deploy"
           },
           {
-            "title": "Rejestracja + webhook → gotowe",
-            "url": "https://sellf.twojadomena.com/dashboard/settings",
-            "caption": "Otwierasz live URL, rejestrujesz się (pierwszy user automatycznie staje się adminem), potem Settings → Payments → Register webhook. Sellf woła Stripe za Ciebie, zapisuje signing secret w bazie. Teraz sklep jest w pełni live — sprzedaje, łapie webhooki, przetwarza płatności.",
+            "title": "(Opcjonalnie) Stripe — panel admina, jedno kliknięcie",
+            "url": "https://sellf.example.com/dashboard/settings",
+            "caption": "Sklep już chodzi bez płatności (katalog, listy oczekujących, lead magnety działają out of the box). Żeby przyjmować karty: logujesz się jako admin, otwierasz Settings → Payments, wklejasz Stripe pk + sk, klik 'Register webhook'. Sellf woła Stripe za Ciebie i zapisuje signing secret w bazie. Jak wolisz pliki: nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też działa.",
             "visual": "admin-webhook"
           }
         ]

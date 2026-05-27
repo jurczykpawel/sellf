@@ -22,8 +22,7 @@ export type DemoVisualKind =
   | 'build-success'
   | 'build-success-netlify'
   | 'vps-prereqs'
-  | 'terminal-bootstrap'
-  | 'terminal-config'
+  | 'terminal-oneliner'
   | 'terminal-deploy'
   | 'admin-webhook'
   | 'terminal-env'
@@ -53,10 +52,8 @@ export function DemoVisual({ kind }: { kind: DemoVisualKind }) {
       return <BuildSuccessMock url="your-shop.netlify.app" accent="teal" />;
     case 'vps-prereqs':
       return <VpsPrereqsMock />;
-    case 'terminal-bootstrap':
-      return <TerminalMock kind="bootstrap" />;
-    case 'terminal-config':
-      return <TerminalMock kind="config" />;
+    case 'terminal-oneliner':
+      return <TerminalMock kind="oneliner" />;
     case 'terminal-deploy':
       return <TerminalMock kind="deploy" />;
     case 'admin-webhook':
@@ -342,10 +339,10 @@ function VpsPrereqsMock() {
   );
 }
 
-function TerminalMock({ kind }: { kind: 'bootstrap' | 'config' | 'deploy' | 'env' }) {
+function TerminalMock({ kind }: { kind: 'oneliner' | 'deploy' | 'env' }) {
   return (
-    <div className="w-full max-w-lg mx-auto font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-2 border border-zinc-800">
-      {kind === 'bootstrap' && (
+    <div className="w-full max-w-lg mx-auto font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-1.5 border border-zinc-800">
+      {kind === 'oneliner' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500">
             <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
@@ -353,52 +350,60 @@ function TerminalMock({ kind }: { kind: 'bootstrap' | 'config' | 'deploy' | 'env
             <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
           </div>
           <div className="text-zinc-400">Welcome to Ubuntu 24.04 LTS</div>
-          <div className="text-zinc-500 mt-1">root@vps:~#</div>
-          <div className="break-all text-emerald-300 font-semibold">
-            curl -fsSL https://stackpilot.techskills.academy/install | bash
+          <div className="text-zinc-500 mt-2">root@vps:~#</div>
+          <div className="break-all">
+            <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf </span>
+            <span className="text-zinc-500">| \</span>
           </div>
-          <div className="text-zinc-400 mt-1">▸ Cloning stackpilot…</div>
-          <div className="text-zinc-400">▸ Adding ./local to PATH…</div>
-          <div className="text-emerald-300">✓ StackPilot ready</div>
-        </>
-      )}
-      {kind === 'config' && (
-        <>
-          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>$</span>
-            <span className="text-emerald-300 font-semibold">./local/setup-cloudflare.sh</span>
+          <div className="pl-4">
+            <span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>
+            <span className="text-zinc-500">=</span>
+            <span className="text-yellow-300">&lt;your-cf-token&gt;</span>
+            <span className="text-zinc-500"> \</span>
           </div>
-          <div className="text-zinc-400">CF API token (Zone:DNS:Edit): <span className="text-yellow-300">•••••••</span></div>
-          <div className="text-emerald-300">✓ CF token saved</div>
-          <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>$</span>
-            <span className="text-emerald-300 font-semibold">./local/setup-sellf-config.sh</span>
+          <div className="pl-4">
+            <span className="text-purple-400">SUPABASE_URL</span>
+            <span className="text-zinc-500">=</span>
+            <span className="text-yellow-300">https://xxx.supabase.co</span>
+            <span className="text-zinc-500"> \</span>
           </div>
-          <div className="text-zinc-400">▸ Authorising Supabase in browser…</div>
-          <div className="text-emerald-300">✓ Supabase URL + keys saved</div>
-          <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>$</span>
-            <span className="text-emerald-300 font-semibold">./local/setup-stripe.sh</span>
+          <div className="pl-4">
+            <span className="text-purple-400">SUPABASE_ANON_KEY</span>
+            <span className="text-zinc-500">=</span>
+            <span className="text-yellow-300">eyJ…</span>
+            <span className="text-zinc-500"> \</span>
           </div>
-          <div className="text-zinc-400">STRIPE_PUBLISHABLE_KEY: <span className="text-yellow-300">pk_test_51…</span></div>
-          <div className="text-zinc-400">STRIPE_SECRET_KEY: <span className="text-yellow-300">sk_test_51…</span></div>
-          <div className="text-emerald-300">✓ Stripe keys saved</div>
+          <div className="pl-4">
+            <span className="text-purple-400">SUPABASE_SERVICE_KEY</span>
+            <span className="text-zinc-500">=</span>
+            <span className="text-yellow-300">eyJ…</span>
+            <span className="text-zinc-500"> \</span>
+          </div>
+          <div className="pl-4 break-all">
+            <span className="text-emerald-300 font-semibold">bash -s --</span>
+            <span className="text-zinc-500"> </span>
+            <span className="text-orange-300">--domain-type=</span>
+            <span className="text-yellow-300">cloudflare</span>
+            <span className="text-zinc-500"> </span>
+            <span className="text-orange-300">--domain=</span>
+            <span className="text-yellow-300">sellf.example.com</span>
+            <span className="text-zinc-500"> </span>
+            <span className="text-orange-300">--yes</span>
+          </div>
         </>
       )}
       {kind === 'deploy' && (
         <>
-          <div className="text-zinc-500 break-all">
-            <span>$ </span>
-            <span className="text-emerald-300 font-semibold">./local/deploy.sh sellf --domain=sellf.yourdomain.com --yes</span>
-          </div>
-          <div className="text-zinc-400 mt-1">📂 Loaded config: CF + Supabase + Stripe</div>
-          <div className="text-zinc-400">▸ Cloudflare DNS: sellf.yourdomain.com → your.server.ip</div>
+          <div className="text-zinc-500">root@vps:~# <span className="text-zinc-600">(installer streaming…)</span></div>
+          <div className="text-zinc-400 mt-1">📂 Loaded credentials from env (CF + Supabase)</div>
+          <div className="text-zinc-400">▸ Cloudflare DNS: sellf.example.com → your.server.ip</div>
           <div className="text-zinc-400">▸ Installing Bun + Caddy + PM2…</div>
           <div className="text-zinc-400">▸ Fetching Sellf release (47 MB)…</div>
-          <div className="text-zinc-400">▸ Writing .env.local (Supabase + Stripe filled)</div>
+          <div className="text-zinc-400">▸ Writing /opt/stacks/sellf-sellf/admin-panel/.env.local</div>
           <div className="text-zinc-400">▸ Let&apos;s Encrypt cert issued</div>
           <div className="text-zinc-400">▸ PM2: sellf-sellf online</div>
-          <div className="text-emerald-300">✓ Live: https://sellf.yourdomain.com → HTTP 200</div>
+          <div className="text-emerald-300 mt-1">✓ Live: https://sellf.example.com → HTTP 200</div>
+          <div className="text-zinc-500 italic text-[11px] mt-1">First signup at the URL above becomes admin.</div>
         </>
       )}
       {kind === 'env' && (
