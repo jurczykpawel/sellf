@@ -1,16 +1,29 @@
 **Język:** 🇵🇱 Polski · [🇬🇧 English](../DEPLOYMENT-COOLIFY.md)
 
-# Wdrożenie Sellfa na Coolify (samodzielny hosting, najbliżej prawdziwego one-click)
+# Wdrożenie Sellfa na Coolify
 
-Coolify to samodzielnie hostowana platforma PaaS (myśl Vercel/Heroku, ale na własnym VPS). Może uruchomić Sellfa razem z **własnym** Supabase z jednego pliku Docker Compose — bez zewnętrznego konta Supabase, bez ręcznego tańca chicken-egg z webhookiem Stripe, bez wpisywania zmiennych dla każdego deploya.
+Coolify to platforma [PaaS](https://pl.wikipedia.org/wiki/Platforma_jako_us%C5%82uga) do zarządzania aplikacjami na Twoich własnych serwerach. Dostępna w dwóch wariantach:
 
-To najbliżej "klikam i działa" dla Sellfa.
+| | Coolify Self-Hosted | Coolify Cloud |
+|---|---|---|
+| Gdzie działa dashboard Coolify | Na Twoim VPS | Na serwerach Coolify |
+| Gdzie działa Twój sklep Sellf | Na Twoim VPS (tym samym co Coolify albo osobnym) | Na Twoim VPS (podpiętym do Cloud dashboardu) |
+| Koszt | Zawsze darmowy | $5/mies za 2 serwery + $3/mies za każdy dodatkowy |
+| Zarządzasz | Coolify + aplikacjami + serwerami | Tylko aplikacjami + serwerami (Coolify sam się aktualizuje) |
+| Backupy, alerty, auto-update | Sam ogarniasz | W cenie |
+| Dla kogo | Majsterkowicze, pełna kontrola, zero stałych kosztów | Chcesz zarządzane Coolify ale wciąż własne dane i sprzęt |
 
-Wymagany czas: **~10 minut** gdy Coolify jest zainstalowany.
+**Wspólne dla obu:** Twój sklep Sellf zawsze działa na VPS-ie który **Ty** wynajmujesz (Hetzner, DigitalOcean, Contabo itd.). Coolify Cloud nie hostuje Twoich aplikacji — hostuje tylko panel sterowania. Więc obie opcje wymagają serwera z wystarczającym RAM-em (zobacz Wymagania niżej).
+
+Ten przewodnik pokrywa oba tryby. Wybierz jeden i podążaj za krokami tylko dla tego trybu tam gdzie się różnią.
+
+Wymagany czas: **~10 minut** gdy Coolify jest gotowy.
 
 ## Najkrótsza ścieżka — użyj instalatora StackPilot
 
-[`install-coolify.sh`](https://github.com/jurczykpawel/stackpilot/blob/main/apps/sellf/install-coolify.sh) ze StackPilot automatyzuje cały ten przewodnik. Z lokalnego komputera:
+[`install-coolify.sh`](https://github.com/jurczykpawel/stackpilot/blob/main/apps/sellf/install-coolify.sh) ze StackPilot automatyzuje cały ten przewodnik. Dwa style wywołania zależnie od tego którego wariantu Coolify używasz:
+
+**Coolify Self-Hosted (domyślnie):**
 
 ```bash
 ./apps/sellf/install-coolify.sh \
@@ -18,27 +31,44 @@ Wymagany czas: **~10 minut** gdy Coolify jest zainstalowany.
     --repo-path /sciezka/do/sellf
 ```
 
-Instaluje Coolify na targecie (jeśli go nie ma), rejestruje admina, generuje token API, tworzy aplikację, ustawia zmienne, aplikuje migracje bazy i tworzy webhook Stripe. Łączny czas: ~12 minut na świeżym VPS, ~7 minut jeśli Coolify już działa. Zweryfikowano na Hetzner CX32 (8 GB RAM) 2026-05-27.
+Skrypt instaluje Coolify na targecie (jeśli go nie ma), rejestruje admina, generuje token API, tworzy aplikację, ustawia zmienne, aplikuje migracje bazy i tworzy webhook Stripe. Łączny czas: ~12 minut na świeżym VPS, ~7 minut jeśli Coolify już działa.
+
+**Coolify Cloud:**
+
+```bash
+./apps/sellf/install-coolify.sh \
+    --coolify-cloud \
+    --coolify-token <twoj-token-api> \
+    --server-uuid   <uuid-serwera-juz-dodanego-do-cloud> \
+    --repo-path /sciezka/do/sellf
+```
+
+Dla Cloud zrobiłeś już jednorazową konfigurację w Coolify Cloud (rejestracja, dodanie serwera, wygenerowanie tokenu API). Skrypt tworzy tylko projekt + aplikację + zmienne + webhook Stripe przeciwko `https://app.coolify.io/api/v1/...`. Łączny czas: ~7 minut.
+
+Zweryfikowano na Hetzner CX32 (8 GB RAM) 2026-05-27.
 
 Jeśli wolisz ręczny flow (albo wdrażasz bez root SSH na VPS), użyj kroków poniżej.
 
-## Kiedy to jest dobry wybór
+## Czemu w ogóle wybrać Coolify?
 
 Wybierz Coolify jeśli:
-- Masz VPS z **8 GB+ RAM**. Sam build potrzebuje ~3 GB wolnego dla `bun run build` na Next.js 16 z Turbopack; na 4 GB VPS-ie Coolify + Postgres + Redis już zjadają ~1 GB, więc build pada przez OOM. Zweryfikowano 2026-05-27: 4 GB Hetzner CX22 zabija build, 8 GB Hetzner CX32 buduje się w ~8 minut i serwuje poprawnie.
+- Masz (albo chcesz wynająć) VPS z **8 GB+ RAM**. Sam build Sellfa potrzebuje ~3 GB wolnego dla `bun run build` na Next.js 16 z Turbopack; na 4 GB VPS Coolify + Postgres + Redis zjadają już ~1 GB, więc build pada przez OOM. Zweryfikowano 2026-05-27: 4 GB Hetzner CX22 zabija build, 8 GB Hetzner CX32 buduje się w ~8 minut i serwuje poprawnie.
 - Chcesz wszystko na własnej infrastrukturze (bez Supabase Cloud, bez Vercela)
-- OK Ci self-hostować Postgresa (i własne backupy)
-- Chcesz prawdziwego "deploy and forget" — Coolify obsługuje auto-renew TLS, aktualizacje, restarty
+- OK Ci self-hostować Postgresa (i własne backupy, w trybie self-hosted Coolify)
+- Chcesz "deploy and forget" — Coolify obsługuje auto-renew TLS, automatyczne redeploy na `git push`, restarty kontenerów
 
-Wybierz Vercel/Netlify ([DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md)) jeśli:
-- Chcesz hostingu na free tier (Coolify wymaga własnego VPS-a, ~$5-10/miesiąc minimum)
-- Wolisz zarządzane Supabase (Coolify uruchamia Twoje Supabase ale jego uptime jest Twój)
+Wybierz **Coolify Cloud** jeśli chcesz wszystkiego powyżej PLUS wolisz nie uruchamiać dashboardu Coolify samemu (auto-aktualizacje, backupy, alerty mailowe załatwione za Ciebie, ~$5/miesiąc).
 
-Wybierz PM2/mikr.us ([DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md)) jeśli:
-- Chcesz najmniejszego footprintu (sam Sellf, ~500 MB RAM, VPS za 35 zł/rok)
-- Używasz już Supabase Cloud osobno
+Wybierz **Coolify Self-Hosted** jeśli chcesz zero powtarzających się opłat za oprogramowanie (i tak płacisz dostawcy VPS) ORAZ jesteś komfortowy z utrzymywaniem UI zarządzania Coolify samemu (`docker compose pull && restart` raz na miesiąc).
 
-## Krok 1 — Zainstaluj Coolify
+Nie wybieraj Coolify jeśli pasują Ci bardziej:
+
+- **Hosting na free tier:** Coolify i tak wymaga VPS-a, ~$5-10/miesiąc minimum. Zobacz [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel + Supabase Cloud mają darmowy plan.
+- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
+
+## Krok 1 — Uruchom Coolify
+
+### Tryb A: Self-hosted (zainstaluj Coolify na VPS)
 
 Jeśli nie masz jeszcze Coolify na VPS, zainstaluj na Debian/Ubuntu:
 
@@ -46,9 +76,20 @@ Jeśli nie masz jeszcze Coolify na VPS, zainstaluj na Debian/Ubuntu:
 curl -fsSL https://cdn.coollabs.io/coolify/install.sh | sudo bash
 ```
 
-Po instalacji otwórz `http://<ip-twojego-vps>:8000` i przejdź przez pierwszy kreator (admin email + hasło). Dodaj VPS jako "serwer" w UI Coolify.
+Po instalacji otwórz `http://<ip-twojego-vps>:8000` i przejdź przez pierwszy kreator (admin email + hasło). Kreator automatycznie doda host VPS jako Twój pierwszy "serwer".
 
 Pełna dokumentacja Coolify: https://coolify.io/docs/installation
+
+### Tryb B: Coolify Cloud (zarejestruj się + podłącz serwer)
+
+1. Zarejestruj się na https://app.coolify.io
+2. Wybierz plan ($5/miesiąc za 2 serwery wystarczy na jednego Sellfa + zapas)
+3. W dashboardzie Cloud kliknij **Servers → New Server**
+4. Coolify da Ci publiczny klucz SSH. Dodaj go do `~/.ssh/authorized_keys` na swoim VPS-ie (Coolify Cloud musi mieć SSH do VPS-a żeby wdrażać tam aplikacje)
+5. Wpisz IP swojego VPS-a w formularzu i kliknij **Validate**
+6. Po walidacji serwer jest gotowy do wdrożeń
+
+Dla reszty przewodnika URL dashboardu Coolify to `https://app.coolify.io` (Cloud) zamiast `http://<ip-twojego-vps>:8000` (Self-Hosted). Wszystkie inne kroki działają identycznie — to samo UI, to samo API.
 
 ## Krok 2 — Utwórz aplikację
 
