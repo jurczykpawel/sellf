@@ -327,12 +327,14 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 ### One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL,CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET&envDescription=All%20variables%20required%20for%20a%20production%20deploy.%20The%20%2Asecret%2A%2Fkey%20fields%20need%20to%20be%20generated%20locally%20—%20see%20guide%20for%20one-liner%20commands.%20Set%20TRUSTED_PROXY%3Dtrue%20literally.&envLink=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf%2Fblob%2Fmain%2Fdocs%2FDEPLOYMENT-VERCEL-NETLIFY.md&project-name=sellf&repository-name=sellf)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL,CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET&envDescription=All%20variables%20required%20for%20a%20production%20deploy.%20The%20%2Asecret%2A%2Fkey%20fields%20need%20to%20be%20generated%20locally%20—%20see%20guide%20for%20one-liner%20commands.%20Set%20TRUSTED_PROXY%3Dtrue%20literally.&envLink=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf%2Fblob%2Fmain%2Fdocs%2FQUICK-START.md&project-name=sellf&repository-name=sellf)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/jurczykpawel/sellf&base=admin-panel)
 
-> **⚠️ Read the [Vercel/Netlify deploy guide](./docs/DEPLOYMENT-VERCEL-NETLIFY.md) first.** The one-click button creates the app, but you still need to (a) generate a few secrets locally, (b) run Supabase migrations after deploy, and (c) wire up the Stripe webhook in a second pass. The guide walks through all three in ~15 minutes.
+> **👋 First time setting up an online store?** Read the **[QUICK-START guide](./docs/QUICK-START.md)** — it's a click-by-click walkthrough that gets you online in ~20 minutes using only your web browser. No terminal, no programming.
 
-> **Coolify (self-hosted, closest to true one-click):** see [docs/DEPLOYMENT-COOLIFY.md](./docs/DEPLOYMENT-COOLIFY.md). Bundles Sellf + Supabase + supporting services in one Docker Compose; migrations run automatically on first boot. Needs a VPS with 4 GB+ RAM.
+> **Already done this before?** The Vercel/Netlify buttons above lead to the deploy form. See the [detailed deploy guide](./docs/DEPLOYMENT-VERCEL-NETLIFY.md) for what to paste into each field. For just the Supabase database part, see [SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
+
+> **Self-hosting on your own server:** see [docs/DEPLOYMENT-COOLIFY.md](./docs/DEPLOYMENT-COOLIFY.md) (Coolify, easiest self-hosted), [docs/DEPLOYMENT-MIKRUS.md](./docs/DEPLOYMENT-MIKRUS.md) (cheap VPS via PM2), or [docs/FULL-STACK.md](./docs/FULL-STACK.md) (full Docker Compose with self-hosted Supabase).
 
 ### Manual Deploy
 

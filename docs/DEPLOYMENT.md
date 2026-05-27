@@ -1,8 +1,18 @@
 # Deployment Options
 
-Most users should use the main **[Deployment Guide](./DEPLOYMENT-MIKRUS.md)** — it covers VPS setup with PM2 and gets you running in under 30 minutes.
+This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a server). All produce a working Sellf store.
 
-The guides below are for **advanced use cases**:
+## 👋 First time? Start here
+
+**[QUICK-START.md](./QUICK-START.md)** — Click-by-click walkthrough using only your web browser. No terminal needed. Deploys to Vercel + Supabase + Stripe in ~20 minutes. **This is the easiest path for non-technical users.**
+
+## Supabase setup (called by all the deploy guides)
+
+**[SUPABASE-SETUP.md](./SUPABASE-SETUP.md)** — Explains the three ways to set up the database Sellf uses (browser-only, copy-paste, or via script). Read this if you're not sure which Supabase option to pick in any of the guides below.
+
+## Other deployment guides
+
+Pick one based on what you want.
 
 ---
 
