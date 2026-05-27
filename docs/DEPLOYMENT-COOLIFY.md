@@ -22,6 +22,20 @@ Pick PM2/mikr.us ([DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md)) if:
 - You want the smallest possible footprint (Sellf alone, ~500 MB RAM, $9/year VPS)
 - You already use Supabase Cloud separately
 
+## Shortest path — use the StackPilot installer
+
+[StackPilot's `install-coolify.sh`](https://github.com/jurczykpawel/stackpilot/blob/main/apps/sellf/install-coolify.sh) automates this entire guide. From your local machine:
+
+```bash
+./apps/sellf/install-coolify.sh \
+    --ssh-host <vps-alias> \
+    --repo-path /path/to/sellf
+```
+
+It installs Coolify on the target (if absent), registers an admin user, generates an API token, creates the application, sets all the env vars, applies database migrations, and creates the Stripe webhook. Total time: ~12 minutes on a fresh VPS, ~7 minutes if Coolify is already running. Verified on a Hetzner CX32 (8 GB RAM) on 2026-05-27.
+
+If you prefer the manual flow (or are deploying without root SSH access on the VPS), follow the steps below.
+
 ## Step 1 — Install Coolify
 
 If you don't already have Coolify on a VPS, install it on Debian/Ubuntu:

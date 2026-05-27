@@ -232,7 +232,33 @@ The Supabase database stays the same — test and live payments are tracked side
 
 ## Appendix: Fully scripted deploy (for agents / CI)
 
-When you're driving this from an agent or CI rather than the web form, the whole flow collapses to ~12 CLI commands. Save this once, replay it on demand. Assumes `vercel`, `supabase`, and `stripe` CLIs are installed and logged in.
+### Shortest path — use the StackPilot scripts
+
+[StackPilot](https://github.com/jurczykpawel/stackpilot) ships ready-to-run installers that do everything in this guide automatically:
+
+```bash
+# Vercel + Supabase Cloud + Stripe test mode
+./apps/sellf/install-vercel.sh --repo-path /path/to/sellf
+
+# Netlify + Supabase Cloud + Stripe test mode
+./apps/sellf/install-netlify.sh --repo-path /path/to/sellf
+
+# Reuse Vercel's "Connect Database → Supabase" integration:
+#   1. In Vercel UI: Storage → Connect Database → Supabase (creates project)
+#   2. Note the project URL, anon/service_role keys, project ref, DB password
+#   3. Run:
+./apps/sellf/install-vercel.sh --repo-path /path/to/sellf \
+    --skip-supabase \
+    --supabase-url https://<ref>.supabase.co \
+    --supabase-anon <jwt> --supabase-svc <jwt> \
+    --supabase-ref <ref> --db-password <pwd>
+```
+
+Each script prints a live URL + saves credentials to `.env.deploy.<project>` on success.
+
+### Or do it by hand
+
+Below is the same flow expanded as bash commands you can paste one block at a time. Assumes `vercel`, `supabase`, and `stripe` CLIs are installed and logged in.
 
 ```bash
 set -e
