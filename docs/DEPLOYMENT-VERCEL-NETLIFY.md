@@ -19,9 +19,9 @@ To switch from test mode to live payments later, you replace `sk_test_…` / `pk
 
 | Service | Tier | Limits | Watch out for |
 |---------|------|--------|---------------|
-| Vercel Hobby | free | 100 GB bandwidth, 100 GB-h functions | Commercial use OK for personal projects |
+| Vercel Hobby | free | 100 GB bandwidth, 1M function invocations, 4h active CPU, 1M edge requests, 5k image transformations, 1 seat | **Personal, non-commercial use only.** Hard stops (no overages — site returns 503 once you hit a limit). Once your store is a commercial operation, upgrade to Vercel Pro ($20/mo). Full table in [QUICK-START.md](./QUICK-START.md#vercel-hobby-limits-the-free-tier-this-guide-uses). |
 | Netlify Starter | free | 100 GB bandwidth, 300 build min/month, 125k function invocations | Plenty for small stores |
-| Supabase Free | free | 500 MB DB, 1 GB storage, 50k MAU | **Project pauses after 7 days of inactivity** — keep traffic flowing or upgrade to Pro for production |
+| Supabase Free | free | 500 MB DB, 1 GB storage, 50k MAU | Generous for years for a typical small store. Upgrade to Pro ($25/mo) when you approach the DB size or MAU limit, or want automated daily backups. |
 | Stripe test mode | free | unlimited | No real money moves until you switch to `sk_live_…` |
 
 ---

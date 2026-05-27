@@ -9,7 +9,7 @@
 > - **Czas konfiguracji:** ~20 minut
 > - **Koszt na start:** **$0/miesiąc**
 > - **Koszt gdy jesteś prawdziwym sklepem komercyjnym:** **$20/miesiąc** za Vercel Pro (Hobby technicznie jest osobisty/niekomercyjny), **+$25/miesiąc** za Supabase Pro gdy przerośniesz darmową bazę (typowo 3+ lata dla małego sklepu)
-> - **Prowizja Stripe** (na każdej ścieżce): ~2,9% + 0,30 zł od transakcji
+> - **Prowizja Stripe** (na każdej ścieżce): ~2,9% + 0,30 USD od transakcji
 >
 > **Dla kogo:** dla każdego kto nigdy nie stawiał oprogramowania na serwerze. Jeśli to Ty, przestań czytać zielony blok niżej i podążaj za tym przewodnikiem.
 >
@@ -19,8 +19,8 @@
 > - **Wymagane umiejętności:** komfort z SSH, kopiowanie komend Linuksowych, uruchomienie skryptu w terminalu
 > - **Czas konfiguracji:** ~45 minut
 > - **Koszt na start:** **~3 zł/miesiąc** (sama subskrypcja mikr.us; darmowy Supabase pokrywa bazę)
-> - **Koszt gdy sklep przerośnie darmowe limity Supabase:** ~$26/miesiąc (Supabase Pro)
-> - **Prowizja Stripe** (na każdej ścieżce): te same ~2,9% + 0,30 zł od transakcji
+> - **Koszt gdy sklep przerośnie darmowe limity Supabase:** ~$25/miesiąc (Supabase Pro)
+> - **Prowizja Stripe** (na każdej ścieżce): te same ~2,9% + 0,30 USD od transakcji
 >
 > **Dla kogo:** osoby przyzwyczajone do serwerów Linuksowych które chcą minimalizować miesięczne koszty. Trade-off: więcej odpowiedzialności, sam utrzymujesz serwer, brak ładnego panelu.
 >
@@ -380,7 +380,7 @@ Realnie: **$0 podczas walidacji, $20/miesiąc gdy jesteś prawdziwym sklepem kom
 
 Dla typowego małego sklepu cyfrowego 500 MB bazy pokrywa 3-4 lata wzrostu. Nie musisz planować $45/miesiąc od dnia pierwszego — zacznij za darmo, aktualizuj Vercel gdy przychody to uzasadniają, aktualizuj Supabase gdy wykresy zużycia w dashboardzie pokażą że zbliżasz się do limitu.
 
-Stripe pobiera prowizję od każdej transakcji (~2,9% + 0,30 zł w większości krajów) — zobacz https://stripe.com/pl/pricing dla swojego kraju.
+Stripe pobiera prowizję od każdej transakcji (~2,9% + 0,30 USD w większości krajów; w Polsce dla kart PLN to typowo 1,5% + 1 zł) — zobacz https://stripe.com/pl/pricing dla swojego kraju.
 
 ## Wszystkie opcje wdrożenia wg kosztów
 
@@ -392,9 +392,9 @@ Ten przewodnik używa **najprostszej ścieżki** (Vercel + wbudowana Supabase). 
 | [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | To samo co Vercel: $0 → $25/mies | ~20 min | 🟢 Żadna — tylko przeglądarka | To samo co Vercel, inny host |
 | [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mies** ($5 Coolify Cloud + $9 Hetzner CX32) — Supabase chodzi na tym samym VPS za darmo | ~30 min | 🟡 Podstawowa — wklejenie klucza SSH do VPS | Pełna kontrola + zarządzany panel Coolify. Brak osobnego rachunku za bazę. |
 | [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mies** ($9 Hetzner CX32, reszta darmowa) — Supabase chodzi na tym samym VPS za darmo | ~45 min | 🟡 Podstawowa — komendy SSH, kilka sekretów | Pełna kontrola, najmniejszy rozsądny koszt. Brak osobnego rachunku za bazę. |
-| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** na free, ~$26/mies gdy przerośniesz darmowego Supabase | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
+| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** na free, ~$25/mies gdy przerośniesz darmowego Supabase | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
 
-**Prowizja Stripe od transakcji** (~2,9% + 0,30 zł) jest taka sama na każdej ścieżce — tak Stripe zarabia. Wybierz ścieżkę pasującą do Twoich umiejętności; Stripe to nie obchodzi.
+**Prowizja Stripe od transakcji** (~2,9% + 0,30 USD) jest taka sama na każdej ścieżce — tak Stripe zarabia. Wybierz ścieżkę pasującą do Twoich umiejętności; Stripe to nie obchodzi.
 
 **Rekomendacja dla użytkownika nietechnicznego:** **zostań przy tym przewodniku**. Vercel + Vercel-Supabase to $25/miesiąc drożej niż mikr.us, ale jeśli nie jesteś komfortowy z terminalami i Linuksem, te $25/mies kupują Ci spokój. Zawsze możesz przejść na tańszą ścieżkę później — to nie jednokierunkowe drzwi.
 

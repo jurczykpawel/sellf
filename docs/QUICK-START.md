@@ -19,7 +19,7 @@
 > - **Skills needed:** comfort with SSH, copy-pasting Linux commands, running a script in your terminal
 > - **Setup time:** ~45 minutes
 > - **Cost to start:** **~$1/month** (just the mikr.us subscription; free Supabase covers the database)
-> - **Cost when your store outgrows the free Supabase limits:** ~$26/month (Supabase Pro)
+> - **Cost when your store outgrows the free Supabase limits:** ~$25/month (Supabase Pro)
 > - **Stripe fee** (every path): same ~2.9% + $0.30 per transaction
 >
 > **Best for:** people already used to Linux servers who want to minimize monthly costs. Trade-off: more responsibility, you maintain the server, no fancy dashboard.
@@ -392,7 +392,7 @@ This guide uses **the easiest path** (Vercel + Vercel's built-in Supabase). Ther
 | [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | Same as Vercel: $0 → $25/mo | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
 | [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32) — Supabase runs on the same VPS for free | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard. No separate database bill, ever. |
 | [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mo** ($9 Hetzner CX32, everything else free) — Supabase runs on the same VPS for free | ~45 min | 🟡 Basic — SSH commands, a couple of secrets | Full control, lowest reasonable cost. No separate database bill, ever. |
-| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** on free tier, ~$26/mo once you outgrow Supabase Free | ~45 min | 🔴 Intermediate — SSH, terminal, PM2 | Cheapest option for technically comfortable people |
+| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** on free tier, ~$25/mo once you outgrow Supabase Free | ~45 min | 🔴 Intermediate — SSH, terminal, PM2 | Cheapest option for technically comfortable people |
 
 **Stripe per-transaction fee** (~2.9% + $0.30) is the same on every path — it's how Stripe makes money. Pick the path that matches your skill level; Stripe doesn't care.
 
