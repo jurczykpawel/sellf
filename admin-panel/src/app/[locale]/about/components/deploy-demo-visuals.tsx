@@ -334,13 +334,20 @@ function TerminalMock({ kind }: { kind: 'ssh' | 'install' | 'env' }) {
       {kind === 'install' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>~ $</span>
+            <span className="text-emerald-300 font-semibold break-all">git clone https://github.com/jurczykpawel/stackpilot</span>
+          </div>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>~ $</span>
+            <span className="text-emerald-300 font-semibold">cd stackpilot</span>
+          </div>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
             <span>~/stackpilot $</span>
             <span className="text-emerald-300 font-semibold break-all">./local/deploy.sh sellf --ssh=root@vps --domain=mystore.com</span>
           </div>
-          <div className="text-zinc-400">▸ Building Sellf locally…</div>
-          <div className="text-zinc-400">▸ Connecting to root@vps over SSH…</div>
+          <div className="text-zinc-400 mt-1">▸ Connecting to root@vps over SSH…</div>
           <div className="text-zinc-400">▸ Installing Node + Caddy + PM2…</div>
-          <div className="text-zinc-400">▸ Uploading build, starting service…</div>
+          <div className="text-zinc-400">▸ Uploading Sellf build, starting service…</div>
           <div className="text-emerald-300">✓ Sellf live at mystore.com</div>
         </>
       )}

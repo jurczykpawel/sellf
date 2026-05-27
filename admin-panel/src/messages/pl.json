@@ -3381,9 +3381,9 @@
             "visual": "terminal-ssh"
           },
           {
-            "title": "Odpalasz jedną komendę z laptopa",
-            "url": "~/stackpilot ▸ terminal",
-            "caption": "Klonujesz repo StackPilot na laptopie, potem ./local/deploy.sh sellf z hostem VPS i domeną. Skrypt sam się łączy przez SSH i instaluje Node, Caddy (HTTPS), PM2 oraz Sellf w ~5 min.",
+            "title": "Klonujesz StackPilot + odpalasz jedną komendę",
+            "url": "twoj-laptop ▸ terminal",
+            "caption": "git clone repo StackPilot (jurczykpawel/stackpilot), cd do środka, potem ./local/deploy.sh sellf z hostem VPS i domeną. Skrypt sam się łączy przez SSH i instaluje Node, Caddy (HTTPS), PM2 oraz Sellf w ~5 min.",
             "visual": "terminal-install"
           },
           {

@@ -3366,9 +3366,9 @@
             "visual": "terminal-ssh"
           },
           {
-            "title": "Run one install command from your laptop",
-            "url": "~/stackpilot ▸ terminal",
-            "caption": "Clone the StackPilot repo on your laptop, then run ./local/deploy.sh sellf with your VPS host + domain. The script SSHs over and installs Node, Caddy (HTTPS), PM2, and Sellf in ~5 min.",
+            "title": "Clone StackPilot + run one deploy command",
+            "url": "your-laptop ▸ terminal",
+            "caption": "git clone the StackPilot repo (jurczykpawel/stackpilot), cd into it, then run ./local/deploy.sh sellf with your VPS host + domain. The script SSHs over and installs Node, Caddy (HTTPS), PM2, and Sellf in ~5 min.",
             "visual": "terminal-install"
           },
           {
