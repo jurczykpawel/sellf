@@ -172,6 +172,49 @@ Jeśli wszystko działa — jesteś live. 🎉
 
 ---
 
+## Krok 9 — Podłącz własną domenę (opcjonalnie, ~5 min)
+
+Zarówno Vercel Hobby jak i Netlify free pozwalają wskazać własną domenę (np. `shop.example.com` lub apex `example.com`) na deploy. Darmowy SSL przez Let's Encrypt automatycznie.
+
+### Vercel
+
+1. **Project → Settings → Domains → Add Domain** → wpisz domenę → **Add**.
+2. Vercel pokazuje rekordy DNS do ustawienia u dostawcy:
+   - **Apex** (`example.com`): rekord `A` → `76.76.21.21`
+   - **Subdomena** (`shop.example.com`): rekord `CNAME` → `cname.vercel-dns.com`
+3. Dodaj rekord u dostawcy DNS (Cloudflare, Namecheap, OVH itd.). Propagacja zwykle 1–10 min.
+4. W Vercelu domena przeskakuje na **Valid Configuration**, cert SSL pobierany automatycznie (~30 s).
+
+### Netlify
+
+1. **Site → Domain management → Add custom domain** → wpisz domenę → **Verify**.
+2. Dwie opcje u dostawcy DNS:
+   - **Użyj Netlify DNS** (najprościej): zmień nameservery na Netlify, oni ogarniają resztę.
+   - **Użyj swojego DNS**: dodaj `CNAME` dla subdomen (lub `ALIAS`/`ANAME` dla apex) wskazujący na `twoj-sklep.netlify.app`.
+3. Netlify sam provisionuje cert Let's Encrypt gdy DNS się rozpropaguje (~1–5 min).
+
+### Nie zapomnij — zaktualizuj dwie zmienne env
+
+Gdy domena żyje, zmień obie w dashboard platformy:
+
+```env
+SITE_URL=https://shop.example.com
+NEXT_PUBLIC_SITE_URL=https://shop.example.com
+```
+
+Wymuś redeploy żeby nowe wartości się załapały.
+
+### Nie zapomnij — zaktualizuj też URL webhooka Stripe
+
+URL webhooka ustawiony w **Kroku 7** wskazuje na stary `*.vercel.app` / `*.netlify.app`. Po przejściu na własną domenę:
+
+1. **Stripe Dashboard → Developers → Webhooks** → klik na endpoint → **Update endpoint URL** → zmień na `https://shop.example.com/api/webhooks/stripe`.
+2. Zapisz. Signing secret (`STRIPE_WEBHOOK_SECRET`) **nie** zmienia się — zostaw istniejący.
+
+> **Przypomnienie ToS Vercel Hobby:** Hobby jest do użytku osobistego / niekomercyjnego. Custom domain technicznie dozwolony, ale sklep komercyjny w skali powinien przejść na Vercel Pro ($20/mies) lub ścieżkę własnego VPS. Netlify free nie ma klauzuli non-commercial.
+
+---
+
 ## Rozwiązywanie problemów
 
 ### Vercel: każda strona zwraca 404 zaraz po deployu

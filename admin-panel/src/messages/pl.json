@@ -3331,7 +3331,7 @@
           {
             "title": "Build się buduje — przerwa na kawę",
             "url": "vercel.com/deployments",
-            "caption": "Około 3 minut. Gdy pojawi się zielony checkmark, sklep żyje na twoj-sklep.vercel.app. Ostatni krok: wklej URL do Stripe Dashboard → Webhooks. Gotowe.",
+            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.vercel.app — i od razu możesz wpiąć własną twojsklep.com w Settings → Domains (darmowy SSL, ~5 min). Ostatni krok: wklej live URL do Stripe Dashboard → Webhooks.",
             "visual": "build-success"
           }
         ],
@@ -3363,7 +3363,7 @@
           {
             "title": "Build się buduje — przerwa na kawę",
             "url": "app.netlify.com/sites/twoj-sklep",
-            "caption": "Około 3 minut. Live na twoj-sklep.netlify.app. Ostatni krok: skonfiguruj webhook Stripe. Gotowe.",
+            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.netlify.app — wpinasz własną twojsklep.com w Domain management → Add custom domain (darmowy SSL, bez karty). Ostatni krok: zaktualizuj URL webhooka Stripe na live domenę.",
             "visual": "build-success-netlify"
           }
         ],

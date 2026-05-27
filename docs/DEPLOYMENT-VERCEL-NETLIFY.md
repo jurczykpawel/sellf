@@ -170,6 +170,49 @@ If all of that works — you're live. 🎉
 
 ---
 
+## Step 9 — Connect your own domain (optional, ~5 min)
+
+Both Vercel Hobby and Netlify free tier let you point a custom domain (e.g. `shop.example.com` or apex `example.com`) at the deploy. Free SSL via Let's Encrypt is automatic.
+
+### Vercel
+
+1. **Project → Settings → Domains → Add Domain** → type your domain → **Add**.
+2. Vercel shows you which DNS records to set at your registrar:
+   - **Apex** (`example.com`): an `A` record → `76.76.21.21`
+   - **Subdomain** (`shop.example.com`): a `CNAME` → `cname.vercel-dns.com`
+3. Add the record at your DNS provider (Cloudflare, Namecheap, etc.). Propagation usually takes 1–10 min.
+4. Back in Vercel, the domain flips to **Valid Configuration**, an SSL cert is fetched automatically (~30 s).
+
+### Netlify
+
+1. **Site → Domain management → Add custom domain** → type your domain → **Verify**.
+2. Two options at your DNS provider:
+   - **Use Netlify DNS** (easiest): change nameservers to Netlify's, they handle everything.
+   - **Use your existing DNS**: add a `CNAME` for subdomains (or `ALIAS`/`ANAME` for apex) pointing at `your-shop.netlify.app`.
+3. Netlify auto-provisions a Let's Encrypt cert once DNS resolves (~1–5 min).
+
+### Don't forget — two env vars need to update
+
+After the domain is live, change both in your platform dashboard:
+
+```env
+SITE_URL=https://shop.example.com
+NEXT_PUBLIC_SITE_URL=https://shop.example.com
+```
+
+Trigger a redeploy so the new values take effect.
+
+### Don't forget — update the Stripe webhook URL too
+
+The webhook URL you set in **Step 7** points at the old `*.vercel.app` / `*.netlify.app` URL. After you move to a custom domain:
+
+1. **Stripe Dashboard → Developers → Webhooks** → click the endpoint → **Update endpoint URL** → change to `https://shop.example.com/api/webhooks/stripe`.
+2. Save. The signing secret (`STRIPE_WEBHOOK_SECRET`) doesn't change — keep the existing one.
+
+> **Vercel Hobby ToS reminder:** Hobby is for personal / non-commercial use. Custom domains are technically allowed, but commercial shops at scale should move to Vercel Pro ($20/mo) or the own-VPS path. Netlify free has no such non-commercial clause.
+
+---
+
 ## Troubleshooting
 
 ### Vercel: every page returns 404 right after deploy

@@ -255,8 +255,8 @@ function EnvFormMock({ count }: { count: number }) {
 function BuildSuccessMock({ url, accent }: { url: string; accent: 'zinc' | 'teal' }) {
   const accentBg = accent === 'zinc' ? 'bg-zinc-900' : 'bg-teal-700';
   return (
-    <div className="w-full max-w-md mx-auto space-y-4">
-      <div className="space-y-2 font-mono text-xs">
+    <div className="w-full max-w-md mx-auto space-y-3">
+      <div className="space-y-1.5 font-mono text-xs">
         <div className="flex items-center gap-2 text-sf-success">
           <span className="text-sf-success">✓</span> Installing dependencies (45s)
         </div>
@@ -274,10 +274,17 @@ function BuildSuccessMock({ url, accent }: { url: string; accent: 'zinc' | 'teal
         <div className="flex items-center gap-3">
           <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wider text-white/60">Your store is live</p>
+            <p className="text-xs uppercase tracking-wider text-white/60">Your store is live at</p>
             <p className="text-sm font-mono font-bold text-white truncate">{url}</p>
           </div>
         </div>
+      </div>
+      <div className="rounded-lg border border-sf-border-accent bg-sf-accent-soft p-3 flex items-center gap-2.5">
+        <Globe className="w-4 h-4 text-sf-accent shrink-0" aria-hidden="true" />
+        <p className="text-xs text-sf-body leading-snug">
+          <span className="font-semibold text-sf-heading">Custom domain?</span>{' '}
+          Settings → Domains → add <span className="font-mono text-sf-accent">yourshop.com</span>. Free SSL, ~5 min.
+        </p>
       </div>
     </div>
   );
