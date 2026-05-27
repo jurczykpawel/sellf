@@ -354,7 +354,7 @@ function TerminalMock({ kind }: { kind: 'bootstrap' | 'config' | 'deploy' | 'env
           <div className="text-zinc-400">Welcome to Ubuntu 24.04 LTS</div>
           <div className="text-zinc-500 mt-1">root@vps:~#</div>
           <div className="break-all text-emerald-300 font-semibold">
-            curl -fsSL https://raw.githubusercontent.com/jurczykpawel/stackpilot/main/system/bootstrap.sh | bash
+            curl -fsSL https://stackpilot.techskills.academy/install | bash
           </div>
           <div className="text-zinc-400 mt-1">▸ Cloning stackpilot…</div>
           <div className="text-zinc-400">▸ Adding ./local to PATH…</div>
