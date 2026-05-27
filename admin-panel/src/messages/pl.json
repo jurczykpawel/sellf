@@ -3383,13 +3383,13 @@
           {
             "title": "Jedna komenda curl-bash na VPS",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Ciągle w sesji SSH, wklejasz jedną linijkę: curl -fsSL stackpilot.techskills.academy/sellf | bash. W ~5 minut instaluje Node, Caddy (HTTPS), PM2 i Sellf — a jeśli wskazałeś już domenę, też pobiera darmowy cert Let's Encrypt.",
+            "caption": "Wymaga: darmowy projekt Supabase (3 min na supabase.com) i własna domena. Potem w sesji SSH wklejasz one-liner z flagami --domain-type i --domain. StackPilot instaluje Bun + PM2, ściąga najnowszy release Sellf, ustawia DNS w Cloudflare i odpala apkę w ~5 min.",
             "visual": "terminal-install"
           },
           {
             "title": "Wklejasz klucze Stripe do .env.local",
-            "url": "root@vps:/opt/stacks/sellf/admin-panel ▸ .env.local",
-            "caption": "Ta sama sesja SSH: otwierasz .env.local który StackPilot wygenerował, wklejasz Stripe pk/sk/whsec + Supabase URL+klucze. Te same wartości co byś wpisał w formularzu Vercela — tylko tu w pliku. Potem pm2 restart sellf.",
+            "url": "root@vps:/opt/stacks/sellf-<twoja-nazwa>/admin-panel ▸ .env.local",
+            "caption": "Ta sama sesja SSH — Supabase już wpisane przez StackPilota. Dodajesz Stripe pk/sk/whsec (albo przekazujesz je przez env vars przed curl-bash). Potem pm2 restart, otwierasz domenę i pierwszy signup staje się adminem.",
             "visual": "terminal-env"
           },
           {

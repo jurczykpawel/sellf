@@ -3368,13 +3368,13 @@
           {
             "title": "Run one curl-bash command on your VPS",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Still inside the SSH session, paste this one line: curl -fsSL stackpilot.techskills.academy/sellf | bash. It installs Node, Caddy (HTTPS), PM2, and Sellf in ~5 minutes — and fetches a free Let's Encrypt cert if you've already pointed your domain.",
+            "caption": "Prereqs: a free Supabase project (3 min, supabase.com) and a domain you own. Then in your SSH session, paste the one-liner with --domain-type and --domain flags. StackPilot installs Bun + PM2, downloads the latest Sellf release, sets up Cloudflare DNS, and boots the app in ~5 min.",
             "visual": "terminal-install"
           },
           {
             "title": "Add your Stripe keys to .env.local",
-            "url": "root@vps:/opt/stacks/sellf/admin-panel ▸ .env.local",
-            "caption": "Same SSH session: open the .env.local that StackPilot wrote, paste your Stripe pk/sk/whsec + Supabase URL+keys. Same values you'd paste into Vercel's web form — just here in a file. Then pm2 restart sellf.",
+            "url": "root@vps:/opt/stacks/sellf-<your-name>/admin-panel ▸ .env.local",
+            "caption": "Same SSH session — Supabase is already filled in. Add your Stripe pk/sk/whsec (or pass them via env vars before the curl-bash). Then pm2 restart, open your domain, and the first signup becomes the admin.",
             "visual": "terminal-env"
           },
           {

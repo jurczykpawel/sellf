@@ -333,35 +333,42 @@ function TerminalMock({ kind }: { kind: 'ssh' | 'install' | 'env' }) {
       )}
       {kind === 'install' && (
         <>
-          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>root@vps:~#</span>
-            <span className="text-emerald-300 font-semibold break-all">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+          <div className="text-zinc-500 break-all">
+            <span>root@vps:~# </span>
+            <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash -s -- \</span>
           </div>
-          <div className="text-zinc-400 mt-1">Application domain (e.g. app.example.com): <span className="text-yellow-300">mystore.com</span></div>
-          <div className="text-zinc-400">▸ Installing Node + Caddy + PM2…</div>
-          <div className="text-zinc-400">▸ Fetching Sellf release tarball…</div>
-          <div className="text-zinc-400">▸ Writing /opt/stacks/sellf/admin-panel/.env.local…</div>
-          <div className="text-zinc-400">▸ Starting Sellf under PM2…</div>
-          <div className="text-emerald-300">✓ Sellf live at https://mystore.com</div>
+          <div className="text-zinc-500 break-all pl-4">
+            <span className="text-emerald-300 font-semibold">--domain-type=cloudflare --domain=mystore.com</span>
+          </div>
+          <div className="text-zinc-400 mt-1">▸ Bootstrapping StackPilot…</div>
+          <div className="text-zinc-400">📂 Loaded Sellf config (Supabase configured)</div>
+          <div className="text-zinc-400">✓ Bun + PM2 installed</div>
+          <div className="text-zinc-400">✓ Sellf artifact downloaded (47 MB)</div>
+          <div className="text-zinc-400">✓ /opt/stacks/sellf-mystore/admin-panel/.env.local written</div>
+          <div className="text-zinc-400">✓ PM2: sellf-mystore online</div>
+          <div className="text-zinc-400">✓ Cloudflare DNS: mystore.com → your.server.ip</div>
+          <div className="text-emerald-300">✓ Live: https://mystore.com → HTTP 200</div>
         </>
       )}
       {kind === 'env' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>root@vps:/opt/stacks/sellf/admin-panel#</span>
+            <span>root@vps:/opt/stacks/sellf-mystore/admin-panel#</span>
             <span className="text-emerald-300 font-semibold">nano .env.local</span>
           </div>
           <div className="mt-2 text-zinc-400 leading-relaxed">
-            <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51...</span></div>
-            <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51...</span></div>
-            <div><span className="text-purple-400">STRIPE_WEBHOOK_SECRET</span>=<span className="text-yellow-300">whsec_...</span></div>
+            <div><span className="text-zinc-600"># Supabase — already filled by StackPilot</span></div>
             <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
-            <div className="text-zinc-600">[...]</div>
+            <div className="mt-1"><span className="text-zinc-600"># Stripe — paste yours, then pm2 restart</span></div>
+            <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51…</span></div>
+            <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51…</span></div>
+            <div><span className="text-purple-400">STRIPE_WEBHOOK_SECRET</span>=<span className="text-yellow-300">whsec_…</span></div>
           </div>
           <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
             <span>root@vps:~#</span>
-            <span className="text-emerald-300 font-semibold">pm2 restart sellf</span>
+            <span className="text-emerald-300 font-semibold">pm2 restart sellf-mystore</span>
           </div>
+          <div className="mt-1 text-zinc-500 italic text-[11px]">Then open https://mystore.com — first signup becomes admin.</div>
         </>
       )}
     </div>
