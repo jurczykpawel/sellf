@@ -3549,7 +3549,7 @@
         },
         {
           "q": "What happens if the server goes down?",
-          "a": "Sellf creates automatic backups. If your VPS dies, you spin up a new one and restore from the latest backup — usually under 5 minutes. Your Stripe account and payment data are never lost (Stripe stores them)."
+          "a": "Set up automatic backups once (not complicated — a single cron job or your VPS provider's built-in snapshots). If your VPS dies, spin up a new one and restore from the latest backup — usually under 5 minutes. Your Stripe account and payment data are never lost (Stripe stores them)."
         },
         {
           "q": "What happens if a webhook fails?",
@@ -3765,7 +3765,7 @@
         },
         {
           "title": "\"What if the server crashes?\"",
-          "body": "Automatic backups. New VPS spins up in 5 minutes from the backup. Your Stripe account and payment data stay with Stripe — never lost."
+          "body": "Set up automatic backups once (not complicated — a single cron job or your VPS provider's built-in snapshots). Server dies? Spin up a new VPS, restore from the latest backup — usually 5 minutes. Your Stripe account and payment data stay with Stripe — never lost."
         },
         {
           "title": "\"How much will this actually cost me?\"",

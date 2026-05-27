@@ -3564,7 +3564,7 @@
         },
         {
           "q": "Co jeśli serwer padnie?",
-          "a": "Sellf robi automatyczne backupy. Padnie VPS — stawiasz nowy i odtwarzasz z ostatniego backupu, zwykle w 5 minut. Twoje konto Stripe i dane płatności nigdy nie giną (są u Stripe'a)."
+          "a": "Konfigurujesz automatyczne backupy raz (nic skomplikowanego — jeden cron albo gotowe snapshoty u dostawcy VPS). Padnie VPS — stawiasz nowy i odtwarzasz z ostatniego backupu, zwykle w 5 minut. Twoje konto Stripe i dane płatności nigdy nie giną (są u Stripe'a)."
         },
         {
           "q": "Co się dzieje, jeśli webhook padnie?",
@@ -3780,7 +3780,7 @@
         },
         {
           "title": "\"A co jak serwer padnie?\"",
-          "body": "Automatyczne backupy. Nowy VPS stawiasz w 5 minut z backupu. Twoje konto Stripe i dane płatności są u Stripe'a — nigdy nie giną."
+          "body": "Konfigurujesz automatyczne backupy raz (nic skomplikowanego — jeden cron albo gotowe snapshoty u dostawcy VPS). Serwer padnie? Stawiasz nowy VPS, przywracasz z ostatniego backupu — zwykle 5 minut. Twoje konto Stripe i dane płatności są u Stripe'a — nigdy nie giną."
         },
         {
           "title": "\"Ile mnie to realnie kosztuje?\"",
