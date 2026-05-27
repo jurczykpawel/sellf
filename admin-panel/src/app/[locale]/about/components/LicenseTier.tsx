@@ -3,6 +3,20 @@ import { Check } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 import { TIER_KEYS, type TierKey } from '@/lib/landing/feature-keys';
 
+const TSA_SHOP = 'https://sellf.techskills.academy';
+
+interface TierAction {
+  href: string;
+  external: boolean;
+}
+
+const TIER_ACTIONS: Record<TierKey, TierAction> = {
+  free:       { href: '#deploy-paths',                external: false },
+  registered: { href: `${TSA_SHOP}/p/sellf-registered`, external: true },
+  pro:        { href: `${TSA_SHOP}/p/sellf-pro`,        external: true },
+  business:   { href: `${TSA_SHOP}/p/sellf-business`,   external: true },
+};
+
 type RowKey =
   | 'products'
   | 'buyers'
@@ -115,12 +129,21 @@ export async function LicenseTier() {
                         );
                       })}
                     </ul>
-                    <button
-                      type="button"
-                      className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-sf-accent text-white rounded-lg py-2 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent-hover transition-colors hover:bg-sf-accent-hover"
-                    >
-                      {t(`${tier}.cta`)}
-                    </button>
+                    {(() => {
+                      const action = TIER_ACTIONS[tier];
+                      const externalProps = action.external
+                        ? { target: '_blank' as const, rel: 'noopener noreferrer' }
+                        : {};
+                      return (
+                        <a
+                          href={action.href}
+                          {...externalProps}
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-sf-accent text-white rounded-lg py-2 font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent-hover transition-colors hover:bg-sf-accent-hover"
+                        >
+                          {t(`${tier}.cta`)}
+                        </a>
+                      );
+                    })()}
                   </div>
                 </div>
               );
