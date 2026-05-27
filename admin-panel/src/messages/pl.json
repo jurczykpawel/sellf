@@ -3231,13 +3231,13 @@
     "deployPaths": {
       "categoryLabel": "Wdrożenie",
       "title": "Wybierz ścieżkę, która Ci pasuje",
-      "subtitle": "Trzy uczciwe opcje od klona do działającego sklepu. Wszystkie przetestowane od początku do końca. Żadnej marketingowej magii — co dokładnie klikniesz, masz wypisane poniżej.",
+      "subtitle": "Trzy opcje, każdą postawiliśmy od zera i sprawdziliśmy do końca. Pod każdą masz konkretnie wypisane co klikasz — bez ściemy.",
       "clicksLabel": "kliknięć",
       "minutesLabel": "minut",
       "costLabel": "koszt",
       "bestForLabel": "Dla kogo",
       "stepsLabel": "Co konkretnie klikasz",
-      "reassurance": "Każda ścieżka powyżej jest przetestowana od początku do końca — te same przyciski one-click są w GitHub README. Wybierasz to, co Ci pasuje dziś; przejście na inną opcję później nie wymaga zmian w kodzie.",
+      "reassurance": "Każdą ścieżkę przejechaliśmy od początku do końca — te same przyciski są w README na GitHubie. Wybierasz to co Ci pasuje dziś, później możesz się przesiąść bez zmian w kodzie.",
       "prereqs": {
         "label": "Darmowe konta potrzebne na każdej ścieżce",
         "stripe": "Stripe",
@@ -3247,12 +3247,12 @@
       },
       "vercel": {
         "name": "Vercel + Supabase",
-        "tagline": "Najprostszy start. Oba na darmowym tierze, oba zostają darmowe dla małych sklepów.",
+        "tagline": "Najszybszy start. Oba darmowe, dla małych sklepów zostają darmowe na zawsze.",
         "badge": "Polecane dla pierwszego sklepu",
         "clicks": "~10",
         "minutes": "~10",
         "cost": "$0/mies",
-        "bestFor": "Hobby, pierwszy sklep, projekt po godzinach, walidacja pomysłu",
+        "bestFor": "Hobby, pierwszy sklep, projekt po godzinach, sprawdzenie pomysłu",
         "steps": [
           "Klikasz przycisk 'Deploy with Vercel'",
           "Logujesz się do Vercel i dodajesz integrację Supabase",
@@ -3260,44 +3260,44 @@
           "Klikasz deploy, czekasz ~3 min na build",
           "Rejestracja (pierwszy user = admin) → klik 'Zarejestruj webhook' w adminie"
         ],
-        "footnote": "Vercel Hobby jest do użytku osobistego / niekomercyjnego (rzadko egzekwowane przy małych sklepach). Komercja na skalę → VPS lub Vercel Pro ($20/mies).",
+        "footnote": "Vercel Hobby jest oficjalnie do użytku prywatnego (przy małych sklepach rzadko ktoś się czepia). Przy większej skali komercyjnej → VPS albo Vercel Pro ($20/mies).",
         "ctaLabel": "Deploy na Vercel"
       },
       "netlify": {
         "name": "Netlify + Supabase",
-        "tagline": "Ten sam pomysł na innym hostingu. Netlify free + Supabase free.",
+        "tagline": "Ten sam pomysł, inny hosting. Oba darmowe.",
         "clicks": "~10",
         "minutes": "~10",
         "cost": "$0/mies",
-        "bestFor": "Użytkownicy Netlify, fanowie JAMstack, alternatywa gdy regulamin Vercela uwiera",
+        "bestFor": "Jeśli już używasz Netlify albo regulamin Vercela Ci nie pasuje",
         "steps": [
           "Klikasz przycisk 'Deploy to Netlify'",
           "Logujesz się do Netlify, forkujesz repo",
-          "Tworzysz projekt Supabase (ręcznie — bez integracji)",
-          "Wklejasz 10 zmiennych env w Netlify (pełna lista w guide)",
-          "Rejestracja (pierwszy user = admin) → klik 'Zarejestruj webhook' w adminie"
+          "Tworzysz projekt Supabase ręcznie (Netlify nie ma integracji)",
+          "Wklejasz 10 zmiennych env w Netlify (pełną listę masz w przewodniku)",
+          "Rejestrujesz się (pierwszy user = admin) → 'Zarejestruj webhook' w panelu"
         ],
-        "footnote": "Netlify free tier: 100 GB transferu, 300 minut buildu / miesiąc. Spokojnie wystarczy na start.",
+        "footnote": "Netlify free: 100 GB transferu, 300 minut buildu na miesiąc. Spokojnie starczy na start.",
         "ctaLabel": "Deploy na Netlify"
       },
       "vps": {
         "name": "Własny VPS",
-        "tagline": "Prawdziwy self-hosting. Najlepszy fit gdy sklep to Twój biznes.",
+        "tagline": "Prawdziwy self-hosting. Wybór gdy sklep to Twoje główne źródło dochodu.",
         "clicks": "1 lub 3",
         "minutes": "~5",
         "cost": "~$5/mies",
-        "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
+        "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez regulaminu platformy nad głową",
         "steps": [
-          "Dodatkowo VPS (1GB+) i domena w Cloudflare — tylko ścieżka self-host wymaga tych dwóch",
-          "Wybierasz A) edytujesz plik env + 1 curl-bash LUB B) 3 komendy curl-bash w stylu OAuth (bez paste'owania kluczy)",
-          "DNS, Caddy, cert Let's Encrypt, PM2 — wszystko automatycznie, build ~3 min",
-          "Pierwsza rejestracja na live URL staje się adminem",
-          "(Opcjonalnie) Stripe przez Settings → Payments → Register webhook w adminie"
+          "Dodatkowo VPS (1GB+) i domena w Cloudflare — tylko ta ścieżka tego wymaga",
+          "Wybierasz: A) edytujesz jeden plik env + 1 komenda, B) 3 komendy z OAuth (bez paste'owania kluczy)",
+          "DNS, Caddy, cert Let's Encrypt, PM2 — wszystko samo, build ~3 min",
+          "Otwierasz live URL, rejestrujesz się — pierwsza rejestracja = admin",
+          "(Opcjonalnie) Stripe przez panel: Settings → Payments → Register webhook"
         ],
-        "footnote": "Sweet spot: ~$5/mies VPS + Supabase Cloud free. Skaluje do $25–45/mies dopiero gdy faktycznie złapiesz limity.",
+        "footnote": "Złoty środek: VPS za ~$5/mies + Supabase Cloud na darmowym tierze. Do $25-45/mies dochodzisz dopiero jak faktycznie złapiesz limity.",
         "ctaLabel": "Przewodnik self-host"
       },
-      "previewLabel": "Zobacz flow",
+      "previewLabel": "Zobacz jak to działa",
       "demo": {
         "modalAriaLabel": "Przewodnik wdrożenia",
         "closeLabel": "Zamknij",
@@ -3306,39 +3306,39 @@
         "playLabel": "Odtwórz",
         "pauseLabel": "Pauza",
         "slideOf": "Krok {current} z {total}",
-        "skipLabel": "Pomiń — chcę deployować",
-        "vercelTitle": "Vercel deploy — jak to wygląda naprawdę",
-        "netlifyTitle": "Netlify deploy — jak to wygląda naprawdę",
-        "vpsTitle": "Własny VPS — jak to wygląda naprawdę",
+        "skipLabel": "Pomiń demo, zacznij deploy",
+        "vercelTitle": "Deploy na Vercelu — krok po kroku",
+        "netlifyTitle": "Deploy na Netlify — krok po kroku",
+        "vpsTitle": "Self-host na własnym VPS — krok po kroku",
         "vercelSlides": [
           {
             "title": "Klikasz 'Deploy with Vercel'",
             "url": "github.com/jurczykpawel/sellf",
-            "caption": "README na GitHubie ma duży czarny przycisk 'Deploy' na samej górze. Jedno kliknięcie i jesteś w Vercelu — nie musisz nic forkować ręcznie.",
+            "caption": "Na samej górze README masz duży czarny przycisk Deploy. Jedno kliknięcie i jesteś w Vercelu — niczego nie musisz kopiować z GitHuba ręcznie.",
             "visual": "github-button"
           },
           {
             "title": "Logujesz się do Vercela",
             "url": "vercel.com/login",
-            "caption": "Pierwszy raz? Kliknij 'Continue with GitHub' — najszybszy signup. Wystarczy darmowe konto Hobby.",
+            "caption": "Pierwszy raz? Klikasz 'Continue with GitHub' — najszybsza rejestracja. Wystarczy darmowe konto Hobby.",
             "visual": "vercel-signin"
           },
           {
             "title": "Dodajesz integrację Supabase",
             "url": "vercel.com/integrations/supabase",
-            "caption": "Vercel pyta czy chcesz podłączyć bazę. Kliknij 'Add Integration' → Supabase → darmowy tier. Baza sama się stworzy a klucze zostaną wpisane automatycznie.",
+            "caption": "Vercel zapyta czy podłączyć bazę. Klikasz 'Add Integration' → Supabase → darmowy tier. Baza tworzy się sama, klucze same wpadają do zmiennych — nic nie przeklejasz.",
             "visual": "supabase-integration"
           },
           {
             "title": "Wklejasz 5 wartości env",
             "url": "vercel.com/new",
-            "caption": "Klucze Stripe (publishable + secret) + 3 losowe sekrety. Przewodnik QUICK-START ma jednolinijkowe komendy które generują każdy sekret za Ciebie. Webhook secret niepotrzebny — zarejestrujesz go z panelu admina jednym kliknięciem po deployu.",
+            "caption": "Klucze Stripe (publishable + secret) i 3 losowe sekrety. Przewodnik QUICK-START daje gotowe jednolinijkowe komendy które każdy sekret generują za Ciebie. Webhook secret nie jest tu potrzebny — załatwisz go jednym klikiem w panelu po deployu.",
             "visual": "env-form"
           },
           {
-            "title": "Build się buduje — przerwa na kawę",
+            "title": "Build leci — masz chwilę na kawę",
             "url": "vercel.com/deployments",
-            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.vercel.app — zarejestruj się (pierwszy user = admin), otwórz Settings → Payments, kliknij 'Zarejestruj webhook'. Gotowe. Opcjonalnie wpinasz własną twojsklep.com w Settings → Domains (darmowy SSL, ~5 min).",
+            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.vercel.app — rejestrujesz się (pierwszy user staje się adminem), wchodzisz w Settings → Payments, klikasz 'Zarejestruj webhook'. Tyle. Później możesz wpiąć własną twojsklep.com w Settings → Domains (darmowy SSL, ~5 min).",
             "visual": "build-success"
           }
         ],
@@ -3346,57 +3346,57 @@
           {
             "title": "Klikasz 'Deploy to Netlify'",
             "url": "github.com/jurczykpawel/sellf",
-            "caption": "Ten sam README, drugi przycisk pod Vercelem. Zielony badge Netlify. Kliknij.",
+            "caption": "Ten sam README, drugi przycisk zaraz pod Vercelem — zielony badge Netlify. Klikasz.",
             "visual": "github-button-netlify"
           },
           {
             "title": "Logujesz się do Netlify",
             "url": "app.netlify.com",
-            "caption": "Continue with GitHub. Darmowy tier, bez karty. Netlify forkuje repo Sellf do Twojego GitHuba.",
+            "caption": "Continue with GitHub. Darmowe konto, bez karty. Netlify sam skopiuje repo Sellf na Twojego GitHuba.",
             "visual": "netlify-signin"
           },
           {
             "title": "Tworzysz projekt Supabase",
             "url": "supabase.com/dashboard",
-            "caption": "Netlify nie tworzy bazy automatycznie — otwierasz supabase.com w drugiej karcie, klikasz 'New project' i kopiujesz URL + anon key + service role key.",
+            "caption": "Netlify nie zakłada bazy za Ciebie — otwierasz supabase.com w drugiej karcie, klikasz 'New project', kopiujesz URL + anon key + service role key.",
             "visual": "supabase-manual"
           },
           {
             "title": "Wklejasz 10 zmiennych env",
             "url": "app.netlify.com/sites/twoj-sklep/settings/env",
-            "caption": "Więcej pól niż w Vercelu (brak auto-integracji). Przewodnik wypisuje każdą wartość z jednolinijkową komendą. Wklej, zapisz. Webhook secret niepotrzebny — załatwisz go klikiem w adminie po deployu.",
+            "caption": "Więcej pól niż w Vercelu, bo Netlify nie ma auto-integracji. Przewodnik wypisuje każdą wartość razem z gotową komendą. Wklejasz, zapisujesz. Webhook secret nie jest tu potrzebny — załatwisz go jednym klikiem w panelu po deployu.",
             "visual": "env-form-large"
           },
           {
-            "title": "Build się buduje — przerwa na kawę",
+            "title": "Build leci — masz chwilę na kawę",
             "url": "app.netlify.com/sites/twoj-sklep",
-            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.netlify.app — zarejestruj się (pierwszy user = admin), otwórz Settings → Payments, kliknij 'Zarejestruj webhook'. Gotowe. Opcjonalnie wpinasz własną twojsklep.com w Domain management (darmowy SSL, bez karty).",
+            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.netlify.app — rejestrujesz się (pierwszy user = admin), Settings → Payments, klikasz 'Zarejestruj webhook'. Tyle. Później możesz wpiąć własną twojsklep.com w Domain management (darmowy SSL, bez karty).",
             "visual": "build-success-netlify"
           }
         ],
         "vpsSlides": [
           {
-            "title": "VPS path — co dodatkowo poza globalnymi prereqs",
+            "title": "Co dodatkowo dla self-hostu",
             "url": "zanim-zaczniesz",
-            "caption": "Poza kontami Stripe + Supabase wymaganymi na każdej ścieżce, self-host dorzuca dwie rzeczy: VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek, identyczne komendy) i domenę z DNS-em w Cloudflare (darmowa zone — wystarczy token API).",
+            "caption": "Stripe i Supabase masz już w globalnych wymaganiach. Tylko ta ścieżka dorzuca dwie rzeczy: VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek, komendy są identyczne) oraz domenę z DNS-em w Cloudflare (darmowa strefa, potrzebujesz tylko tokena API).",
             "visual": "vps-prereqs"
           },
           {
-            "title": "SSH + wybierz wariant",
+            "title": "SSH na serwer i wybierasz wariant",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Dwa sposoby instalacji — oba dają to samo. Wybierasz to co Ci wygodniej; oba pokazane poniżej.",
+            "caption": "Są dwa sposoby — oba kończą się tym samym sklepem. Niżej masz oba wypisane, wybierasz co Ci wygodniej.",
             "visual": "install-variants"
           },
           {
-            "title": "~3 min build → live URL",
+            "title": "Build leci ~3 minuty, masz live URL",
             "url": "root@vps:~ ▸ output",
-            "caption": "Streamowany log pokazuje instalację Bun + Caddy + PM2, rekord DNS Cloudflare na zielono, cert Let's Encrypt wystawiony, PM2 oznaczające apkę jako online. Gdy ostatnia linia pokaże ✓ Live, otwierasz https://sellf.example.com w przeglądarce. Pierwsza osoba która się zarejestruje automatycznie staje się adminem.",
+            "caption": "Log na żywo pokazuje co się dzieje: instalacja Bun + Caddy + PM2, rekord DNS w Cloudflare staje na zielono, cert Let's Encrypt wystawiony, PM2 oznacza apkę jako online. Gdy ostatnia linia mówi ✓ Live, otwierasz https://sellf.example.com w przeglądarce. Pierwsza osoba która się zarejestruje staje się adminem.",
             "visual": "terminal-deploy"
           },
           {
-            "title": "(Opcjonalnie) Stripe — panel admina, dwie karty na jednej stronie",
+            "title": "(Opcjonalnie) Stripe — dwie karty w panelu",
             "url": "https://sellf.example.com/dashboard/settings",
-            "caption": "Sklep już chodzi bez płatności. Żeby przyjmować karty: logujesz się jako admin, otwierasz Settings → Payments. Dwie karty na tej samej stronie — wklejasz Stripe pk + sk w karcie API keys (zapisywane zaszyfrowane do bazy Supabase), potem klik 'Register webhook' w drugiej karcie. Sellf woła Stripe za Ciebie i zapisuje signing secret. Wolisz edycję plików? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też działa.",
+            "caption": "Sklep już chodzi i bez płatności. Jeśli chcesz przyjmować karty: logujesz się jako admin, Settings → Payments. Na jednej stronie dwie karty — w pierwszej wklejasz Stripe pk + sk (zapisywane zaszyfrowane w bazie), w drugiej klikasz 'Register webhook'. Sellf sam dogada się ze Stripe i zapisze signing secret. Wolisz edytować pliki? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też działa.",
             "visual": "admin-webhook"
           }
         ]
