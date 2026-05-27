@@ -3249,9 +3249,9 @@
         "steps": [
           "Klikasz przycisk 'Deploy with Vercel'",
           "Logujesz się do Vercel i dodajesz integrację Supabase",
-          "Wklejasz 6 wartości Stripe + sekretów (jednolinijkowe komendy w guide)",
+          "Wklejasz 5 wartości Stripe + sekretów (jednolinijkowe komendy w guide)",
           "Klikasz deploy, czekasz ~3 min na build",
-          "Konfigurujesz webhook Stripe — gotowe"
+          "Rejestracja (pierwszy user = admin) → klik 'Zarejestruj webhook' w adminie"
         ],
         "footnote": "Vercel Hobby jest do użytku osobistego / niekomercyjnego (rzadko egzekwowane przy małych sklepach). Komercja na skalę → VPS lub Vercel Pro ($20/mies).",
         "ctaLabel": "Deploy na Vercel"
@@ -3267,8 +3267,8 @@
           "Klikasz przycisk 'Deploy to Netlify'",
           "Logujesz się do Netlify, forkujesz repo",
           "Tworzysz projekt Supabase (ręcznie — bez integracji)",
-          "Wklejasz 11 zmiennych env w Netlify (pełna lista w guide)",
-          "Konfigurujesz webhook Stripe — gotowe"
+          "Wklejasz 10 zmiennych env w Netlify (pełna lista w guide)",
+          "Rejestracja (pierwszy user = admin) → klik 'Zarejestruj webhook' w adminie"
         ],
         "footnote": "Netlify free tier: 100 GB transferu, 300 minut buildu / miesiąc. Spokojnie wystarczy na start.",
         "ctaLabel": "Deploy na Netlify"
@@ -3323,15 +3323,15 @@
             "visual": "supabase-integration"
           },
           {
-            "title": "Wklejasz 6 wartości env",
+            "title": "Wklejasz 5 wartości env",
             "url": "vercel.com/new",
-            "caption": "Klucze Stripe (publishable, secret, webhook) + 3 losowe sekrety. Przewodnik QUICK-START ma jednolinijkowe komendy które generują każdy sekret za Ciebie.",
+            "caption": "Klucze Stripe (publishable + secret) + 3 losowe sekrety. Przewodnik QUICK-START ma jednolinijkowe komendy które generują każdy sekret za Ciebie. Webhook secret niepotrzebny — zarejestrujesz go z panelu admina jednym kliknięciem po deployu.",
             "visual": "env-form"
           },
           {
             "title": "Build się buduje — przerwa na kawę",
             "url": "vercel.com/deployments",
-            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.vercel.app — i od razu możesz wpiąć własną twojsklep.com w Settings → Domains (darmowy SSL, ~5 min). Webhook Stripe ustawiony w kroku 4 działa na obu URL-ach automatycznie.",
+            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.vercel.app — zarejestruj się (pierwszy user = admin), otwórz Settings → Payments, kliknij 'Zarejestruj webhook'. Gotowe. Opcjonalnie wpinasz własną twojsklep.com w Settings → Domains (darmowy SSL, ~5 min).",
             "visual": "build-success"
           }
         ],
@@ -3355,15 +3355,15 @@
             "visual": "supabase-manual"
           },
           {
-            "title": "Wklejasz 11 zmiennych env",
+            "title": "Wklejasz 10 zmiennych env",
             "url": "app.netlify.com/sites/twoj-sklep/settings/env",
-            "caption": "Więcej pól niż w Vercelu (brak auto-integracji). Przewodnik wypisuje każdą wartość z jednolinijkową komendą. Wklej, zapisz.",
+            "caption": "Więcej pól niż w Vercelu (brak auto-integracji). Przewodnik wypisuje każdą wartość z jednolinijkową komendą. Wklej, zapisz. Webhook secret niepotrzebny — załatwisz go klikiem w adminie po deployu.",
             "visual": "env-form-large"
           },
           {
             "title": "Build się buduje — przerwa na kawę",
             "url": "app.netlify.com/sites/twoj-sklep",
-            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.netlify.app — wpinasz własną twojsklep.com w Domain management → Add custom domain (darmowy SSL, bez karty). Webhook Stripe ustawiony w kroku 4 działa na obu URL-ach automatycznie.",
+            "caption": "Około 3 minut. Domyślny URL to twoj-sklep.netlify.app — zarejestruj się (pierwszy user = admin), otwórz Settings → Payments, kliknij 'Zarejestruj webhook'. Gotowe. Opcjonalnie wpinasz własną twojsklep.com w Domain management (darmowy SSL, bez karty).",
             "visual": "build-success-netlify"
           }
         ],

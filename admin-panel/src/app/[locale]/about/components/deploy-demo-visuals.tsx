@@ -207,11 +207,10 @@ function SupabaseManualMock() {
 }
 
 function EnvFormMock({ count }: { count: number }) {
-  const fields = count === 6
+  const fields = count <= 6
     ? [
         { name: 'STRIPE_PUBLISHABLE_KEY', state: 'paste', value: 'pk_test_...' },
         { name: 'STRIPE_SECRET_KEY', state: 'paste', value: 'sk_test_...' },
-        { name: 'STRIPE_WEBHOOK_SECRET', state: 'paste', value: 'whsec_...' },
         { name: 'CHECKOUT_BINDING_SECRET', state: 'gen', value: '$ openssl rand ...' },
         { name: 'APP_ENCRYPTION_KEY', state: 'gen', value: '$ openssl rand ...' },
         { name: 'LOGINWALL_SECRET', state: 'gen', value: '$ openssl rand ...' },
@@ -222,7 +221,6 @@ function EnvFormMock({ count }: { count: number }) {
         { name: 'SUPABASE_SERVICE_ROLE_KEY', state: 'paste', value: 'eyJ...' },
         { name: 'STRIPE_PUBLISHABLE_KEY', state: 'paste', value: 'pk_...' },
         { name: 'STRIPE_SECRET_KEY', state: 'paste', value: 'sk_...' },
-        { name: 'STRIPE_WEBHOOK_SECRET', state: 'paste', value: 'whsec_...' },
         { name: 'SITE_URL', state: 'paste', value: 'https://...' },
         { name: 'TRUSTED_PROXY', state: 'lit', value: 'true' },
         { name: 'CHECKOUT_BINDING_SECRET', state: 'gen', value: 'random hex' },

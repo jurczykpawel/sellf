@@ -3234,9 +3234,9 @@
         "steps": [
           "Click the 'Deploy with Vercel' button",
           "Sign in to Vercel and add the Supabase integration",
-          "Paste 6 Stripe + secret values (one-liner commands in guide)",
+          "Paste 5 Stripe + secret values (one-liner commands in guide)",
           "Hit deploy, wait ~3 min for first build",
-          "Configure the Stripe webhook URL — done"
+          "Sign up (first user = admin) → click 'Register webhook' in admin"
         ],
         "footnote": "Vercel Hobby is for personal / non-commercial use (rarely enforced for small sites). For commercial shops at scale → VPS path or Vercel Pro ($20/mo).",
         "ctaLabel": "Deploy to Vercel"
@@ -3252,8 +3252,8 @@
           "Click the 'Deploy to Netlify' button",
           "Sign in to Netlify, fork the repo",
           "Create a Supabase project (manual — no integration yet)",
-          "Paste 11 env vars in Netlify (full list in guide)",
-          "Configure the Stripe webhook URL — done"
+          "Paste 10 env vars in Netlify (full list in guide)",
+          "Sign up (first user = admin) → click 'Register webhook' in admin"
         ],
         "footnote": "Netlify free tier: 100 GB bandwidth, 300 build minutes / month. Plenty for early-stage shops.",
         "ctaLabel": "Deploy to Netlify"
@@ -3308,15 +3308,15 @@
             "visual": "supabase-integration"
           },
           {
-            "title": "Paste 6 env values",
+            "title": "Paste 5 env values",
             "url": "vercel.com/new",
-            "caption": "Stripe keys (publishable, secret, webhook) + 3 random secrets. The QUICK-START guide has copy-paste one-liner commands that generate each secret for you.",
+            "caption": "Stripe publishable + secret keys + 3 random secrets. The QUICK-START guide has copy-paste one-liner commands that generate each secret for you. No webhook secret needed — you'll register it from the admin panel with one click after deploy.",
             "visual": "env-form"
           },
           {
             "title": "Build runs — coffee break",
             "url": "vercel.com/deployments",
-            "caption": "About 3 minutes. Default URL is your-shop.vercel.app — and you can swap to your own yourshop.com in Settings → Domains right after (free SSL, ~5 min). The Stripe webhook you set in step 4 keeps working on both URLs automatically.",
+            "caption": "About 3 minutes. Default URL is your-shop.vercel.app — sign up (first user = admin), open Settings → Payments, click 'Register webhook'. Done. Optionally add your own yourshop.com in Settings → Domains (free SSL, ~5 min).",
             "visual": "build-success"
           }
         ],
@@ -3340,15 +3340,15 @@
             "visual": "supabase-manual"
           },
           {
-            "title": "Paste 11 env vars",
+            "title": "Paste 10 env vars",
             "url": "app.netlify.com/sites/your-shop/settings/env",
-            "caption": "More fields than Vercel (no auto-integration). The guide lists every value with one-liner commands. Paste, save.",
+            "caption": "More fields than Vercel (no auto-integration). The guide lists every value with one-liner commands. Paste, save. No webhook secret needed — that comes via the admin click after deploy.",
             "visual": "env-form-large"
           },
           {
             "title": "Build runs — coffee break",
             "url": "app.netlify.com/sites/your-shop",
-            "caption": "About 3 minutes. Default URL is your-shop.netlify.app — swap to your own yourshop.com in Domain management → Add custom domain (free SSL, no card required). The Stripe webhook you set in step 4 keeps working on both URLs automatically.",
+            "caption": "About 3 minutes. Default URL is your-shop.netlify.app — sign up (first user = admin), open Settings → Payments, click 'Register webhook'. Done. Optionally add your own yourshop.com in Domain management (free SSL, no card).",
             "visual": "build-success-netlify"
           }
         ],

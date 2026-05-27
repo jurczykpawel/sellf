@@ -116,7 +116,7 @@ Gotowe. Masz konto Vercel.
 
 Nie będziesz pisał żadnego kodu. Po prostu tworzysz osobistą kopię Sellfa w swoim Vercelu.
 
-1. Otwórz ten specjalny link: [https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL&project-name=sellf&repository-name=sellf](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL&project-name=sellf&repository-name=sellf)
+1. Otwórz ten specjalny link: [https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,SITE_URL&project-name=sellf&repository-name=sellf](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,SITE_URL&project-name=sellf&repository-name=sellf)
 
    (Zobaczysz za chwilę dlaczego używamy tego specjalnego linku — ustawia kilka rzeczy automatycznie.)
 
@@ -230,7 +230,6 @@ Teraz wracamy do zakładki "Configure Project" w Vercelu (tej zostawionej w krok
    | `LOGINWALL_SECRET` | Trzeci losowy ciąg z random.org |
    | `STRIPE_SECRET_KEY` | Klucz Stripe zaczynający się od `sk_test_...` |
    | `STRIPE_PUBLISHABLE_KEY` | Klucz Stripe zaczynający się od `pk_test_...` |
-   | `STRIPE_WEBHOOK_SECRET` | Wpisz dokładnie: `whsec_PLACEHOLDER_will_replace_after_first_deploy_xx` — naprawimy w kroku 9 |
    | `SITE_URL` | Wpisz: `https://sellf-` + Twoja-nazwa-Vercel + `.vercel.app` — możesz też zostawić puste na razie |
 
    (Ustawienia Supabase są już wypełnione — Vercel dodał je w kroku 4.)
@@ -251,74 +250,51 @@ Jeśli widzisz błąd "500": nie panikuj. Czasem pierwsza wizyta zawodzi bo baza
 
 ---
 
-## Krok 9: Podłącz płatności Stripe (5 minut)
+## Krok 9: Podłącz płatności Stripe (1 minuta, 1 klik)
 
-Teraz sklep jest online ale Stripe jeszcze o nim nie wie. Musimy powiedzieć Stripe gdzie wysyłać powiadomienia o płatnościach.
+Sklep jest online ale Stripe jeszcze nie wie jak wysyłać mu powiadomienia o płatnościach. Sellf zrobi to za Ciebie jednym kliknięciem — bez wizyt w Stripe Dashboard.
 
-1. Otwórz https://dashboard.stripe.com/test/webhooks
-2. Kliknij **Add endpoint** (prawy górny róg)
-3. W polu **Endpoint URL** wpisz:
-   `https://ADRES-TWOJEGO-SKLEPU.vercel.app/api/webhooks/stripe`
-   (Zamień `ADRES-TWOJEGO-SKLEPU` na prawdziwy URL Twojego sklepu z kroku 8 — upewnij się że kończy się `/api/webhooks/stripe`)
-4. W polu **Description** (opcjonalne) wpisz: `Sellf powiadomienia o płatnościach`
-5. Kliknij **Select events** i zaznacz te pola (tylko te, innych nie trzeba):
-   - `checkout.session.completed`
-   - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
-   - `charge.refunded`
-   - `customer.subscription.created` (tylko jeśli sprzedajesz subskrypcje)
-   - `customer.subscription.updated` (tylko jeśli sprzedajesz subskrypcje)
-   - `customer.subscription.deleted` (tylko jeśli sprzedajesz subskrypcje)
-   - `invoice.paid` (tylko jeśli sprzedajesz subskrypcje)
-   - `invoice.payment_failed` (tylko jeśli sprzedajesz subskrypcje)
-6. Kliknij **Add events**
-7. Kliknij **Add endpoint** na dole
-8. Jesteś na stronie pokazującej nowy webhook. Znajdź **Signing secret** — kliknij **Reveal**. Zobaczysz wartość zaczynającą się od `whsec_...`
-9. **Skopiuj tę wartość** do pliku tekstowego
+1. Otwórz URL swojego sklepu (adres `*.vercel.app` z Kroku 8)
+2. Kliknij **Sign up** albo **Login** → wpisz email → submit
+3. Sprawdź skrzynkę (i spam — darmowy SMTP Supabase często tam ląduje). Kliknij magic link
+4. Jesteś w panelu admina. **Pierwsza osoba która się zarejestruje automatycznie staje się adminem** — czyli Ty.
+5. Kliknij **Settings** w menu po lewej (albo idź na `/dashboard/settings`)
+6. Otwórz zakładkę **Payments**
+7. Znajdź kafelek **Stripe Webhook**. Kliknij **Zarejestruj webhook**
+8. To wszystko. Sellf wywołuje Stripe za Ciebie: tworzy webhook endpoint wskazujący na Twój sklep, subskrybuje wszystkie potrzebne eventy i zapisuje signing secret zaszyfrowany w Twojej bazie.
 
-Teraz wróć do projektu Vercel i zaktualizuj placeholder:
-
-10. Otwórz https://vercel.com/dashboard, kliknij swój projekt Sellf
-11. Kliknij **Settings** → **Environment Variables**
-12. Znajdź `STRIPE_WEBHOOK_SECRET` na liście, kliknij trzy kropki → **Edit**
-13. Wklej prawdziwą wartość `whsec_...` (zastępując placeholder z kroku 7)
-14. Kliknij **Save**
-15. Teraz redeploy: idź do zakładki **Deployments**, znajdź ostatni deploy, kliknij trzy kropki → **Redeploy**
-16. Poczekaj 2 minuty na redeploy
+> **Co się właśnie stało?** Bez kopiowania, bez wycieczki do Stripe Dashboard, bez edytowania env vars. Sellf trzyma signing secret w Twojej bazie Supabase zamiast w env var, więc to działa w momencie kliknięcia przycisku.
 
 ---
 
 ## Krok 10: Przetestuj czy płatności działają (2 minuty)
 
-1. Otwórz adres swojego sklepu w przeglądarce
-2. **Automatycznie zostaniesz adminem** — pierwsza osoba która zarejestruje się w nowym sklepie Sellf dostaje uprawnienia admina. Kliknij **Sign up** (albo **Login**), wpisz swój email, postępuj zgodnie z magic linkiem ze skrzynki.
+Jesteś już zalogowany jako admin z Kroku 9 — teraz weryfikujesz że prawdziwa płatność przechodzi end-to-end.
 
-   - **Nie dostałeś maila z magic linkiem?** Sprawdź spam. Domyślna usługa mailowa Supabase czasem tam ląduje. Po pierwszym udanym logowaniu możesz skonfigurować lepszą usługę mailową w ustawieniach Sellfa.
-
-3. Jesteś w panelu admina. Spróbuj utworzyć testowy produkt:
+1. W panelu admina utwórz testowy produkt:
    - Kliknij **Products** → **New product**
    - Title: "Produkt testowy"
    - Price: 5 (PLN/USD/EUR — wybierz walutę)
    - Kliknij **Save**
-4. Odwiedź publiczną stronę produktu (kliknij link slug)
-5. Kliknij **Buy**
-6. Na stronie płatności Stripe użyj fałszywej karty testowej:
+2. Odwiedź publiczną stronę produktu (kliknij link slug)
+3. Kliknij **Buy**
+4. Na stronie płatności Stripe użyj fałszywej karty testowej:
    - **Card number:** `4242 4242 4242 4242`
    - **Expiration:** dowolna przyszła data (np. `12/30`)
    - **CVC:** dowolne 3 cyfry (np. `123`)
    - **ZIP:** dowolny (np. `12345`)
-7. Kliknij **Pay**
-8. Powinieneś trafić na stronę "Success"
+5. Kliknij **Pay**
+6. Powinieneś trafić na stronę "Success"
 
 Teraz sprawdź czy Stripe dostał płatność:
 
-9. Otwórz https://dashboard.stripe.com/test/payments
-10. Powinieneś zobaczyć Twoją testową płatność na liście
+7. Otwórz https://dashboard.stripe.com/test/payments
+8. Powinieneś zobaczyć Twoją testową płatność na liście
 
 Powinno być też w Twoim panelu admina:
 
-11. Wróć do sklepu, kliknij **Admin → Payments**
-12. Twoja testowa płatność też tu jest
+9. Wróć do sklepu, kliknij **Admin → Payments**
+10. Twoja testowa płatność też tu jest (webhook zarejestrowany w Kroku 9 to to co tworzy ten wiersz)
 
 🎉 Twój sklep w pełni działa. Dodawaj prawdziwe produkty, udostępniaj link światu, sprzedawaj.
 
@@ -332,12 +308,11 @@ Gdy jesteś gotowy przyjmować prawdziwe pieniądze:
 2. Wypełnij dane firmy: nazwę, adres, konto bankowe, weryfikacja tożsamości
 3. Poczekaj aż Stripe zatwierdzi (zwykle kilka minut dla kont osobistych, kilka godzin dla firm)
 4. Po zatwierdzeniu zobaczysz nowe "Live" klucze API w https://dashboard.stripe.com/apikeys (już nie test). Zaczynają się od `pk_live_...` i `sk_live_...`
-5. Utwórz nowy webhook (tak samo jak w kroku 9, ale na stronie **Live** webhooks — https://dashboard.stripe.com/webhooks). Dostaniesz nowy `whsec_...` dla trybu live.
-6. Zaktualizuj trzy ustawienia w Vercelu (Settings → Environment Variables):
+5. Zaktualizuj dwa ustawienia w Vercelu (Settings → Environment Variables):
    - `STRIPE_SECRET_KEY` → Twój `sk_live_...`
    - `STRIPE_PUBLISHABLE_KEY` → Twój `pk_live_...`
-   - `STRIPE_WEBHOOK_SECRET` → nowy `whsec_...` z live webhook
-7. Redeploy (Deployments → ostatni → trzy kropki → Redeploy)
+6. Redeploy (Deployments → ostatni → trzy kropki → Redeploy)
+7. Wróć do admina sklepu → **Settings → Payments** → kliknij **Zarejestruj webhook** jeszcze raz. Sellf tworzy świeży webhook na endpoint live Stripe i zapisuje nowy signing secret w bazie — ten sam one-click flow co w trybie test.
 
 Teraz przyjmujesz prawdziwe pieniądze. Prawdziwi klienci płacą prawdziwymi kartami, pieniądze lądują na Twoim koncie bankowym zgodnie z normalnym harmonogramem Stripe.
 

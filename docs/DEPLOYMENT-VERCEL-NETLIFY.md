@@ -72,7 +72,8 @@ If you take this path, skip the 4 env vars for Supabase in Step 4's form and lea
 3. Copy:
    - **Publishable key** (`pk_test_…`) → `STRIPE_PUBLISHABLE_KEY`
    - **Secret key** (`sk_test_…`) → `STRIPE_SECRET_KEY` (click "Reveal" first)
-4. Skip the webhook secret for now — you'll create it in Step 7 after the URL exists.
+
+That's it. You **don't** need to create a webhook endpoint in the Stripe Dashboard — Sellf does that for you with one click after deploy (Step 7).
 
 ## Step 4 — Click the Deploy button (2 min)
 
@@ -87,8 +88,7 @@ You'll be asked to authorize the platform on your GitHub, choose a project name,
 | `SUPABASE_SERVICE_ROLE_KEY` | from Step 2 |
 | `STRIPE_SECRET_KEY` | `sk_test_…` from Step 3 |
 | `STRIPE_PUBLISHABLE_KEY` | `pk_test_…` from Step 3 |
-| `STRIPE_WEBHOOK_SECRET` | **placeholder** for now: `whsec_REPLACE_AFTER_DEPLOY_xxxxxxxxxxxxxxxxxxxxxxxxxxxx` (must be ≥16 chars or build won't accept it) |
-| `SITE_URL` | **best guess** for now: `https://<your-project-name>.vercel.app` or `.netlify.app` — you'll fix it in Step 7 if wrong |
+| `SITE_URL` | **best guess** for now: `https://<your-project-name>.vercel.app` or `.netlify.app` — fix later if wrong |
 | `CHECKOUT_BINDING_SECRET` | from Step 1 |
 | `TRUSTED_PROXY` | literally `true` |
 | `APP_ENCRYPTION_KEY` | from Step 1 |
@@ -132,39 +132,25 @@ Expected output: `Applying migration ... done` for each of the 46 migrations. To
 
 After migrations, refresh your deploy URL. The landing page should now load (no more 500). You'll see "Powered by Sellf" — that's your live store.
 
-## Step 7 — Wire up the Stripe webhook (3 min)
+## Step 7 — Sign up + register the Stripe webhook (1 min, 1 click)
 
-1. Go to **https://dashboard.stripe.com/test/webhooks** and click **Add endpoint**.
-2. **Endpoint URL:** `https://<YOUR_DEPLOY_URL>/api/webhooks/stripe`
-3. **Events to send** — click **Select events** and tick at least:
-   - `checkout.session.completed`
-   - `checkout.session.async_payment_succeeded`
-   - `checkout.session.async_payment_failed`
-   - `customer.subscription.created`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-   - `customer.subscription.trial_will_end`
-   - `invoice.paid`
-   - `invoice.payment_failed`
-   - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
-   - `charge.refunded`
-4. Click **Add endpoint**.
-5. On the endpoint detail page, click **Reveal** under "Signing secret" → copy the `whsec_…` value.
-6. Update env vars in your hosting platform:
-   - **Vercel:** Dashboard → your project → **Settings → Environment Variables** → edit `STRIPE_WEBHOOK_SECRET` → paste real value. While here, also fix `SITE_URL` to match your real deploy URL if you guessed wrong in Step 4.
-   - **Netlify:** Dashboard → your site → **Site settings → Build & deploy → Environment** → same idea.
-7. Redeploy: **Deployments** tab → latest deploy → **Redeploy**. ~1 minute.
+1. Open `https://<your-deploy-url>/login` → sign up with your email. Click the magic link from your inbox. **The first registered user automatically becomes admin.**
+2. In the admin, open **Settings → Payments** (or `/dashboard/settings`).
+3. Find the **Stripe Webhook** card and click **Register webhook**.
+4. That's it. Sellf calls the Stripe API for you: creates the webhook endpoint pointing at your deploy URL, subscribes to all the events it needs, and stores the signing secret encrypted in your Supabase DB. No copy-pasting whsec_… values, no Stripe Dashboard hopping.
+
+> **Why this works:** Sellf reads the webhook signing secret from the database first, env var second. The admin click stores it encrypted in `stripe_configurations`, so `STRIPE_WEBHOOK_SECRET` env var is never needed.
+
+If you guessed `SITE_URL` wrong in Step 4: fix it now in your hosting platform's env settings and redeploy. The webhook URL is built from `SITE_URL`, so it has to be right before you click **Register webhook**.
 
 ## Step 8 — Smoke test (2 min)
 
+You're already signed in as admin from Step 7. Now verify a real payment lands.
+
 1. Open `https://<your-deploy-url>/` — the Sellf landing page loads, no 500.
-2. Click **Sign up** (or go to `/login`) → enter your email → submit.
-3. Check your inbox. Supabase's default SMTP has a few-minute lag and goes to spam often. Click the magic link.
-4. You should land on `/dashboard` as **admin** (Sellf makes the first registered user an admin via the `handle_new_user_registration()` trigger).
-5. Go to **/admin/products** → **New product** → fill in a test product with `price = 5` USD → save.
-6. Click the product slug to open the public page, then **Buy**. Use Stripe's test card: `4242 4242 4242 4242`, any future expiry, any CVC.
-7. After payment, you should land on the success page, see the product in **/my-products**, and see the transaction in **/admin/payments**.
+2. Go to **/admin/products** → **New product** → fill in a test product with `price = 5` USD → save.
+3. Click the product slug to open the public page, then **Buy**. Use Stripe's test card: `4242 4242 4242 4242`, any future expiry, any CVC.
+4. After payment, you should land on the success page, see the product in **/my-products**, and see the transaction in **/admin/payments** (the webhook you registered in Step 7 is what writes this row).
 
 If all of that works — you're live. 🎉
 
@@ -275,6 +261,8 @@ The Supabase database stays the same — test and live payments are tracked side
 ---
 
 ## Appendix: Fully scripted deploy (for agents / CI)
+
+> **Note:** The scripted path below sets `STRIPE_WEBHOOK_SECRET` via env vars because Stripe CLI can read the secret in plain text after `webhook_endpoints create`. That works, but in the manual flow above we use the simpler DB-config path (admin clicks **Register webhook** and the secret is stored encrypted in Supabase). Both end up working the same — pick whichever fits your context.
 
 ### Shortest path — use the StackPilot scripts
 
