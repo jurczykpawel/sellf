@@ -21,7 +21,7 @@ Działający sklep Sellf pod `https://twoj-projekt.vercel.app` (albo `.netlify.a
 
 | Usługa | Plan | Limity | Uważaj na |
 |---------|------|--------|---------------|
-| Vercel Hobby | darmowy | 100 GB transferu, 1M wywołań funkcji, 4h aktywnego CPU, 1M edge requestów, 5k transformacji obrazów, 1 seat | **Tylko do użytku osobistego, niekomercyjnego.** Twarde limity (bez nadwyżek — sklep zwraca 503 po wyczerpaniu). Gdy sklep staje się działalnością komercyjną, przejdź na Vercel Pro ($20/mies). Pełna tabela w [QUICK-START.md](./QUICK-START.md#limity-vercel-hobby-darmowy-plan-którego-używa-ten-przewodnik). |
+| Vercel Hobby | darmowy | 100 GB transferu, 1M wywołań funkcji, 4h aktywnego CPU, 1M edge requestów, 5k transformacji obrazów, 1 seat | **Tylko do użytku osobistego, niekomercyjnego** (w praktyce rzadko egzekwowane dla małych sklepów). Twarde limity (bez nadwyżek — sklep zwraca 503 po wyczerpaniu). Dla ścisłej zgodności z regulaminem dla sklepu komercyjnego — Vercel Pro ($20/mies) — albo obejdź problem ścieżką własnego VPS (~$5/mies). Pełna tabela + niuanse w [QUICK-START.md](./QUICK-START.md#vercel-hobby--co-jest-w-darmowym-planie-i-kiedy-uderza-w-twardy-stop). |
 | Netlify Starter | darmowy | 100 GB transferu, 300 minut buildów/miesiąc, 125k wywołań funkcji | Spokojnie wystarczy dla małego sklepu |
 | Supabase Free | darmowy | 500 MB bazy, 1 GB storage, 50k MAU | Hojny na lata dla typowego małego sklepu. Aktualizuj do Pro ($25/mies) gdy zbliżasz się do limitu bazy lub MAU, albo chcesz codzienne automatyczne backupy. |
 | Stripe test mode | darmowy | nielimitowane | Żadne prawdziwe pieniądze nie ruszają się aż przełączysz na `sk_live_…` |
