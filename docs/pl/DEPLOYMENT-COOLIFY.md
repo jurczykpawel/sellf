@@ -17,7 +17,22 @@ Coolify to platforma [PaaS](https://pl.wikipedia.org/wiki/Platforma_jako_us%C5%8
 
 Ten przewodnik pokrywa oba tryby. Wybierz jeden i podążaj za krokami tylko dla tego trybu tam gdzie się różnią.
 
-Wymagany czas: **~10 minut** gdy Coolify jest gotowy.
+## Czemu w ogóle wybrać Coolify?
+
+Wybierz Coolify jeśli:
+- Masz (albo chcesz wynająć) VPS z **8 GB+ RAM**. Sam build Sellfa potrzebuje ~3 GB wolnego dla `bun run build` na Next.js 16 z Turbopack; na 4 GB VPS Coolify + Postgres + Redis zjadają już ~1 GB, więc build pada przez OOM. Zweryfikowano 2026-05-27: 4 GB Hetzner CX22 zabija build, 8 GB Hetzner CX32 buduje się w ~8 minut i serwuje poprawnie.
+- Chcesz wszystko na własnej infrastrukturze (bez Supabase Cloud, bez Vercela)
+- OK Ci self-hostować Postgresa (i własne backupy, w trybie self-hosted Coolify)
+- Chcesz "deploy and forget" — Coolify obsługuje auto-renew TLS, automatyczne redeploy na `git push`, restarty kontenerów
+
+Wybierz **Coolify Cloud** jeśli chcesz wszystkiego powyżej PLUS wolisz nie uruchamiać dashboardu Coolify samemu (auto-aktualizacje, backupy, alerty mailowe załatwione za Ciebie, ~$5/miesiąc).
+
+Wybierz **Coolify Self-Hosted** jeśli chcesz zero powtarzających się opłat za oprogramowanie (i tak płacisz dostawcy VPS) ORAZ jesteś komfortowy z utrzymywaniem UI zarządzania Coolify samemu (`docker compose pull && restart` raz na miesiąc).
+
+Nie wybieraj Coolify jeśli pasują Ci bardziej:
+
+- **Hosting na free tier:** Coolify i tak wymaga VPS-a, ~$5-10/miesiąc minimum. Zobacz [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel + Supabase Cloud mają darmowy plan.
+- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
 
 ## Najkrótsza ścieżka — użyj instalatora StackPilot
 
@@ -48,23 +63,6 @@ Dla Cloud zrobiłeś już jednorazową konfigurację w Coolify Cloud (rejestracj
 Zweryfikowano na Hetzner CX32 (8 GB RAM) 2026-05-27.
 
 Jeśli wolisz ręczny flow (albo wdrażasz bez root SSH na VPS), użyj kroków poniżej.
-
-## Czemu w ogóle wybrać Coolify?
-
-Wybierz Coolify jeśli:
-- Masz (albo chcesz wynająć) VPS z **8 GB+ RAM**. Sam build Sellfa potrzebuje ~3 GB wolnego dla `bun run build` na Next.js 16 z Turbopack; na 4 GB VPS Coolify + Postgres + Redis zjadają już ~1 GB, więc build pada przez OOM. Zweryfikowano 2026-05-27: 4 GB Hetzner CX22 zabija build, 8 GB Hetzner CX32 buduje się w ~8 minut i serwuje poprawnie.
-- Chcesz wszystko na własnej infrastrukturze (bez Supabase Cloud, bez Vercela)
-- OK Ci self-hostować Postgresa (i własne backupy, w trybie self-hosted Coolify)
-- Chcesz "deploy and forget" — Coolify obsługuje auto-renew TLS, automatyczne redeploy na `git push`, restarty kontenerów
-
-Wybierz **Coolify Cloud** jeśli chcesz wszystkiego powyżej PLUS wolisz nie uruchamiać dashboardu Coolify samemu (auto-aktualizacje, backupy, alerty mailowe załatwione za Ciebie, ~$5/miesiąc).
-
-Wybierz **Coolify Self-Hosted** jeśli chcesz zero powtarzających się opłat za oprogramowanie (i tak płacisz dostawcy VPS) ORAZ jesteś komfortowy z utrzymywaniem UI zarządzania Coolify samemu (`docker compose pull && restart` raz na miesiąc).
-
-Nie wybieraj Coolify jeśli pasują Ci bardziej:
-
-- **Hosting na free tier:** Coolify i tak wymaga VPS-a, ~$5-10/miesiąc minimum. Zobacz [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel + Supabase Cloud mają darmowy plan.
-- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
 
 ## Krok 1 — Uruchom Coolify
 

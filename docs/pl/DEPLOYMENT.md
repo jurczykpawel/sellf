@@ -68,7 +68,7 @@ Wybierz w zależności od tego co chcesz.
 
 **Wymagania:** znajomość PM2, 4GB+ RAM
 
-**Uwaga:** Dla podstawowej konfiguracji PM2 zobacz główny [Przewodnik wdrożenia](./DEPLOYMENT-MIKRUS.md).
+**Uwaga:** Dla podstawowej konfiguracji PM2 zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md).
 
 ---
 
@@ -89,4 +89,4 @@ Wybierz w zależności od tego co chcesz.
 
 ## Nie jesteś pewien co wybrać?
 
-**→ Zacznij od [QUICK-START](./QUICK-START.md)** — działa dla 90% użytkowników i jest najprostszy.
+**→ Zacznij od [QUICK-START.md](./QUICK-START.md)** — najprostsza ścieżka, sprawdza się dla większości pierwszych wdrożeń.

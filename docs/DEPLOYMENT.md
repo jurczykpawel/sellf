@@ -18,6 +18,16 @@ Pick one based on what you want.
 
 ---
 
+### [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel or Netlify (managed cloud)
+**Use if you need:**
+- The simplest managed path — no server to maintain
+- Free tier to start
+- Vercel or Netlify hosts the app, Supabase hosts the database
+
+**Requirements:** none on your side, everything in the cloud, ~15-20 min setup
+
+---
+
 ### [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md) — Coolify (one-click self-hosted)
 **Use if you need:**
 - Closest to "true one-click" — migrations run automatically
@@ -25,6 +35,16 @@ Pick one based on what you want.
 - Auto TLS + GitHub auto-deploy on push
 
 **Requirements:** 8GB+ RAM VPS (4 GB is enough at runtime but the build OOMs — see guide), Coolify installed (free), 10 min setup
+
+---
+
+### [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — VPS / mikr.us via PM2
+**Use if you need:**
+- The cheapest path (35 PLN/year on mikr.us)
+- Full control of the server
+- Lightweight deploy without Docker
+
+**Requirements:** Linux VPS with 1 GB+ RAM, basic terminal skills
 
 ---
 
@@ -48,7 +68,7 @@ Pick one based on what you want.
 
 **Requirements:** PM2 expertise, 4GB+ RAM
 
-**Note:** For basic PM2 setup, see the main [Deployment Guide](./DEPLOYMENT-MIKRUS.md).
+**Note:** For basic PM2 setup, see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md).
 
 ---
 
@@ -69,4 +89,4 @@ Pick one based on what you want.
 
 ## Not sure which to pick?
 
-**→ Start with the [Deployment Guide](./DEPLOYMENT-MIKRUS.md)** — it works for 90% of users.
+**→ Start with [QUICK-START.md](./QUICK-START.md)** — it's the simplest path and works for most first-time deployments.
