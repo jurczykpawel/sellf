@@ -122,3 +122,15 @@ export const PRODUCT_PAGE_FIELDS = [
 
 /** URL of the Sellf GitHub repository — used by landing page CTAs and JSON-LD. */
 export const SELLF_GITHUB_URL = 'https://github.com/jurczykpawel/sellf';
+
+/** One-click deploy URL for Vercel — keep in sync with README badge. */
+export const SELLF_VERCEL_DEPLOY_URL =
+  'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,STRIPE_WEBHOOK_SECRET,SITE_URL,CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET&envDescription=All%20variables%20required%20for%20a%20production%20deploy.%20The%20%2Asecret%2A%2Fkey%20fields%20need%20to%20be%20generated%20locally%20—%20see%20guide%20for%20one-liner%20commands.%20Set%20TRUSTED_PROXY%3Dtrue%20literally.&envLink=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf%2Fblob%2Fmain%2Fdocs%2FQUICK-START.md&project-name=sellf&repository-name=sellf';
+
+/** One-click deploy URL for Netlify — keep in sync with README badge. */
+export const SELLF_NETLIFY_DEPLOY_URL =
+  'https://app.netlify.com/start/deploy?repository=https://github.com/jurczykpawel/sellf&base=admin-panel';
+
+/** URL of the QUICK-START guide for self-hosting (VPS path). */
+export const SELLF_QUICKSTART_URL =
+  'https://github.com/jurczykpawel/sellf/blob/main/docs/QUICK-START.md';

@@ -3070,8 +3070,8 @@
       "revenueBadgeIdle": "Co zostaje vs Gumroad",
       "revenueBadgePrefix": "Zaoszczędzasz",
       "revenueBadgeSuffix": "/rok vs Gumroad",
-      "tenMinBadge": "10 minut od klona do działającego sklepu",
-      "tenMinDisclaimer": "Wymaga VPS i konta Stripe"
+      "tenMinBadge": "~10 minut · ~10 kliknięć · $0 na start",
+      "tenMinDisclaimer": "Darmowy tier Vercel + Supabase. Konto Stripe wymagane (też za darmo)."
     },
     "socialProof": {
       "openSource": "Open source",
@@ -3215,7 +3215,7 @@
       "subtitle": "Od klona do działającego sklepu w mniej niż 10 minut",
       "step1": {
         "title": "Wdróż",
-        "desc": "Sklonuj repo i wdróż na dowolny VPS lub chmurę. Docker lub PM2, Twój wybór."
+        "desc": "One-click deploy na Vercel lub Netlify (darmowy tier) — albo własny VPS. Jak Ci wygodniej."
       },
       "step2": {
         "title": "Połącz Stripe",
@@ -3226,7 +3226,70 @@
         "desc": "Stwórz produkty, ustaw ceny, udostępnij linki. Twój sklep jest online."
       },
       "categoryLabel": "SZYBKI START",
-      "disclaimer": "Wymaga VPS (np. Hetzner, Mikrus, DigitalOcean) i konta Stripe."
+      "disclaimer": "Darmowa ścieżka: Vercel + Supabase + Stripe (wszystko free). VPS dla produkcji komercyjnej."
+    },
+    "deployPaths": {
+      "categoryLabel": "Wdrożenie",
+      "title": "Wybierz ścieżkę, która Ci pasuje",
+      "subtitle": "Trzy uczciwe opcje od klona do działającego sklepu. Wszystkie przetestowane od początku do końca. Żadnej marketingowej magii — co dokładnie klikniesz, masz wypisane poniżej.",
+      "clicksLabel": "kliknięć",
+      "minutesLabel": "minut",
+      "costLabel": "koszt",
+      "bestForLabel": "Dla kogo",
+      "stepsLabel": "Co konkretnie klikasz",
+      "reassurance": "Każda ścieżka powyżej jest przetestowana od początku do końca — te same przyciski one-click są w GitHub README. Wybierasz to, co Ci pasuje dziś; przejście na inną opcję później nie wymaga zmian w kodzie.",
+      "vercel": {
+        "name": "Vercel + Supabase",
+        "tagline": "Najprostszy start. Oba na darmowym tierze, oba zostają darmowe dla małych sklepów.",
+        "badge": "Polecane dla pierwszego sklepu",
+        "clicks": "~10",
+        "minutes": "~10",
+        "cost": "$0/mies",
+        "bestFor": "Hobby, pierwszy sklep, projekt po godzinach, walidacja pomysłu",
+        "steps": [
+          "Klikasz przycisk 'Deploy with Vercel'",
+          "Logujesz się do Vercel i dodajesz integrację Supabase",
+          "Wklejasz 6 wartości Stripe + sekretów (jednolinijkowe komendy w guide)",
+          "Klikasz deploy, czekasz ~3 min na build",
+          "Konfigurujesz webhook Stripe — gotowe"
+        ],
+        "footnote": "Vercel Hobby jest do użytku osobistego / niekomercyjnego (rzadko egzekwowane przy małych sklepach). Komercja na skalę → VPS lub Vercel Pro ($20/mies).",
+        "ctaLabel": "Deploy na Vercel"
+      },
+      "netlify": {
+        "name": "Netlify + Supabase",
+        "tagline": "Ten sam pomysł na innym hostingu. Netlify free + Supabase free.",
+        "clicks": "~10",
+        "minutes": "~10",
+        "cost": "$0/mies",
+        "bestFor": "Użytkownicy Netlify, fanowie JAMstack, alternatywa gdy regulamin Vercela uwiera",
+        "steps": [
+          "Klikasz przycisk 'Deploy to Netlify'",
+          "Logujesz się do Netlify, forkujesz repo",
+          "Tworzysz projekt Supabase (ręcznie — bez integracji)",
+          "Wklejasz 11 zmiennych env w Netlify (pełna lista w guide)",
+          "Konfigurujesz webhook Stripe — gotowe"
+        ],
+        "footnote": "Netlify free tier: 100 GB transferu, 300 minut buildu / miesiąc. Spokojnie wystarczy na start.",
+        "ctaLabel": "Deploy na Netlify"
+      },
+      "vps": {
+        "name": "Własny VPS",
+        "tagline": "Prawdziwy self-hosting. Najlepszy fit gdy sklep to Twój biznes.",
+        "clicks": "jedna komenda",
+        "minutes": "~30",
+        "cost": "~$5/mies",
+        "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
+        "steps": [
+          "Kupujesz VPS za $5/mies (Hetzner, DigitalOcean, mikr.us — cokolwiek)",
+          "Odpalasz jeden skrypt instalacyjny przez SSH (StackPilot)",
+          "Podłączasz Supabase Cloud free (lub własny Postgres)",
+          "Wklejasz klucze Stripe do .env",
+          "Wskazujesz domenę — sklep żyje"
+        ],
+        "footnote": "Sweet spot: ~$5/mies VPS + Supabase Cloud free. Skaluje do $25–45/mies dopiero gdy faktycznie złapiesz limity.",
+        "ctaLabel": "Przewodnik self-host"
+      }
     },
     "demo": {
       "title": "Zobacz w akcji",
