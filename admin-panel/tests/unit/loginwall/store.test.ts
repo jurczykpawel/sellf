@@ -20,7 +20,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
-  db: { schema: 'seller_main' },
+  db: { schema: 'public' },
 });
 
 const NS = `loginwall-store-${Date.now()}`;

@@ -29,33 +29,33 @@ function getAllMigrationSql(): string {
 describe('product_type immutability — DB trigger (static SQL grep)', () => {
   const allSql = getAllMigrationSql();
 
-  it('defines the trigger function in seller_main schema', () => {
+  it('defines the trigger function in public schema', () => {
     expect(allSql).toMatch(
-      /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+seller_main\.enforce_product_type_immutable_after_sale\s*\(/i,
+      /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.enforce_product_type_immutable_after_sale\s*\(/i,
     );
   });
 
   it('trigger function uses SECURITY DEFINER + SET search_path = ""', () => {
     // Per Sellf SQL Rule #4 — every SECURITY DEFINER function must pin search_path.
     const re = new RegExp(
-      String.raw`CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+seller_main\.enforce_product_type_immutable_after_sale[\s\S]*?SECURITY\s+DEFINER[\s\S]*?SET\s+search_path\s*=\s*''[\s\S]*?\$\$`,
+      String.raw`CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.enforce_product_type_immutable_after_sale[\s\S]*?SECURITY\s+DEFINER[\s\S]*?SET\s+search_path\s*=\s*''[\s\S]*?\$\$`,
       'i',
     );
     expect(allSql).toMatch(re);
   });
 
-  it('attaches a BEFORE UPDATE trigger to seller_main.products', () => {
+  it('attaches a BEFORE UPDATE trigger to public.products', () => {
     // Match either form: `BEFORE UPDATE OF product_type ON ...` or
     // `BEFORE UPDATE ON ...` (the function self-guards on column delta).
     expect(allSql).toMatch(
-      /CREATE\s+TRIGGER\s+\w+\s+BEFORE\s+UPDATE(?:\s+OF\s+product_type)?\s+ON\s+seller_main\.products/i,
+      /CREATE\s+TRIGGER\s+\w+\s+BEFORE\s+UPDATE(?:\s+OF\s+product_type)?\s+ON\s+public\.products/i,
     );
   });
 });
 
 describe.skipIf(!canRun)('product_type immutability — DB trigger (runtime)', () => {
   const supabaseAdmin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    db: { schema: 'seller_main' },
+    db: { schema: 'public' },
   });
   const platform: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 

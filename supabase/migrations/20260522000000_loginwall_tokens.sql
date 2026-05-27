@@ -2,10 +2,10 @@
 -- The HMAC-signed handoff token carries (product_id, user_id, exp, nonce);
 -- this table is the consumed-nonce ledger that makes each token usable once.
 
-CREATE TABLE IF NOT EXISTS seller_main.loginwall_tokens (
+CREATE TABLE IF NOT EXISTS public.loginwall_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  product_id UUID NOT NULL REFERENCES seller_main.products(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   nonce_hash TEXT NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   used_at TIMESTAMPTZ,
@@ -13,23 +13,23 @@ CREATE TABLE IF NOT EXISTS seller_main.loginwall_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_loginwall_tokens_active
-  ON seller_main.loginwall_tokens (user_id, product_id)
+  ON public.loginwall_tokens (user_id, product_id)
   WHERE used_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_loginwall_tokens_cleanup
-  ON seller_main.loginwall_tokens (expires_at);
+  ON public.loginwall_tokens (expires_at);
 
-ALTER TABLE seller_main.loginwall_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loginwall_tokens ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Service role full access"
-  ON seller_main.loginwall_tokens
+  ON public.loginwall_tokens
   FOR ALL
   TO service_role
   USING (true)
   WITH CHECK (true);
 
-REVOKE ALL ON seller_main.loginwall_tokens FROM anon, authenticated;
-GRANT ALL ON seller_main.loginwall_tokens TO service_role;
+REVOKE ALL ON public.loginwall_tokens FROM anon, authenticated;
+GRANT ALL ON public.loginwall_tokens TO service_role;
 
 CREATE OR REPLACE FUNCTION public.cleanup_loginwall_tokens()
 RETURNS INTEGER
@@ -40,7 +40,7 @@ AS $$
 DECLARE
   deleted_count INTEGER;
 BEGIN
-  DELETE FROM seller_main.loginwall_tokens
+  DELETE FROM public.loginwall_tokens
   WHERE expires_at < now() - interval '1 day';
 
   GET DIAGNOSTICS deleted_count = ROW_COUNT;

@@ -48,10 +48,42 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const auth = await authenticate(request, [API_SCOPES.PAYMENTS_REFUND]);
     const { id } = await params;
 
-    // Validate ID format
+    // Validate ID + body BEFORE consuming the rate-limit budget so a bad
+    // payload can't burn the admin's 10/h refund quota.
     const idValidation = validateUUID(id);
     if (!idValidation.isValid) {
       return apiError(request, 'INVALID_INPUT', 'Invalid payment ID format');
+    }
+
+    let body: { amount?: unknown; reason?: string } = {};
+    try {
+      body = await request.json();
+    } catch {
+      // Empty body is OK - means full refund
+    }
+
+    const { amount, reason } = body;
+
+    if (amount !== undefined && amount !== null) {
+      if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+        return apiError(request, 'INVALID_INPUT', 'Refund amount must be a number');
+      }
+      if (!Number.isInteger(amount) || amount <= 0) {
+        return apiError(request, 'INVALID_INPUT', 'Refund amount must be a positive integer (in cents)');
+      }
+      const MAX_REFUND_AMOUNT = 99999999;
+      if (amount > MAX_REFUND_AMOUNT) {
+        return apiError(request, 'INVALID_INPUT', `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents`);
+      }
+    }
+
+    const validReasons = ['duplicate', 'fraudulent', 'requested_by_customer'];
+    if (reason && !validReasons.includes(reason)) {
+      return apiError(
+        request,
+        'INVALID_INPUT',
+        `Invalid refund reason. Valid values: ${validReasons.join(', ')}`
+      );
     }
 
     // Rate limit refund operations (prevents abuse)
@@ -70,33 +102,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Parse request body (empty body = full refund)
-    let body: { amount?: unknown; reason?: string } = {};
-    try {
-      body = await request.json();
-    } catch {
-      // Empty body is OK - means full refund
-    }
-
-    const { amount, reason } = body;
-
-    // Validate amount type if provided
-    if (amount !== undefined && amount !== null) {
-      if (typeof amount !== 'number' || !Number.isFinite(amount)) {
-        return apiError(request, 'INVALID_INPUT', 'Refund amount must be a number');
-      }
-    }
-
-    // Validate reason if provided
-    const validReasons = ['duplicate', 'fraudulent', 'requested_by_customer'];
-    if (reason && !validReasons.includes(reason)) {
-      return apiError(
-        request,
-        'INVALID_INPUT',
-        `Invalid refund reason. Valid values: ${validReasons.join(', ')}`
-      );
-    }
-
     // Get payment transaction
     const { data: payment, error } = await auth.supabase
       .from('payment_transactions')
@@ -112,7 +117,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch payment');
     }
 
-    // Validate payment can be refunded
     if (payment.status !== 'completed') {
       return apiError(
         request,
@@ -129,25 +133,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Validate refund amount
-    const MAX_REFUND_AMOUNT = 99999999; // Same as DB constraint (~$999,999.99)
     const refundAmount = amount ? Number(amount) : payment.amount;
-
-    if (!Number.isInteger(refundAmount) || refundAmount <= 0) {
-      return apiError(
-        request,
-        'INVALID_INPUT',
-        'Refund amount must be a positive integer (in cents)'
-      );
-    }
-
-    if (refundAmount > MAX_REFUND_AMOUNT) {
-      return apiError(
-        request,
-        'INVALID_INPUT',
-        `Refund amount cannot exceed ${MAX_REFUND_AMOUNT} cents`
-      );
-    }
 
     const alreadyRefunded = payment.refunded_amount || 0;
     const maxRefundable = payment.amount - alreadyRefunded;

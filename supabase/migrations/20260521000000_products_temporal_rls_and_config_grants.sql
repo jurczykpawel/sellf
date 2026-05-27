@@ -17,8 +17,8 @@
 -- its own transaction.
 
 -- 1) Temporal visibility on products SELECT policy
-DROP POLICY IF EXISTS "SELECT policy for products" ON seller_main.products;
-CREATE POLICY "SELECT policy for products" ON seller_main.products
+DROP POLICY IF EXISTS "SELECT policy for products" ON public.products;
+CREATE POLICY "SELECT policy for products" ON public.products
   FOR SELECT
   USING (
     -- Admin users see everything.
@@ -35,5 +35,5 @@ CREATE POLICY "SELECT policy for products" ON seller_main.products
   );
 
 -- 2) Redundant authenticated grants on payment_method_config
-REVOKE SELECT, UPDATE ON seller_main.payment_method_config FROM authenticated;
-GRANT SELECT, UPDATE ON seller_main.payment_method_config TO service_role;
+REVOKE SELECT, UPDATE ON public.payment_method_config FROM authenticated;
+GRANT SELECT, UPDATE ON public.payment_method_config TO service_role;

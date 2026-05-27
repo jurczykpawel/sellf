@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const apiKeysQuery = platformClient.from('api_keys').select('*', { count: 'exact', head: true }).eq('is_active', true);
 
     // Run all count queries in parallel
-    // shopClient = auth.supabase (schema-scoped: seller_main for platform, seller_xyz for seller)
+    // shopClient = auth.supabase (schema-scoped: public for platform, seller_xyz for seller)
     const [
       totalProductsResult,
       activeProductsResult,

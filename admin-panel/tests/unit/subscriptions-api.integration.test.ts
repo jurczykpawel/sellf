@@ -27,7 +27,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 // Service-role client used by the test setup itself (creating users + rows).
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 const sellerAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-  db: { schema: 'seller_main' },
+  db: { schema: 'public' },
 });
 
 // ---------------------------------------------------------------------------

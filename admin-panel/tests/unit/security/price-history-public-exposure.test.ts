@@ -59,17 +59,16 @@ describe('Narrowed public price-history view', () => {
     expect(lastView).toMatch(/is_listed\s*=\s*true/);
   });
 
-  it('drops the old colliding public.product_price_history proxy', () => {
-    // Some migration must DROP the old view by name. Grep relaxed to match
-    // optional "IF EXISTS".
-    expect(allSql).toMatch(
-      /DROP\s+VIEW\s+(?:IF\s+EXISTS\s+)?public\.product_price_history/i
-    );
-  });
+  // Pre-unification there was a public.product_price_history proxy view over
+  // seller_main.product_price_history that had to be dropped before the narrowed
+  // omnibus_price_history view was created. After the seller_main → public
+  // unification the proxy never existed (the table is in public directly), so
+  // there is nothing to DROP. The REVOKE in the next test still applies — that
+  // is what actually keeps the raw table off the public REST API.
 
-  it('revokes anon/authenticated SELECT on raw seller_main.product_price_history', () => {
+  it('revokes anon/authenticated SELECT on raw public.product_price_history', () => {
     expect(allSql).toMatch(
-      /REVOKE\s+SELECT\s+ON\s+seller_main\.product_price_history\s+FROM\s+anon\s*,\s*authenticated/i
+      /REVOKE\s+SELECT\s+ON\s+public\.product_price_history\s+FROM\s+anon\s*,\s*authenticated/i
     );
   });
 

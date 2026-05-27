@@ -72,10 +72,10 @@ beforeAll(async () => {
 afterAll(async () => {
   // Restore original config
   if (originalConfig) {
-    await supabase.schema('seller_main' as never).from('integrations_config').upsert(originalConfig);
+    await supabase.schema('public' as never).from('integrations_config').upsert(originalConfig);
   } else {
     // If there was no row originally, delete the test row
-    await supabase.schema('seller_main' as never).from('integrations_config').delete().eq('id', 1);
+    await supabase.schema('public' as never).from('integrations_config').delete().eq('id', 1);
   }
 
   // Clean up consent_logs entries created during tests
@@ -100,7 +100,7 @@ describe('POST /api/consent', () => {
 
   describe('Logging disabled', () => {
     it('should return success with "Logging disabled" message when consent_logging_enabled is false', async () => {
-      await supabase.schema('seller_main' as never).from('integrations_config').upsert({
+      await supabase.schema('public' as never).from('integrations_config').upsert({
         id: 1,
         consent_logging_enabled: false,
       });
@@ -117,16 +117,16 @@ describe('POST /api/consent', () => {
   // ===== LOGGING ENABLED — SUCCESSFUL INSERT =====
 
   describe('Logging enabled', () => {
-    // beforeEach + write to seller_main directly (view upsert was racy via PostgREST).
+    // beforeEach + write to public directly (view upsert was racy via PostgREST).
     beforeEach(async () => {
       const { error: upsertError } = await supabase
-        .schema('seller_main' as never)
+        .schema('public' as never)
         .from('integrations_config')
         .upsert({ id: 1, consent_logging_enabled: true });
       if (upsertError) throw new Error(`upsert config failed: ${upsertError.message}`);
 
       const { data } = await supabase
-        .schema('seller_main' as never)
+        .schema('public' as never)
         .from('integrations_config')
         .select('consent_logging_enabled')
         .eq('id', 1)

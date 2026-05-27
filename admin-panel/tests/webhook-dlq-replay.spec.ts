@@ -266,40 +266,49 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 
-    // Switch to pending_retry filter so only our 2 rows are visible.
+    // Switch to pending_retry filter.
     await page.getByRole('button', { name: /Oczekuje na ponowienie|Pending retry/i }).first().click();
-    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(2, {
-      timeout: 10000,
-    });
 
-    // Select all
+    // Scope row assertions to OUR endpoint URL (unique per test run via random
+    // suffix) — other specs in the full E2E run can leave their own
+    // pending_retry rows with purchase.completed events behind, so a global
+    // tr:has-text('purchase.completed') count is racy. The endpoint URL column
+    // renders the value we inserted in beforeAll.
+    const ourRows = page.locator('tbody tr', { hasText: `pending-batch-` });
+    await expect(ourRows).toHaveCount(2, { timeout: 10000 });
+
+    // Select all visible (header checkbox selects every selectable row on page,
+    // ours + any pollution). The toolbar count tells us the real eligibility
+    // total. We assert the modal-after-confirm path resets next_retry_at on
+    // OUR two rows specifically (DB check at the bottom) — pollution rows on
+    // top of ours would just get the same harmless force-retry treatment.
     const selectAll = page.getByRole('checkbox', { name: /Zaznacz wszystkie|Select all/i });
     await selectAll.check();
 
-    // Replay button should be disabled (count = 0 because no DLQ items)
+    // Replay button is disabled (no DLQ items in pending_retry filter)
     const replayBtn = page.getByRole('button', { name: /Powtórz \(0\)|Replay \(0\)/i });
     await expect(replayBtn).toBeDisabled();
 
-    // Force retry shows count = 2 and is clickable
-    const forceRetryBtn = page.getByRole('button', { name: /Ponów teraz \(2\)|Retry now \(2\)/i });
+    // Force retry shows count ≥ 2 (ours) and is clickable. We don't assert the
+    // exact number because of the pollution caveat above.
+    const forceRetryBtn = page.getByRole('button', { name: /Ponów teraz \(\d+\)|Retry now \(\d+\)/i });
     await expect(forceRetryBtn).toBeEnabled();
 
-    // Cancel also = 2 enabled
-    const cancelBtn = page.getByRole('button', { name: /Anuluj \(2\)|Cancel \(2\)/i });
+    const cancelBtn = page.getByRole('button', { name: /Anuluj \(\d+\)|Cancel \(\d+\)/i });
     await expect(cancelBtn).toBeEnabled();
 
-    // Click Force retry and confirm in the modal
     await forceRetryBtn.click();
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible({ timeout: 5000 });
     await modal.getByRole('button', { name: /^Ponów teraz$|^Retry now$/i }).click();
 
-    // After batch, next_retry_at moves to ~now (was +1h)
-    await page.waitForTimeout(1000); // give the parallel calls a beat
+    // After batch, next_retry_at on OUR 2 rows moves to ~now (was +1h).
+    await page.waitForTimeout(1000);
     const { data: rows } = await supabaseAdmin
       .from('webhook_logs')
       .select('id, next_retry_at')
       .in('id', pendingIds);
+    expect(rows!.length).toBe(2);
     for (const row of rows!) {
       const delta = new Date(row.next_retry_at!).getTime() - Date.now();
       expect(Math.abs(delta)).toBeLessThan(10_000);

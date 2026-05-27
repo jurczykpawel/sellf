@@ -70,9 +70,13 @@ test.describe('Concurrent webhook-deliveries-retry worker invocations', () => {
     const body1 = await res1.json();
     const body2 = await res2.json();
 
-    // Together the two invocations process each of the 5 rows exactly once.
-    // (FOR UPDATE SKIP LOCKED + lease prevents double-dispatch.)
-    expect((body1.processed ?? 0) + (body2.processed ?? 0)).toBe(5);
+    // Together the two invocations process at LEAST our 5 rows. The per-row
+    // attempt_count === 2 check below is what actually proves the no-double-
+    // dispatch guarantee for our rows. The total can exceed 5 in a full E2E
+    // run if sibling specs left their own due-now pending_retry rows behind
+    // — pick_due_webhook_deliveries is global, not endpoint-scoped.
+    const totalProcessed = (body1.processed ?? 0) + (body2.processed ?? 0);
+    expect(totalProcessed).toBeGreaterThanOrEqual(5);
 
     // Each row should now have attempt_count exactly 2 (one retry, not two).
     for (const id of rows) {

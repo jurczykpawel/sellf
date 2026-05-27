@@ -11,10 +11,10 @@
 --     * keeps rate limiting at 20 calls/hour (prevents DB spam).
 
 -- Drop both legacy signatures so the CREATE below is unambiguous.
-DROP FUNCTION IF EXISTS seller_main.grant_pwyw_free_access(TEXT, INTEGER);
-DROP FUNCTION IF EXISTS seller_main.grant_free_product_access(TEXT, INTEGER);
+DROP FUNCTION IF EXISTS public.grant_pwyw_free_access(TEXT, INTEGER);
+DROP FUNCTION IF EXISTS public.grant_free_product_access(TEXT, INTEGER);
 
-CREATE OR REPLACE FUNCTION seller_main.grant_free_product_access(
+CREATE OR REPLACE FUNCTION public.grant_free_product_access(
     product_slug_param TEXT,
     access_duration_days_param INTEGER DEFAULT NULL,
     coupon_code_param TEXT DEFAULT NULL
@@ -59,7 +59,7 @@ BEGIN
     -- Fetch product (no price filter here — eligibility is decided below)
     SELECT id, price, currency, allow_custom_price, custom_price_min, auto_grant_duration_days, is_active
       INTO product_record
-      FROM seller_main.products
+      FROM public.products
       WHERE slug = clean_slug;
 
     IF NOT FOUND OR NOT product_record.is_active THEN
@@ -82,7 +82,7 @@ BEGIN
         -- Reuse verify_coupon (shared with the Stripe paid flow) for all the checks:
         -- active, starts_at/expires_at, currency, allowed_products, allowed_emails,
         -- usage_limit_global, usage_limit_per_user. Single source of truth for coupon rules.
-        coupon_result := seller_main.verify_coupon(
+        coupon_result := public.verify_coupon(
             code_param := clean_coupon,
             product_id_param := product_record.id,
             customer_email_param := v_user_email,
@@ -119,7 +119,7 @@ BEGIN
 
     -- Early return if the user already has active (non-expired) access.
     -- No side effects (no redemption recorded on repeat clicks).
-    PERFORM 1 FROM seller_main.user_product_access upa
+    PERFORM 1 FROM public.user_product_access upa
     WHERE upa.user_id = current_user_id
       AND upa.product_id = product_record.id
       AND (upa.access_expires_at IS NULL OR upa.access_expires_at > NOW());
@@ -146,7 +146,7 @@ BEGIN
         v_access_expires_at := NULL;
     END IF;
 
-    INSERT INTO seller_main.user_product_access (user_id, product_id, access_expires_at, access_duration_days)
+    INSERT INTO public.user_product_access (user_id, product_id, access_expires_at, access_duration_days)
     VALUES (
         current_user_id,
         product_record.id,
@@ -163,7 +163,7 @@ BEGIN
     -- the grant above is rolled back, guaranteeing no partial state
     -- (e.g. access without a redemption row, or bumped counter without access).
     IF coupon_code_param IS NOT NULL AND v_coupon_id IS NOT NULL THEN
-        INSERT INTO seller_main.coupon_redemptions (
+        INSERT INTO public.coupon_redemptions (
             coupon_id, customer_email, user_id, discount_amount, transaction_id
         )
         VALUES (
@@ -174,12 +174,12 @@ BEGIN
             NULL
         );
 
-        UPDATE seller_main.coupons
+        UPDATE public.coupons
            SET current_usage_count = current_usage_count + 1
          WHERE id = v_coupon_id;
 
         -- Clear any reservation verify_coupon created (idempotent — no-op if absent)
-        DELETE FROM seller_main.coupon_reservations
+        DELETE FROM public.coupon_reservations
          WHERE coupon_id = v_coupon_id
            AND customer_email = v_user_email;
     END IF;
@@ -190,5 +190,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 SET statement_timeout = '2s';
 
-COMMENT ON FUNCTION seller_main.grant_free_product_access(TEXT, INTEGER, TEXT) IS
+COMMENT ON FUNCTION public.grant_free_product_access(TEXT, INTEGER, TEXT) IS
   'Unified free-access grant. Three eligibility branches: (1) full-discount coupon on a paid product, (2) price=0 product, (3) PWYW product with custom_price_min=0. Atomic: UPA upsert + coupon redemption + usage counter + reservation cleanup all commit together.';

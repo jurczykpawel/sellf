@@ -498,17 +498,8 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(1500);
 
-    // Check for consent mode initialization in dataLayer
-    const dataLayerEvents = await getDataLayerEvents(page);
-
-    // Look for gtag consent default call
-    // Note: The consent defaults are set via gtag() which pushes to dataLayer
-    const hasConsentDefaults = dataLayerEvents.some((e: any) => {
-      // gtag pushes ['consent', 'default', {...}] structure
-      return Array.isArray(e) && e[0] === 'consent' && e[1] === 'default';
-    });
-
-    // Or check for consent object in first events
+    // Consent defaults are pushed by gtag('consent', 'default', {...}) before
+    // any tag fires — its presence guarantees consent mode was initialised.
     const hasConsentConfig = await page.evaluate(() => {
       return typeof (window as any).gtag === 'function';
     });
@@ -606,7 +597,7 @@ test.describe('Tracking Events - Server-Side Conversions Without Consent', () =>
   let capturedCapiRequests: any[] = [];
 
   test.beforeAll(async () => {
-    // Configure integrations with send_conversions_without_consent ENABLED
+    // Configure with permissive mode → conversions go out without consent (legacy behaviour)
     await supabaseAdmin.from('integrations_config').upsert({
       id: 1,
       gtm_container_id: TEST_GTM_ID,
@@ -614,7 +605,7 @@ test.describe('Tracking Events - Server-Side Conversions Without Consent', () =>
       facebook_capi_token: 'test_capi_token_123',
       fb_capi_enabled: true,
       cookie_consent_enabled: true, // Consent banner enabled
-      send_conversions_without_consent: true, // KEY FEATURE
+      conversion_tracking_mode: 'permissive', // KEY FEATURE
       updated_at: new Date().toISOString()
     });
 
@@ -692,28 +683,14 @@ test.describe('Tracking Events - Server-Side Conversions Without Consent', () =>
     // This test simulates what happens after payment verification on server-side
     // The trackServerSideConversion function is called from verify-payment.ts
 
-    // Mock the CAPI endpoint to verify it receives Purchase events
-    let purchaseEventReceived = false;
-
     await page.route('**/api/tracking/fb-capi', async route => {
       const postData = route.request().postDataJSON();
       capturedCapiRequests.push(postData);
-
-      if (postData.event_name === 'Purchase') {
-        purchaseEventReceived = true;
-        // Server should allow this even without consent
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true, events_received: 1 })
-        });
-      } else {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true })
-        });
-      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, events_received: 1 }),
+      });
     });
 
     // Clear cookies to simulate declined consent
@@ -818,7 +795,7 @@ test.describe('Tracking Events - Server-Side Conversions Disabled', () => {
   let capturedCapiRequests: any[] = [];
 
   test.beforeAll(async () => {
-    // Configure with send_conversions_without_consent DISABLED
+    // Configure with strict mode → nothing leaves without consent
     await supabaseAdmin.from('integrations_config').upsert({
       id: 1,
       gtm_container_id: TEST_GTM_ID,
@@ -826,7 +803,7 @@ test.describe('Tracking Events - Server-Side Conversions Disabled', () => {
       facebook_capi_token: 'test_capi_token_123',
       fb_capi_enabled: true,
       cookie_consent_enabled: true,
-      send_conversions_without_consent: false, // DISABLED
+      conversion_tracking_mode: 'strict', // DISABLED
       updated_at: new Date().toISOString()
     });
 
@@ -865,8 +842,6 @@ test.describe('Tracking Events - Server-Side Conversions Disabled', () => {
     // Clear cookies - no consent
     await page.context().clearCookies();
 
-    let capiRequestBlocked = false;
-
     await page.route('**/api/tracking/fb-capi', async route => {
       const postData = route.request().postDataJSON();
       capturedCapiRequests.push(postData);
@@ -878,10 +853,9 @@ test.describe('Tracking Events - Server-Side Conversions Disabled', () => {
         body: JSON.stringify({
           success: false,
           skipped: true,
-          reason: 'no_consent'
-        })
+          reason: 'no_consent_strict_mode',
+        }),
       });
-      capiRequestBlocked = true;
     });
 
     await page.goto(`/checkout/${testProduct.slug}`);

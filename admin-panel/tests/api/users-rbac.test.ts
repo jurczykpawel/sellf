@@ -92,18 +92,28 @@ describe('Users API v1 — Per-Role Access Control', () => {
     buyerMainUserId = buyerMain!.id;
 
     // Get a product
-    const { data: mainProducts } = await supabase
+    // Create our own product so we don't share state with other suites — a
+    // seed/leftover product can disappear (CASCADE delete) or flip is_active
+    // and quietly break this suite's access-list assertion.
+    const { data: ourProduct, error: prodErr } = await supabase
+      .schema('public' as never)
       .from('products')
+      .insert({
+        name: `rbac-test-product-${rnd}`,
+        slug: `rbac-test-${rnd}`,
+        price: 49.99,
+        currency: 'USD',
+        is_active: true,
+      })
       .select('id')
-      .eq('is_active', true)
-      .limit(1);
+      .single();
+    if (prodErr) throw new Error(`Failed to create rbac product: ${prodErr.message}`);
+    buyerMainProductId = ourProduct!.id;
 
-    if (mainProducts && mainProducts.length > 0) {
-      buyerMainProductId = mainProducts[0].id;
-      await supabase
-        .from('user_product_access')
-        .insert({ user_id: buyerMainUserId, product_id: buyerMainProductId });
-    }
+    const { error: accessErr } = await supabase
+      .from('user_product_access')
+      .insert({ user_id: buyerMainUserId, product_id: buyerMainProductId });
+    if (accessErr) throw new Error(`Failed to grant access: ${accessErr.message}`);
   });
 
   afterAll(async () => {
@@ -123,6 +133,14 @@ describe('Users API v1 — Per-Role Access Control', () => {
     // global-setup teardown handles that).
     for (const uid of ourUserIds) {
       await supabase.auth.admin.deleteUser(uid);
+    }
+
+    if (buyerMainProductId) {
+      await supabase
+        .schema('public' as never)
+        .from('products')
+        .delete()
+        .eq('id', buyerMainProductId);
     }
   });
 

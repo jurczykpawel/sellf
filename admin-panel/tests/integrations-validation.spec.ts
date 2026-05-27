@@ -129,4 +129,20 @@ test.describe('Integrations Validation Logic', () => {
     expect(result.errors.facebook_pixel_id).toBeDefined();
     expect(result.errors.gtm_server_container_url).toBeDefined();
   });
+
+  test('should accept each valid conversion_tracking_mode value', () => {
+    for (const mode of ['strict', 'limited', 'permissive'] as const) {
+      const result = validateIntegrations({ conversion_tracking_mode: mode });
+      expect(result.isValid).toBe(true);
+    }
+  });
+
+  test('should reject unknown conversion_tracking_mode value', () => {
+    const result = validateIntegrations({
+      // @ts-expect-error — intentionally testing a runtime-only invalid value
+      conversion_tracking_mode: 'aggressive',
+    });
+    expect(result.isValid).toBe(false);
+    expect(result.errors.conversion_tracking_mode).toContain('Invalid conversion tracking mode');
+  });
 });

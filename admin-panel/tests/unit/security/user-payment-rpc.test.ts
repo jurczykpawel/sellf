@@ -10,11 +10,11 @@
  * Requires: local Supabase running (npx supabase start + db reset)
  *
  * Functions under test:
- * - seller_main.get_user_payment_history(user_id_param)
- * - seller_main.get_user_purchases_with_refund_status(user_id_param)
- * - seller_main.get_payment_statistics(start_date, end_date)
- * - seller_main.get_user_profile(user_id_param)
- * - seller_main.migrate_guest_payment_data_to_profile(p_user_id)
+ * - public.get_user_payment_history(user_id_param)
+ * - public.get_user_purchases_with_refund_status(user_id_param)
+ * - public.get_payment_statistics(start_date, end_date)
+ * - public.get_user_profile(user_id_param)
+ * - public.migrate_guest_payment_data_to_profile(p_user_id)
  *
  * @see supabase/migrations/20250101000000_core_schema.sql
  * @see supabase/migrations/20250102000000_payment_system.sql

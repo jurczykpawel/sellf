@@ -28,13 +28,13 @@ BEGIN
 
   FOR v_guest IN
     SELECT product_id
-    FROM seller_main.guest_purchases
+    FROM public.guest_purchases
     WHERE customer_email = p_email
       AND claimed_by_user_id IS NULL
   LOOP
     BEGIN
-      PERFORM seller_main.grant_product_access_service_role(p_user_id, v_guest.product_id);
-      UPDATE seller_main.guest_purchases
+      PERFORM public.grant_product_access_service_role(p_user_id, v_guest.product_id);
+      UPDATE public.guest_purchases
         SET claimed_by_user_id = p_user_id
         WHERE customer_email = p_email
           AND product_id = v_guest.product_id

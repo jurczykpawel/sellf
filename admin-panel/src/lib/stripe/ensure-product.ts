@@ -2,7 +2,7 @@ import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Loose typing: this helper only touches the `products` table and is used
-// from both the seller_main-scoped admin client and the public-scoped client
+// from both the public-scoped admin client and the public-scoped client
 // in different code paths. We keep the generic open and validate at runtime
 // via the .update() error path.
 type AnyClient = SupabaseClient<any, any, any, any, any>;

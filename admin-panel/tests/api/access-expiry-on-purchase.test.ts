@@ -61,7 +61,7 @@ async function createProduct(opts: {
   const slug = `expiry-rpc-${opts.suffix}-${TEST_ID}`;
   const price = opts.price ?? 10;
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as never)
+    .schema('public' as never)
     .from('products')
     .insert({
       name: `Expiry RPC ${opts.suffix}`,
@@ -83,7 +83,7 @@ async function createOrderBump(opts: {
   accessDurationDays: number | null;
 }): Promise<string> {
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as never)
+    .schema('public' as never)
     .from('order_bumps')
     .insert({
       main_product_id: opts.mainProductId,
@@ -100,7 +100,7 @@ async function createOrderBump(opts: {
 
 async function clearAccess(userId: string, productId: string) {
   await supabaseAdmin
-    .schema('seller_main' as never)
+    .schema('public' as never)
     .from('user_product_access')
     .delete()
     .eq('user_id', userId)
@@ -109,7 +109,7 @@ async function clearAccess(userId: string, productId: string) {
 
 async function readAccess(userId: string, productId: string) {
   const { data, error } = await supabaseAdmin
-    .schema('seller_main' as never)
+    .schema('public' as never)
     .from('user_product_access')
     .select('access_granted_at, access_expires_at, access_duration_days')
     .eq('user_id', userId)
@@ -218,29 +218,29 @@ describe('process_stripe_payment_completion_with_bump — access_expires_at sema
     if (!userId) return;
 
     // user_product_access rows for this user
-    await supabaseAdmin.schema('seller_main' as never).from('user_product_access').delete().eq('user_id', userId);
+    await supabaseAdmin.schema('public' as never).from('user_product_access').delete().eq('user_id', userId);
 
     // payment line items + transactions for this email
     const { data: txs } = await supabaseAdmin
-      .schema('seller_main' as never)
+      .schema('public' as never)
       .from('payment_transactions')
       .select('id')
       .eq('customer_email', userEmail);
     if (txs && txs.length > 0) {
       const txIds = txs.map((t: { id: string }) => t.id);
-      await supabaseAdmin.schema('seller_main' as never).from('payment_line_items').delete().in('transaction_id', txIds);
-      await supabaseAdmin.schema('seller_main' as never).from('payment_transactions').delete().in('id', txIds);
+      await supabaseAdmin.schema('public' as never).from('payment_line_items').delete().in('transaction_id', txIds);
+      await supabaseAdmin.schema('public' as never).from('payment_transactions').delete().in('id', txIds);
     }
-    await supabaseAdmin.schema('seller_main' as never).from('guest_purchases').delete().eq('customer_email', userEmail);
+    await supabaseAdmin.schema('public' as never).from('guest_purchases').delete().eq('customer_email', userEmail);
 
     for (const obId of orderBumpIds) {
-      await supabaseAdmin.schema('seller_main' as never).from('order_bumps').delete().eq('id', obId);
+      await supabaseAdmin.schema('public' as never).from('order_bumps').delete().eq('id', obId);
     }
     const productIds = [pMainUnlimited, pMainLimited30, pBump3, pBump4, pBump5, pBump6, pBump7, pBump8]
       .filter(Boolean)
       .map((p) => p.id);
     for (const pid of productIds) {
-      await supabaseAdmin.schema('seller_main' as never).from('products').delete().eq('id', pid);
+      await supabaseAdmin.schema('public' as never).from('products').delete().eq('id', pid);
     }
 
     await supabaseAdmin.auth.admin.deleteUser(userId);

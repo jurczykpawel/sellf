@@ -134,6 +134,8 @@ describe('API Middleware', () => {
     });
 
     it('should include CORS headers', () => {
+      // Reflecting a localhost origin requires the dev branch.
+      process.env.NODE_ENV = 'development';
       const request = createMockRequest({ origin: 'http://localhost:3000' });
       const response = handleCorsPreFlight(request);
 
@@ -168,6 +170,8 @@ describe('API Middleware', () => {
     });
 
     it('should include CORS headers', () => {
+      // Reflecting a localhost origin requires the dev branch.
+      process.env.NODE_ENV = 'development';
       const request = createMockRequest({ origin: 'http://localhost:3000' });
       const response = jsonResponse({}, request);
 

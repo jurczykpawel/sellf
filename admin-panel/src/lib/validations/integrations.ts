@@ -3,6 +3,11 @@
  * Pure TypeScript validation
  */
 
+import {
+  CONVERSION_TRACKING_MODES,
+  type ConversionTrackingMode,
+} from '@/lib/tracking/consent-mode';
+
 export interface ValidationResult {
   isValid: boolean;
   errors: Record<string, string[]>;
@@ -18,7 +23,7 @@ export interface IntegrationsInput {
   facebook_capi_token?: string | null;
   facebook_test_event_code?: string | null;
   fb_capi_enabled?: boolean;
-  send_conversions_without_consent?: boolean;
+  conversion_tracking_mode?: ConversionTrackingMode;
   umami_website_id?: string | null;
   umami_script_url?: string | null;
   cookie_consent_enabled?: boolean;
@@ -86,6 +91,13 @@ export function validateIntegrations(data: IntegrationsInput): ValidationResult 
 
   if (data.facebook_test_event_code && data.facebook_test_event_code.length > 100) {
     addError('facebook_test_event_code', 'Facebook test event code must be 100 characters or less');
+  }
+
+  if (
+    data.conversion_tracking_mode !== undefined &&
+    !CONVERSION_TRACKING_MODES.includes(data.conversion_tracking_mode)
+  ) {
+    addError('conversion_tracking_mode', 'Invalid conversion tracking mode');
   }
 
   if (data.google_ads_conversion_label && data.google_ads_conversion_label.length > 200) {

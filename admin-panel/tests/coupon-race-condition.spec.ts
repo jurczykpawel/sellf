@@ -51,7 +51,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_per_user: 1,
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -62,9 +62,11 @@ test.describe('Coupon Race Condition Security', () => {
   });
 
   test.beforeEach(async () => {
-    // Clear DB-level rate limits for verify_coupon to prevent cross-test interference
-    // The DB function check_rate_limit('verify_coupon', 20, 60) limits to 20/min
+    // DB-level rate limit (check_rate_limit, 20/min) AND the application-level
+    // bucket (/api/coupons/verify → checkRateLimit('coupon_verify', 30/h)). The
+    // latter is per-IP/fingerprint and survives across runs without a DB reset.
     await supabaseAdmin.from('rate_limits').delete().in('function_name', ['verify_coupon', 'global_verify_coupon']);
+    await supabaseAdmin.from('application_rate_limits').delete().eq('action_type', 'coupon_verify');
   });
 
   test.afterAll(async () => {
@@ -163,7 +165,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_per_user: 1,
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -228,7 +230,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_per_user: 1, // Only 1 use per user
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -296,7 +298,7 @@ test.describe('Coupon Race Condition Security', () => {
         usage_limit_global: 1,
         current_usage_count: 0,
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
@@ -364,6 +366,11 @@ test.describe('Coupon Race Condition - Edge Cases', () => {
     productId = products?.[0]?.id;
   });
 
+  test.beforeEach(async () => {
+    await supabaseAdmin.from('rate_limits').delete().in('function_name', ['verify_coupon', 'global_verify_coupon']);
+    await supabaseAdmin.from('application_rate_limits').delete().eq('action_type', 'coupon_verify');
+  });
+
   test('SECURITY: Race condition with zero-remaining limit', async ({ request }) => {
     // Create coupon that's already exhausted
     const exhaustedCode = 'EXHAUSTED_' + Date.now();
@@ -376,7 +383,7 @@ test.describe('Coupon Race Condition - Edge Cases', () => {
         usage_limit_global: 1,
         current_usage_count: 1, // Already used!
         is_active: true,
-        starts_at: new Date().toISOString(),
+        starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();

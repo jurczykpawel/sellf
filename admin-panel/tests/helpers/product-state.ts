@@ -1,7 +1,7 @@
 /**
  * Product State Guard
  *
- * Saves and restores the active state of all products in seller_main.
+ * Saves and restores the active state of all products in public.
  * Use in test suites that deactivate ALL products (e.g., storefront scenarios).
  *
  * Usage:

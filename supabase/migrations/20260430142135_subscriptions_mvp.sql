@@ -14,7 +14,7 @@
 -- 1. products: subscription fields
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE seller_main.products
+ALTER TABLE public.products
   ADD COLUMN product_type TEXT NOT NULL DEFAULT 'one_time'
     CHECK (product_type IN ('one_time', 'subscription')),
   ADD COLUMN billing_interval TEXT
@@ -32,11 +32,11 @@ ALTER TABLE seller_main.products
   ADD COLUMN stripe_price_id TEXT;
 
 CREATE UNIQUE INDEX idx_products_stripe_price_id_unique
-  ON seller_main.products(stripe_price_id)
+  ON public.products(stripe_price_id)
   WHERE stripe_price_id IS NOT NULL;
 
 -- Cross-field constraint: subscription products require full recurring config.
-ALTER TABLE seller_main.products
+ALTER TABLE public.products
   ADD CONSTRAINT products_subscription_complete CHECK (
     product_type = 'one_time'
     OR (
@@ -51,13 +51,13 @@ ALTER TABLE seller_main.products
 -- 2. coupons: Stripe duration semantics
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE seller_main.coupons
+ALTER TABLE public.coupons
   ADD COLUMN duration TEXT NOT NULL DEFAULT 'once'
     CHECK (duration IN ('once', 'repeating', 'forever')),
   ADD COLUMN duration_in_months INTEGER
     CHECK (duration_in_months IS NULL OR duration_in_months > 0);
 
-ALTER TABLE seller_main.coupons
+ALTER TABLE public.coupons
   ADD CONSTRAINT coupons_repeating_has_months CHECK (
     duration <> 'repeating' OR duration_in_months IS NOT NULL
   );
@@ -66,7 +66,7 @@ ALTER TABLE seller_main.coupons
 -- 3. stripe_customers: Sellf user -> Stripe Customer mapping
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE seller_main.stripe_customers (
+CREATE TABLE public.stripe_customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   stripe_customer_id TEXT NOT NULL UNIQUE,
@@ -75,21 +75,21 @@ CREATE TABLE seller_main.stripe_customers (
 );
 
 CREATE INDEX idx_stripe_customers_stripe_id
-  ON seller_main.stripe_customers(stripe_customer_id);
+  ON public.stripe_customers(stripe_customer_id);
 
-ALTER TABLE seller_main.stripe_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stripe_customers ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON seller_main.stripe_customers FROM anon, authenticated;
-GRANT SELECT ON seller_main.stripe_customers TO authenticated;
-GRANT ALL ON seller_main.stripe_customers TO service_role;
+REVOKE ALL ON public.stripe_customers FROM anon, authenticated;
+GRANT SELECT ON public.stripe_customers TO authenticated;
+GRANT ALL ON public.stripe_customers TO service_role;
 
 CREATE POLICY "Service role full access stripe_customers"
-  ON seller_main.stripe_customers
+  ON public.stripe_customers
   FOR ALL TO service_role
   USING (true) WITH CHECK (true);
 
 CREATE POLICY "Users read own stripe_customer mapping"
-  ON seller_main.stripe_customers
+  ON public.stripe_customers
   FOR SELECT TO authenticated
   USING ((select auth.uid()) = user_id OR (select public.is_admin()));
 
@@ -97,10 +97,10 @@ CREATE POLICY "Users read own stripe_customer mapping"
 -- 4. subscriptions: Stripe Subscription mirror
 -- ---------------------------------------------------------------------------
 
-CREATE TABLE seller_main.subscriptions (
+CREATE TABLE public.subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
-  product_id UUID NOT NULL REFERENCES seller_main.products(id) ON DELETE RESTRICT,
+  product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
   stripe_customer_id TEXT NOT NULL,
   stripe_subscription_id TEXT NOT NULL UNIQUE,
   -- per-subscription Stripe Price id (immutable, set at first webhook).
@@ -124,31 +124,31 @@ CREATE TABLE seller_main.subscriptions (
 );
 
 CREATE INDEX idx_subscriptions_user_id
-  ON seller_main.subscriptions(user_id);
+  ON public.subscriptions(user_id);
 CREATE INDEX idx_subscriptions_product_id
-  ON seller_main.subscriptions(product_id);
+  ON public.subscriptions(product_id);
 CREATE INDEX idx_subscriptions_status
-  ON seller_main.subscriptions(status);
+  ON public.subscriptions(status);
 CREATE INDEX idx_subscriptions_period_end_active
-  ON seller_main.subscriptions(current_period_end)
+  ON public.subscriptions(current_period_end)
   WHERE status IN ('active', 'trialing');
 CREATE INDEX idx_subscriptions_stripe_price_id
-  ON seller_main.subscriptions(stripe_price_id)
+  ON public.subscriptions(stripe_price_id)
   WHERE stripe_price_id IS NOT NULL;
 
-ALTER TABLE seller_main.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON seller_main.subscriptions FROM anon, authenticated;
-GRANT SELECT ON seller_main.subscriptions TO authenticated;
-GRANT ALL ON seller_main.subscriptions TO service_role;
+REVOKE ALL ON public.subscriptions FROM anon, authenticated;
+GRANT SELECT ON public.subscriptions TO authenticated;
+GRANT ALL ON public.subscriptions TO service_role;
 
 CREATE POLICY "Service role full access subscriptions"
-  ON seller_main.subscriptions
+  ON public.subscriptions
   FOR ALL TO service_role
   USING (true) WITH CHECK (true);
 
 CREATE POLICY "Users read own subscriptions"
-  ON seller_main.subscriptions
+  ON public.subscriptions
   FOR SELECT TO authenticated
   USING ((select auth.uid()) = user_id OR (select public.is_admin()));
 
@@ -156,29 +156,29 @@ CREATE POLICY "Users read own subscriptions"
 -- 5. payment_transactions: subscription invoice fields
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE seller_main.payment_transactions
+ALTER TABLE public.payment_transactions
   ADD COLUMN subscription_id UUID
-    REFERENCES seller_main.subscriptions(id) ON DELETE SET NULL,
+    REFERENCES public.subscriptions(id) ON DELETE SET NULL,
   ADD COLUMN stripe_invoice_id TEXT;
 
 CREATE UNIQUE INDEX idx_payment_transactions_stripe_invoice_unique
-  ON seller_main.payment_transactions(stripe_invoice_id)
+  ON public.payment_transactions(stripe_invoice_id)
   WHERE stripe_invoice_id IS NOT NULL;
 
 CREATE INDEX idx_payment_transactions_subscription_id
-  ON seller_main.payment_transactions(subscription_id)
+  ON public.payment_transactions(subscription_id)
   WHERE subscription_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- 6. user_product_access: subscription link
 -- ---------------------------------------------------------------------------
 
-ALTER TABLE seller_main.user_product_access
+ALTER TABLE public.user_product_access
   ADD COLUMN subscription_id UUID
-    REFERENCES seller_main.subscriptions(id) ON DELETE SET NULL;
+    REFERENCES public.subscriptions(id) ON DELETE SET NULL;
 
 CREATE INDEX idx_user_product_access_subscription_id
-  ON seller_main.user_product_access(subscription_id)
+  ON public.user_product_access(subscription_id)
   WHERE subscription_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
@@ -189,29 +189,17 @@ CREATE INDEX idx_user_product_access_subscription_id
 -- column set. Same security_invoker pattern as existing views (see migration
 -- 20250101000000_core_schema.sql:1379+).
 
-CREATE OR REPLACE VIEW public.products
-  WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.products;
 
-CREATE OR REPLACE VIEW public.coupons
-  WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.coupons;
 
-CREATE OR REPLACE VIEW public.payment_transactions
-  WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.payment_transactions;
 
-CREATE OR REPLACE VIEW public.user_product_access
-  WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.user_product_access;
 
-CREATE OR REPLACE VIEW public.stripe_customers
-  WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.stripe_customers;
 
-CREATE OR REPLACE VIEW public.subscriptions
-  WITH (security_invoker = on)
-  AS SELECT * FROM seller_main.subscriptions;
+
+
+
+
+
+
 
 -- ---------------------------------------------------------------------------
 -- 8. Helper: find_user_id_by_email
@@ -241,10 +229,10 @@ GRANT EXECUTE ON FUNCTION public.find_user_id_by_email(TEXT) TO service_role;
 -- store the invoice id (in_*) directly. Extend the existing prefix whitelist
 -- so 'in_' is valid alongside 'cs_' and 'pi_'.
 
-ALTER TABLE seller_main.payment_transactions
+ALTER TABLE public.payment_transactions
   DROP CONSTRAINT IF EXISTS payment_transactions_session_id_check;
 
-ALTER TABLE seller_main.payment_transactions
+ALTER TABLE public.payment_transactions
   ADD CONSTRAINT payment_transactions_session_id_check
   CHECK (
     length(session_id) >= 1
@@ -262,7 +250,7 @@ ALTER TABLE seller_main.payment_transactions
 -- the invariant for every writer — direct DB access, future API routes, and
 -- any path that bypasses the application guard.
 
-CREATE OR REPLACE FUNCTION seller_main.enforce_product_type_immutable_after_sale()
+CREATE OR REPLACE FUNCTION public.enforce_product_type_immutable_after_sale()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -276,11 +264,11 @@ BEGIN
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM seller_main.payment_transactions WHERE product_id = NEW.id LIMIT 1
+    SELECT 1 FROM public.payment_transactions WHERE product_id = NEW.id LIMIT 1
   ) OR EXISTS (
-    SELECT 1 FROM seller_main.user_product_access WHERE product_id = NEW.id LIMIT 1
+    SELECT 1 FROM public.user_product_access WHERE product_id = NEW.id LIMIT 1
   ) OR EXISTS (
-    SELECT 1 FROM seller_main.subscriptions WHERE product_id = NEW.id LIMIT 1
+    SELECT 1 FROM public.subscriptions WHERE product_id = NEW.id LIMIT 1
   ) THEN
     RAISE EXCEPTION 'product_type cannot be changed after the product has any payment, access, or subscription record'
       USING ERRCODE = '23514'; -- check_violation
@@ -290,14 +278,14 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION seller_main.enforce_product_type_immutable_after_sale() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION seller_main.enforce_product_type_immutable_after_sale() TO service_role;
+REVOKE EXECUTE ON FUNCTION public.enforce_product_type_immutable_after_sale() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.enforce_product_type_immutable_after_sale() TO service_role;
 
-DROP TRIGGER IF EXISTS enforce_product_type_immutable_after_sale ON seller_main.products;
+DROP TRIGGER IF EXISTS enforce_product_type_immutable_after_sale ON public.products;
 CREATE TRIGGER enforce_product_type_immutable_after_sale
-  BEFORE UPDATE OF product_type ON seller_main.products
+  BEFORE UPDATE OF product_type ON public.products
   FOR EACH ROW
-  EXECUTE FUNCTION seller_main.enforce_product_type_immutable_after_sale();
+  EXECUTE FUNCTION public.enforce_product_type_immutable_after_sale();
 
-COMMENT ON FUNCTION seller_main.enforce_product_type_immutable_after_sale() IS
-  'BEFORE UPDATE trigger on seller_main.products: rejects product_type changes once any payment_transactions / user_product_access / subscriptions row references the product.';
+COMMENT ON FUNCTION public.enforce_product_type_immutable_after_sale() IS
+  'BEFORE UPDATE trigger on public.products: rejects product_type changes once any payment_transactions / user_product_access / subscriptions row references the product.';

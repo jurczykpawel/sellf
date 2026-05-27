@@ -135,6 +135,18 @@ test.describe('Payments Export API v1', () => {
   });
 
   test.describe('POST /api/v1/payments/export', () => {
+    // Reset the export rate-limit bucket between tests. ADMIN_EXPORT caps at
+    // 5/hour and the file makes 6+ valid export calls, so any environment that
+    // actually enforces the limit (production-like NODE_ENV, leftover
+    // RATE_LIMIT_TEST_MODE=true on a dev server, etc.) would 429 the tail end.
+    test.beforeEach(async () => {
+      await supabaseAdmin
+        .from('application_rate_limits')
+        .delete()
+        .eq('identifier', `user:${adminUserId}`)
+        .eq('action_type', 'admin_export');
+    });
+
     test('should export all transactions as CSV', async ({ page }) => {
       await loginAsAdmin(page, adminEmail, adminPassword);
 

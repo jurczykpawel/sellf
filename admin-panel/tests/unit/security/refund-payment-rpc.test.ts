@@ -10,8 +10,8 @@
  * Requires: local Supabase running (npx supabase start + db reset)
  *
  * Functions under test:
- * - seller_main.process_refund_request(request_id_param, action_param, admin_response_param)
- * - seller_main.validate_payment_transaction(transaction_id)
+ * - public.process_refund_request(request_id_param, action_param, admin_response_param)
+ * - public.validate_payment_transaction(transaction_id)
  *
  * @see supabase/migrations/20250102000000_payment_system.sql
  * ============================================================================

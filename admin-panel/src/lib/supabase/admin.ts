@@ -14,23 +14,23 @@ function getSupabaseEnv() {
 }
 
 /**
- * Creates a Supabase client with the Service Role key targeting seller_main schema.
+ * Creates a Supabase client with the Service Role key targeting public schema.
  * CRITICAL: This client bypasses RLS. ONLY use in secure server-side environments (API routes, server actions)
  * after verifying that the requesting user has the necessary permissions.
  *
- * Default schema: seller_main (where all shop tables live).
+ * Default schema: public (where all shop tables live).
  * For platform-only tables in public schema (admin_users, rate_limits, api_keys, etc.),
  * use `createPlatformClient()` instead.
  */
 export function createAdminClient() {
   const { url, key } = getSupabaseEnv()
 
-  return createSupabaseClient<Database, 'seller_main'>(
+  return createSupabaseClient<Database, 'public'>(
     url,
     key,
     {
       db: {
-        schema: 'seller_main',
+        schema: 'public',
       },
       auth: {
         persistSession: false,

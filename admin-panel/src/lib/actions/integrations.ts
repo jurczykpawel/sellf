@@ -20,7 +20,7 @@ const EDITABLE_INTEGRATION_FIELDS: Array<keyof IntegrationsInput> = [
   'facebook_capi_token',
   'facebook_test_event_code',
   'fb_capi_enabled',
-  'send_conversions_without_consent',
+  'conversion_tracking_mode',
   'umami_website_id',
   'umami_script_url',
   'cookie_consent_enabled',

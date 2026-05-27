@@ -471,7 +471,7 @@ describe('cleanup_old_guest_purchases', () => {
   beforeAll(async () => {
     // Create a test product for the guest purchases
     const { data: product, error: prodErr } = await serviceClient
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .insert({
         name: `Cleanup Test Product ${TEST_ID}`,
@@ -487,7 +487,7 @@ describe('cleanup_old_guest_purchases', () => {
 
     // Insert old claimed and recent claimed guest purchases
     await execSql(`
-      INSERT INTO seller_main.guest_purchases (customer_email, product_id, transaction_amount, session_id, claimed_at, created_at)
+      INSERT INTO public.guest_purchases (customer_email, product_id, transaction_amount, session_id, claimed_at, created_at)
       VALUES
         ('old-claimed-${TEST_ID}@example.com', '${testProductId}', 1000, 'cs_old_claimed_${TEST_ID}', NOW() - INTERVAL '400 days', NOW() - INTERVAL '400 days'),
         ('recent-claimed-${TEST_ID}@example.com', '${testProductId}', 2000, 'cs_recent_claimed_${TEST_ID}', NOW() - INTERVAL '30 days', NOW() - INTERVAL '30 days'),
@@ -497,11 +497,11 @@ describe('cleanup_old_guest_purchases', () => {
 
   afterAll(async () => {
     await execSql(`
-      DELETE FROM seller_main.guest_purchases
+      DELETE FROM public.guest_purchases
       WHERE session_id LIKE 'cs_%_${TEST_ID}'
     `);
     await serviceClient
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .delete()
       .eq('id', testProductId);
@@ -521,7 +521,7 @@ describe('cleanup_old_guest_purchases', () => {
 
     // Verify the specific old claimed entry was deleted
     const oldCount = await execSql(`
-      SELECT COUNT(*) FROM seller_main.guest_purchases
+      SELECT COUNT(*) FROM public.guest_purchases
       WHERE session_id = 'cs_old_claimed_${TEST_ID}'
     `);
     expect(parseInt(oldCount)).toBe(0);
@@ -534,7 +534,7 @@ describe('cleanup_old_guest_purchases', () => {
 
     // The unclaimed purchase (400 days old, no claimed_at) should still exist
     const count = await execSql(`
-      SELECT COUNT(*) FROM seller_main.guest_purchases
+      SELECT COUNT(*) FROM public.guest_purchases
       WHERE session_id = 'cs_unclaimed_${TEST_ID}'
     `);
     expect(parseInt(count)).toBe(1);
@@ -546,7 +546,7 @@ describe('cleanup_old_guest_purchases', () => {
     expect(error).toBeNull();
 
     const count = await execSql(`
-      SELECT COUNT(*) FROM seller_main.guest_purchases
+      SELECT COUNT(*) FROM public.guest_purchases
       WHERE session_id = 'cs_recent_claimed_${TEST_ID}'
     `);
     expect(parseInt(count)).toBe(1);
@@ -595,7 +595,7 @@ describe('mark_expired_pending_payments', () => {
   beforeAll(async () => {
     // Create a test product
     const { data: product, error: prodErr } = await serviceClient
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .insert({
         name: `Expired Payments Test ${TEST_ID}`,
@@ -611,7 +611,7 @@ describe('mark_expired_pending_payments', () => {
 
     // Insert various payment states
     await execSql(`
-      INSERT INTO seller_main.payment_transactions
+      INSERT INTO public.payment_transactions
         (session_id, product_id, customer_email, amount, currency, status, expires_at, created_at)
       VALUES
         ('cs_expired_pending_${TEST_ID}', '${testProductId}', 'expired-${TEST_ID}@example.com', 5000, 'USD', 'pending', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '25 hours'),
@@ -623,11 +623,11 @@ describe('mark_expired_pending_payments', () => {
 
   afterAll(async () => {
     await execSql(`
-      DELETE FROM seller_main.payment_transactions
+      DELETE FROM public.payment_transactions
       WHERE session_id LIKE 'cs_%_${TEST_ID}'
     `);
     await serviceClient
-      .schema('seller_main' as any)
+      .schema('public' as any)
       .from('products')
       .delete()
       .eq('id', testProductId);
@@ -636,7 +636,7 @@ describe('mark_expired_pending_payments', () => {
   it('marks expired pending payments as abandoned', async () => {
     // Record baseline of already-abandoned rows before calling the function
     const baselineCount = await execSql(`
-      SELECT COUNT(*) FROM seller_main.payment_transactions
+      SELECT COUNT(*) FROM public.payment_transactions
       WHERE status = 'abandoned'
     `);
     const baseline = parseInt(baselineCount);
@@ -651,21 +651,21 @@ describe('mark_expired_pending_payments', () => {
 
     // Verify the expired pending payment was marked as abandoned
     const status = await execSql(`
-      SELECT status FROM seller_main.payment_transactions
+      SELECT status FROM public.payment_transactions
       WHERE session_id = 'cs_expired_pending_${TEST_ID}'
     `);
     expect(status).toBe('abandoned');
 
     // Verify abandoned_at was set
     const abandonedAt = await execSql(`
-      SELECT abandoned_at IS NOT NULL FROM seller_main.payment_transactions
+      SELECT abandoned_at IS NOT NULL FROM public.payment_transactions
       WHERE session_id = 'cs_expired_pending_${TEST_ID}'
     `);
     expect(abandonedAt).toBe('t');
 
     // Verify the total abandoned count increased by at least 1 from baseline
     const afterCount = await execSql(`
-      SELECT COUNT(*) FROM seller_main.payment_transactions
+      SELECT COUNT(*) FROM public.payment_transactions
       WHERE status = 'abandoned'
     `);
     expect(parseInt(afterCount) - baseline).toBeGreaterThanOrEqual(1);
@@ -677,7 +677,7 @@ describe('mark_expired_pending_payments', () => {
     expect(error).toBeNull();
 
     const status = await execSql(`
-      SELECT status FROM seller_main.payment_transactions
+      SELECT status FROM public.payment_transactions
       WHERE session_id = 'cs_active_pending_${TEST_ID}'
     `);
     expect(status).toBe('pending');
@@ -689,7 +689,7 @@ describe('mark_expired_pending_payments', () => {
     expect(error).toBeNull();
 
     const status = await execSql(`
-      SELECT status FROM seller_main.payment_transactions
+      SELECT status FROM public.payment_transactions
       WHERE session_id = 'cs_completed_${TEST_ID}'
     `);
     expect(status).toBe('completed');
@@ -701,7 +701,7 @@ describe('mark_expired_pending_payments', () => {
     expect(error).toBeNull();
 
     const status = await execSql(`
-      SELECT status FROM seller_main.payment_transactions
+      SELECT status FROM public.payment_transactions
       WHERE session_id = 'cs_no_expiry_${TEST_ID}'
     `);
     expect(status).toBe('pending');

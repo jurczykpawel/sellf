@@ -71,18 +71,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Rate limiting: 3 requests per 60 minutes per user
-    const rateLimitOk = await checkRateLimit('refund_request', 3, 60, user.id);
-    if (!rateLimitOk) {
-      return NextResponse.json(
-        { error: 'Too many refund requests. Please try again later.' },
-        { status: 429 }
-      );
-    }
-
     const body = await request.json();
     const { transaction_id, reason } = body;
 
+    // Validate body BEFORE consuming the 3/h budget so a bad payload or a
+    // double-submit on a buggy frontend can't lock the buyer out.
     if (!transaction_id || typeof transaction_id !== 'string') {
       return NextResponse.json(
         { error: 'Transaction ID is required' },
@@ -102,6 +95,15 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    // Rate limiting: 3 requests per 60 minutes per user
+    const rateLimitOk = await checkRateLimit('refund_request', 3, 60, user.id);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Too many refund requests. Please try again later.' },
+        { status: 429 }
+      );
     }
 
     // Use the database function to create the request

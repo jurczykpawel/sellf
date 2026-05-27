@@ -87,3 +87,6 @@ release/
 sellf-build.tar.gz
 .netlify/
 deno.lock
+
+# Worktrees
+.worktrees/
