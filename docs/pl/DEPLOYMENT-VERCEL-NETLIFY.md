@@ -4,7 +4,7 @@
 
 Wymagany czas: **~15 minut** jeśli masz już konta GitHub, Supabase, Stripe i Vercel/Netlify. Dodaj 5-10 minut za każde konto które trzeba założyć.
 
-Ten przewodnik opisuje przyciski "Deploy" w README z Vercel/Netlify. Dla VPS/PM2 zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Dla samodzielnego Dockera zobacz [FULL-STACK.md](../FULL-STACK.md).
+Ten przewodnik opisuje przyciski "Deploy" w README z Vercel/Netlify. Dla VPS/PM2 zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md). Dla samodzielnego Dockera zobacz [FULL-STACK.md](../FULL-STACK.md).
 
 > **Pierwszy raz wdrażasz oprogramowanie?** Zobacz [QUICK-START.md](./QUICK-START.md) — wersję bez używania terminala, klik-po-kliku.
 
@@ -78,7 +78,7 @@ Jeśli wybierzesz tę ścieżkę, pomiń 4 zmienne Supabase w formularzu Kroku 4
 
 ## Krok 4 — Kliknij Deploy (2 min)
 
-Z [README](../README.md) kliknij **Deploy with Vercel** albo **Deploy to Netlify**.
+Z [README](../../README.md) kliknij **Deploy with Vercel** albo **Deploy to Netlify**.
 
 Zostaniesz poproszony o autoryzację platformy w swoim GitHubie, wybór nazwy projektu i wypełnienie zmiennych środowiskowych. Wklej:
 

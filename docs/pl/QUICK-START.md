@@ -24,7 +24,7 @@
 >
 > **Dla kogo:** osoby przyzwyczajone do serwerów Linuksowych które chcą minimalizować miesięczne koszty. Trade-off: więcej odpowiedzialności, sam utrzymujesz serwer, brak ładnego panelu.
 >
-> **Chcesz pełne instrukcje najtańszej ścieżki?** Zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Albo dla nieco droższej ale z pełną kontrolą opcji [Coolify](./DEPLOYMENT-COOLIFY.md) (~$9/miesiąc na Hetznerze, z ładnym panelem).
+> **Chcesz pełne instrukcje najtańszej ścieżki?** Zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md). Albo dla nieco droższej ale z pełną kontrolą opcji [Coolify](./DEPLOYMENT-COOLIFY.md) (~$9/miesiąc na Hetznerze, z ładnym panelem).
 >
 > ## Kiedy faktycznie musisz aktualizować?
 >
@@ -392,7 +392,7 @@ Ten przewodnik używa **najprostszej ścieżki** (Vercel + wbudowana Supabase). 
 | [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | To samo co Vercel: $0 → $25/mies | ~20 min | 🟢 Żadna — tylko przeglądarka | To samo co Vercel, inny host |
 | [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mies** ($5 Coolify Cloud + $9 Hetzner CX32) — Supabase chodzi na tym samym VPS za darmo | ~30 min | 🟡 Podstawowa — wklejenie klucza SSH do VPS | Pełna kontrola + zarządzany panel Coolify. Brak osobnego rachunku za bazę. |
 | [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mies** ($9 Hetzner CX32, reszta darmowa) — Supabase chodzi na tym samym VPS za darmo | ~45 min | 🟡 Podstawowa — komendy SSH, kilka sekretów | Pełna kontrola, najmniejszy rozsądny koszt. Brak osobnego rachunku za bazę. |
-| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** na free, ~$25/mies gdy przerośniesz darmowego Supabase | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
+| [mikr.us VPS + Supabase Free](../DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** na free, ~$25/mies gdy przerośniesz darmowego Supabase | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
 
 **Prowizja Stripe od transakcji** (~2,9% + 0,30 USD) jest taka sama na każdej ścieżce — tak Stripe zarabia. Wybierz ścieżkę pasującą do Twoich umiejętności; Stripe to nie obchodzi.
 
@@ -457,7 +457,7 @@ Jeśli chcesz mieć większą kontrolę albo mniejsze miesięczne koszty:
 
 - **[Przewodnik Netlify](./DEPLOYMENT-VERCEL-NETLIFY.md)** — ta sama trudność co Vercel, inna firma hostująca. Wybierz jeśli wolisz interfejs Netlify.
 - **[Przewodnik Coolify](./DEPLOYMENT-COOLIFY.md)** — postaw Sellfa na własnym serwerze (wynajmij za ~$5-10/miesiąc). Więcej pracy przy konfiguracji ale taniej w długim biegu i daje pełną kontrolę. **Wymaga podstawowej znajomości serwerów linuksowych.**
-- **[Przewodnik VPS / mikr.us](./DEPLOYMENT-MIKRUS.md)** — uruchamia się na tanim serwerze za 35 zł/rok. **Wymaga używania terminala i pisania komend.** Dla osób które chcą poznać techniczną stronę.
+- **[Przewodnik VPS / mikr.us](../DEPLOYMENT-MIKRUS.md)** — uruchamia się na tanim serwerze za 35 zł/rok. **Wymaga używania terminala i pisania komend.** Dla osób które chcą poznać techniczną stronę.
 - **[Szczegółowy przewodnik Vercel/Netlify](./DEPLOYMENT-VERCEL-NETLIFY.md)** — to samo co ten przewodnik ale ze szczegółami technicznymi, skrótami z linii komend i pełną automatyzacją dla deweloperów.
 
 Jeśli nie wiesz co wybrać, **zostań przy tym przewodniku (Vercel)** — jest zdecydowanie najprostszy, zawsze możesz przejść później.

@@ -49,7 +49,7 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — VPS / mikr.us przez PM2
+### [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md) — VPS / mikr.us przez PM2
 **Wybierz gdy potrzebujesz:**
 - Najtańszego rozwiązania (35 zł/rok mikr.us)
 - Pełnej kontroli nad serwerem
@@ -68,7 +68,7 @@ Wybierz w zależności od tego co chcesz.
 
 **Wymagania:** znajomość PM2, 4GB+ RAM
 
-**Uwaga:** Dla podstawowej konfiguracji PM2 zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md).
+**Uwaga:** Dla podstawowej konfiguracji PM2 zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md).
 
 ---
 

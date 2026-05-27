@@ -32,7 +32,7 @@ Wybierz **Coolify Self-Hosted** jeśli chcesz zero powtarzających się opłat z
 Nie wybieraj Coolify jeśli pasują Ci bardziej:
 
 - **Hosting na free tier:** Coolify i tak wymaga VPS-a, ~$5-10/miesiąc minimum. Zobacz [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel + Supabase Cloud mają darmowy plan.
-- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
+- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
 
 ## Najkrótsza ścieżka — użyj instalatora StackPilot
 
