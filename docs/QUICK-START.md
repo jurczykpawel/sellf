@@ -2,29 +2,29 @@
 
 # Putting your Sellf store online — easiest way
 
+> **Cost story up front:** you can start for **$0/month** (Vercel + free Supabase Cloud) and most small stores stay free for years. If you'd rather have the app on your own server, that's typically **around $5/month** for a cheap VPS — Supabase still stays on its free cloud tier handling the database. The only time you'd pay more is at real scale, covered later.
+>
 > ## 🏆 Easiest method (this guide)
 >
-> - **What:** Vercel one-click button + Vercel's built-in Supabase database
+> - **What:** Vercel one-click button + Vercel's built-in Supabase database (Supabase Cloud free tier)
 > - **Skills needed:** none — only a web browser
 > - **Setup time:** ~20 minutes
-> - **Cost to start:** **$0/month**
-> - **Cost once you're a real commercial store:** **$20/month** for Vercel Pro (Hobby is technically personal/non-commercial use), **+$25/month** for Supabase Pro when you outgrow the free database (typically takes 3+ years for a small store)
+> - **Cost:** **$0/month** to start, and most small Sellf stores stay $0/month for years (Vercel's free Hobby tier + Supabase's free tier have generous limits — details further down)
 > - **Stripe fee** (every path): ~2.9% + $0.30 per transaction
 >
 > **Best for:** anyone who hasn't put software on a server before. If that's you, stop reading the green box below and just follow this guide.
 >
-> ## 💰 Cheapest method (requires a terminal)
+> ## 💰 Own-VPS path (requires a terminal)
 >
-> - **What:** Sellf on a [mikr.us](https://mikr.us/?r=pavvel) VPS (35 PLN/year ≈ $9/year) + free Supabase
+> - **What:** Sellf app on your own cheap VPS, with Supabase still hosted on its free cloud tier handling the database. Sellf alone runs in ~500 MB RAM so a basic VPS is plenty.
 > - **Skills needed:** comfort with SSH, copy-pasting Linux commands, running a script in your terminal
 > - **Setup time:** ~45 minutes
-> - **Cost to start:** **~$1/month** (just the mikr.us subscription; free Supabase covers the database)
-> - **Cost when your store outgrows the free Supabase limits:** ~$25/month (Supabase Pro)
+> - **Cost:** typically **~$5/month** (Hetzner CAX11, DigitalOcean basic droplet, etc.) for the VPS; Supabase stays $0 on the free cloud tier. Goes as low as **~$1/month** with [mikr.us](https://mikr.us/?r=pavvel) (35 PLN/year, 384 MB RAM — fits Sellf comfortably).
 > - **Stripe fee** (every path): same ~2.9% + $0.30 per transaction
 >
-> **Best for:** people already used to Linux servers who want to minimize monthly costs. Trade-off: more responsibility, you maintain the server, no fancy dashboard.
+> **Best for:** people already used to Linux servers who want their app on their own infrastructure without the cost of running a full Supabase stack yourself.
 >
-> **Want full instructions for the cheapest path?** See [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Or for the slightly-more-expensive but full-control [Coolify](./DEPLOYMENT-COOLIFY.md) option (~$9/month on Hetzner, comes with a nice dashboard).
+> **Want full instructions?** See [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) for the rock-bottom mikr.us setup. If you'd rather also self-host Supabase on the same machine (so no Supabase Cloud at all), that's a separate path requiring 8 GB+ RAM (~$9/month on Hetzner CX32) — see [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md).
 >
 > ## When do you actually have to upgrade?
 >
@@ -42,7 +42,7 @@
 >
 > ---
 >
-> **Not sure which to pick?** If you've never SSHed into a server, the easiest method is the right answer — when (and only when) you actually hit a Supabase limit, the $25/month upgrade buys you years more headroom. You can always migrate to a cheaper path later; the data and store stay the same.
+> **Not sure which to pick?** If you've never SSHed into a server, the easiest method (this guide) is the right answer — your store can stay $0/month for years, and even at scale the upgrade costs are modest. You can always migrate to your own VPS later if you want to cut costs further; the data and store stay the same.
 
 This guide walks you through that easiest path: **everything in your web browser, no programs to install, no terminal**.
 
@@ -345,19 +345,23 @@ You're now accepting real money. Real customers pay with real cards, the money l
 
 ## What it costs as you grow
 
-The free plan covers most small Sellf stores for years. Here's when you'll likely pay something:
+Short version: **most small Sellf stores stay at $0/month for years.** You'd only pay something when you outgrow specific limits — and the upgrade costs are modest even then.
 
-| When | What to upgrade | Why | Cost |
-|---|---|---|---|
-| Day 1 (you're here) | Nothing | Free plans cover starting out | $0/month |
-| First paying customer | Nothing yet | Free plan still works | $0/month |
-| Your database approaches 500 MB | **Supabase Pro** ($25/mo) | More database room (8 GB) + automated daily backups | $25/month |
-| You hit 50,000 monthly active users | **Supabase Pro** ($25/mo) | Higher MAU limit | $25/month |
-| You hit a Vercel Hobby limit (see table below) | **Vercel Pro** ($20/mo + usage) | Higher limits + commercial use allowed | $20/month + overages |
+| Where you are | Typical monthly cost | What's covered |
+|---------------|---------------------|----------------|
+| Day 1, testing the store | **$0** | Vercel Hobby + Supabase Free both have generous quotas |
+| First paying customers | **$0** | Free tier still fits — a store with hundreds of customers/month is nowhere near any limit |
+| Established store, modest traffic | **$0** | The Vercel Hobby and Supabase Free limits cover most small digital stores for 3–4 years |
+| Database fills up (~500 MB) | **$25/mo** (Supabase Pro) | More database room (8 GB) + automated daily backups |
+| You hit a Vercel Hobby resource limit (rare; see table below) | **+$20/mo** (Vercel Pro) | Higher quotas, no hard stops |
+| Want to switch the app to your own VPS to cap Vercel costs | **~$5/mo** | Sellf app on a cheap VPS; Supabase stays on its free cloud tier — see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) |
+| Want everything self-hosted (no Supabase Cloud at all) | **~$9/mo** | 8 GB VPS running Sellf + a self-hosted Supabase stack — see [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md) |
 
-### Vercel Hobby limits (the free tier this guide uses)
+So in plain English: **$0 to start, $0 for most small stores for years, around $5/month if you'd rather own the server, and $25–45/month only if you grow enough to need Supabase Pro and/or Vercel Pro.**
 
-Vercel Hobby is generous but has hard stops — when you hit a limit your store returns 503 until the next billing cycle (no automatic overage billing).
+### Vercel Hobby — what's in the free tier and when does it hard-stop
+
+Vercel Hobby is generous, but unlike "pay for what you use" plans it has hard stops — when you hit a limit your store returns 503 until the next billing cycle. The good news: for a typical Sellf store these limits cover **50,000–200,000 visits per month** before you need to think about Vercel Pro.
 
 | Resource | Free monthly limit | What it covers for a Sellf store |
 |----------|---------------------|----------------------------------|
@@ -370,35 +374,34 @@ Vercel Hobby is generous but has hard stops — when you hit a limit your store 
 | **Deployments** | unlimited | Redeploy as often as you want |
 | **Team members** | 1 seat | Solo operation only |
 
-### Vercel Hobby is for personal use, not commercial
+### Heads-up: Vercel Hobby is officially "personal, non-commercial"
 
-This is the part Vercel buries: **the Hobby plan is "for personal, non-commercial use."** Strictly speaking, running a store that takes money from customers is commercial use and should be on Pro.
+Vercel's terms say Hobby is "for personal, non-commercial use." Strictly speaking, a store that accepts customer payments is commercial.
 
-In practice Vercel rarely flags small commercial sites — you can experiment, launch, validate. But once you have real customers and steady revenue, you should upgrade to Pro both for legal compliance and to avoid hitting hard limits during a busy day.
+In practice Vercel rarely flags small commercial sites and many indie store operators happily run on Hobby for years. If your traffic is small and your conscience or your legal team wants you on Pro, the upgrade is $20/month. If you want to sidestep the question entirely, the own-VPS path (around $5/month) has no such restriction.
 
-So realistically: **$0 while you're validating, $20/month once you're a real commercial store** (Vercel Pro), **$45/month if you also outgrow Supabase Free** (Supabase Pro on top).
+### Stripe per-transaction fee (every path)
 
-For a typical small digital store the 500 MB database covers 3–4 years of growth. You don't need to budget for $45/month from day one — start free, upgrade Vercel when revenue justifies it, upgrade Supabase when usage graphs in the dashboard show you closing in on a limit.
-
-Stripe takes a per-transaction fee (~2.9% + $0.30 in most countries) — see https://stripe.com/pricing for your country.
+Stripe takes ~2.9% + $0.30 per transaction (rates vary by country — see https://stripe.com/pricing). This is the same on every deployment path.
 
 ## All deployment options by cost
 
-This guide uses **the easiest path** (Vercel + Vercel's built-in Supabase). There are cheaper options if you're willing to use a terminal and manage a server yourself. Here's the full landscape:
+This guide uses **the easiest path** (Vercel + Supabase Cloud, both free). Here's how the alternatives compare:
 
-| Path | Monthly cost (after you have customers) | Setup time | Technical skill needed | Best for |
-|------|----------------------------------------|------------|------------------------|----------|
-| **Vercel + Vercel-Supabase (this guide)** | **$0/mo on free tier, $25/mo once you outgrow Supabase Free** | ~20 min | 🟢 None — browser only | **First-time store owners, non-technical users.** This is the recommended path. |
-| [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | Same as Vercel: $0 → $25/mo | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
-| [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32) — Supabase runs on the same VPS for free | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard. No separate database bill, ever. |
-| [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mo** ($9 Hetzner CX32, everything else free) — Supabase runs on the same VPS for free | ~45 min | 🟡 Basic — SSH commands, a couple of secrets | Full control, lowest reasonable cost. No separate database bill, ever. |
-| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** on free tier, ~$25/mo once you outgrow Supabase Free | ~45 min | 🔴 Intermediate — SSH, terminal, PM2 | Cheapest option for technically comfortable people |
+| Path | Typical monthly cost | Setup time | Technical skill | Best for |
+|------|---------------------|------------|------------------|----------|
+| **Vercel + Supabase Cloud (this guide)** | **$0**, stays free for most small stores for years | ~20 min | 🟢 None — browser only | First-time store owners, non-technical users. The recommended path. |
+| [Netlify + Supabase Cloud](./DEPLOYMENT-VERCEL-NETLIFY.md) | Same as Vercel: $0 | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
+| [Cheap VPS + Supabase Cloud](./DEPLOYMENT-MIKRUS.md) | **~$5/mo** for the VPS (Hetzner CAX11, DO basic, etc.); Supabase stays $0 on the free cloud tier | ~45 min | 🟡 Basic — SSH, run a script | Want the app on your own infrastructure but happy keeping the database managed |
+| [mikr.us + Supabase Cloud](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** (35 PLN/year mikr.us 1.0); Supabase $0 | ~45 min | 🔴 Intermediate — SSH, PM2 | Absolute cheapest if your time is free |
+| [Coolify Cloud + Hetzner](./DEPLOYMENT-COOLIFY.md) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32). Lets you self-host the Supabase stack on the same VPS — no Supabase Cloud needed | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard, no Supabase Cloud bill ever |
+| [Coolify self-hosted + Hetzner](./DEPLOYMENT-COOLIFY.md) | **~$9/mo** (Hetzner CX32, everything else free). Self-hosts the whole stack including Supabase | ~45 min | 🟡 Basic — SSH, a couple of secrets | Full control, no Supabase Cloud bill ever |
 
-**Stripe per-transaction fee** (~2.9% + $0.30) is the same on every path — it's how Stripe makes money. Pick the path that matches your skill level; Stripe doesn't care.
+**Stripe per-transaction fee** (~2.9% + $0.30) is the same on every path.
 
-**Recommended for non-technical users:** **stay with this guide**. Vercel + Vercel-Supabase is $25/month more expensive than mikr.us, but if you're not comfortable with terminals and Linux, the $25/month buys you peace of mind. You can always migrate to a cheaper path later — it's not a one-way door.
+**Recommended for non-technical users:** **stay with this guide**. $0/month, and it stays $0 for most small stores for years. You can always migrate to your own VPS later if you want to cut costs further — it's not a one-way door.
 
-**Recommended for someone comfortable with servers:** **Coolify self-hosted on Hetzner** for ~$9/month. Best balance of cost, control, and convenience. See [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md).
+**Recommended for someone comfortable with servers and wanting their own infrastructure:** the **~$5/mo VPS + Supabase Cloud free** path. Best balance of cost vs. effort: you keep the managed database, and the app on a cheap VPS gives you full control over the runtime. If you also want to ditch Supabase Cloud entirely, **Coolify self-hosted on Hetzner CX32 (~$9/mo)** runs the whole stack on one box.
 
 ---
 

@@ -14,7 +14,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
-[🚀 Live Demo](https://demo.sellf.app) · [Documentation](./FEATURES.md) · [Deployment Guide](./docs/DEPLOYMENT-MIKRUS.md) · [Contributing](./CONTRIBUTING.md) · [Issues](https://github.com/jurczykpawel/sellf/issues)
+[🚀 Live Demo](https://demo.sellf.app) · [Documentation](./FEATURES.md) · [Quick-Start Guide](./docs/QUICK-START.md) · [Contributing](./CONTRIBUTING.md) · [Issues](https://github.com/jurczykpawel/sellf/issues)
 
 </div>
 
@@ -340,10 +340,12 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 | Guide | Best For |
 |-------|----------|
-| **[Deployment Guide](./docs/DEPLOYMENT-MIKRUS.md)** | VPS/mikr.us with PM2 (recommended) |
-| **[Advanced Options](./docs/DEPLOYMENT.md)** | Docker, Full-Stack, PM2 Cluster |
+| **[Quick-Start](./docs/QUICK-START.md)** | First-time deploy via the Vercel button (recommended for non-technical users, $0/month to start) |
+| **[VPS / mikr.us](./docs/DEPLOYMENT-MIKRUS.md)** | Cheapest path — your own Linux VPS (~$1-5/month, requires terminal) |
+| **[Coolify](./docs/DEPLOYMENT-COOLIFY.md)** | Self-hosted with a nice dashboard, ~$9/month on Hetzner |
+| **[All deployment options](./docs/DEPLOYMENT.md)** | Docker, Full-Stack, PM2 Cluster, and other advanced setups |
 
-> **Server requirements:** Sellf runs on 384 MB RAM. Benchmarked at **0 errors under 30 concurrent users** on a [$9/year VPS](https://mikr.us/?r=pavvel). No Docker needed — plain Node.js + PM2.
+> **Server requirements:** Sellf alone runs on 384 MB RAM. Benchmarked at **0 errors under 30 concurrent users** on a [$9/year VPS](https://mikr.us/?r=pavvel). No Docker needed — plain Node.js + PM2.
 
 ---
 
@@ -352,7 +354,8 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 | File | Description |
 |------|-------------|
 | [FEATURES.md](./FEATURES.md) | Complete feature list with roadmap |
-| [Deployment Guide](./docs/DEPLOYMENT-MIKRUS.md) | Step-by-step deployment guide |
+| [docs/QUICK-START.md](./docs/QUICK-START.md) | Beginner-friendly deploy guide (browser-only, ~20 min) |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | All deployment paths with decision tree |
 | [STRIPE-TESTING-GUIDE.md](./STRIPE-TESTING-GUIDE.md) | Testing payments locally |
 | [BACKLOG.md](./BACKLOG.md) | Development roadmap |
 | [mcp-server/README.md](./mcp-server/README.md) | MCP Server setup guide |
