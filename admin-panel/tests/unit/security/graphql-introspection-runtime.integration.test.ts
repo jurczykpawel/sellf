@@ -163,7 +163,8 @@ describe('GraphQL introspection runtime exposure', () => {
     'get_oto_coupon_info',
     'get_public_integrations_config',
     'get_user_profile',
-    // is_admin / is_admin_cached: REVOKE'd from anon in 20260429110000.
+    'is_admin',
+    'is_admin_cached',
     'verify_coupon',
   ]);
 

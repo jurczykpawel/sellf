@@ -84,9 +84,11 @@ BEGIN
 END;
 $$;
 
--- 1d. is_admin/is_admin_cached — authenticated-only (anon exposure = recon).
-REVOKE EXECUTE ON FUNCTION public.is_admin(uuid) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.is_admin_cached() FROM anon;
+-- 1d. is_admin/is_admin_cached: anon MUST keep EXECUTE — RLS policies on
+--     storefront tables (products, order_bumps, variant_groups, …) call
+--     is_admin() in their qualifier. Without EXECUTE for anon, every anon
+--     SELECT raises 42501 before RLS can even evaluate. The recon concern
+--     raised in audit is real but is the cost of using is_admin() in RLS.
 
 -- 2. pg_graphql `@graphql({"include": false})` directive on functions that
 --    are not part of the public API (admin, helpers, internal upserts).
