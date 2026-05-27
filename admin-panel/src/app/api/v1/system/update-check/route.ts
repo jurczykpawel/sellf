@@ -62,13 +62,15 @@ export async function GET(request: NextRequest) {
       return withNoStore(jsonResponse(successResponse(cached), request));
     }
 
-    // Fetch from GitHub API
+    // Fetch from GitHub API with bounded timeout — GitHub rate-limit / network
+    // issues must not hang the dashboard's update-check on mount.
     const response = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
       {
         headers: { 'Accept': 'application/vnd.github.v3+json' },
         cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
         redirect: 'error',
+        signal: AbortSignal.timeout(5000),
       }
     );
 

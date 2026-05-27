@@ -38,7 +38,7 @@ test.describe('Currency Conversion Feature', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await setAuthSession(page, adminEmail, adminPassword);
 
@@ -114,7 +114,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should show currency selector with multiple currencies', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Wait for component to load currencies
     await page.waitForTimeout(3000);
@@ -131,7 +131,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should display grouped currencies by default (multi-currency dashboard)', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
     const selector = page.locator('button', { hasText: /Grouped|Pogrupowane|Convert|Przelicz/i }).first();
@@ -151,7 +151,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should switch to converted mode and show single currency', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open currency selector
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
@@ -184,7 +184,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should convert to EUR and show euro symbol', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Open currency selector
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
@@ -212,7 +212,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should persist currency preference across page reloads', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Set to EUR
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
@@ -225,7 +225,7 @@ test.describe('Currency Conversion Feature', () => {
 
     // Reload page
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should still show "Convert to EUR"
     await expect(page.locator('button', { hasText: /Convert to EUR/i }).first()).toBeVisible({ timeout: 10000 });
@@ -240,7 +240,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should switch back to grouped mode', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
     await expect(currencyButton).toBeVisible({ timeout: 30000 });
@@ -285,7 +285,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should convert chart data to selected currency', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Set to EUR
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
@@ -316,7 +316,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should show correct converted values in stats overview', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Ensure we start in grouped mode (previous test may have left it in converted)
     const currencyBtn = page.locator('button', { hasText: /Grouped|Convert/i }).first();
@@ -367,7 +367,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should handle revenue goal in converted currency', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find Revenue Goal section
     const revenueGoalSection = page.locator('div', { hasText: /Revenue Goal|Cel przychodu/i }).first();
@@ -396,7 +396,7 @@ test.describe('Currency Conversion Feature', () => {
   test('should handle conversion errors gracefully', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Try to convert to a currency
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();

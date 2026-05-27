@@ -166,9 +166,8 @@ test.describe('GUS API Admin Configuration', () => {
       }
     });
 
-    // Click save and wait for network to complete
+    // Click save — success message assertion below verifies the request completed
     await saveButton.click();
-    await page.waitForLoadState('networkidle', { timeout: 10000 });
     await page.waitForTimeout(1000);
 
     console.log('POST request sent:', postRequestSent);

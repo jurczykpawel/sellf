@@ -200,8 +200,7 @@ test.describe('Admin Funnel Test Preview', () => {
 
   test('should show "Test Funnel" button in products table', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto('/pl/dashboard/products', { waitUntil: 'networkidle', timeout: 60000 });
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/pl/dashboard/products', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
 

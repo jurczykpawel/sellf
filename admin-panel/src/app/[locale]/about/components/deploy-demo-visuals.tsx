@@ -354,10 +354,10 @@ function InstallVariantsMock() {
           <span className="text-emerald-300 font-semibold">nano ~/.config/stackpilot/sellf.env</span>
         </div>
         <div className="pl-2 mt-1">
-          <div><span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>=<span className="text-yellow-300">your-cf-token</span></div>
-          <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
-          <div><span className="text-purple-400">SUPABASE_ANON_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
-          <div><span className="text-purple-400">SUPABASE_SERVICE_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+          <div><span className="text-cyan-300">CLOUDFLARE_API_TOKEN</span>=<span className="text-yellow-300">your-cf-token</span></div>
+          <div><span className="text-cyan-300">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+          <div><span className="text-cyan-300">SUPABASE_ANON_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+          <div><span className="text-cyan-300">SUPABASE_SERVICE_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
         </div>
         <div className="text-zinc-600 italic">(Ctrl+O save, Ctrl+X exit)</div>
         <div className="mt-2 text-zinc-500">root@vps:~#</div>
@@ -466,10 +466,10 @@ function TerminalMock({ kind }: { kind: 'deploy' | 'env' }) {
           </div>
           <div className="mt-2 text-zinc-400 leading-relaxed">
             <div><span className="text-zinc-600"># Supabase — already filled by StackPilot</span></div>
-            <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+            <div><span className="text-cyan-300">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
             <div className="mt-1"><span className="text-zinc-600"># Stripe — paste yours to enable payments</span></div>
-            <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51…</span></div>
-            <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51…</span></div>
+            <div><span className="text-cyan-300">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51…</span></div>
+            <div><span className="text-cyan-300">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51…</span></div>
           </div>
           <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
             <span>root@vps:~#</span>
@@ -493,7 +493,7 @@ function AdminWebhookMock() {
       {/* Card 1: Stripe API keys */}
       <div className="rounded-lg border border-sf-border bg-sf-raised/80 overflow-hidden">
         <div className="px-4 py-2 bg-sf-float border-b border-sf-border flex items-center gap-2">
-          <Key className="w-3.5 h-3.5 text-purple-400" aria-hidden="true" />
+          <Key className="w-3.5 h-3.5 text-cyan-300" aria-hidden="true" />
           <span className="text-xs font-semibold text-sf-heading">Stripe API keys</span>
           <span className="ml-auto text-[10px] uppercase tracking-wider text-sf-muted">Step 1</span>
         </div>

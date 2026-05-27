@@ -49,7 +49,7 @@ test.describe('Checkout Theme Settings', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await setAuthSession(page, adminEmail, password);
 
@@ -124,7 +124,7 @@ test.describe('Checkout Theme Settings', () => {
   test('should display three theme options (system, light, dark)', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Find the Checkout Theme section
     const themeHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
@@ -146,7 +146,7 @@ test.describe('Checkout Theme Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const themeHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
     await expect(themeHeading).toBeVisible({ timeout: 10000 });
@@ -176,7 +176,7 @@ test.describe('Checkout Theme Settings', () => {
 
     await loginAsAdmin(page);
     await page.goto('/dashboard/settings');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const themeHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
     await expect(themeHeading).toBeVisible({ timeout: 10000 });
@@ -194,12 +194,13 @@ test.describe('Checkout Theme Settings', () => {
     // Wait for the dark button to get the selected class (server action saves + revalidates)
     await expect(darkBtn).toHaveClass(/border-sf-border-accent/, { timeout: 10000 });
 
-    // Reload and verify persistence. CheckoutThemeSettings is a client
-    // component that fetches the config in useEffect → button selection
-    // only updates after that async chain resolves. Wait for the
-    // loading-pulse placeholder to disappear before asserting the class.
+    // Wait for save-success toast — confirms the server action completed
+    // (DB UPDATE + revalidate) before we reload and read SSR'd theme.
+    await expect(page.locator('[data-sonner-toast]').first()).toBeVisible({ timeout: 5000 });
+
+    // Reload and verify persistence — SettingsPage SSRs `initialTheme` from DB.
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const reloadedHeading = page.locator('h2', { hasText: /Site Theme|Checkout Theme|Motyw|Motyw checkout/i });
     await expect(reloadedHeading).toBeVisible({ timeout: 10000 });

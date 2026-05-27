@@ -76,7 +76,7 @@ export function DeployPaths() {
                 icon={Key}
                 label={t('prereqs.stripe')}
                 sub={t('prereqs.stripeSub')}
-                tone="purple"
+                tone="indigo"
               />
               <PrereqPill
                 icon={Database}
@@ -302,12 +302,12 @@ interface PrereqPillProps {
   icon: LucideIcon;
   label: string;
   sub: string;
-  tone: 'purple' | 'emerald';
+  tone: 'indigo' | 'emerald';
 }
 
 function PrereqPill({ icon: Icon, label, sub, tone }: PrereqPillProps) {
-  const styles = tone === 'purple'
-    ? { bg: 'bg-purple-500/10', border: 'border-purple-500/40', icon: 'text-purple-400' }
+  const styles = tone === 'indigo'
+    ? { bg: 'bg-indigo-500/10', border: 'border-indigo-500/40', icon: 'text-indigo-400' }
     : { bg: 'bg-emerald-500/10', border: 'border-emerald-500/40', icon: 'text-emerald-400' };
 
   return (
