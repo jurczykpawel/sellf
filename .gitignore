@@ -88,3 +88,6 @@ sellf-build.tar.gz
 
 # Worktrees
 .worktrees/
+
+# Local Netlify folder
+.netlify
