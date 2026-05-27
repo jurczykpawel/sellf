@@ -3071,7 +3071,7 @@
       "revenueBadgePrefix": "Zaoszczędzasz",
       "revenueBadgeSuffix": "/rok vs Gumroad",
       "tenMinBadge": "~10 minut · ~10 kliknięć · $0 na start",
-      "tenMinDisclaimer": "Darmowy tier Vercel + Supabase. Konto Stripe wymagane (też za darmo)."
+      "tenMinDisclaimer": "Vercel + Supabase za darmo. Stripe — darmowe konto, zakładasz w 2 minuty."
     },
     "socialProof": {
       "openSource": "Open source",
@@ -3215,7 +3215,7 @@
       "subtitle": "Od klona do działającego sklepu w mniej niż 10 minut",
       "step1": {
         "title": "Wdróż",
-        "desc": "One-click deploy na Vercel lub Netlify (darmowy tier) — albo własny VPS. Jak Ci wygodniej."
+        "desc": "One-click deploy na Vercel lub Netlify (darmowy plan) — albo własny VPS. Jak Ci wygodniej."
       },
       "step2": {
         "title": "Połącz Stripe",
@@ -3231,19 +3231,19 @@
     "deployPaths": {
       "categoryLabel": "Wdrożenie",
       "title": "Wybierz ścieżkę, która Ci pasuje",
-      "subtitle": "Trzy opcje, każdą postawiliśmy od zera i sprawdziliśmy do końca. Pod każdą masz konkretnie wypisane co klikasz — bez ściemy.",
+      "subtitle": "Trzy sposoby. Sami z nich korzystamy. Pod każdym dokładnie co klikasz — bez marketingu.",
       "clicksLabel": "kliknięć",
       "minutesLabel": "minut",
       "costLabel": "koszt",
       "bestForLabel": "Dla kogo",
       "stepsLabel": "Co konkretnie klikasz",
-      "reassurance": "Każdą ścieżkę przejechaliśmy od początku do końca — te same przyciski są w README na GitHubie. Wybierasz to co Ci pasuje dziś, później możesz się przesiąść bez zmian w kodzie.",
+      "reassurance": "Sami z każdej korzystamy — te same przyciski są w README na GitHubie. Wybierasz to co Ci pasuje dziś, później możesz się przesiąść bez zmian w kodzie.",
       "prereqs": {
-        "label": "Darmowe konta potrzebne na każdej ścieżce",
+        "label": "Darmowe konta — potrzebne na każdej ścieżce",
         "stripe": "Stripe",
-        "stripeSub": "Darmowe, ~2 min na stripe.com",
+        "stripeSub": "Konto za darmo, zakładasz w ~2 min",
         "supabase": "Supabase",
-        "supabaseSub": "Free tier, ~3 min na supabase.com"
+        "supabaseSub": "Konto za darmo, zakładasz w ~3 min"
       },
       "vercel": {
         "name": "Vercel + Supabase",
@@ -3294,7 +3294,7 @@
           "Otwierasz live URL, rejestrujesz się — pierwsza rejestracja = admin",
           "(Opcjonalnie) Stripe przez panel: Settings → Payments → Register webhook"
         ],
-        "footnote": "Złoty środek: VPS za ~$5/mies + Supabase Cloud na darmowym tierze. Do $25-45/mies dochodzisz dopiero jak faktycznie złapiesz limity.",
+        "footnote": "Złoty środek: VPS za ~$5/mies + Supabase Cloud na darmowym planie. Do $25-45/mies dochodzisz dopiero jak faktycznie złapiesz limity.",
         "ctaLabel": "Przewodnik self-host"
       },
       "previewLabel": "Zobacz jak to działa",
@@ -3326,7 +3326,7 @@
           {
             "title": "Dodajesz integrację Supabase",
             "url": "vercel.com/integrations/supabase",
-            "caption": "Vercel zapyta czy podłączyć bazę. Klikasz 'Add Integration' → Supabase → darmowy tier. Baza tworzy się sama, klucze same wpadają do zmiennych — nic nie przeklejasz.",
+            "caption": "Vercel zapyta czy podłączyć bazę. Klikasz 'Add Integration' → Supabase → darmowy plan. Baza tworzy się sama, klucze same wpadają do zmiennych — nic nie przeklejasz.",
             "visual": "supabase-integration"
           },
           {
@@ -3390,13 +3390,13 @@
           {
             "title": "Build leci ~3 minuty, masz live URL",
             "url": "root@vps:~ ▸ output",
-            "caption": "Log na żywo pokazuje co się dzieje: instalacja Bun + Caddy + PM2, rekord DNS w Cloudflare staje na zielono, cert Let's Encrypt wystawiony, PM2 oznacza apkę jako online. Gdy ostatnia linia mówi ✓ Live, otwierasz https://sellf.example.com w przeglądarce. Pierwsza osoba która się zarejestruje staje się adminem.",
+            "caption": "Patrzysz na log: instalacja Bun + Caddy + PM2, DNS w Cloudflare wpięty, Let's Encrypt wystawia cert, PM2 pokazuje że apka żyje. Po ostatniej linii ✓ Live otwierasz https://sellf.example.com — pierwsza osoba która się zarejestruje zostaje adminem.",
             "visual": "terminal-deploy"
           },
           {
             "title": "(Opcjonalnie) Stripe — dwie karty w panelu",
             "url": "https://sellf.example.com/dashboard/settings",
-            "caption": "Sklep już chodzi i bez płatności. Jeśli chcesz przyjmować karty: logujesz się jako admin, Settings → Payments. Na jednej stronie dwie karty — w pierwszej wklejasz Stripe pk + sk (zapisywane zaszyfrowane w bazie), w drugiej klikasz 'Register webhook'. Sellf sam dogada się ze Stripe i zapisze signing secret. Wolisz edytować pliki? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też działa.",
+            "caption": "Sklep chodzi nawet bez podpiętego Stripe — masz katalog, lead magnety, zapisy na listę. Stripe podpinasz dopiero gdy chcesz sprzedawać płatne produkty: logujesz się jako admin, Settings → Payments. Na jednej stronie dwie karty — w pierwszej wklejasz Stripe pk + sk (zapisywane zaszyfrowane w bazie), w drugiej klikasz 'Register webhook'. Sellf sam dogada się ze Stripe i zapisze signing secret. Wolisz pliki? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też zadziała.",
             "visual": "admin-webhook"
           }
         ]
