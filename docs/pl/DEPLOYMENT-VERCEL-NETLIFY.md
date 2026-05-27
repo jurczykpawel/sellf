@@ -204,12 +204,11 @@ NEXT_PUBLIC_SITE_URL=https://shop.example.com
 
 Wymuś redeploy żeby nowe wartości się załapały.
 
-### Nie zapomnij — zaktualizuj też URL webhooka Stripe
+### Webhook Stripe nadal działa — nic nie trzeba ruszać
 
-URL webhooka ustawiony w **Kroku 7** wskazuje na stary `*.vercel.app` / `*.netlify.app`. Po przejściu na własną domenę:
+URL webhooka ustawiony w **Kroku 7** wskazuje na domyślny URL platformy (`*.vercel.app` / `*.netlify.app`). Ten URL **żyje wiecznie** po dodaniu własnej domeny — oba URL-e prowadzą do tego samego deploymentu Sellf, więc POST-y od Stripe lądują w appce dokładnie tak samo.
 
-1. **Stripe Dashboard → Developers → Webhooks** → klik na endpoint → **Update endpoint URL** → zmień na `https://shop.example.com/api/webhooks/stripe`.
-2. Zapisz. Signing secret (`STRIPE_WEBHOOK_SECRET`) **nie** zmienia się — zostaw istniejący.
+Webhook trzeba zaktualizować **tylko** jeśli dodatkowo włączysz w Vercelu "Redirect default domain to custom domain" (domyślnie wyłączone). Redirect łamie weryfikację podpisu Stripe — wtedy w **Stripe Dashboard → Developers → Webhooks** → endpoint → **Update endpoint URL** → zmień na `https://shop.example.com/api/webhooks/stripe`. Signing secret (`STRIPE_WEBHOOK_SECRET`) zostaje ten sam — nie rotuj.
 
 > **Przypomnienie ToS Vercel Hobby:** Hobby jest do użytku osobistego / niekomercyjnego. Custom domain technicznie dozwolony, ale sklep komercyjny w skali powinien przejść na Vercel Pro ($20/mies) lub ścieżkę własnego VPS. Netlify free nie ma klauzuli non-commercial.
 

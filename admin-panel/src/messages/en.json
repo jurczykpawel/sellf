@@ -3316,7 +3316,7 @@
           {
             "title": "Build runs — coffee break",
             "url": "vercel.com/deployments",
-            "caption": "About 3 minutes. Default URL is your-shop.vercel.app — and you can swap to your own yourshop.com in Settings → Domains right after (free SSL, ~5 min). Last step: paste the live URL into Stripe Dashboard → Webhooks.",
+            "caption": "About 3 minutes. Default URL is your-shop.vercel.app — and you can swap to your own yourshop.com in Settings → Domains right after (free SSL, ~5 min). The Stripe webhook you set in step 4 keeps working on both URLs automatically.",
             "visual": "build-success"
           }
         ],
@@ -3348,7 +3348,7 @@
           {
             "title": "Build runs — coffee break",
             "url": "app.netlify.com/sites/your-shop",
-            "caption": "About 3 minutes. Default URL is your-shop.netlify.app — swap to your own yourshop.com in Domain management → Add custom domain (free SSL, no card required). Last step: update the Stripe webhook URL to the live domain.",
+            "caption": "About 3 minutes. Default URL is your-shop.netlify.app — swap to your own yourshop.com in Domain management → Add custom domain (free SSL, no card required). The Stripe webhook you set in step 4 keeps working on both URLs automatically.",
             "visual": "build-success-netlify"
           }
         ],
