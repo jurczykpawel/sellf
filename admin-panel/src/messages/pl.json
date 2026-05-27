@@ -1707,6 +1707,14 @@
         "subscription_started": "Subskrypcja rozpoczęta",
         "subscription_ended": "Subskrypcja zakończona",
         "refund_issued": "Zwrot wykonany",
+        "payment_completed": "Płatność zakończona",
+        "payment_refunded": "Płatność zwrócona",
+        "payment_failed": "Płatność nieudana",
+        "user_access_granted": "Dostęp przyznany",
+        "user_access_revoked": "Dostęp odebrany",
+        "product_created": "Produkt utworzony",
+        "product_updated": "Produkt zaktualizowany",
+        "product_deleted": "Produkt usunięty",
         "test_event": "Zdarzenie testowe"
       },
       "logs": {

@@ -1692,6 +1692,14 @@
         "subscription_started": "Subscription Started",
         "subscription_ended": "Subscription Ended",
         "refund_issued": "Refund Issued",
+        "payment_completed": "Payment Completed",
+        "payment_refunded": "Payment Refunded",
+        "payment_failed": "Payment Failed",
+        "user_access_granted": "User Access Granted",
+        "user_access_revoked": "User Access Revoked",
+        "product_created": "Product Created",
+        "product_updated": "Product Updated",
+        "product_deleted": "Product Deleted",
         "test_event": "Test Event"
       },
       "logs": {
