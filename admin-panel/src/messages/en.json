@@ -3379,9 +3379,9 @@
             "visual": "terminal-deploy"
           },
           {
-            "title": "(Optional) Add Stripe — admin UI, one click",
+            "title": "(Optional) Add Stripe — admin UI, two cards in one page",
             "url": "https://sellf.example.com/dashboard/settings",
-            "caption": "The shop already runs without payments (catalog, waitlists, lead magnets work out of the box). To take cards: sign in as admin, open Settings → Payments, paste Stripe pk + sk, click 'Register webhook'. Sellf calls Stripe for you and stores the signing secret in the DB. If you'd rather edit files: nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf works too.",
+            "caption": "The shop already runs without payments. To take cards: sign in as admin, open Settings → Payments. Two cards on the same page — paste Stripe pk + sk into the API keys card (saved encrypted to your Supabase DB), then click 'Register webhook' in the second card. Sellf calls Stripe for you and stores the signing secret. Prefer editing files? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf works too.",
             "visual": "admin-webhook"
           }
         ]

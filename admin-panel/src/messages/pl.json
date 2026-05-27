@@ -3394,9 +3394,9 @@
             "visual": "terminal-deploy"
           },
           {
-            "title": "(Opcjonalnie) Stripe — panel admina, jedno kliknięcie",
+            "title": "(Opcjonalnie) Stripe — panel admina, dwie karty na jednej stronie",
             "url": "https://sellf.example.com/dashboard/settings",
-            "caption": "Sklep już chodzi bez płatności (katalog, listy oczekujących, lead magnety działają out of the box). Żeby przyjmować karty: logujesz się jako admin, otwierasz Settings → Payments, wklejasz Stripe pk + sk, klik 'Register webhook'. Sellf woła Stripe za Ciebie i zapisuje signing secret w bazie. Jak wolisz pliki: nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też działa.",
+            "caption": "Sklep już chodzi bez płatności. Żeby przyjmować karty: logujesz się jako admin, otwierasz Settings → Payments. Dwie karty na tej samej stronie — wklejasz Stripe pk + sk w karcie API keys (zapisywane zaszyfrowane do bazy Supabase), potem klik 'Register webhook' w drugiej karcie. Sellf woła Stripe za Ciebie i zapisuje signing secret. Wolisz edycję plików? nano /opt/stacks/sellf-sellf/admin-panel/.env.local + pm2 restart sellf-sellf też działa.",
             "visual": "admin-webhook"
           }
         ]

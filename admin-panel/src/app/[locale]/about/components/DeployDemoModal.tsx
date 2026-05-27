@@ -34,7 +34,7 @@ interface DeployDemoModalProps {
   accent: 'vercel' | 'netlify' | 'vps';
 }
 
-const AUTOPLAY_INTERVAL_MS = 5000;
+const AUTOPLAY_INTERVAL_MS = 14000;
 
 export function DeployDemoModal({
   pathKey,
@@ -195,7 +195,7 @@ export function DeployDemoModal({
               >
                 {i === index && effectiveAutoPlay && (
                   <span
-                    className="block h-full rounded-full bg-white/40 origin-left animate-[demoTick_5s_linear]"
+                    className="block h-full rounded-full bg-white/40 origin-left animate-[demoTick_14s_linear]"
                     aria-hidden="true"
                   />
                 )}
@@ -212,8 +212,14 @@ export function DeployDemoModal({
           </div>
         </div>
 
-        {/* Slide body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 sm:py-8">
+        {/* Slide body — any click inside pauses autoplay so users can read
+            (e.g. switch tabs in a variant slide without losing their place) */}
+        <div
+          className="flex-1 overflow-y-auto px-6 py-6 sm:py-8"
+          onClickCapture={() => {
+            if (autoPlay) setAutoPlay(false);
+          }}
+        >
           <div key={index} className="animate-[demoSlideIn_300ms_ease-out]">
             {/* Browser chrome with URL */}
             <BrowserChrome url={slide.url} />
@@ -313,7 +319,7 @@ export function DeployDemoModal({
         @media (prefers-reduced-motion: reduce) {
           .animate-\\[demoFadeIn_180ms_ease-out\\],
           .animate-\\[demoSlideIn_300ms_ease-out\\],
-          .animate-\\[demoTick_5s_linear\\] {
+          .animate-\\[demoTick_14s_linear\\] {
             animation: none !important;
           }
         }
