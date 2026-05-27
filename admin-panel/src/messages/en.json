@@ -3261,16 +3261,16 @@
       "vps": {
         "name": "Your own VPS",
         "tagline": "True self-hosted. Best fit when the shop is your livelihood.",
-        "clicks": "one command",
-        "minutes": "~30",
+        "clicks": "4 commands",
+        "minutes": "~10",
         "cost": "~$5/mo",
         "bestFor": "Commercial shops, full control, custom domain, no platform ToS to worry about",
         "steps": [
-          "Buy a $5/mo VPS (Hetzner, DigitalOcean, mikr.us — any will do)",
-          "Run a single install script over SSH (StackPilot)",
-          "Connect Supabase Cloud free tier (or self-host Postgres)",
-          "Paste your Stripe keys into .env",
-          "Point your domain — live"
+          "Have 3 free things ready: VPS (1GB+), Supabase project, Cloudflare-managed domain",
+          "SSH in and bootstrap StackPilot with one curl",
+          "Configure Cloudflare + Supabase (two interactive scripts)",
+          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2 set up automatically",
+          "(Optional) paste Stripe keys to start taking payments"
         ],
         "footnote": "Sweet spot: ~$5/mo VPS + Supabase Cloud free. Scales to $25–45/mo only when you actually hit usage limits.",
         "ctaLabel": "Self-host guide"
@@ -3354,34 +3354,34 @@
         ],
         "vpsSlides": [
           {
-            "title": "Buy a $5/mo VPS",
-            "url": "hetzner.com or mikr.us",
-            "caption": "Hetzner CX22 ($5/mo, 4GB RAM is enough), DigitalOcean droplet, mikr.us — any will do. You'll get an IP and an SSH key.",
-            "visual": "vps-provider"
+            "title": "Get 3 free things ready",
+            "url": "before-you-start",
+            "caption": "1GB+ VPS (Hetzner ~$5/mo, Mikrus, DigitalOcean — anything works), a free Supabase project (3 min on supabase.com), and a domain you'll manage in Cloudflare (free zone). All three are free to set up.",
+            "visual": "vps-prereqs"
           },
           {
-            "title": "Connect over SSH",
-            "url": "your-laptop ▸ terminal",
-            "caption": "Open your terminal. Type ssh root@<your-vps-ip>. That's it — you're inside.",
-            "visual": "terminal-ssh"
-          },
-          {
-            "title": "Run one curl-bash command on your VPS",
+            "title": "SSH in + bootstrap StackPilot",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Prereqs: a free Supabase project (3 min, supabase.com) and a domain you own. Then in your SSH session, paste the one-liner with --domain-type and --domain flags. StackPilot installs Bun + PM2, downloads the latest Sellf release, sets up Cloudflare DNS, and boots the app in ~5 min.",
-            "visual": "terminal-install"
+            "caption": "Two lines. First ssh into the VPS, then a single curl-bash that clones StackPilot and puts it on your PATH. Same flow for every VPS provider — no Hetzner-vs-Mikrus differences.",
+            "visual": "terminal-bootstrap"
           },
           {
-            "title": "Add your Stripe keys to .env.local",
-            "url": "root@vps:/opt/stacks/sellf-<your-name>/admin-panel ▸ .env.local",
-            "caption": "Same SSH session — Supabase is already filled in. Add your Stripe pk/sk/whsec (or pass them via env vars before the curl-bash). Then pm2 restart, open your domain, and the first signup becomes the admin.",
+            "title": "Configure Cloudflare + Supabase",
+            "url": "root@vps:~/stackpilot ▸ terminal",
+            "caption": "Two interactive setup scripts. setup-cloudflare.sh asks for a CF API token (Zone:DNS:Edit). setup-sellf-config.sh fetches your Supabase keys. Done once, reused by every StackPilot deploy on this server.",
+            "visual": "terminal-config"
+          },
+          {
+            "title": "Deploy Sellf — one command, ~3 min",
+            "url": "root@vps:~/stackpilot ▸ terminal",
+            "caption": "./local/deploy.sh sellf --domain=sellf.yourdomain.com — sets the CF DNS record, installs Bun + Caddy + PM2, fetches a Let's Encrypt cert, boots the app. When it finishes, the shop is live at https://sellf.yourdomain.com.",
+            "visual": "terminal-deploy"
+          },
+          {
+            "title": "(Optional) Add Stripe to take payments",
+            "url": "root@vps:/opt/stacks/sellf-sellf/admin-panel ▸ .env.local",
+            "caption": "The shop already runs — but to charge cards you need Stripe. Edit .env.local, paste your Stripe pk/sk, pm2 restart. Then sign up as admin (first user gets admin), open Settings → Payments, click 'Register webhook'. Skip this if you're just running a catalog or waitlist.",
             "visual": "terminal-env"
-          },
-          {
-            "title": "Point your domain — live",
-            "url": "your-domain.com",
-            "caption": "Add an A record at your DNS provider pointing to the VPS IP. Caddy fetches a free Let's Encrypt cert. Your shop is live on your own domain.",
-            "visual": "browser-success"
           }
         ]
       }

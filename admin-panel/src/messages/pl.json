@@ -3276,16 +3276,16 @@
       "vps": {
         "name": "Własny VPS",
         "tagline": "Prawdziwy self-hosting. Najlepszy fit gdy sklep to Twój biznes.",
-        "clicks": "jedna komenda",
-        "minutes": "~30",
+        "clicks": "4 komendy",
+        "minutes": "~10",
         "cost": "~$5/mies",
         "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
         "steps": [
-          "Kupujesz VPS za $5/mies (Hetzner, DigitalOcean, mikr.us — cokolwiek)",
-          "Odpalasz jeden skrypt instalacyjny przez SSH (StackPilot)",
-          "Podłączasz Supabase Cloud free (lub własny Postgres)",
-          "Wklejasz klucze Stripe do .env",
-          "Wskazujesz domenę — sklep żyje"
+          "Masz gotowe 3 darmowe rzeczy: VPS (1GB+), projekt Supabase, domena w Cloudflare",
+          "SSH-ujesz się i bootstrapujesz StackPilot jedną komendą curl",
+          "Konfigurujesz Cloudflare + Supabase (dwa interaktywne skrypty)",
+          "./local/deploy.sh sellf — DNS, Caddy, SSL, PM2 ustawiane automatycznie",
+          "(Opcjonalnie) wklejasz klucze Stripe żeby zacząć przyjmować płatności"
         ],
         "footnote": "Sweet spot: ~$5/mies VPS + Supabase Cloud free. Skaluje do $25–45/mies dopiero gdy faktycznie złapiesz limity.",
         "ctaLabel": "Przewodnik self-host"
@@ -3369,34 +3369,34 @@
         ],
         "vpsSlides": [
           {
-            "title": "Kupujesz VPS za $5/mies",
-            "url": "hetzner.com lub mikr.us",
-            "caption": "Hetzner CX22 ($5/mies, 4GB RAM wystarcza), DigitalOcean droplet, mikr.us — cokolwiek. Dostajesz IP i klucz SSH.",
-            "visual": "vps-provider"
+            "title": "Miej gotowe 3 darmowe rzeczy",
+            "url": "zanim-zaczniesz",
+            "caption": "VPS 1GB+ (Hetzner ~5€/mies, Mikrus, DigitalOcean — cokolwiek), darmowy projekt Supabase (3 min na supabase.com) i domena którą będziesz ogarniał w Cloudflare (darmowa zone). Wszystkie trzy są free.",
+            "visual": "vps-prereqs"
           },
           {
-            "title": "Łączysz się przez SSH",
-            "url": "twoj-laptop ▸ terminal",
-            "caption": "Otwierasz terminal. Wpisujesz ssh root@<ip-twojego-vps>. To wszystko — jesteś w środku.",
-            "visual": "terminal-ssh"
-          },
-          {
-            "title": "Jedna komenda curl-bash na VPS",
+            "title": "SSH + bootstrap StackPilota",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Wymaga: darmowy projekt Supabase (3 min na supabase.com) i własna domena. Potem w sesji SSH wklejasz one-liner z flagami --domain-type i --domain. StackPilot instaluje Bun + PM2, ściąga najnowszy release Sellf, ustawia DNS w Cloudflare i odpala apkę w ~5 min.",
-            "visual": "terminal-install"
+            "caption": "Dwie linijki. Najpierw ssh na VPS, potem jedna komenda curl-bash która klonuje StackPilot i dodaje go do PATH. Ten sam flow dla każdego providera — żadnych różnic Hetzner-vs-Mikrus.",
+            "visual": "terminal-bootstrap"
           },
           {
-            "title": "Wklejasz klucze Stripe do .env.local",
-            "url": "root@vps:/opt/stacks/sellf-<twoja-nazwa>/admin-panel ▸ .env.local",
-            "caption": "Ta sama sesja SSH — Supabase już wpisane przez StackPilota. Dodajesz Stripe pk/sk/whsec (albo przekazujesz je przez env vars przed curl-bash). Potem pm2 restart, otwierasz domenę i pierwszy signup staje się adminem.",
+            "title": "Konfigurujesz Cloudflare + Supabase",
+            "url": "root@vps:~/stackpilot ▸ terminal",
+            "caption": "Dwa interaktywne skrypty setup. setup-cloudflare.sh pyta o token CF API (Zone:DNS:Edit). setup-sellf-config.sh pobiera klucze Supabase. Robisz raz, każdy kolejny deploy StackPilot to wykorzystuje.",
+            "visual": "terminal-config"
+          },
+          {
+            "title": "Deploy Sellf — jedna komenda, ~3 min",
+            "url": "root@vps:~/stackpilot ▸ terminal",
+            "caption": "./local/deploy.sh sellf --domain=sellf.twojadomena.com — ustawia rekord DNS w CF, instaluje Bun + Caddy + PM2, pobiera cert Let's Encrypt, odpala apkę. Po zakończeniu sklep żyje na https://sellf.twojadomena.com.",
+            "visual": "terminal-deploy"
+          },
+          {
+            "title": "(Opcjonalnie) dodaj Stripe żeby przyjmować płatności",
+            "url": "root@vps:/opt/stacks/sellf-sellf/admin-panel ▸ .env.local",
+            "caption": "Sklep już chodzi — ale żeby przyjmować karty potrzebujesz Stripe. Edytujesz .env.local, wklejasz Stripe pk/sk, pm2 restart. Potem rejestracja jako admin (pierwszy user = admin), Settings → Payments, klik 'Register webhook'. Pomijasz jeśli to katalog/lista oczekujących.",
             "visual": "terminal-env"
-          },
-          {
-            "title": "Wskazujesz domenę — live",
-            "url": "twoja-domena.com",
-            "caption": "Dodajesz rekord A u dostawcy DNS wskazując IP serwera. Caddy ściąga darmowy cert Let's Encrypt. Twój sklep żyje na własnej domenie.",
-            "visual": "browser-success"
           }
         ]
       }

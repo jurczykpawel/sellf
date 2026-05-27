@@ -21,9 +21,10 @@ export type DemoVisualKind =
   | 'env-form-large'
   | 'build-success'
   | 'build-success-netlify'
-  | 'vps-provider'
-  | 'terminal-ssh'
-  | 'terminal-install'
+  | 'vps-prereqs'
+  | 'terminal-bootstrap'
+  | 'terminal-config'
+  | 'terminal-deploy'
   | 'terminal-env'
   | 'browser-success';
 
@@ -49,12 +50,14 @@ export function DemoVisual({ kind }: { kind: DemoVisualKind }) {
       return <BuildSuccessMock url="your-shop.vercel.app" accent="zinc" />;
     case 'build-success-netlify':
       return <BuildSuccessMock url="your-shop.netlify.app" accent="teal" />;
-    case 'vps-provider':
-      return <VpsProviderMock />;
-    case 'terminal-ssh':
-      return <TerminalMock kind="ssh" />;
-    case 'terminal-install':
-      return <TerminalMock kind="install" />;
+    case 'vps-prereqs':
+      return <VpsPrereqsMock />;
+    case 'terminal-bootstrap':
+      return <TerminalMock kind="bootstrap" />;
+    case 'terminal-config':
+      return <TerminalMock kind="config" />;
+    case 'terminal-deploy':
+      return <TerminalMock kind="deploy" />;
     case 'terminal-env':
       return <TerminalMock kind="env" />;
     case 'browser-success':
@@ -288,92 +291,128 @@ function BuildSuccessMock({ url, accent }: { url: string; accent: 'zinc' | 'teal
   );
 }
 
-function VpsProviderMock() {
-  const providers = [
-    { name: 'Hetzner', spec: 'CX22 · 4GB RAM', price: '$5/mo' },
-    { name: 'DigitalOcean', spec: 'Basic · 4GB', price: '$6/mo' },
-    { name: 'mikr.us', spec: 'Pro · shared', price: '~$9/yr' },
+function VpsPrereqsMock() {
+  const items = [
+    {
+      icon: Server,
+      label: 'VPS 1GB+',
+      sub: 'Hetzner · Mikrus · DO — any provider',
+      tone: 'accent' as const,
+    },
+    {
+      icon: Database,
+      label: 'Supabase project',
+      sub: 'Free tier, 3 min on supabase.com',
+      tone: 'emerald' as const,
+    },
+    {
+      icon: Globe,
+      label: 'Domain in Cloudflare',
+      sub: 'Free zone, you only need the API token',
+      tone: 'orange' as const,
+    },
   ];
   return (
-    <div className="w-full max-w-md mx-auto space-y-3">
-      <div className="text-xs font-mono text-sf-muted">Any of these work:</div>
-      <div className="space-y-2">
-        {providers.map((p, i) => (
+    <div className="w-full max-w-md mx-auto space-y-2">
+      <div className="text-xs font-mono text-sf-muted text-center mb-1">3 free things, before you SSH in:</div>
+      {items.map(({ icon: Icon, label, sub, tone }) => {
+        const ring = tone === 'accent'
+          ? 'border-sf-accent bg-sf-accent-soft'
+          : tone === 'emerald'
+          ? 'border-emerald-500/40 bg-emerald-500/10'
+          : 'border-orange-500/40 bg-orange-500/10';
+        const iconColor = tone === 'accent' ? 'text-sf-accent' : tone === 'emerald' ? 'text-emerald-400' : 'text-orange-400';
+        return (
           <div
-            key={p.name}
-            className={`flex items-center gap-3 rounded-lg p-3 border ${
-              i === 0
-                ? 'border-sf-accent bg-sf-accent-soft ring-2 ring-sf-accent shadow-[0_0_16px_-4px_var(--sf-accent-glow)] animate-[demoPulse_1.6s_ease-in-out_infinite]'
-                : 'border-sf-border bg-sf-base'
-            }`}
+            key={label}
+            className={`flex items-center gap-3 rounded-lg p-3 border ${ring} animate-[demoPulse_1.6s_ease-in-out_infinite] motion-reduce:animate-none`}
+            style={{ animationDelay: tone === 'emerald' ? '0.2s' : tone === 'orange' ? '0.4s' : '0s' }}
           >
-            <Server className="w-5 h-5 text-sf-accent shrink-0" />
+            <Icon className={`w-5 h-5 ${iconColor} shrink-0`} aria-hidden="true" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-sf-heading">{p.name}</p>
-              <p className="text-xs text-sf-muted">{p.spec}</p>
+              <p className="text-sm font-semibold text-sf-heading">{label}</p>
+              <p className="text-xs text-sf-muted">{sub}</p>
             </div>
-            <span className="text-xs font-mono font-bold text-sf-accent">{p.price}</span>
+            <CheckCircle2 className={`w-4 h-4 ${iconColor}`} aria-hidden="true" />
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
 
-function TerminalMock({ kind }: { kind: 'ssh' | 'install' | 'env' }) {
+function TerminalMock({ kind }: { kind: 'bootstrap' | 'config' | 'deploy' | 'env' }) {
   return (
     <div className="w-full max-w-lg mx-auto font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-2 border border-zinc-800">
-      {kind === 'ssh' && (
+      {kind === 'bootstrap' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500">
             <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
             <span>~ $</span>
-            <span className="text-emerald-300 font-semibold">ssh root@142.93.10.42</span>
-            <span className="inline-block w-1.5 h-3 bg-emerald-400 animate-pulse" />
+            <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
           </div>
-          <div className="text-zinc-400">root@142.93.10.42&apos;s password: <span className="text-zinc-600">••••••</span></div>
           <div className="text-zinc-400">Welcome to Ubuntu 24.04 LTS</div>
-          <div className="text-emerald-400">root@vps:~#</div>
+          <div className="text-zinc-500 mt-1">root@vps:~#</div>
+          <div className="break-all text-emerald-300 font-semibold">
+            curl -fsSL stackpilot.techskills.academy/bootstrap | bash
+          </div>
+          <div className="text-zinc-400 mt-1">▸ Cloning stackpilot…</div>
+          <div className="text-zinc-400">▸ Adding ./local to PATH…</div>
+          <div className="text-emerald-300">✓ StackPilot ready</div>
         </>
       )}
-      {kind === 'install' && (
+      {kind === 'config' && (
+        <>
+          <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:~/stackpilot#</span>
+            <span className="text-emerald-300 font-semibold">./local/setup-cloudflare.sh</span>
+          </div>
+          <div className="text-zinc-400">Paste your Cloudflare API token (Zone:DNS:Edit):</div>
+          <div className="text-yellow-300">  ••••••••••••••••••••••••</div>
+          <div className="text-emerald-300">✓ CF token saved</div>
+          <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
+            <span>root@vps:~/stackpilot#</span>
+            <span className="text-emerald-300 font-semibold">./local/setup-sellf-config.sh</span>
+          </div>
+          <div className="text-zinc-400">▸ Opening browser to authorize Supabase…</div>
+          <div className="text-emerald-300">✓ Supabase URL + keys saved</div>
+        </>
+      )}
+      {kind === 'deploy' && (
         <>
           <div className="text-zinc-500 break-all">
-            <span>root@vps:~# </span>
-            <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash -s -- \</span>
+            <span>root@vps:~/stackpilot# </span>
+            <span className="text-emerald-300 font-semibold">./local/deploy.sh sellf \</span>
           </div>
           <div className="text-zinc-500 break-all pl-4">
-            <span className="text-emerald-300 font-semibold">--domain-type=cloudflare --domain=mystore.com</span>
+            <span className="text-emerald-300 font-semibold">--domain=sellf.yourdomain.com --yes</span>
           </div>
-          <div className="text-zinc-400 mt-1">▸ Bootstrapping StackPilot…</div>
-          <div className="text-zinc-400">📂 Loaded Sellf config (Supabase configured)</div>
-          <div className="text-zinc-400">✓ Bun + PM2 installed</div>
-          <div className="text-zinc-400">✓ Sellf artifact downloaded (47 MB)</div>
-          <div className="text-zinc-400">✓ /opt/stacks/sellf-mystore/admin-panel/.env.local written</div>
-          <div className="text-zinc-400">✓ PM2: sellf-mystore online</div>
-          <div className="text-zinc-400">✓ Cloudflare DNS: mystore.com → your.server.ip</div>
-          <div className="text-emerald-300">✓ Live: https://mystore.com → HTTP 200</div>
+          <div className="text-zinc-400 mt-1">▸ Cloudflare DNS: sellf.yourdomain.com → your.server.ip</div>
+          <div className="text-zinc-400">▸ Installing Bun + Caddy + PM2…</div>
+          <div className="text-zinc-400">▸ Fetching Sellf release (47 MB)…</div>
+          <div className="text-zinc-400">▸ Let&apos;s Encrypt cert issued</div>
+          <div className="text-zinc-400">▸ PM2: sellf-sellf online</div>
+          <div className="text-emerald-300">✓ Live: https://sellf.yourdomain.com → HTTP 200</div>
         </>
       )}
       {kind === 'env' && (
         <>
           <div className="flex items-center gap-2 text-zinc-500 flex-wrap">
-            <span>root@vps:/opt/stacks/sellf-mystore/admin-panel#</span>
+            <span>root@vps:/opt/stacks/sellf-sellf/admin-panel#</span>
             <span className="text-emerald-300 font-semibold">nano .env.local</span>
           </div>
           <div className="mt-2 text-zinc-400 leading-relaxed">
             <div><span className="text-zinc-600"># Supabase — already filled by StackPilot</span></div>
             <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
-            <div className="mt-1"><span className="text-zinc-600"># Stripe — paste yours, then pm2 restart</span></div>
+            <div className="mt-1"><span className="text-zinc-600"># Stripe — paste yours to enable payments</span></div>
             <div><span className="text-purple-400">STRIPE_PUBLISHABLE_KEY</span>=<span className="text-yellow-300">pk_test_51…</span></div>
             <div><span className="text-purple-400">STRIPE_SECRET_KEY</span>=<span className="text-yellow-300">sk_test_51…</span></div>
-            <div><span className="text-purple-400">STRIPE_WEBHOOK_SECRET</span>=<span className="text-yellow-300">whsec_…</span></div>
           </div>
           <div className="mt-2 flex items-center gap-2 text-zinc-500 flex-wrap">
             <span>root@vps:~#</span>
-            <span className="text-emerald-300 font-semibold">pm2 restart sellf-mystore</span>
+            <span className="text-emerald-300 font-semibold">pm2 restart sellf-sellf</span>
           </div>
-          <div className="mt-1 text-zinc-500 italic text-[11px]">Then open https://mystore.com — first signup becomes admin.</div>
+          <div className="mt-1 text-zinc-500 italic text-[11px]">Then in the admin: Settings → Payments → Register webhook.</div>
         </>
       )}
     </div>
