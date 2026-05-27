@@ -3283,13 +3283,13 @@
       "vps": {
         "name": "Własny VPS",
         "tagline": "Prawdziwy self-hosting. Najlepszy fit gdy sklep to Twój biznes.",
-        "clicks": "1 komenda",
+        "clicks": "1 lub 3",
         "minutes": "~5",
         "cost": "~$5/mies",
         "bestFor": "Sklep komercyjny, pełna kontrola, własna domena, bez stresowania regulaminem platform",
         "steps": [
           "Dodatkowo VPS (1GB+) i domena w Cloudflare — tylko ścieżka self-host wymaga tych dwóch",
-          "SSH-ujesz się, potem jedna komenda curl-bash z kluczami CF + Supabase jako env vars",
+          "Wybierasz A) edytujesz plik env + 1 curl-bash LUB B) 3 komendy curl-bash w stylu OAuth (bez paste'owania kluczy)",
           "DNS, Caddy, cert Let's Encrypt, PM2 — wszystko automatycznie, build ~3 min",
           "Pierwsza rejestracja na live URL staje się adminem",
           "(Opcjonalnie) Stripe przez Settings → Payments → Register webhook w adminie"
@@ -3382,10 +3382,10 @@
             "visual": "vps-prereqs"
           },
           {
-            "title": "SSH + wklejasz one-liner",
+            "title": "SSH + wybierz wariant",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "Jedna komenda curl-bash. Token Cloudflare API i klucze Supabase przekazujesz jako env vars w tej samej linii. StackPilot czyta je, ustawia rekord DNS, instaluje Bun + Caddy + PM2, pobiera cert Let's Encrypt, odpala apkę. Wolisz OAuth zamiast paste'ować klucze w shell? Użyj wariantu z 3 komendami: stackpilot.techskills.academy/cloudflare + /sellf-config (link w docs).",
-            "visual": "terminal-oneliner"
+            "caption": "Dwa sposoby instalacji — oba dają to samo. A) Edytujesz jeden plik env z tokenem CF + kluczami Supabase, potem jedna komenda curl-bash która te wartości czyta. B) Trzy komendy curl-bash w stylu OAuth — żadnych kluczy paste'owanych do shell. Token CF wpisujesz raz w promptcie instalatora, klucze Supabase łapane przez browser auth. Klik między zakładkami żeby zobaczyć obie.",
+            "visual": "install-variants"
           },
           {
             "title": "~3 min build → live URL",

@@ -3268,13 +3268,13 @@
       "vps": {
         "name": "Your own VPS",
         "tagline": "True self-hosted. Best fit when the shop is your livelihood.",
-        "clicks": "1 command",
+        "clicks": "1 or 3",
         "minutes": "~5",
         "cost": "~$5/mo",
         "bestFor": "Commercial shops, full control, custom domain, no platform ToS to worry about",
         "steps": [
           "Plus a VPS (1GB+) and a Cloudflare-managed domain — only the self-host path needs these two",
-          "SSH in, then one curl-bash with your CF + Supabase keys as env vars",
+          "Pick A) edit one env file + 1 curl-bash OR B) 3 OAuth-style curl-bashes (no key pasting)",
           "DNS, Caddy, Let's Encrypt cert, PM2 — all automatic, ~3 min build",
           "First signup at the live URL becomes admin",
           "(Optional) Stripe via admin Settings → Payments → Register webhook"
@@ -3367,10 +3367,10 @@
             "visual": "vps-prereqs"
           },
           {
-            "title": "SSH in + paste the one-liner",
+            "title": "SSH in + pick a variant",
             "url": "root@vps:~ ▸ terminal",
-            "caption": "One curl-bash. Pipe your Cloudflare API token and Supabase keys as env vars on the same line. StackPilot reads them, creates the DNS record, installs Bun + Caddy + PM2, fetches a Let's Encrypt cert, boots the app. Prefer OAuth instead of pasting keys in your shell? Use the 3-command variant at stackpilot.techskills.academy/cloudflare + /sellf-config (linked in docs).",
-            "visual": "terminal-oneliner"
+            "caption": "Two ways to install — both deploy the same thing. A) Edit a single env file with your CF token + Supabase keys, then one curl-bash that picks them up. B) Three OAuth-style curl-bashes that never paste keys into your shell — CF token typed once into the installer prompt, Supabase keys captured via browser auth. Click between tabs to see each.",
+            "visual": "install-variants"
           },
           {
             "title": "~3 min build → live URL",

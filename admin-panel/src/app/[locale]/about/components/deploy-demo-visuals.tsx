@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Database, Key, CheckCircle2, Server, Globe, Terminal, ArrowRight } from 'lucide-react';
 
 function GithubMark(props: React.SVGProps<SVGSVGElement>) {
@@ -22,7 +23,7 @@ export type DemoVisualKind =
   | 'build-success'
   | 'build-success-netlify'
   | 'vps-prereqs'
-  | 'terminal-oneliner'
+  | 'install-variants'
   | 'terminal-deploy'
   | 'admin-webhook'
   | 'terminal-env'
@@ -52,8 +53,8 @@ export function DemoVisual({ kind }: { kind: DemoVisualKind }) {
       return <BuildSuccessMock url="your-shop.netlify.app" accent="teal" />;
     case 'vps-prereqs':
       return <VpsPrereqsMock />;
-    case 'terminal-oneliner':
-      return <TerminalMock kind="oneliner" />;
+    case 'install-variants':
+      return <InstallVariantsMock />;
     case 'terminal-deploy':
       return <TerminalMock kind="deploy" />;
     case 'admin-webhook':
@@ -339,59 +340,113 @@ function VpsPrereqsMock() {
   );
 }
 
-function TerminalMock({ kind }: { kind: 'oneliner' | 'deploy' | 'env' }) {
+function InstallVariantsMock() {
+  const [tab, setTab] = useState<'env-file' | 'oauth'>('env-file');
+  return (
+    <div className="w-full max-w-lg mx-auto space-y-3">
+      {/* Tab selector */}
+      <div
+        role="tablist"
+        aria-label="Install variant"
+        className="grid grid-cols-2 gap-2 p-1 bg-sf-float/60 border border-sf-border rounded-lg"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'env-file'}
+          onClick={() => setTab('env-file')}
+          className={`text-xs font-semibold py-2 px-3 rounded-md transition-colors ${
+            tab === 'env-file'
+              ? 'bg-sf-accent-bg text-white shadow-[var(--sf-shadow-accent)]'
+              : 'text-sf-body hover:text-sf-heading hover:bg-sf-base'
+          }`}
+        >
+          A · Edit env + 1 curl
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'oauth'}
+          onClick={() => setTab('oauth')}
+          className={`text-xs font-semibold py-2 px-3 rounded-md transition-colors ${
+            tab === 'oauth'
+              ? 'bg-sf-accent-bg text-white shadow-[var(--sf-shadow-accent)]'
+              : 'text-sf-body hover:text-sf-heading hover:bg-sf-base'
+          }`}
+        >
+          B · 3 curls (OAuth)
+        </button>
+      </div>
+
+      {/* Terminal */}
+      <div
+        role="tabpanel"
+        className="font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-1.5 border border-zinc-800 animate-[demoSlideIn_180ms_ease-out] motion-reduce:animate-none"
+        key={tab}
+      >
+        {tab === 'env-file' ? (
+          <>
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>~ $</span>
+              <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
+            </div>
+            <div className="text-zinc-500 mt-1">root@vps:~#</div>
+            <div className="break-all">
+              <span className="text-emerald-300 font-semibold">nano ~/.config/stackpilot/sellf.env</span>
+            </div>
+            <div className="pl-2 mt-1">
+              <div><span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>=<span className="text-yellow-300">your-cf-token</span></div>
+              <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-yellow-300">https://xxx.supabase.co</span></div>
+              <div><span className="text-purple-400">SUPABASE_ANON_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+              <div><span className="text-purple-400">SUPABASE_SERVICE_KEY</span>=<span className="text-yellow-300">eyJ…</span></div>
+            </div>
+            <div className="text-zinc-600 italic">(Ctrl+O save, Ctrl+X exit)</div>
+            <div className="mt-2 text-zinc-500">root@vps:~#</div>
+            <div className="break-all">
+              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>~ $</span>
+              <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
+            </div>
+            <div className="text-zinc-500 mt-1">root@vps:~#</div>
+            <div className="break-all">
+              <span className="text-zinc-600"># 1. CF token (paste once)</span>
+            </div>
+            <div className="break-all">
+              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/cloudflare | bash</span>
+            </div>
+            <div className="text-zinc-400 pl-2">Paste CF API token: <span className="text-yellow-300">•••••••</span> ✓</div>
+
+            <div className="break-all mt-2">
+              <span className="text-zinc-600"># 2. Supabase (browser OAuth)</span>
+            </div>
+            <div className="break-all">
+              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf-config | bash</span>
+            </div>
+            <div className="text-zinc-400 pl-2">▸ Open browser → authorize → ✓</div>
+
+            <div className="break-all mt-2">
+              <span className="text-zinc-600"># 3. Deploy</span>
+            </div>
+            <div className="break-all">
+              <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf | bash</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TerminalMock({ kind }: { kind: 'deploy' | 'env' }) {
   return (
     <div className="w-full max-w-lg mx-auto font-mono text-xs text-emerald-400 bg-zinc-950 rounded-lg p-4 space-y-1.5 border border-zinc-800">
-      {kind === 'oneliner' && (
-        <>
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>~ $</span>
-            <span className="text-emerald-300 font-semibold">ssh root@your-vps</span>
-          </div>
-          <div className="text-zinc-400">Welcome to Ubuntu 24.04 LTS</div>
-          <div className="text-zinc-500 mt-2">root@vps:~#</div>
-          <div className="break-all">
-            <span className="text-emerald-300 font-semibold">curl -fsSL stackpilot.techskills.academy/sellf </span>
-            <span className="text-zinc-500">| \</span>
-          </div>
-          <div className="pl-4">
-            <span className="text-purple-400">CLOUDFLARE_API_TOKEN</span>
-            <span className="text-zinc-500">=</span>
-            <span className="text-yellow-300">&lt;your-cf-token&gt;</span>
-            <span className="text-zinc-500"> \</span>
-          </div>
-          <div className="pl-4">
-            <span className="text-purple-400">SUPABASE_URL</span>
-            <span className="text-zinc-500">=</span>
-            <span className="text-yellow-300">https://xxx.supabase.co</span>
-            <span className="text-zinc-500"> \</span>
-          </div>
-          <div className="pl-4">
-            <span className="text-purple-400">SUPABASE_ANON_KEY</span>
-            <span className="text-zinc-500">=</span>
-            <span className="text-yellow-300">eyJ…</span>
-            <span className="text-zinc-500"> \</span>
-          </div>
-          <div className="pl-4">
-            <span className="text-purple-400">SUPABASE_SERVICE_KEY</span>
-            <span className="text-zinc-500">=</span>
-            <span className="text-yellow-300">eyJ…</span>
-            <span className="text-zinc-500"> \</span>
-          </div>
-          <div className="pl-4 break-all">
-            <span className="text-emerald-300 font-semibold">bash -s --</span>
-            <span className="text-zinc-500"> </span>
-            <span className="text-orange-300">--domain-type=</span>
-            <span className="text-yellow-300">cloudflare</span>
-            <span className="text-zinc-500"> </span>
-            <span className="text-orange-300">--domain=</span>
-            <span className="text-yellow-300">sellf.example.com</span>
-            <span className="text-zinc-500"> </span>
-            <span className="text-orange-300">--yes</span>
-          </div>
-        </>
-      )}
       {kind === 'deploy' && (
         <>
           <div className="text-zinc-500">root@vps:~# <span className="text-zinc-600">(installer streaming…)</span></div>
