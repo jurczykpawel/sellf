@@ -8,7 +8,7 @@
 > - **Wymagane umiejętności:** żadne — tylko przeglądarka
 > - **Czas konfiguracji:** ~20 minut
 > - **Koszt na start:** **$0/miesiąc**
-> - **Koszt gdy nie możesz pozwolić sobie żeby baza pauzowała:** **$25/miesiąc** (Supabase Pro — zobacz "Co znaczy 'pauza'" niżej)
+> - **Koszt gdy sklep przerośnie darmowe limity Supabase:** **$25/miesiąc** (Supabase Pro — zobacz "Kiedy faktycznie musisz aktualizować" niżej)
 > - **Prowizja Stripe** (na każdej ścieżce): ~2,9% + 0,30 zł od transakcji
 >
 > **Dla kogo:** dla każdego kto nigdy nie stawiał oprogramowania na serwerze. Jeśli to Ty, przestań czytać zielony blok niżej i podążaj za tym przewodnikiem.
@@ -18,37 +18,31 @@
 > - **Co:** Sellf na VPS-ie [mikr.us](https://mikr.us/?r=pavvel) (35 zł/rok) + darmowy Supabase
 > - **Wymagane umiejętności:** komfort z SSH, kopiowanie komend Linuksowych, uruchomienie skryptu w terminalu
 > - **Czas konfiguracji:** ~45 minut
-> - **Koszt na start:** **~3 zł/miesiąc** (sama subskrypcja mikr.us; darmowy Supabase działa pod warunkiem tygodniowego ruchu)
-> - **Koszt gdy nie możesz pozwolić sobie żeby baza pauzowała:** ~$26/miesiąc (Supabase Pro)
+> - **Koszt na start:** **~3 zł/miesiąc** (sama subskrypcja mikr.us; darmowy Supabase pokrywa bazę)
+> - **Koszt gdy sklep przerośnie darmowe limity Supabase:** ~$26/miesiąc (Supabase Pro)
 > - **Prowizja Stripe** (na każdej ścieżce): te same ~2,9% + 0,30 zł od transakcji
 >
 > **Dla kogo:** osoby przyzwyczajone do serwerów Linuksowych które chcą minimalizować miesięczne koszty. Trade-off: więcej odpowiedzialności, sam utrzymujesz serwer, brak ładnego panelu.
 >
 > **Chcesz pełne instrukcje najtańszej ścieżki?** Zobacz [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Albo dla nieco droższej ale z pełną kontrolą opcji [Coolify](./DEPLOYMENT-COOLIFY.md) (~$9/miesiąc na Hetznerze, z ładnym panelem).
 >
-> ## Co znaczy "baza pauzuje"?
+> ## Kiedy faktycznie musisz aktualizować?
 >
-> Darmowy plan Supabase **pauzuje bazę po 7 dniach bez ruchu** na sklep. Gdy baza jest spauzowana:
+> Darmowy plan Supabase pokrywa typowy mały sklep Sellf przez **lata**, nie miesiące. Nie musisz aktualizować po prostu dlatego że masz klientów — darmowy plan jest hojny. Aktualizujesz gdy uderzasz w jeden z tych realnych limitów:
 >
-> - Odwiedzający widzą błąd 500 na każdej stronie
-> - Nikt nie może się zarejestrować ani zalogować
-> - Ty (admin) też nie wejdziesz dopóki nie obudzisz bazy
+> | Limit (darmowy plan) | Mniej więcej kiedy to się staje istotne |
+> |----------------------|------------------------------------------|
+> | **500 MB bazy danych** | Sklep z ~50 000 klientów i rokiem zamówień spokojnie się mieści. Większość sklepów zapełnia 500 MB w 3-4 lata. |
+> | **1 GB storage plików** | Tylko jeśli wrzucasz pliki produktów do Supabase. Większość operatorów hostuje pliki na tańszych usługach (Cloudflare R2, Backblaze B2) i nigdy nie dotyka tego limitu. |
+> | **50 000 miesięcznie aktywnych użytkowników** | "Aktywny" = zalogowany. Mnóstwo miejsca dla sklepu z dziesiątkami tysięcy wracających klientów. |
+> | **2 projekty na organizację** | Jeden projekt na sklep. Jeśli chcesz testowy obok produkcyjnego, to drugi slot. |
+> | **Brak codziennych backupów (tylko 7-dniowe point-in-time recovery)** | Gdy utrata danych to "koniec biznesu", codzienne backupy z Pro są warte $25/miesiąc. |
 >
-> Obudzenie zajmuje 1 minutę (Supabase Dashboard → Twój projekt → **Restore**), ale najpierw musisz to zauważyć. Jeśli spokojny weekend zabije sklep w niedzielę a Ty zauważysz w poniedziałek rano, to realny problem klienta.
->
-> **Nie potrzebujesz Supabase Pro po prostu dlatego że masz klientów.** Potrzebujesz gdy sklep nie może być offline nawet w spokojne okresy. Z grubsza:
->
-> | Twoja sytuacja | Darmowy Supabase OK? |
-> |----------------|----------------------|
-> | Dopiero testujesz | ✅ Tak |
-> | Wystartowany sklep, co najmniej jeden gość tygodniowo | ✅ Tak — każda wizyta resetuje zegar nieaktywności |
-> | Wystartowany sklep, codzienni goście | ✅ Tak (Pro dodaje backupy + większe limity ale nie musisz mieć) |
-> | Wystartowany sklep, czasem mijają tygodnie bez ruchu | ❌ Upgrade do Pro — $25/miesiąc unika pauzy |
-> | Robisz reklamy albo masz email listę dającą skokowy ruch | ❌ Upgrade do Pro — żeby nie być offline akurat gdy kampania uderza |
+> Praktycznie: **zacznij za darmo**, aktualizuj w dniu w którym jeden z tych limitów faktycznie Cię uderza. Vercel i Supabase oba pokazują wykresy zużycia w dashboardach więc zobaczysz to z tygodniami zapasu.
 >
 > ---
 >
-> **Nie jesteś pewien co wybrać?** Jeśli nigdy nie używałeś SSH do serwera, najłatwiejsza metoda to właściwy wybór — różnica $25/miesiąc (gdy będzie potrzebna) kupuje Ci spokój. Zawsze możesz przenieść się później na tańszą ścieżkę; dane i sklep zostają te same.
+> **Nie jesteś pewien co wybrać?** Jeśli nigdy nie używałeś SSH do serwera, najłatwiejsza metoda to właściwy wybór — gdy (i tylko gdy) faktycznie uderzysz w limit Supabase, upgrade za $25/miesiąc kupuje Ci kolejne lata zapasu. Zawsze możesz przenieść się później na tańszą ścieżkę; dane i sklep zostają te same.
 
 Ten przewodnik pokazuje krok po kroku tę najprostszą ścieżkę: **wszystko w przeglądarce, bez instalowania programów, bez terminala**.
 
@@ -351,16 +345,19 @@ Teraz przyjmujesz prawdziwe pieniądze. Prawdziwi klienci płacą prawdziwymi ka
 
 ## Co kosztuje gdy sklep rośnie
 
-Darmowy plan pokrywa Cię aż do momentu gdy zarabiasz sensowne pieniądze. Oto kiedy zaczniesz prawdopodobnie płacić:
+Darmowy plan pokrywa większość małych sklepów Sellf przez lata. Oto kiedy zaczniesz prawdopodobnie płacić:
 
 | Kiedy | Co aktualizować | Dlaczego | Koszt |
 |---|---|---|---|
 | Dzień 1 (jesteś tu) | Nic | Darmowe plany pokrywają start | $0/miesiąc |
 | Pierwszy płacący klient | Jeszcze nic | Darmowy plan dalej wystarcza | $0/miesiąc |
-| Sklep nie miał wizyt przez tydzień | **Supabase Pro** ($25/mies) | Darmowy Supabase pauzuje po 7 dniach bez ruchu — irytujące dla prawdziwego sklepu | $25/miesiąc |
-| Przekroczysz limit Vercel (100GB/miesiąc ruchu) | **Vercel Pro** ($20/mies) | Więcej transferu | $20/miesiąc |
+| Twoja baza zbliża się do 500 MB | **Supabase Pro** ($25/mies) | Więcej miejsca w bazie (8 GB) + automatyczne codzienne backupy | $25/miesiąc |
+| Przekroczysz 50 000 miesięcznie aktywnych użytkowników | **Supabase Pro** ($25/mies) | Wyższy limit MAU | $25/miesiąc |
+| Przekroczysz limit Vercel (100 GB/miesiąc) | **Vercel Pro** ($20/mies) | Więcej transferu | $20/miesiąc |
 
-Realnie: $0 na start, $25/miesiąc gdy masz klientów (Supabase Pro), $45/miesiąc jak sklep ma duży ruch.
+Realnie: **$0 na start, $25/miesiąc jeśli przerośniesz darmowego Supabase** (rozmiar bazy, MAU albo gdy chcesz backupy), **$45/miesiąc jeśli przerośniesz też limit transferu Vercela**.
+
+Dla typowego małego sklepu cyfrowego 500 MB bazy pokrywa 3-4 lata wzrostu. Nie musisz planować $25/miesiąc od dnia pierwszego — zacznij za darmo, aktualizuj dopiero gdy wykresy zużycia w panelu Supabase pokażą że zbliżasz się do limitu.
 
 Stripe pobiera prowizję od każdej transakcji (~2,9% + 0,30 zł w większości krajów) — zobacz https://stripe.com/pl/pricing dla swojego kraju.
 
@@ -370,13 +367,11 @@ Ten przewodnik używa **najprostszej ścieżki** (Vercel + wbudowana Supabase). 
 
 | Ścieżka | Koszt miesięczny (gdy masz klientów) | Czas konfiguracji | Wymagana wiedza techniczna | Dla kogo |
 |---------|--------------------------------------|-------------------|----------------------------|----------|
-| **Vercel + Vercel-Supabase (ten przewodnik)** | **$25/mies** (Supabase Pro żeby uniknąć pauzy) | ~20 min | 🟢 Żadna — tylko przeglądarka | **Pierwszy własny sklep, użytkownik nietechniczny.** Ta ścieżka jest rekomendowana. |
-| Vercel + Supabase Free + codzienny ruch | $0/mies (ale musisz utrzymać codzienny ruch albo baza pauzuje) | ~20 min | 🟢 Żadna — tylko przeglądarka | Projekty hobbystyczne, sklepy o małym ruchu |
-| [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | $25/mies | ~20 min | 🟢 Żadna — tylko przeglądarka | To samo co Vercel, inny host |
-| [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mies** ($5 Coolify Cloud + $9 Hetzner CX32) | ~30 min | 🟡 Podstawowa — wklejenie klucza SSH do VPS | Pełna kontrola + zarządzany panel Coolify |
-| [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mies** ($9 Hetzner CX32, reszta darmowa) | ~45 min | 🟡 Podstawowa — komendy SSH, kilka sekretów | Pełna kontrola, najmniejszy rozsądny koszt |
-| [mikr.us VPS + Supabase Free + codzienny ruch](./DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** (35 zł/rok mikr.us + darmowa reszta) | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
-| [mikr.us + Supabase Pro](./DEPLOYMENT-MIKRUS.md) | ~$26/mies | ~45 min | 🔴 Średnia | Najtańsza opcja która nie pauzuje |
+| **Vercel + Vercel-Supabase (ten przewodnik)** | **$0/mies na free, $25/mies gdy przerośniesz darmowego Supabase** | ~20 min | 🟢 Żadna — tylko przeglądarka | **Pierwszy własny sklep, użytkownik nietechniczny.** Ta ścieżka jest rekomendowana. |
+| [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | To samo co Vercel: $0 → $25/mies | ~20 min | 🟢 Żadna — tylko przeglądarka | To samo co Vercel, inny host |
+| [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mies** ($5 Coolify Cloud + $9 Hetzner CX32) — Supabase chodzi na tym samym VPS za darmo | ~30 min | 🟡 Podstawowa — wklejenie klucza SSH do VPS | Pełna kontrola + zarządzany panel Coolify. Brak osobnego rachunku za bazę. |
+| [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mies** ($9 Hetzner CX32, reszta darmowa) — Supabase chodzi na tym samym VPS za darmo | ~45 min | 🟡 Podstawowa — komendy SSH, kilka sekretów | Pełna kontrola, najmniejszy rozsądny koszt. Brak osobnego rachunku za bazę. |
+| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~4 zł/mies** na free, ~$26/mies gdy przerośniesz darmowego Supabase | ~45 min | 🔴 Średnia — SSH, terminal, PM2 | Najtańsza opcja dla osób komfortowych technicznie |
 
 **Prowizja Stripe od transakcji** (~2,9% + 0,30 zł) jest taka sama na każdej ścieżce — tak Stripe zarabia. Wybierz ścieżkę pasującą do Twoich umiejętności; Stripe to nie obchodzi.
 

@@ -222,15 +222,16 @@ The free Supabase plan is enough for most stores starting out.
 | **File storage** | 1 GB | Only matters if you store your digital products in Supabase. Most operators put product files on cheaper file hosts like Cloudflare R2 or Backblaze B2. |
 | **Monthly active users** | 50,000 | "Active" means signed in. Plenty for a typical store. |
 | **Number of projects you can have** | 2 active per organization | Most people only ever need one project. If you do testing, you might want a second org (free to make another GitHub login and sign up again). |
-| **Inactivity pause** | Pauses after 7 days of zero activity | If your store has any traffic, this never happens. For a launched, real store, upgrade to the paid plan ($25/month) so this never happens even on quiet days. |
+| **Inactivity pause** | Pauses after 7 days of zero traffic to the project | Any traffic to your store resets the timer, so for a launched store with even occasional visitors this is rare. |
 
 **When to upgrade to Supabase Pro ($25/month):**
 
-- You have paying customers and downtime would lose you sales (paid plan = no inactivity pause)
 - Your database is approaching 500 MB
+- You hit 50,000 monthly active users
 - You need automatic daily backups (the free plan only does point-in-time recovery within 7 days)
+- You want headroom — the Pro plan also bumps storage to 100 GB and bandwidth limits significantly
 
-You don't need to upgrade to launch. Start free, upgrade when you have revenue.
+You don't need to upgrade to launch. Start free, upgrade when you hit a limit (the Supabase dashboard shows usage graphs so you'll see it coming).
 
 ---
 

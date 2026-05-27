@@ -222,15 +222,16 @@ Darmowy plan Supabase wystarcza dla większości startujących sklepów.
 | **Przestrzeń na pliki** | 1 GB | Tylko jeśli przechowujesz produkty cyfrowe w Supabase. Większość operatorów trzyma pliki produktów u tańszych hostów typu Cloudflare R2 lub Backblaze B2. |
 | **Miesięcznie aktywnych użytkowników** | 50 000 | "Aktywny" znaczy zalogowany. Dużo dla typowego sklepu. |
 | **Ile projektów możesz mieć** | 2 aktywne na organizację | Większość nigdy nie potrzebuje więcej niż jednego. Jeśli testujesz, możesz chcieć drugiej organizacji (darmowo zrobisz drugi login GitHub i zarejestrujesz się ponownie). |
-| **Pauza nieaktywności** | Pauzuje się po 7 dniach zera ruchu | Jeśli sklep ma jakikolwiek ruch, nigdy się nie zdarza. Dla wystartowanego, prawdziwego sklepu, aktualizuj do płatnego planu ($25/miesiąc) żeby nie pauzowało nawet w spokojne dni. |
+| **Pauza nieaktywności** | Pauzuje się po 7 dniach zera ruchu na projekt | Każdy ruch na sklep resetuje licznik, więc dla wystartowanego sklepu z choćby okazjonalnymi gośćmi to rzadkość. |
 
 **Kiedy aktualizować do Supabase Pro ($25/miesiąc):**
 
-- Masz płacących klientów i downtime może kosztować sprzedaże (płatny plan = brak pauzy)
 - Twoja baza zbliża się do 500 MB
+- Przekroczysz 50 000 miesięcznie aktywnych użytkowników
 - Potrzebujesz automatycznych codziennych backupów (darmowy plan robi tylko point-in-time recovery w ciągu 7 dni)
+- Chcesz więcej zapasu — plan Pro również podnosi storage do 100 GB i limity transferu
 
-Nie musisz aktualizować żeby wystartować. Zacznij za darmo, aktualizuj gdy masz przychody.
+Nie musisz aktualizować żeby wystartować. Zacznij za darmo, aktualizuj gdy uderzysz w limit (panel Supabase pokazuje wykresy zużycia więc zobaczysz to z wyprzedzeniem).
 
 ---
 

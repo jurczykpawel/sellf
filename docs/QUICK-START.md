@@ -8,7 +8,7 @@
 > - **Skills needed:** none — only a web browser
 > - **Setup time:** ~20 minutes
 > - **Cost to start:** **$0/month**
-> - **Cost when you can't afford the database to pause:** **$25/month** (Supabase Pro — see "What does 'pause' mean" below)
+> - **Cost when your store outgrows the free Supabase limits:** **$25/month** (Supabase Pro — see "When do you actually have to upgrade?" below)
 > - **Stripe fee** (every path): ~2.9% + $0.30 per transaction
 >
 > **Best for:** anyone who hasn't put software on a server before. If that's you, stop reading the green box below and just follow this guide.
@@ -18,37 +18,31 @@
 > - **What:** Sellf on a [mikr.us](https://mikr.us/?r=pavvel) VPS (35 PLN/year ≈ $9/year) + free Supabase
 > - **Skills needed:** comfort with SSH, copy-pasting Linux commands, running a script in your terminal
 > - **Setup time:** ~45 minutes
-> - **Cost to start:** **~$1/month** (just the mikr.us subscription; free Supabase works as long as your store has weekly traffic)
-> - **Cost when you can't afford the database to pause:** ~$26/month (Supabase Pro)
+> - **Cost to start:** **~$1/month** (just the mikr.us subscription; free Supabase covers the database)
+> - **Cost when your store outgrows the free Supabase limits:** ~$26/month (Supabase Pro)
 > - **Stripe fee** (every path): same ~2.9% + $0.30 per transaction
 >
 > **Best for:** people already used to Linux servers who want to minimize monthly costs. Trade-off: more responsibility, you maintain the server, no fancy dashboard.
 >
 > **Want full instructions for the cheapest path?** See [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). Or for the slightly-more-expensive but full-control [Coolify](./DEPLOYMENT-COOLIFY.md) option (~$9/month on Hetzner, comes with a nice dashboard).
 >
-> ## What does "the database pauses" actually mean?
+> ## When do you actually have to upgrade?
 >
-> The free Supabase plan **pauses your database after 7 days of zero traffic** to the site. When paused:
+> The free Supabase plan covers a typical small Sellf store for **years**, not months. You don't need to upgrade just because you have customers — the free plan is generous. You upgrade when you hit one of these real limits:
 >
-> - Visitors see a 500 error on every page
-> - No one can sign up or log in
-> - You (admin) can't log in until you wake it up
+> | Limit (free tier) | Rough rule of thumb — when this matters |
+> |-------------------|------------------------------------------|
+> | **500 MB database** | A store with ~50,000 customers and a year of orders is comfortably under this. Most stores take 3–4 years to fill 500 MB. |
+> | **1 GB file storage** | Only matters if you upload your product files into Supabase. Most operators host product downloads on cheaper file hosts (Cloudflare R2, Backblaze B2) and never touch this limit. |
+> | **50,000 monthly active users** | "Active" = signed in. Plenty of room for a store with tens of thousands of returning customers. |
+> | **2 projects per organization** | One project per store. If you want a separate test store, that's the second slot. |
+> | **No automated backups (only 7-day point-in-time recovery)** | When losing your data would be a business-ending event, the daily backups Pro provides are worth $25/month. |
 >
-> Waking it up takes 1 minute (Supabase Dashboard → your project → **Restore**), but you have to notice first. If a quiet weekend kills your store on Sunday and you find out Monday morning, that's a real customer experience problem.
->
-> **You don't need Supabase Pro just because you have customers.** You need it when your store can't be down even during quiet stretches. As a rough guide:
->
-> | Your situation | Free Supabase OK? |
-> |----------------|------------------|
-> | Just testing | ✅ Yes |
-> | Launched, at least one visitor per week | ✅ Yes — any visit resets the inactivity clock |
-> | Launched, daily visitors | ✅ Yes (Pro adds backups + higher limits but you don't strictly need it) |
-> | Launched, sometimes weeks go by with no traffic | ❌ Upgrade to Pro — $25/month avoids the pause |
-> | Running ads or have an email list that drives spiky traffic | ❌ Upgrade to Pro — to avoid being down right when a campaign lands |
+> Practical answer: **start free**, upgrade the day one of those limits actually bites you. Both Vercel and Supabase show you usage graphs in their dashboards so you'll see it coming weeks ahead.
 >
 > ---
 >
-> **Not sure which to pick?** If you've never SSHed into a server, the easiest method is the right answer — the $25/month difference (when you need it) buys you peace of mind. You can always migrate to a cheaper path later; the data and store stay the same.
+> **Not sure which to pick?** If you've never SSHed into a server, the easiest method is the right answer — when (and only when) you actually hit a Supabase limit, the $25/month upgrade buys you years more headroom. You can always migrate to a cheaper path later; the data and store stay the same.
 
 This guide walks you through that easiest path: **everything in your web browser, no programs to install, no terminal**.
 
@@ -351,16 +345,19 @@ You're now accepting real money. Real customers pay with real cards, the money l
 
 ## What it costs as you grow
 
-The free plan covers you until you have meaningful revenue. Here's when you'll likely pay something:
+The free plan covers most small Sellf stores for years. Here's when you'll likely pay something:
 
 | When | What to upgrade | Why | Cost |
 |---|---|---|---|
 | Day 1 (you're here) | Nothing | Free plans cover starting out | $0/month |
-| You have 1 paying customer | Nothing yet | The free plan still works fine | $0/month |
-| Your store gets quiet for a week | **Supabase Pro** ($25/mo) | The free Supabase pauses after 7 days of no traffic — annoying for a real store | $25/month |
-| You hit Vercel's bandwidth limit (100GB/month of traffic) | **Vercel Pro** ($20/mo) | More bandwidth | $20/month |
+| First paying customer | Nothing yet | Free plan still works | $0/month |
+| Your database approaches 500 MB | **Supabase Pro** ($25/mo) | More database room (8 GB) + automated daily backups | $25/month |
+| You hit 50,000 monthly active users | **Supabase Pro** ($25/mo) | Higher MAU limit | $25/month |
+| You hit Vercel's bandwidth limit (100 GB/month) | **Vercel Pro** ($20/mo) | More bandwidth | $20/month |
 
-So realistically: $0 to start, $25/month once you have customers (Supabase Pro), $45/month if your store gets significant traffic.
+So realistically: **$0 to start, $25/month if you outgrow Supabase Free** (database size, MAU, or wanting backups), **$45/month if you also outgrow Vercel's bandwidth limit**.
+
+For a typical small digital store, the 500 MB database covers 3–4 years of growth. You don't need to budget for $25/month from day one — start free, upgrade only when usage graphs in the Supabase dashboard show you closing in on a limit.
 
 Stripe takes a per-transaction fee (~2.9% + $0.30 in most countries) — see https://stripe.com/pricing for your country.
 
@@ -370,13 +367,11 @@ This guide uses **the easiest path** (Vercel + Vercel's built-in Supabase). Ther
 
 | Path | Monthly cost (after you have customers) | Setup time | Technical skill needed | Best for |
 |------|----------------------------------------|------------|------------------------|----------|
-| **Vercel + Vercel-Supabase (this guide)** | **$25/mo** (Supabase Pro to avoid pause) | ~20 min | 🟢 None — browser only | **First-time store owners, non-technical users.** This is the recommended path. |
-| Vercel + Supabase Free + daily traffic | $0/mo (but you must keep daily traffic flowing or the database pauses) | ~20 min | 🟢 None — browser only | Hobby projects, low-traffic stores |
-| [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | $25/mo | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
-| [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32) | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard |
-| [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mo** ($9 Hetzner CX32, everything else free) | ~45 min | 🟡 Basic — SSH commands, a couple of secrets | Full control, lowest reasonable cost |
-| [mikr.us VPS + Supabase Free + daily traffic](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** (35 PLN/year = $9/year mikr.us + free everything else) | ~45 min | 🔴 Intermediate — SSH, terminal, PM2 | Cheapest option for technically comfortable people |
-| [mikr.us + Supabase Pro](./DEPLOYMENT-MIKRUS.md) | ~$26/mo | ~45 min | 🔴 Intermediate | Cheapest option that doesn't pause |
+| **Vercel + Vercel-Supabase (this guide)** | **$0/mo on free tier, $25/mo once you outgrow Supabase Free** | ~20 min | 🟢 None — browser only | **First-time store owners, non-technical users.** This is the recommended path. |
+| [Netlify + Supabase](./DEPLOYMENT-VERCEL-NETLIFY.md) | Same as Vercel: $0 → $25/mo | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
+| [Coolify Cloud + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32) — Supabase runs on the same VPS for free | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard. No separate database bill, ever. |
+| [Coolify self-hosted + Hetzner VPS](./DEPLOYMENT-COOLIFY.md) | **~$9/mo** ($9 Hetzner CX32, everything else free) — Supabase runs on the same VPS for free | ~45 min | 🟡 Basic — SSH commands, a couple of secrets | Full control, lowest reasonable cost. No separate database bill, ever. |
+| [mikr.us VPS + Supabase Free](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** on free tier, ~$26/mo once you outgrow Supabase Free | ~45 min | 🔴 Intermediate — SSH, terminal, PM2 | Cheapest option for technically comfortable people |
 
 **Stripe per-transaction fee** (~2.9% + $0.30) is the same on every path — it's how Stripe makes money. Pick the path that matches your skill level; Stripe doesn't care.
 
