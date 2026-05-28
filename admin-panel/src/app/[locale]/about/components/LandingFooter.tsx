@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 
 import { GithubIcon } from '@/components/ui/GithubIcon';
-import { SELLF_GITHUB_URL } from '@/lib/constants';
+import { SELLF_DOCS_URL, SELLF_GITHUB_URL } from '@/lib/constants';
 
 export async function LandingFooter() {
   const t = await getTranslations('landing');
@@ -41,7 +41,7 @@ export async function LandingFooter() {
                 {t('footer.features')}
               </a>
               <a
-                href={`${SELLF_GITHUB_URL}#readme`}
+                href={SELLF_DOCS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-sm text-sf-muted hover:text-sf-heading transition-colors duration-200 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
@@ -80,7 +80,7 @@ export async function LandingFooter() {
                 {t('footer.github')}
               </a>
               <a
-                href={`${SELLF_GITHUB_URL}#deployment`}
+                href={`${SELLF_DOCS_URL}/deployment/`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-sm text-sf-muted hover:text-sf-heading transition-colors duration-200 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"
