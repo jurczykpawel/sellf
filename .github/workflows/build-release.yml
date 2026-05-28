@@ -53,7 +53,7 @@ jobs:
           npm audit --omit=dev --audit-level=critical
 
       - name: Scan for leaked secrets
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # v3.95.3
         with:
           extra_args: --results verified,unknown
 
