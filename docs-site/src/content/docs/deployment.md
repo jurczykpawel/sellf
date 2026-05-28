@@ -1,16 +1,17 @@
-**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/DEPLOYMENT.md)
-
-# Deployment Options
+---
+title: "Deployment Options"
+description: "This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a…"
+---
 
 This page lists every supported way to put Sellf online, ordered from easiest (just clicks in a browser) to most technical (terminal commands on a server). All produce a working Sellf store.
 
 ## 👋 First time? Start here
 
-**[QUICK-START.md](./QUICK-START.md)** — Click-by-click walkthrough using only your web browser. No terminal needed. Deploys to Vercel + Supabase + Stripe in ~20 minutes. **This is the easiest path for non-technical users.**
+**[QUICK-START.md](/quick-start/)** — Click-by-click walkthrough using only your web browser. No terminal needed. Deploys to Vercel + Supabase + Stripe in ~20 minutes. **This is the easiest path for non-technical users.**
 
 ## Supabase setup (called by all the deploy guides)
 
-**[SUPABASE-SETUP.md](./SUPABASE-SETUP.md)** — Explains the three ways to set up the database Sellf uses (browser-only, copy-paste, or via script). Read this if you're not sure which Supabase option to pick in any of the guides below.
+**[SUPABASE-SETUP.md](/supabase-setup/)** — Explains the three ways to set up the database Sellf uses (browser-only, copy-paste, or via script). Read this if you're not sure which Supabase option to pick in any of the guides below.
 
 ## Other deployment guides
 
@@ -18,7 +19,7 @@ Pick one based on what you want.
 
 ---
 
-### [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel or Netlify (managed cloud)
+### [DEPLOYMENT-VERCEL-NETLIFY.md](/deployment-vercel-netlify/) — Vercel or Netlify (managed cloud)
 **Use if you need:**
 - The simplest managed path — no server to maintain
 - Free tier to start
@@ -28,7 +29,7 @@ Pick one based on what you want.
 
 ---
 
-### [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md) — Coolify (one-click self-hosted)
+### [DEPLOYMENT-COOLIFY.md](/deployment-coolify/) — Coolify (one-click self-hosted)
 **Use if you need:**
 - Closest to "true one-click" — migrations run automatically
 - Self-hosted full stack (Sellf + Supabase) on your own VPS
@@ -38,7 +39,7 @@ Pick one based on what you want.
 
 ---
 
-### [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — VPS / mikr.us via PM2
+### [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) — VPS / mikr.us via PM2
 **Use if you need:**
 - The cheapest path (35 PLN/year on mikr.us)
 - Full control of the server
@@ -48,7 +49,7 @@ Pick one based on what you want.
 
 ---
 
-### [FULL-STACK.md](./FULL-STACK.md) — Self-Hosted Supabase + Docker
+### [FULL-STACK.md](/full-stack/) — Self-Hosted Supabase + Docker
 **Use if you need:**
 - Full control over all infrastructure (11 Docker containers)
 - Self-hosted Supabase (no cloud dependency)
@@ -59,7 +60,7 @@ Pick one based on what you want.
 
 ---
 
-### [PM2-VPS.md](./PM2-VPS.md) — Advanced PM2
+### [PM2-VPS.md](/pm2-vps/) — Advanced PM2
 **Use if you need:**
 - Cluster mode (multi-core utilization)
 - Zero-downtime deployments
@@ -68,18 +69,18 @@ Pick one based on what you want.
 
 **Requirements:** PM2 expertise, 4GB+ RAM
 
-**Note:** For basic PM2 setup, see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md).
+**Note:** For basic PM2 setup, see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/).
 
 ---
 
-### [DOCKER-SIMPLE.md](./DOCKER-SIMPLE.md) — Simple Docker
+### [DOCKER-SIMPLE.md](/docker-simple/) — Simple Docker
 **Use if you:**
 - Want Docker + Supabase Cloud
 - Need more detailed explanation than the main guide
 
 ---
 
-### [UPSTASH-REDIS.md](./UPSTASH-REDIS.md) — Optional Redis Caching
+### [UPSTASH-REDIS.md](/upstash-redis/) — Optional Redis Caching
 **Use if you want:**
 - 10x faster config queries (50-100ms → 5-10ms)
 - 50-70% reduced database load
@@ -89,4 +90,4 @@ Pick one based on what you want.
 
 ## Not sure which to pick?
 
-**→ Start with [QUICK-START.md](./QUICK-START.md)** — it's the simplest path and works for most first-time deployments.
+**→ Start with [QUICK-START.md](/quick-start/)** — it's the simplest path and works for most first-time deployments.

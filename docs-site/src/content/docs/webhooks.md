@@ -1,4 +1,7 @@
-# Webhooks
+---
+title: "Webhooks"
+description: "Sellf delivers events to customer-configured HTTPS endpoints with HMAC-signed payloads, automatic retry, a per-tenant dead-letter queue, and an admin…"
+---
 
 Sellf delivers events to customer-configured HTTPS endpoints with HMAC-signed payloads, automatic retry, a per-tenant dead-letter queue, and an admin Replay UI. The model deliberately mirrors what Stripe, Paddle, and Lemonsqueezy do.
 

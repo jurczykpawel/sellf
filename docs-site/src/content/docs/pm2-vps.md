@@ -1,7 +1,10 @@
-# Advanced PM2 Deployment - Production-Grade Setup
+---
+title: "Advanced PM2 Deployment - Production-Grade Setup"
+description: "Production-grade PM2 deployment for Sellf on a VPS — process management, clustering, zero-downtime reloads, and log handling."
+---
 
 **This is the ADVANCED guide for PM2 deployment.**
-For basic PM2 setup, see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md).
+For basic PM2 setup, see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/).
 
 ---
 
@@ -20,7 +23,7 @@ Use this guide if you need:
 **Prerequisites:**
 - You're comfortable with Node.js and process management
 - You understand PM2 basics (ecosystem files, pm2 commands)
-- You've read the basic PM2 setup in [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md)
+- You've read the basic PM2 setup in [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/)
 
 ---
 

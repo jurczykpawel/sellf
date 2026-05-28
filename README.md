@@ -14,7 +14,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
-[🚀 Live Demo](https://demo.sellf.app) · [Documentation](./FEATURES.md) · [Quick-Start Guide](./docs/QUICK-START.md) · [Contributing](./CONTRIBUTING.md) · [Issues](https://github.com/jurczykpawel/sellf/issues)
+[🚀 Live Demo](https://demo.sellf.app) · [Documentation](https://docs.sellf.app) · [Quick-Start Guide](https://docs.sellf.app/quick-start/) · [Contributing](./CONTRIBUTING.md) · [Issues](https://github.com/jurczykpawel/sellf/issues)
 
 </div>
 
@@ -129,7 +129,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - MCP Server for Claude Desktop (45 tools, 4 resources, 6 prompts)
 - Bruno API collection for testing (includes all query params)
 
-📖 **[Full API Documentation →](docs/API.md)**
+📖 **[Full API Documentation →](https://docs.sellf.app/api/)**
 
 </details>
 
@@ -327,23 +327,23 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 ### One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,SITE_URL,CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET&envDescription=All%20variables%20required%20for%20a%20production%20deploy.%20The%20%2Asecret%2A%2Fkey%20fields%20need%20to%20be%20generated%20locally%20—%20see%20guide%20for%20one-liner%20commands.%20Set%20TRUSTED_PROXY%3Dtrue%20literally.&envLink=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf%2Fblob%2Fmain%2Fdocs%2FQUICK-START.md&project-name=sellf&repository-name=sellf)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjurczykpawel%2Fsellf&root-directory=admin-panel&env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,STRIPE_PUBLISHABLE_KEY,SITE_URL,CHECKOUT_BINDING_SECRET,TRUSTED_PROXY,APP_ENCRYPTION_KEY,LOGINWALL_SECRET&envDescription=All%20variables%20required%20for%20a%20production%20deploy.%20The%20%2Asecret%2A%2Fkey%20fields%20need%20to%20be%20generated%20locally%20—%20see%20guide%20for%20one-liner%20commands.%20Set%20TRUSTED_PROXY%3Dtrue%20literally.&envLink=https%3A%2F%2Fdocs.sellf.app%2Fquick-start%2F&project-name=sellf&repository-name=sellf)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/jurczykpawel/sellf&base=admin-panel)
 
-> **👋 First time setting up an online store?** Read the **[QUICK-START guide](./docs/QUICK-START.md)** — it's a click-by-click walkthrough that gets you online in ~20 minutes using only your web browser. No terminal, no programming.
+> **👋 First time setting up an online store?** Read the **[QUICK-START guide](https://docs.sellf.app/quick-start/)** — it's a click-by-click walkthrough that gets you online in ~20 minutes using only your web browser. No terminal, no programming.
 
-> **Already done this before?** The Vercel/Netlify buttons above lead to the deploy form. See the [detailed deploy guide](./docs/DEPLOYMENT-VERCEL-NETLIFY.md) for what to paste into each field. For just the Supabase database part, see [SUPABASE-SETUP.md](./docs/SUPABASE-SETUP.md).
+> **Already done this before?** The Vercel/Netlify buttons above lead to the deploy form. See the [detailed deploy guide](https://docs.sellf.app/deployment-vercel-netlify/) for what to paste into each field. For just the Supabase database part, see [Supabase setup](https://docs.sellf.app/supabase-setup/).
 
-> **Self-hosting on your own server:** see [docs/DEPLOYMENT-COOLIFY.md](./docs/DEPLOYMENT-COOLIFY.md) (Coolify, easiest self-hosted), [docs/DEPLOYMENT-MIKRUS.md](./docs/DEPLOYMENT-MIKRUS.md) (cheap VPS via PM2), or [docs/FULL-STACK.md](./docs/FULL-STACK.md) (full Docker Compose with self-hosted Supabase).
+> **Self-hosting on your own server:** see [Coolify](https://docs.sellf.app/deployment-coolify/) (easiest self-hosted), [Mikrus / VPS](https://docs.sellf.app/deployment-mikrus/) (cheap VPS via PM2), or [Full-Stack](https://docs.sellf.app/full-stack/) (full Docker Compose with self-hosted Supabase).
 
 ### Manual Deploy
 
 | Guide | Best For |
 |-------|----------|
-| **[Quick-Start](./docs/QUICK-START.md)** | First-time deploy via the Vercel button (recommended for non-technical users, $0/month to start) |
-| **[VPS / mikr.us](./docs/DEPLOYMENT-MIKRUS.md)** | Cheapest path — your own Linux VPS (~$1-5/month, requires terminal) |
-| **[Coolify](./docs/DEPLOYMENT-COOLIFY.md)** | Self-hosted with a nice dashboard, ~$9/month on Hetzner |
-| **[All deployment options](./docs/DEPLOYMENT.md)** | Docker, Full-Stack, PM2 Cluster, and other advanced setups |
+| **[Quick-Start](https://docs.sellf.app/quick-start/)** | First-time deploy via the Vercel button (recommended for non-technical users, $0/month to start) |
+| **[VPS / mikr.us](https://docs.sellf.app/deployment-mikrus/)** | Cheapest path — your own Linux VPS (~$1-5/month, requires terminal) |
+| **[Coolify](https://docs.sellf.app/deployment-coolify/)** | Self-hosted with a nice dashboard, ~$9/month on Hetzner |
+| **[All deployment options](https://docs.sellf.app/deployment/)** | Docker, Full-Stack, PM2 Cluster, and other advanced setups |
 
 > **Server requirements:** Sellf alone runs on 384 MB RAM. Benchmarked at **0 errors under 30 concurrent users** on a [$9/year VPS](https://mikr.us/?r=pavvel). No Docker needed — plain Node.js + PM2.
 
@@ -353,10 +353,11 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 
 | File | Description |
 |------|-------------|
+| [📖 docs.sellf.app](https://docs.sellf.app) | Full searchable documentation (Quick Start, Deployment, API, Configuration) |
 | [FEATURES.md](./FEATURES.md) | Complete feature list with roadmap |
-| [docs/QUICK-START.md](./docs/QUICK-START.md) | Beginner-friendly deploy guide (browser-only, ~20 min) |
-| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | All deployment paths with decision tree |
-| [STRIPE-TESTING-GUIDE.md](./STRIPE-TESTING-GUIDE.md) | Testing payments locally |
+| [Quick Start](https://docs.sellf.app/quick-start/) | Beginner-friendly deploy guide (browser-only, ~20 min) |
+| [Deployment](https://docs.sellf.app/deployment/) | All deployment paths with decision tree |
+| [Stripe Testing Guide](https://docs.sellf.app/stripe-testing-guide/) | Testing payments locally |
 | [BACKLOG.md](./BACKLOG.md) | Development roadmap |
 | [mcp-server/README.md](./mcp-server/README.md) | MCP Server setup guide |
 
@@ -450,7 +451,7 @@ AGPL-3.0. See [LICENSE](./LICENSE) for details.
 
 <div align="center">
 
-**[Website](https://sellf.app)** · **[Documentation](./FEATURES.md)** · **[Report Bug](https://github.com/jurczykpawel/sellf/issues)**
+**[Website](https://sellf.app)** · **[Documentation](https://docs.sellf.app)** · **[Report Bug](https://github.com/jurczykpawel/sellf/issues)**
 
 </div>
 

@@ -1,0 +1,49 @@
+---
+title: Sellf Documentation
+description: Self-hosted docs for Sellf — the open-source, self-hostable monetization platform built on Next.js, Supabase, and Stripe. Sell digital products, courses, and memberships from your own infrastructure.
+template: splash
+hero:
+  tagline: The open-source, self-hostable monetization platform. Sell digital products, courses, and memberships from your own infrastructure — Next.js + Supabase + Stripe, starting at $0/month.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Quick Start
+      link: /quick-start/
+      icon: right-arrow
+    - text: Deployment options
+      link: /deployment/
+      icon: rocket
+      variant: secondary
+    - text: View on GitHub
+      link: https://github.com/jurczykpawel/sellf
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Get started
+
+<CardGrid>
+	<LinkCard title="Quick Start" href="/quick-start/" description="Put your store online in ~20 minutes — no terminal required." />
+	<LinkCard title="Deployment options" href="/deployment/" description="Compare Vercel, Mikrus, Coolify, Docker, and full self-hosted VPS." />
+	<LinkCard title="Supabase setup" href="/supabase-setup/" description="Provision the database that powers your store." />
+	<LinkCard title="REST API v1" href="/api/" description="Manage products programmatically with API keys and scopes." />
+</CardGrid>
+
+## What you get
+
+<CardGrid>
+	<Card title="Own your stack" icon="setting">
+		Self-host the whole thing on your own server. No vendor lock-in, no per-seat pricing — your data stays with you.
+	</Card>
+	<Card title="$0 to start" icon="rocket">
+		Run on Vercel's free Hobby tier + Supabase's free tier. Most small stores stay free for years; a cheap VPS is ~$5/month.
+	</Card>
+	<Card title="Stripe payments" icon="approve-check">
+		Embedded Checkout, webhook reconciliation, guest purchases, and magic-link auth — wired up out of the box.
+	</Card>
+	<Card title="Embed anywhere" icon="external">
+		Drop a one-line checkout snippet or a login-wall onto any page — even a plain static site.
+	</Card>
+</CardGrid>

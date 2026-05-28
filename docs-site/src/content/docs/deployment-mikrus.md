@@ -1,4 +1,7 @@
-# Sellf Deployment - Mikrus VPS (Optimized)
+---
+title: "Sellf Deployment - Mikrus VPS (Optimized)"
+description: "This guide covers deployment of Sellf on Mikrus.us VPS with optimized configuration for high performance on resource-constrained environments."
+---
 
 **Last Updated**: 2026-01-15 (Performance Optimization Release)
 
@@ -159,7 +162,7 @@ UPSTASH_REDIS_REST_URL=https://your-region.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AX...your-token...==
 ```
 
-See [UPSTASH-REDIS.md](./UPSTASH-REDIS.md) for setup guide.
+See [UPSTASH-REDIS.md](/upstash-redis/) for setup guide.
 
 ### Step 4: Build Application
 
@@ -515,7 +518,7 @@ node scripts/benchmark.js https://yourdomain.com 5
 
 ### Setup Upstash Redis (Optional - Performance Boost)
 
-See [UPSTASH-REDIS.md](./UPSTASH-REDIS.md) for detailed setup guide.
+See [UPSTASH-REDIS.md](/upstash-redis/) for detailed setup guide.
 
 **Quick Summary:**
 
@@ -638,9 +641,9 @@ pm2 logs sellf-admin --err --lines 50
 
 ## 📚 Additional Resources
 
-- **Performance Optimization Details**: [BACKLOG.md](../BACKLOG.md) - Search for "Performance & Scalability"
-- **Upstash Redis Setup**: [UPSTASH-REDIS.md](./UPSTASH-REDIS.md)
-- **PM2 Advanced**: [PM2-VPS.md](./PM2-VPS.md)
+- **Performance Optimization Details**: [BACKLOG.md](https://github.com/jurczykpawel/sellf/blob/main/BACKLOG.md) - Search for "Performance & Scalability"
+- **Upstash Redis Setup**: [UPSTASH-REDIS.md](/upstash-redis/)
+- **PM2 Advanced**: [PM2-VPS.md](/pm2-vps/)
 - **Benchmark Script**: `scripts/benchmark.js`
 
 ---

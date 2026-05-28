@@ -1,0 +1,49 @@
+---
+title: Dokumentacja Sellf
+description: Dokumentacja Sellf — open-source'owej, samodzielnie hostowanej platformy do sprzedaży produktów cyfrowych, kursów i członkostw. Zbudowana na Next.js, Supabase i Stripe.
+template: splash
+hero:
+  tagline: Open-source'owa platforma monetyzacji, którą hostujesz u siebie. Sprzedawaj produkty cyfrowe, kursy i członkostwa na własnej infrastrukturze — Next.js + Supabase + Stripe, od 0 zł miesięcznie.
+  image:
+    file: ../../../assets/logo.svg
+  actions:
+    - text: Szybki start
+      link: /pl/quick-start/
+      icon: right-arrow
+    - text: Opcje wdrożenia
+      link: /pl/deployment/
+      icon: rocket
+      variant: secondary
+    - text: Zobacz na GitHub
+      link: https://github.com/jurczykpawel/sellf
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Zacznij tutaj
+
+<CardGrid>
+	<LinkCard title="Szybki start" href="/pl/quick-start/" description="Postaw sklep online w ~20 minut — bez terminala." />
+	<LinkCard title="Opcje wdrożenia" href="/pl/deployment/" description="Porównaj Vercel, Mikrus, Coolify, Docker i pełny self-hosting na VPS." />
+	<LinkCard title="Konfiguracja Supabase" href="/pl/supabase-setup/" description="Skonfiguruj bazę danych, która napędza Twój sklep." />
+	<LinkCard title="REST API v1" href="/api/" description="Zarządzaj produktami programowo przez klucze API i scopes." />
+</CardGrid>
+
+## Co dostajesz
+
+<CardGrid>
+	<Card title="Własny stack" icon="setting">
+		Hostuj całość na swoim serwerze. Bez vendor lock-in, bez opłat per użytkownik — Twoje dane zostają u Ciebie.
+	</Card>
+	<Card title="Start za 0 zł" icon="rocket">
+		Działa na darmowym planie Vercel Hobby + darmowym tierze Supabase. Małe sklepy zostają darmowe latami; tani VPS to ~20 zł/mies.
+	</Card>
+	<Card title="Płatności Stripe" icon="approve-check">
+		Embedded Checkout, rozliczanie webhooków, zakupy gości i logowanie magic-link — gotowe od ręki.
+	</Card>
+	<Card title="Osadź gdziekolwiek" icon="external">
+		Wklej jednoliniowy snippet checkoutu lub login-wall na dowolną stronę — nawet statyczną.
+	</Card>
+</CardGrid>

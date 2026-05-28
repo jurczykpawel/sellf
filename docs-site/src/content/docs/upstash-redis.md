@@ -1,4 +1,7 @@
-# Upstash Redis Setup (Optional Performance Optimization)
+---
+title: "Upstash Redis Setup (Optional Performance Optimization)"
+description: "Upstash Redis is an optional feature that improves Sellf performance. The application works perfectly fine without it, but with Upstash you'll get:"
+---
 
 Upstash Redis is an **optional** feature that improves Sellf performance. The application works perfectly fine without it, but with Upstash you'll get:
 
