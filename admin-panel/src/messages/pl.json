@@ -2513,7 +2513,7 @@
       "loadError": "Nie udało się załadować statusu podatku"
     },
     "branding": {
-      "title": "Branding i Whitelabel",
+      "title": "Branding i motywy",
       "livePreview": "Podgląd na żywo",
       "saving": "Zapisywanie...",
       "saveTheme": "Zapisz motyw",
@@ -3105,7 +3105,7 @@
       "products": "Produkty",
       "license": "Licencja",
       "headline": "Realne fundamenty, nie marketing",
-      "githubLine": "Open source na GitHubie — AGPL-3.0 + komercyjna licencja white-label",
+      "githubLine": "Open source na GitHubie — AGPL-3.0 + licencja komercyjna",
       "testsLine": "2 650 testów automatycznych — checkout, płatności, bezpieczeństwo",
       "founderLine": "Zbudowany przez Pawła — 17 lat IT, ex-Roche / IBM / Asseco",
       "stripeLine": "Działa na Stripe — ten sam stack płatności co Gumroad i LemonSqueezy"
@@ -3633,7 +3633,7 @@
       "terms": "Warunki",
       "cookiePreferences": "Preferencje ciasteczek",
       "copyright": "© {year} Sellf. Open source i self-hosted",
-      "whiteLabelLicense": "Licencja White-Label",
+      "whiteLabelLicense": "Sellf Pro",
       "llmsTxt": "llms.txt (dla agentów AI)"
     },
     "licenseTier": {

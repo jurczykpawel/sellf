@@ -433,7 +433,7 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 
 ---
 
-## 16. Branding & Whitelabel
+## 16. Branding & Themes
 
 ### Customization
 - **Logo URL** - Custom logo (Supabase Storage upload)

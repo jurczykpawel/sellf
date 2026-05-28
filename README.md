@@ -385,12 +385,14 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 
 Sellf is free and open source. If it saves you money on platform fees, consider supporting development by buying Sellf Pro — it removes the "Powered by Sellf" watermark and unlocks the Theme Editor.
 
-| License | Price | Use Case |
-|---------|-------|----------|
-| **Personal** | Pay What You Want (min $9, suggested $29) | 1 Sellf instance |
-| **Agency Pack** | $99 | 5 license keys for client projects |
+| Tier | Price | What it unlocks |
+|------|-------|-----------------|
+| **Free** | $0 | Everything core — unlimited products, sales, buyers (AGPL-3.0) |
+| **Registered** | $0 | + payment CSV export (free key from sellf.app) |
+| **Pro** | $59 one-time | + remove "Powered by Sellf" branding, Theme Editor, granular API-key scopes |
+| **Business** | Talk to us | Custom / enterprise — [hello@sellf.app](mailto:hello@sellf.app) |
 
-**[Get Sellf Pro →](https://sellf.techskills.academy/pl/checkout/sellf-pro)**
+**[Get Sellf Pro →](https://sellf.techskills.academy/checkout/sellf-pro)**
 
 ---
 

@@ -55,7 +55,7 @@ export async function LandingFooter() {
                 {t('footer.products')}
               </Link>
               <a
-                href="https://sellf.techskills.academy/pl/checkout/sellf-pro"
+                href="https://sellf.techskills.academy/checkout/sellf-pro"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-sm text-sf-muted hover:text-sf-heading transition-colors duration-200 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sf-accent rounded"

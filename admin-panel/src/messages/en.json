@@ -2498,7 +2498,7 @@
       "loadError": "Failed to load tax status"
     },
     "branding": {
-      "title": "Branding & Whitelabel",
+      "title": "Branding & Themes",
       "livePreview": "Live Preview",
       "saving": "Saving...",
       "saveTheme": "Save Theme",
@@ -3090,7 +3090,7 @@
       "products": "Products",
       "license": "License",
       "headline": "Real backing, not marketing fluff",
-      "githubLine": "Open source on GitHub — AGPL-3.0 + commercial white-label",
+      "githubLine": "Open source on GitHub — AGPL-3.0 + commercial license",
       "testsLine": "2,650 automated tests covering checkout, payments, security",
       "founderLine": "Built by Paweł — 17 years in IT, ex-Roche / IBM / Asseco",
       "stripeLine": "Powered by Stripe — same payments stack as Gumroad, LemonSqueezy"
@@ -3618,7 +3618,7 @@
       "terms": "Terms",
       "cookiePreferences": "Cookie preferences",
       "copyright": "© {year} Sellf. Open source and self-hosted",
-      "whiteLabelLicense": "White-Label License",
+      "whiteLabelLicense": "Sellf Pro",
       "llmsTxt": "llms.txt (for AI agents)"
     },
     "licenseTier": {
