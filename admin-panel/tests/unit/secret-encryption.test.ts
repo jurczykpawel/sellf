@@ -30,7 +30,7 @@ afterAll(() => {
 describe('secret-encryption (AES-256-GCM)', () => {
   it('round-trips a Stripe secret key', async () => {
     const { encryptSecret, decryptSecret } = await import('@/lib/services/secret-encryption');
-    const plaintext = 'sk_live_PLACEHOLDER_not_a_real_key';
+    const plaintext = 'sk_live_PLACEHOLDER_not_a_real_key'; // trufflehog:ignore — synthetic test value
 
     const enc = await encryptSecret(plaintext);
     const back = await decryptSecret({
@@ -44,7 +44,7 @@ describe('secret-encryption (AES-256-GCM)', () => {
 
   it('produces a 16-byte IV and 16-byte tag (base64)', async () => {
     const { encryptSecret } = await import('@/lib/services/secret-encryption');
-    const enc = await encryptSecret('whsec_test_value');
+    const enc = await encryptSecret('whsec_test_value'); // trufflehog:ignore — synthetic test value
 
     expect(Buffer.from(enc.iv, 'base64').length).toBe(16);
     expect(Buffer.from(enc.tag, 'base64').length).toBe(16);
@@ -61,7 +61,7 @@ describe('secret-encryption (AES-256-GCM)', () => {
 
   it('fails authentication when ciphertext is tampered', async () => {
     const { encryptSecret, decryptSecret } = await import('@/lib/services/secret-encryption');
-    const enc = await encryptSecret('sk_live_dont_touch');
+    const enc = await encryptSecret('sk_live_dont_touch'); // trufflehog:ignore — synthetic test value
 
     const tampered = Buffer.from(enc.encryptedKey, 'base64');
     tampered[0] ^= 0xff; // flip a bit
@@ -90,7 +90,7 @@ describe('secret-encryption (AES-256-GCM)', () => {
 
   it('decryption fails under a different key (key rotation safety)', async () => {
     const { encryptSecret, decryptSecret } = await import('@/lib/services/secret-encryption');
-    const enc = await encryptSecret('sk_live_rotate_me');
+    const enc = await encryptSecret('sk_live_rotate_me'); // trufflehog:ignore — synthetic test value
 
     // validateEncryptionKey() reads process.env per call, so swapping the env
     // is enough to simulate a key change — no module reset needed.

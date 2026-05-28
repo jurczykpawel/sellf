@@ -274,7 +274,7 @@ test.describe('Stripe Configuration Wizard', () => {
 
     // Enter valid format (but fake key)
     const keyInput = page.locator('textarea[placeholder*="rk_test"]');
-    await keyInput.fill('rk_test_1234567890abcdefghijklmnopqrstuvwxyz');
+    await keyInput.fill('rk_test_1234567890abcdefghijklmnopqrstuvwxyz'); // trufflehog:ignore — synthetic test value
     await keyInput.blur();
 
     // Validate button should be enabled (implies no format errors)
@@ -385,7 +385,7 @@ test.describe('Stripe Configuration Wizard', () => {
 
     // Enter valid format restricted key
     const keyInput = page.locator('textarea[placeholder*="rk_test"]');
-    const restrictedKey = 'rk_test_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ';
+    const restrictedKey = 'rk_test_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ'; // trufflehog:ignore — synthetic test value
     await keyInput.fill(restrictedKey);
     await keyInput.blur();
 
@@ -407,7 +407,7 @@ test.describe('Stripe Configuration Wizard', () => {
 
     // Enter valid format secret key
     const keyInput = page.locator('textarea[placeholder*="rk_test"]');
-    const secretKey = 'sk_test_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP';
+    const secretKey = 'sk_test_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP'; // trufflehog:ignore — synthetic test value
     await keyInput.fill(secretKey);
     await keyInput.blur();
 

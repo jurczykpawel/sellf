@@ -365,7 +365,7 @@ Expected output:
 
 **Test**: Verify key is masked after save
 
-1. Complete wizard with key: `rk_test_51ABCdefGHIjklMNOpqrSTUvwxYZ1234`
+1. Complete wizard with key: `rk_test_51ABCdefGHIjklMNOpqrSTUvwxYZ1234` <!-- trufflehog:ignore — synthetic test value -->
 2. On Success step (Step 5), verify key is shown as: `rk_test_****1234`
 3. Go to Settings page
 4. **Expected**: Active config shows: `rk_test_****1234`
