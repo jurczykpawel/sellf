@@ -103,6 +103,7 @@ const PUBLIC_ROUTES = new Set([
   'test-page/element-protection/route.ts',    // test page — serves HTML for SDK e2e tests
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
   'loginwall/login.js/route.ts',              // Login wall loader script — per-product, rate-limited, no secrets
+  'loginwall/gate.js/route.ts',               // Element gating runtime script — per-product, rate-limited, no secrets
 ]);
 
 /**
@@ -113,6 +114,7 @@ const SPECIAL_AUTH_ROUTES = new Set([
   'webhooks/stripe/route.ts',                  // Stripe signature verification
   'update-payment-metadata/route.ts',          // CORS + PaymentIntent ID (pre-auth payment flow)
   'verify-payment/route.ts',                   // session_id + ownership check
+  'loginwall/verify/route.ts',                 // bearer HMAC gate token (no user session), allowlist-scoped CORS
 ]);
 
 /** Auth-required routes: must verify user session */
