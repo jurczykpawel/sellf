@@ -148,9 +148,27 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
       .from('shop_config')
       .select('id')
       .maybeSingle()
-    if (fetchError || !config) {
-      console.error('No shop config found to update:', fetchError)
-      return { success: false, error: 'No shop config found' }
+    if (fetchError) {
+      console.error('Error reading shop config:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+
+    // Singleton: create the row on first save (fresh installs have none — prod runs no seed.sql).
+    const configId = config?.id
+    if (!configId) {
+      const { data: created, error: insertError } = await dataClient
+        .from('shop_config')
+        .insert({ ...updates, updated_at: new Date().toISOString() })
+        .select('id')
+        .single()
+      if (insertError || !created) {
+        console.error('Error creating shop config:', insertError)
+        return { success: false, error: insertError?.message ?? 'Failed to create shop config' }
+      }
+      await cacheDel(CacheKeys.SHOP_CONFIG)
+      revalidateTag('shop-config', { expire: 0 })
+      revalidatePath('/dashboard', 'layout')
+      return { success: true }
     }
 
     const { error } = await dataClient
@@ -159,7 +177,7 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
         ...updates,
         updated_at: new Date().toISOString()
       })
-      .eq('id', config.id)
+      .eq('id', configId)
 
     if (error) {
       console.error('Error updating shop config:', error)

@@ -441,7 +441,7 @@ CREATE INDEX IF NOT EXISTS idx_stripe_config_active ON public.stripe_configurati
 CREATE INDEX IF NOT EXISTS idx_stripe_config_expires_at ON public.stripe_configurations(expires_at)
   WHERE is_active = true AND expires_at IS NOT NULL;
 
--- Shop config (singleton constraint)
+-- Shop config (singleton). Row created lazily on first save (updateShopConfig upserts) — no seed row, so fresh installs carry no placeholder.
 CREATE UNIQUE INDEX IF NOT EXISTS shop_config_singleton_idx ON public.shop_config ((true));
 
 -- =============================================================================
