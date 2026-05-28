@@ -3091,7 +3091,7 @@
       "license": "License",
       "headline": "Real backing, not marketing fluff",
       "githubLine": "Open source on GitHub — AGPL-3.0 + commercial license",
-      "testsLine": "2,650 automated tests covering checkout, payments, security",
+      "testsLine": "3,500+ automated tests covering checkout, payments, security",
       "founderLine": "Built by Paweł — 17 years in IT, ex-Roche / IBM / Asseco",
       "stripeLine": "Powered by Stripe — same payments stack as Gumroad, LemonSqueezy"
     },
@@ -3618,7 +3618,7 @@
       "terms": "Terms",
       "cookiePreferences": "Cookie preferences",
       "copyright": "© {year} Sellf. Open source and self-hosted",
-      "whiteLabelLicense": "Sellf Pro",
+      "sellfPro": "Sellf Pro",
       "llmsTxt": "llms.txt (for AI agents)"
     },
     "licenseTier": {
@@ -3798,7 +3798,7 @@
         },
         {
           "title": "\"Is my buyers' data safe?\"",
-          "body": "Stripe keys never leave your .env file. Database has row-level security on every table. Sellf passed a security audit, has 2,650 automated tests. Your buyers' data lives on your server, not in someone else's cloud."
+          "body": "Stripe keys never leave your .env file. Database has row-level security on every table. Sellf passed a security audit, has 3,500+ automated tests. Your buyers' data lives on your server, not in someone else's cloud."
         }
       ]
     }

@@ -7,7 +7,7 @@
 **An alternative to** Gumroad, LemonSqueezy, Paddle. Zero platform fees.
 
 ![Version](https://img.shields.io/badge/version-2026.5.12-blue)
-![Tests](https://img.shields.io/badge/unit%20tests-3,394%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/unit%20tests-3,519%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
@@ -36,7 +36,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - **Sales funnels built-in:** One-Time Offers, Order Bumps, Coupons
 - **Validate before you build:** waitlists for upcoming products with webhook delivery to your mailer
 - **EU-compliant:** Omnibus Directive price history, GDPR consent management
-- **Battle-tested:** 2,714 unit tests plus broad Playwright E2E coverage
+- **Battle-tested:** 3,519 unit tests plus broad Playwright E2E coverage
 
 ---
 
@@ -370,7 +370,7 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 ## Project Stats
 
 ```
-├── 2,714 unit tests + broad Playwright E2E coverage
+├── 3,519 unit tests + broad Playwright E2E coverage
 ├── 90+ API routes (v1 REST API + admin + public)
 ├── 36 database tables
 ├── 73 RPC functions

@@ -703,7 +703,7 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 ## 26. Testing
 
 ### E2E Tests (Playwright)
-- **899 E2E tests** - Comprehensive coverage
+- **1,000+ E2E tests** - Comprehensive coverage
 - **82 MCP unit tests** - Vitest
 - **53 test files** - Modular structure
 
@@ -932,7 +932,7 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 | Metric | Value |
 |--------|-------|
 | E2E Tests | 1,000+ |
-| Unit Tests | 2,714 |
+| Unit Tests | 3,519 |
 | API v1 Tests | 232 |
 | Test Files | 60+ |
 | Test Framework | Playwright + Vitest |
