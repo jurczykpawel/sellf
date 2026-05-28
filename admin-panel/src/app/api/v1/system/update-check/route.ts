@@ -48,6 +48,17 @@ export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
 }
 
+function unknownUpstreamResponse(currentVersion: string): UpdateCheckData {
+  return {
+    current_version: currentVersion,
+    latest_version: currentVersion,
+    update_available: false,
+    release_notes: null,
+    published_at: null,
+    release_url: null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     await authenticate(request, [API_SCOPES.SYSTEM_READ]);
@@ -63,33 +74,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch from GitHub API with bounded timeout — GitHub rate-limit / network
-    // issues must not hang the dashboard's update-check on mount.
-    const response = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-      {
-        headers: { 'Accept': 'application/vnd.github.v3+json' },
-        cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
-        redirect: 'error',
-        signal: AbortSignal.timeout(5000),
-      }
-    );
+    // issues must not hang the dashboard's update-check on mount. On any upstream
+    // failure (rate-limit, abort, network) we degrade gracefully to "no update
+    // info available", not a 502 — the dashboard hook treats this as "you're
+    // up to date" and doesn't bother the admin.
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+        {
+          headers: { 'Accept': 'application/vnd.github.v3+json' },
+          cache: 'no-store', // module-level releaseCache handles TTL — skip Next.js Data Cache
+          redirect: 'error',
+          signal: AbortSignal.timeout(5000),
+        }
+      );
+    } catch {
+      return withNoStore(jsonResponse(successResponse(unknownUpstreamResponse(currentVersion)), request));
+    }
 
     if (!response.ok) {
-      if (response.status === 404) {
-        return withNoStore(jsonResponse(successResponse({
-          current_version: currentVersion,
-          latest_version: currentVersion,
-          update_available: false,
-          release_notes: null,
-          published_at: null,
-          release_url: null,
-        }), request));
-      }
-      return jsonResponse(
-        { error: { code: 'UPSTREAM_ERROR', message: 'Failed to check for updates' } },
-        request,
-        502
-      );
+      return withNoStore(jsonResponse(successResponse(unknownUpstreamResponse(currentVersion)), request));
     }
 
     const release = await response.json();

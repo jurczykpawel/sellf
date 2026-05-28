@@ -100,10 +100,11 @@ export function DeployPaths() {
 
             return (
               <Reveal key={path.key} animation="fade-up" delay={i * 120}>
+                <div className="flex flex-col h-full">
                 <button
                   type="button"
                   onClick={() => setOpenPath(path.key)}
-                  className={`group relative flex flex-col h-full w-full text-left p-7 md:p-8 rounded-2xl bg-sf-raised/80 ${cardBaseClasses} transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-sf-accent hover:shadow-[0_12px_48px_-12px_var(--sf-accent-glow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent cursor-pointer`}
+                  className={`group relative flex flex-col flex-1 w-full text-left p-7 md:p-8 rounded-2xl bg-sf-raised/80 ${cardBaseClasses} transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-sf-accent hover:shadow-[0_12px_48px_-12px_var(--sf-accent-glow)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sf-accent cursor-pointer`}
                 >
                   {path.hasBadge && (
                     <div className="absolute -top-3 left-6">
@@ -197,18 +198,19 @@ export function DeployPaths() {
                     {t('previewLabel')}
                   </div>
 
-                  {/* Tiny direct deploy link — bypass demo */}
-                  <a
-                    href={path.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-3 inline-flex items-center justify-center gap-1.5 text-[11px] text-sf-muted hover:text-sf-body transition-colors underline underline-offset-2"
-                  >
-                    {t(`${path.key}.ctaLabel`)}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
                 </button>
+                {/* Tiny direct deploy link — bypass demo. Outside the card button to avoid
+                    nested interactive elements (WCAG no-focusable-content). */}
+                <a
+                  href={path.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center justify-center gap-1.5 text-[11px] text-sf-muted hover:text-sf-body transition-colors underline underline-offset-2"
+                >
+                  {t(`${path.key}.ctaLabel`)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                </div>
               </Reveal>
             );
           })}

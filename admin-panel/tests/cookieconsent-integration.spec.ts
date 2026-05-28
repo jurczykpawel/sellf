@@ -46,9 +46,10 @@ test.describe('cookieconsent integration', () => {
       .from('integrations_config')
       .update({
         gtm_container_id: null,
+        gtm_server_container_url: null,
         facebook_pixel_id: null,
         umami_website_id: null,
-        cookie_consent_enabled: false,
+        cookie_consent_enabled: true,
         consent_logging_enabled: false,
         updated_at: new Date().toISOString(),
       })

@@ -84,6 +84,12 @@ BEGIN
 END;
 $$;
 
+-- 1c-bis. Re-grant the writes that RLS policies legitimately need.
+-- profiles: "Self update" policy (auth.uid() = id) requires UPDATE for the
+-- authenticated role. Without this re-grant the policy never fires — Postgres
+-- rejects the statement on the table-grant check before reaching RLS.
+GRANT UPDATE ON public.profiles TO authenticated;
+
 -- 1d. is_admin/is_admin_cached: anon MUST keep EXECUTE — RLS policies on
 --     storefront tables (products, order_bumps, variant_groups, …) call
 --     is_admin() in their qualifier. Without EXECUTE for anon, every anon

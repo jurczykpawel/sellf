@@ -138,7 +138,7 @@ test.describe('Admin Product Preview', () => {
 
   test('should show "Podgląd" button in admin products table', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto('/pl/dashboard/products', { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto('/pl/dashboard/products', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     await expect(page.locator('table')).toBeVisible({ timeout: 10000 });
 
@@ -153,7 +153,7 @@ test.describe('Admin Product Preview', () => {
 
   test('should render ProductAccessView for admin with ?preview=1', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Product name visible (header + hero)
     await expect(page.getByRole('heading', { name: 'Preview Test — Digital' })).toBeVisible({ timeout: 15000 });
@@ -161,14 +161,14 @@ test.describe('Admin Product Preview', () => {
 
   test('should show discrete preview mode indicator', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     await expect(page.getByText(/Tryb podgl[aą]du/i)).toBeVisible({ timeout: 15000 });
   });
 
   test('should display content section (empty) in preview', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // In preview mode, content_config.content_items is emptied for safety (secure
     // URL configs may be null from the public product object). The content section
@@ -180,7 +180,7 @@ test.describe('Admin Product Preview', () => {
 
   test('should show access granted badge in header', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Green "Aktywny dostęp" / "Access granted" badge in sticky header
     const badge = page.locator('header').getByText(/Aktywny|Active|Dostęp/i).first();
@@ -192,7 +192,7 @@ test.describe('Admin Product Preview', () => {
 
     // Navigate to product page without preview param — admin gets normal access check
     // With ?preview=1 — should stay on the page, not redirect
-    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`/pl/p/${digitalProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(2000);
 
     // Should remain on /p/ path, NOT redirect to /checkout/
@@ -230,7 +230,7 @@ test.describe('Admin Product Preview', () => {
 
   test('should show product content in preview even when product is inactive', async ({ page }) => {
     await loginAsAdmin(page, adminEmail, adminPassword);
-    await page.goto(`/pl/p/${inactiveProductSlug}?preview=1`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`/pl/p/${inactiveProductSlug}?preview=1`, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Admin preview bypasses RLS and is_active=false — product page should render
     await expect(page.getByRole('heading', { name: 'Preview Test — Inactive' })).toBeVisible({ timeout: 15000 });

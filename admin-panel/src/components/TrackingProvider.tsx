@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 
 /** Validate GTM container ID format (GTM-XXXXXXX) */
@@ -72,6 +73,14 @@ function getOrCreateAnonId(): string {
 export default function TrackingProvider({ config, nonce }: TrackingProviderProps) {
   // Always call hooks at the top — the early return below must not skip them.
   const initialisedRef = useRef(false)
+  const pathname = usePathname()
+
+  // Admin dashboard must not load any marketing/analytics tracking: it's
+  // self-traffic noise, a privacy problem (admin actions hitting Meta/Google),
+  // and a misconfigured server-side GTM URL stalls every admin page load. The
+  // consent useEffect below already skips /dashboard; mirror that for the
+  // injected <script> tags so GTM/Pixel/Umami never mount on the admin panel.
+  const isAdminPath = pathname?.includes('/dashboard') ?? false
 
   // Stable derived values used both in rendered scripts and the init effect.
   const gtm_container_id = config?.gtm_container_id && isValidGtmId(config.gtm_container_id) ? config.gtm_container_id : null
@@ -299,7 +308,7 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
     }
   }, [config, cookie_consent_enabled, consent_logging_enabled, gtm_container_id, facebook_pixel_id, umami_website_id])
 
-  if (!config) return null
+  if (!config || isAdminPath) return null
 
   // --- GOOGLE CONSENT MODE V2 DEFAULTS ---
   // Must run before GTM; only emit when consent is enabled (otherwise GTM runs unrestricted).
