@@ -546,6 +546,7 @@
     "generateCode": "Generate Code",
     "generateEmbedSnippet": "Generate embed checkout snippet",
     "generateLoginwallSnippet": "Generate login wall snippet",
+    "generateGatingSnippet": "Generate gating snippet",
     "codeGenerated": "Code Generated",
     "copyCode": "Copy Code",
     "codeCopied": "Code Copied!"
@@ -657,6 +658,20 @@
     "howItWorksBody": "A short-lived signed token is added to the URL after sign-in. The snippet checks for it on load, then strips it from the URL with history.replaceState so visitors share clean links.",
     "emptyAllowlistTitle": "No allowed origins configured",
     "emptyAllowlistBody": "The login wall will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
+    "close": "Close"
+  },
+  "gateSnippet": {
+    "title": "Generate gating snippet",
+    "subtitle": "Gate individual elements on your own page and show different content to buyers, signed-in non-buyers, and guests.",
+    "slug": "Slug",
+    "snippetLabel": "Snippet to paste in <head>",
+    "markupLabel": "Mark up the elements you want to gate",
+    "copied": "✓ Copied!",
+    "copyCode": "📋 Copy Code",
+    "howItWorksTitle": "How gating works",
+    "howItWorksBody": "On load the snippet resolves each element to the visitor's state from a short-lived signed token, then strips the token from the URL. Display and local features resolve in the browser; for real server actions, gate them on SellfGate.verify() which the server checks.",
+    "emptyAllowlistTitle": "No allowed origins configured",
+    "emptyAllowlistBody": "Gating will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
     "close": "Close"
   },
   "embedSection": {
@@ -1192,6 +1207,7 @@
       "generateCode": "Generate Code",
       "generateEmbedSnippet": "Generate embed checkout snippet",
       "generateLoginwallSnippet": "Generate login wall snippet",
+    "generateGatingSnippet": "Generate gating snippet",
       "viewDetails": "View Details",
       "edit": "Edit",
       "delete": "Delete",

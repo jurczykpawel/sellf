@@ -9,6 +9,7 @@ import ProductCreationWizard from './ProductFormModal/wizard/ProductCreationWiza
 import type { ProductFormData } from './ProductFormModal/types';
 import EmbedSnippetModal from './EmbedSnippetModal';
 import LoginwallSnippetModal from './LoginwallSnippetModal';
+import GateSnippetModal from './GateSnippetModal';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -30,6 +31,7 @@ const ProductsPageContent: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
   const [showLoginwallSnippet, setShowLoginwallSnippet] = useState(false);
+  const [showGatingSnippet, setShowGatingSnippet] = useState(false);
   const [productForCodeGeneration, setProductForCodeGeneration] = useState<Product | null>(null);
 
   // State for pagination
@@ -211,6 +213,11 @@ const ProductsPageContent: React.FC = () => {
     setShowLoginwallSnippet(true);
   };
 
+  const handleGenerateGatingSnippet = (product: Product) => {
+    setProductForCodeGeneration(product);
+    setShowGatingSnippet(true);
+  };
+
   const handleDeleteProductClick = (product: Product) => {
     setProductToDelete(product);
   };
@@ -313,6 +320,7 @@ const ProductsPageContent: React.FC = () => {
         onPreviewRedirect={handlePreviewRedirect}
         onGenerateEmbedSnippet={handleGenerateEmbedSnippet}
         onGenerateLoginwallSnippet={handleGenerateLoginwallSnippet}
+        onGenerateGatingSnippet={handleGenerateGatingSnippet}
         onToggleStatus={handleToggleStatus}
         onToggleFeatured={handleToggleFeatured}
         onToggleListed={handleToggleListed}
@@ -415,6 +423,17 @@ const ProductsPageContent: React.FC = () => {
           isOpen={showLoginwallSnippet}
           onClose={() => {
             setShowLoginwallSnippet(false);
+            setProductForCodeGeneration(null);
+          }}
+          product={productForCodeGeneration}
+        />
+      )}
+
+      {showGatingSnippet && productForCodeGeneration && (
+        <GateSnippetModal
+          isOpen={showGatingSnippet}
+          onClose={() => {
+            setShowGatingSnippet(false);
             setProductForCodeGeneration(null);
           }}
           product={productForCodeGeneration}
