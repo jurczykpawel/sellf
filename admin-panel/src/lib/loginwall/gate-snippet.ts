@@ -65,8 +65,73 @@ export function buildGateScript(input: GateSnippetInput): string {
   pairs.splice(tokenIdx, 1);
   var newHash = pairs.length ? "#" + pairs.join("&") : "";
   history.replaceState(null, document.title, location.pathname + location.search + newHash);
+
+  function decodePayload(t) {
+    try {
+      var b64 = t.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      var p = JSON.parse(atob(b64));
+      if (p && p.v === 2 && typeof p.auth === "boolean" && Array.isArray(p.owned)) return p;
+    } catch (e) {}
+    return null;
+  }
+
+  function injectStyle() {
+    if (document.getElementById("_sf-gate-style")) return;
+    var s = document.createElement("style");
+    s.id = "_sf-gate-style";
+    s.textContent =
+      "[data-sellf-product]{visibility:hidden}" +
+      "[data-sellf-product].sellf-processed{visibility:visible}";
+    (document.head || document.documentElement).appendChild(s);
+  }
+
+  function stateFor(payload, slug) {
+    if (!payload || !payload.auth) return "no-session";
+    return payload.owned.indexOf(slug) !== -1 ? "has-access" : "no-access";
+  }
+
+  function resolve(payload) {
+    injectStyle();
+    var keep = { "has-access": "data-has-access", "no-access": "data-no-access", "no-session": "data-no-session" };
+    var blocks = document.querySelectorAll("[data-sellf-product]");
+    for (var i = 0; i < blocks.length; i++) {
+      var el = blocks[i];
+      var slug = el.getAttribute("data-sellf-product");
+      var state = stateFor(payload, slug);
+      var keepAttr = keep[state];
+      var branches = el.querySelectorAll("[data-has-access],[data-no-access],[data-no-session]");
+      for (var j = 0; j < branches.length; j++) {
+        if (!branches[j].hasAttribute(keepAttr)) branches[j].remove();
+      }
+      el.classList.add("sellf-" + state, "sellf-processed");
+    }
+    var owned = payload ? payload.owned : [];
+    var feats = document.querySelectorAll("[data-sellf-feature]");
+    for (var k = 0; k < feats.length; k++) {
+      var f = feats[k];
+      var fslug = f.getAttribute("data-sellf-feature");
+      if (payload && payload.auth && owned.indexOf(fslug) !== -1) {
+        f.classList.add("sellf-feature-enabled");
+      } else {
+        f.classList.add("sellf-feature-locked");
+        f.setAttribute("aria-disabled", "true");
+        if ("disabled" in f) f.disabled = true;
+      }
+    }
+  }
+
+  var payload = decodePayload(token);
+  function start() { resolve(payload); }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+
   window.SellfGate = {
     token: token,
+    payload: payload,
     verify: function (slug) {
       return fetch("${verifyUrl}", {
         method: "POST",
