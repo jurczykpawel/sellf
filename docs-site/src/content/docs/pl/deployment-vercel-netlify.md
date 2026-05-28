@@ -1,12 +1,16 @@
-**Język:** 🇵🇱 Polski · [🇬🇧 English](../DEPLOYMENT-VERCEL-NETLIFY.md)
+---
+title: "Wdrożenie Sellfa na Vercel albo Netlify (one-click)"
+description: "Wymagany czas: ~15 minut jeśli masz już konta GitHub, Supabase, Stripe i Vercel/Netlify. Dodaj 5-10 minut za każde konto które trzeba założyć."
+---
 
-# Wdrożenie Sellfa na Vercel albo Netlify (one-click)
+**Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment-vercel-netlify/)
+
 
 Wymagany czas: **~15 minut** jeśli masz już konta GitHub, Supabase, Stripe i Vercel/Netlify. Dodaj 5-10 minut za każde konto które trzeba założyć.
 
-Ten przewodnik opisuje przyciski "Deploy" w README z Vercel/Netlify. Dla VPS/PM2 zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md). Dla samodzielnego Dockera zobacz [FULL-STACK.md](../FULL-STACK.md).
+Ten przewodnik opisuje przyciski "Deploy" w README z Vercel/Netlify. Dla VPS/PM2 zobacz [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/). Dla samodzielnego Dockera zobacz [FULL-STACK.md](/full-stack/).
 
-> **Pierwszy raz wdrażasz oprogramowanie?** Zobacz [QUICK-START.md](./QUICK-START.md) — wersję bez używania terminala, klik-po-kliku.
+> **Pierwszy raz wdrażasz oprogramowanie?** Zobacz [QUICK-START.md](/pl/quick-start/) — wersję bez używania terminala, klik-po-kliku.
 
 ## Co będziesz miał na końcu
 
@@ -21,7 +25,7 @@ Działający sklep Sellf pod `https://twoj-projekt.vercel.app` (albo `.netlify.a
 
 | Usługa | Plan | Limity | Uważaj na |
 |---------|------|--------|---------------|
-| Vercel Hobby | darmowy | 100 GB transferu, 1M wywołań funkcji, 4h aktywnego CPU, 1M edge requestów, 5k transformacji obrazów, 1 seat | **Tylko do użytku osobistego, niekomercyjnego** (w praktyce rzadko egzekwowane dla małych sklepów). Twarde limity (bez nadwyżek — sklep zwraca 503 po wyczerpaniu). Dla ścisłej zgodności z regulaminem dla sklepu komercyjnego — Vercel Pro ($20/mies) — albo obejdź problem ścieżką własnego VPS (~$5/mies). Pełna tabela + niuanse w [QUICK-START.md](./QUICK-START.md#vercel-hobby--co-jest-w-darmowym-planie-i-kiedy-uderza-w-twardy-stop). |
+| Vercel Hobby | darmowy | 100 GB transferu, 1M wywołań funkcji, 4h aktywnego CPU, 1M edge requestów, 5k transformacji obrazów, 1 seat | **Tylko do użytku osobistego, niekomercyjnego** (w praktyce rzadko egzekwowane dla małych sklepów). Twarde limity (bez nadwyżek — sklep zwraca 503 po wyczerpaniu). Dla ścisłej zgodności z regulaminem dla sklepu komercyjnego — Vercel Pro ($20/mies) — albo obejdź problem ścieżką własnego VPS (~$5/mies). Pełna tabela + niuanse w [QUICK-START.md](/pl/quick-start/#vercel-hobby--co-jest-w-darmowym-planie-i-kiedy-uderza-w-twardy-stop). |
 | Netlify Starter | darmowy | 100 GB transferu, 300 minut buildów/miesiąc, 125k wywołań funkcji | Spokojnie wystarczy dla małego sklepu |
 | Supabase Free | darmowy | 500 MB bazy, 1 GB storage, 50k MAU | Hojny na lata dla typowego małego sklepu. Aktualizuj do Pro ($25/mies) gdy zbliżasz się do limitu bazy lub MAU, albo chcesz codzienne automatyczne backupy. |
 | Stripe test mode | darmowy | nielimitowane | Żadne prawdziwe pieniądze nie ruszają się aż przełączysz na `sk_live_…` |
@@ -79,7 +83,7 @@ Tyle. **Nie** musisz tworzyć webhooka w Stripe Dashboard — Sellf zrobi to za 
 
 ## Krok 4 — Kliknij Deploy (2 min)
 
-Z [README](../../README.md) kliknij **Deploy with Vercel** albo **Deploy to Netlify**.
+Z [README](https://github.com/jurczykpawel/sellf/blob/main/README.md) kliknij **Deploy with Vercel** albo **Deploy to Netlify**.
 
 Zostaniesz poproszony o autoryzację platformy w swoim GitHubie, wybór nazwy projektu i wypełnienie zmiennych środowiskowych. Wklej:
 
@@ -247,7 +251,7 @@ Darmowy plan Supabase używa SMTP relay o niskim priorytecie. Dwa fixy:
 Zachowanie darmowego planu. Opcje:
 - Aktualizacja do **Supabase Pro** ($25/miesiąc) — rekomendowane jeśli Sellf ma żywych klientów
 - Utrzymuj ruch — codzienny ping na dowolny endpoint liczy się jako activity
-- Self-host Supabase ([FULL-STACK.md](../FULL-STACK.md))
+- Self-host Supabase ([FULL-STACK.md](/full-stack/))
 
 ### Chcę przejść na żywo (prawdziwe płatności)
 
@@ -294,7 +298,7 @@ Każdy skrypt wypisuje żywy URL + zapisuje wartości do `.env.deploy.<project>`
 
 ### Albo zrób ręcznie
 
-Pełna sekwencja komend bash w wersji angielskiej tego dokumentu ([DEPLOYMENT-VERCEL-NETLIFY.md](../DEPLOYMENT-VERCEL-NETLIFY.md#appendix-fully-scripted-deploy-for-agents--ci)).
+Pełna sekwencja komend bash w wersji angielskiej tego dokumentu ([DEPLOYMENT-VERCEL-NETLIFY.md](/deployment-vercel-netlify/#appendix-fully-scripted-deploy-for-agents--ci)).
 
 ---
 

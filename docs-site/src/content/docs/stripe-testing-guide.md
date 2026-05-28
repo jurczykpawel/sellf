@@ -1,4 +1,7 @@
-# Stripe Configuration Wizard - Manual Testing Guide
+---
+title: "Stripe Configuration Wizard - Manual Testing Guide"
+description: "This guide explains how to manually test the Stripe configuration wizard in the Sellf admin panel."
+---
 
 This guide explains how to manually test the Stripe configuration wizard in the Sellf admin panel.
 

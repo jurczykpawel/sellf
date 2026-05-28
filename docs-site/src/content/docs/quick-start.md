@@ -1,6 +1,7 @@
-**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/QUICK-START.md)
-
-# Putting your Sellf store online — easiest way
+---
+title: "Putting your Sellf store online — easiest way"
+description: "This guide walks you through that easiest path: everything in your web browser, no programs to install, no terminal."
+---
 
 > **Cost story up front:** you can start for **$0/month** (Vercel + free Supabase Cloud) and most small stores stay free for years. If you'd rather have the app on your own server, that's typically **around $5/month** for a cheap VPS — Supabase still stays on its free cloud tier handling the database. The only time you'd pay more is at real scale, covered later.
 >
@@ -24,7 +25,7 @@
 >
 > **Best for:** people already used to Linux servers who want their app on their own infrastructure without the cost of running a full Supabase stack yourself.
 >
-> **Want full instructions?** See [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) for the rock-bottom mikr.us setup. If you'd rather also self-host Supabase on the same machine (so no Supabase Cloud at all), that's a separate path requiring 8 GB+ RAM (~$9/month on Hetzner CX32) — see [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md).
+> **Want full instructions?** See [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) for the rock-bottom mikr.us setup. If you'd rather also self-host Supabase on the same machine (so no Supabase Cloud at all), that's a separate path requiring 8 GB+ RAM (~$9/month on Hetzner CX32) — see [DEPLOYMENT-COOLIFY.md](/deployment-coolify/).
 >
 > ## When do you actually have to upgrade?
 >
@@ -329,8 +330,8 @@ Short version: **most small Sellf stores stay at $0/month for years.** You'd onl
 | Established store, modest traffic | **$0** | The Vercel Hobby and Supabase Free limits cover most small digital stores for 3–4 years |
 | Database fills up (~500 MB) | **$25/mo** (Supabase Pro) | More database room (8 GB) + automated daily backups |
 | You hit a Vercel Hobby resource limit (rare; see table below) | **+$20/mo** (Vercel Pro) | Higher quotas, no hard stops |
-| Want to switch the app to your own VPS to cap Vercel costs | **~$5/mo** | Sellf app on a cheap VPS; Supabase stays on its free cloud tier — see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) |
-| Want everything self-hosted (no Supabase Cloud at all) | **~$9/mo** | 8 GB VPS running Sellf + a self-hosted Supabase stack — see [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md) |
+| Want to switch the app to your own VPS to cap Vercel costs | **~$5/mo** | Sellf app on a cheap VPS; Supabase stays on its free cloud tier — see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) |
+| Want everything self-hosted (no Supabase Cloud at all) | **~$9/mo** | 8 GB VPS running Sellf + a self-hosted Supabase stack — see [DEPLOYMENT-COOLIFY.md](/deployment-coolify/) |
 
 So in plain English: **$0 to start, $0 for most small stores for years, around $5/month if you'd rather own the server, and $25–45/month only if you grow enough to need Supabase Pro and/or Vercel Pro.**
 
@@ -366,11 +367,11 @@ This guide uses **the easiest path** (Vercel + Supabase Cloud, both free). Here'
 | Path | Typical monthly cost | Setup time | Technical skill | Best for |
 |------|---------------------|------------|------------------|----------|
 | **Vercel + Supabase Cloud (this guide)** | **$0**, stays free for most small stores for years | ~20 min | 🟢 None — browser only | First-time store owners, non-technical users. The recommended path. |
-| [Netlify + Supabase Cloud](./DEPLOYMENT-VERCEL-NETLIFY.md) | Same as Vercel: $0 | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
-| [Cheap VPS + Supabase Cloud](./DEPLOYMENT-MIKRUS.md) | **~$5/mo** for the VPS (Hetzner CAX11, DO basic, etc.); Supabase stays $0 on the free cloud tier | ~45 min | 🟡 Basic — SSH, run a script | Want the app on your own infrastructure but happy keeping the database managed |
-| [mikr.us + Supabase Cloud](./DEPLOYMENT-MIKRUS.md) | **~$1/mo** (35 PLN/year mikr.us 1.0); Supabase $0 | ~45 min | 🔴 Intermediate — SSH, PM2 | Absolute cheapest if your time is free |
-| [Coolify Cloud + Hetzner](./DEPLOYMENT-COOLIFY.md) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32). Lets you self-host the Supabase stack on the same VPS — no Supabase Cloud needed | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard, no Supabase Cloud bill ever |
-| [Coolify self-hosted + Hetzner](./DEPLOYMENT-COOLIFY.md) | **~$9/mo** (Hetzner CX32, everything else free). Self-hosts the whole stack including Supabase | ~45 min | 🟡 Basic — SSH, a couple of secrets | Full control, no Supabase Cloud bill ever |
+| [Netlify + Supabase Cloud](/deployment-vercel-netlify/) | Same as Vercel: $0 | ~20 min | 🟢 None — browser only | Same as Vercel, just a different host |
+| [Cheap VPS + Supabase Cloud](/deployment-mikrus/) | **~$5/mo** for the VPS (Hetzner CAX11, DO basic, etc.); Supabase stays $0 on the free cloud tier | ~45 min | 🟡 Basic — SSH, run a script | Want the app on your own infrastructure but happy keeping the database managed |
+| [mikr.us + Supabase Cloud](/deployment-mikrus/) | **~$1/mo** (35 PLN/year mikr.us 1.0); Supabase $0 | ~45 min | 🔴 Intermediate — SSH, PM2 | Absolute cheapest if your time is free |
+| [Coolify Cloud + Hetzner](/deployment-coolify/) | **~$14/mo** ($5 Coolify Cloud + $9 Hetzner CX32). Lets you self-host the Supabase stack on the same VPS — no Supabase Cloud needed | ~30 min | 🟡 Basic — copy SSH key into a VPS | Full control + managed Coolify dashboard, no Supabase Cloud bill ever |
+| [Coolify self-hosted + Hetzner](/deployment-coolify/) | **~$9/mo** (Hetzner CX32, everything else free). Self-hosts the whole stack including Supabase | ~45 min | 🟡 Basic — SSH, a couple of secrets | Full control, no Supabase Cloud bill ever |
 
 **Stripe per-transaction fee** (~2.9% + $0.30) is the same on every path.
 
@@ -433,9 +434,9 @@ That undoes everything in 1 minute. No charges.
 
 If you want more control or fewer monthly costs, here are the alternatives:
 
-- **[Netlify deploy guide](./DEPLOYMENT-VERCEL-NETLIFY.md)** — same difficulty as Vercel, just a different hosting company. Pick this if you prefer Netlify's interface.
-- **[Coolify deploy guide](./DEPLOYMENT-COOLIFY.md)** — host Sellf on your own server (rent one for ~$5-10/month). More work to set up but cheaper long-term and gives you full control. **Requires basic comfort with Linux servers.**
-- **[VPS / mikr.us deploy guide](./DEPLOYMENT-MIKRUS.md)** — runs on a $9/year cheap server. **Requires using your computer's terminal and typing commands.** For people who want to learn the technical side.
-- **[Detailed reference for Vercel/Netlify](./DEPLOYMENT-VERCEL-NETLIFY.md)** — same as this guide but with deeper technical detail, command-line shortcuts, and step-by-step automation for developers.
+- **[Netlify deploy guide](/deployment-vercel-netlify/)** — same difficulty as Vercel, just a different hosting company. Pick this if you prefer Netlify's interface.
+- **[Coolify deploy guide](/deployment-coolify/)** — host Sellf on your own server (rent one for ~$5-10/month). More work to set up but cheaper long-term and gives you full control. **Requires basic comfort with Linux servers.**
+- **[VPS / mikr.us deploy guide](/deployment-mikrus/)** — runs on a $9/year cheap server. **Requires using your computer's terminal and typing commands.** For people who want to learn the technical side.
+- **[Detailed reference for Vercel/Netlify](/deployment-vercel-netlify/)** — same as this guide but with deeper technical detail, command-line shortcuts, and step-by-step automation for developers.
 
 If you're not sure which to pick, **stay with this guide (Vercel)** — it's by far the simplest and you can always switch later.

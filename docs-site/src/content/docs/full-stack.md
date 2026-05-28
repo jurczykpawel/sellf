@@ -1,4 +1,7 @@
-# Sellf - Production Deployment Guide
+---
+title: "Sellf - Production Deployment Guide"
+description: "Complete guide for deploying Sellf on a production server using Docker Compose."
+---
 
 Complete guide for deploying Sellf on a production server using Docker Compose.
 
@@ -387,7 +390,7 @@ Sellf supports **two equivalent methods** for Stripe configuration. Choose the o
    - Dashboard → Payments
    - Stripe Dashboard → Payments
 
-**📖 Full testing guide:** See `/STRIPE-TESTING-GUIDE.md`
+**📖 Full testing guide:** See the [Stripe Testing Guide](/stripe-testing-guide/)
 
 #### Required Database Migrations
 

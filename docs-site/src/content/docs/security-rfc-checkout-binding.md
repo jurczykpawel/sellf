@@ -1,4 +1,7 @@
-# RFC: Checkout mutation binding token
+---
+title: "RFC: Checkout mutation binding token"
+description: "RFC for binding a Stripe checkout session to a server-side record, preventing client-side mutation of checkout parameters."
+---
 
 **Status:** Implemented (Option B chosen).
 **Scope:** `/api/update-payment-metadata`, `/api/create-payment-intent` (Stripe session expire path).

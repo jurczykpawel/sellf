@@ -1,6 +1,10 @@
-**Język:** 🇵🇱 Polski · [🇬🇧 English](../SUPABASE-SETUP.md)
+---
+title: "Konfiguracja Supabase dla sklepu Sellf"
+description: "Sellf potrzebuje miejsca na przechowywanie Twoich produktów, klientów i zamówień. Tym miejscem jest Supabase — darmowa usługa, która daje Sellfowi…"
+---
 
-# Konfiguracja Supabase dla sklepu Sellf
+**Język:** 🇵🇱 Polski · [🇬🇧 English](/supabase-setup/)
+
 
 Sellf potrzebuje miejsca na przechowywanie Twoich produktów, klientów i zamówień. Tym miejscem jest **Supabase** — darmowa usługa, która daje Sellfowi wszystko co potrzebuje do działania. Nie musisz nic instalować ani konfigurować technicznie; Supabase działa na ich komputerach, a Sellf po prostu rozmawia z nim przez internet.
 
@@ -188,8 +192,8 @@ Jeśli wolisz żeby skrypt użył istniejącego projektu Supabase (utworzonego p
 
 Co robisz dalej zależy od opcji którą wybrałeś:
 
-- **Opcja 1 (Vercel auto-integracja):** otwórz [Przewodnik Vercel/Netlify](./DEPLOYMENT-VERCEL-NETLIFY.md) i podążaj od **Kroku 4** (pomiń części Supabase — już je zrobiłeś)
-- **Opcja 2 (ręcznie):** otwórz [Przewodnik Vercel/Netlify](./DEPLOYMENT-VERCEL-NETLIFY.md) i wklej pięć wartości do formularza gdy będzie poproszony
+- **Opcja 1 (Vercel auto-integracja):** otwórz [Przewodnik Vercel/Netlify](/pl/deployment-vercel-netlify/) i podążaj od **Kroku 4** (pomiń części Supabase — już je zrobiłeś)
+- **Opcja 2 (ręcznie):** otwórz [Przewodnik Vercel/Netlify](/pl/deployment-vercel-netlify/) i wklej pięć wartości do formularza gdy będzie poproszony
 - **Opcja 3 (skrypt):** skrypt już wszystko zrobił — Twój sklep jest online
 
 ---
@@ -275,7 +279,7 @@ To nie jest coś co robisz przypadkowo ale nie jest trudne jeśli potrzebujesz.
 
 ### "Nie chcę używać usługi chmurowej w ogóle. Mogę uruchomić Supabase samodzielnie?"
 
-Tak, na własnym serwerze — zobacz [Przewodnik Coolify](./DEPLOYMENT-COOLIFY.md) (Coolify wdraża pełny stack Supabase obok Sellfa) albo [FULL-STACK.md](../FULL-STACK.md) (Docker Compose z 11 kontenerami).
+Tak, na własnym serwerze — zobacz [Przewodnik Coolify](/pl/deployment-coolify/) (Coolify wdraża pełny stack Supabase obok Sellfa) albo [FULL-STACK.md](/full-stack/) (Docker Compose z 11 kontenerami).
 
 ### "Gdzie znajdę referencję projektu jeśli mi umknęła?"
 

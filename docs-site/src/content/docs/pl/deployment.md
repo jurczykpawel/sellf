@@ -1,16 +1,20 @@
-**Język:** 🇵🇱 Polski · [🇬🇧 English](../DEPLOYMENT.md)
+---
+title: "Opcje wdrożenia"
+description: "Ta strona pokazuje wszystkie wspierane sposoby na postawienie Sellfa online, w kolejności od najprostszego (kilka kliknięć w przeglądarce) do najbardziej…"
+---
 
-# Opcje wdrożenia
+**Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment/)
+
 
 Ta strona pokazuje wszystkie wspierane sposoby na postawienie Sellfa online, w kolejności od najprostszego (kilka kliknięć w przeglądarce) do najbardziej technicznego (komendy w terminalu na serwerze). Wszystkie dają działający sklep Sellf.
 
 ## 👋 Pierwszy raz? Zacznij tu
 
-**[QUICK-START.md](./QUICK-START.md)** — Przewodnik klik-po-kliku używający tylko przeglądarki. Bez terminala. Wdraża na Vercel + Supabase + Stripe w ~20 minut. **To najprostsza ścieżka dla osób nietechnicznych.**
+**[QUICK-START.md](/pl/quick-start/)** — Przewodnik klik-po-kliku używający tylko przeglądarki. Bez terminala. Wdraża na Vercel + Supabase + Stripe w ~20 minut. **To najprostsza ścieżka dla osób nietechnicznych.**
 
 ## Konfiguracja Supabase (używana przez wszystkie przewodniki wdrożenia)
 
-**[SUPABASE-SETUP.md](./SUPABASE-SETUP.md)** — Wyjaśnia trzy sposoby konfiguracji bazy danych której Sellf używa (tylko przeglądarka, kopiuj-wklej, albo przez skrypt). Przeczytaj jeśli nie jesteś pewien którą opcję Supabase wybrać w którymś z poniższych przewodników.
+**[SUPABASE-SETUP.md](/pl/supabase-setup/)** — Wyjaśnia trzy sposoby konfiguracji bazy danych której Sellf używa (tylko przeglądarka, kopiuj-wklej, albo przez skrypt). Przeczytaj jeśli nie jesteś pewien którą opcję Supabase wybrać w którymś z poniższych przewodników.
 
 ## Pozostałe przewodniki wdrożenia
 
@@ -18,7 +22,7 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel albo Netlify (zarządzane w chmurze)
+### [DEPLOYMENT-VERCEL-NETLIFY.md](/pl/deployment-vercel-netlify/) — Vercel albo Netlify (zarządzane w chmurze)
 **Wybierz gdy potrzebujesz:**
 - Najprostszego sposobu zarządzanego — bez utrzymania serwera
 - Free tier wystarcza na początek
@@ -28,7 +32,7 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md) — Coolify (one-click samodzielny hosting)
+### [DEPLOYMENT-COOLIFY.md](/pl/deployment-coolify/) — Coolify (one-click samodzielny hosting)
 **Wybierz gdy potrzebujesz:**
 - Najbliżej "prawdziwego one-click" — migracje uruchamiają się automatycznie
 - Samodzielnego hostingu pełnego stosu (Sellf + Supabase) na własnym VPS
@@ -38,7 +42,7 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [FULL-STACK.md](../FULL-STACK.md) — Samodzielny Supabase + Docker
+### [FULL-STACK.md](/full-stack/) — Samodzielny Supabase + Docker
 **Wybierz gdy potrzebujesz:**
 - Pełnej kontroli nad infrastrukturą (11 kontenerów Docker)
 - Samodzielnego Supabase (bez zależności od chmury)
@@ -49,7 +53,7 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md) — VPS / mikr.us przez PM2
+### [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) — VPS / mikr.us przez PM2
 **Wybierz gdy potrzebujesz:**
 - Najtańszego rozwiązania (35 zł/rok mikr.us)
 - Pełnej kontroli nad serwerem
@@ -59,7 +63,7 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [PM2-VPS.md](../PM2-VPS.md) — Zaawansowany PM2
+### [PM2-VPS.md](/pm2-vps/) — Zaawansowany PM2
 **Wybierz gdy potrzebujesz:**
 - Tryb klastrowy (wykorzystanie wielu rdzeni)
 - Wdrożenia bez przestojów
@@ -68,18 +72,18 @@ Wybierz w zależności od tego co chcesz.
 
 **Wymagania:** znajomość PM2, 4GB+ RAM
 
-**Uwaga:** Dla podstawowej konfiguracji PM2 zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md).
+**Uwaga:** Dla podstawowej konfiguracji PM2 zobacz [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/).
 
 ---
 
-### [DOCKER-SIMPLE.md](../DOCKER-SIMPLE.md) — Prosty Docker
+### [DOCKER-SIMPLE.md](/docker-simple/) — Prosty Docker
 **Wybierz gdy:**
 - Chcesz Docker + Supabase Cloud
 - Potrzebujesz dokładniejszego opisu niż w głównym przewodniku
 
 ---
 
-### [UPSTASH-REDIS.md](../UPSTASH-REDIS.md) — Opcjonalne cache'owanie Redis
+### [UPSTASH-REDIS.md](/upstash-redis/) — Opcjonalne cache'owanie Redis
 **Wybierz gdy chcesz:**
 - 10× szybsze zapytania konfiguracji (50-100ms → 5-10ms)
 - 50-70% mniejsze obciążenie bazy
@@ -89,4 +93,4 @@ Wybierz w zależności od tego co chcesz.
 
 ## Nie jesteś pewien co wybrać?
 
-**→ Zacznij od [QUICK-START.md](./QUICK-START.md)** — najprostsza ścieżka, sprawdza się dla większości pierwszych wdrożeń.
+**→ Zacznij od [QUICK-START.md](/pl/quick-start/)** — najprostsza ścieżka, sprawdza się dla większości pierwszych wdrożeń.

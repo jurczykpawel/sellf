@@ -1,4 +1,7 @@
-# Sellf - Simple Deploy (Using Existing Setup)
+---
+title: "Sellf - Simple Deploy (Using Existing Setup)"
+description: "Are you already using admin-panel/docker-compose.yml for testing? Great! You can use the same file in production. This is the simplest solution."
+---
 
 **THIS IS THE RECOMMENDED OPTION** if you are already testing `admin-panel/docker-compose.yml` on your server!
 

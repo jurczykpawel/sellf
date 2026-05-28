@@ -712,8 +712,7 @@ When documenting changes or adding information:
 2. **Core Documentation Files**:
    - `README.md` - Main project documentation
    - `AGENTS.md` - AI assistant instructions (this file)
-   - `deployment/advanced/DOCKER-SIMPLE.md` - Simple Docker deployment guide
-   - `docs/DEPLOYMENT-MIKRUS.md` - Main deployment guide (VPS/PM2)
+   - `docs-site/src/content/docs/` - User-facing docs (Starlight → https://docs.sellf.app); deploy guides, Quick Start, API, configuration
    - `templates/README.md` - Template customization guide
 3. **When to Create New Files**:
    - Only when information doesn't fit naturally in core docs

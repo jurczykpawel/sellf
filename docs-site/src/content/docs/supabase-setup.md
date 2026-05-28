@@ -1,6 +1,7 @@
-**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/SUPABASE-SETUP.md)
-
-# Setting up Supabase for your Sellf store
+---
+title: "Setting up Supabase for your Sellf store"
+description: "Sellf needs a place to store your products, customers, and orders. That place is called Supabase — a free service that gives you everything Sellf needs to…"
+---
 
 Sellf needs a place to store your products, customers, and orders. That place is called **Supabase** — a free service that gives you everything Sellf needs to run. You don't have to install or configure anything technical; Supabase runs on their computers, and Sellf simply talks to it over the internet.
 
@@ -188,8 +189,8 @@ If you'd rather have the script reuse an existing Supabase project you already m
 
 What you do next depends on which option you picked above:
 
-- **Option 1 (Vercel auto-integration):** open [Vercel/Netlify deploy guide](./DEPLOYMENT-VERCEL-NETLIFY.md) and follow it from **Step 4** onwards (skip the Supabase parts — you've already done them)
-- **Option 2 (manual):** open [Vercel/Netlify deploy guide](./DEPLOYMENT-VERCEL-NETLIFY.md) and paste the five values into the deploy form when prompted
+- **Option 1 (Vercel auto-integration):** open [Vercel/Netlify deploy guide](/deployment-vercel-netlify/) and follow it from **Step 4** onwards (skip the Supabase parts — you've already done them)
+- **Option 2 (manual):** open [Vercel/Netlify deploy guide](/deployment-vercel-netlify/) and paste the five values into the deploy form when prompted
 - **Option 3 (script):** the script already does everything — your Sellf store is online
 
 ---
@@ -275,7 +276,7 @@ It's not something you'd do casually but it's not difficult if you need to.
 
 ### "I don't want to use a cloud service at all. Can I run Supabase myself?"
 
-Yes, on your own server — see [Coolify deploy guide](./DEPLOYMENT-COOLIFY.md). This is more work but gives you full control over your data. Recommended only if you're already comfortable managing servers.
+Yes, on your own server — see [Coolify deploy guide](/deployment-coolify/). This is more work but gives you full control over your data. Recommended only if you're already comfortable managing servers.
 
 ### "Where do I find the project reference if I missed it?"
 

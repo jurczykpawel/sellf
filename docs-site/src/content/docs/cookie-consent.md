@@ -1,4 +1,7 @@
-# Cookie Consent & Tracking Setup
+---
+title: "Cookie Consent & Tracking Setup"
+description: "Sellf ships with a built-in cookie consent system powered by vanilla-cookieconsent v3 (orestbida). It gates Google Tag Manager and Meta Pixel (incl…"
+---
 
 Sellf ships with a built-in cookie consent system powered by [vanilla-cookieconsent v3](https://github.com/orestbida/cookieconsent) (orestbida). It gates Google Tag Manager and Meta Pixel (incl. Conversions API) behind opt-in consent and wires Google Consent Mode V2. Umami Analytics runs cookieless and is **not** gated — see below. All settings live in the admin panel; no env vars required.
 

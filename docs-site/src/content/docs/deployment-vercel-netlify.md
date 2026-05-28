@@ -1,10 +1,11 @@
-**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/DEPLOYMENT-VERCEL-NETLIFY.md)
-
-# Deploying Sellf to Vercel or Netlify (one-click)
+---
+title: "Deploying Sellf to Vercel or Netlify (one-click)"
+description: "Time required: ~15 minutes if you already have GitHub, Supabase, Stripe, and Vercel/Netlify accounts. Add 5–10 minutes per account you need to create."
+---
 
 Time required: **~15 minutes** if you already have GitHub, Supabase, Stripe, and Vercel/Netlify accounts. Add 5–10 minutes per account you need to create.
 
-This guide covers the Vercel/Netlify "Deploy" buttons in the README. For VPS/PM2 deployment, see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md). For self-hosted Docker, see [FULL-STACK.md](./FULL-STACK.md).
+This guide covers the Vercel/Netlify "Deploy" buttons in the README. For VPS/PM2 deployment, see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/). For self-hosted Docker, see [FULL-STACK.md](/full-stack/).
 
 ## What you'll have at the end
 
@@ -19,7 +20,7 @@ To switch from test mode to live payments later, you replace `sk_test_…` / `pk
 
 | Service | Tier | Limits | Watch out for |
 |---------|------|--------|---------------|
-| Vercel Hobby | free | 100 GB bandwidth, 1M function invocations, 4h active CPU, 1M edge requests, 5k image transformations, 1 seat | **Personal, non-commercial use only** (rarely enforced for small sites in practice). Hard stops (no overages — site returns 503 once you hit a limit). For strict ToS compliance on a commercial store, upgrade to Vercel Pro ($20/mo) — or sidestep with the own-VPS path (~$5/mo). Full table + nuance in [QUICK-START.md](./QUICK-START.md#vercel-hobby--whats-in-the-free-tier-and-when-does-it-hard-stop). |
+| Vercel Hobby | free | 100 GB bandwidth, 1M function invocations, 4h active CPU, 1M edge requests, 5k image transformations, 1 seat | **Personal, non-commercial use only** (rarely enforced for small sites in practice). Hard stops (no overages — site returns 503 once you hit a limit). For strict ToS compliance on a commercial store, upgrade to Vercel Pro ($20/mo) — or sidestep with the own-VPS path (~$5/mo). Full table + nuance in [QUICK-START.md](/quick-start/#vercel-hobby--whats-in-the-free-tier-and-when-does-it-hard-stop). |
 | Netlify Starter | free | 100 GB bandwidth, 300 build min/month, 125k function invocations | Plenty for small stores |
 | Supabase Free | free | 500 MB DB, 1 GB storage, 50k MAU | Generous for years for a typical small store. Upgrade to Pro ($25/mo) when you approach the DB size or MAU limit, or want automated daily backups. |
 | Stripe test mode | free | unlimited | No real money moves until you switch to `sk_live_…` |
@@ -77,7 +78,7 @@ That's it. You **don't** need to create a webhook endpoint in the Stripe Dashboa
 
 ## Step 4 — Click the Deploy button (2 min)
 
-From the [README](../README.md), click **Deploy with Vercel** or **Deploy to Netlify**.
+From the [README](https://github.com/jurczykpawel/sellf/blob/main/README.md), click **Deploy with Vercel** or **Deploy to Netlify**.
 
 You'll be asked to authorize the platform on your GitHub, choose a project name, and fill in environment variables. Paste:
 
@@ -245,7 +246,7 @@ Supabase free tier uses a low-priority SMTP relay. Two fixes:
 Free tier behavior. Options:
 - Upgrade to **Supabase Pro** ($25/month) — recommended if Sellf has live customers
 - Keep traffic flowing — a daily ping to any endpoint counts as activity
-- Self-host Supabase on your own infrastructure ([FULL-STACK.md](./FULL-STACK.md))
+- Self-host Supabase on your own infrastructure ([FULL-STACK.md](/full-stack/))
 
 ### I want to go live (real payments)
 

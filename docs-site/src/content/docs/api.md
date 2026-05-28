@@ -1,4 +1,7 @@
-# REST API v1
+---
+title: "REST API v1"
+description: "Sellf provides a full REST API for managing products, users, payments, refunds, coupons, webhooks, and more. Admin API endpoints are under /api/v1/."
+---
 
 Sellf provides a full REST API for managing products, users, payments, refunds, coupons, webhooks, and more. Admin API endpoints are under `/api/v1/`.
 

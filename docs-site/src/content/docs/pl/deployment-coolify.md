@@ -1,6 +1,10 @@
-**Język:** 🇵🇱 Polski · [🇬🇧 English](../DEPLOYMENT-COOLIFY.md)
+---
+title: "Wdrożenie Sellfa na Coolify"
+description: "Coolify to platforma PaaS do zarządzania aplikacjami na Twoich własnych serwerach. Dostępna w dwóch wariantach:"
+---
 
-# Wdrożenie Sellfa na Coolify
+**Język:** 🇵🇱 Polski · [🇬🇧 English](/deployment-coolify/)
+
 
 Coolify to platforma [PaaS](https://pl.wikipedia.org/wiki/Platforma_jako_us%C5%82uga) do zarządzania aplikacjami na Twoich własnych serwerach. Dostępna w dwóch wariantach:
 
@@ -31,8 +35,8 @@ Wybierz **Coolify Self-Hosted** jeśli chcesz zero powtarzających się opłat z
 
 Nie wybieraj Coolify jeśli pasują Ci bardziej:
 
-- **Hosting na free tier:** Coolify i tak wymaga VPS-a, ~$5-10/miesiąc minimum. Zobacz [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel + Supabase Cloud mają darmowy plan.
-- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](../DEPLOYMENT-MIKRUS.md) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
+- **Hosting na free tier:** Coolify i tak wymaga VPS-a, ~$5-10/miesiąc minimum. Zobacz [DEPLOYMENT-VERCEL-NETLIFY.md](/pl/deployment-vercel-netlify/) — Vercel + Supabase Cloud mają darmowy plan.
+- **Najmniejszy możliwy footprint:** zobacz [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) — sam Sellf chodzi na 35 zł/rok mikr.us bez Dockera.
 
 ## Najkrótsza ścieżka — użyj instalatora StackPilot
 

@@ -1,6 +1,7 @@
-**Language:** 🇬🇧 English · [🇵🇱 Polski](./pl/DEPLOYMENT-COOLIFY.md)
-
-# Deploying Sellf to Coolify
+---
+title: "Deploying Sellf to Coolify"
+description: "Coolify is a PaaS for managing applications on your own servers. It comes in two flavors:"
+---
 
 Coolify is a [PaaS](https://en.wikipedia.org/wiki/Platform_as_a_service) for managing applications on your own servers. It comes in two flavors:
 
@@ -31,8 +32,8 @@ Pick **Coolify Self-Hosted** if you want zero recurring software bills (you stil
 
 Don't pick Coolify if any of these fit you better:
 
-- **You want free-tier hosting:** Coolify still needs your own VPS, ~$5–10/mo minimum. See [DEPLOYMENT-VERCEL-NETLIFY.md](./DEPLOYMENT-VERCEL-NETLIFY.md) — Vercel + Supabase Cloud both have free tiers.
-- **You want the smallest possible footprint:** see [DEPLOYMENT-MIKRUS.md](./DEPLOYMENT-MIKRUS.md) — Sellf alone runs on a $9/year mikr.us VPS without Docker.
+- **You want free-tier hosting:** Coolify still needs your own VPS, ~$5–10/mo minimum. See [DEPLOYMENT-VERCEL-NETLIFY.md](/deployment-vercel-netlify/) — Vercel + Supabase Cloud both have free tiers.
+- **You want the smallest possible footprint:** see [DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) — Sellf alone runs on a $9/year mikr.us VPS without Docker.
 
 ## Shortest path — use the StackPilot installer
 
