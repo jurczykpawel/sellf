@@ -1,7 +1,8 @@
 import { Page } from '@playwright/test';
+import { CONSENT_COOKIE_NAME } from '@/lib/constants';
 
 /**
- * Cookieconsent (orestbida/cookieconsent v3) wire format for `sellf_consent` cookie.
+ * Cookieconsent (orestbida/cookieconsent v3) wire format for the consent cookie.
  *
  * Categories map to service groups:
  *   - necessary  -> always granted (no toggleable services)
@@ -60,7 +61,7 @@ function buildCookieValue(acceptedServices: Record<string, boolean>) {
 async function writeConsentCookie(page: Page, services: Record<string, boolean>) {
   await page.context().addCookies([
     {
-      name: 'sellf_consent',
+      name: CONSENT_COOKIE_NAME,
       value: buildCookieValue(services),
       domain: 'localhost',
       path: '/',
@@ -105,5 +106,5 @@ export async function setConsentPreferences(page: Page, consents: Record<string,
  * Clears consent cookie to simulate no consent given.
  */
 export async function clearConsent(page: Page) {
-  await page.context().clearCookies({ name: 'sellf_consent' });
+  await page.context().clearCookies({ name: CONSENT_COOKIE_NAME });
 }

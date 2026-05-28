@@ -12,6 +12,7 @@ import {
 } from '@/lib/tracking';
 import { readMarketingConsentFromCookieValue } from '@/lib/tracking/consent-mode';
 import { isValidFbEventName } from '@/lib/tracking/types';
+import { CONSENT_COOKIE_NAME } from '@/lib/constants';
 
 /** Max length for free-form string fields to prevent storage exhaustion */
 const MAX_STRING_LEN = 500;
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
     // over whatever the body claims. Body is only the fallback for callers
     // that never had a cookie (legacy tests, SSR pages).
     const cookieConsent = readMarketingConsentFromCookieValue(
-      request.cookies.get('sellf_consent')?.value
+      request.cookies.get(CONSENT_COOKIE_NAME)?.value
     );
     const hasConsent = cookieConsent !== null ? cookieConsent : bodyConsent;
     const contentIds = Array.isArray(body.content_ids)

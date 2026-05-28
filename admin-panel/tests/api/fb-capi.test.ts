@@ -12,6 +12,7 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { CONSENT_COOKIE_NAME } from '@/lib/constants';
 
 // ---------------------------------------------------------------------------
 // Test configuration
@@ -42,7 +43,7 @@ async function postCapi(body: Record<string, unknown>, cookies?: Record<string, 
   });
 }
 
-/** Build a sellf_consent cookie value with the given marketing decision */
+/** Build a consent cookie value with the given marketing decision */
 function consentCookie(marketingAccepted: boolean) {
   return encodeURIComponent(
     JSON.stringify({
@@ -343,7 +344,7 @@ describe('POST /api/tracking/fb-capi', () => {
     it('skips ViewContent when body says has_consent=true but cookie says rejected', async () => {
       const res = await postCapi(
         validBody({ event_name: 'ViewContent', has_consent: true }),
-        { sellf_consent: consentCookie(false) }
+        { [CONSENT_COOKIE_NAME]: consentCookie(false) }
       );
       const body = await res.json();
 
@@ -355,7 +356,7 @@ describe('POST /api/tracking/fb-capi', () => {
     it('forwards ViewContent when body says has_consent=false but cookie says accepted', async () => {
       const res = await postCapi(
         validBody({ event_name: 'ViewContent', has_consent: false }),
-        { sellf_consent: consentCookie(true) }
+        { [CONSENT_COOKIE_NAME]: consentCookie(true) }
       );
 
       // Cookie says yes → forwarded → fake token rejected by FB (500)

@@ -139,3 +139,6 @@ export const SELLF_NETLIFY_DEPLOY_URL =
 
 /** URL of the QUICK-START guide for self-hosting (VPS path). */
 export const SELLF_QUICKSTART_URL = `${SELLF_DOCS_URL}/quick-start/`;
+
+/** Consent cookie name (cookieconsent v3). Distinct from Klaro's legacy `sellf_consent` so a host-only leftover can't shadow it. */
+export const CONSENT_COOKIE_NAME = 'sellf_consent_v3';

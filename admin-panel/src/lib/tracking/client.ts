@@ -9,6 +9,7 @@ import type {
   TrackingConfig,
   FBCAPIRequestPayload,
 } from './types';
+import { CONSENT_COOKIE_NAME } from '@/lib/constants';
 
 // Event name mapping: GA4 -> Facebook
 const GA4_TO_FB: Record<GA4EventName, FBEventName> = {
@@ -21,7 +22,7 @@ const GA4_TO_FB: Record<GA4EventName, FBEventName> = {
 
 /**
  * Consent helpers — read the cookieconsent (orestbida/cookieconsent v3) cookie
- * named `sellf_consent`.
+ * named `CONSENT_COOKIE_NAME`.
  *
  * Cookie shape (cookieconsent native):
  *   {
@@ -47,12 +48,13 @@ interface CookieConsentCookie {
 function readConsentCookie(): CookieConsentCookie | null {
   if (typeof document === 'undefined') return null;
   try {
+    const prefix = `${CONSENT_COOKIE_NAME}=`;
     const entry = document.cookie
       .split(';')
       .map((c) => c.trim())
-      .find((c) => c.startsWith('sellf_consent='));
+      .find((c) => c.startsWith(prefix));
     if (!entry) return null;
-    const decoded = decodeURIComponent(entry.slice('sellf_consent='.length));
+    const decoded = decodeURIComponent(entry.slice(prefix.length));
     return JSON.parse(decoded);
   } catch {
     return null;

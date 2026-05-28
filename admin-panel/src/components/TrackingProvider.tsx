@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Script from 'next/script'
+import { CONSENT_COOKIE_NAME } from '@/lib/constants'
 
 /** Validate GTM container ID format (GTM-XXXXXXX) */
 function isValidGtmId(id: string): boolean {
@@ -206,9 +207,9 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
         `. Wybór zmienisz w każdej chwili przez Preferencje ciasteczek w stopce.`
 
       await CookieConsent.run({
-        // Same cookie name as the legacy Klaro install so neither tests nor
-        // app-level helpers need to learn a second name.
-        cookie: { name: 'sellf_consent', expiresAfterDays: 365 },
+        // Distinct from Klaro's old `sellf_consent` cookie — a same-name host-only
+        // leftover would shadow this one and re-trigger the banner forever.
+        cookie: { name: CONSENT_COOKIE_NAME, expiresAfterDays: 365 },
         // Explicit opt-in: GDPR requires consent BEFORE non-essential cookies.
         // cookieconsent v3 defaults to opt-in, but locking it down here keeps
         // a future maintainer from accidentally flipping the model.
