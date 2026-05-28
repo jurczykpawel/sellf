@@ -383,14 +383,14 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 
 ## Support This Project
 
-Sellf is free and open source. If it saves you money on platform fees, consider supporting development by purchasing a white-label license — it removes the "Powered by Sellf" watermark and unlocks the Theme Editor.
+Sellf is free and open source. If it saves you money on platform fees, consider supporting development by buying Sellf Pro — it removes the "Powered by Sellf" watermark and unlocks the Theme Editor.
 
 | License | Price | Use Case |
 |---------|-------|----------|
 | **Personal** | Pay What You Want (min $9, suggested $29) | 1 Sellf instance |
 | **Agency Pack** | $99 | 5 license keys for client projects |
 
-**[Get a White-Label License →](https://sellf.techskills.academy/v/sellf-white-label-license)**
+**[Get Sellf Pro →](https://sellf.techskills.academy/pl/checkout/sellf-pro)**
 
 ---
 
