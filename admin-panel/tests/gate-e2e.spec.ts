@@ -159,7 +159,7 @@ test.describe('Gate route (non-bouncing token mint)', () => {
   });
 
   test('rejects a redirect host not in the seller allowlist', async ({ request }) => {
-    const url = `/loginwall/gate?products=${productA.slug}&redirect=${encodeURIComponent('https://evil.attacker.com/x')}`;
+    const url = `/loginwall/gate?products=${productA.slug}&redirect=${encodeURIComponent('https://not-allowed.example.com/x')}`;
     expect((await request.get(url, { maxRedirects: 0 })).status()).toBe(400);
   });
 
@@ -221,7 +221,7 @@ test.describe('Verify endpoint (bearer-only)', () => {
   test('does not reflect a non-allowlisted origin', async ({ page, request }) => {
     const token = await mintToken(page, true);
     const res = await request.post('/api/loginwall/verify', {
-      headers: { Authorization: `Bearer ${token}`, Origin: 'https://evil.attacker.com', 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, Origin: 'https://not-allowed.example.com', 'Content-Type': 'application/json' },
       data: { product: productA.slug },
     });
     expect(res.headers()['access-control-allow-origin']).toBeUndefined();

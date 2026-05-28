@@ -111,8 +111,8 @@ describe('GET /loginwall/protect', () => {
       access: { access_expires_at: null },
     }) as never);
     vi.mocked(loadAllowedOriginsForProduct).mockResolvedValue([CUSTOMER_ORIGIN]);
-    const evilUrl = 'https://evil.attacker.com/phish';
-    const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(evilUrl)));
+    const disallowedUrl = 'https://not-allowed.example.com/blocked';
+    const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(disallowedUrl)));
     expect(res.status).toBe(400);
     expect(vi.mocked(storeLoginwallNonce)).not.toHaveBeenCalled();
   });

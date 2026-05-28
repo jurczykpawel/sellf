@@ -1,5 +1,15 @@
+import type { NextRequest } from 'next/server';
+
 import { isAllowedEmbedOrigin } from '@/lib/embed/checkout-embed';
 import { isInternalHostname } from '@/lib/security/internal-hostname';
+
+export function clientIdentifier(request: NextRequest): string {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
 
 export function parseCustomerRedirect(raw: string): URL | null {
   try {

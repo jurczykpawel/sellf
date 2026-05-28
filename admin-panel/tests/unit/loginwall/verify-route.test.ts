@@ -80,7 +80,7 @@ describe('POST /api/loginwall/verify', () => {
   });
 
   it('does NOT reflect a non-allowlisted Origin', async () => {
-    const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: 'https://evil.attacker.com' }));
+    const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: 'https://not-allowed.example.com' }));
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
 

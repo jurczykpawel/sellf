@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
-import { validateRedirectAgainstAllowlist } from '@/lib/loginwall/request';
+import { clientIdentifier, validateRedirectAgainstAllowlist } from '@/lib/loginwall/request';
 import { verifyGateToken } from '@/lib/loginwall/token';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -13,14 +13,6 @@ const bodySchema = z.object({ product: z.string().regex(/^[a-z0-9-]{1,96}$/) });
 const RATE_LIMIT_ACTION = 'loginwall_verify';
 const RATE_LIMIT_MAX = 120;
 const RATE_LIMIT_WINDOW_MIN = 1;
-
-function clientIdentifier(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  );
-}
 
 function bearer(request: NextRequest): string | null {
   const header = request.headers.get('authorization') ?? '';

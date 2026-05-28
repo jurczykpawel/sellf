@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { buildGateScript } from '@/lib/loginwall/gate-snippet';
-import { siteOrigin } from '@/lib/loginwall/request';
+import { clientIdentifier, siteOrigin } from '@/lib/loginwall/request';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 
 const querySchema = z.object({
@@ -16,14 +16,6 @@ const querySchema = z.object({
 const RATE_LIMIT_ACTION = 'loginwall_gate_js';
 const RATE_LIMIT_MAX = 60;
 const RATE_LIMIT_WINDOW_MIN = 1;
-
-function clientIdentifier(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  );
-}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const parsed = querySchema.safeParse({ products: request.nextUrl.searchParams.get('products') });

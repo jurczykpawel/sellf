@@ -94,8 +94,8 @@ describe('verifyLoginwallToken (signature + exp + product, no DB)', () => {
   it('rejects a token with a wrong signature', () => {
     const { token } = signLoginwallToken({ productId: PRODUCT_ID, userId: USER_ID, secret: SECRET, now: NOW });
     const [payload] = token.split('.');
-    const tampered = `${payload}.AAAA`;
-    const result = verifyLoginwallToken(tampered, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
+    const modified = `${payload}.AAAA`;
+    const result = verifyLoginwallToken(modified, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
     expect(result).toEqual({ valid: false, reason: 'signature' });
   });
 
@@ -112,8 +112,8 @@ describe('verifyLoginwallToken (signature + exp + product, no DB)', () => {
   it('rejects a token whose payload was modified', () => {
     const { token } = signLoginwallToken({ productId: PRODUCT_ID, userId: USER_ID, secret: SECRET, now: NOW });
     const [, sig] = token.split('.');
-    const tampered = `${Buffer.from(JSON.stringify({ pid: PRODUCT_ID, uid: 'attacker', exp: 9999999999, nonce: 'x' })).toString('base64url')}.${sig}`;
-    const result = verifyLoginwallToken(tampered, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
+    const modified = `${Buffer.from(JSON.stringify({ pid: PRODUCT_ID, uid: 'other-user', exp: 9999999999, nonce: 'x' })).toString('base64url')}.${sig}`;
+    const result = verifyLoginwallToken(modified, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
     expect(result).toEqual({ valid: false, reason: 'signature' });
   });
 
@@ -167,13 +167,13 @@ describe('gate token v2', () => {
     expect(parseGatePayload(token)).toMatchObject({ v: 2, auth: true, owned: ['a'], req: ['a', 'b'] });
   });
 
-  it('rejects a tampered payload', () => {
+  it('rejects a modified payload', () => {
     const { token } = signGateToken({ ...base, now: NOW });
     const sig = token.split('.')[1];
-    const evil = Buffer.from(
+    const altered = Buffer.from(
       JSON.stringify({ v: 2, uid: USER_ID, auth: true, req: ['a', 'b'], owned: ['a', 'b'], exp: 9999999999, nonce: 'x' }),
     ).toString('base64url');
-    expect(verifyGateToken(`${evil}.${sig}`, { secret: SECRET, now: NOW })).toEqual({ valid: false, reason: 'signature' });
+    expect(verifyGateToken(`${altered}.${sig}`, { secret: SECRET, now: NOW })).toEqual({ valid: false, reason: 'signature' });
   });
 
   it('rejects expired', () => {
