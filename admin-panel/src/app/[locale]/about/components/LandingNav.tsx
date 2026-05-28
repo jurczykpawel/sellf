@@ -7,7 +7,7 @@ import { Menu, X, Lock, Heart } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useAuth } from '@/contexts/AuthContext'
 import SiteMenu from '@/components/SiteMenu'
-import { SELLF_GITHUB_URL } from '@/lib/constants'
+import { SELLF_DOCS_URL, SELLF_GITHUB_URL } from '@/lib/constants'
 
 export function LandingNav() {
   const t = useTranslations('landing')
@@ -17,6 +17,11 @@ export function LandingNav() {
   const navLinks = [
     { label: t('nav.home'), href: '/store' },
     { label: t('nav.products'), href: '/store' },
+    {
+      label: t('nav.docs'),
+      href: SELLF_DOCS_URL,
+      external: true,
+    },
     {
       label: t('nav.github'),
       href: SELLF_GITHUB_URL,
