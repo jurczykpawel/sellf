@@ -353,7 +353,7 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 ## Roadmap
 
 - [x] Dark/Light theme with admin control
-- [x] Whitelabel Theme System (presets, editor, import/export)
+- [x] Theme System (presets, editor, import/export)
 - [x] REST API v1 with OpenAPI 3.1
 - [x] MCP Server for Claude Desktop
 - [x] Simple Funnel System (OTO chaining)
