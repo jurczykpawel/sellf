@@ -134,19 +134,6 @@ Sellf gives you **complete control** over your digital product business. No mont
 </details>
 
 <details>
-<summary><strong>Whitelabel & Theming</strong></summary>
-
-- 5 built-in theme presets (Midnight Forge, Sunset, Ocean, Forest, Minimal Light)
-- Visual Theme Editor with live preview
-- Import/export themes as JSON
-- Dark/Light/System mode with optional admin-enforced lock
-- Unified `sf-*` CSS design token system across all UI layers
-- Custom colors, typography, and border radius
-- Server-side license gate for theme customization ([White-Label License](https://sellf.techskills.academy/v/sellf-white-label-license))
-
-</details>
-
-<details>
 <summary><strong>Compliance & Security</strong></summary>
 
 - EU Omnibus Directive (30-day price history)
