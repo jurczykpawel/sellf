@@ -488,7 +488,7 @@ invalidates every in-flight token immediately; the next visit just goes through
 
 ### Stable Versions & Known Issues
 
-- **Supabase CLI**: 2.70.5 (run via `npx supabase`) — pin via `npx supabase@2.70.5` if needed
+- **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed
 
 ## Troubleshooting
 
