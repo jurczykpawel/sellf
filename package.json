@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "autocannon": "^8.0.0",
-    "supabase": "^2.70.5"
+    "supabase": "^2.101.0"
   },
   "files": [
     "sellf.js",
