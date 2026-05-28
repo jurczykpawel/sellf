@@ -486,6 +486,36 @@ plain static page.
 invalidates every in-flight token immediately; the next visit just goes through
 `/loginwall/protect` again and gets a fresh one.
 
+### Element gating (per-element content + features)
+
+Where the login wall gates a whole page, **element gating** lets a seller gate
+individual elements on their own page and show different content per visitor
+state — buyer, signed-in non-buyer, and guest. It shares the login-wall token
+mechanism (same `LOGINWALL_SECRET`, same fragment handoff, same embed allowlist).
+
+**Flow:** the seller pastes the gating snippet (Products menu → "Generate gating
+snippet"). On load it sends the visitor through `/loginwall/gate?products=…` which —
+unlike the whole-page wall — never bounces; it always returns to the page with a
+signed multi-product state token in the URL fragment. The runtime at
+`/api/loginwall/gate.js` reads the token, resolves each gated element, and strips
+the token from the URL.
+
+**Markup contract** (per gated block): `[data-sellf-product="<slug>"]` wrapping any
+of `[data-has-access]`, `[data-no-access]`, `[data-no-session]`; the runtime keeps
+the branch matching the visitor's state and removes the others (CSS hides everything
+until resolved to avoid a flash). `[data-sellf-feature="<slug>"]` controls are enabled
+only for owners. For an action that runs on a backend, gate it on
+`SellfGate.verify(slug)` (POST to `/api/loginwall/verify`), which the server checks —
+display and in-browser features resolve client-side and are best-effort.
+
+**Pieces:**
+
+- Token: `src/lib/loginwall/token.ts` — `signGateToken`/`verifyGateToken`/`parseGatePayload` (v2, multi-product + auth flag) alongside the v1 login-wall token.
+- Shared request helpers: `src/lib/loginwall/request.ts` (redirect parsing, origin, allowlist) — used by both `protect` and `gate`.
+- Snippet + runtime builders: `src/lib/loginwall/gate-snippet.ts`.
+- Routes: `src/app/[locale]/loginwall/gate/route.ts`, `src/app/api/loginwall/gate.js/route.ts`, `src/app/api/loginwall/verify/route.ts`.
+- Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed
