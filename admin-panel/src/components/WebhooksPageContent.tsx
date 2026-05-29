@@ -16,7 +16,7 @@ import WebhookDeleteModal from './webhooks/WebhookDeleteModal';
 import WebhookLogsDrawer from './WebhookLogsDrawer';
 import WebhookFailuresPanel from './WebhookFailuresPanel';
 
-export default function WebhooksPageContent() {
+export default function WebhooksPageContent({ scopingLocked = false }: { scopingLocked?: boolean }) {
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
   const {
@@ -261,6 +261,7 @@ export default function WebhooksPageContent() {
         onSubmit={onFormSubmit}
         editingEndpoint={activeEndpoint}
         isSubmitting={submitting}
+        scopingLocked={scopingLocked}
       />
 
       <WebhookTestModal

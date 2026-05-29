@@ -191,3 +191,45 @@ export function validateEventTypes(events: unknown): { valid: boolean; error?: s
 
   return { valid: true };
 }
+
+/**
+ * Product scoping: an endpoint fires for every product ('all') or only for an
+ * explicit set of products ('selected'). The 'selected' set lives in the
+ * webhook_endpoint_products junction; this validates the write-time input.
+ */
+export const WEBHOOK_PRODUCT_FILTER_MODES = ['all', 'selected'] as const;
+
+export type WebhookProductFilterMode = typeof WEBHOOK_PRODUCT_FILTER_MODES[number];
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidProductFilterMode(mode: string): mode is WebhookProductFilterMode {
+  return (WEBHOOK_PRODUCT_FILTER_MODES as readonly string[]).includes(mode);
+}
+
+export function validateProductFilter(
+  mode: string | undefined,
+  productIds: unknown,
+): { valid: boolean; error?: string } {
+  if (mode === undefined || mode === 'all') {
+    return { valid: true };
+  }
+
+  if (!isValidProductFilterMode(mode)) {
+    return {
+      valid: false,
+      error: `Invalid product filter mode: ${mode}. Valid modes: ${WEBHOOK_PRODUCT_FILTER_MODES.join(', ')}`,
+    };
+  }
+
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return { valid: false, error: 'Selected mode requires at least one product' };
+  }
+
+  const hasInvalid = productIds.some((id) => typeof id !== 'string' || !UUID_PATTERN.test(id));
+  if (hasInvalid) {
+    return { valid: false, error: 'product_ids must all be valid product UUIDs' };
+  }
+
+  return { valid: true };
+}

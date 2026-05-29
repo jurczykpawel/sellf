@@ -16,10 +16,16 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { validateWebhookUrlAsync, validateEventTypes } from '@/lib/validations/webhook';
+import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
+import { checkFeature } from '@/lib/license/resolve';
+import { replaceEndpointProducts, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
 
 const WEBHOOK_ENDPOINT_QUOTA = 50;
+
+const PRODUCT_SCOPING_FEATURE = 'webhook-product-scoping' as const;
+const PRODUCT_SCOPING_DENIED =
+  'Per-product webhook scoping requires a Pro license. Use product_filter_mode="all" or upgrade.';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -63,6 +69,7 @@ export async function GET(request: NextRequest) {
         description,
         is_active,
         secret,
+        product_filter_mode,
         created_at,
         updated_at
       `);
@@ -98,7 +105,16 @@ export async function GET(request: NextRequest) {
       cursor
     );
 
-    return jsonResponse(successResponse(items, pagination), request);
+    const productMap = await getEndpointProductIdsMap(
+      adminClient,
+      (items as Array<{ id: string }>).map((w) => w.id),
+    );
+    const itemsWithProducts = (items as Array<{ id: string }>).map((w) => ({
+      ...w,
+      product_ids: productMap[w.id] ?? [],
+    }));
+
+    return jsonResponse(successResponse(itemsWithProducts, pagination), request);
   } catch (error) {
     return handleApiError(error, request);
   }
@@ -126,9 +142,11 @@ export async function POST(request: NextRequest) {
       events?: string[];
       description?: string;
       is_active?: boolean;
+      product_filter_mode?: string;
+      product_ids?: string[];
     }>(request);
 
-    const { url, events, description, is_active = true } = body;
+    const { url, events, description, is_active = true, product_filter_mode, product_ids } = body;
 
     // Validate required fields
     if (!url) {
@@ -149,6 +167,18 @@ export async function POST(request: NextRequest) {
     const eventsValidation = validateEventTypes(events);
     if (!eventsValidation.valid) {
       return apiError(request, 'INVALID_INPUT', eventsValidation.error || 'Invalid event types');
+    }
+
+    // Validate product scoping
+    const filterValidation = validateProductFilter(product_filter_mode, product_ids);
+    if (!filterValidation.valid) {
+      return apiError(request, 'INVALID_INPUT', filterValidation.error || 'Invalid product filter');
+    }
+
+    // Per-product scoping is a Pro feature; 'all' (the default) stays free.
+    const scoped = product_filter_mode === 'selected';
+    if (scoped && !(await checkFeature(PRODUCT_SCOPING_FEATURE, { dataClient: adminClient }))) {
+      return apiError(request, 'FORBIDDEN', PRODUCT_SCOPING_DENIED);
     }
 
     // Validate description length
@@ -181,8 +211,9 @@ export async function POST(request: NextRequest) {
         events,
         description: description || null,
         is_active,
+        product_filter_mode: scoped ? 'selected' : 'all',
       })
-      .select('id, url, events, description, is_active, secret, created_at, updated_at')
+      .select('id, url, events, description, is_active, secret, product_filter_mode, created_at, updated_at')
       .single();
 
     if (error) {
@@ -193,6 +224,11 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create webhook');
     }
 
+    const linkedProductIds = scoped ? Array.from(new Set(product_ids ?? [])) : [];
+    if (scoped) {
+      await replaceEndpointProducts(adminClient, webhook.id, linkedProductIds);
+    }
+
     return jsonResponse(
       successResponse({
         id: webhook.id,
@@ -201,6 +237,8 @@ export async function POST(request: NextRequest) {
         description: webhook.description,
         is_active: webhook.is_active,
         secret: webhook.secret,
+        product_filter_mode: webhook.product_filter_mode,
+        product_ids: linkedProductIds,
         created_at: webhook.created_at,
         updated_at: webhook.updated_at,
       }),

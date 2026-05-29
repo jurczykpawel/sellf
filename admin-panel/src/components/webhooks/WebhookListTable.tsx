@@ -64,6 +64,13 @@ const WebhookRow = ({
             </span>
           ))}
         </div>
+        <div className="mt-1.5">
+          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-sf-raised text-sf-muted border-2 border-sf-border-medium whitespace-nowrap">
+            {endpoint.product_filter_mode === 'selected'
+              ? t('scopeSelected', { count: endpoint.product_ids?.length ?? 0 })
+              : t('scopeAll')}
+          </span>
+        </div>
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center space-x-2">

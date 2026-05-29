@@ -95,7 +95,7 @@ export async function POST(
           currency: product.currency,
           icon: product.icon,
         },
-      }, adminClient).catch(err => console.error('Webhook trigger error:', err));
+      }, adminClient, product.id).catch(err => console.error('Webhook trigger error:', err));
 
       trackServerSideConversion({
         eventName: 'Lead',

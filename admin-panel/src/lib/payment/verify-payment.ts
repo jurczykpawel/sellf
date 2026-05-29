@@ -619,7 +619,7 @@ export async function verifyPaymentSession(
               customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
             });
 
-            WebhookService.trigger('purchase.completed', webhookData, serviceClient)
+            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...bumpProductIds])
               .catch(err => console.error('Webhook trigger error:', err));
 
             // NOTE: Server-side CAPI tracking for Purchase is handled in the
@@ -891,7 +891,7 @@ export async function verifyPaymentIntent(
               customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
             });
 
-            WebhookService.trigger('purchase.completed', webhookData, serviceClient)
+            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...bumpProductIds])
               .catch(err => console.error('Webhook trigger error:', err));
 
             // NOTE: Server-side CAPI tracking for Purchase is handled in the
