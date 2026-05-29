@@ -32,7 +32,6 @@ const querySchema = z.object({
 interface ProductRow {
   id: string;
   slug: string;
-  is_active: boolean;
   seller_id: string | null;
 }
 
@@ -80,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const productsResult = await supabase
     .from('products')
-    .select('id, slug, is_active, seller_id')
+    .select('id, slug, seller_id')
     .in('slug', requested);
   const products = (productsResult.data ?? []) as ProductRow[];
 

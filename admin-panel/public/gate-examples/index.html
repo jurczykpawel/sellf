@@ -158,8 +158,10 @@
   "https://YOUR-SELLF.example/loginwall/gate?products=pro-kit,vip-masterclass&amp;redirect=" +
   encodeURIComponent(location.href));&lt;/script&gt;</pre>
       <p class="muted" style="font-size:.85rem">This demo switches visitors with pure CSS so you can explore every
-        state. In production the runtime <em>removes</em> the inactive branches from the page (non-buyers never
-        receive the owner-only HTML) and resolves each visitor from their signed token.</p>
+        state. In production the runtime resolves each visitor from their signed token and removes the inactive
+        branches from the page. Note: all branch HTML still ships in the page source, so display gating is
+        best-effort UX — protect anything sensitive or paid <em>server-side</em> via <code>SellfGate.verify()</code>
+        (section 4), never by display state alone.</p>
     </div>
   </div>
 </body>

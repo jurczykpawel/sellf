@@ -60,12 +60,19 @@
 &lt;!-- a button only owners can use (in-browser work, best-effort) --&gt;
 &lt;button data-sellf-feature="pro-kit"&gt;Render captions&lt;/button&gt;</pre>
     <div class="note"><b>Branches are optional.</b> Provide only the states you care about. If a branch is missing
-      for the current state, the runtime simply shows nothing for it. The inactive branches are removed from the DOM,
-      so non-buyers never receive the owner-only HTML.</div>
+      for the current state, the runtime simply shows nothing for it.</div>
+
+    <div class="note" style="border-left-color:#e7a33e"><b>⚠️ Display gating is best-effort, not protection.</b>
+      All branch HTML — including <code>data-has-access</code> — ships in your page source and is only hidden/removed
+      in the browser. A determined visitor can read it from the page source or hand-edit the token. Use display
+      gating for UX (show the right CTA), <b>never</b> to protect secret content. Anything that must stay private or
+      costs money has to be gated <b>server-side</b> via <code>SellfGate.verify()</code> (next section) — or simply
+      not shipped to the browser at all.</div>
 
     <h2>Gate a real backend action</h2>
     <p class="lead">In-browser locks are best-effort (a visitor can edit their own page). For anything that runs on
-      a server or costs money, confirm access first — the server validates the signed token, so it can’t be faked.</p>
+      a server or costs money, confirm access first — the server re-checks live ownership of the signed token, so it
+      can’t be faked or replayed after access is revoked.</p>
     <pre>document.querySelector('#render-b').addEventListener('click', async () =&gt; {
   if (await SellfGate.verify('pro-kit')) {
     startServerRender();      // Sellf confirmed ownership server-side
