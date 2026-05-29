@@ -36,6 +36,16 @@ beforeEach(() => {
 });
 
 describe('license key management', () => {
+  it('rejects a non-P-256 key (BYOK must be EC P-256 to match the advertised alg)', async () => {
+    const { generateKeyPairSync } = await import('node:crypto');
+    const rsa = generateKeyPairSync('rsa', { modulusLength: 2048, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
+    const p384 = generateKeyPairSync('ec', { namedCurve: 'secp384r1', publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
+    const { publicFromPrivate: pfp } = await import('@/lib/license-keys/keys');
+    expect(() => pfp(rsa.privateKey)).toThrow();
+    expect(() => pfp(p384.privateKey)).toThrow();
+    await expect(importSellerKey(adminMock({ insert: vi.fn() }) as never, { sellerId: SELLER, privateKeyPem: rsa.privateKey })).rejects.toThrow();
+  });
+
   it('generates an EC P-256 keypair with a deterministic kid', () => {
     const k = generateSellerKeypair();
     expect(k.publicKeyPem).toContain('BEGIN PUBLIC KEY');

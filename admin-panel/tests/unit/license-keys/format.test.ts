@@ -25,7 +25,7 @@ describe('license format', () => {
     expect(parseLicenseClaims(signLicense(base, privateKey))).toMatchObject({ v: 1, product: 'pro-kit' });
   });
 
-  it('rejects a tampered payload (signature mismatch)', () => {
+  it('rejects a payload that does not match the signature', () => {
     const tok = signLicense(base, privateKey);
     const evil = Buffer.from(JSON.stringify({ ...base, tier: 'business' })).toString('base64url') + '.' + tok.split('.')[1];
     expect(verifyLicense(evil, publicKey, { now: NOW })).toEqual({ valid: false, reason: 'signature' });

@@ -216,7 +216,10 @@ async function handleCheckoutSessionCompleted(
       productId,
       email: customerEmail,
       userId,
-      orderId: sessionId,
+      // Prefer the payment-intent id so both webhook completion paths key the
+      // license ledger on the same purchase-stable id (the UNIQUE(order_id,
+      // product_id) constraint then backs up cross-path idempotency).
+      orderId: stripePaymentIntentId || sessionId,
     }).catch((err) => {
       console.error('[Stripe Webhook] License issuance failed:', err);
       return null;

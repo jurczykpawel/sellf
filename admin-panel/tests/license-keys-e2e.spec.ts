@@ -97,8 +97,8 @@ test.describe('License keys', () => {
     );
     expect(verifyOffline(token, pem)).toBe(true);
 
-    const tampered = Buffer.from(JSON.stringify({ v: 1, kid, product: 'pro-kit', tier: 'business' })).toString('base64url') + '.' + token.split('.')[1];
-    expect(verifyOffline(tampered, pem)).toBe(false);
+    const altered = Buffer.from(JSON.stringify({ v: 1, kid, product: 'pro-kit', tier: 'business' })).toString('base64url') + '.' + token.split('.')[1];
+    expect(verifyOffline(altered, pem)).toBe(false);
   });
 
   test('the private key table is not readable through the anon REST API (RLS)', async ({ request }) => {

@@ -25,7 +25,11 @@ export function generateSellerKeypair(): SellerKeypair {
 }
 
 export function publicFromPrivate(privateKeyPem: string): string {
-  return createPublicKey(privateKeyPem).export({ type: 'spki', format: 'pem' }).toString();
+  const keyObject = createPublicKey(privateKeyPem);
+  if (keyObject.asymmetricKeyType !== 'ec' || keyObject.asymmetricKeyDetails?.namedCurve !== 'prime256v1') {
+    throw new Error('license key must be an EC P-256 (prime256v1) key');
+  }
+  return keyObject.export({ type: 'spki', format: 'pem' }).toString();
 }
 
 export async function storeSellerKey(

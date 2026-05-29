@@ -21,7 +21,7 @@ describe('verifySellfLicense (SDK)', () => {
     expect(r.valid).toBe(false);
   });
 
-  it('rejects a tampered token', () => {
+  it('rejects a token whose signature does not match', () => {
     const tok = signLicense(claims, key.privateKeyPem);
     const evil = Buffer.from(JSON.stringify({ ...claims, tier: 'business' })).toString('base64url') + '.' + tok.split('.')[1];
     expect(verifySellfLicense(evil, { keys: jwks, now: NOW })).toEqual({ valid: false, reason: 'signature' });
