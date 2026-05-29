@@ -5,9 +5,10 @@ import { isInternalHostname } from '@/lib/security/internal-hostname';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 /**
- * Per-IP rate-limit guard for the public loginwall routes. Uses the server
- * connection IP (inet_client_addr, via checkRateLimit) — never a client-supplied
- * forwarding header. Returns a 429 response to short-circuit, or null to proceed.
+ * Per-IP rate-limit guard for the public loginwall routes via the shared
+ * application limiter (checkRateLimit): keys on the trusted-proxy client IP
+ * (the proxy-set X-Forwarded-For when TRUSTED_PROXY is enabled) with a UA
+ * fingerprint fallback. Returns a 429 response to short-circuit, or null to proceed.
  */
 export async function rateLimitGuard(
   action: string,
