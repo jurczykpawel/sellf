@@ -515,6 +515,7 @@ display and in-browser features resolve client-side and are best-effort.
 - Snippet + runtime builders: `src/lib/loginwall/gate-snippet.ts`.
 - Routes: `src/app/[locale]/loginwall/gate/route.ts`, `src/app/api/loginwall/gate.js/route.ts`, `src/app/api/loginwall/verify/route.ts`.
 - Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
+- Examples: `public/gate-examples/index.html` (self-contained interactive demo of all states/features) and `public/gate-examples/live-integration.html` (deploy-ready snippet + markup reference).
 
 ### Stable Versions & Known Issues
 
