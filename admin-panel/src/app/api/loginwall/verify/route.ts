@@ -26,14 +26,34 @@ const BASE_CORS: Record<string, string> = {
   Vary: 'Origin',
 };
 
-async function originIfAllowedForProduct(slug: string, origin: string | null): Promise<string | null> {
-  if (!origin) return null;
+interface VerifyProduct {
+  id: string;
+  seller_id: string | null;
+}
+
+async function loadProductBySlug(slug: string): Promise<VerifyProduct | null> {
   const supabase = await createClient();
-  const result = await supabase.from('products').select('id, slug, seller_id').eq('slug', slug).maybeSingle();
-  const product = (result.data ?? null) as { seller_id: string | null } | null;
-  if (!product) return null;
+  const result = await supabase.from('products').select('id, seller_id').eq('slug', slug).maybeSingle();
+  return (result.data ?? null) as VerifyProduct | null;
+}
+
+async function originAllowedForProduct(product: VerifyProduct | null, origin: string | null): Promise<boolean> {
+  if (!origin || !product) return false;
   const allowed = await loadAllowedOriginsForProduct(createAdminClient(), product.seller_id);
-  return validateRedirectAgainstAllowlist(origin, allowed) ? origin : null;
+  return validateRedirectAgainstAllowlist(origin, allowed);
+}
+
+// Authoritative, live ownership check — the token only proves identity; access is re-read here.
+async function hasLiveAccess(userId: string, productId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const result = await admin
+    .from('user_product_access')
+    .select('access_expires_at')
+    .eq('user_id', userId)
+    .eq('product_id', productId)
+    .maybeSingle();
+  const row = (result.data ?? null) as { access_expires_at: string | null } | null;
+  return !!row && (!row.access_expires_at || new Date(row.access_expires_at) > new Date());
 }
 
 function corsHeaders(reflectedOrigin: string | null): Record<string, string> {
@@ -70,7 +90,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
   const slug = parsed.data.product;
 
-  const reflected = await originIfAllowedForProduct(slug, request.headers.get('origin'));
+  const product = await loadProductBySlug(slug);
+  const reflected = (await originAllowedForProduct(product, request.headers.get('origin')))
+    ? request.headers.get('origin')
+    : null;
 
   const secret = process.env.LOGINWALL_SECRET;
   if (!secret) {
@@ -79,7 +102,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const tokenStr = bearer(request);
   const verified = tokenStr ? verifyGateToken(tokenStr, { secret }) : { valid: false as const, reason: 'malformed' as const };
-  const access = verified.valid && verified.auth && verified.owned.includes(slug);
+
+  // The token authenticates identity (uid) — ownership is re-checked live, so a
+  // revoked or expired grant is denied immediately, not after the token TTL.
+  const access =
+    verified.valid && verified.auth && !!product && (await hasLiveAccess(verified.uid, product.id));
 
   return NextResponse.json({ access }, { status: 200, headers: corsHeaders(reflected) });
 }

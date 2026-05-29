@@ -505,8 +505,10 @@ of `[data-has-access]`, `[data-no-access]`, `[data-no-session]`; the runtime kee
 the branch matching the visitor's state and removes the others (CSS hides everything
 until resolved to avoid a flash). `[data-sellf-feature="<slug>"]` controls are enabled
 only for owners. For an action that runs on a backend, gate it on
-`SellfGate.verify(slug)` (POST to `/api/loginwall/verify`), which the server checks —
-display and in-browser features resolve client-side and are best-effort.
+`SellfGate.verify(slug)` (POST to `/api/loginwall/verify`): the token authenticates
+identity and the server **re-reads live access** (`user_product_access`), so a revoked
+or expired grant is denied immediately rather than after the token TTL. Display and
+in-browser features resolve client-side from the token and are best-effort.
 
 **Pieces:**
 

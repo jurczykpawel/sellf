@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
-vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/embed/checkout-embed', async () => {
   const actual = await vi.importActual<typeof import('@/lib/embed/checkout-embed')>('@/lib/embed/checkout-embed');
   return { ...actual, loadAllowedOriginsForProduct: vi.fn() };
@@ -10,6 +10,7 @@ vi.mock('@/lib/embed/checkout-embed', async () => {
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimitForIdentifier: vi.fn() }));
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { signGateToken } from '@/lib/loginwall/token';
@@ -21,13 +22,27 @@ const SECRET = 'a'.repeat(64);
 const CUSTOMER_ORIGIN = 'https://customer.example';
 const SLUG = 'pro-kit';
 
-function mockProduct() {
+type AccessRow = { access_expires_at: string | null } | null;
+
+// Live access state for user_product_access lookups (the source of truth).
+let liveAccess: AccessRow = { access_expires_at: null };
+
+function chainReturning(data: unknown) {
   const chain = {
     select: () => chain,
     eq: () => chain,
-    maybeSingle: () => Promise.resolve({ data: { id: 'p1', slug: SLUG, seller_id: SELLER_ID }, error: null }),
+    maybeSingle: () => Promise.resolve({ data, error: null }),
   };
-  return { from: vi.fn(() => chain) };
+  return chain;
+}
+
+// createClient → products lookup (slug → id/seller_id)
+function serverClient() {
+  return { from: () => chainReturning({ id: 'p1', slug: SLUG, seller_id: SELLER_ID }) };
+}
+// createAdminClient → user_product_access lookup (live ownership)
+function adminClient() {
+  return { from: () => chainReturning(liveAccess) };
 }
 
 function token(opts: { authenticated: boolean; owned: string[] }): string {
@@ -46,8 +61,11 @@ function post(opts: { token?: string; product?: string; origin?: string }): Next
 }
 
 beforeEach(() => {
+  liveAccess = { access_expires_at: null }; // default: user currently owns the product
   vi.mocked(createClient).mockReset();
-  vi.mocked(createClient).mockResolvedValue(mockProduct() as never);
+  vi.mocked(createClient).mockResolvedValue(serverClient() as never);
+  vi.mocked(createAdminClient).mockReset();
+  vi.mocked(createAdminClient).mockReturnValue(adminClient() as never);
   vi.mocked(loadAllowedOriginsForProduct).mockReset();
   vi.mocked(loadAllowedOriginsForProduct).mockResolvedValue([CUSTOMER_ORIGIN]);
   vi.mocked(checkRateLimitForIdentifier).mockReset();
@@ -56,7 +74,7 @@ beforeEach(() => {
 });
 
 describe('POST /api/loginwall/verify', () => {
-  it('grants access for a valid owner and reflects an allowlisted Origin without credentials', async () => {
+  it('grants access for an authenticated user with live access; reflects allowlisted Origin without credentials', async () => {
     const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: CUSTOMER_ORIGIN }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ access: true });
@@ -64,8 +82,26 @@ describe('POST /api/loginwall/verify', () => {
     expect(res.headers.get('Access-Control-Allow-Credentials')).toBeNull();
   });
 
-  it('denies access when the slug is not owned', async () => {
-    const res = await POST(post({ token: token({ authenticated: true, owned: [] }), origin: CUSTOMER_ORIGIN }));
+  it('denies when there is no live access row, even if the token claims ownership', async () => {
+    liveAccess = null; // access was revoked / never granted in the DB
+    const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: CUSTOMER_ORIGIN }));
+    expect(await res.json()).toEqual({ access: false });
+  });
+
+  it('denies when live access has expired, even if the token claims ownership', async () => {
+    liveAccess = { access_expires_at: new Date(Date.now() - 60_000).toISOString() };
+    const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: CUSTOMER_ORIGIN }));
+    expect(await res.json()).toEqual({ access: false });
+  });
+
+  it('grants when live access has a future expiry', async () => {
+    liveAccess = { access_expires_at: new Date(Date.now() + 60_000).toISOString() };
+    const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: CUSTOMER_ORIGIN }));
+    expect(await res.json()).toEqual({ access: true });
+  });
+
+  it('denies an unauthenticated token regardless of live access', async () => {
+    const res = await POST(post({ token: token({ authenticated: false, owned: [] }), origin: CUSTOMER_ORIGIN }));
     expect(await res.json()).toEqual({ access: false });
   });
 
