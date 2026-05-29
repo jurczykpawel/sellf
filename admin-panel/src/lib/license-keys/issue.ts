@@ -4,15 +4,15 @@ import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
 import { loadActiveSellerKey } from '@/lib/license-keys/keys';
 
 export interface IssueLicenseInput {
-  sellerId: string;
   productId: string;
-  productSlug: string;
   email: string;
   userId: string | null;
   orderId: string;
 }
 
-interface ProductLicenseConfig {
+interface ProductLicenseRow {
+  seller_id: string | null;
+  slug: string;
   issue_license_on_purchase: boolean;
   license_tier: string | null;
   license_duration_days: number | null;
@@ -20,9 +20,9 @@ interface ProductLicenseConfig {
 
 /**
  * Issue a signed license for a completed purchase. Returns the license token,
- * or null when the product has issuance disabled or the seller has no active
- * key. Idempotent on (order_id, product_id): a retry returns the already-issued
- * token without signing or inserting again.
+ * or null when the product has issuance disabled, is unknown, or the seller has
+ * no active key. Idempotent on (order_id, product_id): a retry returns the
+ * already-issued token without signing or inserting again.
  */
 export async function issueLicense(
   admin: SupabaseClient,
@@ -40,31 +40,31 @@ export async function issueLicense(
 
   const productResult = await admin
     .from('products')
-    .select('issue_license_on_purchase, license_tier, license_duration_days')
+    .select('seller_id, slug, issue_license_on_purchase, license_tier, license_duration_days')
     .eq('id', input.productId)
     .maybeSingle();
-  const config = (productResult.data ?? null) as ProductLicenseConfig | null;
-  if (!config || !config.issue_license_on_purchase) return null;
+  const product = (productResult.data ?? null) as ProductLicenseRow | null;
+  if (!product || !product.issue_license_on_purchase || !product.seller_id) return null;
 
-  const key = await loadActiveSellerKey(admin, input.sellerId);
+  const key = await loadActiveSellerKey(admin, product.seller_id);
   if (!key) return null;
 
   const iat = Math.floor((opts.now ?? new Date()).getTime() / 1000);
-  const exp = config.license_duration_days ? iat + config.license_duration_days * 86400 : null;
+  const exp = product.license_duration_days ? iat + product.license_duration_days * 86400 : null;
   const claims: LicenseClaims = {
     v: 1,
     kid: key.kid,
-    product: input.productSlug,
+    product: product.slug,
     email: input.email,
     order: input.orderId,
-    tier: config.license_tier,
+    tier: product.license_tier,
     iat,
     exp,
   };
   const token = signLicense(claims, key.privateKeyPem);
 
   const { error } = await admin.from('issued_licenses').insert({
-    seller_id: input.sellerId,
+    seller_id: product.seller_id,
     product_id: input.productId,
     email: input.email,
     user_id: input.userId,

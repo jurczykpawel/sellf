@@ -21,6 +21,7 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { issueLicense } from '@/lib/license-keys/issue';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
@@ -209,6 +210,19 @@ async function handleCheckoutSessionCompleted(
       customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
+    // Issue a license if the product is configured for it. Never let issuance
+    // failure break the payment webhook — log and continue.
+    const licenseKey = await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      orderId: sessionId,
+    }).catch((err) => {
+      console.error('[Stripe Webhook] License issuance failed:', err);
+      return null;
+    });
+    if (licenseKey) webhookData.licenseKey = licenseKey;
+
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
@@ -351,6 +365,19 @@ async function handlePaymentIntentSucceeded(
       source: 'stripe_webhook',
       customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
+
+    // Issue a license if the product is configured for it. Never let issuance
+    // failure break the payment webhook — log and continue.
+    const licenseKey = await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      orderId: paymentIntent.id,
+    }).catch((err) => {
+      console.error('[Stripe Webhook] License issuance failed:', err);
+      return null;
+    });
+    if (licenseKey) webhookData.licenseKey = licenseKey;
 
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
