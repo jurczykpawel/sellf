@@ -53,11 +53,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const productResult = await supabase
     .from('products')
-    .select('id, slug, is_active, seller_id')
+    .select('id, slug, seller_id')
     .eq('id', parsed.data.id)
     .maybeSingle();
   const product = (productResult.data ?? null) as
-    | { id: string; slug: string; is_active: boolean; seller_id: string | null }
+    | { id: string; slug: string; seller_id: string | null }
     | null;
   if (!product) {
     return jsonError('Not found', 404);
