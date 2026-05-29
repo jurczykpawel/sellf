@@ -59,6 +59,27 @@ export async function importSellerKey(
   return storeSellerKey(admin, { sellerId: input.sellerId, publicKeyPem, privateKeyPem: input.privateKeyPem, custody: 'byok' });
 }
 
+/**
+ * Public key info only — no decryption. Use for read-only "show my public key"
+ * paths so the private key is never brought into memory unnecessarily.
+ */
+export async function loadActivePublicKeyInfo(
+  admin: SupabaseClient,
+  sellerId: string,
+): Promise<{ kid: string; publicKeyPem: string } | null> {
+  const { data } = await admin
+    .from('seller_license_keys')
+    .select('kid, public_key')
+    .eq('seller_id', sellerId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as { kid: string; public_key: string };
+  return { kid: row.kid, publicKeyPem: row.public_key };
+}
+
 export async function loadActiveSellerKey(
   admin: SupabaseClient,
   sellerId: string,

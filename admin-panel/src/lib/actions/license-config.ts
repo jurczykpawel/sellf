@@ -9,7 +9,7 @@ import {
   generateSellerKeypair,
   importSellerKey,
   storeSellerKey,
-  loadActiveSellerKey,
+  loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -121,7 +121,7 @@ export async function getSellerLicenseInfo(): Promise<ActionResponse<SellerLicen
   return withAdminAuth(async ({ user }) => {
     const admin = createAdminClient()
     try {
-      const active = await loadActiveSellerKey(admin, user.id)
+      const active = await loadActivePublicKeyInfo(admin, user.id)
       if (!active) return { success: true, data: null }
       const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || ''
       return {

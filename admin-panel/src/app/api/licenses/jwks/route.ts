@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const querySchema = z.object({ seller: z.string().uuid() });
-
-const RATE_LIMIT_ACTION = 'licenses_jwks';
-const RATE_LIMIT_MAX = 60;
-const RATE_LIMIT_WINDOW_MIN = 1;
-
-function clientIdentifier(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  );
-}
 
 interface PublicKeyRow {
   kid: string;
@@ -30,12 +18,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 
-  const allowed = await checkRateLimitForIdentifier(
-    RATE_LIMIT_ACTION,
-    RATE_LIMIT_MAX,
-    RATE_LIMIT_WINDOW_MIN,
-    clientIdentifier(request),
-  );
+  // Rate limit by the server-observed connection IP (inet_client_addr), never a
+  // client-supplied forwarding header.
+  const allowed = await checkRateLimit('licenses_jwks', 60, 1);
   if (!allowed) {
     return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
   }

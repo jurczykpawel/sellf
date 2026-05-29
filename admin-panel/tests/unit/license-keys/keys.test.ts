@@ -13,6 +13,7 @@ import {
   storeSellerKey,
   importSellerKey,
   loadActiveSellerKey,
+  loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys';
 
 const SELLER = '33333333-3333-3333-3333-333333333333';
@@ -92,5 +93,17 @@ describe('license key management', () => {
   it('loadActiveSellerKey returns null when the seller has no key', async () => {
     const admin = adminMock({ row: null });
     expect(await loadActiveSellerKey(admin as never, SELLER)).toBeNull();
+  });
+
+  it('loadActivePublicKeyInfo returns public material WITHOUT decrypting the private key', async () => {
+    const k = generateSellerKeypair();
+    const admin = adminMock({ row: { kid: k.kid, public_key: k.publicKeyPem } });
+    const res = await loadActivePublicKeyInfo(admin as never, SELLER);
+    expect(res).toEqual({ kid: k.kid, publicKeyPem: k.publicKeyPem });
+    expect(vi.mocked(decryptSecret)).not.toHaveBeenCalled();
+  });
+
+  it('loadActivePublicKeyInfo returns null when the seller has no key', async () => {
+    expect(await loadActivePublicKeyInfo(adminMock({ row: null }) as never, SELLER)).toBeNull();
   });
 });

@@ -17,7 +17,7 @@ vi.mock('@/lib/license-keys/keys', () => ({
   generateSellerKeypair: vi.fn(),
   importSellerKey: vi.fn(),
   storeSellerKey: vi.fn(),
-  loadActiveSellerKey: vi.fn(),
+  loadActivePublicKeyInfo: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -26,7 +26,7 @@ import {
   generateSellerKeypair,
   importSellerKey,
   storeSellerKey,
-  loadActiveSellerKey,
+  loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys';
 import {
   setProductLicenseConfig,
@@ -161,7 +161,7 @@ describe('uploadSellerLicenseKey', () => {
 
 describe('getSellerLicenseInfo', () => {
   it('returns kid, publicKey and a seller-scoped jwksUrl', async () => {
-    vi.mocked(loadActiveSellerKey).mockResolvedValue({
+    vi.mocked(loadActivePublicKeyInfo).mockResolvedValue({
       kid: KEYPAIR.kid,
       publicKeyPem: KEYPAIR.publicKeyPem,
       privateKeyPem: KEYPAIR.privateKeyPem,
@@ -179,7 +179,7 @@ describe('getSellerLicenseInfo', () => {
   });
 
   it('returns null data when the seller has no active key', async () => {
-    vi.mocked(loadActiveSellerKey).mockResolvedValue(null);
+    vi.mocked(loadActivePublicKeyInfo).mockResolvedValue(null);
     const res = await getSellerLicenseInfo();
     expect(res.success).toBe(true);
     expect(res.data).toBeNull();

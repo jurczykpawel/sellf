@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
-vi.mock('@/lib/rate-limiting', () => ({ checkRateLimitForIdentifier: vi.fn() }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn() }));
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { GET } from '@/app/api/licenses/jwks/route';
 
 const SELLER = '33333333-3333-4333-8333-333333333333';
@@ -19,8 +19,8 @@ function req(query: string) {
 }
 
 beforeEach(() => {
-  vi.mocked(checkRateLimitForIdentifier).mockReset();
-  vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(true);
+  vi.mocked(checkRateLimit).mockReset();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
   vi.mocked(createAdminClient).mockReset();
   vi.mocked(createAdminClient).mockReturnValue(
     adminWith([{ kid: 'k1', public_key: '-----BEGIN PUBLIC KEY-----\nABC\n-----END PUBLIC KEY-----\n', alg: 'ES256' }]) as never,
@@ -48,7 +48,7 @@ describe('GET /api/licenses/jwks', () => {
   });
 
   it('429s when rate limited', async () => {
-    vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(false);
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
     expect((await GET(req(`seller=${SELLER}`))).status).toBe(429);
   });
 
