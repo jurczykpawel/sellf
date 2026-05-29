@@ -11,28 +11,24 @@
 type SupabaseClientLike = any;
 
 /**
- * Replace the product links for an endpoint with the given set (replace
- * semantics, matching the v1 PATCH contract for tags/categories). Deduplicates
- * input; an empty set clears all links (endpoint then fires for no product when
- * in 'selected' mode).
+ * Atomically set an endpoint's scoping mode and replace its product links in a
+ * single transaction (Postgres RPC). Replace semantics, matching the v1 PATCH
+ * contract for tags/categories. An empty set with mode 'selected' clears all
+ * links; mode 'all' ignores the set. A failure rolls back fully, so an endpoint
+ * never lands in a half-written state (e.g. 'selected' with no links).
  */
-export async function replaceEndpointProducts(
+export async function setEndpointScoping(
   client: SupabaseClientLike,
   endpointId: string,
+  mode: 'all' | 'selected',
   productIds: string[],
 ): Promise<void> {
-  const { error: deleteError } = await client
-    .from('webhook_endpoint_products')
-    .delete()
-    .eq('webhook_endpoint_id', endpointId);
-  if (deleteError) throw deleteError;
-
-  const unique = Array.from(new Set(productIds));
-  if (unique.length === 0) return;
-
-  const rows = unique.map((product_id) => ({ webhook_endpoint_id: endpointId, product_id }));
-  const { error: insertError } = await client.from('webhook_endpoint_products').insert(rows);
-  if (insertError) throw insertError;
+  const { error } = await client.rpc('set_webhook_endpoint_scoping', {
+    p_endpoint_id: endpointId,
+    p_mode: mode,
+    p_product_ids: productIds,
+  });
+  if (error) throw error;
 }
 
 /** Product ids linked to a single endpoint. */

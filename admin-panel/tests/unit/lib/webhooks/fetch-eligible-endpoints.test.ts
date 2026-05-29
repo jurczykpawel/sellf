@@ -104,4 +104,25 @@ describe('fetchEligibleEndpoints', () => {
     const result = await fetchEligibleEndpoints(client, 'purchase.completed', 'p-unknown');
     expect(result.map((e) => e.id)).toEqual(['all1']);
   });
+
+  it('throws when the junction query errors instead of silently dropping deliveries', async () => {
+    const client = {
+      from(table: string) {
+        const b: Record<string, unknown> = {};
+        const ret = () => b;
+        b.select = ret;
+        b.eq = ret;
+        b.contains = ret;
+        b.in = ret;
+        b.then = (resolve: (v: unknown) => unknown) => {
+          if (table === 'webhook_endpoint_products') {
+            return Promise.resolve({ data: null, error: { message: 'boom' } }).then(resolve);
+          }
+          return Promise.resolve({ data: [ALL, SELa], error: null }).then(resolve);
+        };
+        return b;
+      },
+    };
+    await expect(fetchEligibleEndpoints(client, 'purchase.completed', 'p1')).rejects.toBeTruthy();
+  });
 });

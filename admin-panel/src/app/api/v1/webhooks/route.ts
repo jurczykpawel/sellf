@@ -19,7 +19,7 @@ import {
 import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { checkFeature } from '@/lib/license/resolve';
-import { replaceEndpointProducts, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
+import { setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
 
 const WEBHOOK_ENDPOINT_QUOTA = 50;
 
@@ -203,7 +203,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create webhook
+    // Create the endpoint as 'all'; promote to 'selected' atomically below so a
+    // scoping failure never leaves a half-created 'selected'+no-links endpoint.
     const { data: webhook, error } = await adminClient
       .from('webhook_endpoints')
       .insert({
@@ -211,7 +212,6 @@ export async function POST(request: NextRequest) {
         events,
         description: description || null,
         is_active,
-        product_filter_mode: scoped ? 'selected' : 'all',
       })
       .select('id, url, events, description, is_active, secret, product_filter_mode, created_at, updated_at')
       .single();
@@ -226,7 +226,13 @@ export async function POST(request: NextRequest) {
 
     const linkedProductIds = scoped ? Array.from(new Set(product_ids ?? [])) : [];
     if (scoped) {
-      await replaceEndpointProducts(adminClient, webhook.id, linkedProductIds);
+      try {
+        await setEndpointScoping(adminClient, webhook.id, 'selected', linkedProductIds);
+      } catch (scopingError) {
+        console.error('Error scoping webhook products:', scopingError);
+        await adminClient.from('webhook_endpoints').delete().eq('id', webhook.id);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to set webhook product scope');
+      }
     }
 
     return jsonResponse(
@@ -237,7 +243,7 @@ export async function POST(request: NextRequest) {
         description: webhook.description,
         is_active: webhook.is_active,
         secret: webhook.secret,
-        product_filter_mode: webhook.product_filter_mode,
+        product_filter_mode: scoped ? 'selected' : webhook.product_filter_mode,
         product_ids: linkedProductIds,
         created_at: webhook.created_at,
         updated_at: webhook.updated_at,

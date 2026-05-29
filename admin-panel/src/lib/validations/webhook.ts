@@ -201,6 +201,9 @@ export const WEBHOOK_PRODUCT_FILTER_MODES = ['all', 'selected'] as const;
 
 export type WebhookProductFilterMode = typeof WEBHOOK_PRODUCT_FILTER_MODES[number];
 
+// Matches the products API cap on categories/tags arrays.
+export const MAX_WEBHOOK_SCOPED_PRODUCTS = 50;
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isValidProductFilterMode(mode: string): mode is WebhookProductFilterMode {
@@ -224,6 +227,10 @@ export function validateProductFilter(
 
   if (!Array.isArray(productIds) || productIds.length === 0) {
     return { valid: false, error: 'Selected mode requires at least one product' };
+  }
+
+  if (productIds.length > MAX_WEBHOOK_SCOPED_PRODUCTS) {
+    return { valid: false, error: `Cannot scope to more than ${MAX_WEBHOOK_SCOPED_PRODUCTS} products` };
   }
 
   const hasInvalid = productIds.some((id) => typeof id !== 'string' || !UUID_PATTERN.test(id));

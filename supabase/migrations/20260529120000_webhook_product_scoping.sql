@@ -32,3 +32,43 @@ CREATE INDEX IF NOT EXISTS idx_webhook_endpoint_products_product_id
   ON public.webhook_endpoint_products(product_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoint_products_endpoint_id
   ON public.webhook_endpoint_products(webhook_endpoint_id);
+
+-- Atomically set an endpoint's scoping mode and replace its product links.
+-- Single transaction: on any failure (e.g. a product_id FK violation) the whole
+-- change rolls back, so an endpoint is never left in 'selected' mode with a
+-- partial or empty link set.
+CREATE OR REPLACE FUNCTION public.set_webhook_endpoint_scoping(
+  p_endpoint_id UUID,
+  p_mode TEXT,
+  p_product_ids UUID[]
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_mode NOT IN ('all', 'selected') THEN
+    RAISE EXCEPTION 'invalid product_filter_mode: %', p_mode;
+  END IF;
+
+  UPDATE public.webhook_endpoints
+    SET product_filter_mode = p_mode,
+        updated_at = NOW()
+    WHERE id = p_endpoint_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'webhook endpoint not found: %', p_endpoint_id;
+  END IF;
+
+  DELETE FROM public.webhook_endpoint_products WHERE webhook_endpoint_id = p_endpoint_id;
+
+  IF p_mode = 'selected' AND p_product_ids IS NOT NULL AND array_length(p_product_ids, 1) > 0 THEN
+    INSERT INTO public.webhook_endpoint_products (webhook_endpoint_id, product_id)
+    SELECT p_endpoint_id, pid
+    FROM (SELECT DISTINCT unnest(p_product_ids) AS pid) AS ids;
+  END IF;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.set_webhook_endpoint_scoping FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_webhook_endpoint_scoping TO service_role;

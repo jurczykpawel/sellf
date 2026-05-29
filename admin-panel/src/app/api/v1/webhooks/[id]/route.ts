@@ -21,7 +21,7 @@ import {
 import { validateUUID } from '@/lib/validations/product';
 import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { checkFeature } from '@/lib/license/resolve';
-import { replaceEndpointProducts, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
+import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
 
 const PRODUCT_SCOPING_DENIED =
   'Per-product webhook scoping requires a Pro license. Use product_filter_mode="all" or upgrade.';
@@ -164,7 +164,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (body.product_ids !== undefined && body.product_filter_mode === undefined) {
       return apiError(request, 'INVALID_INPUT', 'product_ids requires product_filter_mode');
     }
-    if (body.product_filter_mode !== undefined) {
+    const scopingChange = body.product_filter_mode !== undefined;
+    let scopedLinks: string[] = [];
+    if (scopingChange) {
       const filterValidation = validateProductFilter(body.product_filter_mode, body.product_ids);
       if (!filterValidation.valid) {
         return apiError(request, 'INVALID_INPUT', filterValidation.error || 'Invalid product filter');
@@ -175,11 +177,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       ) {
         return apiError(request, 'FORBIDDEN', PRODUCT_SCOPING_DENIED);
       }
-      updates.product_filter_mode = body.product_filter_mode;
+      scopedLinks =
+        body.product_filter_mode === 'selected' ? Array.from(new Set(body.product_ids ?? [])) : [];
     }
 
-    // If no updates, return current webhook
-    if (Object.keys(updates).length === 0) {
+    // Nothing to change
+    if (Object.keys(updates).length === 0 && !scopingChange) {
       const { data: webhook } = await adminClient
         .from('webhook_endpoints')
         .select('id, url, events, description, is_active, secret, product_filter_mode, created_at, updated_at')
@@ -190,31 +193,43 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return jsonResponse(successResponse({ ...webhook, product_ids }), request);
     }
 
-    // Update webhook
-    updates.updated_at = new Date().toISOString();
+    // Apply non-scoping field updates (url/events/description/is_active).
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString();
+      const { error } = await adminClient
+        .from('webhook_endpoints')
+        .update(updates)
+        .eq('id', id);
 
-    const { data: webhook, error } = await adminClient
-      .from('webhook_endpoints')
-      .update(updates)
-      .eq('id', id)
-      .select('id, url, events, description, is_active, secret, product_filter_mode, created_at, updated_at')
-      .single();
-
-    if (error) {
-      console.error('Error updating webhook:', error);
-      if (error.code === '23505') {
-        return apiError(request, 'ALREADY_EXISTS', 'A webhook with this URL already exists');
+      if (error) {
+        console.error('Error updating webhook:', error);
+        if (error.code === '23505') {
+          return apiError(request, 'ALREADY_EXISTS', 'A webhook with this URL already exists');
+        }
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to update webhook');
       }
-      return apiError(request, 'INTERNAL_ERROR', 'Failed to update webhook');
     }
 
-    // Rewrite product links when the mode is part of this update.
-    if (body.product_filter_mode === 'selected') {
-      await replaceEndpointProducts(adminClient, id, Array.from(new Set(body.product_ids ?? [])));
-    } else if (body.product_filter_mode === 'all') {
-      await replaceEndpointProducts(adminClient, id, []);
+    // Apply scoping (mode + links) atomically in one transaction.
+    if (scopingChange) {
+      try {
+        await setEndpointScoping(
+          adminClient,
+          id,
+          body.product_filter_mode as 'all' | 'selected',
+          scopedLinks,
+        );
+      } catch (scopingError) {
+        console.error('Error scoping webhook products:', scopingError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to set webhook product scope');
+      }
     }
 
+    const { data: webhook } = await adminClient
+      .from('webhook_endpoints')
+      .select('id, url, events, description, is_active, secret, product_filter_mode, created_at, updated_at')
+      .eq('id', id)
+      .single();
     const product_ids = await getEndpointProductIds(adminClient, id);
     return jsonResponse(successResponse({ ...webhook, product_ids }), request);
   } catch (error) {

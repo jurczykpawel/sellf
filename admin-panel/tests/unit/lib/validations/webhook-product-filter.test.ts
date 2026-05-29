@@ -67,4 +67,16 @@ describe('validateProductFilter', () => {
     expect(result.valid).toBe(false);
     expect(result.error).toMatch(/product/i);
   });
+
+  it('accepts mode=selected with exactly the maximum number of products', () => {
+    const ids = Array.from({ length: 50 }, () => UUID_A);
+    expect(validateProductFilter('selected', ids).valid).toBe(true);
+  });
+
+  it('rejects mode=selected with more than the maximum number of products', () => {
+    const ids = Array.from({ length: 51 }, () => UUID_A);
+    const result = validateProductFilter('selected', ids);
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/50/);
+  });
 });

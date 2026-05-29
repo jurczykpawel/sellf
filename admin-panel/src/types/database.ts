@@ -3086,6 +3086,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_webhook_endpoint_scoping: {
+        Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
+        Returns: undefined
+      }
       update_video_progress: {
         Args: {
           completed_param?: boolean

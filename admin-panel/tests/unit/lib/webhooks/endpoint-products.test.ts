@@ -1,65 +1,53 @@
 /**
- * Unit tests for replaceEndpointProducts — write-side junction maintenance with
- * replace semantics. Uses a thenable fake Supabase client (no DB).
+ * Unit tests for setEndpointScoping — atomic mode+links write via RPC.
+ * Fake Supabase client captures the rpc call (no DB).
  */
 
 import { describe, it, expect } from 'vitest';
-import { replaceEndpointProducts } from '@/lib/webhooks/endpoint-products';
+import { setEndpointScoping } from '@/lib/webhooks/endpoint-products';
 
-function makeClient() {
-  const ops: { deletedFor: string[]; inserted: Array<{ webhook_endpoint_id: string; product_id: string }> } = {
-    deletedFor: [],
-    inserted: [],
-  };
-
+function makeClient(error: unknown = null) {
+  const calls: Array<{ fn: string; args: unknown }> = [];
   return {
+    calls,
     client: {
-      from(table: string) {
-        if (table !== 'webhook_endpoint_products') throw new Error(`unexpected table ${table}`);
-        const b: Record<string, unknown> = {};
-        b.delete = () => b;
-        b.eq = (_col: string, val: string) => {
-          ops.deletedFor.push(val);
-          return b;
+      rpc(fn: string, args: unknown) {
+        calls.push({ fn, args });
+        return {
+          then: (resolve: (v: unknown) => unknown) => Promise.resolve({ error }).then(resolve),
         };
-        b.insert = (rows: Array<{ webhook_endpoint_id: string; product_id: string }>) => {
-          ops.inserted.push(...rows);
-          return b;
-        };
-        b.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(resolve);
-        return b;
       },
     },
-    ops,
   };
 }
 
 const EP = 'endpoint-1';
 
-describe('replaceEndpointProducts', () => {
-  it('clears existing links then inserts the new set', async () => {
-    const { client, ops } = makeClient();
-    await replaceEndpointProducts(client, EP, ['p1', 'p2']);
-    expect(ops.deletedFor).toEqual([EP]);
-    expect(ops.inserted).toEqual([
-      { webhook_endpoint_id: EP, product_id: 'p1' },
-      { webhook_endpoint_id: EP, product_id: 'p2' },
-    ]);
+describe('setEndpointScoping', () => {
+  it('calls the atomic RPC with mode and product ids', async () => {
+    const { client, calls } = makeClient();
+    await setEndpointScoping(client, EP, 'selected', ['p1', 'p2']);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].fn).toBe('set_webhook_endpoint_scoping');
+    expect(calls[0].args).toEqual({
+      p_endpoint_id: EP,
+      p_mode: 'selected',
+      p_product_ids: ['p1', 'p2'],
+    });
   });
 
-  it('only deletes (no insert) when the new set is empty', async () => {
-    const { client, ops } = makeClient();
-    await replaceEndpointProducts(client, EP, []);
-    expect(ops.deletedFor).toEqual([EP]);
-    expect(ops.inserted).toEqual([]);
+  it('passes an empty product list for mode=all', async () => {
+    const { client, calls } = makeClient();
+    await setEndpointScoping(client, EP, 'all', []);
+    expect(calls[0].args).toEqual({
+      p_endpoint_id: EP,
+      p_mode: 'all',
+      p_product_ids: [],
+    });
   });
 
-  it('deduplicates product ids before inserting', async () => {
-    const { client, ops } = makeClient();
-    await replaceEndpointProducts(client, EP, ['p1', 'p1', 'p2']);
-    expect(ops.inserted).toEqual([
-      { webhook_endpoint_id: EP, product_id: 'p1' },
-      { webhook_endpoint_id: EP, product_id: 'p2' },
-    ]);
+  it('throws when the RPC returns an error', async () => {
+    const { client } = makeClient({ message: 'boom' });
+    await expect(setEndpointScoping(client, EP, 'selected', ['p1'])).rejects.toBeTruthy();
   });
 });

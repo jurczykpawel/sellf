@@ -76,11 +76,12 @@ export async function fetchEligibleEndpoints(
       .filter((c: SelectableEndpoint) => c.product_filter_mode === 'selected')
       .map((c: SelectableEndpoint) => c.id);
     if (selectedIds.length > 0) {
-      const { data: links } = await client
+      const { data: links, error: linksError } = await client
         .from('webhook_endpoint_products')
         .select('webhook_endpoint_id')
         .in('webhook_endpoint_id', selectedIds)
         .in('product_id', ids);
+      if (linksError) throw linksError;
       linkedEndpointIds = new Set((links ?? []).map((l: { webhook_endpoint_id: string }) => l.webhook_endpoint_id));
     }
   }
