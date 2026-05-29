@@ -41,16 +41,16 @@ const KEYPAIR = {
   kid: 'abcdef0123456789',
 };
 
-/** A products-table chain mock for setProductLicenseConfig: update().eq().eq(). */
-function productsUpdateChain(error: unknown = null) {
+/** A products-table chain mock for setProductLicenseConfig: update().eq().eq().select('id'). */
+function productsUpdateChain(opts: { error?: unknown; rows?: Array<{ id: string }> } = {}) {
+  const error = opts.error ?? null;
+  const rows = opts.rows ?? [{ id: 'prod-1' }];
+  const select = vi.fn(() => Promise.resolve({ data: error ? null : rows, error }));
   const eq = vi.fn();
-  const builder = { eq };
-  eq.mockImplementation(() => builder); // chainable; awaiting resolves below
-  // Make the builder thenable so `await update().eq().eq()` resolves to {error}.
-  (builder as unknown as { then: unknown }).then = (resolve: (v: { error: unknown }) => void) =>
-    resolve({ error });
+  const builder = { eq, select };
+  eq.mockImplementation(() => builder); // chainable; .select('id') terminates
   const update = vi.fn(() => builder);
-  return { update, eq };
+  return { update, eq, select };
 }
 
 /** A deactivation chain: update().eq().eq() resolving to {error}. */
@@ -97,10 +97,17 @@ describe('setProductLicenseConfig', () => {
   });
 
   it('returns an error result when the DB update fails', async () => {
-    adminFromMock.mockReturnValue(productsUpdateChain({ message: 'boom' }));
+    adminFromMock.mockReturnValue(productsUpdateChain({ error: { message: 'boom' } }));
     const res = await setProductLicenseConfig('prod-1', { enabled: false, tier: null, durationDays: null });
     expect(res.success).toBe(false);
     expect(res.error).toBeTruthy();
+  });
+
+  it('returns NOT_FOUND when no row matches (product missing or not owned)', async () => {
+    adminFromMock.mockReturnValue(productsUpdateChain({ rows: [] }));
+    const res = await setProductLicenseConfig('prod-1', { enabled: true, tier: 'pro', durationDays: null });
+    expect(res.success).toBe(false);
+    expect(res.errorCode).toBe('NOT_FOUND');
   });
 });
 

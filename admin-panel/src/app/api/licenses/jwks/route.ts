@@ -18,8 +18,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 
-  // Rate limit by the server-observed connection IP (inet_client_addr), never a
-  // client-supplied forwarding header.
+  // Shared application limiter: keys on the trusted-proxy client IP (the
+  // proxy-set X-Forwarded-For when TRUSTED_PROXY is enabled) with a UA
+  // fingerprint fallback — same path as the other public endpoints.
   const allowed = await checkRateLimit('licenses_jwks', 60, 1);
   if (!allowed) {
     return NextResponse.json({ error: 'Rate limited' }, { status: 429 });

@@ -36,7 +36,7 @@ export async function setProductLicenseConfig(
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
   return withAdminAuth(async ({ user }) => {
     const admin = createAdminClient()
-    const { error } = await admin
+    const { data, error } = await admin
       .from('products')
       .update({
         issue_license_on_purchase: input.enabled,
@@ -45,9 +45,14 @@ export async function setProductLicenseConfig(
       })
       .eq('id', productId)
       .eq('seller_id', user.id)
+      .select('id')
     if (error) {
       console.error('[setProductLicenseConfig]', error)
       return { success: false, error: 'Failed to save license config', errorCode: 'DATABASE_ERROR' }
+    }
+    if (!data || data.length === 0) {
+      // No row matched id + seller_id — product missing or not owned by this seller.
+      return { success: false, error: 'Product not found', errorCode: 'NOT_FOUND' }
     }
     return { success: true }
   })
