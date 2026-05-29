@@ -12,6 +12,7 @@ import PaymentMethodSettingsWrapper from './PaymentMethodSettingsWrapper'
 import LegalDocumentsSettings from './LegalDocumentsSettings'
 import OmnibusSettings from './OmnibusSettings'
 import LicenseSettings from './LicenseSettings'
+import LicenseKeysSettings from './LicenseKeysSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
 import { useConfig } from '@/components/providers/config-provider'
@@ -93,6 +94,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme }: Settings
 
         {active === 'system' && (
           <>
+            <LicenseKeysSettings />
             <LicenseSettings />
             {role === 'platform_admin' && <SystemUpdateSettings />}
             {role === 'platform_admin' && !demoMode && <SecurityAuditSettings />}

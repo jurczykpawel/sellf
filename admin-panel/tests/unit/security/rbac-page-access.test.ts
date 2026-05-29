@@ -221,6 +221,19 @@ describe('Server actions: correct auth wrapper per scope', () => {
       ).toBe(false);
     });
 
+    it('license-config.ts uses withAdminAuth and never returns the private key', () => {
+      const source = readSource('lib/actions/license-config.ts');
+      expect(
+        /withAdminAuth/.test(source),
+        'license-config.ts must authenticate via withAdminAuth'
+      ).toBe(true);
+      // Private keys must never be exposed in a returned result object.
+      expect(
+        /data:\s*\{[^}]*privateKeyPem/.test(source),
+        'license-config.ts must not return privateKeyPem in any result'
+      ).toBe(false);
+    });
+
     it('payment.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/payment.ts');
       expect(
@@ -490,6 +503,7 @@ describe('All server action files have auth wrappers', () => {
       'dashboard.ts',
       'gus-config.ts',
       'integrations.ts',
+      'license-config.ts',
       'payment-config.ts',
       'payment.ts',
       'preferences.ts',

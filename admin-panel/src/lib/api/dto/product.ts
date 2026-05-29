@@ -76,6 +76,10 @@ const baseShape = {
   // Post-purchase redirect (success page)
   success_redirect_url: z.string().max(2048).nullable().optional(),
   pass_params_to_redirect: z.boolean().optional(),
+  // License keys (signed JWT issued on purchase)
+  issue_license_on_purchase: z.boolean().optional(),
+  license_tier: z.string().max(80).nullable().optional(),
+  license_duration_days: z.number().int().positive().nullable().optional(),
 };
 
 export const ProductCreateDTO = z.object(baseShape).strip();
