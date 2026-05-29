@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { buildGateScript } from '@/lib/loginwall/gate-snippet';
-import { clientIdentifier, siteOrigin } from '@/lib/loginwall/request';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { rateLimitGuard, siteOrigin } from '@/lib/loginwall/request';
 
 const querySchema = z.object({
   products: z
@@ -12,10 +11,6 @@ const querySchema = z.object({
     .transform((raw) => raw.split(','))
     .pipe(z.array(z.string().regex(/^[a-z0-9-]{1,96}$/)).min(1).max(20)),
 });
-
-const RATE_LIMIT_ACTION = 'loginwall_gate_js';
-const RATE_LIMIT_MAX = 60;
-const RATE_LIMIT_WINDOW_MIN = 1;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const parsed = querySchema.safeParse({ products: request.nextUrl.searchParams.get('products') });
@@ -28,15 +23,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
 
-  const allowed = await checkRateLimitForIdentifier(
-    RATE_LIMIT_ACTION,
-    RATE_LIMIT_MAX,
-    RATE_LIMIT_WINDOW_MIN,
-    clientIdentifier(request),
-  );
-  if (!allowed) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
-  }
+  const limited = await rateLimitGuard('loginwall_gate_js', 60, 1);
+  if (limited) return limited;
 
   const body = buildGateScript({ slugs: parsed.data.products, sellfOrigin: origin });
   return new NextResponse(body, {

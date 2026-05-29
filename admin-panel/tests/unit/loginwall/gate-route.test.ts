@@ -7,11 +7,11 @@ vi.mock('@/lib/embed/checkout-embed', async () => {
   const actual = await vi.importActual<typeof import('@/lib/embed/checkout-embed')>('@/lib/embed/checkout-embed');
   return { ...actual, loadAllowedOriginsForProduct: vi.fn() };
 });
-vi.mock('@/lib/rate-limiting', () => ({ checkRateLimitForIdentifier: vi.fn() }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn() }));
 
 import { createClient } from '@/lib/supabase/server';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { verifyGateToken } from '@/lib/loginwall/token';
 import { GET } from '@/app/[locale]/loginwall/gate/route';
 
@@ -56,8 +56,8 @@ beforeEach(() => {
   vi.mocked(createClient).mockReset();
   vi.mocked(loadAllowedOriginsForProduct).mockReset();
   vi.mocked(loadAllowedOriginsForProduct).mockResolvedValue([CUSTOMER_ORIGIN]);
-  vi.mocked(checkRateLimitForIdentifier).mockReset();
-  vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(true);
+  vi.mocked(checkRateLimit).mockReset();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
   process.env.NEXT_PUBLIC_SITE_URL = SITE_URL;
   process.env.LOGINWALL_SECRET = SECRET;
 });
@@ -169,7 +169,7 @@ describe('GET /loginwall/gate', () => {
   });
 
   it('429s when the per-ip rate limit denies', async () => {
-    vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(false);
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
     vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({ user: { id: USER_ID } }) as never);
     expect((await GET(req(q('a')))).status).toBe(429);
   });

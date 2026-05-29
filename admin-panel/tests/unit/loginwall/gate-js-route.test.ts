@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-vi.mock('@/lib/rate-limiting', () => ({ checkRateLimitForIdentifier: vi.fn() }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn() }));
 
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { GET } from '@/app/api/loginwall/gate.js/route';
 
 const SITE_URL = 'http://localhost:3000';
@@ -13,8 +13,8 @@ function makeRequest(url: string, headers: Record<string, string> = {}): NextReq
 }
 
 beforeEach(() => {
-  vi.mocked(checkRateLimitForIdentifier).mockReset();
-  vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(true);
+  vi.mocked(checkRateLimit).mockReset();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
   process.env.NEXT_PUBLIC_SITE_URL = SITE_URL;
 });
 
@@ -42,7 +42,7 @@ describe('GET /api/loginwall/gate.js', () => {
   });
 
   it('429s when rate limited', async () => {
-    vi.mocked(checkRateLimitForIdentifier).mockResolvedValueOnce(false);
+    vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
     const res = await GET(makeRequest(`${SITE_URL}/api/loginwall/gate.js?products=pro-kit`, { 'x-forwarded-for': '203.0.113.5' }));
     expect(res.status).toBe(429);
   });

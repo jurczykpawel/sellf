@@ -7,12 +7,12 @@ vi.mock('@/lib/embed/checkout-embed', async () => {
   const actual = await vi.importActual<typeof import('@/lib/embed/checkout-embed')>('@/lib/embed/checkout-embed');
   return { ...actual, loadAllowedOriginsForProduct: vi.fn() };
 });
-vi.mock('@/lib/rate-limiting', () => ({ checkRateLimitForIdentifier: vi.fn() }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn() }));
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { signGateToken } from '@/lib/loginwall/token';
 import { POST, OPTIONS } from '@/app/api/loginwall/verify/route';
 
@@ -68,8 +68,8 @@ beforeEach(() => {
   vi.mocked(createAdminClient).mockReturnValue(adminClient() as never);
   vi.mocked(loadAllowedOriginsForProduct).mockReset();
   vi.mocked(loadAllowedOriginsForProduct).mockResolvedValue([CUSTOMER_ORIGIN]);
-  vi.mocked(checkRateLimitForIdentifier).mockReset();
-  vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(true);
+  vi.mocked(checkRateLimit).mockReset();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
   process.env.LOGINWALL_SECRET = SECRET;
 });
 
@@ -121,7 +121,7 @@ describe('POST /api/loginwall/verify', () => {
   });
 
   it('429s when rate limited', async () => {
-    vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(false);
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
     const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: CUSTOMER_ORIGIN }));
     expect(res.status).toBe(429);
   });

@@ -4,19 +4,14 @@ import { z } from 'zod';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import {
   appendTokenToFragment,
-  clientIdentifier,
   parseCustomerRedirect,
+  rateLimitGuard,
   siteOrigin,
   validateRedirectAgainstAllowlist,
 } from '@/lib/loginwall/request';
 import { signGateToken } from '@/lib/loginwall/token';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-
-const RATE_LIMIT_ACTION = 'loginwall_gate';
-const RATE_LIMIT_MAX = 60;
-const RATE_LIMIT_WINDOW_MIN = 1;
 
 const slugSchema = z.string().regex(/^[a-z0-9-]{1,96}$/);
 
@@ -53,15 +48,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return jsonError('Bad request', 400);
   }
 
-  const allowed = await checkRateLimitForIdentifier(
-    RATE_LIMIT_ACTION,
-    RATE_LIMIT_MAX,
-    RATE_LIMIT_WINDOW_MIN,
-    clientIdentifier(request),
-  );
-  if (!allowed) {
-    return jsonError('Rate limited', 429);
-  }
+  const limited = await rateLimitGuard('loginwall_gate', 60, 1);
+  if (limited) return limited;
 
   const requested = Array.from(new Set(parsed.data.products));
 

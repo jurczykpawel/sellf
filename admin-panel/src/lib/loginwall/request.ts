@@ -1,14 +1,21 @@
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { isAllowedEmbedOrigin } from '@/lib/embed/checkout-embed';
 import { isInternalHostname } from '@/lib/security/internal-hostname';
+import { checkRateLimit } from '@/lib/rate-limiting';
 
-export function clientIdentifier(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  );
+/**
+ * Per-IP rate-limit guard for the public loginwall routes. Uses the server
+ * connection IP (inet_client_addr, via checkRateLimit) — never a client-supplied
+ * forwarding header. Returns a 429 response to short-circuit, or null to proceed.
+ */
+export async function rateLimitGuard(
+  action: string,
+  maxRequests: number,
+  windowMinutes: number,
+): Promise<NextResponse | null> {
+  const allowed = await checkRateLimit(action, maxRequests, windowMinutes);
+  return allowed ? null : NextResponse.json({ error: 'Rate limited' }, { status: 429 });
 }
 
 export function parseCustomerRedirect(raw: string): URL | null {

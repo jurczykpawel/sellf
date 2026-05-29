@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/rate-limiting', () => ({
-  checkRateLimitForIdentifier: vi.fn(),
+  checkRateLimit: vi.fn(),
 }));
 
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { GET } from '@/app/api/loginwall/login.js/route';
 
 const PRODUCT_ID = 'a1b2c3d4-e5f6-7890-abcd-ef0123456789';
@@ -16,8 +16,8 @@ function makeRequest(url: string, headers: Record<string, string> = {}): NextReq
 }
 
 beforeEach(() => {
-  vi.mocked(checkRateLimitForIdentifier).mockReset();
-  vi.mocked(checkRateLimitForIdentifier).mockResolvedValue(true);
+  vi.mocked(checkRateLimit).mockReset();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
   process.env.NEXT_PUBLIC_SITE_URL = SITE_URL;
 });
 
@@ -47,7 +47,7 @@ describe('GET /api/loginwall/login.js', () => {
   });
 
   it('429s when the per-ip rate limit denies', async () => {
-    vi.mocked(checkRateLimitForIdentifier).mockResolvedValueOnce(false);
+    vi.mocked(checkRateLimit).mockResolvedValueOnce(false);
     const res = await GET(makeRequest(`${SITE_URL}/api/loginwall/login.js?id=${PRODUCT_ID}`, {
       'x-forwarded-for': '203.0.113.5',
     }));

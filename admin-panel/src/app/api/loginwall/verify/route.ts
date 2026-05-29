@@ -2,17 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
-import { clientIdentifier, validateRedirectAgainstAllowlist } from '@/lib/loginwall/request';
+import { rateLimitGuard, validateRedirectAgainstAllowlist } from '@/lib/loginwall/request';
 import { verifyGateToken } from '@/lib/loginwall/token';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 const bodySchema = z.object({ product: z.string().regex(/^[a-z0-9-]{1,96}$/) });
-
-const RATE_LIMIT_ACTION = 'loginwall_verify';
-const RATE_LIMIT_MAX = 120;
-const RATE_LIMIT_WINDOW_MIN = 1;
 
 function bearer(request: NextRequest): string | null {
   const header = request.headers.get('authorization') ?? '';
@@ -68,15 +63,8 @@ export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const allowed = await checkRateLimitForIdentifier(
-    RATE_LIMIT_ACTION,
-    RATE_LIMIT_MAX,
-    RATE_LIMIT_WINDOW_MIN,
-    clientIdentifier(request),
-  );
-  if (!allowed) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
-  }
+  const limited = await rateLimitGuard('loginwall_verify', 120, 1);
+  if (limited) return limited;
 
   let body: unknown;
   try {
