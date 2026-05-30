@@ -109,6 +109,18 @@ describe('setProductLicenseConfig', () => {
     expect(res.success).toBe(false);
     expect(res.errorCode).toBe('NOT_FOUND');
   });
+
+  it('rejects an over-long tier before touching the DB', async () => {
+    const res = await setProductLicenseConfig('prod-1', { enabled: true, tier: 'x'.repeat(81), durationDays: null });
+    expect(res).toMatchObject({ success: false, errorCode: 'INVALID_INPUT' });
+    expect(adminFromMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-positive / non-integer duration', async () => {
+    expect((await setProductLicenseConfig('prod-1', { enabled: true, tier: null, durationDays: 0 })).errorCode).toBe('INVALID_INPUT');
+    expect((await setProductLicenseConfig('prod-1', { enabled: true, tier: null, durationDays: -5 })).errorCode).toBe('INVALID_INPUT');
+    expect((await setProductLicenseConfig('prod-1', { enabled: true, tier: null, durationDays: 1.5 })).errorCode).toBe('INVALID_INPUT');
+  });
 });
 
 describe('generateSellerLicenseKey', () => {
@@ -162,6 +174,12 @@ describe('uploadSellerLicenseKey', () => {
   it('rejects empty input before touching the DB', async () => {
     const res = await uploadSellerLicenseKey('   ');
     expect(res.success).toBe(false);
+    expect(vi.mocked(importSellerKey)).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized PEM before parsing', async () => {
+    const res = await uploadSellerLicenseKey('-----BEGIN PRIVATE KEY-----\n' + 'A'.repeat(9000) + '\n-----END PRIVATE KEY-----');
+    expect(res).toMatchObject({ success: false, errorCode: 'INVALID_INPUT' });
     expect(vi.mocked(importSellerKey)).not.toHaveBeenCalled();
   });
 });

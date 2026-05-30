@@ -34,6 +34,13 @@ export async function setProductLicenseConfig(
   input: ProductLicenseConfigInput,
 ): Promise<ActionResponse> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
+  // Input bounds — parity with the product DTO this standalone action bypasses.
+  if (input.tier != null && input.tier.trim().length > 80) {
+    return { success: false, error: 'Tier too long', errorCode: 'INVALID_INPUT' }
+  }
+  if (input.durationDays != null && (!Number.isInteger(input.durationDays) || input.durationDays <= 0)) {
+    return { success: false, error: 'Invalid duration', errorCode: 'INVALID_INPUT' }
+  }
   return withAdminAuth(async ({ user }) => {
     const admin = createAdminClient()
     const { data, error } = await admin
@@ -103,6 +110,9 @@ export async function uploadSellerLicenseKey(
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
   if (!privateKeyPem || !privateKeyPem.trim()) {
     return { success: false, error: 'A private key is required', errorCode: 'INVALID_INPUT' }
+  }
+  if (privateKeyPem.length > 8192) {
+    return { success: false, error: 'Private key is too large', errorCode: 'INVALID_INPUT' }
   }
   return withAdminAuth(async ({ user }) => {
     const admin = createAdminClient()

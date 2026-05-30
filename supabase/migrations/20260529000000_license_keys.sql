@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS public.seller_license_keys (
   UNIQUE (seller_id, kid)
 );
 
-CREATE INDEX IF NOT EXISTS idx_seller_license_keys_active
+-- At most one active key per seller (also serves the active-key lookup).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_seller_license_keys_active
   ON public.seller_license_keys (seller_id)
   WHERE is_active = true;
 
