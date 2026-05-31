@@ -2,10 +2,10 @@ import type { ContentItemConfig } from '@/types';
 import type { ParsedVideoUrl } from '@/lib/videoUtils';
 import { parseVideoUrl } from '@/lib/videoUtils';
 
-export const PLAYERSTACK_SCRIPT_SRC = '/vendor/playerstack/playerstack-6e679251cbfb.min.js';
+export const PLAYERSTACK_SCRIPT_SRC = '/vendor/playerstack/playerstack-802be819e8f6.min.js';
 export const PLAYERSTACK_SCRIPT_INTEGRITY =
-  'sha384-dqCTFihhXn9nwxfGbeTqUP3yKlmli1ZhI1upL1X9rM8R7Bo6qQuJlO7MD3Jpkc9d';
-export const PLAYERSTACK_COMMIT_SHA = 'c40cf5296dfea8569e21fc9b06a1f99876e3be53';
+  'sha384-oBSLvJAbQHwyetFMalPeisnU5IEJcu950XNZBTRA7zF/8+yE5YVqgWro3v4uAk3+';
+export const PLAYERSTACK_COMMIT_SHA = '782f233399bce2044613d6b2d7b5494cec4cd943';
 
 export type PlayerstackPlatform = 'youtube' | 'vimeo' | 'wistia' | 'twitch' | 'bunny';
 
