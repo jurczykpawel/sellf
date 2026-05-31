@@ -66,6 +66,10 @@ export interface Product {
   custom_checkout_fields: import('@/lib/validations/custom-checkout-fields').CustomFieldDefinition[]
   // Embed checkout (per-product toggle; complements env-level origin allowlist)
   embed_enabled?: boolean
+  // License keys (signed JWT issued on purchase)
+  issue_license_on_purchase?: boolean
+  license_tier?: string | null
+  license_duration_days?: number | null
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type?: 'one_time' | 'subscription'
   billing_interval?: 'day' | 'week' | 'month' | 'year' | null

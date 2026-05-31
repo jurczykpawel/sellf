@@ -486,6 +486,32 @@ plain static page.
 invalidates every in-flight token immediately; the next visit just goes through
 `/loginwall/protect` again and gets a fresh one.
 
+### License keys (sell licensed digital products)
+
+Sellers can issue ECDSA-signed license tokens to buyers on purchase, verified
+**offline** with the seller's public key (no callback at verify time). Distinct
+from `src/lib/license/verify.ts`, which licenses Sellf-the-product itself.
+
+**Flow:** a seller turns on "Issue a license key on purchase" per product
+(Settings → System holds their keypair; products carry `issue_license_on_purchase`,
+`license_tier`, `license_duration_days`). On a completed Stripe purchase the webhook
+calls `issueLicense`, which signs a token (`payloadB64url.sigB64url`, claims
+`{v,kid,product,email,order,tier,iat,exp}`) and records it in `issued_licenses`
+(idempotent per order). The token rides on the `purchase.completed` webhook payload
+(`licenseKey`) for delivery. Buyers verify it against the seller's public keys from
+`GET /api/licenses/jwks?seller=<id>`.
+
+**Custody (both supported):** `managed` — Sellf generates the keypair; `byok` — the
+seller uploads their own private key. Private keys are encrypted at rest with
+`APP_ENCRYPTION_KEY` (same mechanism as Stripe secrets) and never leave the service
+role; the public-keys endpoint reads only public material via a `SECURITY DEFINER`
+function. Issuance never breaks the payment webhook (fail-safe, logged).
+
+**Pieces:** `src/lib/license-keys/{format,keys,issue,sdk}.ts`, `src/app/api/licenses/jwks/route.ts`,
+`src/lib/actions/license-config.ts`, `src/components/ProductFormModal/sections/LicenseSection.tsx` +
+`src/components/settings/LicenseKeysSettings.tsx`, migration `20260529000000_license_keys.sql`.
+`verifySellfLicense` (`sdk.ts`) is the reference offline verifier sellers can copy.
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

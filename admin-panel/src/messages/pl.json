@@ -1541,6 +1541,17 @@
             "month": "Miesiąc",
             "year": "Rok"
           }
+        },
+        "license": {
+          "sectionTitle": "Klucz licencyjny",
+          "toggleLabel": "Wystaw klucz licencyjny przy zakupie",
+          "toggleHint": "Po zakupie kupujący otrzymuje podpisany klucz licencyjny weryfikowalny offline.",
+          "tierLabel": "Poziom licencji",
+          "tierPlaceholder": "np. pro, team, lifetime",
+          "tierHint": "Zapisany w licencji, dzięki czemu aplikacja może rozróżniać plany.",
+          "durationLabel": "Ważność (dni)",
+          "durationPlaceholder": "Puste = bezterminowo",
+          "durationHint": "Jak długo licencja jest ważna. Puste oznacza brak wygaśnięcia."
         }
       }
     },
@@ -2739,6 +2750,28 @@
       "payments": "Płatności",
       "legal": "Prawne",
       "system": "System"
+    },
+    "licenseKeys": {
+      "title": "Klucz podpisujący licencje",
+      "subtitle": "Podpisuj klucze licencyjne wystawiane przy zakupie",
+      "description": "Klienci weryfikują klucze offline przy użyciu Twojego klucza publicznego. Klucz prywatny pozostaje tajny — nigdy nie opuszcza serwera.",
+      "noKey": "Brak klucza podpisującego. Wygeneruj nowy lub wgraj własny, aby zacząć wystawiać klucze licencyjne.",
+      "kid": "Identyfikator klucza",
+      "publicKey": "Klucz publiczny (PEM)",
+      "jwksUrl": "Adres JWKS",
+      "generate": "Wygeneruj klucz",
+      "generating": "Generowanie…",
+      "upload": "Wgraj klucz",
+      "uploading": "Wgrywanie…",
+      "uploadLabel": "Wklej klucz prywatny EC P-256 w formacie PEM",
+      "uploadPlaceholder": "-----BEGIN PRIVATE KEY-----",
+      "rotateWarning": "Wygenerowanie lub wgranie nowego klucza dezaktywuje obecny. Licencje podpisane starym kluczem pozostają ważne, dopóki publikowany jest jego klucz publiczny.",
+      "copied": "Skopiowano",
+      "copy": "Kopiuj",
+      "generateSuccess": "Wygenerowano klucz podpisujący licencje",
+      "uploadSuccess": "Wgrano klucz podpisujący licencje",
+      "loadError": "Nie udało się wczytać klucza licencyjnego",
+      "actionError": "Akcja nie powiodła się"
     }
   },
   "stripe": {

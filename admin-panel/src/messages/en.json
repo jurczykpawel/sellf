@@ -1526,6 +1526,17 @@
             "month": "Month",
             "year": "Year"
           }
+        },
+        "license": {
+          "sectionTitle": "License key",
+          "toggleLabel": "Issue a license key on purchase",
+          "toggleHint": "Buyers receive a signed, offline-verifiable license key after checkout.",
+          "tierLabel": "License tier",
+          "tierPlaceholder": "e.g. pro, team, lifetime",
+          "tierHint": "Embedded in the license so your app can gate features by plan.",
+          "durationLabel": "Validity (days)",
+          "durationPlaceholder": "Leave empty for perpetual",
+          "durationHint": "How long the license stays valid. Empty means it never expires."
         }
       }
     },
@@ -2724,6 +2735,28 @@
       "payments": "Payments",
       "legal": "Legal",
       "system": "System"
+    },
+    "licenseKeys": {
+      "title": "License signing key",
+      "subtitle": "Sign the license keys your products issue on purchase",
+      "description": "Customers verify these keys offline using your public key. Keep the private key secret — it never leaves the server.",
+      "noKey": "No signing key yet. Generate one or upload your own to start issuing license keys.",
+      "kid": "Key ID",
+      "publicKey": "Public key (PEM)",
+      "jwksUrl": "JWKS URL",
+      "generate": "Generate key",
+      "generating": "Generating…",
+      "upload": "Upload key",
+      "uploading": "Uploading…",
+      "uploadLabel": "Paste a PEM-encoded EC P-256 private key",
+      "uploadPlaceholder": "-----BEGIN PRIVATE KEY-----",
+      "rotateWarning": "Generating or uploading a new key deactivates the current one. Licenses signed with the old key stay valid as long as its public key is published.",
+      "copied": "Copied",
+      "copy": "Copy",
+      "generateSuccess": "License signing key generated",
+      "uploadSuccess": "License signing key uploaded",
+      "loadError": "Failed to load license key",
+      "actionError": "Action failed"
     }
   },
   "stripe": {

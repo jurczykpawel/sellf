@@ -58,6 +58,8 @@ export interface PurchaseWebhookData {
    */
   customFields?: DisplayCustomField[];
   source?: string;
+  /** Signed license token, present only when the product issues licenses on purchase. */
+  licenseKey?: string;
 }
 
 export interface BuildWebhookPayloadParams {

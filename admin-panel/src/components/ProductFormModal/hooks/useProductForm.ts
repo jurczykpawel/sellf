@@ -194,6 +194,10 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         custom_price_presets: Array.isArray(product.custom_price_presets) ? product.custom_price_presets : [5, 10, 25],
         // Embed checkout
         embed_enabled: product.embed_enabled ?? false,
+        // License keys
+        issue_license_on_purchase: product.issue_license_on_purchase ?? false,
+        license_tier: product.license_tier ?? null,
+        license_duration_days: product.license_duration_days ?? null,
         // Subscription (Phase 4)
         product_type: product.product_type ?? 'one_time',
         billing_interval: product.billing_interval ?? null,

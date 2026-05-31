@@ -784,6 +784,84 @@ export type Database = {
         }
         Relationships: []
       }
+      issued_licenses: {
+        Row: {
+          email: string | null
+          expires_at: string | null
+          id: string
+          issued_at: string
+          kid: string
+          license_key: string
+          order_id: string
+          product_id: string
+          revoked_at: string | null
+          seller_id: string
+          user_id: string | null
+        }
+        Insert: {
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          kid: string
+          license_key: string
+          order_id: string
+          product_id: string
+          revoked_at?: string | null
+          seller_id: string
+          user_id?: string | null
+        }
+        Update: {
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          issued_at?: string
+          kid?: string
+          license_key?: string
+          order_id?: string
+          product_id?: string
+          revoked_at?: string | null
+          seller_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issued_licenses_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issued_licenses_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "issued_licenses_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "issued_licenses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "issued_licenses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       loginwall_tokens: {
         Row: {
           created_at: string
@@ -1434,7 +1512,10 @@ export type Database = {
           is_featured: boolean
           is_listed: boolean
           is_refundable: boolean
+          issue_license_on_purchase: boolean
           layout_template: string
+          license_duration_days: number | null
+          license_tier: string | null
           long_description: string | null
           name: string
           omnibus_exempt: boolean
@@ -1487,7 +1568,10 @@ export type Database = {
           is_featured?: boolean
           is_listed?: boolean
           is_refundable?: boolean
+          issue_license_on_purchase?: boolean
           layout_template?: string
+          license_duration_days?: number | null
+          license_tier?: string | null
           long_description?: string | null
           name: string
           omnibus_exempt?: boolean
@@ -1540,7 +1624,10 @@ export type Database = {
           is_featured?: boolean
           is_listed?: boolean
           is_refundable?: boolean
+          issue_license_on_purchase?: boolean
           layout_template?: string
+          license_duration_days?: number | null
+          license_tier?: string | null
           long_description?: string | null
           name?: string
           omnibus_exempt?: boolean
@@ -1849,6 +1936,63 @@ export type Database = {
             foreignKeyName: "seller_embed_settings_seller_id_fkey"
             columns: ["seller_id"]
             isOneToOne: true
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      seller_license_keys: {
+        Row: {
+          alg: string
+          created_at: string
+          custody: string
+          encrypted_key: string
+          encryption_iv: string
+          encryption_tag: string
+          id: string
+          is_active: boolean
+          kid: string
+          public_key: string
+          seller_id: string
+        }
+        Insert: {
+          alg?: string
+          created_at?: string
+          custody: string
+          encrypted_key: string
+          encryption_iv: string
+          encryption_tag: string
+          id?: string
+          is_active?: boolean
+          kid: string
+          public_key: string
+          seller_id: string
+        }
+        Update: {
+          alg?: string
+          created_at?: string
+          custody?: string
+          encrypted_key?: string
+          encryption_iv?: string
+          encryption_tag?: string
+          id?: string
+          is_active?: boolean
+          kid?: string
+          public_key?: string
+          seller_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_license_keys_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "seller_license_keys_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
             referencedRelation: "user_access_stats"
             referencedColumns: ["user_id"]
           },
@@ -3073,6 +3217,14 @@ export type Database = {
           user_id_param?: string
         }
         Returns: Json
+      }
+      seller_license_public_keys: {
+        Args: { seller: string }
+        Returns: {
+          alg: string
+          kid: string
+          public_key: string
+        }[]
       }
       send_monitoring_email: {
         Args: { alert_details: Json; alert_type: string }

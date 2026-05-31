@@ -103,6 +103,7 @@ const PUBLIC_ROUTES = new Set([
   'test-page/element-protection/route.ts',    // test page — serves HTML for SDK e2e tests
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
   'loginwall/login.js/route.ts',              // Login wall loader script — per-product, rate-limited, no secrets
+  'licenses/jwks/route.ts',                   // Seller license public keys — public keys only, rate-limited
 ]);
 
 /**
