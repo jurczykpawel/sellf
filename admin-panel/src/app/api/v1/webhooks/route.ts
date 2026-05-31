@@ -230,6 +230,7 @@ export async function POST(request: NextRequest) {
         await setEndpointScoping(adminClient, webhook.id, 'selected', linkedProductIds);
       } catch (scopingError) {
         console.error('Error scoping webhook products:', scopingError);
+        // TODO: fold create+scoping into one transactional RPC to drop this best-effort cleanup
         await adminClient.from('webhook_endpoints').delete().eq('id', webhook.id);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to set webhook product scope');
       }
