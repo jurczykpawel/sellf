@@ -561,6 +561,7 @@
     "generateCode": "Generuj kod",
     "generateEmbedSnippet": "Generuj kod osadzania koszyka",
     "generateLoginwallSnippet": "Generuj kod login wall",
+    "generateGatingSnippet": "Generuj kod blokowania elementów",
     "codeGenerated": "Kod wygenerowany",
     "copyCode": "Kopiuj kod",
     "codeCopied": "Kod skopiowany!"
@@ -672,6 +673,20 @@
     "howItWorksBody": "Po logowaniu dodajemy do URL krótko żyjący podpisany token. Snippet sprawdza go przy załadowaniu strony i natychmiast usuwa z URL przez history.replaceState — udostępniane linki pozostają czyste.",
     "emptyAllowlistTitle": "Brak dozwolonych domen na białej liście",
     "emptyAllowlistBody": "Login wall odrzuci przekierowanie z 400 dopóki nie dodasz domeny strony, na której wklejasz snippet, do allowed_embed_origins (Ustawienia → Osadzanie) albo do zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS.",
+    "close": "Zamknij"
+  },
+  "gateSnippet": {
+    "title": "Generuj kod blokowania elementów",
+    "subtitle": "Blokuj pojedyncze elementy na własnej stronie i pokazuj różną treść kupującym, zalogowanym bez dostępu oraz gościom.",
+    "slug": "Slug",
+    "snippetLabel": "Snippet do wklejenia w <head>",
+    "markupLabel": "Oznacz elementy, które chcesz zablokować",
+    "copied": "✓ Skopiowano!",
+    "copyCode": "📋 Kopiuj kod",
+    "howItWorksTitle": "Jak działa blokowanie",
+    "howItWorksBody": "Przy załadowaniu snippet ustala stan każdego elementu na podstawie krótko żyjącego podpisanego tokenu, a potem usuwa token z URL. Wyświetlanie i funkcje lokalne rozstrzygają się w przeglądarce; realne akcje serwerowe zabezpiecz przez SellfGate.verify(), które weryfikuje serwer.",
+    "emptyAllowlistTitle": "Brak dozwolonych domen na białej liście",
+    "emptyAllowlistBody": "Blokowanie odrzuci przekierowanie z 400 dopóki nie dodasz domeny strony, na której wklejasz snippet, do allowed_embed_origins (Ustawienia → Osadzanie) albo do zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS.",
     "close": "Zamknij"
   },
   "embedSection": {
@@ -1207,6 +1222,7 @@
       "generateCode": "Generuj kod",
       "generateEmbedSnippet": "Generuj kod osadzania koszyka",
       "generateLoginwallSnippet": "Generuj kod login wall",
+      "generateGatingSnippet": "Generuj kod blokowania elementów",
       "viewDetails": "Pokaż szczegóły",
       "edit": "Edytuj",
       "delete": "Usuń",

@@ -100,10 +100,10 @@ const PUBLIC_ROUTES = new Set([
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy
   'captcha/challenge/route.ts',                // ALTCHA challenge generation — public, stateless
-  'test-page/element-protection/route.ts',    // test page — serves HTML for SDK e2e tests
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
   'loginwall/login.js/route.ts',              // Login wall loader script — per-product, rate-limited, no secrets
   'licenses/jwks/route.ts',                   // Seller license public keys — public keys only, rate-limited
+  'loginwall/gate.js/route.ts',               // Element gating runtime script — per-product, rate-limited, no secrets
 ]);
 
 /**
@@ -114,6 +114,7 @@ const SPECIAL_AUTH_ROUTES = new Set([
   'webhooks/stripe/route.ts',                  // Stripe signature verification
   'update-payment-metadata/route.ts',          // CORS + PaymentIntent ID (pre-auth payment flow)
   'verify-payment/route.ts',                   // session_id + ownership check
+  'loginwall/verify/route.ts',                 // bearer HMAC gate token (no user session), allowlist-scoped CORS
 ]);
 
 /** Auth-required routes: must verify user session */

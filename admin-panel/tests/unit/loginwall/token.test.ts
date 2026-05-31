@@ -4,6 +4,9 @@ import {
   signLoginwallToken,
   verifyLoginwallToken,
   hashNonce,
+  signGateToken,
+  verifyGateToken,
+  parseGatePayload,
 } from '@/lib/loginwall/token';
 
 const SECRET = 'a'.repeat(64);
@@ -91,8 +94,8 @@ describe('verifyLoginwallToken (signature + exp + product, no DB)', () => {
   it('rejects a token with a wrong signature', () => {
     const { token } = signLoginwallToken({ productId: PRODUCT_ID, userId: USER_ID, secret: SECRET, now: NOW });
     const [payload] = token.split('.');
-    const tampered = `${payload}.AAAA`;
-    const result = verifyLoginwallToken(tampered, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
+    const modified = `${payload}.AAAA`;
+    const result = verifyLoginwallToken(modified, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
     expect(result).toEqual({ valid: false, reason: 'signature' });
   });
 
@@ -109,8 +112,8 @@ describe('verifyLoginwallToken (signature + exp + product, no DB)', () => {
   it('rejects a token whose payload was modified', () => {
     const { token } = signLoginwallToken({ productId: PRODUCT_ID, userId: USER_ID, secret: SECRET, now: NOW });
     const [, sig] = token.split('.');
-    const tampered = `${Buffer.from(JSON.stringify({ pid: PRODUCT_ID, uid: 'attacker', exp: 9999999999, nonce: 'x' })).toString('base64url')}.${sig}`;
-    const result = verifyLoginwallToken(tampered, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
+    const modified = `${Buffer.from(JSON.stringify({ pid: PRODUCT_ID, uid: 'other-user', exp: 9999999999, nonce: 'x' })).toString('base64url')}.${sig}`;
+    const result = verifyLoginwallToken(modified, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
     expect(result).toEqual({ valid: false, reason: 'signature' });
   });
 
@@ -141,5 +144,50 @@ describe('verifyLoginwallToken (signature + exp + product, no DB)', () => {
     const badPayload = Buffer.from(JSON.stringify({ foo: 'bar' })).toString('base64url');
     const result = verifyLoginwallToken(`${badPayload}.x`, { expectedProductId: PRODUCT_ID, secret: SECRET, now: NOW });
     expect(result.valid).toBe(false);
+  });
+});
+
+describe('gate token v2', () => {
+  const base = {
+    userId: USER_ID,
+    authenticated: true,
+    requested: ['a', 'b'],
+    owned: ['a'],
+    secret: SECRET,
+  };
+
+  it('round-trips sign -> verify', () => {
+    const { token } = signGateToken({ ...base, now: NOW });
+    const r = verifyGateToken(token, { secret: SECRET, now: NOW });
+    expect(r).toMatchObject({ valid: true, uid: USER_ID, auth: true, req: ['a', 'b'], owned: ['a'] });
+  });
+
+  it('parseGatePayload reads payload without secret', () => {
+    const { token } = signGateToken({ ...base, now: NOW });
+    expect(parseGatePayload(token)).toMatchObject({ v: 2, auth: true, owned: ['a'], req: ['a', 'b'] });
+  });
+
+  it('rejects a modified payload', () => {
+    const { token } = signGateToken({ ...base, now: NOW });
+    const sig = token.split('.')[1];
+    const altered = Buffer.from(
+      JSON.stringify({ v: 2, uid: USER_ID, auth: true, req: ['a', 'b'], owned: ['a', 'b'], exp: 9999999999, nonce: 'x' }),
+    ).toString('base64url');
+    expect(verifyGateToken(`${altered}.${sig}`, { secret: SECRET, now: NOW })).toEqual({ valid: false, reason: 'signature' });
+  });
+
+  it('rejects expired', () => {
+    const { token } = signGateToken({ ...base, ttlSeconds: -1, now: NOW });
+    expect(verifyGateToken(token, { secret: SECRET, now: NOW })).toEqual({ valid: false, reason: 'expired' });
+  });
+
+  it('rejects malformed', () => {
+    expect(verifyGateToken('garbage', { secret: SECRET, now: NOW })).toEqual({ valid: false, reason: 'malformed' });
+    expect(parseGatePayload('garbage')).toBeNull();
+  });
+
+  it('unauthenticated token has empty owned', () => {
+    const { token } = signGateToken({ ...base, authenticated: false, owned: [], now: NOW });
+    expect(verifyGateToken(token, { secret: SECRET, now: NOW })).toMatchObject({ valid: true, auth: false, owned: [] });
   });
 });
