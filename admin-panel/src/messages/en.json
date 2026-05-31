@@ -1792,7 +1792,17 @@
       "revealSecret": "Reveal Secret",
       "copySecret": "Copy Secret",
       "pageDescription": "Manage outgoing webhooks for system events.",
-      "urlPlaceholder": "https://api.zapier.com/..."
+      "urlPlaceholder": "https://api.zapier.com/...",
+      "productFilterLabel": "Product scope",
+      "scopeModeAll": "All products",
+      "scopeModeSelected": "Selected products",
+      "selectProductsLabel": "Choose products",
+      "noProductsToSelect": "No products available to select.",
+      "scopeAll": "All products",
+      "scopeSelected": "Selected ({count})",
+      "scopingLockedTitle": "Per-product scoping is a Pro feature",
+      "scopingLockedDescription": "Upgrade to Pro to limit this webhook to selected products.",
+      "scopingNonProductNote": "Events not tied to a specific product will still fire for all products, regardless of this selection."
     },
     "apiKeys": {
       "title": "API Keys",

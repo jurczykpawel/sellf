@@ -22,6 +22,7 @@ const FEATURE_TIERS = {
   'watermark-removal': 'pro',          // SellfBranding component on checkout + product pages
   'theme-customization': 'pro',        // theme.ts actions, theme-loader.ts
   'api-key-scopes': 'pro',             // POST /api/v1/api-keys → enforceApiKeyScopeGate
+  'webhook-product-scoping': 'pro',    // POST/PATCH /api/v1/webhooks → product_filter_mode='selected'
 } as const satisfies Record<string, LicenseTier>;
 
 // Planned features — NOT yet enforced. Add to FEATURE_TIERS when implemented.

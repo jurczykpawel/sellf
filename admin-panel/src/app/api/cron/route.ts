@@ -136,7 +136,7 @@ async function handleAccessExpired(): Promise<CronJobResult> {
           grantedAt: row.access_granted_at,
           expiredAt: row.access_expires_at,
         },
-      }, adminClient);
+      }, adminClient, row.product_id);
 
       // Mark as notified
       const { error: updateError } = await adminClient

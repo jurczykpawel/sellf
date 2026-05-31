@@ -581,7 +581,7 @@ export async function handleSubscriptionCreated(
     product: ctx.product,
     subscription: sub,
   });
-  await WebhookService.trigger('subscription.created', payload, supabase);
+  await WebhookService.trigger('subscription.created', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Subscription created: ${sub.id}` };
 }
@@ -652,7 +652,7 @@ export async function handleSubscriptionUpdated(
     subscription: sub,
     previousAttributes,
   });
-  await WebhookService.trigger('subscription.updated', payload, supabase);
+  await WebhookService.trigger('subscription.updated', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Subscription updated: ${sub.id}` };
 }
@@ -703,7 +703,7 @@ export async function handleSubscriptionDeleted(
     product: ctx.product,
     subscription: sub,
   });
-  await WebhookService.trigger('subscription.canceled', payload, supabase);
+  await WebhookService.trigger('subscription.canceled', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Subscription canceled: ${sub.id}` };
 }
@@ -737,7 +737,7 @@ export async function handleSubscriptionTrialWillEnd(
     product: ctx.product,
     subscription: sub,
   });
-  await WebhookService.trigger('subscription.trial_ending', payload, supabase);
+  await WebhookService.trigger('subscription.trial_ending', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Trial ending soon: ${sub.id}` };
 }
@@ -781,7 +781,7 @@ export async function handleInvoiceUpcoming(
     subscription: sub,
     invoice,
   });
-  await WebhookService.trigger('subscription.renewal_upcoming', payload, supabase);
+  await WebhookService.trigger('subscription.renewal_upcoming', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Subscription renewal upcoming: ${subscriptionId}` };
 }
@@ -895,7 +895,7 @@ export async function handleInvoicePaid(
     subscriptionId: sub.id,
     invoice,
   });
-  await WebhookService.trigger('invoice.paid', payload, supabase);
+  await WebhookService.trigger('invoice.paid', payload, supabase, payload.product.id);
 
   return {
     processed: true,
@@ -942,7 +942,7 @@ export async function handleInvoicePaymentFailed(
     subscriptionStatus: sub.status,
     invoice,
   });
-  await WebhookService.trigger('invoice.payment_failed', payload, supabase);
+  await WebhookService.trigger('invoice.payment_failed', payload, supabase, payload.product.id);
 
   return { processed: true, message: `Invoice payment failed: ${invoice.id}` };
 }

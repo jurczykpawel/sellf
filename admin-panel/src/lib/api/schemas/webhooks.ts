@@ -40,6 +40,14 @@ export const WebhookSchema = z.object({
     description: 'HMAC secret for signature verification (only shown once)',
   }),
   description: z.string().nullable().openapi({ example: 'Main webhook' }),
+  product_filter_mode: z.enum(['all', 'selected']).openapi({
+    description: 'Whether the endpoint fires for all products or only selected ones (Pro)',
+    example: 'all',
+  }),
+  product_ids: z.array(UuidSchema).openapi({
+    description: 'Products this endpoint is scoped to when product_filter_mode is "selected"',
+    example: [],
+  }),
   last_triggered_at: DateTimeSchema.nullable(),
   failure_count: z.number().int().openapi({ example: 0 }),
   created_at: DateTimeSchema,
@@ -62,6 +70,12 @@ export const CreateWebhookSchema = z.object({
   }),
   description: z.string().max(255).optional(),
   is_active: z.boolean().default(true),
+  product_filter_mode: z.enum(['all', 'selected']).optional().openapi({
+    description: 'Per-product scoping mode; "selected" requires a Pro license',
+  }),
+  product_ids: z.array(UuidSchema).optional().openapi({
+    description: 'Required when product_filter_mode is "selected"',
+  }),
 }).openapi('CreateWebhookRequest');
 
 export type CreateWebhookInput = z.infer<typeof CreateWebhookSchema>;

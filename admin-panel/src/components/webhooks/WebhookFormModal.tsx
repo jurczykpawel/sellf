@@ -5,6 +5,7 @@ import { WebhookEndpoint, WEBHOOK_EVENTS } from '@/types/webhooks';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '../ui/Modal';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { useProductsDropdown } from '@/hooks/useProducts';
 
 interface WebhookFormModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface WebhookFormModalProps {
   onSubmit: (data: any) => Promise<void>;
   editingEndpoint: WebhookEndpoint | null;
   isSubmitting: boolean;
+  scopingLocked?: boolean;
 }
 
 export default function WebhookFormModal({
@@ -19,18 +21,22 @@ export default function WebhookFormModal({
   onClose,
   onSubmit,
   editingEndpoint,
-  isSubmitting
+  isSubmitting,
+  scopingLocked = false
 }: WebhookFormModalProps) {
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
+  const { products, loading: productsLoading, fetchProducts } = useProductsDropdown('all');
 
   const buildFormData = (endpoint: typeof editingEndpoint) => endpoint
     ? {
         url: endpoint.url,
         description: endpoint.description || '',
         events: endpoint.events,
+        product_filter_mode: endpoint.product_filter_mode ?? 'all',
+        product_ids: endpoint.product_ids ?? [],
       }
-    : { url: '', description: '', events: [] as string[] };
+    : { url: '', description: '', events: [] as string[], product_filter_mode: 'all' as 'all' | 'selected', product_ids: [] as string[] };
 
   const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
   const [showSecret, setShowSecret] = useState(false);
@@ -45,12 +51,29 @@ export default function WebhookFormModal({
     setShowSecret(false);
   }
 
+  useEffect(() => {
+    if (isOpen) fetchProducts();
+  }, [isOpen, fetchProducts]);
+
   const toggleEvent = (event: string) => {
     setFormData(prev => ({
       ...prev,
       events: prev.events.includes(event)
         ? prev.events.filter(e => e !== event)
         : [...prev.events, event]
+    }));
+  };
+
+  const setFilterMode = (mode: 'all' | 'selected') => {
+    setFormData(prev => ({ ...prev, product_filter_mode: mode }));
+  };
+
+  const toggleProduct = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      product_ids: prev.product_ids.includes(id)
+        ? prev.product_ids.filter(p => p !== id)
+        : [...prev.product_ids, id]
     }));
   };
 
@@ -78,7 +101,12 @@ export default function WebhookFormModal({
           id="webhook-form"
           onSubmit={(e) => {
             e.preventDefault();
-            onSubmit(formData);
+            const mode = scopingLocked ? 'all' : formData.product_filter_mode;
+            onSubmit({
+              ...formData,
+              product_filter_mode: mode,
+              product_ids: mode === 'selected' ? formData.product_ids : [],
+            });
           }}
           className="space-y-4"
         >
@@ -189,6 +217,81 @@ export default function WebhookFormModal({
                 </label>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-sf-body mb-2">
+              {t('productFilterLabel')}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterMode('all')}
+                className={`px-3 py-1.5 text-sm border transition-colors ${
+                  formData.product_filter_mode === 'all'
+                    ? 'bg-sf-accent-bg text-white border-sf-accent'
+                    : 'bg-sf-base text-sf-body border-sf-border hover:bg-sf-hover'
+                }`}
+              >
+                {t('scopeModeAll')}
+              </button>
+              {scopingLocked ? (
+                <div className="px-3 py-1.5 text-sm border border-sf-border bg-sf-deep text-sf-muted opacity-60 cursor-not-allowed select-none">
+                  {t('scopeModeSelected')}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setFilterMode('selected')}
+                  className={`px-3 py-1.5 text-sm border transition-colors ${
+                    formData.product_filter_mode === 'selected'
+                      ? 'bg-sf-accent-bg text-white border-sf-accent'
+                      : 'bg-sf-base text-sf-body border-sf-border hover:bg-sf-hover'
+                  }`}
+                >
+                  {t('scopeModeSelected')}
+                </button>
+              )}
+            </div>
+
+            {scopingLocked && (
+              <div className="mt-3 p-4 bg-sf-base border-2 border-sf-border-medium shadow-lg">
+                <p className="text-sm font-medium text-sf-heading">{t('scopingLockedTitle')}</p>
+                <p className="text-xs text-sf-muted">{t('scopingLockedDescription')}</p>
+              </div>
+            )}
+
+            {!scopingLocked && formData.product_filter_mode === 'selected' && (
+              <div className="mt-3 space-y-3">
+                <label className="block text-sm font-medium text-sf-body">
+                  {t('selectProductsLabel')}
+                </label>
+                {productsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : products.length === 0 ? (
+                  <p className="text-sm text-sf-muted">{t('noProductsToSelect')}</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium max-h-56 overflow-y-auto">
+                    {products.map((product) => (
+                      <label key={product.id} className="flex items-center space-x-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={formData.product_ids.includes(product.id)}
+                          onChange={() => toggleProduct(product.id)}
+                          className="h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors"
+                        />
+                        <span className="text-sm font-medium text-sf-heading group-hover:text-sf-accent transition-colors truncate">
+                          {product.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-sf-muted">{t('scopingNonProductNote')}</p>
+              </div>
+            )}
           </div>
         </form>
       </ModalBody>

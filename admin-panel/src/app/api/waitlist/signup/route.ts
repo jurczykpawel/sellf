@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         currency: product.currency,
         icon: product.icon,
       }
-    });
+    }, undefined, product.id);
 
     // Log the signup for debugging (can be removed in production)
     console.log(`[Waitlist] New signup: ${sanitizeForLog(email)} for product ${sanitizeForLog(product.name)} (${product.id})`);

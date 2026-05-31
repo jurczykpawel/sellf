@@ -3,6 +3,7 @@ import { WEBHOOK_MOCK_PAYLOADS } from '@/lib/webhooks/mock-payloads';
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
 import { DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
+import { fetchEligibleEndpoints } from '@/lib/webhooks/endpoint-selection';
 
 interface EnvelopePayload {
   event: string;
@@ -14,12 +15,6 @@ interface EnvelopePayload {
 // This alias accepts any schema-scoped client (public, seller_X, etc.).
 type SupabaseClientLike = any;
 
-interface EndpointRow {
-  id: string;
-  url: string;
-  secret: string;
-}
-
 export class WebhookService {
   /**
    * Trigger webhooks for an event to every active matching endpoint.
@@ -27,28 +22,24 @@ export class WebhookService {
    * through the queue. Failures land in pending_retry and the worker
    * picks them up with exponential backoff.
    */
-  static async trigger(event: string, data: unknown, client?: SupabaseClientLike): Promise<void> {
+  static async trigger(
+    event: string,
+    data: unknown,
+    client?: SupabaseClientLike,
+    productIds?: string | string[],
+  ): Promise<void> {
     const supabase = client || createAdminClient();
     const queue = new SupabaseWebhookQueue(supabase);
 
     try {
-      const { data: endpoints, error } = await supabase
-        .from('webhook_endpoints')
-        .select('id, url, secret')
-        .eq('is_active', true)
-        .contains('events', [event]);
-
-      if (error) {
-        console.error('[WebhookService.trigger] Failed to fetch endpoints:', error);
-        return;
-      }
-      if (!endpoints || endpoints.length === 0) return;
+      const endpoints = await fetchEligibleEndpoints(supabase, event, productIds);
+      if (endpoints.length === 0) return;
 
       const timestamp = new Date().toISOString();
       const envelope: EnvelopePayload = { event, timestamp, data };
 
       await Promise.allSettled(
-        (endpoints as EndpointRow[]).map(async (endpoint) => {
+        endpoints.map(async (endpoint) => {
           const result = await WebhookDispatcher.dispatch(endpoint, event, envelope, { attemptCount: 1 });
           try {
             await queue.recordFirstAttempt({

@@ -2385,6 +2385,39 @@ export type Database = {
           },
         ]
       }
+      webhook_endpoint_products: {
+        Row: {
+          created_at: string
+          product_id: string
+          webhook_endpoint_id: string
+        }
+        Insert: {
+          created_at?: string
+          product_id: string
+          webhook_endpoint_id: string
+        }
+        Update: {
+          created_at?: string
+          product_id?: string
+          webhook_endpoint_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoint_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_endpoint_products_webhook_endpoint_id_fkey"
+            columns: ["webhook_endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_endpoints: {
         Row: {
           created_at: string
@@ -2392,6 +2425,7 @@ export type Database = {
           events: string[]
           id: string
           is_active: boolean | null
+          product_filter_mode: string
           secret: string
           updated_at: string
           url: string
@@ -2402,6 +2436,7 @@ export type Database = {
           events?: string[]
           id?: string
           is_active?: boolean | null
+          product_filter_mode?: string
           secret?: string
           updated_at?: string
           url: string
@@ -2412,6 +2447,7 @@ export type Database = {
           events?: string[]
           id?: string
           is_active?: boolean | null
+          product_filter_mode?: string
           secret?: string
           updated_at?: string
           url?: string
@@ -3048,6 +3084,10 @@ export type Database = {
           p_product_id?: string
           p_start_date: string
         }
+        Returns: undefined
+      }
+      set_webhook_endpoint_scoping: {
+        Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
       update_video_progress: {
