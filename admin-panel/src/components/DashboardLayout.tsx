@@ -12,6 +12,7 @@ import { useUpdateCheck } from '@/hooks/useUpdateCheck'
 import UpdateNotificationModal from './UpdateNotificationModal'
 import { api } from '@/lib/api/client'
 import { formatSidebarBadgeCount, isSidebarLinkActive } from '@/lib/navigation/sidebar'
+import { EmailText } from '@/components/ui/EmailText'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -372,7 +373,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
             transitionTimingFunction: 'var(--sf-ease-out, ease-out)',
           }}
         >
-          <p className="text-[13px] font-medium text-sf-heading truncate">{mounted ? user?.email : null}</p>
+          <p className="text-[13px] font-medium text-sf-heading truncate"><EmailText email={user?.email} /></p>
           <p className="text-[11px] text-sf-sidebar-text uppercase tracking-[0.05em]">
             {isAdmin ? t('roleAdmin') : t('roleUser')}
           </p>
