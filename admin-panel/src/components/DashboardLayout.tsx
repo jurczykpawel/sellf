@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, startTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -147,6 +147,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     return localStorage.getItem('sf_sidebar_pinned') === 'true'
   })
   const [isHovered, setIsHovered] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { signOut, role: authRole, user: authUser, loading: authLoading } = useAuth()
   const t = useTranslations('navigation')
   const pathname = usePathname()
@@ -175,6 +176,8 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
       }
     }
   }, [authUser, authLoading, router, pathname])
+  useEffect(() => { startTransition(() => setMounted(true)) }, [])
+
   const isExpanded = isPinned || isHovered
 
   const togglePin = () => {
@@ -359,7 +362,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
     <div className="mt-auto p-4 border-t border-sf-border-subtle flex-shrink-0">
       <div className="flex items-center gap-3 mb-3">
         <div className="w-9 h-9 bg-sf-accent/20 flex items-center justify-center text-sf-accent text-sm font-bold flex-shrink-0">
-          {user?.email?.charAt(0).toUpperCase()}
+          {mounted ? user?.email?.charAt(0).toUpperCase() : null}
         </div>
         <div
           className="overflow-hidden transition-opacity"
@@ -369,7 +372,7 @@ export default function DashboardLayout({ children, user: userProp, isAdmin: isA
             transitionTimingFunction: 'var(--sf-ease-out, ease-out)',
           }}
         >
-          <p className="text-[13px] font-medium text-sf-heading truncate">{user?.email}</p>
+          <p className="text-[13px] font-medium text-sf-heading truncate">{mounted ? user?.email : null}</p>
           <p className="text-[11px] text-sf-sidebar-text uppercase tracking-[0.05em]">
             {isAdmin ? t('roleAdmin') : t('roleUser')}
           </p>
