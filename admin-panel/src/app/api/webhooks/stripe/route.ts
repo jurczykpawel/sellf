@@ -76,8 +76,10 @@ async function handleCheckoutSessionCompleted(
   if (existingTransaction?.status === 'completed') {
     // Still try to issue license — covers purchases made before license feature was deployed.
     // issueLicense is idempotent by (order_id, product_id), so this is safe to call on replay.
-    const tx = existingTransaction as { id: string; status: string; stripe_payment_intent_id: string | null };
-    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: tx.stripe_payment_intent_id || sessionId })
+    const replayPaymentIntentId = typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : (session.payment_intent as { id?: string } | null)?.id ?? null;
+    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: replayPaymentIntentId || sessionId })
       .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }

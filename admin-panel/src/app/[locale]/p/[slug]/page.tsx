@@ -198,14 +198,26 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const { data: user } = await (await createClient()).auth.getUser();
     let license: SecureProductResponse['license'] = null;
     if (user.user) {
-      const { data: licenseRow } = await admin
+      const licenseSelect = 'license_key, issued_at, expires_at';
+      // Prefer match by user_id (UUID, injection-safe); fall back to email-only row.
+      const { data: byUser } = await admin
         .from('issued_licenses')
-        .select('license_key, issued_at, expires_at')
+        .select(licenseSelect)
         .eq('product_id', product.id)
-        .or(`user_id.eq.${user.user.id},and(user_id.is.null,email.eq.${user.user.email})`)
+        .eq('user_id', user.user.id)
         .order('issued_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      const userEmail = user.user.email;
+      const licenseRow = byUser ?? (userEmail ? (await admin
+        .from('issued_licenses')
+        .select(licenseSelect)
+        .eq('product_id', product.id)
+        .is('user_id', null)
+        .eq('email', userEmail)
+        .order('issued_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()).data : null);
       if (licenseRow) {
         const row = licenseRow as { license_key: string; issued_at: string; expires_at: string | null };
         license = { token: row.license_key, issuedAt: row.issued_at, expiresAt: row.expires_at ?? null };
