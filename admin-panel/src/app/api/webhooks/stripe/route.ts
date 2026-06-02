@@ -210,9 +210,7 @@ async function handleCheckoutSessionCompleted(
     return null;
   });
 
-  const isExplicitRepurchase =
-    session.metadata?.repurchase === 'true' ||
-    session.metadata?.renew_license === 'true';
+  const isExplicitRepurchase = session.metadata?.repurchase === 'true';
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access || isExplicitRepurchase) {
@@ -395,9 +393,7 @@ async function handlePaymentIntentSucceeded(
     return null;
   });
 
-  const isExplicitRepurchase =
-    paymentIntent.metadata?.repurchase === 'true' ||
-    paymentIntent.metadata?.renew_license === 'true';
+  const isExplicitRepurchase = paymentIntent.metadata?.repurchase === 'true';
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access || isExplicitRepurchase) {

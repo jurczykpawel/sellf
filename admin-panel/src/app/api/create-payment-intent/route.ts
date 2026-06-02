@@ -92,11 +92,9 @@ export async function POST(request: NextRequest) {
       successUrl,
       customAmount,  // Pay What You Want
       customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
-      renewLicense: rawRenewLicense,
       repurchase: rawRepurchase,
     } = body;
-    const renewLicense = rawRenewLicense === true;
-    const explicitRepurchase = renewLicense || rawRepurchase === true;
+    const explicitRepurchase = rawRepurchase === true;
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
     const { validIds: requestedBumpIds, invalidIds } = normalizeBumpIds({ bumpProductId, bumpProductIds });
@@ -617,7 +615,6 @@ export async function POST(request: NextRequest) {
       success_url: successUrl || '',
       custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
       is_pwyw: pricing.isPwyw ? 'true' : 'false',
-      renew_license: canRenewLicense ? 'true' : 'false',
       repurchase: explicitRepurchase ? 'true' : 'false',
     };
 

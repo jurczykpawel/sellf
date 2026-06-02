@@ -88,13 +88,12 @@ describe('Access wiring', () => {
     expect(src).toMatch(/licenseExpiredTitle/);
   });
 
-  it('checkout sends explicit repurchase intent from ?repurchase=1 or ?renew_license=1', () => {
+  it('checkout sends explicit repurchase intent from ?repurchase=1', () => {
     const src = read('src/app/[locale]/checkout/[slug]/components/PaidProductForm.tsx');
-    expect(src).toMatch(/renewLicense/);
     expect(src).toMatch(/repurchase/);
     expect(src).toMatch(/explicitRepurchase/);
-    expect(src).toMatch(/searchParams\.get\(['"]renew_license['"]\)\s*===\s*['"]1['"]/);
     expect(src).toMatch(/searchParams\.get\(['"]repurchase['"]\)\s*===\s*['"]1['"]/);
+    expect(src).not.toMatch(/renew_license/);
   });
 
   it('create-payment-intent allows active-access checkout only through explicit repurchase policy', () => {
@@ -104,17 +103,17 @@ describe('Access wiring', () => {
     expect(src).toMatch(/explicitRepurchase/);
     expect(src).toMatch(/canRepurchaseTipJar/);
     expect(src).toMatch(/product\.product_type\s*!==\s*['"]subscription['"]/);
-    expect(src).toMatch(/renew_license:\s*canRenewLicense\s*\?\s*['"]true['"]/);
     expect(src).toMatch(/repurchase:\s*explicitRepurchase\s*\?\s*['"]true['"]/);
+    expect(src).not.toMatch(/renew_license/);
     expect(src).not.toMatch(/function\s+loadLatestIssuedLicenseExpiresAt/);
   });
 
   it('stripe webhook emits purchase.completed for explicit repurchases despite already_had_access', () => {
     const src = read('src/app/api/webhooks/stripe/route.ts');
-    expect(src).toMatch(/renew_license/);
     expect(src).toMatch(/repurchase/);
     expect(src).toMatch(/isExplicitRepurchase/);
     expect(src).toMatch(/!result\.already_had_access\s*\|\|\s*isExplicitRepurchase/);
+    expect(src).not.toMatch(/renew_license/);
   });
 
   it('public access endpoint returns reason="expired" for expired access', () => {
