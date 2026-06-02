@@ -25,6 +25,10 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+RED=$'\033[1;31m'
+DIM=$'\033[2m'
+RESET=$'\033[0m'
+
 LIGHT_N="${1:-6}"
 HEAVY_N="${2:-4}"
 FAILED=""
@@ -42,8 +46,23 @@ run_shards() {
     # boot ("Failed to lookup task ids ... Failed to open SST file"), serves no pages,
     # and the whole shard fails. Starting each shard from a clean cache removes the class.
     rm -rf .next/dev/cache 2>/dev/null
-    FORCE_COLOR=0 npx playwright test --project="$project" --shard="$k/$n" --reporter=line
-    local rc=$?
+    local _tmp; _tmp=$(mktemp)
+    FORCE_COLOR=0 npx playwright test --project="$project" --shard="$k/$n" --reporter=list 2>&1 | tee "$_tmp" | grep --line-buffered -E '^\s*[✓✘]' | awk -v red="$RED" -v dim="$DIM" -v reset="$RESET" \
+      '/✘/ {printf "%s%s%s\n", red, $0, reset; fflush(); next}
+       /✓/ {printf "%s%s%s\n", dim, $0, reset; fflush(); next}
+       {print; fflush()}'
+    local rc=${PIPESTATUS[0]}
+    local errors; errors=$(awk '/^\s*[0-9]+\)\s/{f=1} f' "$_tmp")
+    if [ -n "$errors" ]; then
+      echo ""
+      echo "${RED}===== FAILURES =====${RESET}"
+      printf '%s\n' "$errors" | awk -v red="$RED" -v reset="$RESET" '{printf "%s%s%s\n", red, $0, reset}'
+    fi
+    local pass_n fail_n
+    pass_n=$(grep -c '✓' "$_tmp" 2>/dev/null || true)
+    fail_n=$(grep -c '✘' "$_tmp" 2>/dev/null || true)
+    echo "${DIM}shard result: ${pass_n} passed, ${fail_n} failed${RESET}"
+    rm -f "$_tmp"
     if [ "$rc" != 0 ]; then
       FAILED="$FAILED $project:$k/$n"
       echo ">>> $project shard $k/$n exited $rc"
