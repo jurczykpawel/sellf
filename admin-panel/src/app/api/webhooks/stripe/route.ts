@@ -292,15 +292,27 @@ async function handlePaymentIntentSucceeded(
 
   const userId = paymentIntent.metadata?.user_id || null;
 
-  // Match either column — session handler may already hold the row keyed by cs_xxx.
+  // Fast idempotency check by PI ID (UNIQUE column — no multi-row risk from concurrent handlers).
+  const { data: byPI } = await supabase
+    .from('payment_transactions')
+    .select('id, status')
+    .eq('stripe_payment_intent_id', paymentIntent.id)
+    .maybeSingle();
+
+  if (byPI?.status === 'completed') {
+    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: paymentIntent.id })
+      .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
+    return { processed: true, message: `Already processed: ${byPI.id}` };
+  }
+
+  // Fallback: direct payment flow where PI id is also used as session_id.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
     .select('id, status')
-    .or(`session_id.eq.${paymentIntent.id},stripe_payment_intent_id.eq.${paymentIntent.id}`)
+    .eq('session_id', paymentIntent.id)
     .maybeSingle();
 
   if (existingTransaction?.status === 'completed') {
-    // Still try to issue license — covers purchases made before license feature was deployed.
     await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: paymentIntent.id })
       .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
