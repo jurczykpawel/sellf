@@ -203,8 +203,10 @@ async function handleCheckoutSessionCompleted(
     return null;
   });
 
+  const isLicenseRenewal = session.metadata?.renew_license === 'true';
+
   // Trigger internal webhook for purchase.completed
-  if (!result.already_had_access) {
+  if (!result.already_had_access || isLicenseRenewal) {
     // Pull buyer's custom-field answers so the webhook payload + admin UI can
     // surface them. They were written by the checkout PaymentIntent flow on
     // the same payment_transactions row keyed by session_id.
@@ -371,8 +373,10 @@ async function handlePaymentIntentSucceeded(
     return null;
   });
 
+  const isLicenseRenewal = paymentIntent.metadata?.renew_license === 'true';
+
   // Trigger internal webhook for purchase.completed
-  if (!result.already_had_access) {
+  if (!result.already_had_access || isLicenseRenewal) {
     const { data: txCustomFields } = await supabase
       .from('payment_transactions')
       .select('custom_field_values')

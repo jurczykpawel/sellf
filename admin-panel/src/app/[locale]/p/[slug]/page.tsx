@@ -1,7 +1,6 @@
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkFeature } from '@/lib/license/resolve';
-import { issueLicense } from '@/lib/license-keys/issue';
 import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
@@ -51,6 +50,39 @@ const getProduct = cache((slug: string) =>
     { revalidate: 60, tags: ['product-by-slug', `product:${slug}`] },
   )(slug),
 );
+
+async function loadExistingLicenseForUser(
+  productId: string,
+  user: { id: string; email?: string | null },
+): Promise<SecureProductResponse['license']> {
+  const admin = createAdminClient();
+  const licenseSelect = 'license_key, issued_at, expires_at';
+
+  // Prefer match by user_id (UUID, injection-safe); fall back to email-only row.
+  const { data: byUser } = await admin
+    .from('issued_licenses')
+    .select(licenseSelect)
+    .eq('product_id', productId)
+    .eq('user_id', user.id)
+    .order('issued_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const licenseRow = byUser ?? (user.email ? (await admin
+    .from('issued_licenses')
+    .select(licenseSelect)
+    .eq('product_id', productId)
+    .is('user_id', null)
+    .eq('email', user.email)
+    .order('issued_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()).data : null);
+
+  if (!licenseRow) return null;
+
+  const row = licenseRow as { license_key: string; issued_at: string; expires_at: string | null };
+  return { token: row.license_key, issuedAt: row.issued_at, expiresAt: row.expires_at ?? null };
+}
 
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -183,6 +215,13 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     redirect(`/checkout/${product.slug}${carry ? `?${carry}` : ''}`);
   }
 
+  const existingLicense =
+    !previewMode &&
+    authResult?.user &&
+    (outcome.kind === 'render-content' || outcome.kind === 'render-expired')
+      ? await loadExistingLicenseForUser(product.id, authResult.user)
+      : null;
+
   // Prefetch the secure content payload server-side for authenticated buyers
   // — eliminates the "Loading secure content…" spinner inside ProductAccessView.
   // getShopConfig() is deduped per-render via React cache() (layout calls it).
@@ -194,75 +233,10 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const now = new Date();
     const msPerDay = 1000 * 60 * 60 * 24;
 
-    // Fetch license issued to this user for this product (service-role only table).
-    const admin = createAdminClient();
-    const { data: user } = await (await createClient()).auth.getUser();
-    let license: SecureProductResponse['license'] = null;
-    if (user.user) {
-      const licenseSelect = 'license_key, issued_at, expires_at';
-      const userEmail = user.user.email ?? null;
-      const now = new Date();
-
-      // Prefer match by user_id (UUID, injection-safe); fall back to email-only row.
-      const { data: byUser } = await admin
-        .from('issued_licenses')
-        .select(licenseSelect)
-        .eq('product_id', product.id)
-        .eq('user_id', user.user.id)
-        .order('issued_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      let licenseRow = byUser ?? (userEmail ? (await admin
-        .from('issued_licenses')
-        .select(licenseSelect)
-        .eq('product_id', product.id)
-        .is('user_id', null)
-        .eq('email', userEmail)
-        .order('issued_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()).data : null);
-
-      // Auto-renew when access is valid but the license is missing or expired.
-      // Covers: lifetime access + finite license_duration_days (no repurchase needed).
-      // orderId is anchored to the previous license's expiry so it's stable and
-      // idempotent within each renewal period.
-      if (product.issue_license_on_purchase && userEmail) {
-        const licenseExpired = licenseRow?.expires_at
-          ? new Date(licenseRow.expires_at) < now
-          : false;
-        if (!licenseRow || licenseExpired) {
-          const anchor = licenseRow?.expires_at ?? 'init';
-          const renewalOrderId = `renew_${product.id}_${user.user.id}_${anchor}`;
-          const renewed = await issueLicense(admin, {
-            productId: product.id,
-            email: userEmail,
-            userId: user.user.id,
-            orderId: renewalOrderId,
-          }).catch(() => null);
-          if (renewed) {
-            const { data: freshRow } = await admin
-              .from('issued_licenses')
-              .select(licenseSelect)
-              .eq('product_id', product.id)
-              .eq('user_id', user.user.id)
-              .order('issued_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            licenseRow = freshRow;
-          }
-        }
-      }
-
-      if (licenseRow) {
-        const row = licenseRow as { license_key: string; issued_at: string; expires_at: string | null };
-        license = { token: row.license_key, issuedAt: row.issued_at, expiresAt: row.expires_at ?? null };
-      }
-    }
-
     initialSecureData = {
       product,
       branding: { shop_name: shopConfig?.shop_name ?? null },
-      license,
+      license: existingLicense,
       userAccess: {
         access_expires_at: expiresAtIso,
         access_duration_days: resolvedAccess.access_duration_days ?? null,
@@ -302,6 +276,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       previewMode={previewMode}
       outcome={outcome}
       initialSecureData={initialSecureData}
+      existingLicense={existingLicense}
     />
   );
 }

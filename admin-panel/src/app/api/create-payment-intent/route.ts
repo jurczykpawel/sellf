@@ -28,6 +28,7 @@ import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dy
 import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 import { signCheckoutBinding, verifyCheckoutBinding } from '@/lib/security/checkout-binding';
+import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -43,6 +44,39 @@ function extractCheckoutSessionId(clientSecret: string): string | null {
 
 function stripeMetadataValue(value: unknown): string {
   return value === null || value === undefined ? '' : String(value);
+}
+
+async function loadLatestIssuedLicenseExpiresAt(
+  dataClient: ReturnType<typeof createAdminClient>,
+  productId: string,
+  user: { id: string; email?: string | null },
+): Promise<string | null | undefined> {
+  const { data: byUser } = await dataClient
+    .from('issued_licenses')
+    .select('expires_at')
+    .eq('product_id', productId)
+    .eq('user_id', user.id)
+    .order('issued_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (byUser) {
+    return (byUser as { expires_at: string | null }).expires_at;
+  }
+
+  if (!user.email) return undefined;
+
+  const { data: byEmail } = await dataClient
+    .from('issued_licenses')
+    .select('expires_at')
+    .eq('product_id', productId)
+    .is('user_id', null)
+    .eq('email', user.email)
+    .order('issued_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return byEmail ? (byEmail as { expires_at: string | null }).expires_at : undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -90,7 +124,9 @@ export async function POST(request: NextRequest) {
       successUrl,
       customAmount,  // Pay What You Want
       customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
+      renewLicense: rawRenewLicense,
     } = body;
+    const renewLicense = rawRenewLicense === true;
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
     const { validIds: requestedBumpIds, invalidIds } = normalizeBumpIds({ bumpProductId, bumpProductIds });
@@ -217,10 +253,19 @@ export async function POST(request: NextRequest) {
           : null;
         const isExpired = expiresAt !== null && expiresAt < new Date();
         if (!isExpired) {
-          return NextResponse.json(
-            { error: 'You already have access to this product' },
-            { status: 400 }
-          );
+          const licenseExpiresAt = await loadLatestIssuedLicenseExpiresAt(dataClient, productId, user);
+          const canRenewLicense = canRenewExpiredLicenseWithActiveAccess({
+            renewLicense,
+            productIssuesLicense: product.issue_license_on_purchase === true && product.product_type !== 'subscription',
+            licenseExpiresAt,
+          });
+
+          if (!canRenewLicense) {
+            return NextResponse.json(
+              { error: 'You already have access to this product' },
+              { status: 400 }
+            );
+          }
         }
       }
     }
@@ -598,6 +643,7 @@ export async function POST(request: NextRequest) {
       success_url: successUrl || '',
       custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
       is_pwyw: pricing.isPwyw ? 'true' : 'false',
+      renew_license: renewLicense ? 'true' : 'false',
     };
 
     const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;

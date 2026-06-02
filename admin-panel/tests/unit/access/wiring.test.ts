@@ -56,6 +56,55 @@ describe('Access wiring', () => {
     expect(src).toMatch(/content_config:\s*previewMode/);
   });
 
+  it('p/[slug]/page.tsx never issues licenses during page render', () => {
+    const src = read('src/app/[locale]/p/[slug]/page.tsx');
+    expect(src).not.toMatch(/from\s+['"]@\/lib\/license-keys\/issue['"]/);
+    expect(src).not.toMatch(/\bissueLicense\s*\(/);
+    expect(src).not.toMatch(/renew_/);
+  });
+
+  it('p/[slug]/page.tsx prefetches license for expired-access state without issuing a new one', () => {
+    const src = read('src/app/[locale]/p/[slug]/page.tsx');
+    expect(src).toMatch(/outcome\.kind\s*===\s*['"]render-expired['"]/);
+    expect(src).toMatch(/existingLicense/);
+    expect(src).toMatch(/<ProductView[\s\S]+existingLicense=\{existingLicense\}/);
+  });
+
+  it('ProductExpiredState can display an existing issued license while offering repurchase', () => {
+    const src = read('src/app/[locale]/p/[slug]/components/ProductExpiredState.tsx');
+    expect(src).toMatch(/existingLicense/);
+    expect(src).toMatch(/licenseKey/);
+    expect(src).toMatch(/purchaseAgain/);
+  });
+
+  it('ProductAccessView offers license renewal when content access is active but license is expired', () => {
+    const src = read('src/app/[locale]/p/[slug]/components/ProductAccessView.tsx');
+    expect(src).toMatch(/licenseExpired/);
+    expect(src).toMatch(/renew_license=1/);
+    expect(src).toMatch(/licenseExpiredTitle/);
+  });
+
+  it('checkout sends explicit renewLicense intent from ?renew_license=1', () => {
+    const src = read('src/app/[locale]/checkout/[slug]/components/PaidProductForm.tsx');
+    expect(src).toMatch(/renewLicense/);
+    expect(src).toMatch(/searchParams\.get\(['"]renew_license['"]\)\s*===\s*['"]1['"]/);
+  });
+
+  it('create-payment-intent allows active-access checkout only through expired-license renewal policy', () => {
+    const src = read('src/app/api/create-payment-intent/route.ts');
+    expect(src).toMatch(/canRenewExpiredLicenseWithActiveAccess/);
+    expect(src).toMatch(/renewLicense/);
+    expect(src).toMatch(/product\.product_type\s*!==\s*['"]subscription['"]/);
+    expect(src).toMatch(/renew_license:\s*renewLicense\s*\?\s*['"]true['"]/);
+  });
+
+  it('stripe webhook emits purchase.completed for explicit license renewals despite already_had_access', () => {
+    const src = read('src/app/api/webhooks/stripe/route.ts');
+    expect(src).toMatch(/renew_license/);
+    expect(src).toMatch(/isLicenseRenewal/);
+    expect(src).toMatch(/!result\.already_had_access\s*\|\|\s*isLicenseRenewal/);
+  });
+
   it('public access endpoint returns reason="expired" for expired access', () => {
     const src = read('src/app/api/public/products/[slug]/access/route.ts');
     expect(src).toMatch(/reason:\s*['"]expired['"]/);

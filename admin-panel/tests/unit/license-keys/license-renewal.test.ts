@@ -1,12 +1,10 @@
 /**
- * License auto-renewal and expiry-aware checkout tests.
+ * License re-purchase and expiry-aware checkout tests.
  *
- * Covers three new scenarios:
- *  1. Auto-renewal on page visit: valid access + expired license → new token issued
- *  2. No re-issue when license is still valid
- *  3. No re-issue when issue_license_on_purchase is disabled
- *  4. create-payment-intent allows checkout when access is expired
- *  5. create-payment-intent blocks checkout when access is still active
+ * Covers:
+ *  1. create-payment-intent allows checkout when access is expired
+ *  2. create-payment-intent blocks checkout when access is still active
+ *  3. re-purchase uses the new payment orderId to issue a new token
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -28,8 +26,6 @@ const YEAR_AGO = new Date('2025-06-02T12:00:00Z');
 const key = generateSellerKeypair();
 
 interface LicenseRow { license_key: string; kid: string; seller_id: string }
-interface IssuedRow { license_key: string; issued_at: string; expires_at: string | null }
-
 function adminMock(opts: {
   product?: { seller_id: string; slug: string; issue_license_on_purchase: boolean; license_tier: string | null; license_duration_days: number | null } | null;
   existing?: LicenseRow | null;
@@ -68,91 +64,6 @@ beforeEach(() => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Scenario 1: auto-renewal — license expired, access valid
-// ---------------------------------------------------------------------------
-
-describe('license auto-renewal (lifetime access + finite license_duration_days)', () => {
-  it('issues a fresh license when called with a renewal orderId (no prior renewal row)', async () => {
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    const renewalOrderId = `renew_${PRODUCT}_${USER}_2025-06-02T12:00:00.000Z`;
-
-    const result = await issueLicense(
-      adminMock({ product: product365, existing: null, insert }) as never,
-      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: renewalOrderId },
-      { now: NOW },
-    );
-
-    expect(result).not.toBeNull();
-    expect(insert).toHaveBeenCalledOnce();
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
-      order_id: renewalOrderId,
-      product_id: PRODUCT,
-      user_id: USER,
-    }));
-
-    const verified = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
-    expect(verified).toMatchObject({ valid: true });
-    // License should expire 365 days from NOW
-    const expectedExp = Math.floor(NOW.getTime() / 1000) + 365 * 86400;
-    expect(verified.claims?.exp).toBe(expectedExp);
-  });
-
-  it('returns existing renewal token on retry (idempotent)', async () => {
-    const existingRenewal: LicenseRow = { license_key: 'RENEWED.TOKEN.ABC', kid: key.kid, seller_id: SELLER };
-    const insert = vi.fn();
-    const renewalOrderId = `renew_${PRODUCT}_${USER}_2025-06-02T12:00:00.000Z`;
-
-    const result = await issueLicense(
-      adminMock({ product: product365, existing: existingRenewal, insert }) as never,
-      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: renewalOrderId },
-      { now: NOW },
-    );
-
-    expect(result).toEqual({ token: 'RENEWED.TOKEN.ABC', kid: key.kid, sellerId: SELLER });
-    expect(insert).not.toHaveBeenCalled();
-  });
-
-  it('different renewal period → different orderId → different token', async () => {
-    // Simulate two renewals with different anchor dates — they must not collide.
-    const orderId1 = `renew_${PRODUCT}_${USER}_2025-06-02T12:00:00.000Z`;
-    const orderId2 = `renew_${PRODUCT}_${USER}_2026-06-02T12:00:00.000Z`;
-
-    expect(orderId1).not.toBe(orderId2);
-    // (Their tokens would differ because orderId is embedded in the JWT claims)
-  });
-
-  it('does not auto-renew when issue_license_on_purchase=false', async () => {
-    const insert = vi.fn();
-    const result = await issueLicense(
-      adminMock({ product: { ...product365, issue_license_on_purchase: false }, existing: null, insert }) as never,
-      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: `renew_${PRODUCT}_${USER}_init` },
-      { now: NOW },
-    );
-
-    expect(result).toBeNull();
-    expect(insert).not.toHaveBeenCalled();
-  });
-
-  it('does not auto-renew when seller has no active key', async () => {
-    vi.mocked(loadActiveSellerKey).mockResolvedValue(null);
-    const insert = vi.fn();
-
-    const result = await issueLicense(
-      adminMock({ product: product365, existing: null, insert }) as never,
-      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: `renew_${PRODUCT}_${USER}_init` },
-      { now: NOW },
-    );
-
-    expect(result).toBeNull();
-    expect(insert).not.toHaveBeenCalled();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Scenario 2: access-expiry guard in create-payment-intent (unit logic)
-// ---------------------------------------------------------------------------
-
 describe('access expiry check logic (mirrors create-payment-intent route)', () => {
   function isActiveAccess(accessExpiresAt: string | null, now: Date): boolean {
     if (accessExpiresAt === null) return true; // lifetime
@@ -178,27 +89,13 @@ describe('access expiry check logic (mirrors create-payment-intent route)', () =
     expect(isActiveAccess(NOW.toISOString(), NOW)).toBe(true);
   });
 
-  it('init renewal orderId when no prior license (first-time issue on page visit)', async () => {
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    const initOrderId = `renew_${PRODUCT}_${USER}_init`;
-
-    const result = await issueLicense(
-      adminMock({ product: product365, existing: null, insert }) as never,
-      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: initOrderId },
-      { now: NOW },
-    );
-
-    expect(result).not.toBeNull();
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ order_id: initOrderId }));
-  });
-
   it('lifetime license (null license_duration_days) → no exp claim in token', async () => {
     const lifetimeProduct = { ...product365, license_duration_days: null };
     const insert = vi.fn().mockResolvedValue({ error: null });
 
     const result = await issueLicense(
       adminMock({ product: lifetimeProduct, existing: null, insert }) as never,
-      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: `renew_${PRODUCT}_${USER}_init` },
+      { productId: PRODUCT, email: 'buyer@example.com', userId: USER, orderId: 'pi_repurchase_123' },
       { now: NOW },
     );
 
@@ -209,7 +106,7 @@ describe('access expiry check logic (mirrors create-payment-intent route)', () =
 });
 
 // ---------------------------------------------------------------------------
-// Scenario 3: "na odwrót" — finite access + lifetime license
+// Scenario: "na odwrót" — finite access + lifetime license
 // ---------------------------------------------------------------------------
 
 describe('"na odwrót": finite access + lifetime license', () => {

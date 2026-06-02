@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
-import { Product } from '@/types';
+import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
+import Confetti from 'react-confetti';
 import DigitalContentRenderer from '@/components/DigitalContentRenderer';
 import SellfBranding from '@/components/SellfBranding';
 import FloatingToolbar from '@/components/FloatingToolbar';
-import Confetti from 'react-confetti';
+import { isLicenseExpired } from '@/lib/license-keys/renewal';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { fetchWithTimeout, FetchTimeoutError } from '@/lib/fetch-with-timeout';
+import type { Product } from '@/types';
 
 export interface SecureProductResponse {
   product: Product;
@@ -49,6 +51,7 @@ type SecureProductData = SecureProductResponse;
 export default function ProductAccessView({ product, licenseValid, previewMode = false, initialSecureData }: ProductAccessViewProps) {
   const t = useTranslations('productView');
   const tContent = useTranslations('digitalContent');
+  const locale = useLocale();
   
   const [showConfetti, setShowConfetti] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -280,6 +283,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
   }
 
   const { product: secureProduct, userAccess: secureUserAccess } = secureData;
+  const licenseExpired = isLicenseExpired(secureData.license?.expiresAt);
 
   // Show loading state for redirect products
   if (secureProduct.content_delivery_type === 'redirect') {
@@ -447,6 +451,18 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
                 )}
               </button>
             </div>
+            {licenseExpired && (
+              <div className="mt-4 rounded-lg border border-sf-warning/30 bg-sf-warning-soft p-3">
+                <p className="text-sm font-semibold text-sf-warning">{t('licenseExpiredTitle')}</p>
+                <p className="mt-1 text-sm text-sf-body">{t('licenseExpiredMessage')}</p>
+                <Link
+                  href={`/${locale}/checkout/${secureProduct.slug}?renew_license=1`}
+                  className="mt-3 inline-flex items-center justify-center rounded-lg bg-sf-accent-bg px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sf-accent-hover active:scale-[0.98]"
+                >
+                  {t('renewLicense')}
+                </Link>
+              </div>
+            )}
           </div>
         )}
 

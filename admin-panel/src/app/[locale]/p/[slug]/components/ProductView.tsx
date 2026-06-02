@@ -19,9 +19,11 @@ interface ProductViewProps {
   outcome: ProductAccessOutcome;
   /** Server-prefetched secure content (content_config, branding, expiry). */
   initialSecureData?: SecureProductResponse;
+  /** Existing issued license, also shown when content access itself expired. */
+  existingLicense?: SecureProductResponse['license'];
 }
 
-export default function ProductView({ product, licenseValid, previewMode = false, outcome, initialSecureData }: ProductViewProps) {
+export default function ProductView({ product, licenseValid, previewMode = false, outcome, initialSecureData, existingLicense }: ProductViewProps) {
   const t = useTranslations('productView');
 
   // Redirect-delivery products navigate the buyer to an external URL after
@@ -75,7 +77,7 @@ export default function ProductView({ product, licenseValid, previewMode = false
   }
 
   if (outcome.kind === 'render-expired') {
-    return <ProductExpiredState product={product} />;
+    return <ProductExpiredState product={product} existingLicense={existingLicense} />;
   }
 
   if (outcome.kind === 'render-content') {

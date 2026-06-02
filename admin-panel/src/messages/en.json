@@ -977,6 +977,9 @@
     "notFound": "Product Not Found",
     "licenseKey": "License Key",
     "licenseExpires": "Expires {date}",
+    "licenseExpiredTitle": "License expired",
+    "licenseExpiredMessage": "Your content access is still active, but this license token has expired. Buy again to receive a fresh license token.",
+    "renewLicense": "Renew license",
     "licenseCopy": "Copy",
     "licenseCopied": "Copied!"
   },

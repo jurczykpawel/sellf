@@ -992,6 +992,9 @@
     "notFound": "Produkt nie został znaleziony",
     "licenseKey": "Klucz licencyjny",
     "licenseExpires": "Wygasa {date}",
+    "licenseExpiredTitle": "Licencja wygasła",
+    "licenseExpiredMessage": "Dostęp do zawartości jest nadal aktywny, ale ten token licencyjny wygasł. Kup ponownie, aby otrzymać nowy token licencyjny.",
+    "renewLicense": "Odnów licencję",
     "licenseCopy": "Kopiuj",
     "licenseCopied": "Skopiowano!"
   },

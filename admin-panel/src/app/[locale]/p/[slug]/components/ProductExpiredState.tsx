@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
-import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
+import type { Product } from '@/types';
+import type { SecureProductResponse } from './ProductAccessView';
 
 interface ProductExpiredStateProps {
   product: Product;
+  existingLicense?: SecureProductResponse['license'];
 }
 
-export default function ProductExpiredState({ product }: ProductExpiredStateProps) {
+export default function ProductExpiredState({ product, existingLicense }: ProductExpiredStateProps) {
   const t = useTranslations('productView');
   const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
@@ -18,6 +20,13 @@ export default function ProductExpiredState({ product }: ProductExpiredStateProp
     : product.price === 0
       ? t('free', { defaultValue: 'FREE' })
       : formatPrice(product.price, product.currency);
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-sf-deep">
@@ -39,6 +48,24 @@ export default function ProductExpiredState({ product }: ProductExpiredStateProp
         <div className="bg-sf-danger-soft border border-sf-danger/30 rounded-lg p-4 text-sf-danger mb-6">
           <p className="text-sm">{t('canPurchaseAgain')}</p>
         </div>
+
+        {existingLicense && (
+          <div className="mb-6 p-4 rounded-xl border border-sf-accent/30 bg-sf-accent-soft text-left">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-sf-accent">
+                {t('licenseKey')}
+              </span>
+              {existingLicense.expiresAt && (
+                <span className="text-xs text-sf-muted">
+                  {t('licenseExpires', { date: formatDate(existingLicense.expiresAt) })}
+                </span>
+              )}
+            </div>
+            <code className="block text-xs font-mono break-all text-sf-body bg-sf-base rounded-lg px-3 py-2 select-all">
+              {existingLicense.token}
+            </code>
+          </div>
+        )}
 
         <Link
           href={`/${locale}/checkout/${product.slug}`}
