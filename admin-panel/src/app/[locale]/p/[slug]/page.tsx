@@ -192,9 +192,30 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const expiresAt = expiresAtIso ? new Date(expiresAtIso) : null;
     const now = new Date();
     const msPerDay = 1000 * 60 * 60 * 24;
+
+    // Fetch license issued to this user for this product (service-role only table).
+    const admin = createAdminClient();
+    const { data: user } = await (await createClient()).auth.getUser();
+    let license: SecureProductResponse['license'] = null;
+    if (user.user) {
+      const { data: licenseRow } = await admin
+        .from('issued_licenses')
+        .select('license_key, issued_at, expires_at')
+        .eq('product_id', product.id)
+        .or(`user_id.eq.${user.user.id},and(user_id.is.null,email.eq.${user.user.email})`)
+        .order('issued_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (licenseRow) {
+        const row = licenseRow as { license_key: string; issued_at: string; expires_at: string | null };
+        license = { token: row.license_key, issuedAt: row.issued_at, expiresAt: row.expires_at ?? null };
+      }
+    }
+
     initialSecureData = {
       product,
       branding: { shop_name: shopConfig?.shop_name ?? null },
+      license,
       userAccess: {
         access_expires_at: expiresAtIso,
         access_duration_days: resolvedAccess.access_duration_days ?? null,
