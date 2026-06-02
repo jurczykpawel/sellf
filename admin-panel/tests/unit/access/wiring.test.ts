@@ -68,4 +68,13 @@ describe('Access wiring', () => {
     expect(src).toMatch(/isExpired/);
     expect(src).toMatch(/status:\s*403/);
   });
+
+  it('public content endpoint fetches issued licenses without raw PostgREST or() filters', () => {
+    const src = read('src/app/api/public/products/[slug]/content/route.ts');
+    expect(src).toMatch(/from\(['"]issued_licenses['"]\)/);
+    expect(src).toMatch(/\.eq\(['"]user_id['"],\s*user\.id\)/);
+    expect(src).toMatch(/\.is\(['"]user_id['"],\s*null\)/);
+    expect(src).toMatch(/\.eq\(['"]email['"],\s*userEmail\)/);
+    expect(src).not.toMatch(/\.or\(\s*`[^`]*(?:email|user)/);
+  });
 });

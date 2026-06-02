@@ -120,7 +120,7 @@ export default function LicenseHowToUseModal({ isOpen, onClose, jwksUrl }: Props
                 <p className="font-medium text-sf-heading text-sm mb-1">{t('step1Title')}</p>
                 <p className="text-sm text-sf-body">{t('step1Body')}</p>
                 <div className="mt-3">
-                  <p className="text-xs text-sf-muted mb-1">Wygeneruj własny klucz (terminal):</p>
+                  <p className="text-xs text-sf-muted mb-1">{t('generateOwnKeyLabel')}</p>
                   <pre className="bg-gray-900 text-gray-100 p-3 text-xs overflow-x-auto whitespace-pre">{`openssl ecparam -name prime256v1 -genkey -noout \\\n  | openssl pkcs8 -topk8 -nocrypt`}</pre>
                 </div>
               </div>

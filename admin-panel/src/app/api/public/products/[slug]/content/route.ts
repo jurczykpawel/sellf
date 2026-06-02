@@ -91,14 +91,25 @@ export async function GET(
     // Fetch license for this product if one was issued to this user.
     // issued_licenses is service-role only — must use admin client.
     const admin = createAdminClient();
-    const { data: licenseRow } = await admin
+    const licenseSelect = 'license_key, issued_at, expires_at';
+    const userEmail = user.email ?? null;
+    const { data: byUser } = await admin
       .from('issued_licenses')
-      .select('license_key, issued_at, expires_at')
+      .select(licenseSelect)
       .eq('product_id', productWithAccess.id)
-      .or(`user_id.eq.${user.id},and(user_id.is.null,email.eq.${user.email})`)
+      .eq('user_id', user.id)
       .order('issued_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    const licenseRow = byUser ?? (userEmail ? (await admin
+      .from('issued_licenses')
+      .select(licenseSelect)
+      .eq('product_id', productWithAccess.id)
+      .is('user_id', null)
+      .eq('email', userEmail)
+      .order('issued_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()).data : null);
     const license = licenseRow
       ? { token: licenseRow.license_key, issuedAt: licenseRow.issued_at, expiresAt: licenseRow.expires_at ?? null }
       : null;
