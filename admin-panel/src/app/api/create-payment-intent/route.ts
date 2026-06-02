@@ -201,20 +201,27 @@ export async function POST(request: NextRequest) {
     }
     const validatedCustomFieldValues = customFieldValuesResult.values;
 
-    // 2. Check if user already has access
+    // 2. Check if user already has non-expired access.
+    // Expired access is allowed to re-purchase — check access_expires_at.
     if (user) {
       const { data: existingAccess } = await dataClient
         .from('user_product_access')
-        .select('id')
+        .select('access_expires_at')
         .eq('user_id', user.id)
         .eq('product_id', productId)
-        .single();
+        .maybeSingle();
 
       if (existingAccess) {
-        return NextResponse.json(
-          { error: 'You already have access to this product' },
-          { status: 400 }
-        );
+        const expiresAt = existingAccess.access_expires_at
+          ? new Date(existingAccess.access_expires_at)
+          : null;
+        const isExpired = expiresAt !== null && expiresAt < new Date();
+        if (!isExpired) {
+          return NextResponse.json(
+            { error: 'You already have access to this product' },
+            { status: 400 }
+          );
+        }
       }
     }
 
