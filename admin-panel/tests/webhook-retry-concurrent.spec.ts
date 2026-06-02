@@ -61,33 +61,38 @@ test.describe('Concurrent webhook-deliveries-retry worker invocations', () => {
     const url = `${BASE_URL}/api/cron?job=webhook-deliveries-retry`;
     const headers = { Authorization: `Bearer ${CRON_SECRET}` };
 
+    // The retry cron is GLOBAL (pick_due_webhook_deliveries is not endpoint-scoped) and
+    // processes at most WEBHOOK_RETRY_BATCH=50 due rows per call. In a full E2E run sibling
+    // specs leave their own due-now pending_retry rows behind — they could crowd OUR 5 out of
+    // the batch (attempt_count stuck at 1) or, with a retry loop, get re-picked after backoff
+    // (attempt_count climbing to 3). So PARK every OTHER due-now pending_retry row (defer its
+    // next_retry_at — non-destructive, just postpones it) so OUR 5 are the only due rows. Then
+    // one pair of concurrent calls competes on exactly our rows → each processed exactly once.
+    await supabaseAdmin
+      .from('webhook_logs')
+      .update({ next_retry_at: new Date(Date.now() + 3_600_000).toISOString() })
+      .eq('status', 'pending_retry')
+      .lte('next_retry_at', new Date().toISOString())
+      .not('id', 'in', `(${rows.join(',')})`);
+
     const [res1, res2] = await Promise.all([
       request.get(url, { headers }),
       request.get(url, { headers }),
     ]);
     expect([res1.status(), res2.status()].sort()).toEqual([200, 200]);
 
-    const body1 = await res1.json();
-    const body2 = await res2.json();
-
-    // Together the two invocations process at LEAST our 5 rows. The per-row
-    // attempt_count === 2 check below is what actually proves the no-double-
-    // dispatch guarantee for our rows. The total can exceed 5 in a full E2E
-    // run if sibling specs left their own due-now pending_retry rows behind
-    // — pick_due_webhook_deliveries is global, not endpoint-scoped.
-    const totalProcessed = (body1.processed ?? 0) + (body2.processed ?? 0);
-    expect(totalProcessed).toBeGreaterThanOrEqual(5);
-
-    // Each row should now have attempt_count exactly 2 (one retry, not two).
-    for (const id of rows) {
-      const { data, error } = await supabaseAdmin
-        .from('webhook_logs')
-        .select('attempt_count, status')
-        .eq('id', id)
-        .single();
-      if (error) throw error;
-      expect(data!.attempt_count).toBe(2);
-      expect(['success', 'pending_retry', 'permanently_failed']).toContain(data!.status);
+    // No-double-dispatch invariant: each of OUR rows is processed EXACTLY once by the two
+    // concurrent calls — attempt_count goes 1 -> 2, never 3 (3 would mean the same row was
+    // dispatched twice by the parallel workers, i.e. the SKIP LOCKED claim failed).
+    const { data: finalRows, error } = await supabaseAdmin
+      .from('webhook_logs')
+      .select('id, attempt_count, status')
+      .in('id', rows);
+    if (error) throw error;
+    expect(finalRows).toHaveLength(rows.length);
+    for (const r of finalRows!) {
+      expect(r.attempt_count).toBe(2);
+      expect(['success', 'pending_retry', 'permanently_failed']).toContain(r.status);
     }
   });
 });
