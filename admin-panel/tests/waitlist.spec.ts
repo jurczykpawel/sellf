@@ -476,29 +476,24 @@ test.describe('Waitlist Feature', () => {
 
       // Step 2 → Step 3
       await nextButton.click();
-      // Wait for step 3 content to be present before returning
+      // Wait for the Availability StepGroup section to appear (data attribute is stable, not locale-dependent)
       await expect(
-        page.locator('[role="dialog"]').locator('button').filter({ hasText: /Dostępność|Availability/i }).first()
+        page.locator('section[data-step3-group="C"]')
       ).toBeVisible({ timeout: 10000 });
     }
 
     /**
-     * Helper to ensure Availability & Waitlist section is expanded
-     * Checks if section content is visible, clicks to expand if needed
+     * Helper to ensure Availability & Waitlist section is expanded.
+     * Uses the stable data-step3-group="C" selector to avoid locale-sensitive text matching.
      */
     async function ensureAvailabilitySectionExpanded(page: import('@playwright/test').Page): Promise<void> {
-      const modal = page.locator('[role="dialog"]');
-      const waitlistLabel = modal.locator('label').filter({ hasText: /Włącz zapis na listę|Enable Waitlist/i });
+      const availabilityGroup = page.locator('section[data-step3-group="C"]');
+      const waitlistLabel = page.locator('label').filter({ hasText: /Włącz zapis na listę|Enable Waitlist/i });
 
-      // Retry: section might need a click to expand, and the click might be swallowed
       await expect(async () => {
         const isExpanded = await waitlistLabel.isVisible().catch(() => false);
         if (!isExpanded) {
-          // Try broader regex — button text may vary by locale and may not contain both words
-          const sectionHeader = modal.locator('button').filter({ hasText: /Dostępność|Availability/i }).first();
-          if (await sectionHeader.isVisible().catch(() => false)) {
-            await sectionHeader.click();
-          }
+          await availabilityGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
         }
         await expect(waitlistLabel).toBeVisible({ timeout: 1000 });
       }).toPass({ timeout: 10000 });
@@ -547,9 +542,10 @@ test.describe('Waitlist Feature', () => {
       // Ensure section is expanded (checks and clicks if needed)
       await ensureAvailabilitySectionExpanded(page);
 
-      // Should show warning about configuring webhook
+      // Should show warning about configuring webhook.
+      // Timeout is generous — hasWaitlistWebhook comes from an async RPC fetched on modal open.
       const warningBox = page.locator('[data-testid="waitlist-webhook-warning"]');
-      await expect(warningBox).toBeVisible({ timeout: 5000 });
+      await expect(warningBox).toBeVisible({ timeout: 10000 });
     });
 
     test('should enable waitlist checkbox when webhook IS configured', async ({ page }) => {
