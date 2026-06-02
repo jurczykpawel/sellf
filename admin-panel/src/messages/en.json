@@ -974,7 +974,11 @@
     "loadingTimeoutTitle": "Loading is taking longer than expected",
     "loadingTimeoutMessage": "We couldn't load your product information. This could be due to a temporary connection issue.",
     "tryAgain": "Try Again",
-    "notFound": "Product Not Found"
+    "notFound": "Product Not Found",
+    "licenseKey": "License Key",
+    "licenseExpires": "Expires {date}",
+    "licenseCopy": "Copy",
+    "licenseCopied": "Copied!"
   },
   "myProducts": {
     "title": "My Products",

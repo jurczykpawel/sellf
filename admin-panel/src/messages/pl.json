@@ -989,7 +989,11 @@
     "loadingTimeoutTitle": "Ładowanie trwa dłużej niż oczekiwano",
     "loadingTimeoutMessage": "Nie udało się załadować informacji o produkcie. Może to być spowodowane tymczasowym problemem z połączeniem.",
     "tryAgain": "Spróbuj ponownie",
-    "notFound": "Produkt nie został znaleziony"
+    "notFound": "Produkt nie został znaleziony",
+    "licenseKey": "Klucz licencyjny",
+    "licenseExpires": "Wygasa {date}",
+    "licenseCopy": "Kopiuj",
+    "licenseCopied": "Skopiowano!"
   },
   "myProducts": {
     "title": "Moje produkty",

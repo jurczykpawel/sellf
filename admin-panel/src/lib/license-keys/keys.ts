@@ -38,15 +38,19 @@ export async function storeSellerKey(
 ): Promise<{ kid: string }> {
   const kid = deriveKid(input.publicKeyPem);
   const enc = await encryptSecret(input.privateKeyPem);
-  const { error } = await admin.from('seller_license_keys').insert({
-    seller_id: input.sellerId,
-    kid,
-    public_key: input.publicKeyPem,
-    encrypted_key: enc.encryptedKey,
-    encryption_iv: enc.iv,
-    encryption_tag: enc.tag,
-    custody: input.custody,
-  });
+  const { error } = await admin.from('seller_license_keys').upsert(
+    {
+      seller_id: input.sellerId,
+      kid,
+      public_key: input.publicKeyPem,
+      encrypted_key: enc.encryptedKey,
+      encryption_iv: enc.iv,
+      encryption_tag: enc.tag,
+      custody: input.custody,
+      is_active: true,
+    },
+    { onConflict: 'seller_id,kid' },
+  );
   if (error) throw new Error(`storeSellerKey: ${error.message}`);
   return { kid };
 }
