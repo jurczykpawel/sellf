@@ -116,6 +116,7 @@ export const PRODUCT_PAGE_FIELDS = [
   'success_redirect_url', 'pass_params_to_redirect',
   'is_refundable', 'refund_period_days',
   'enable_waitlist',
+  'issue_license_on_purchase', 'license_duration_days',
   'allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets',
   'created_at', 'updated_at',
 ].join(', ');

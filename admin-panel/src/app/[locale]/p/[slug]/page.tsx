@@ -1,6 +1,7 @@
 import { createPublicClient, createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkFeature } from '@/lib/license/resolve';
+import { issueLicense } from '@/lib/license-keys/issue';
 import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
@@ -199,6 +200,9 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     let license: SecureProductResponse['license'] = null;
     if (user.user) {
       const licenseSelect = 'license_key, issued_at, expires_at';
+      const userEmail = user.user.email ?? null;
+      const now = new Date();
+
       // Prefer match by user_id (UUID, injection-safe); fall back to email-only row.
       const { data: byUser } = await admin
         .from('issued_licenses')
@@ -208,8 +212,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         .order('issued_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      const userEmail = user.user.email;
-      const licenseRow = byUser ?? (userEmail ? (await admin
+      let licenseRow = byUser ?? (userEmail ? (await admin
         .from('issued_licenses')
         .select(licenseSelect)
         .eq('product_id', product.id)
@@ -218,6 +221,38 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         .order('issued_at', { ascending: false })
         .limit(1)
         .maybeSingle()).data : null);
+
+      // Auto-renew when access is valid but the license is missing or expired.
+      // Covers: lifetime access + finite license_duration_days (no repurchase needed).
+      // orderId is anchored to the previous license's expiry so it's stable and
+      // idempotent within each renewal period.
+      if (product.issue_license_on_purchase && userEmail) {
+        const licenseExpired = licenseRow?.expires_at
+          ? new Date(licenseRow.expires_at) < now
+          : false;
+        if (!licenseRow || licenseExpired) {
+          const anchor = licenseRow?.expires_at ?? 'init';
+          const renewalOrderId = `renew_${product.id}_${user.user.id}_${anchor}`;
+          const renewed = await issueLicense(admin, {
+            productId: product.id,
+            email: userEmail,
+            userId: user.user.id,
+            orderId: renewalOrderId,
+          }).catch(() => null);
+          if (renewed) {
+            const { data: freshRow } = await admin
+              .from('issued_licenses')
+              .select(licenseSelect)
+              .eq('product_id', product.id)
+              .eq('user_id', user.user.id)
+              .order('issued_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            licenseRow = freshRow;
+          }
+        }
+      }
+
       if (licenseRow) {
         const row = licenseRow as { license_key: string; issued_at: string; expires_at: string | null };
         license = { token: row.license_key, issuedAt: row.issued_at, expiresAt: row.expires_at ?? null };
