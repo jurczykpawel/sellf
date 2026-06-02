@@ -22,7 +22,7 @@ interface ProductRow {
   license_duration_days: number | null;
 }
 
-function adminMock(opts: { product?: ProductRow | null; existing?: { license_key: string } | null; insert?: ReturnType<typeof vi.fn> }) {
+function adminMock(opts: { product?: ProductRow | null; existing?: { license_key: string; kid: string; seller_id: string } | null; insert?: ReturnType<typeof vi.fn> }) {
   const insert = opts.insert ?? vi.fn().mockResolvedValue({ error: null });
   const from = vi.fn((table: string) => {
     if (table === 'products') {
@@ -64,11 +64,12 @@ describe('issueLicense', () => {
 
   it('issues a perpetual license whose claims verify under the seller key', async () => {
     const insert = vi.fn().mockResolvedValue({ error: null });
-    const token = await call(adminMock({ product: product(), insert }));
-    expect(token).toBeTruthy();
-    const r = verifyLicense(token as string, key.publicKeyPem, { now: NOW });
+    const result = await call(adminMock({ product: product(), insert }));
+    expect(result).toBeTruthy();
+    const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
     expect(r).toMatchObject({ valid: true, claims: { product: 'pro-kit', email: 'a@b.co', order: 'ord_1', tier: 'pro', exp: null, kid: key.kid } });
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ seller_id: SELLER, order_id: 'ord_1', product_id: PRODUCT, kid: key.kid, license_key: token, expires_at: null }));
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ seller_id: SELLER, order_id: 'ord_1', product_id: PRODUCT, kid: key.kid, license_key: result!.token, expires_at: null }));
+    expect(result).toMatchObject({ kid: key.kid, sellerId: SELLER });
   });
 
   it('loads the seller key for the product owner', async () => {
@@ -77,15 +78,17 @@ describe('issueLicense', () => {
   });
 
   it('sets exp from license_duration_days', async () => {
-    const token = await call(adminMock({ product: product({ license_duration_days: 30 }) }));
-    const r = verifyLicense(token as string, key.publicKeyPem, { now: NOW });
+    const result = await call(adminMock({ product: product({ license_duration_days: 30 }) }));
+    const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
     if (!r.valid) throw new Error('expected valid');
     expect(r.claims.exp).toBe(Math.floor(NOW.getTime() / 1000) + 30 * 86400);
   });
 
-  it('is idempotent — returns the already-issued license without re-inserting', async () => {
+  it('is idempotent — returns the already-issued result without re-inserting', async () => {
     const insert = vi.fn();
-    expect(await call(adminMock({ product: product(), existing: { license_key: 'EXISTING.TOKEN' }, insert }))).toBe('EXISTING.TOKEN');
+    const existing = { license_key: 'EXISTING.TOKEN', kid: 'existingkid', seller_id: SELLER };
+    const result = await call(adminMock({ product: product(), existing, insert }));
+    expect(result).toEqual({ token: 'EXISTING.TOKEN', kid: 'existingkid', sellerId: SELLER });
     expect(insert).not.toHaveBeenCalled();
   });
 });

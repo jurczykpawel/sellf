@@ -8,6 +8,7 @@ import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import {
   generateSellerKeypair,
   importSellerKey,
+  publicFromPrivate,
   storeSellerKey,
   loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys'
@@ -114,6 +115,13 @@ export async function uploadSellerLicenseKey(
   if (privateKeyPem.length > 8192) {
     return { success: false, error: 'Private key is too large', errorCode: 'INVALID_INPUT' }
   }
+  // Validate key format before touching the database — prevents deactivating the
+  // existing key when the user pastes something invalid.
+  try {
+    publicFromPrivate(privateKeyPem.trim())
+  } catch {
+    return { success: false, error: 'Invalid private key. Provide a PEM-encoded EC P-256 private key (PKCS8 PEM, starts with -----BEGIN PRIVATE KEY-----).' , errorCode: 'INVALID_KEY' }
+  }
   return withAdminAuth(async ({ user }) => {
     const admin = createAdminClient()
     try {
@@ -123,7 +131,7 @@ export async function uploadSellerLicenseKey(
       return { success: true, data: { kid } }
     } catch (error) {
       console.error('[uploadSellerLicenseKey]', error)
-      return { success: false, error: 'Invalid private key. Provide a PEM-encoded EC P-256 key.', errorCode: 'INVALID_KEY' }
+      return { success: false, error: 'Failed to save license key', errorCode: 'STORE_FAILED' }
     }
   })
 }

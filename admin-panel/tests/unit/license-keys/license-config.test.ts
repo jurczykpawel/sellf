@@ -16,6 +16,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 vi.mock('@/lib/license-keys/keys', () => ({
   generateSellerKeypair: vi.fn(),
   importSellerKey: vi.fn(),
+  publicFromPrivate: vi.fn(),
   storeSellerKey: vi.fn(),
   loadActivePublicKeyInfo: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import {
   generateSellerKeypair,
   importSellerKey,
+  publicFromPrivate,
   storeSellerKey,
   loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys';
@@ -161,14 +163,24 @@ describe('uploadSellerLicenseKey', () => {
     expect(res.data).toEqual({ kid: KEYPAIR.kid });
   });
 
-  it('rejects an invalid PEM with an error result and does not throw', async () => {
-    const deact = deactivateChain();
-    adminFromMock.mockReturnValue(deact);
-    vi.mocked(importSellerKey).mockRejectedValue(new Error('bad pem'));
-
+  it('rejects an invalid PEM before deactivating prior keys (early validation)', async () => {
+    vi.mocked(publicFromPrivate).mockImplementation(() => { throw new Error('bad pem'); });
     const res = await uploadSellerLicenseKey('not-a-key');
     expect(res.success).toBe(false);
-    expect(res.error).toBeTruthy();
+    expect(res.errorCode).toBe('INVALID_KEY');
+    expect(adminFromMock).not.toHaveBeenCalled();
+    expect(vi.mocked(importSellerKey)).not.toHaveBeenCalled();
+  });
+
+  it('returns STORE_FAILED when the key is valid but DB insert fails', async () => {
+    vi.mocked(publicFromPrivate).mockReturnValue('-----BEGIN PUBLIC KEY-----\nPUB\n-----END PUBLIC KEY-----\n');
+    const deact = deactivateChain();
+    adminFromMock.mockReturnValue(deact);
+    vi.mocked(importSellerKey).mockRejectedValue(new Error('db error'));
+
+    const res = await uploadSellerLicenseKey(KEYPAIR.privateKeyPem);
+    expect(res.success).toBe(false);
+    expect(res.errorCode).toBe('STORE_FAILED');
   });
 
   it('rejects empty input before touching the DB', async () => {

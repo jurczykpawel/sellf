@@ -212,7 +212,7 @@ async function handleCheckoutSessionCompleted(
 
     // Issue a license if the product is configured for it. Never let issuance
     // failure break the payment webhook — log and continue.
-    const licenseKey = await issueLicense(supabase, {
+    const licenseResult = await issueLicense(supabase, {
       productId,
       email: customerEmail,
       userId,
@@ -224,7 +224,10 @@ async function handleCheckoutSessionCompleted(
       console.error('[Stripe Webhook] License issuance failed:', err);
       return null;
     });
-    if (licenseKey) webhookData.licenseKey = licenseKey;
+    if (licenseResult) {
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+      webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
+    }
 
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
@@ -371,7 +374,7 @@ async function handlePaymentIntentSucceeded(
 
     // Issue a license if the product is configured for it. Never let issuance
     // failure break the payment webhook — log and continue.
-    const licenseKey = await issueLicense(supabase, {
+    const licenseResult = await issueLicense(supabase, {
       productId,
       email: customerEmail,
       userId,
@@ -380,7 +383,10 @@ async function handlePaymentIntentSucceeded(
       console.error('[Stripe Webhook] License issuance failed:', err);
       return null;
     });
-    if (licenseKey) webhookData.licenseKey = licenseKey;
+    if (licenseResult) {
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+      webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
+    }
 
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';

@@ -18,25 +18,32 @@ interface ProductLicenseRow {
   license_duration_days: number | null;
 }
 
+export interface IssueLicenseResult {
+  token: string;
+  kid: string;
+  sellerId: string;
+}
+
 /**
- * Issue a signed license for a completed purchase. Returns the license token,
- * or null when the product has issuance disabled, is unknown, or the seller has
- * no active key. Idempotent on (order_id, product_id): a retry returns the
- * already-issued token without signing or inserting again.
+ * Issue a signed license for a completed purchase. Returns the license token
+ * plus the kid and seller ID needed to build a JWKS verification URL, or null
+ * when the product has issuance disabled, is unknown, or the seller has no
+ * active key. Idempotent on (order_id, product_id): a retry returns the
+ * already-issued result without signing or inserting again.
  */
 export async function issueLicense(
   admin: SupabaseClient,
   input: IssueLicenseInput,
   opts: { now?: Date } = {},
-): Promise<string | null> {
+): Promise<IssueLicenseResult | null> {
   const existingResult = await admin
     .from('issued_licenses')
-    .select('license_key')
+    .select('license_key, kid, seller_id')
     .eq('order_id', input.orderId)
     .eq('product_id', input.productId)
     .maybeSingle();
-  const existing = (existingResult.data ?? null) as { license_key: string } | null;
-  if (existing) return existing.license_key;
+  const existing = (existingResult.data ?? null) as { license_key: string; kid: string; seller_id: string } | null;
+  if (existing) return { token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id };
 
   const productResult = await admin
     .from('products')
@@ -75,5 +82,5 @@ export async function issueLicense(
   });
   if (error) throw new Error(`issueLicense: ${error.message}`);
 
-  return token;
+  return { token, kid: key.kid, sellerId: product.seller_id };
 }
