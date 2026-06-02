@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import FloatingToolbar from '@/components/FloatingToolbar';
@@ -14,6 +17,7 @@ interface ProductExpiredStateProps {
 export default function ProductExpiredState({ product, existingLicense }: ProductExpiredStateProps) {
   const t = useTranslations('productView');
   const locale = useLocale();
+  const [licenseCopied, setLicenseCopied] = useState(false);
   const isSubscription = product.product_type === 'subscription';
   const priceLabel = isSubscription
     ? (formatRecurringProductPrice(product, locale) ?? formatPrice(product.recurring_price ?? 0, product.currency))
@@ -61,9 +65,22 @@ export default function ProductExpiredState({ product, existingLicense }: Produc
                 </span>
               )}
             </div>
-            <code className="block text-xs font-mono break-all text-sf-body bg-sf-base rounded-lg px-3 py-2 select-all">
-              {existingLicense.token}
-            </code>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs font-mono break-all text-sf-body bg-sf-base rounded-lg px-3 py-2 select-all">
+                {existingLicense.token}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(existingLicense.token);
+                  setLicenseCopied(true);
+                  setTimeout(() => setLicenseCopied(false), 2000);
+                }}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-sf-accent-bg hover:bg-sf-accent-hover text-white transition-colors active:scale-[0.98]"
+              >
+                {licenseCopied ? t('licenseCopied') : t('licenseCopy')}
+              </button>
+            </div>
           </div>
         )}
 

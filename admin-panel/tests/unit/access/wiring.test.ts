@@ -65,15 +65,19 @@ describe('Access wiring', () => {
 
   it('p/[slug]/page.tsx prefetches license for expired-access state without issuing a new one', () => {
     const src = read('src/app/[locale]/p/[slug]/page.tsx');
+    expect(src).toMatch(/from\s+['"]@\/lib\/license-keys\/lookup['"]/);
     expect(src).toMatch(/outcome\.kind\s*===\s*['"]render-expired['"]/);
     expect(src).toMatch(/existingLicense/);
     expect(src).toMatch(/<ProductView[\s\S]+existingLicense=\{existingLicense\}/);
+    expect(src).not.toMatch(/function\s+loadExistingLicenseForUser/);
   });
 
   it('ProductExpiredState can display an existing issued license while offering repurchase', () => {
     const src = read('src/app/[locale]/p/[slug]/components/ProductExpiredState.tsx');
     expect(src).toMatch(/existingLicense/);
     expect(src).toMatch(/licenseKey/);
+    expect(src).toMatch(/navigator\.clipboard\.writeText/);
+    expect(src).toMatch(/licenseCopied/);
     expect(src).toMatch(/purchaseAgain/);
   });
 
@@ -92,10 +96,12 @@ describe('Access wiring', () => {
 
   it('create-payment-intent allows active-access checkout only through expired-license renewal policy', () => {
     const src = read('src/app/api/create-payment-intent/route.ts');
+    expect(src).toMatch(/from\s+['"]@\/lib\/license-keys\/lookup['"]/);
     expect(src).toMatch(/canRenewExpiredLicenseWithActiveAccess/);
     expect(src).toMatch(/renewLicense/);
     expect(src).toMatch(/product\.product_type\s*!==\s*['"]subscription['"]/);
     expect(src).toMatch(/renew_license:\s*renewLicense\s*\?\s*['"]true['"]/);
+    expect(src).not.toMatch(/function\s+loadLatestIssuedLicenseExpiresAt/);
   });
 
   it('stripe webhook emits purchase.completed for explicit license renewals despite already_had_access', () => {
@@ -120,10 +126,12 @@ describe('Access wiring', () => {
 
   it('public content endpoint fetches issued licenses without raw PostgREST or() filters', () => {
     const src = read('src/app/api/public/products/[slug]/content/route.ts');
-    expect(src).toMatch(/from\(['"]issued_licenses['"]\)/);
-    expect(src).toMatch(/\.eq\(['"]user_id['"],\s*user\.id\)/);
-    expect(src).toMatch(/\.is\(['"]user_id['"],\s*null\)/);
-    expect(src).toMatch(/\.eq\(['"]email['"],\s*userEmail\)/);
-    expect(src).not.toMatch(/\.or\(\s*`[^`]*(?:email|user)/);
+    const helper = read('src/lib/license-keys/lookup.ts');
+    expect(src).toMatch(/from\s+['"]@\/lib\/license-keys\/lookup['"]/);
+    expect(helper).toMatch(/from\(['"]issued_licenses['"]\)/);
+    expect(helper).toMatch(/\.eq\(['"]user_id['"],\s*user\.id\)/);
+    expect(helper).toMatch(/\.is\(['"]user_id['"],\s*null\)/);
+    expect(helper).toMatch(/\.eq\(['"]email['"],\s*user\.email\)/);
+    expect(helper).not.toMatch(/\.or\(\s*`[^`]*(?:email|user)/);
   });
 });

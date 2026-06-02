@@ -13,6 +13,7 @@ import {
   type ResolvedUserAccess,
 } from '@/lib/payment/product-access-decision';
 import { getShopConfig } from '@/lib/actions/shop-config';
+import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -50,39 +51,6 @@ const getProduct = cache((slug: string) =>
     { revalidate: 60, tags: ['product-by-slug', `product:${slug}`] },
   )(slug),
 );
-
-async function loadExistingLicenseForUser(
-  productId: string,
-  user: { id: string; email?: string | null },
-): Promise<SecureProductResponse['license']> {
-  const admin = createAdminClient();
-  const licenseSelect = 'license_key, issued_at, expires_at';
-
-  // Prefer match by user_id (UUID, injection-safe); fall back to email-only row.
-  const { data: byUser } = await admin
-    .from('issued_licenses')
-    .select(licenseSelect)
-    .eq('product_id', productId)
-    .eq('user_id', user.id)
-    .order('issued_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const licenseRow = byUser ?? (user.email ? (await admin
-    .from('issued_licenses')
-    .select(licenseSelect)
-    .eq('product_id', productId)
-    .is('user_id', null)
-    .eq('email', user.email)
-    .order('issued_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()).data : null);
-
-  if (!licenseRow) return null;
-
-  const row = licenseRow as { license_key: string; issued_at: string; expires_at: string | null };
-  return { token: row.license_key, issuedAt: row.issued_at, expiresAt: row.expires_at ?? null };
-}
 
 // Generate metadata for the page based on the product data
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -219,7 +187,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     !previewMode &&
     authResult?.user &&
     (outcome.kind === 'render-content' || outcome.kind === 'render-expired')
-      ? await loadExistingLicenseForUser(product.id, authResult.user)
+      ? toIssuedLicenseResponse(await findIssuedLicense(createAdminClient(), product.id, authResult.user))
       : null;
 
   // Prefetch the secure content payload server-side for authenticated buyers

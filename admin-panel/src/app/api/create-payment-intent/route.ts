@@ -29,6 +29,7 @@ import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 import { signCheckoutBinding, verifyCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
+import { findIssuedLicense } from '@/lib/license-keys/lookup';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -44,39 +45,6 @@ function extractCheckoutSessionId(clientSecret: string): string | null {
 
 function stripeMetadataValue(value: unknown): string {
   return value === null || value === undefined ? '' : String(value);
-}
-
-async function loadLatestIssuedLicenseExpiresAt(
-  dataClient: ReturnType<typeof createAdminClient>,
-  productId: string,
-  user: { id: string; email?: string | null },
-): Promise<string | null | undefined> {
-  const { data: byUser } = await dataClient
-    .from('issued_licenses')
-    .select('expires_at')
-    .eq('product_id', productId)
-    .eq('user_id', user.id)
-    .order('issued_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (byUser) {
-    return (byUser as { expires_at: string | null }).expires_at;
-  }
-
-  if (!user.email) return undefined;
-
-  const { data: byEmail } = await dataClient
-    .from('issued_licenses')
-    .select('expires_at')
-    .eq('product_id', productId)
-    .is('user_id', null)
-    .eq('email', user.email)
-    .order('issued_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return byEmail ? (byEmail as { expires_at: string | null }).expires_at : undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -253,11 +221,11 @@ export async function POST(request: NextRequest) {
           : null;
         const isExpired = expiresAt !== null && expiresAt < new Date();
         if (!isExpired) {
-          const licenseExpiresAt = await loadLatestIssuedLicenseExpiresAt(dataClient, productId, user);
+          const latestLicense = await findIssuedLicense(dataClient, productId, user, 'expires_at');
           const canRenewLicense = canRenewExpiredLicenseWithActiveAccess({
             renewLicense,
             productIssuesLicense: product.issue_license_on_purchase === true && product.product_type !== 'subscription',
-            licenseExpiresAt,
+            licenseExpiresAt: latestLicense?.expires_at,
           });
 
           if (!canRenewLicense) {

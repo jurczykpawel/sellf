@@ -993,7 +993,7 @@
     "licenseKey": "Klucz licencyjny",
     "licenseExpires": "Wygasa {date}",
     "licenseExpiredTitle": "Licencja wygasła",
-    "licenseExpiredMessage": "Dostęp do zawartości jest nadal aktywny, ale ten token licencyjny wygasł. Kup ponownie, aby otrzymać nowy token licencyjny.",
+    "licenseExpiredMessage": "Dostęp do zawartości jest nadal aktywny, ale ten token licencyjny wygasł. Dokończ zakup, aby rozpocząć nowy okres licencji i otrzymać świeży token.",
     "renewLicense": "Odnów licencję",
     "licenseCopy": "Kopiuj",
     "licenseCopied": "Skopiowano!"

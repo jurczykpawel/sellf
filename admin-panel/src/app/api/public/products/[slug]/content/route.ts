@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
+import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 
 export async function GET(
   request: NextRequest,
@@ -91,28 +92,7 @@ export async function GET(
     // Fetch license for this product if one was issued to this user.
     // issued_licenses is service-role only — must use admin client.
     const admin = createAdminClient();
-    const licenseSelect = 'license_key, issued_at, expires_at';
-    const userEmail = user.email ?? null;
-    const { data: byUser } = await admin
-      .from('issued_licenses')
-      .select(licenseSelect)
-      .eq('product_id', productWithAccess.id)
-      .eq('user_id', user.id)
-      .order('issued_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const licenseRow = byUser ?? (userEmail ? (await admin
-      .from('issued_licenses')
-      .select(licenseSelect)
-      .eq('product_id', productWithAccess.id)
-      .is('user_id', null)
-      .eq('email', userEmail)
-      .order('issued_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()).data : null);
-    const license = licenseRow
-      ? { token: licenseRow.license_key, issuedAt: licenseRow.issued_at, expiresAt: licenseRow.expires_at ?? null }
-      : null;
+    const license = toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user));
 
     // Return secure product data with computed access status
     return NextResponse.json({
