@@ -12,21 +12,21 @@ import { applyProductTypeDefaults } from '@/lib/product-defaults';
 
 describe('ProductCreationWizard', () => {
   describe('step 1 validation (equivalent logic)', () => {
-    // Mirrors validateRequiredFields from useProductForm.ts:
-    // name.trim() and description.trim() must be non-empty
+    // Mirrors step-1 required validation from useProductForm.ts.
+    // Description is optional and lives on the content/details step.
     function validateStep1(formData: { name: string; description: string }): boolean {
-      return formData.name.trim() !== '' && formData.description.trim() !== '';
+      return formData.name.trim() !== '';
     }
 
     it('should fail when name is empty', () => {
       expect(validateStep1({ name: '', description: 'Test' })).toBe(false);
     });
 
-    it('should fail when description is empty', () => {
-      expect(validateStep1({ name: 'Test', description: '' })).toBe(false);
+    it('should pass when description is empty', () => {
+      expect(validateStep1({ name: 'Test', description: '' })).toBe(true);
     });
 
-    it('should fail when both are empty', () => {
+    it('should fail when name is empty even if description is empty', () => {
       expect(validateStep1({ name: '', description: '' })).toBe(false);
     });
 
@@ -34,7 +34,7 @@ describe('ProductCreationWizard', () => {
       expect(validateStep1({ name: '   ', description: 'Test' })).toBe(false);
     });
 
-    it('should pass when both name and description are filled', () => {
+    it('should pass when name is filled', () => {
       expect(validateStep1({ name: 'My Product', description: 'A description' })).toBe(true);
     });
   });

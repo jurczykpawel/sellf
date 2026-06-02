@@ -995,6 +995,9 @@
     "licenseExpiredTitle": "Licencja wygasła",
     "licenseExpiredMessage": "Dostęp do zawartości jest nadal aktywny, ale ten token licencyjny wygasł. Dokończ zakup, aby rozpocząć nowy okres licencji i otrzymać świeży token.",
     "renewLicense": "Odnów licencję",
+    "supportAgainTitle": "Wesprzyj ponownie",
+    "supportAgainMessage": "Masz już dostęp do tej strony. Nadal możesz przekazać kolejne wsparcie, kiedy chcesz.",
+    "supportAgain": "Wesprzyj ponownie",
     "licenseCopy": "Kopiuj",
     "licenseCopied": "Skopiowano!"
   },

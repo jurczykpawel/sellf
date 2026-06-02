@@ -284,6 +284,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
 
   const { product: secureProduct, userAccess: secureUserAccess } = secureData;
   const licenseExpired = isLicenseExpired(secureData.license?.expiresAt);
+  const isTipJar = secureProduct.checkout_template === 'tip-jar';
 
   // Show loading state for redirect products
   if (secureProduct.content_delivery_type === 'redirect') {
@@ -456,13 +457,26 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
                 <p className="text-sm font-semibold text-sf-warning">{t('licenseExpiredTitle')}</p>
                 <p className="mt-1 text-sm text-sf-body">{t('licenseExpiredMessage')}</p>
                 <Link
-                  href={`/${locale}/checkout/${secureProduct.slug}?renew_license=1`}
+                  href={`/${locale}/checkout/${secureProduct.slug}?repurchase=1`}
                   className="mt-3 inline-flex items-center justify-center rounded-lg bg-sf-accent-bg px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sf-accent-hover active:scale-[0.98]"
                 >
                   {t('renewLicense')}
                 </Link>
               </div>
             )}
+          </div>
+        )}
+
+        {isTipJar && (
+          <div className="mb-8 rounded-xl border border-sf-accent/30 bg-sf-accent-soft p-4">
+            <p className="text-sm font-semibold text-sf-accent">{t('supportAgainTitle')}</p>
+            <p className="mt-1 text-sm text-sf-body">{t('supportAgainMessage')}</p>
+            <Link
+              href={`/${locale}/checkout/${secureProduct.slug}?repurchase=1`}
+              className="mt-3 inline-flex items-center justify-center rounded-lg bg-sf-accent-bg px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sf-accent-hover active:scale-[0.98]"
+            >
+              {t('supportAgain')}
+            </Link>
           </div>
         )}
 

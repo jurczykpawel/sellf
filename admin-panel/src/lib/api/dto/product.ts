@@ -18,7 +18,7 @@ const baseShape = {
     .max(80)
     .transform((s) => s.toLowerCase())
     .refine((s) => SLUG_RE.test(s), 'slug must be lowercase letters, digits, or hyphens'),
-  description: z.string().trim().min(1).max(5000),
+  description: z.string().trim().max(5000).optional(),
   long_description: z.string().max(20000).nullable().optional(),
   price: z.number().nonnegative().finite(),
   currency: z
@@ -92,7 +92,6 @@ export const ProductCategoriesSchema = z.array(z.string().uuid()).max(50).option
 export const ProductTagsSchema = z.array(z.string().uuid()).max(50).optional();
 
 const DATE_FIELDS = ['available_from', 'available_until', 'sale_price_until'] as const;
-type DateField = (typeof DATE_FIELDS)[number];
 
 function normaliseEmptyDates(row: Record<string, unknown>): Record<string, unknown> {
   for (const key of DATE_FIELDS) {
@@ -116,6 +115,7 @@ function normaliseSaleFields(row: Record<string, unknown>): Record<string, unkno
 
 const CREATE_DEFAULTS: Record<string, unknown> = {
   currency: 'USD',
+  description: '',
   product_type: 'one_time',
   icon: '📦',
   content_delivery_type: 'content',

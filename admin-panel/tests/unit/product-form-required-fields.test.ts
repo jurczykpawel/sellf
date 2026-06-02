@@ -85,7 +85,7 @@ describe('collectRequiredFieldErrors', () => {
     expect(errors.vat_rate).toBe('required');
   });
 
-  it('name/slug/description always required regardless of product type', () => {
+  it('name and slug are required, description is optional', () => {
     const errors = collectRequiredFieldErrors(
       { ...baseValid, name: '', slug: '', description: '' },
       '',
@@ -93,7 +93,7 @@ describe('collectRequiredFieldErrors', () => {
     );
     expect(errors.name).toBe('required');
     expect(errors.slug).toBe('required');
-    expect(errors.description).toBe('required');
+    expect(errors.description).toBeUndefined();
   });
 
   describe('tip-jar / lead-magnet skip the price requirement', () => {
@@ -110,6 +110,15 @@ describe('collectRequiredFieldErrors', () => {
       const errors = collectRequiredFieldErrors(
         { ...oneTimeBase, allow_custom_price: true, ux_product_type: 'tip-jar' as const },
         '',
+        'local',
+      );
+      expect(errors.price).toBeUndefined();
+    });
+
+    it('PWYW products do not require priceDisplayValue even if UX type was not restored', () => {
+      const errors = collectRequiredFieldErrors(
+        { ...oneTimeBase, allow_custom_price: true, ux_product_type: 'standard' as const },
+        '0',
         'local',
       );
       expect(errors.price).toBeUndefined();

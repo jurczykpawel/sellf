@@ -18,7 +18,7 @@ import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkou
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (products table)
  */
-export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, layout_template, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
+export const PRODUCT_API_FIELDS = `id, name, slug, description, long_description, icon, image_url, thumbnail_url, preview_video_url, preview_video_config, price, currency, features, layout_template, checkout_template, custom_checkout_fields, is_active, is_featured, is_listed, available_from, available_until, auto_grant_duration_days, content_delivery_type, content_config, is_refundable, refund_period_days, enable_waitlist, allow_custom_price, custom_price_min, show_price_presets, custom_price_presets, vat_rate, price_includes_vat, omnibus_exempt, sale_price, sale_price_until, sale_quantity_limit, success_redirect_url, pass_params_to_redirect, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, embed_enabled, issue_license_on_purchase, license_tier, license_duration_days, created_at, updated_at`;
 
 /**
  * SECURITY FIX (V13): Escape ILIKE special characters to prevent SQL pattern injection
@@ -74,7 +74,7 @@ export interface ValidationResult {
 export interface CreateProductInput {
   name: string;
   slug: string;
-  description: string;
+  description?: string;
   price: number;
   currency?: string;
   is_active?: boolean;
@@ -168,15 +168,17 @@ function validateName(name: unknown): ValidationResult {
 
 function validateDescription(description: unknown): ValidationResult {
   const errors: string[] = [];
-  
-  if (!description || typeof description !== 'string') {
-    errors.push('Description is required');
+
+  if (description === undefined || description === null || description === '') {
+    return { isValid: true, errors };
+  }
+
+  if (typeof description !== 'string') {
+    errors.push('Description must be a string');
   } else {
     const trimmedDescription = description.trim();
-    
-    if (trimmedDescription.length === 0) {
-      errors.push('Description cannot be empty');
-    } else if (trimmedDescription.length > 1000) {
+
+    if (trimmedDescription.length > 1000) {
       errors.push('Description must be less than 1000 characters');
     }
   }

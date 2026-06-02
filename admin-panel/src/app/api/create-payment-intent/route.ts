@@ -93,8 +93,10 @@ export async function POST(request: NextRequest) {
       customAmount,  // Pay What You Want
       customFieldValues, // Phase 3a: buyer-typed values for product.custom_checkout_fields
       renewLicense: rawRenewLicense,
+      repurchase: rawRepurchase,
     } = body;
     const renewLicense = rawRenewLicense === true;
+    const explicitRepurchase = renewLicense || rawRepurchase === true;
 
     // Normalize + validate bump IDs (supports legacy single bumpProductId)
     const { validIds: requestedBumpIds, invalidIds } = normalizeBumpIds({ bumpProductId, bumpProductIds });
@@ -205,6 +207,9 @@ export async function POST(request: NextRequest) {
     }
     const validatedCustomFieldValues = customFieldValuesResult.values;
 
+    let canRenewLicense = false;
+    let canRepurchaseTipJar = false;
+
     // 2. Check if user already has non-expired access.
     // Expired access is allowed to re-purchase — check access_expires_at.
     if (user) {
@@ -222,13 +227,14 @@ export async function POST(request: NextRequest) {
         const isExpired = expiresAt !== null && expiresAt < new Date();
         if (!isExpired) {
           const latestLicense = await findIssuedLicense(dataClient, productId, user, 'expires_at');
-          const canRenewLicense = canRenewExpiredLicenseWithActiveAccess({
-            renewLicense,
+          canRenewLicense = canRenewExpiredLicenseWithActiveAccess({
+            renewLicense: explicitRepurchase,
             productIssuesLicense: product.issue_license_on_purchase === true && product.product_type !== 'subscription',
             licenseExpiresAt: latestLicense?.expires_at,
           });
+          canRepurchaseTipJar = explicitRepurchase && product.checkout_template === 'tip-jar';
 
-          if (!canRenewLicense) {
+          if (!canRenewLicense && !canRepurchaseTipJar) {
             return NextResponse.json(
               { error: 'You already have access to this product' },
               { status: 400 }
@@ -611,7 +617,8 @@ export async function POST(request: NextRequest) {
       success_url: successUrl || '',
       custom_amount: pricing.isPwyw ? pricing.basePrice.toString() : '',
       is_pwyw: pricing.isPwyw ? 'true' : 'false',
-      renew_license: renewLicense ? 'true' : 'false',
+      renew_license: canRenewLicense ? 'true' : 'false',
+      repurchase: explicitRepurchase ? 'true' : 'false',
     };
 
     const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;

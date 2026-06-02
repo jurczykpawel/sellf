@@ -9,9 +9,7 @@
  *  - lead-magnet   → free by design; no price required
  *
  * `collectRequiredFieldErrors` returns ALL required-field errors (used at
- * submit time). `collectStep1FieldErrors` returns only step-1 fields, which
- * the wizard's "Dalej" button uses so it doesn't surface description errors
- * (description lives on step 2).
+ * submit time). Description is intentionally optional.
  */
 
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -45,7 +43,7 @@ function collectPriceErrors(
     return errors;
   }
 
-  if (uxType === 'tip-jar' || uxType === 'lead-magnet') {
+  if (formData.allow_custom_price || uxType === 'tip-jar' || uxType === 'lead-magnet') {
     return errors;
   }
 
@@ -87,7 +85,5 @@ export function collectRequiredFieldErrors(
   priceDisplayValue: string,
   taxMode: TaxMode | undefined,
 ): Record<string, string> {
-  const errors = collectStep1FieldErrors(formData, priceDisplayValue, taxMode);
-  if (!formData.description?.trim()) errors.description = 'required';
-  return errors;
+  return collectStep1FieldErrors(formData, priceDisplayValue, taxMode);
 }

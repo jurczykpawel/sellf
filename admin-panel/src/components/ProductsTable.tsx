@@ -291,10 +291,6 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             {formatRecurringProductPrice(product, locale) ?? '-'}
                           </div>
                         </div>
-                      ) : product.price === 0 ? (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
-                          {t('free')}
-                        </span>
                       ) : product.allow_custom_price ? (
                         <div className="flex flex-col items-center gap-1">
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
@@ -304,6 +300,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             {t('pwywFromLabel', { amount: formatPrice(product.custom_price_min, product.currency) })}
                           </div>
                         </div>
+                      ) : product.price === 0 ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold bg-sf-accent-soft text-sf-accent">
+                          {t('free')}
+                        </span>
                       ) : (
                         <div className="text-sm text-sf-heading">{formatPrice(product.price, product.currency)}</div>
                       )}

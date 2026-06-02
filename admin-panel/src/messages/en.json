@@ -980,6 +980,9 @@
     "licenseExpiredTitle": "License expired",
     "licenseExpiredMessage": "Your content access is still active, but this license token has expired. Complete a purchase to start a new license period and receive a fresh token.",
     "renewLicense": "Renew license",
+    "supportAgainTitle": "Support again",
+    "supportAgainMessage": "You already have access to this page. You can still make another contribution whenever you want.",
+    "supportAgain": "Support again",
     "licenseCopy": "Copy",
     "licenseCopied": "Copied!"
   },

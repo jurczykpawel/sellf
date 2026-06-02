@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { revalidateTag } from 'next/cache';
 import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
@@ -38,6 +39,12 @@ import {
   handleInvoicePaymentFailed,
 } from './subscription-handlers';
 import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
+
+function revalidatePurchaseTags(productSlug: unknown): void {
+  if (typeof productSlug !== 'string' || productSlug.length === 0) return;
+  revalidateTag('recent-supporters', { expire: 0 });
+  revalidateTag(`product:${productSlug}`, { expire: 0 });
+}
 
 /**
  * Process successful payment from checkout session.
@@ -203,10 +210,12 @@ async function handleCheckoutSessionCompleted(
     return null;
   });
 
-  const isLicenseRenewal = session.metadata?.renew_license === 'true';
+  const isExplicitRepurchase =
+    session.metadata?.repurchase === 'true' ||
+    session.metadata?.renew_license === 'true';
 
   // Trigger internal webhook for purchase.completed
-  if (!result.already_had_access || isLicenseRenewal) {
+  if (!result.already_had_access || isExplicitRepurchase) {
     // Pull buyer's custom-field answers so the webhook payload + admin UI can
     // surface them. They were written by the checkout PaymentIntent flow on
     // the same payment_transactions row keyed by session_id.
@@ -242,6 +251,7 @@ async function handleCheckoutSessionCompleted(
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
     const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
+    revalidatePurchaseTags(productSlug);
     const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
     trackServerSideConversion({
       eventName: 'Purchase',
@@ -373,10 +383,12 @@ async function handlePaymentIntentSucceeded(
     return null;
   });
 
-  const isLicenseRenewal = paymentIntent.metadata?.renew_license === 'true';
+  const isExplicitRepurchase =
+    paymentIntent.metadata?.repurchase === 'true' ||
+    paymentIntent.metadata?.renew_license === 'true';
 
   // Trigger internal webhook for purchase.completed
-  if (!result.already_had_access || isLicenseRenewal) {
+  if (!result.already_had_access || isExplicitRepurchase) {
     const { data: txCustomFields } = await supabase
       .from('payment_transactions')
       .select('custom_field_values')
@@ -407,6 +419,7 @@ async function handlePaymentIntentSucceeded(
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
     const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
+    revalidatePurchaseTags(productSlug);
     const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
     trackServerSideConversion({
       eventName: 'Purchase',

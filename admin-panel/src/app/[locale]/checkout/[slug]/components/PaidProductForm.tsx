@@ -63,6 +63,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   // Funnel test mode: admin-only visual preview (no Stripe, no backend calls)
   const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
   const renewLicense = searchParams.get('renew_license') === '1';
+  const repurchase = searchParams.get('repurchase') === '1';
+  const explicitRepurchase = renewLicense || repurchase;
 
   // Safe loading of Stripe to prevent crashes if key is missing
   const stripePromise = config.stripePublishableKey
@@ -214,6 +216,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     successUrl: searchParams.get('success_url') || null,
     customAmount: product.allow_custom_price ? customAmount : null,
     renewLicense,
+    repurchase: explicitRepurchase,
   });
 
   // Free-access flow (shared by PWYW=0 and full-discount coupons)
@@ -290,6 +293,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         customAmount: product.allow_custom_price ? customAmount : undefined,
         customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
         renewLicense,
+        repurchase: explicitRepurchase,
       }),
     })
       .then(async response => {
@@ -342,7 +346,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess, isSubscription,
-    clientSecret, bindingToken, checkoutSessionSignature, renewLicense,
+    clientSecret, bindingToken, checkoutSessionSignature, renewLicense, explicitRepurchase,
   ]);
 
   const handleSignOutAndCheckout = async () => {

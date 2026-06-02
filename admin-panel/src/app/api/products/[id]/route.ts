@@ -40,7 +40,9 @@ export async function GET(
         show_price_presets,
         enable_waitlist,
         content_delivery_type,
-        layout_template
+        layout_template,
+        checkout_template,
+        custom_checkout_fields
       `)
       .eq('id', id)
       .single();
