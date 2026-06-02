@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import FloatingToolbar from '@/components/FloatingToolbar';
@@ -35,9 +36,16 @@ export default function ProductExpiredState({ product }: ProductExpiredStateProp
         <div className="text-4xl mb-4">⏰</div>
         <h2 className="text-2xl font-semibold text-sf-heading mb-2">{t('accessExpired')}</h2>
         <p className="text-sf-muted mb-6">{t('accessExpiredMessage')}</p>
-        <div className="bg-sf-danger-soft border border-sf-danger/30 rounded-lg p-4 text-sf-danger">
+        <div className="bg-sf-danger-soft border border-sf-danger/30 rounded-lg p-4 text-sf-danger mb-6">
           <p className="text-sm">{t('canPurchaseAgain')}</p>
         </div>
+
+        <Link
+          href={`/${locale}/checkout/${product.slug}`}
+          className="inline-block bg-sf-accent hover:bg-sf-accent/90 text-white font-semibold px-8 py-3 rounded-xl transition-colors"
+        >
+          {t('purchaseAgain')} — {priceLabel}
+        </Link>
       </div>
     </div>
   );

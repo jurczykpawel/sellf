@@ -14,6 +14,7 @@
 import type Stripe from 'stripe';
 import type { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { issueLicense } from '@/lib/license-keys/issue';
 import {
   buildSubscriptionCreatedPayload,
   buildSubscriptionUpdatedPayload,
@@ -887,6 +888,17 @@ export async function handleInvoicePaid(
       console.error('[handleInvoicePaid] access grant failed:', r.reason);
       return { processed: false, message: `Access grant failed: ${r.reason}` };
     }
+
+    // Issue or refresh the license key for this billing period.
+    // orderId = invoice.id — unique per period, so each renewal gets its own
+    // token while the UNIQUE(order_id, product_id) constraint keeps it idempotent
+    // on webhook retries. Failure is non-fatal: access was already granted above.
+    await issueLicense(supabase, {
+      productId: ctx.productId,
+      email: ctx.email,
+      userId: ctx.userId,
+      orderId: invoice.id!,
+    }).catch(err => console.error('[handleInvoicePaid] License issuance failed:', err));
   }
 
   const payload = buildInvoicePaidPayload({
