@@ -121,8 +121,9 @@ test.describe('Authenticated Admin Dashboard', () => {
     await expect(modal).not.toBeVisible({ timeout: 10000 });
     await expect(row).toContainText('99');
 
-    // 3. Delete
-    await row.locator('button[title*="Delete"], button[title*="Usuń"]').first().click();
+    // 3. Delete — now in ⋯ dropdown
+    await row.locator('button[aria-label*="More actions"], button[title*="More actions"], button[aria-label*="Więcej"], button[title*="Więcej"]').first().click();
+    await page.getByRole('button', { name: /^(Delete|Usuń)$/i }).click();
     const confirmModal = page.locator('div.fixed').filter({ hasText: /Delete|Usuń|Confirm/i });
     await confirmModal.getByRole('button', { name: /Delete|Confirm|Usuń/i }).click();
     
