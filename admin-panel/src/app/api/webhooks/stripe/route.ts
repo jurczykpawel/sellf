@@ -334,12 +334,14 @@ async function handlePaymentIntentSucceeded(
       '[stripe-webhook] BUMP_METADATA_TRUNCATED | pi=%s | expected=%d | got=%d — checking pending transaction',
       paymentIntent.id, expectedBumpCount, bumpProductIds.length
     );
-    // Recover full bump list from pending transaction metadata (stored without Stripe's 500-char limit)
-    if (existingTransaction) {
+    // byPI covers checkout-session flow (row keyed by cs_xxx, linked via stripe_payment_intent_id);
+    // existingTransaction covers direct-payment flow (row keyed by pi_xxx as session_id).
+    const pendingTxRef = byPI ?? existingTransaction;
+    if (pendingTxRef) {
       const { data: pendingTx } = await supabase
         .from('payment_transactions')
         .select('metadata')
-        .eq('id', existingTransaction.id)
+        .eq('id', pendingTxRef.id)
         .single();
       const fullBumpIds = (pendingTx?.metadata as Record<string, unknown>)?.bump_product_ids_full;
       if (Array.isArray(fullBumpIds) && fullBumpIds.length >= expectedBumpCount) {
