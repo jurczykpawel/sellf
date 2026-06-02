@@ -1264,6 +1264,7 @@
       "duplicate": "Duplikuj",
       "previewRedirect": "Podgląd przekierowania",
       "openProduct": "Otwórz produkt",
+      "openProductLabel": "Otwórz stronę produktu {name}",
       "testFunnel": "Testuj lejek",
       "testFunnelLabel": "Testuj lejek dla {name}",
       "moreActions": "Więcej akcji",

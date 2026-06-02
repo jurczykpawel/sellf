@@ -422,15 +422,15 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           </svg>
                         </button>
 
-                        {/* ── Primary action 3: Delete ─────────────────────── */}
+                        {/* ── Primary action 3: Open product page ─────────── */}
                         <button
-                          onClick={() => onDeleteProduct(product)}
-                          className="p-1.5 rounded text-sf-muted hover:text-sf-danger hover:bg-sf-danger-soft transition-colors"
-                          title={t('delete')}
-                          aria-label={t('deleteLabel', { name: product.name })}
+                          onClick={() => window.open(productPath(product.slug), '_blank')}
+                          className="p-1.5 rounded text-sf-muted hover:text-sf-heading hover:bg-sf-raised transition-colors"
+                          title={t('openProduct')}
+                          aria-label={t('openProductLabel', { name: product.name })}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                         </button>
 
@@ -463,15 +463,6 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                 onClose={() => setOpenDropdownId(null)}
                                 items={[
                                   // ── View ────────────────────────────────────
-                                  {
-                                    label: t('openProduct'),
-                                    icon: (
-                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                      </svg>
-                                    ),
-                                    onClick: () => window.open(productPath(product.slug), '_blank'),
-                                  },
                                   {
                                     label: t('testFunnel'),
                                     icon: (
@@ -553,6 +544,18 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                                       </svg>
                                     ),
                                     onClick: () => onDuplicateProduct(product),
+                                  },
+                                  // ── Danger zone ──────────────────────────────
+                                  {
+                                    separator: true,
+                                    label: t('delete'),
+                                    icon: (
+                                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    ),
+                                    onClick: () => onDeleteProduct(product),
+                                    danger: true,
                                   },
                                 ]}
                               />

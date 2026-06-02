@@ -1249,6 +1249,7 @@
       "duplicate": "Duplicate",
       "previewRedirect": "Preview redirect",
       "openProduct": "Open product",
+      "openProductLabel": "Open product page for {name}",
       "testFunnel": "Test Funnel",
       "testFunnelLabel": "Test funnel for {name}",
       "moreActions": "More actions",
