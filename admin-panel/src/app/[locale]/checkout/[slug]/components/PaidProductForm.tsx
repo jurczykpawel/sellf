@@ -354,8 +354,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     }
   };
 
+  const checkoutFormClassName = layoutMode === 'embedded'
+    ? 'w-full'
+    : 'w-full lg:w-1/2 lg:pl-8';
+
   const renderCheckoutForm = () => (
-    <div className="w-full lg:w-1/2 lg:pl-8">
+    <div className={checkoutFormClassName}>
       {/* Funnel Test Banner */}
       {isFunnelTest && (
         <div className="mb-6 p-4 bg-sf-warning-soft border border-sf-warning/30 rounded-xl">
