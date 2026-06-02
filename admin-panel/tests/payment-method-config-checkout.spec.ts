@@ -22,6 +22,27 @@ const gotoPaymentsSettings = async (page: Page) => {
   await page.waitForSelector('input[type="radio"][value="automatic"]', { timeout: 20000 });
 };
 
+// Set Express Checkout config directly (singleton row id=1). The toggle UI is covered by
+// payment-method-config.spec.ts E2E-ADMIN-005; these checkout tests only need the config effect.
+const setExpressCheckoutConfig = async (opts: {
+  enabled: boolean;
+  applePay: boolean;
+  googlePay: boolean;
+  link: boolean;
+}) => {
+  const { error } = await supabaseAdmin
+    .from('payment_method_config')
+    .update({
+      config_mode: 'automatic',
+      enable_express_checkout: opts.enabled,
+      enable_apple_pay: opts.applePay,
+      enable_google_pay: opts.googlePay,
+      enable_link: opts.link,
+    })
+    .eq('id', 1);
+  if (error) throw new Error(`setExpressCheckoutConfig failed: ${error.message}`);
+};
+
 test.describe('Payment Method Configuration - Checkout Flow', () => {
   let testProductSlug: string;
   let adminEmail: string;
@@ -287,47 +308,8 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
   });
 
   test('E2E-CHECKOUT-008: Express Checkout - All enabled', async ({ page }) => {
-    // Configure Express Checkout with all options enabled
-    await loginAsAdmin(page, adminEmail, adminPassword);
-    await gotoPaymentsSettings(page);
+    await setExpressCheckoutConfig({ enabled: true, applePay: true, googlePay: true, link: true });
 
-    // Scroll to Express Checkout section
-    const expressSection = page.getByText(/Express Checkout/).first();
-    await expect(expressSection).toBeVisible({ timeout: 10000 });
-    await expressSection.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
-
-    // Enable Express Checkout master toggle
-    const masterToggle = page.getByRole('checkbox', { name: /Włącz Express Checkout|Enable Express Checkout/i });
-    if (!(await masterToggle.isChecked())) {
-      await masterToggle.check();
-    }
-
-    await page.waitForTimeout(500);
-
-    // Enable all sub-options
-    const applePayCheckbox = page.getByRole('checkbox', { name: /Apple Pay/i });
-    if (!(await applePayCheckbox.isChecked())) {
-      await applePayCheckbox.check();
-    }
-
-    const googlePayCheckbox = page.getByRole('checkbox', { name: /Google Pay/i });
-    if (!(await googlePayCheckbox.isChecked())) {
-      await googlePayCheckbox.check();
-    }
-
-    const linkCheckbox = page.getByRole('checkbox', { name: /^Link$/i });
-    if (!(await linkCheckbox.isChecked())) {
-      await linkCheckbox.check();
-    }
-
-    const saveButton = page.locator('button:has-text("Zapisz Konfigurację")');
-    await saveButton.click();
-    await expect(page.locator('text=Konfiguracja metod płatności zapisana pomyślnie')).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Visit checkout
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
     await page.waitForLoadState('domcontentloaded');
@@ -339,47 +321,8 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
   });
 
   test('E2E-CHECKOUT-009: Express Checkout - Link only', async ({ page }) => {
-    // Configure Express Checkout with only Link enabled
-    await loginAsAdmin(page, adminEmail, adminPassword);
-    await gotoPaymentsSettings(page);
+    await setExpressCheckoutConfig({ enabled: true, applePay: false, googlePay: false, link: true });
 
-    // Scroll to Express Checkout section
-    const expressSection = page.getByText(/Express Checkout/).first();
-    await expect(expressSection).toBeVisible({ timeout: 10000 });
-    await expressSection.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
-
-    // Enable Express Checkout master toggle
-    const masterToggle = page.getByRole('checkbox', { name: /Włącz Express Checkout|Enable Express Checkout/i });
-    if (!(await masterToggle.isChecked())) {
-      await masterToggle.check();
-    }
-
-    await page.waitForTimeout(500);
-
-    // Disable Apple Pay and Google Pay, enable Link
-    const applePayCheckbox = page.getByRole('checkbox', { name: /Apple Pay/i });
-    if (await applePayCheckbox.isChecked()) {
-      await applePayCheckbox.uncheck();
-    }
-
-    const googlePayCheckbox = page.getByRole('checkbox', { name: /Google Pay/i });
-    if (await googlePayCheckbox.isChecked()) {
-      await googlePayCheckbox.uncheck();
-    }
-
-    const linkCheckbox = page.getByRole('checkbox', { name: /^Link$/i });
-    if (!(await linkCheckbox.isChecked())) {
-      await linkCheckbox.check();
-    }
-
-    const saveButton = page.locator('button:has-text("Zapisz Konfigurację")');
-    await saveButton.click();
-    await expect(page.locator('text=Konfiguracja metod płatności zapisana pomyślnie')).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Visit checkout
     expect(testProductSlug).toBeTruthy();
     await page.goto(`/checkout/${testProductSlug}`);
     await page.waitForLoadState('domcontentloaded');
@@ -391,26 +334,7 @@ test.describe('Payment Method Configuration - Checkout Flow', () => {
   });
 
   test('E2E-CHECKOUT-010: Express Checkout - All disabled', async ({ page }) => {
-    // Disable Express Checkout entirely
-    await loginAsAdmin(page, adminEmail, adminPassword);
-    await gotoPaymentsSettings(page);
-
-    // Scroll to Express Checkout section
-    const expressSection = page.getByText(/Express Checkout/).first();
-    await expressSection.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
-
-    // Disable Express Checkout master toggle
-    const masterToggle = page.getByRole('checkbox', { name: /Włącz Express Checkout|Enable Express Checkout/i });
-    if (await masterToggle.isChecked()) {
-      await masterToggle.uncheck();
-    }
-
-    const saveButton = page.locator('button:has-text("Zapisz Konfigurację")');
-    await saveButton.click();
-    await expect(page.locator('text=Konfiguracja metod płatności zapisana pomyślnie')).toBeVisible({
-      timeout: 10000,
-    });
+    await setExpressCheckoutConfig({ enabled: false, applePay: false, googlePay: false, link: false });
 
     // Visit checkout — the Pay button only renders after clientSecret is set, which
     // requires /api/create-payment-intent to respond. Wait for that response directly
