@@ -22,14 +22,32 @@ interface ProductRow {
   license_duration_days: number | null;
 }
 
-function adminMock(opts: { product?: ProductRow | null; existing?: { license_key: string; kid: string; seller_id: string } | null; insert?: ReturnType<typeof vi.fn> }) {
+type LicenseRow = { license_key: string; kid: string; seller_id: string };
+
+function adminMock(opts: {
+  product?: ProductRow | null;
+  existing?: LicenseRow | null;
+  insert?: ReturnType<typeof vi.fn>;
+  raceWinner?: LicenseRow | null;
+}) {
   const insert = opts.insert ?? vi.fn().mockResolvedValue({ error: null });
+  // raceWinner: returned by the second maybeSingle on issued_licenses (post-insert re-query)
+  let licenseQueryCount = 0;
   const from = vi.fn((table: string) => {
     if (table === 'products') {
       const c = { select: () => c, eq: () => c, maybeSingle: () => Promise.resolve({ data: opts.product ?? null, error: null }) };
       return c;
     }
-    const c = { select: () => c, eq: () => c, maybeSingle: () => Promise.resolve({ data: opts.existing ?? null, error: null }), insert };
+    const c = {
+      select: () => c,
+      eq: () => c,
+      maybeSingle: () => {
+        const n = ++licenseQueryCount;
+        const data = n === 1 ? (opts.existing ?? null) : (opts.raceWinner ?? opts.existing ?? null);
+        return Promise.resolve({ data, error: null });
+      },
+      insert,
+    };
     return c;
   });
   return { from };
@@ -99,5 +117,17 @@ describe('issueLicense', () => {
     const result = await call(adminMock({ product: product(), existing, insert }));
     expect(result).toEqual({ token: 'EXISTING.TOKEN', kid: 'existingkid', sellerId: SELLER });
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('handles concurrent insert race (23505) by re-querying and returning the winner', async () => {
+    const winner: LicenseRow = { license_key: 'RACE.WINNER.TOKEN', kid: 'racekid', seller_id: SELLER };
+    const insert = vi.fn().mockResolvedValue({ error: { code: '23505', message: 'duplicate key value violates unique constraint "issued_licenses_order_id_product_id_key"' } });
+    const result = await call(adminMock({ product: product(), insert, raceWinner: winner }));
+    expect(result).toEqual({ token: 'RACE.WINNER.TOKEN', kid: 'racekid', sellerId: SELLER });
+  });
+
+  it('re-throws on non-23505 insert errors', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { code: '42501', message: 'permission denied for table issued_licenses' } });
+    await expect(call(adminMock({ product: product(), insert }))).rejects.toThrow('permission denied for table issued_licenses');
   });
 });

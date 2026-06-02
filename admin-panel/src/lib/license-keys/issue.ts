@@ -84,7 +84,22 @@ export async function issueLicense(
     license_key: token,
     expires_at: exp ? new Date(exp * 1000).toISOString() : null,
   });
-  if (error) throw new Error(`issueLicense: ${error.message}`);
+
+  if (error) {
+    // 23505 = unique_violation: concurrent webhook delivered the same event.
+    // Re-read the row inserted by the other request and return it idempotently.
+    if (error.code === '23505') {
+      const raceResult = await admin
+        .from('issued_licenses')
+        .select('license_key, kid, seller_id')
+        .eq('order_id', input.orderId)
+        .eq('product_id', input.productId)
+        .maybeSingle();
+      const winner = (raceResult.data ?? null) as { license_key: string; kid: string; seller_id: string } | null;
+      if (winner) return { token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id };
+    }
+    throw new Error(`issueLicense: ${error.message}`);
+  }
 
   return { token, kid: key.kid, sellerId: product.seller_id };
 }

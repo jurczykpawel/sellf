@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export function GET() {
   return new ImageResponse(
@@ -113,7 +113,7 @@ export function GET() {
                 gap: 6,
               }}
             >
-              <span style={{ color: '#0078BB', fontSize: 13 }}>✓</span>
+              <span style={{ color: '#0078BB', fontSize: 13 }}>+</span>
               {feat}
             </div>
           ))}
