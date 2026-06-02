@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Store, CreditCard, FileText, Wrench } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ShopSettings from './ShopSettings'
@@ -32,16 +33,13 @@ interface SettingsTabsProps {
   initialCheckoutTheme?: string | null
 }
 
-function getInitialTab(): TabId {
-  if (typeof window === 'undefined') return 'shop'
-  const params = new URLSearchParams(window.location.search)
-  return params.has('stripe_connected') || params.has('connect_return') ? 'payments' : 'shop'
-}
-
 export default function SettingsTabs({ siteUrl, initialCheckoutTheme }: SettingsTabsProps) {
   const t = useTranslations('settings')
-  // Lazy init reads URL once on first render — no effect, no cascading update.
-  const [active, setActive] = useState<TabId>(getInitialTab)
+  const searchParams = useSearchParams()
+  // useSearchParams resolves identically on server and client, so the initial tab matches SSR (no hydration mismatch).
+  const [active, setActive] = useState<TabId>(
+    searchParams.has('stripe_connected') || searchParams.has('connect_return') ? 'payments' : 'shop'
+  )
   const { demoMode } = useConfig()
   const { role } = useAuth()
 
