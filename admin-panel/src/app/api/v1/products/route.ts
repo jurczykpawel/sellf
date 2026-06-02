@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { supabase } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
+    const { supabase, admin } = await authenticate(request, [API_SCOPES.PRODUCTS_WRITE]);
 
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
     // Create product
     const { data: product, error: createError } = await supabase
       .from('products')
-      .insert([sanitizedData])
+      .insert([{ ...sanitizedData, seller_id: admin.userId }])
       .select(PRODUCT_API_FIELDS)
       .single();
 

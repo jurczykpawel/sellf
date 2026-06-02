@@ -163,6 +163,27 @@ describe('Products API v1', () => {
       createdProductIds.push(data.data!.id);
     });
 
+    it('should set seller_id to the authenticated user on creation', async () => {
+      const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {
+        name: 'Seller ID Test',
+        slug: uniqueSlug(),
+        description: 'Tests that seller_id is set',
+        price: 0,
+      });
+
+      expect(status).toBe(201);
+      const productId = data.data!.id;
+      createdProductIds.push(productId);
+
+      const { data: row } = await supabaseAdmin()
+        .from('products')
+        .select('seller_id')
+        .eq('id', productId)
+        .single();
+
+      expect(row!.seller_id).toBeTruthy();
+    });
+
     it('should create a product with all optional fields', async () => {
       const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', {
         name: 'Full Product',

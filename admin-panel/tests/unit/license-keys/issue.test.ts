@@ -57,6 +57,15 @@ describe('issueLicense', () => {
     expect(await call(adminMock({ product: null }))).toBeNull();
   });
 
+  it('returns null and warns when seller_id is null (backfill not run)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await call(adminMock({ product: product({ seller_id: null as unknown as string }) }));
+    expect(result).toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('seller_id is null'));
+    expect(vi.mocked(loadActiveSellerKey)).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('returns null when the seller has no active key', async () => {
     vi.mocked(loadActiveSellerKey).mockResolvedValue(null);
     expect(await call(adminMock({ product: product() }))).toBeNull();

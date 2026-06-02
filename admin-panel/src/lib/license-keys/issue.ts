@@ -51,7 +51,11 @@ export async function issueLicense(
     .eq('id', input.productId)
     .maybeSingle();
   const product = (productResult.data ?? null) as ProductLicenseRow | null;
-  if (!product || !product.issue_license_on_purchase || !product.seller_id) return null;
+  if (!product || !product.issue_license_on_purchase) return null;
+  if (!product.seller_id) {
+    console.warn('[issueLicense] product.seller_id is null — license skipped. Run the backfill migration to fix existing products.');
+    return null;
+  }
 
   const key = await loadActiveSellerKey(admin, product.seller_id);
   if (!key) return null;

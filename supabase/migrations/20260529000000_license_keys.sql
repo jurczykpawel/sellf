@@ -74,6 +74,18 @@ ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS license_duration_days INTEGER
     CHECK (license_duration_days IS NULL OR license_duration_days > 0);
 
+-- Backfill seller_id for products that predate the embed_checkout_mvp migration.
+-- Prefer the user flagged is_admin=true; fall back to oldest user (fresh installs
+-- where seed data bypasses the trigger that sets is_admin).
+UPDATE public.products
+SET seller_id = COALESCE(
+  (SELECT id FROM auth.users
+   WHERE (raw_user_meta_data->>'is_admin')::boolean = true
+   ORDER BY created_at LIMIT 1),
+  (SELECT id FROM auth.users ORDER BY created_at LIMIT 1)
+)
+WHERE seller_id IS NULL;
+
 -- ── Public-keys reader (the only path the public JWKS endpoint uses) ─────────
 -- SECURITY DEFINER so the public endpoint can read public keys without the
 -- table being readable by anon/authenticated — encrypted columns stay private.
