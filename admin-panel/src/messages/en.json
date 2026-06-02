@@ -546,6 +546,7 @@
     "generateCode": "Generate Code",
     "generateEmbedSnippet": "Generate embed checkout snippet",
     "generateLoginwallSnippet": "Generate login wall snippet",
+    "generateGatingSnippet": "Generate gating snippet",
     "codeGenerated": "Code Generated",
     "copyCode": "Copy Code",
     "codeCopied": "Code Copied!"
@@ -657,6 +658,20 @@
     "howItWorksBody": "A short-lived signed token is added to the URL after sign-in. The snippet checks for it on load, then strips it from the URL with history.replaceState so visitors share clean links.",
     "emptyAllowlistTitle": "No allowed origins configured",
     "emptyAllowlistBody": "The login wall will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
+    "close": "Close"
+  },
+  "gateSnippet": {
+    "title": "Generate gating snippet",
+    "subtitle": "Gate individual elements on your own page and show different content to buyers, signed-in non-buyers, and guests.",
+    "slug": "Slug",
+    "snippetLabel": "Snippet to paste in <head>",
+    "markupLabel": "Mark up the elements you want to gate",
+    "copied": "✓ Copied!",
+    "copyCode": "📋 Copy Code",
+    "howItWorksTitle": "How gating works",
+    "howItWorksBody": "On load the snippet resolves each element to the visitor's state from a short-lived signed token, then strips the token from the URL. Display and local features resolve in the browser; for real server actions, gate them on SellfGate.verify() which the server checks.",
+    "emptyAllowlistTitle": "No allowed origins configured",
+    "emptyAllowlistBody": "Gating will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
     "close": "Close"
   },
   "embedSection": {
@@ -959,7 +974,11 @@
     "loadingTimeoutTitle": "Loading is taking longer than expected",
     "loadingTimeoutMessage": "We couldn't load your product information. This could be due to a temporary connection issue.",
     "tryAgain": "Try Again",
-    "notFound": "Product Not Found"
+    "notFound": "Product Not Found",
+    "licenseKey": "License Key",
+    "licenseExpires": "Expires {date}",
+    "licenseCopy": "Copy",
+    "licenseCopied": "Copied!"
   },
   "myProducts": {
     "title": "My Products",
@@ -1192,6 +1211,7 @@
       "generateCode": "Generate Code",
       "generateEmbedSnippet": "Generate embed checkout snippet",
       "generateLoginwallSnippet": "Generate login wall snippet",
+    "generateGatingSnippet": "Generate gating snippet",
       "viewDetails": "View Details",
       "edit": "Edit",
       "delete": "Delete",
@@ -1526,6 +1546,17 @@
             "month": "Month",
             "year": "Year"
           }
+        },
+        "license": {
+          "sectionTitle": "License key",
+          "toggleLabel": "Issue a license key on purchase",
+          "toggleHint": "Buyers receive a signed, offline-verifiable license key after checkout.",
+          "tierLabel": "License tier",
+          "tierPlaceholder": "e.g. pro, team, lifetime",
+          "tierHint": "Embedded in the license so your app can gate features by plan.",
+          "durationLabel": "Validity (days)",
+          "durationPlaceholder": "Leave empty for perpetual",
+          "durationHint": "How long the license stays valid. Empty means it never expires."
         }
       }
     },
@@ -1792,7 +1823,17 @@
       "revealSecret": "Reveal Secret",
       "copySecret": "Copy Secret",
       "pageDescription": "Manage outgoing webhooks for system events.",
-      "urlPlaceholder": "https://api.zapier.com/..."
+      "urlPlaceholder": "https://api.zapier.com/...",
+      "productFilterLabel": "Product scope",
+      "scopeModeAll": "All products",
+      "scopeModeSelected": "Selected products",
+      "selectProductsLabel": "Choose products",
+      "noProductsToSelect": "No products available to select.",
+      "scopeAll": "All products",
+      "scopeSelected": "Selected ({count})",
+      "scopingLockedTitle": "Per-product scoping is a Pro feature",
+      "scopingLockedDescription": "Upgrade to Pro to limit this webhook to selected products.",
+      "scopingNonProductNote": "Events not tied to a specific product will still fire for all products, regardless of this selection."
     },
     "apiKeys": {
       "title": "API Keys",
@@ -2714,6 +2755,58 @@
       "payments": "Payments",
       "legal": "Legal",
       "system": "System"
+    },
+    "licenseKeys": {
+      "title": "License signing key",
+      "subtitle": "Sign the license keys your products issue on purchase",
+      "description": "Customers verify these keys offline using your public key. Keep the private key secret — it never leaves the server.",
+      "noKey": "No signing key yet. Generate one or upload your own to start issuing license keys.",
+      "kid": "Key ID",
+      "publicKey": "Public key (PEM)",
+      "jwksUrl": "JWKS URL",
+      "generate": "Generate key",
+      "generating": "Generating…",
+      "upload": "Upload key",
+      "uploading": "Uploading…",
+      "uploadLabel": "Paste a PEM-encoded EC P-256 private key",
+      "uploadPlaceholder": "-----BEGIN PRIVATE KEY-----",
+      "rotateWarning": "Generating or uploading a new key deactivates the current one. Licenses signed with the old key stay valid as long as its public key is published.",
+      "cancel": "Cancel",
+      "save": "Save key",
+      "howToUse": "How to use",
+      "copied": "Copied",
+      "copy": "Copy",
+      "generateSuccess": "License signing key generated",
+      "uploadSuccess": "License signing key uploaded",
+      "loadError": "Failed to load license key",
+      "actionError": "Action failed",
+      "modal": {
+        "title": "How to use license keys",
+        "subtitle": "From setup to issuing and verifying licenses in your app",
+        "flowTitle": "How it works",
+        "flowText": "When a buyer completes a purchase, Sellf signs a license token with your private key and attaches it to the purchase.completed webhook event. You forward the token to the buyer. The buyer's app verifies it offline against your public key — no round-trip to Sellf required.",
+        "setupTitle": "Setup",
+        "step1Title": "1. Generate a signing key",
+        "step1Body": "Go to Settings → License signing key and click Generate key. Sellf creates an EC P-256 keypair and stores the private key encrypted on the server. You never see or handle the private key. Alternatively, upload your own PKCS8 PEM private key.",
+        "step2Title": "2. Enable licensing on a product",
+        "step2Body": "Open a product → License section → enable Issue a license key on purchase. Optionally set a Tier (e.g. pro, basic) and an expiry in days (leave blank for perpetual).",
+        "deliveryTitle": "License delivery",
+        "deliveryBody": "Sellf does not email the license automatically. The token is added to the purchase.completed webhook payload as licenseKey. You receive it on your webhook endpoint and forward it to the buyer however you prefer — email, n8n automation, your own backend.",
+        "deliverySetup": "Set up your webhook endpoint in Settings → Webhooks, subscribe to purchase.completed.",
+        "deliveryPayloadLabel": "Webhook payload (excerpt):",
+        "verifyTitle": "Verifying a license",
+        "verifyBody": "License tokens are two base64url segments joined by a dot: payloadBase64url.signatureBase64url. The payload is a JSON object (LicenseClaims). Verify the ECDSA P-256 / SHA-256 signature, then check expiry.",
+        "verifyKidTitle": "Finding the right public key (kid)",
+        "verifyKidBody": "Each token contains a kid field. Match it against the keys from your JWKS URL to pick the correct public key. This handles key rotation automatically.",
+        "verifyJwksLabel": "Fetch public keys from JWKS URL:",
+        "verifyCodeLabel": "Verify the token (Node.js):",
+        "copiedCode": "Copied",
+        "copyCode": "Copy",
+        "rotationTitle": "Key rotation",
+        "rotationBody": "When you generate a new key, the old one is deactivated. The JWKS endpoint only serves the active key, so after rotation your app can no longer verify old tokens via JWKS.",
+        "rotationFix": "Keep the old public key hardcoded alongside the new one in your verifier so licenses issued before rotation stay valid.",
+        "close": "Close"
+      }
     }
   },
   "stripe": {

@@ -5,6 +5,7 @@ import {
   SalePriceSection,
   AvailabilitySection,
   AccessSection,
+  LicenseSection,
   EmbedSection,
   PostPurchaseSection,
   RefundSection,
@@ -155,6 +156,10 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
           omnibusEnabled={omnibusEnabled}
         />
         <EmbedSection formData={formData} setFormData={setFormData} t={t} />
+        <div>
+          <h4 className="text-sm font-medium text-sf-heading mb-2">{t('license.sectionTitle')}</h4>
+          <LicenseSection formData={formData} setFormData={setFormData} t={t} />
+        </div>
       </StepGroup>
     </div>
   );

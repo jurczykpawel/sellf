@@ -62,6 +62,10 @@ export interface ProductFormData {
   custom_price_presets: number[];
   // Embed checkout (per-product toggle)
   embed_enabled: boolean;
+  // License keys (signed JWT issued on purchase)
+  issue_license_on_purchase: boolean;
+  license_tier?: string | null;
+  license_duration_days?: number | null;
   // OTO (One-Time Offer) configuration
   oto_enabled?: boolean;
   oto_product_id?: string | null;
@@ -230,6 +234,10 @@ export const initialFormData: ProductFormData = {
   custom_price_presets: [5, 10, 25],
   // Embed checkout
   embed_enabled: false,
+  // License keys
+  issue_license_on_purchase: false,
+  license_tier: null,
+  license_duration_days: null,
   // Subscription (Phase 4 — Subscriptions MVP)
   product_type: 'one_time',
   billing_interval: null,

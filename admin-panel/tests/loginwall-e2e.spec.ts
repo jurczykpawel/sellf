@@ -163,7 +163,7 @@ test.describe('Loginwall flow', () => {
       access_expires_at: null,
     });
 
-    const url = `/loginwall/protect?id=${testProduct.id}&redirect=${encodeURIComponent('https://evil.attacker.com/phish')}`;
+    const url = `/loginwall/protect?id=${testProduct.id}&redirect=${encodeURIComponent('https://not-allowed.example.com/blocked')}`;
     const res = await page.context().request.get(url, { maxRedirects: 0 });
     expect(res.status()).toBe(400);
 

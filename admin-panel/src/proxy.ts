@@ -96,8 +96,38 @@ function hasBearerAuthorization(request: NextRequest): boolean {
   return !!auth && /^bearer\s+\S/i.test(auth)
 }
 
+// Module-level cache for the Umami connect-src origin derived from DB integrations_config.
+// A single-process Node.js deployment keeps this alive across requests; TTL handles config changes.
+let _cachedUmamiOrigin = ''
+let _umamiCacheExpiresAt = 0
+
+async function fetchUmamiConnectOrigin(): Promise<string> {
+  const now = Date.now()
+  if (now < _umamiCacheExpiresAt) return _cachedUmamiOrigin
+
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (supabaseUrl && serviceKey) {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/integrations_config?select=umami_script_url&limit=1`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+      )
+      if (res.ok) {
+        const [row] = await res.json() as Array<{ umami_script_url?: string | null }>
+        const url = row?.umami_script_url
+        _cachedUmamiOrigin = url ? new URL(url).origin : ''
+      }
+    }
+  } catch {
+    // Keep stale cached value on transient error
+  }
+  _umamiCacheExpiresAt = Date.now() + 5 * 60 * 1000
+  return _cachedUmamiOrigin
+}
+
 // Add security headers to response
-function addSecurityHeaders(response: NextResponse, nonce?: string): NextResponse {
+function addSecurityHeaders(response: NextResponse, nonce?: string, extraConnectSrc: string[] = []): NextResponse {
   // Add HSTS header unless disabled (e.g., when behind reverse proxy with SSL termination)
   if (process.env.DISABLE_HSTS !== 'true') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -105,7 +135,7 @@ function addSecurityHeaders(response: NextResponse, nonce?: string): NextRespons
   if (nonce) {
     response.headers.set(
       'Content-Security-Policy',
-      buildContentSecurityPolicyWithNonce(nonce),
+      buildContentSecurityPolicyWithNonce(nonce, { extraConnectSrc }),
     );
   }
   return response;
@@ -121,12 +151,18 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set(CSP_NONCE_HEADER, nonce)
 
+  // Resolve Umami origin from DB (cached 5 min). Done once per request so
+  // all addSecurityHeaders call sites below stay synchronous.
+  const umamiOrigin = await fetchUmamiConnectOrigin()
+  const extraConnectSrc = umamiOrigin ? [umamiOrigin] : []
+  const applyHeaders = (r: NextResponse) => addSecurityHeaders(r, nonce, extraConnectSrc)
+
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
-    return addSecurityHeaders(NextResponse.json(
+    return applyHeaders(NextResponse.json(
       { error: { code: 'DEMO_MODE', message: 'This action is disabled in demo mode' } },
       { status: 403 }
-    ), nonce);
+    ));
   }
 
   // Body size limit for API routes (1MB) — prevents large payload DoS
@@ -135,10 +171,10 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith('/api') && (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH')) {
     const contentLength = request.headers.get('content-length')
     if (contentLength && parseInt(contentLength, 10) > MAX_API_BODY_SIZE) {
-      return addSecurityHeaders(NextResponse.json(
+      return applyHeaders(NextResponse.json(
         { error: 'Request body too large' },
         { status: 413 }
-      ), nonce)
+      ))
     }
   }
 
@@ -174,12 +210,9 @@ export async function proxy(request: NextRequest) {
     )
     const { data: { user }, error: userError } = await apiSupabase.auth.getUser()
     if (!user || userError) {
-      return addSecurityHeaders(
-        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-        nonce,
-      )
+      return applyHeaders(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
     }
-    return addSecurityHeaders(apiAuthResponse, nonce)
+    return applyHeaders(apiAuthResponse)
   }
 
   // Skip proxy processing for API routes, static files, and payment success page
@@ -190,10 +223,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/test-pages') ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|js|css|html)$/)
   ) {
-    return addSecurityHeaders(
-      NextResponse.next({ request: { headers: requestHeaders } }),
-      nonce,
-    );
+    return applyHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
   // Extract locale from pathname early to determine route type
@@ -236,12 +266,12 @@ export async function proxy(request: NextRequest) {
 
   // If intl middleware redirects, return that response with security headers
   if (intlResponse.status === 302 || intlResponse.status === 301) {
-    return addSecurityHeaders(intlResponse as NextResponse, nonce)
+    return applyHeaders(intlResponse as NextResponse)
   }
 
   // Public routes (checkout, about, landing, etc.) - skip Supabase overhead
   if (!needsAuth) {
-    return addSecurityHeaders(intlResponse as NextResponse, nonce)
+    return applyHeaders(intlResponse as NextResponse)
   }
 
   // Auth-required routes: create response with cookie support
@@ -283,15 +313,15 @@ export async function proxy(request: NextRequest) {
   // Auth logic
   if (user && !userError && isLoginRoute) {
     const redirectPath = locale ? `/${locale}/dashboard` : '/dashboard'
-    return addSecurityHeaders(NextResponse.redirect(new URL(redirectPath, request.url)), nonce)
+    return applyHeaders(NextResponse.redirect(new URL(redirectPath, request.url)))
   }
 
   if ((!user || userError) && isProtectedRoute) {
     const redirectPath = locale ? `/${locale}/login` : '/login'
-    return addSecurityHeaders(NextResponse.redirect(new URL(redirectPath, request.url)), nonce)
+    return applyHeaders(NextResponse.redirect(new URL(redirectPath, request.url)))
   }
 
-  return addSecurityHeaders(response, nonce);
+  return applyHeaders(response);
 }
 
 export const config = {

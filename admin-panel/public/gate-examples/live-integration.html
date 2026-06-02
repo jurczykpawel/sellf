@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sellf element gating — deploy reference</title>
+  <style>
+    :root { --bg:#0b0f17; --panel:#141b27; --line:#243044; --text:#e6edf6; --muted:#93a1b5; --accent:#00c0b0; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text);
+      font:16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .wrap { max-width:840px; margin:0 auto; padding:2rem 1.25rem 4rem; }
+    h1 { font-size:1.5rem; margin:0 0 .25rem; } h2 { font-size:1.1rem; margin:2rem 0 .6rem; }
+    p.lead { color:var(--muted); margin:0 0 1.25rem; }
+    pre { background:#0a0e15; border:1px solid var(--line); border-radius:10px; padding:1rem;
+      overflow-x:auto; font-size:.84rem; color:#cfe3ff; font-family:ui-monospace, Menlo, monospace; }
+    code { font-family:ui-monospace, Menlo, monospace; }
+    ol { color:var(--muted); } ol b { color:var(--text); }
+    .note { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent);
+      border-radius:8px; padding:.8rem 1rem; color:var(--muted); margin:1rem 0; font-size:.9rem; }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Element gating — deploy reference</h1>
+    <p class="lead">The exact HTML to put on your own page. To see the behaviour interactively first,
+      open the <a href="./index.html">interactive demo →</a></p>
+
+    <h2>Before you start</h2>
+    <ol>
+      <li><b>Add your page’s domain</b> to the product’s allowed origins (Sellf admin → Settings → Embed).
+        Without it the gate redirect is rejected with 400.</li>
+      <li>Generate the snippet from <b>Products → ⋯ → “Generate gating snippet”</b> (it fills in your Sellf
+        origin and product slugs for you), or adapt the template below.</li>
+      <li>Replace <code>YOUR-SELLF.example</code> with your Sellf origin and the slugs with your product slugs.</li>
+    </ol>
+
+    <h2>Paste in &lt;head&gt;</h2>
+    <pre>&lt;script src="https://YOUR-SELLF.example/api/loginwall/gate.js?products=pro-kit,vip-masterclass"&gt;&lt;/script&gt;
+&lt;script&gt;!window._SF_GATE_XXXX &amp;&amp; (location.href =
+  "https://YOUR-SELLF.example/loginwall/gate?products=pro-kit,vip-masterclass&amp;redirect=" +
+  encodeURIComponent(location.href));&lt;/script&gt;
+&lt;noscript&gt;&lt;meta http-equiv="refresh"
+  content="0;url=https://YOUR-SELLF.example/loginwall/gate?products=pro-kit,vip-masterclass"&gt;&lt;/noscript&gt;</pre>
+    <div class="note">The generated snippet uses a real <code>_SF_GATE_&lt;hash&gt;</code> flag name. On its first
+      visit the page bounces once through Sellf and comes back with a signed token in the URL fragment; the runtime
+      reads it, resolves every block, and strips the token from the URL.</div>
+
+    <h2>Mark up the blocks in &lt;body&gt;</h2>
+    <p class="lead">Each gated block lists the slug and up to three branches. Anything outside a
+      <code>data-sellf-product</code> block stays public.</p>
+    <pre>&lt;!-- content that differs by visitor state --&gt;
+&lt;div data-sellf-product="pro-kit"&gt;
+  &lt;div data-has-access&gt;   …content for buyers…            &lt;/div&gt;
+  &lt;div data-no-access&gt;    …buy CTA for signed-in non-buyers… &lt;/div&gt;
+  &lt;div data-no-session&gt;   …log-in CTA for guests…         &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- a button only owners can use (in-browser work, best-effort) --&gt;
+&lt;button data-sellf-feature="pro-kit"&gt;Render captions&lt;/button&gt;</pre>
+    <div class="note"><b>Branches are optional.</b> Provide only the states you care about. If a branch is missing
+      for the current state, the runtime simply shows nothing for it.</div>
+
+    <div class="note" style="border-left-color:#e7a33e"><b>⚠️ Display gating is best-effort, not protection.</b>
+      All branch HTML — including <code>data-has-access</code> — ships in your page source and is only hidden/removed
+      in the browser. A determined visitor can read it from the page source or hand-edit the token. Use display
+      gating for UX (show the right CTA), <b>never</b> to protect secret content. Anything that must stay private or
+      costs money has to be gated <b>server-side</b> via <code>SellfGate.verify()</code> (next section) — or simply
+      not shipped to the browser at all.</div>
+
+    <h2>Gate a real backend action</h2>
+    <p class="lead">In-browser locks are best-effort (a visitor can edit their own page). For anything that runs on
+      a server or costs money, confirm access first — the server re-checks live ownership of the signed token, so it
+      can’t be faked or replayed after access is revoked.</p>
+    <pre>document.querySelector('#render-b').addEventListener('click', async () =&gt; {
+  if (await SellfGate.verify('pro-kit')) {
+    startServerRender();      // Sellf confirmed ownership server-side
+  } else {
+    location.href = '/p/pro-kit';   // send them to buy
+  }
+});</pre>
+
+    <h2>Test it</h2>
+    <ol>
+      <li><b>Guest:</b> open the page in a private window → you should see the <code>data-no-session</code> branches.</li>
+      <li><b>Signed in, no purchase:</b> sign in to Sellf, reload → <code>data-no-access</code> branches; features locked.</li>
+      <li><b>Owner:</b> with active access → <code>data-has-access</code> branches; features unlocked; the URL has no
+        <code>_sf_token</code> after load.</li>
+    </ol>
+  </div>
+</body>
+</html>

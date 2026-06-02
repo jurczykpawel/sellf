@@ -58,6 +58,12 @@ export interface PurchaseWebhookData {
    */
   customFields?: DisplayCustomField[];
   source?: string;
+  /** License issued on purchase. Present only when the product has license issuance enabled. */
+  license?: {
+    token: string;
+    kid: string;
+    jwksUrl: string;
+  };
 }
 
 export interface BuildWebhookPayloadParams {

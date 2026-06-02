@@ -27,6 +27,7 @@ export const EMBEDDABLE_RESOURCE_PATHS = [
 
 interface CspBuildOptions {
   isDev?: boolean;
+  extraConnectSrc?: string[];
 }
 
 /**
@@ -69,7 +70,7 @@ export function buildContentSecurityPolicyWithNonce(
     "font-src 'self' data:",
     "media-src 'self' blob: *.b-cdn.net",
     "frame-src js.stripe.com challenges.cloudflare.com *.youtube.com player.vimeo.com fast.wistia.net player.twitch.tv",
-    `connect-src 'self' *.supabase.co *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com *.b-cdn.net *.wistia.com *.wistia.net *.vimeo.com *.twitch.tv player.twitch.tv clips.twitch.tv${isDev ? ' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*' : ''}`,
+    `connect-src 'self' *.supabase.co wss://*.supabase.co *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com *.b-cdn.net *.wistia.com *.wistia.net *.vimeo.com *.twitch.tv player.twitch.tv clips.twitch.tv${opts.extraConnectSrc?.length ? ' ' + opts.extraConnectSrc.join(' ') : ''}${isDev ? ' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*' : ''}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

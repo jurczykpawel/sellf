@@ -162,7 +162,7 @@ export async function emitRefundIssuedWebhook(input: Parameters<typeof buildRefu
   }
 
   const payload = await buildRefundIssuedPayloadFromTransaction(input);
-  WebhookService.trigger('refund.issued', payload, input.supabaseClient)
+  WebhookService.trigger('refund.issued', payload, input.supabaseClient, payload.product.id)
     .catch((error) => console.error('[refund-webhook] Failed to dispatch refund.issued:', error));
   return true;
 }

@@ -486,6 +486,64 @@ plain static page.
 invalidates every in-flight token immediately; the next visit just goes through
 `/loginwall/protect` again and gets a fresh one.
 
+### License keys (sell licensed digital products)
+
+Sellers can issue ECDSA-signed license tokens to buyers on purchase, verified
+**offline** with the seller's public key (no callback at verify time). Distinct
+from `src/lib/license/verify.ts`, which licenses Sellf-the-product itself.
+
+**Flow:** a seller turns on "Issue a license key on purchase" per product
+(Settings → System holds their keypair; products carry `issue_license_on_purchase`,
+`license_tier`, `license_duration_days`). On a completed Stripe purchase the webhook
+calls `issueLicense`, which signs a token (`payloadB64url.sigB64url`, claims
+`{v,kid,product,email,order,tier,iat,exp}`) and records it in `issued_licenses`
+(idempotent per order). The token rides on the `purchase.completed` webhook payload
+(`licenseKey`) for delivery. Buyers verify it against the seller's public keys from
+`GET /api/licenses/jwks?seller=<id>`.
+
+**Custody (both supported):** `managed` — Sellf generates the keypair; `byok` — the
+seller uploads their own private key. Private keys are encrypted at rest with
+`APP_ENCRYPTION_KEY` (same mechanism as Stripe secrets) and never leave the service
+role; the public-keys endpoint reads only public material via a `SECURITY DEFINER`
+function. Issuance never breaks the payment webhook (fail-safe, logged).
+
+**Pieces:** `src/lib/license-keys/{format,keys,issue,sdk}.ts`, `src/app/api/licenses/jwks/route.ts`,
+`src/lib/actions/license-config.ts`, `src/components/ProductFormModal/sections/LicenseSection.tsx` +
+`src/components/settings/LicenseKeysSettings.tsx`, migration `20260529000000_license_keys.sql`.
+`verifySellfLicense` (`sdk.ts`) is the reference offline verifier sellers can copy.
+### Element gating (per-element content + features)
+
+Where the login wall gates a whole page, **element gating** lets a seller gate
+individual elements on their own page and show different content per visitor
+state — buyer, signed-in non-buyer, and guest. It shares the login-wall token
+mechanism (same `LOGINWALL_SECRET`, same fragment handoff, same embed allowlist).
+
+**Flow:** the seller pastes the gating snippet (Products menu → "Generate gating
+snippet"). On load it sends the visitor through `/loginwall/gate?products=…` which —
+unlike the whole-page wall — never bounces; it always returns to the page with a
+signed multi-product state token in the URL fragment. The runtime at
+`/api/loginwall/gate.js` reads the token, resolves each gated element, and strips
+the token from the URL.
+
+**Markup contract** (per gated block): `[data-sellf-product="<slug>"]` wrapping any
+of `[data-has-access]`, `[data-no-access]`, `[data-no-session]`; the runtime keeps
+the branch matching the visitor's state and removes the others (CSS hides everything
+until resolved to avoid a flash). `[data-sellf-feature="<slug>"]` controls are enabled
+only for owners. For an action that runs on a backend, gate it on
+`SellfGate.verify(slug)` (POST to `/api/loginwall/verify`): the token authenticates
+identity and the server **re-reads live access** (`user_product_access`), so a revoked
+or expired grant is denied immediately rather than after the token TTL. Display and
+in-browser features resolve client-side from the token and are best-effort.
+
+**Pieces:**
+
+- Token: `src/lib/loginwall/token.ts` — `signGateToken`/`verifyGateToken`/`parseGatePayload` (v2, multi-product + auth flag) alongside the v1 login-wall token.
+- Shared request helpers: `src/lib/loginwall/request.ts` (redirect parsing, origin, allowlist) — used by both `protect` and `gate`.
+- Snippet + runtime builders: `src/lib/loginwall/gate-snippet.ts`.
+- Routes: `src/app/[locale]/loginwall/gate/route.ts`, `src/app/api/loginwall/gate.js/route.ts`, `src/app/api/loginwall/verify/route.ts`.
+- Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
+- Examples: `public/gate-examples/index.html` (self-contained interactive demo of all states/features) and `public/gate-examples/live-integration.html` (deploy-ready snippet + markup reference).
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

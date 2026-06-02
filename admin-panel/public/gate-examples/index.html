@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sellf element gating — interactive demo</title>
+  <style>
+    :root {
+      --bg:#0b0f17; --panel:#141b27; --line:#243044; --text:#e6edf6; --muted:#93a1b5;
+      --accent:#00c0b0; --accent-bg:#0a8f84; --ok:#2ecc8f; --ok-bg:#103127; --lock:#6b7787; --lock-bg:#1b2230;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text);
+      font:16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .wrap { max-width:880px; margin:0 auto; padding:2rem 1.25rem 4rem; }
+    h1 { font-size:1.6rem; margin:0 0 .25rem; } h2 { font-size:1.15rem; margin:2.25rem 0 .75rem; }
+    h3 { margin:.2rem 0; } p.lead { color:var(--muted); margin:0 0 1.5rem; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.25rem; margin:.75rem 0; }
+    .muted { color:var(--muted); } a { color:var(--accent); }
+    code,pre { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+    pre { background:#0a0e15; border:1px solid var(--line); border-radius:10px; padding:1rem; overflow-x:auto; font-size:.85rem; color:#cfe3ff; }
+
+    /* hide the radio inputs; labels are the visible switch */
+    .role-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+    .roles { position:sticky; top:0; z-index:5; display:flex; gap:.5rem; flex-wrap:wrap;
+      background:var(--bg); padding:1rem 0; border-bottom:1px solid var(--line); margin-bottom:1rem; }
+    .roles label { cursor:pointer; border:1px solid var(--line); background:var(--panel);
+      color:var(--text); padding:.55rem .9rem; border-radius:999px; font-size:.9rem; }
+    #role-owner:checked  ~ .roles label[for="role-owner"],
+    #role-member:checked ~ .roles label[for="role-member"],
+    #role-guest:checked  ~ .roles label[for="role-guest"] {
+      background:var(--accent-bg); border-color:var(--accent); color:#fff; font-weight:600; }
+    .pill { align-self:center; margin-left:auto; font-size:.8rem; color:var(--muted); font-family:ui-monospace, Menlo, monospace; }
+    .pill::after { content:"token: { auth: true, owned: [\"pro-kit\"] }"; }
+    #role-member:checked ~ .roles .pill::after { content:"token: { auth: true, owned: [] }"; }
+    #role-guest:checked  ~ .roles .pill::after { content:"token: { auth: false, owned: [] }"; }
+
+    /* ---- the gate CSS state machine: same markup as production; the visible branch is driven by the visitor ---- */
+    [data-sellf-product] [data-has-access],
+    [data-sellf-product] [data-no-access],
+    [data-sellf-product] [data-no-session] { display:none; }
+    #role-owner:checked  ~ #blocks [data-sellf-product="pro-kit"]         [data-has-access] { display:block; }
+    #role-owner:checked  ~ #blocks [data-sellf-product="vip-masterclass"] [data-no-access]  { display:block; }
+    #role-member:checked ~ #blocks [data-sellf-product] [data-no-access]  { display:block; }
+    #role-guest:checked  ~ #blocks [data-sellf-product] [data-no-session] { display:block; }
+
+    .branch { border-radius:10px; padding:1rem 1.1rem; }
+    [data-has-access] { background:var(--ok-bg); border:1px solid var(--ok); }
+    [data-no-access], [data-no-session] { background:var(--lock-bg); border:1px solid var(--line); }
+    .tag { display:inline-block; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase;
+      padding:.15rem .5rem; border-radius:6px; margin-bottom:.5rem; }
+    .tag.ok { background:var(--ok); color:#04150f; } .tag.no { background:var(--lock); color:#0b0f17; }
+
+    /* feature controls: locked by default, unlocked for owners of that slug */
+    .feat { display:inline-flex; align-items:center; gap:.5rem; border-radius:8px; padding:.55rem .9rem;
+      font-size:.95rem; border:1px solid var(--line); background:var(--lock-bg); color:var(--lock); }
+    .feat .unlock { display:none; } .feat .lock { display:inline; }
+    #role-owner:checked ~ #blocks .feat[data-sellf-feature="pro-kit"] {
+      background:var(--accent-bg); border-color:var(--accent); color:#fff; }
+    #role-owner:checked ~ #blocks .feat[data-sellf-feature="pro-kit"] .unlock { display:inline; }
+    #role-owner:checked ~ #blocks .feat[data-sellf-feature="pro-kit"] .lock { display:none; }
+
+    .verdict span { display:none; } .verdict .no { display:block; }
+    #role-owner:checked ~ #blocks .verdict .no { display:none; }
+    #role-owner:checked ~ #blocks .verdict .ok { display:block; }
+    .verdict .ok { color:var(--ok); } .verdict .no { color:var(--lock); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sellf element gating — interactive demo</h1>
+    <p class="lead">Gate parts of a page and show different content per visitor. Pick a visitor below and watch
+      every block react — this page is self-contained (no backend) so you can see all the states.
+      <a href="./live-integration.html">See the real snippet to deploy →</a></p>
+
+    <!-- visitor switch (CSS-only; the real runtime sets this state from a signed token) -->
+    <input class="role-input" type="radio" name="role" id="role-owner" checked />
+    <input class="role-input" type="radio" name="role" id="role-member" />
+    <input class="role-input" type="radio" name="role" id="role-guest" />
+    <div class="roles">
+      <label for="role-owner">👑 Owner of “Pro Kit”</label>
+      <label for="role-member">🙋 Signed in, no purchase</label>
+      <label for="role-guest">🕶️ Not signed in</label>
+      <span class="pill"></span>
+    </div>
+
+    <div id="blocks">
+      <!-- 1 · three states, one block -->
+      <h2>1 · Three states, one block</h2>
+      <p class="muted">Wrap a block in <code>data-sellf-product="&lt;slug&gt;"</code> and add up to three branches.
+        Exactly one is shown.</p>
+      <div class="card" data-sellf-product="pro-kit">
+        <div class="branch" data-has-access>
+          <span class="tag ok">has access</span>
+          <h3>Welcome back 👋 — here’s your Pro Kit</h3>
+          <p class="muted">The real content for people who own this product.</p>
+        </div>
+        <div class="branch" data-no-access>
+          <span class="tag no">no access</span>
+          <h3>Unlock the Pro Kit</h3>
+          <p class="muted">Shown to signed-in visitors who don’t own it — your buy CTA goes here.</p>
+        </div>
+        <div class="branch" data-no-session>
+          <span class="tag no">no session</span>
+          <h3>Sign in to continue</h3>
+          <p class="muted">Shown to visitors with no Sellf session — your log-in CTA goes here.</p>
+        </div>
+      </div>
+
+      <!-- 2 · many products, independent -->
+      <h2>2 · Many products on one page</h2>
+      <p class="muted">Each block resolves on its own. The “Owner of Pro Kit” visitor does <em>not</em> own this one.</p>
+      <div class="card" data-sellf-product="vip-masterclass">
+        <div class="branch" data-has-access>
+          <span class="tag ok">has access</span><p>VIP masterclass video plays here.</p>
+        </div>
+        <div class="branch" data-no-access>
+          <span class="tag no">no access</span><p>You own Pro Kit but not the VIP masterclass — upgrade CTA here.</p>
+        </div>
+        <div class="branch" data-no-session>
+          <span class="tag no">no session</span><p>Sign in to see your VIP status.</p>
+        </div>
+      </div>
+
+      <!-- 3 · feature gating -->
+      <h2>3 · Gate a feature (in-browser work)</h2>
+      <p class="muted">Add <code>data-sellf-feature="&lt;slug&gt;"</code> to a control. Owners get it enabled;
+        everyone else gets it locked. Best for work that runs locally (e.g. rendering captions in the browser).</p>
+      <div class="card">
+        <span class="feat" data-sellf-feature="pro-kit">Render captions — <span class="lock">🔒 locked</span><span class="unlock">✓ enabled</span></span>
+      </div>
+
+      <!-- 4 · server-enforced action -->
+      <h2>4 · Gate a real backend action</h2>
+      <p class="muted">In-browser locks are best-effort. For an action that costs money or runs on a server,
+        confirm access with <code>SellfGate.verify(slug)</code> first — the server checks the signed token, so it
+        can’t be faked from the browser.</p>
+      <div class="card">
+        <p class="muted" style="margin:0 0 .4rem">What <code>SellfGate.verify('pro-kit')</code> returns for this visitor:</p>
+        <p class="verdict" style="margin:0">
+          <span class="ok">✅ verified server-side — run the paid action</span>
+          <span class="no">🔒 denied — show the upgrade dialog instead</span>
+        </p>
+        <pre style="margin-top:1rem">if (await SellfGate.verify('pro-kit')) {
+  runExpensiveThing();        // server already confirmed ownership
+} else {
+  showUpgradeDialog();
+}</pre>
+      </div>
+
+      <h2>The snippet behind all of this</h2>
+      <p class="muted">In production you set no state yourself — you paste one snippet and Sellf adds the right
+        state to each block from the visitor’s signed access token.
+        <a href="./live-integration.html">Full deploy-ready example →</a></p>
+      <pre>&lt;!-- in &lt;head&gt; --&gt;
+&lt;script src="https://YOUR-SELLF.example/api/loginwall/gate.js?products=pro-kit,vip-masterclass"&gt;&lt;/script&gt;
+&lt;script&gt;!window._SF_GATE_XXXX &amp;&amp; (location.href =
+  "https://YOUR-SELLF.example/loginwall/gate?products=pro-kit,vip-masterclass&amp;redirect=" +
+  encodeURIComponent(location.href));&lt;/script&gt;</pre>
+      <p class="muted" style="font-size:.85rem">This demo switches visitors with pure CSS so you can explore every
+        state. In production the runtime resolves each visitor from their signed token and removes the inactive
+        branches from the page. Note: all branch HTML still ships in the page source, so display gating is
+        best-effort UX — protect anything sensitive or paid <em>server-side</em> via <code>SellfGate.verify()</code>
+        (section 4), never by display state alone.</p>
+    </div>
+  </div>
+</body>
+</html>

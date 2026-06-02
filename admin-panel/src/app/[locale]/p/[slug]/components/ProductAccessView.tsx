@@ -24,6 +24,11 @@ export interface SecureProductResponse {
   branding?: {
     shop_name: string | null;
   };
+  license?: {
+    token: string;
+    issuedAt: string;
+    expiresAt: string | null;
+  } | null;
 }
 
 interface ProductAccessViewProps {
@@ -47,6 +52,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
   
   const [showConfetti, setShowConfetti] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [licenseCopied, setLicenseCopied] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [secureData, setSecureData] = useState<SecureProductData | null>(initialSecureData ?? null);
   const [loading, setLoading] = useState(!initialSecureData);
@@ -397,6 +403,52 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
             </div>
           )}
         </div>
+
+        {/* License key */}
+        {secureData.license && (
+          <div className="mb-8 p-4 rounded-xl border border-sf-accent/30 bg-sf-accent-soft">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-sf-accent">
+                {t('licenseKey')}
+              </span>
+              {secureData.license.expiresAt && (
+                <span className="text-xs text-sf-muted">
+                  {t('licenseExpires', { date: formatDate(secureData.license.expiresAt) })}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs font-mono break-all text-sf-body bg-sf-base rounded-lg px-3 py-2 select-all">
+                {secureData.license.token}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(secureData.license!.token);
+                  setLicenseCopied(true);
+                  setTimeout(() => setLicenseCopied(false), 2000);
+                }}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-sf-accent-bg hover:bg-sf-accent-hover text-white transition-colors active:scale-[0.98]"
+              >
+                {licenseCopied ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {t('licenseCopied')}
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    {t('licenseCopy')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Content section label */}
         {contentItems.length > 0 && (

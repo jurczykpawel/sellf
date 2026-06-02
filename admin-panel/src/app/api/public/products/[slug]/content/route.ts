@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
 
@@ -87,6 +88,21 @@ export async function GET(
     const shopConfig = await getShopConfig();
     const shopName = shopConfig?.shop_name ?? null;
 
+    // Fetch license for this product if one was issued to this user.
+    // issued_licenses is service-role only — must use admin client.
+    const admin = createAdminClient();
+    const { data: licenseRow } = await admin
+      .from('issued_licenses')
+      .select('license_key, issued_at, expires_at')
+      .eq('product_id', productWithAccess.id)
+      .or(`user_id.eq.${user.id},and(user_id.is.null,email.eq.${user.email})`)
+      .order('issued_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const license = licenseRow
+      ? { token: licenseRow.license_key, issuedAt: licenseRow.issued_at, expiresAt: licenseRow.expires_at ?? null }
+      : null;
+
     // Return secure product data with computed access status
     return NextResponse.json({
       product: {
@@ -107,6 +123,7 @@ export async function GET(
       branding: {
         shop_name: shopName,
       },
+      license,
       userAccess: {
         access_expires_at: userAccess.access_expires_at,
         access_duration_days: userAccess.access_duration_days,

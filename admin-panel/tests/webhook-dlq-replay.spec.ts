@@ -5,6 +5,7 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
   test.describe.configure({ mode: 'serial' });
 
   let endpointId: string;
+  let endpointUrl: string;
   let logId: string;
   let cleanupAdmin: (() => Promise<void>) | null = null;
   let adminEmail: string;
@@ -13,10 +14,11 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
   test.beforeAll(async () => {
     const random = Math.random().toString(36).slice(2, 8);
 
+    endpointUrl = `https://example.com/dlq-ui-${random}`;
     const { data: endpoint, error } = await supabaseAdmin
       .from('webhook_endpoints')
       .insert({
-        url: `https://example.com/dlq-ui-${random}`,
+        url: endpointUrl,
         events: ['purchase.completed'],
         is_active: true,
         secret: `whsec_test_${random}`,
@@ -67,15 +69,17 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
       timeout: 10000,
     });
 
-    // Default filter is permanently_failed; the row should appear.
-    const row = page.locator('tr', { hasText: 'purchase.completed' }).first();
+    // Default filter is permanently_failed. Scope to OUR row by the unique endpoint
+    // URL (the endpoint column renders it) — other specs / accumulated runs leave their
+    // own permanently_failed purchase.completed rows, so a global match is racy.
+    const row = page.locator('tr', { hasText: endpointUrl });
     await expect(row).toBeVisible({ timeout: 10000 });
     await expect(row.locator('text=DLQ').first()).toBeVisible();
 
     await row.getByRole('button', { name: /Powtórz|Replay/i }).click();
 
-    // After replay, the row leaves the permanently_failed filter view.
-    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(0, { timeout: 10000 });
+    // After replay, OUR row leaves the permanently_failed filter view.
+    await expect(page.locator('tr', { hasText: endpointUrl })).toHaveCount(0, { timeout: 10000 });
 
     const { data: updated } = await supabaseAdmin
       .from('webhook_logs')
@@ -93,6 +97,7 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
   test.describe.configure({ mode: 'serial' });
 
   let endpointId: string;
+  let endpointUrl: string;
   const batchLogIds: string[] = [];
   let cleanupAdmin: (() => Promise<void>) | null = null;
   let adminEmail: string;
@@ -101,10 +106,11 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
   test.beforeAll(async () => {
     const random = Math.random().toString(36).slice(2, 8);
 
+    endpointUrl = `https://example.com/dlq-batch-${random}`;
     const { data: endpoint, error } = await supabaseAdmin
       .from('webhook_endpoints')
       .insert({
-        url: `https://example.com/dlq-batch-${random}`,
+        url: endpointUrl,
         events: ['purchase.completed'],
         is_active: true,
         secret: `whsec_batch_${random}`,
@@ -154,8 +160,9 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 
-    // Wait for the 3 rows to be visible
-    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(3, {
+    // Wait for OUR 3 rows to be visible (scope by unique endpoint URL — accumulated
+    // permanently_failed rows from other specs/runs must not inflate the count).
+    await expect(page.locator('tr', { hasText: endpointUrl })).toHaveCount(3, {
       timeout: 10000,
     });
 
@@ -164,14 +171,16 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
     await expect(selectAll).toBeVisible();
     await selectAll.check();
 
-    // Toolbar: Replay button shows count of DLQ-eligible items (3), others disabled
-    const batchReplayBtn = page.getByRole('button', { name: /Powtórz \(3\)|Replay \(3\)/i });
+    // Toolbar: Replay shows count of DLQ-eligible items. select-all selects ours + any
+    // accumulated DLQ rows, so the count is >= our 3 — assert the pattern, not an exact
+    // number (the DB check below verifies OUR 3 rows specifically).
+    const batchReplayBtn = page.getByRole('button', { name: /Powtórz \(\d+\)|Replay \(\d+\)/i });
     await expect(batchReplayBtn).toBeVisible();
     await expect(batchReplayBtn).toBeEnabled();
 
     const batchForceRetryBtn = page.getByRole('button', { name: /Ponów teraz|Retry now/i });
     await expect(batchForceRetryBtn).toBeDisabled();
-    const batchCancelBtn = page.getByRole('button', { name: /Anuluj \(0\)|Cancel \(0\)/i });
+    const batchCancelBtn = page.getByRole('button', { name: /Anuluj|Cancel/i });
     await expect(batchCancelBtn).toBeDisabled();
 
     await batchReplayBtn.click();
@@ -182,8 +191,8 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
     await expect(modal).toContainText(/Wznowić ponawianie|Re-queue/i);
     await modal.getByRole('button', { name: /^Powtórz$|^Replay$/i }).click();
 
-    // After batch replay, no DLQ rows remain in the default filter view
-    await expect(page.locator('tr', { hasText: 'purchase.completed' })).toHaveCount(0, {
+    // After batch replay, OUR DLQ rows no longer appear in the default filter view.
+    await expect(page.locator('tr', { hasText: endpointUrl })).toHaveCount(0, {
       timeout: 15000,
     });
 

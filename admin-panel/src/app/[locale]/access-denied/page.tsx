@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { Shield, Home, LogOut } from 'lucide-react'
+import { EmailText } from '@/components/ui/EmailText'
 
 export default function AccessDenied() {
   const { signOut, user } = useAuth()
@@ -28,7 +29,7 @@ export default function AccessDenied() {
         {user && (
           <div className="mb-6 p-4 bg-sf-float rounded-lg border border-sf-border">
             <p className="text-sm text-sf-body">
-              Logged in as: <span className="font-semibold text-sf-heading">{user.email}</span>
+              Logged in as: <EmailText email={user.email} className="font-semibold text-sf-heading" />
             </p>
           </div>
         )}

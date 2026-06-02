@@ -33,6 +33,32 @@ const VISUAL_TESTS = [
   '**/visual-pages.spec.ts',
 ];
 
+// Route-dense specs (>=12 page.goto each) that force Turbopack to compile a large slice
+// of the app's route graph. Clustering several of these on one dev server is what trips
+// Next's memory auto-restart (see scripts/run-pw-sharded.sh). Split into the dedicated
+// `chromium-heavy` project so the sharded runner can give them their own fresh servers.
+// NOTE: tests/smoke/critical-paths.spec.ts is also route-dense but stays in `chromium`
+// so `bun run test:smoke` (playwright test tests/smoke --project=chromium) keeps working.
+const HEAVY_SPECS = [
+  '**/variants-admin-ui.spec.ts',
+  '**/tracking-events.spec.ts',
+  '**/variants-selector.spec.ts',
+  '**/pwyw-free-option.spec.ts',
+  '**/pwyw-checkout-ui.spec.ts',
+  '**/payment-access-flow.spec.ts',
+  '**/refund-system.spec.ts',
+  '**/waitlist.spec.ts',
+  '**/storefront-landing.spec.ts',
+  '**/pwyw-admin.spec.ts',
+  '**/integrations.spec.ts',
+  '**/checkout-payment-e2e.spec.ts',
+  '**/payment-method-config-checkout.spec.ts',
+  '**/api-keys-ui.spec.ts',
+  '**/variants-e2e.spec.ts',
+  '**/payment-flow-complete.spec.ts',
+  '**/multi-order-bump-access.spec.ts',
+];
+
 export default defineConfig({
   testDir: './tests',
   /* Only run .spec.ts files (exclude .test.ts which are for Vitest) */
@@ -64,8 +90,15 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      // Rate-limiting, visual, and accessibility tests are excluded here
-      testIgnore: ['**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts'],
+      // Rate-limiting, visual, accessibility, and route-heavy specs are excluded here
+      testIgnore: ['**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS],
+    },
+    {
+      // Route-dense specs split off so the sharded runner can isolate them on their own
+      // fresh dev servers (keeps peak RSS down -> no Next memory auto-restart).
+      name: 'chromium-heavy',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: HEAVY_SPECS,
     },
     {
       name: 'rate-limiting',

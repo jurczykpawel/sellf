@@ -5,6 +5,8 @@ export interface WebhookEndpoint {
   description?: string;
   is_active: boolean;
   secret: string;
+  product_filter_mode: 'all' | 'selected';
+  product_ids?: string[];
   created_at: string;
 }
 

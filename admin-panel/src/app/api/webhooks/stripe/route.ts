@@ -21,6 +21,7 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { issueLicense } from '@/lib/license-keys/issue';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
@@ -209,6 +210,25 @@ async function handleCheckoutSessionCompleted(
       customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
+    // Issue a license if the product is configured for it. Never let issuance
+    // failure break the payment webhook — log and continue.
+    const licenseResult = await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      // Prefer the payment-intent id so both webhook completion paths key the
+      // license ledger on the same purchase-stable id (the UNIQUE(order_id,
+      // product_id) constraint then backs up cross-path idempotency).
+      orderId: stripePaymentIntentId || sessionId,
+    }).catch((err) => {
+      console.error('[Stripe Webhook] License issuance failed:', err);
+      return null;
+    });
+    if (licenseResult) {
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+      webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
+    }
+
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
@@ -230,7 +250,7 @@ async function handleCheckoutSessionCompleted(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData, supabase)
+    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...bumpProductIds])
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
@@ -352,6 +372,22 @@ async function handlePaymentIntentSucceeded(
       customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
+    // Issue a license if the product is configured for it. Never let issuance
+    // failure break the payment webhook — log and continue.
+    const licenseResult = await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      orderId: paymentIntent.id,
+    }).catch((err) => {
+      console.error('[Stripe Webhook] License issuance failed:', err);
+      return null;
+    });
+    if (licenseResult) {
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+      webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
+    }
+
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
     const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
@@ -372,7 +408,7 @@ async function handlePaymentIntentSucceeded(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData, supabase)
+    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...bumpProductIds])
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 

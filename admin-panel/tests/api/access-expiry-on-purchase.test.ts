@@ -53,6 +53,21 @@ interface CreatedProduct {
   auto_grant_duration_days: number | null;
 }
 
+// Retry transient PostgREST/Kong gateway blips (5xx / "invalid response from upstream") that hit setup inserts under load.
+async function withGatewayRetry<T>(
+  label: string,
+  op: () => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    const { data, error } = await op();
+    if (!error) return data as T;
+    if (attempt >= 4 || !/upstream|fetch failed|ECONNRESET|ETIMEDOUT|timeout|50[234]/i.test(error.message)) {
+      throw new Error(`${label} failed: ${error.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 250 * attempt));
+  }
+}
+
 async function createProduct(opts: {
   suffix: string;
   price?: number;
@@ -60,20 +75,21 @@ async function createProduct(opts: {
 }): Promise<CreatedProduct> {
   const slug = `expiry-rpc-${opts.suffix}-${TEST_ID}`;
   const price = opts.price ?? 10;
-  const { data, error } = await supabaseAdmin
-    .schema('public' as never)
-    .from('products')
-    .insert({
-      name: `Expiry RPC ${opts.suffix}`,
-      slug,
-      price,
-      currency: 'USD',
-      is_active: true,
-      auto_grant_duration_days: opts.autoGrantDurationDays,
-    })
-    .select('id')
-    .single();
-  if (error) throw new Error(`createProduct(${opts.suffix}) failed: ${error.message}`);
+  const data = await withGatewayRetry<{ id: string }>(`createProduct(${opts.suffix})`, () =>
+    supabaseAdmin
+      .schema('public' as never)
+      .from('products')
+      .insert({
+        name: `Expiry RPC ${opts.suffix}`,
+        slug,
+        price,
+        currency: 'USD',
+        is_active: true,
+        auto_grant_duration_days: opts.autoGrantDurationDays,
+      })
+      .select('id')
+      .single(),
+  );
   return { id: data.id, slug, price, auto_grant_duration_days: opts.autoGrantDurationDays };
 }
 
@@ -82,19 +98,20 @@ async function createOrderBump(opts: {
   bumpProductId: string;
   accessDurationDays: number | null;
 }): Promise<string> {
-  const { data, error } = await supabaseAdmin
-    .schema('public' as never)
-    .from('order_bumps')
-    .insert({
-      main_product_id: opts.mainProductId,
-      bump_product_id: opts.bumpProductId,
-      bump_title: `Test bump ${opts.bumpProductId.slice(0, 8)}`,
-      is_active: true,
-      access_duration_days: opts.accessDurationDays,
-    })
-    .select('id')
-    .single();
-  if (error) throw new Error(`createOrderBump failed: ${error.message}`);
+  const data = await withGatewayRetry<{ id: string }>('createOrderBump', () =>
+    supabaseAdmin
+      .schema('public' as never)
+      .from('order_bumps')
+      .insert({
+        main_product_id: opts.mainProductId,
+        bump_product_id: opts.bumpProductId,
+        bump_title: `Test bump ${opts.bumpProductId.slice(0, 8)}`,
+        is_active: true,
+        access_duration_days: opts.accessDurationDays,
+      })
+      .select('id')
+      .single(),
+  );
   return data.id;
 }
 
