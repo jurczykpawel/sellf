@@ -62,16 +62,23 @@ async function handleCheckoutSessionCompleted(
     return { processed: false, message: 'Missing product_id or customer_email in session' };
   }
 
+  const userId = session.metadata?.user_id || null;
+
   // Idempotency check: Skip only if already completed (not pending).
   // Checkout Sessions Elements creates a pending row before payment; the webhook
   // must still process it and attach the eventual PaymentIntent ID.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
-    .select('id, status')
+    .select('id, status, stripe_payment_intent_id')
     .eq('session_id', sessionId)
     .maybeSingle();
 
   if (existingTransaction?.status === 'completed') {
+    // Still try to issue license — covers purchases made before license feature was deployed.
+    // issueLicense is idempotent by (order_id, product_id), so this is safe to call on replay.
+    const tx = existingTransaction as { id: string; status: string; stripe_payment_intent_id: string | null };
+    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: tx.stripe_payment_intent_id || sessionId })
+      .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
@@ -81,7 +88,6 @@ async function handleCheckoutSessionCompleted(
   const hasBump = session.metadata?.has_bump === 'true';
   const couponId = session.metadata?.coupon_id || null;
   const hasCoupon = session.metadata?.has_coupon === 'true';
-  const userId = session.metadata?.user_id || null;
 
   // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
   let bumpProductIds: string[] = bumpProductIdsStr
@@ -182,6 +188,19 @@ async function handleCheckoutSessionCompleted(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
+  // Issue license — always, regardless of already_had_access.
+  // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
+  // Prefer payment-intent id: both webhook paths use it so the unique constraint backs idempotency.
+  const licenseResult = await issueLicense(supabase, {
+    productId,
+    email: customerEmail,
+    userId,
+    orderId: stripePaymentIntentId || sessionId,
+  }).catch((err) => {
+    console.error('[Stripe Webhook] License issuance failed:', err);
+    return null;
+  });
+
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
     // Pull buyer's custom-field answers so the webhook payload + admin UI can
@@ -210,20 +229,6 @@ async function handleCheckoutSessionCompleted(
       customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
-    // Issue a license if the product is configured for it. Never let issuance
-    // failure break the payment webhook — log and continue.
-    const licenseResult = await issueLicense(supabase, {
-      productId,
-      email: customerEmail,
-      userId,
-      // Prefer the payment-intent id so both webhook completion paths key the
-      // license ledger on the same purchase-stable id (the UNIQUE(order_id,
-      // product_id) constraint then backs up cross-path idempotency).
-      orderId: stripePaymentIntentId || sessionId,
-    }).catch((err) => {
-      console.error('[Stripe Webhook] License issuance failed:', err);
-      return null;
-    });
     if (licenseResult) {
       const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
       webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
@@ -271,6 +276,8 @@ async function handlePaymentIntentSucceeded(
     return { processed: false, message: 'Missing product_id or email in payment intent' };
   }
 
+  const userId = paymentIntent.metadata?.user_id || null;
+
   // Match either column — session handler may already hold the row keyed by cs_xxx.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
@@ -279,6 +286,9 @@ async function handlePaymentIntentSucceeded(
     .maybeSingle();
 
   if (existingTransaction?.status === 'completed') {
+    // Still try to issue license — covers purchases made before license feature was deployed.
+    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: paymentIntent.id })
+      .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
@@ -287,7 +297,6 @@ async function handlePaymentIntentSucceeded(
   const bumpProductId = paymentIntent.metadata?.bump_product_id || null;
   const hasBump = paymentIntent.metadata?.has_bump === 'true';
   const couponId = paymentIntent.metadata?.coupon_id || null;
-  const userId = paymentIntent.metadata?.user_id || null;
 
   // Parse bump IDs: prefer comma-separated bump_product_ids, fallback to single bump_product_id
   let bumpProductIds: string[] = bumpProductIdsStr
@@ -348,6 +357,18 @@ async function handlePaymentIntentSucceeded(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
+  // Issue license — always, regardless of already_had_access.
+  // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
+  const licenseResult = await issueLicense(supabase, {
+    productId,
+    email: customerEmail,
+    userId,
+    orderId: paymentIntent.id,
+  }).catch((err) => {
+    console.error('[Stripe Webhook] License issuance failed:', err);
+    return null;
+  });
+
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access) {
     const { data: txCustomFields } = await supabase
@@ -372,17 +393,6 @@ async function handlePaymentIntentSucceeded(
       customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
     });
 
-    // Issue a license if the product is configured for it. Never let issuance
-    // failure break the payment webhook — log and continue.
-    const licenseResult = await issueLicense(supabase, {
-      productId,
-      email: customerEmail,
-      userId,
-      orderId: paymentIntent.id,
-    }).catch((err) => {
-      console.error('[Stripe Webhook] License issuance failed:', err);
-      return null;
-    });
     if (licenseResult) {
       const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
       webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
