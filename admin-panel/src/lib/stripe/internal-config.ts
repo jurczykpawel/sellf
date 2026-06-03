@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { decryptSecret } from '@/lib/services/secret-encryption'
 import type { StripeConfiguration, StripeMode } from '@/types/stripe-config'
 
+const ENV_CONFIG_SENTINEL = 'env_config_sentinel'
+
 async function readActiveStripeConfig(mode: StripeMode): Promise<StripeConfiguration | null> {
   try {
     const adminClient = createAdminClient()
@@ -30,6 +32,7 @@ export async function getDecryptedStripeKeyInternal(mode: StripeMode): Promise<s
   try {
     const config = await readActiveStripeConfig(mode)
     if (!config) return null
+    if (config.encryption_iv === ENV_CONFIG_SENTINEL) return null
     return await decryptSecret({
       encrypted_key: config.encrypted_key,
       encryption_iv: config.encryption_iv,
