@@ -672,7 +672,19 @@
     "howItWorksBody": "On load the snippet resolves each element to the visitor's state from a short-lived signed token, then strips the token from the URL. Display and local features resolve in the browser; for real server actions, gate them on SellfGate.verify() which the server checks.",
     "emptyAllowlistTitle": "No allowed origins configured",
     "emptyAllowlistBody": "Gating will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
-    "close": "Close"
+    "close": "Close",
+    "advanced": {
+      "toggle": "Advanced: server-side verification",
+      "intro": "SellfGate.verify() calls the Sellf server, which re-reads live access from the database. For actions with real back-end consequences (charging, sending files, mutating data) also verify on your own server — this prevents a compromised browser from faking the result.",
+      "clientStep": "Step 1 — Browser: call verify() then pass the token",
+      "serverStep": "Step 2 — Your backend: verify with Sellf",
+      "tabNode": "Node.js",
+      "tabPhp": "PHP / WordPress",
+      "tabPython": "Python",
+      "tabCurl": "cURL (test)",
+      "noteTitle": "Token validity",
+      "noteBody": "Gate tokens are valid for 30 minutes and reusable within that window. For one-time actions (file downloads etc.) add your own idempotency key on top."
+    }
   },
   "embedSection": {
     "title": "Embed checkout",

@@ -32,6 +32,14 @@ RESET=$'\033[0m'
 LIGHT_N="${1:-6}"
 HEAVY_N="${2:-4}"
 FAILED=""
+TOTAL_PASS=0
+TOTAL_FAIL=0
+ALL_ERRORS=""
+
+mkdir -p test-runs
+TIMESTAMP=$(date '+%Y-%m-%d_%H%M%S')
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LOGFILE="test-runs/${TIMESTAMP}_${COMMIT}_sharded.log"
 
 run_shards() {
   local project="$1" n="$2"
@@ -57,10 +65,15 @@ run_shards() {
       echo ""
       echo "${RED}===== FAILURES =====${RESET}"
       printf '%s\n' "$errors" | awk -v red="$RED" -v reset="$RESET" '{printf "%s%s%s\n", red, $0, reset}'
+      ALL_ERRORS="${ALL_ERRORS}
+=== $project $k/$n ===
+${errors}"
     fi
     local pass_n fail_n
     pass_n=$(grep -c '✓' "$_tmp" 2>/dev/null || true)
     fail_n=$(grep -c '✘' "$_tmp" 2>/dev/null || true)
+    TOTAL_PASS=$((TOTAL_PASS + pass_n))
+    TOTAL_FAIL=$((TOTAL_FAIL + fail_n))
     echo "${DIM}shard result: ${pass_n} passed, ${fail_n} failed${RESET}"
     rm -f "$_tmp"
     if [ "$rc" != 0 ]; then
@@ -75,13 +88,29 @@ run_shards "chromium-heavy" "$HEAVY_N"
 run_shards "chromium" "$LIGHT_N"
 kill $(lsof -ti:3777 2>/dev/null) 2>/dev/null
 
+# Write log
+{
+  echo "date:    $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "commit:  $(git rev-parse HEAD 2>/dev/null || echo unknown)"
+  echo "shards:  heavy=$HEAVY_N light=$LIGHT_N"
+  echo "result:  ${TOTAL_PASS} passed, ${TOTAL_FAIL} failed"
+  if [ -n "$FAILED" ]; then
+    echo "failed_shards:$FAILED"
+    echo ""
+    echo "FAILURE DETAILS:${ALL_ERRORS}"
+  fi
+} > "$LOGFILE"
+
 echo ""
 echo "======================================================="
 if [ -z "$FAILED" ]; then
-  echo "ALL SHARDS GREEN (heavy=$HEAVY_N, light=$LIGHT_N)"
+  echo "ALL SHARDS GREEN (heavy=$HEAVY_N, light=$LIGHT_N) — ${TOTAL_PASS} passed, ${TOTAL_FAIL} failed"
+  echo "${DIM}Log: ${LOGFILE}${RESET}"
   exit 0
 else
   echo "SHARDS WITH FAILURES:$FAILED"
   echo "Re-run one with: npx playwright test --project=<chromium|chromium-heavy> --shard=k/N"
+  echo "Total: ${TOTAL_PASS} passed, ${TOTAL_FAIL} failed"
+  echo "${DIM}Log: ${LOGFILE}${RESET}"
   exit 1
 fi

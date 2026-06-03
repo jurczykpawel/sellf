@@ -95,20 +95,10 @@ test.describe('Product Creation Wizard', () => {
     await page.waitForTimeout(300);
     await page.fill('input#price', '49,99');
 
-    // Publish is enabled on step 1 (description still required — wizard jumps to step 2)
+    // Publish enabled — description is optional so one click submits immediately
     const publishBtn = page.getByRole('button', { name: /Publikuj/i });
     await expect(publishBtn).toBeEnabled();
-
-    // First click bounces the wizard to step 2 because description is empty
     await publishBtn.click();
-    await page.waitForTimeout(500);
-
-    // Step 2 visible — fill description
-    await expect(page.locator('textarea#description')).toBeVisible({ timeout: 5000 });
-    await page.fill('textarea#description', 'Created quickly');
-
-    // Click Publish again to commit
-    await page.getByRole('button', { name: /Publikuj/i }).click();
 
     // Wait for modal to close
     await expect(page.getByText('Utwórz nowy produkt')).not.toBeVisible({ timeout: 15000 });

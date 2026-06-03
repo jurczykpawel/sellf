@@ -535,6 +535,38 @@ identity and the server **re-reads live access** (`user_product_access`), so a r
 or expired grant is denied immediately rather than after the token TTL. Display and
 in-browser features resolve client-side from the token and are best-effort.
 
+**Server-side verification pattern** (for real back-end actions): `SellfGate.verify()`
+returns a `Promise<boolean>` in the browser — the check runs on the Sellf server, but
+the result lands back in the browser. For truly sensitive server actions (charging,
+file delivery, data mutations), the seller's backend should independently call
+`POST /api/loginwall/verify` server-to-server with the token forwarded from the client.
+CORS does not apply to server-to-server calls (no `Origin` header), so the request
+goes through normally and returns `{ access: true/false }`. Gate tokens have a 30-minute
+TTL and are **not** single-use — for one-time operations add an idempotency key.
+
+Pattern for the seller's backend:
+```
+// Browser: after verify() passes, forward the token
+fetch("/your-endpoint", {
+  method: "POST",
+  headers: { "Authorization": "Bearer " + SellfGate.token },
+});
+
+// Seller's Node.js backend:
+const r = await fetch("https://YOUR_SELLF/api/loginwall/verify", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "Authorization": req.headers["authorization"] },
+  body: JSON.stringify({ product: "slug" }),
+});
+const { access } = await r.json();
+if (!access) return res.status(403).end();
+```
+
+This pattern works identically from PHP (`wp_remote_post`), Python (`requests.post`), or
+any HTTP client. The GateSnippetModal ("Generate gating snippet") includes a live
+expandable "Advanced" section with ready-to-paste examples for Node.js, PHP/WordPress,
+Python (Flask + Django), and cURL.
+
 **Pieces:**
 
 - Token: `src/lib/loginwall/token.ts` — `signGateToken`/`verifyGateToken`/`parseGatePayload` (v2, multi-product + auth flag) alongside the v1 login-wall token.

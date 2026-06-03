@@ -687,7 +687,19 @@
     "howItWorksBody": "Przy załadowaniu snippet ustala stan każdego elementu na podstawie krótko żyjącego podpisanego tokenu, a potem usuwa token z URL. Wyświetlanie i funkcje lokalne rozstrzygają się w przeglądarce; realne akcje serwerowe zabezpiecz przez SellfGate.verify(), które weryfikuje serwer.",
     "emptyAllowlistTitle": "Brak dozwolonych domen na białej liście",
     "emptyAllowlistBody": "Blokowanie odrzuci przekierowanie z 400 dopóki nie dodasz domeny strony, na której wklejasz snippet, do allowed_embed_origins (Ustawienia → Osadzanie) albo do zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS.",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "advanced": {
+      "toggle": "Zaawansowane: weryfikacja po stronie serwera",
+      "intro": "SellfGate.verify() wywołuje serwer Sellf, który sprawdza dostęp live w bazie danych. Dla akcji z realnymi skutkami backendu (obciążenie, wysyłka pliku, mutacja danych) warto dodatkowo weryfikować na własnym serwerze — zapobiega to sfałszowaniu wyniku przez przeglądarkę.",
+      "clientStep": "Krok 1 — Przeglądarka: wywołaj verify() i przekaż token",
+      "serverStep": "Krok 2 — Twój backend: zweryfikuj przez Sellf",
+      "tabNode": "Node.js",
+      "tabPhp": "PHP / WordPress",
+      "tabPython": "Python",
+      "tabCurl": "cURL (test)",
+      "noteTitle": "Ważność tokenu",
+      "noteBody": "Tokeny gate są ważne 30 minut i można ich wielokrotnie używać w tym oknie. Dla jednorazowych akcji (np. pobranie pliku) dodaj własny klucz idempotentności."
+    }
   },
   "embedSection": {
     "title": "Osadzanie koszyka (embed)",
