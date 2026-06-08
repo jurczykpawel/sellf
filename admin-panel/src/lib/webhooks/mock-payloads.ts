@@ -49,6 +49,11 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       price: 0,
       currency: 'USD',
       icon: '📚'
+    },
+    license: {
+      token: 'eyJhbGciOiJFUzI1NiJ9.example.signature',
+      kid: 'kid-example',
+      jwksUrl: 'https://example.com/api/licenses/jwks?seller=seller-id'
     }
   },
   'access.expired': {

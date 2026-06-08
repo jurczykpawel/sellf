@@ -5,6 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { trackServerSideConversion } from '@/lib/tracking';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { issueLicense } from '@/lib/license-keys/issue';
 
 export async function POST(
   request: NextRequest,
@@ -85,7 +86,18 @@ export async function POST(
 
     // Trigger webhook and tracking only for new grants (not repeat calls)
     if (!accessResult.alreadyHadAccess) {
-      WebhookService.trigger('lead.captured', {
+      const licenseResult = await issueLicense(adminClient, {
+        productId: product.id,
+        email: user.email ?? '',
+        userId: user.id,
+        orderId: `free_${user.id}_${product.id}`,
+      }).catch((err) => {
+        console.error('[grant-access] License issuance failed:', err);
+        return null;
+      });
+
+      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+      const webhookPayload: Record<string, unknown> = {
         customer: { email: user.email, userId: user.id },
         product: {
           id: product.id,
@@ -95,7 +107,16 @@ export async function POST(
           currency: product.currency,
           icon: product.icon,
         },
-      }, adminClient, product.id).catch(err => console.error('Webhook trigger error:', err));
+      };
+      if (licenseResult) {
+        webhookPayload.license = {
+          token: licenseResult.token,
+          kid: licenseResult.kid,
+          jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}`,
+        };
+      }
+
+      WebhookService.trigger('lead.captured', webhookPayload, adminClient, product.id).catch(err => console.error('Webhook trigger error:', err));
 
       trackServerSideConversion({
         eventName: 'Lead',
