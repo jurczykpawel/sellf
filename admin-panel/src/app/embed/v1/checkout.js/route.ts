@@ -134,10 +134,12 @@ export async function GET() {
     var captchaSlot = document.createElement('div');
     var captchaToken = '';
 
+    form.style.cssText = 'display:flex;flex-direction:column;gap:12px;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;';
     input.type = 'email';
     input.name = 'email';
     input.required = true;
     input.placeholder = 'Email';
+    input.style.cssText = 'width:100%;box-sizing:border-box;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:16px;font-family:inherit;color:#1f2937;outline:none;';
     honeypot.type = 'text';
     honeypot.name = 'website';
     honeypot.tabIndex = -1;
@@ -148,6 +150,8 @@ export async function GET() {
     captchaSlot.className = 'sellf-captcha';
     button.type = 'submit';
     button.textContent = 'Get access';
+    button.style.cssText = 'width:100%;padding:12px 24px;background:#5b8def;color:#fff;border:0;border-radius:9999px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(91,141,239,0.35);';
+    status.style.cssText = 'font-size:13px;color:#475569;text-align:center;min-height:20px;';
 
     form.appendChild(input);
     form.appendChild(honeypot);
