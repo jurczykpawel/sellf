@@ -23,19 +23,44 @@ Every delivery carries this envelope:
 |--------|-------|
 | `Content-Type` | `application/json` |
 | `X-Sellf-Event` | Event name, e.g. `purchase.completed` |
-| `X-Sellf-Signature` | `HMAC-SHA256(secret, raw_body)` as lowercase hex |
-| `X-Sellf-Timestamp` | ISO-8601 timestamp the payload was signed at |
+| `X-Sellf-Signature` | `t=<unix_seconds>,v1=<sig>` — `v1` is `HMAC-SHA256(secret, "<t>.<raw_body>")` as lowercase hex. The send timestamp `t` is **inside** the signature (replay-resistant), and `v1=` is versioned so the algorithm can rotate. |
 | `X-Sellf-Retry-Attempt` | Present on attempts 2 through max; integer (`"2"`, `"3"`, …) |
 | `X-Sellf-Retry` | `"true"` on legacy admin Resend (the old `/retry` endpoint) |
+
+The event time stays in the payload body (`timestamp`).
+
+> **Breaking change (v2026.6.4):** `X-Sellf-Signature` switched from a bare body-only hex digest to the timestamped, versioned `t=…,v1=…` scheme below, and the separate unsigned `X-Sellf-Timestamp` header was removed (it was not covered by the MAC, so it could be replayed/tampered freely). Update receivers to the verifier below.
 
 ### Signing verification (Node example)
 
 ```js
 import crypto from 'crypto';
 
-function verify(rawBody, headerSignature, secret) {
-  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(headerSignature));
+// Reject deliveries whose signed timestamp is too old (replay protection).
+const TOLERANCE_SECONDS = 5 * 60;
+
+function verify(rawBody, signatureHeader, secret) {
+  // Parse "t=<unix>,v1=<sig>"
+  let t = null;
+  let v1 = null;
+  for (const part of signatureHeader.split(',')) {
+    const i = part.indexOf('=');
+    if (i === -1) continue;
+    const key = part.slice(0, i).trim();
+    const value = part.slice(i + 1).trim();
+    if (key === 't' && /^\d+$/.test(value)) t = Number(value);
+    else if (key === 'v1') v1 = value;
+  }
+  if (t === null || !v1) return false;
+
+  // Reject stale / replayed timestamps.
+  if (Math.abs(Math.floor(Date.now() / 1000) - t) > TOLERANCE_SECONDS) return false;
+
+  // Recompute over `${t}.${rawBody}` and constant-time compare.
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
+  const a = Buffer.from(expected, 'hex');
+  const b = Buffer.from(v1, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 ```
 

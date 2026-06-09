@@ -1,7 +1,7 @@
-import crypto from 'crypto';
 import { fetch as undiciFetch } from 'undici';
 import { getSsrfSafeAgent } from '@/lib/security/safe-fetch';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
+import { signWebhookPayload } from './signature';
 import type { AttemptResult } from './types';
 
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -27,11 +27,8 @@ export class WebhookDispatcher {
     options: DispatchOptions,
   ): Promise<AttemptResult> {
     const payloadString = JSON.stringify(payload);
-    const signature = crypto
-      .createHmac('sha256', endpoint.secret)
-      .update(payloadString)
-      .digest('hex');
-    const timestamp = extractTimestamp(payload) ?? new Date().toISOString();
+    // Replay-resistant, versioned signature (t is inside the MAC). See signature.ts.
+    const signature = signWebhookPayload(endpoint.secret, payloadString);
     const startTime = Date.now();
 
     try {
@@ -51,14 +48,13 @@ export class WebhookDispatcher {
 
       try {
         // Security: callers can pass extra headers (e.g. X-Sellf-Retry), but the
-        // signature/timestamp/event/content-type headers are owned by the
-        // dispatcher and must never be overwritten by an extraHeaders entry.
+        // signature/event/content-type headers are owned by the dispatcher and
+        // must never be overwritten by an extraHeaders entry.
         const headers: Record<string, string> = {
           ...(options.extraHeaders ?? {}),
           'Content-Type': 'application/json',
           'X-Sellf-Event': event,
           'X-Sellf-Signature': signature,
-          'X-Sellf-Timestamp': timestamp,
         };
         if (options.attemptCount > 1) {
           headers['X-Sellf-Retry-Attempt'] = String(options.attemptCount);
@@ -106,10 +102,4 @@ export class WebhookDispatcher {
       };
     }
   }
-}
-
-function extractTimestamp(payload: unknown): string | null {
-  if (typeof payload !== 'object' || payload === null) return null;
-  const ts = (payload as { timestamp?: unknown }).timestamp;
-  return typeof ts === 'string' ? ts : null;
 }
