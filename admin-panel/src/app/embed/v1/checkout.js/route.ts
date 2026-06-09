@@ -95,6 +95,15 @@ export async function GET() {
             'productSlug=' + encodeURIComponent(productSlug);
         }
         widget.setAttribute('challengeurl', challengeUrl);
+        // Mirror the in-app AltchaWidget: solve the proof-of-work invisibly on
+        // load. The embed loads ALTCHA's "external" build (no bundled CSS), so a
+        // visible widget renders unstyled; invisible + auto-solve sidesteps the
+        // styling entirely and removes the "where do I click" friction while
+        // keeping the same proof-of-work protection.
+        widget.setAttribute('auto', 'onload');
+        widget.setAttribute('display', 'invisible');
+        widget.setAttribute('hidelogo', '');
+        widget.setAttribute('hidefooter', '');
         widget.addEventListener('statechange', function (ev) {
           var detail = ev && ev.detail;
           if (detail && detail.state === 'verified' && detail.payload) {
@@ -122,7 +131,7 @@ export async function GET() {
     var wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;';
     var label = document.createElement('div');
-    label.textContent = 'Please confirm you are human to continue.';
+    label.textContent = 'Verifying you\\'re human…';
     label.style.cssText = 'font-size:14px;color:#475569;text-align:center;';
     var captchaSlot = document.createElement('div');
     captchaSlot.className = 'sellf-captcha';

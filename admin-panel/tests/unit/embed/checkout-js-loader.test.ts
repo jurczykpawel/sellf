@@ -35,4 +35,15 @@ describe('GET /embed/v1/checkout.js — provider-aware captcha loader', () => {
     const script = await getEmbedScript();
     expect(script).toMatch(/turnstileToken/);
   });
+
+  it('mounts the ALTCHA widget invisibly and auto-solves (matches in-app; no unstyled checkbox to click)', async () => {
+    const script = await getEmbedScript();
+    // The embed loads the `external` ALTCHA build (no bundled CSS); a visible
+    // widget renders unstyled. Invisible + auto-solve sidesteps styling entirely
+    // and mirrors the in-app AltchaWidget config.
+    expect(script).toMatch(/setAttribute\(\s*['"]auto['"]\s*,\s*['"]onload['"]\s*\)/);
+    expect(script).toMatch(/setAttribute\(\s*['"]display['"]\s*,\s*['"]invisible['"]\s*\)/);
+    expect(script).toMatch(/setAttribute\(\s*['"]hidelogo['"]/);
+    expect(script).toMatch(/setAttribute\(\s*['"]hidefooter['"]/);
+  });
 });
