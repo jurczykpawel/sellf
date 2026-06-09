@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Script from 'next/script'
 import { CONSENT_COOKIE_NAME } from '@/lib/constants'
+import { isAdminTrackingPath } from '@/lib/tracking/should-track'
+import { gtmLoaderBaseUrl } from '@/lib/tracking/gtm'
 
 /** Validate GTM container ID format (GTM-XXXXXXX) */
 function isValidGtmId(id: string): boolean {
@@ -81,16 +83,18 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
   // and a misconfigured server-side GTM URL stalls every admin page load. The
   // consent useEffect below already skips /dashboard; mirror that for the
   // injected <script> tags so GTM/Pixel/Umami never mount on the admin panel.
-  const isAdminPath = pathname?.includes('/dashboard') ?? false
+  const isAdminPath = isAdminTrackingPath(pathname)
 
   // Stable derived values used both in rendered scripts and the init effect.
   const gtm_container_id = config?.gtm_container_id && isValidGtmId(config.gtm_container_id) ? config.gtm_container_id : null
   const facebook_pixel_id = config?.facebook_pixel_id && isValidFbPixelId(config.facebook_pixel_id) ? config.facebook_pixel_id : null
   const umami_website_id = config?.umami_website_id && isValidUmamiId(config.umami_website_id) ? config.umami_website_id : null
   const umami_script_url = config?.umami_script_url && isValidScriptUrl(config.umami_script_url) ? config.umami_script_url : 'https://cloud.umami.is/script.js'
-  const gtmBaseUrl = config?.gtm_server_container_url && isValidScriptUrl(config.gtm_server_container_url)
-    ? config.gtm_server_container_url.replace(/\/$/, '')
-    : 'https://www.googletagmanager.com'
+  // gtm.js always loads from Google's CDN — never from gtm_server_container_url,
+  // which is a server-side transport endpoint (GA4 Measurement Protocol /
+  // Meta CAPI) that returns HTTP 400 for gtm.js. Server-side routing stays
+  // configured inside the GTM container. See gtmLoaderBaseUrl + lib/tracking.
+  const gtmBaseUrl = gtmLoaderBaseUrl()
   const cookie_consent_enabled = !!config?.cookie_consent_enabled
   const consent_logging_enabled = !!config?.consent_logging_enabled
 
@@ -206,7 +210,24 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
         (marketingPartPl ? `, oraz marketingu (${marketingPartPl})` : '') +
         `. Wybór zmienisz w każdej chwili przez Preferencje ciasteczek w stopce.`
 
+      // Isolate cookieconsent's DOM in a container React never reconciles.
+      // In the App Router the <body> IS React's root container, so library
+      // nodes appended straight to <body> collide with React's commit phase
+      // (Uncaught NotFoundError: removeChild/insertBefore → global-error
+      // boundary) when a page re-renders after a server action. A dedicated,
+      // vanilla-created root keeps those nodes out of React's child list.
+      let ccRoot = document.getElementById('sf-cc-root')
+      if (!ccRoot) {
+        ccRoot = document.createElement('div')
+        ccRoot.id = 'sf-cc-root'
+        document.body.appendChild(ccRoot)
+      }
+
       await CookieConsent.run({
+        // Append the consent UI into our isolated root, never directly to
+        // <body>, so React's reconciler and the library never fight over the
+        // same DOM children.
+        root: ccRoot,
         // Distinct from Klaro's old `sellf_consent` cookie — a same-name host-only
         // leftover would shadow this one and re-trigger the banner forever.
         cookie: { name: CONSENT_COOKIE_NAME, expiresAfterDays: 365 },
@@ -309,6 +330,32 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
     }
   }, [config, cookie_consent_enabled, consent_logging_enabled, gtm_container_id, facebook_pixel_id, umami_website_id])
 
+  // Umami runs with auto-tracking DISABLED (`data-auto-track="false"` below) so
+  // its persistent SPA runtime can't silently count admin-panel navigations
+  // after a public → /dashboard client transition (the React tree unmounts the
+  // <Script>, but the already-loaded umami history hook would otherwise keep
+  // firing). We send page views manually here and skip admin paths, keeping the
+  // panel out of analytics while still tracking the public storefront.
+  useEffect(() => {
+    if (!umami_website_id || isAdminPath) return
+    let cancelled = false
+    let attempts = 0
+    const fire = () => {
+      if (cancelled) return
+      const w = window as unknown as { umami?: { track: (payload?: unknown) => void } }
+      if (typeof w.umami?.track === 'function') {
+        w.umami.track()
+        return
+      }
+      // The script loads `afterInteractive`; retry briefly until it's ready.
+      if (attempts++ < 50) window.setTimeout(fire, 100)
+    }
+    fire()
+    return () => {
+      cancelled = true
+    }
+  }, [pathname, umami_website_id, isAdminPath])
+
   if (!config || isAdminPath) return null
 
   // --- GOOGLE CONSENT MODE V2 DEFAULTS ---
@@ -395,6 +442,9 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
           src={umami_script_url || 'https://cloud.umami.is/script.js'}
           strategy="afterInteractive"
           data-website-id={umami_website_id}
+          // Auto-tracking off — page views are fired manually (admin paths
+          // excluded) by the effect above, so the panel stays out of analytics.
+          data-auto-track="false"
           nonce={nonce}
         />
       )}

@@ -96,8 +96,9 @@ function hasBearerAuthorization(request: NextRequest): boolean {
   return !!auth && /^bearer\s+\S/i.test(auth)
 }
 
-// Module-level cache for the Umami connect-src origin derived from DB integrations_config.
-// A single-process Node.js deployment keeps this alive across requests; TTL handles config changes.
+// Module-level cache for the Umami connect-src origin derived from the public
+// integrations RPC. A single-process Node.js deployment keeps this alive across
+// requests; TTL handles config changes.
 let _cachedUmamiOrigin = ''
 let _umamiCacheExpiresAt = 0
 
@@ -106,16 +107,33 @@ async function fetchUmamiConnectOrigin(): Promise<string> {
   if (now < _umamiCacheExpiresAt) return _cachedUmamiOrigin
 
   try {
+    // Resolve the Umami origin via the PUBLIC `get_public_integrations_config`
+    // RPC using the anon key — the same credential the auth gate uses, which IS
+    // available in this (proxy/edge) runtime. SUPABASE_SERVICE_ROLE_KEY is NOT
+    // injected into the proxy bundle on standalone deploys, so the previous
+    // service-role raw select silently returned nothing and the Umami origin
+    // never reached connect-src (its `/api/send` beacon stayed CSP-blocked).
+    // The RPC exposes only safe public fields and is the same source the client
+    // TrackingProvider reads, so the two never drift.
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (supabaseUrl && serviceKey) {
+    const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (supabaseUrl && anonKey) {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/integrations_config?select=umami_script_url&limit=1`,
-        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+        `${supabaseUrl}/rest/v1/rpc/get_public_integrations_config`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${anonKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: '{}',
+          redirect: 'error',
+        },
       )
       if (res.ok) {
-        const [row] = await res.json() as Array<{ umami_script_url?: string | null }>
-        const url = row?.umami_script_url
+        const data = await res.json() as { umami_script_url?: string | null } | null
+        const url = data?.umami_script_url
         _cachedUmamiOrigin = url ? new URL(url).origin : ''
       }
     }
