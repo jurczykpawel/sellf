@@ -96,26 +96,38 @@ function hasBearerAuthorization(request: NextRequest): boolean {
   return !!auth && /^bearer\s+\S/i.test(auth)
 }
 
-// Module-level cache for the Umami connect-src origin derived from the public
-// integrations RPC. A single-process Node.js deployment keeps this alive across
-// requests; TTL handles config changes.
-let _cachedUmamiOrigin = ''
-let _umamiCacheExpiresAt = 0
+// Module-level cache for the analytics CSP origins (Umami + server-side GTM)
+// derived from the public integrations RPC. A single-process Node.js deployment
+// keeps this alive across requests; the TTL handles config changes.
+let _cachedCspOrigins: { connect: string[]; frame: string[] } = { connect: [], frame: [] }
+let _cspOriginsExpiresAt = 0
 
-async function fetchUmamiConnectOrigin(): Promise<string> {
+function originOf(url?: string | null): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).origin
+  } catch {
+    return null
+  }
+}
+
+async function fetchAnalyticsCspOrigins(): Promise<{ connect: string[]; frame: string[] }> {
   const now = Date.now()
-  if (now < _umamiCacheExpiresAt) return _cachedUmamiOrigin
+  if (now < _cspOriginsExpiresAt) return _cachedCspOrigins
 
   try {
-    // Resolve the Umami origin via the PUBLIC `get_public_integrations_config`
-    // RPC using the anon key — the same credential the auth gate uses, which IS
-    // available in this (proxy/edge) runtime. SUPABASE_SERVICE_ROLE_KEY is NOT
-    // injected into the proxy bundle on standalone deploys, so the previous
-    // service-role raw select silently returned nothing and the Umami origin
-    // never reached connect-src (its `/api/send` beacon stayed CSP-blocked).
-    // The RPC exposes only safe public fields and is the same source the client
+    // Resolve the analytics origins via the PUBLIC `get_public_integrations_config`
+    // RPC with the anon key (the same credential the auth gate uses). The RPC
+    // exposes only safe public fields and is the same source the client
     // TrackingProvider reads, so the two never drift.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
+    //
+    // SUPABASE_URL is read BEFORE NEXT_PUBLIC_SUPABASE_URL on purpose: the latter
+    // is inlined at BUILD time to `https://placeholder.supabase.co` in the generic
+    // release build (the real URL reaches the client via /api/runtime-config), so
+    // reading it first pointed this fetch at the placeholder and silently failed —
+    // which is why the origin never reached the CSP. `SUPABASE_URL` is a non-public
+    // var read from the runtime environment, so it carries the real project URL.
+    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
     const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     if (supabaseUrl && anonKey) {
       const res = await fetch(
@@ -132,20 +144,39 @@ async function fetchUmamiConnectOrigin(): Promise<string> {
         },
       )
       if (res.ok) {
-        const data = await res.json() as { umami_script_url?: string | null } | null
-        const url = data?.umami_script_url
-        _cachedUmamiOrigin = url ? new URL(url).origin : ''
+        const data = await res.json() as {
+          umami_script_url?: string | null
+          gtm_server_container_url?: string | null
+        } | null
+        const connect: string[] = []
+        const frame: string[] = []
+        // Umami sends its cookieless beacon to `<origin>/api/send` — connect-src.
+        const umami = originOf(data?.umami_script_url)
+        if (umami) connect.push(umami)
+        // Server-side GTM: the GA4 / Meta tags POST hits to `<sgtm>/g/collect`
+        // (connect-src) and GTM frames the sGTM service-worker iframe (frame-src).
+        const sgtm = originOf(data?.gtm_server_container_url)
+        if (sgtm) {
+          connect.push(sgtm)
+          frame.push(sgtm)
+        }
+        _cachedCspOrigins = { connect, frame }
       }
     }
   } catch {
-    // Keep stale cached value on transient error
+    // Keep the stale cached value on transient error.
   }
-  _umamiCacheExpiresAt = Date.now() + 5 * 60 * 1000
-  return _cachedUmamiOrigin
+  _cspOriginsExpiresAt = Date.now() + 5 * 60 * 1000
+  return _cachedCspOrigins
 }
 
 // Add security headers to response
-function addSecurityHeaders(response: NextResponse, nonce?: string, extraConnectSrc: string[] = []): NextResponse {
+function addSecurityHeaders(
+  response: NextResponse,
+  nonce?: string,
+  extraConnectSrc: string[] = [],
+  extraFrameSrc: string[] = [],
+): NextResponse {
   // Add HSTS header unless disabled (e.g., when behind reverse proxy with SSL termination)
   if (process.env.DISABLE_HSTS !== 'true') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -153,7 +184,7 @@ function addSecurityHeaders(response: NextResponse, nonce?: string, extraConnect
   if (nonce) {
     response.headers.set(
       'Content-Security-Policy',
-      buildContentSecurityPolicyWithNonce(nonce, { extraConnectSrc }),
+      buildContentSecurityPolicyWithNonce(nonce, { extraConnectSrc, extraFrameSrc }),
     );
   }
   return response;
@@ -169,11 +200,11 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set(CSP_NONCE_HEADER, nonce)
 
-  // Resolve Umami origin from DB (cached 5 min). Done once per request so
-  // all addSecurityHeaders call sites below stay synchronous.
-  const umamiOrigin = await fetchUmamiConnectOrigin()
-  const extraConnectSrc = umamiOrigin ? [umamiOrigin] : []
-  const applyHeaders = (r: NextResponse) => addSecurityHeaders(r, nonce, extraConnectSrc)
+  // Resolve analytics CSP origins from DB (cached 5 min). Done once per request
+  // so all addSecurityHeaders call sites below stay synchronous.
+  const cspOrigins = await fetchAnalyticsCspOrigins()
+  const applyHeaders = (r: NextResponse) =>
+    addSecurityHeaders(r, nonce, cspOrigins.connect, cspOrigins.frame)
 
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
