@@ -40,7 +40,7 @@ const FEATURE_DETAILS: Record<FeatureKey, FeatureConfig> = {
   webhooks: {
     icon: Zap,
     snippet:
-      'POST https://you.example.com/webhook/sellf\nX-Sellf-Signature: SHA256=...\n{ event: "purchase.completed", ... }',
+      'POST https://you.example.com/webhook/sellf\nX-Sellf-Signature: t=...,v1=...\n{ event: "purchase.completed", ... }',
     snippetLabel: 'sample delivery',
   },
   webhookRetry: { icon: Undo2 },

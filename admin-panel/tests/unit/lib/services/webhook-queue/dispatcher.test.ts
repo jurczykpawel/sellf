@@ -13,6 +13,7 @@ vi.mock('@/lib/validations/webhook', () => ({
 import { fetch as undiciFetch } from 'undici';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
+import { verifyWebhookSignature } from '@/lib/services/webhook-queue/signature';
 
 const endpoint = {
   id: 'ep_1',
@@ -31,7 +32,7 @@ describe('WebhookDispatcher', () => {
     (validateWebhookUrlAsync as any).mockResolvedValue({ valid: true });
   });
 
-  it('signs payload with HMAC-SHA256 and includes required headers', async () => {
+  it('signs payload with the timestamped v1 scheme (t=<unix>,v1=<hmac>) and includes required headers', async () => {
     (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
 
     await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 1 });
@@ -39,8 +40,11 @@ describe('WebhookDispatcher', () => {
     const [, init] = (undiciFetch as any).mock.calls[0];
     expect(init.method).toBe('POST');
     expect(init.headers['X-Sellf-Event']).toBe('test.event');
-    expect(init.headers['X-Sellf-Signature']).toMatch(/^[a-f0-9]{64}$/);
-    expect(init.headers['X-Sellf-Timestamp']).toBe('2026-05-23T12:00:00Z');
+    expect(init.headers['X-Sellf-Signature']).toMatch(/^t=\d+,v1=[a-f0-9]{64}$/);
+    // The signature must verify over the exact raw body sent.
+    expect(verifyWebhookSignature(endpoint.secret, init.body, init.headers['X-Sellf-Signature'])).toBe(true);
+    // The unsigned, replay-exploitable timestamp header is gone (t lives in the signature).
+    expect(init.headers['X-Sellf-Timestamp']).toBeUndefined();
     expect(init.redirect).toBe('error');
   });
 
@@ -116,6 +120,6 @@ describe('WebhookDispatcher', () => {
     const [, init] = (undiciFetch as any).mock.calls[0];
     expect(init.headers['X-Custom']).toBe('value');
     expect(init.headers['X-Sellf-Signature']).not.toBe('forged');
-    expect(init.headers['X-Sellf-Signature']).toMatch(/^[a-f0-9]{64}$/);
+    expect(init.headers['X-Sellf-Signature']).toMatch(/^t=\d+,v1=[a-f0-9]{64}$/);
   });
 });
