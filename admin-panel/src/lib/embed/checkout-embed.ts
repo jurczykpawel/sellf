@@ -50,6 +50,25 @@ export function getEnvAllowedEmbedOrigins(): string[] {
   );
 }
 
+/**
+ * Resolve the embed allowlist for a product by slug. Used by routes that only
+ * have the slug (e.g. the captcha challenge endpoint) and need the seller's
+ * allowed origins to attach CORS headers. Returns the env fallback on miss.
+ */
+export async function loadAllowedOriginsForProductSlug(
+  adminClient: ReturnType<typeof createAdminClient>,
+  productSlug: string,
+): Promise<string[]> {
+  const { data, error } = await adminClient
+    .from('products')
+    .select('seller_id')
+    .eq('slug', productSlug)
+    .maybeSingle();
+
+  if (error || !data) return getEnvAllowedEmbedOrigins();
+  return loadAllowedOriginsForProduct(adminClient, (data as { seller_id: string | null }).seller_id);
+}
+
 export async function loadAllowedOriginsForProduct(
   adminClient: ReturnType<typeof createAdminClient>,
   sellerId: string | null,
@@ -101,9 +120,10 @@ export function isAllowedEmbedOrigin(origin: string | null, allowedOrigins: stri
 export function buildEmbedCorsHeaders(
   origin: string | null,
   allowedOrigins: string[],
+  methods = 'POST, OPTIONS',
 ): Record<string, string> {
   const headers: Record<string, string> = {
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': methods,
     'Access-Control-Allow-Headers': 'Content-Type, X-Sellf-Embed-Version',
     'Access-Control-Max-Age': '600',
     'Cache-Control': 'no-store',

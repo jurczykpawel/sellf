@@ -67,7 +67,7 @@ export async function GET() {
     }
   }
 
-  function mountCaptchaWidget(slot, captcha, onToken) {
+  function mountCaptchaWidget(slot, captcha, onToken, productSlug) {
     if (captcha && captcha.provider === 'turnstile' && captcha.siteKey && captcha.scriptUrl) {
       var turnstileScript = document.createElement('script');
       turnstileScript.src = captcha.scriptUrl;
@@ -87,7 +87,14 @@ export async function GET() {
       altchaScript.type = 'module';
       altchaScript.onload = function () {
         var widget = document.createElement('altcha-widget');
-        widget.setAttribute('challengeurl', sellfOrigin + captcha.challengeUrl);
+        // The challenge endpoint reflects CORS only for the product's allowlisted
+        // origins, so it needs the slug to know which seller's allowlist to check.
+        var challengeUrl = sellfOrigin + captcha.challengeUrl;
+        if (productSlug) {
+          challengeUrl += (captcha.challengeUrl.indexOf('?') >= 0 ? '&' : '?') +
+            'productSlug=' + encodeURIComponent(productSlug);
+        }
+        widget.setAttribute('challengeurl', challengeUrl);
         widget.addEventListener('statechange', function (ev) {
           var detail = ev && ev.detail;
           if (detail && detail.state === 'verified' && detail.payload) {
@@ -102,15 +109,15 @@ export async function GET() {
     }
   }
 
-  function awaitCaptchaToken(slot, captcha) {
+  function awaitCaptchaToken(slot, captcha, productSlug) {
     return new Promise(function (resolve) {
       mountCaptchaWidget(slot, captcha, function (token) {
         if (token) resolve(token);
-      });
+      }, productSlug);
     });
   }
 
-  function renderPaidCaptchaGate(target, captcha) {
+  function renderPaidCaptchaGate(target, captcha, productSlug) {
     target.textContent = '';
     var wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937;';
@@ -122,7 +129,7 @@ export async function GET() {
     wrap.appendChild(label);
     wrap.appendChild(captchaSlot);
     target.appendChild(wrap);
-    return awaitCaptchaToken(captchaSlot, captcha);
+    return awaitCaptchaToken(captchaSlot, captcha, productSlug);
   }
 
   function renderFreeForm(root, productSlug, captcha) {
@@ -161,7 +168,7 @@ export async function GET() {
     root.textContent = '';
     root.appendChild(form);
 
-    mountCaptchaWidget(captchaSlot, captcha, function (token) { captchaToken = token; });
+    mountCaptchaWidget(captchaSlot, captcha, function (token) { captchaToken = token; }, productSlug);
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -312,7 +319,7 @@ export async function GET() {
         if (body.kind === 'free') {
           renderFreeForm(modal.slot, productSlug, body.captcha || null);
         } else if (body.kind === 'paid_needs_captcha') {
-          return renderPaidCaptchaGate(modal.slot, body.captcha).then(function (token) {
+          return renderPaidCaptchaGate(modal.slot, body.captcha, productSlug).then(function (token) {
             modal.slot.textContent = '';
             modal.slot.appendChild(createLoader());
             return postJson('/api/embed/checkout-session', productSlug, Object.assign({}, basePayload, { turnstileToken: token }));
@@ -353,7 +360,7 @@ export async function GET() {
       if (body.kind === 'free') {
         renderFreeForm(root, productSlug, body.captcha || null);
       } else if (body.kind === 'paid_needs_captcha') {
-        return renderPaidCaptchaGate(root, body.captcha).then(function (token) {
+        return renderPaidCaptchaGate(root, body.captcha, productSlug).then(function (token) {
           root.textContent = '';
           root.appendChild(createLoader());
           return postJson('/api/embed/checkout-session', productSlug, Object.assign({}, basePayload, { turnstileToken: token }));
