@@ -49,18 +49,27 @@ export interface WebhookLog {
   };
 }
 
-export const WEBHOOK_EVENTS = [
-  { value: 'purchase.completed', label: 'Purchase Completed' },
-  { value: 'lead.captured', label: 'Lead Captured (Free Product)' },
-  { value: 'waitlist.signup', label: 'Waitlist Signup' },
-  { value: 'access.expired', label: 'Access Expired' },
+export const WEBHOOK_EVENT_CATEGORIES = ['purchases', 'subscriptions', 'leads', 'system'] as const;
+export type WebhookEventCategory = (typeof WEBHOOK_EVENT_CATEGORIES)[number];
+
+export interface WebhookEventDefinition {
+  value: string;
+  label: string;
+  category: WebhookEventCategory;
+}
+
+export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
+  { value: 'purchase.completed', label: 'Purchase Completed', category: 'purchases' },
+  { value: 'lead.captured', label: 'Lead Captured (Free Product)', category: 'leads' },
+  { value: 'waitlist.signup', label: 'Waitlist Signup', category: 'leads' },
+  { value: 'access.expired', label: 'Access Expired', category: 'system' },
   // Subscriptions MVP (Phase 3)
-  { value: 'subscription.created', label: 'Subscription Created' },
-  { value: 'subscription.updated', label: 'Subscription Updated' },
-  { value: 'subscription.canceled', label: 'Subscription Canceled' },
-  { value: 'subscription.trial_ending', label: 'Subscription Trial Ending' },
-  { value: 'subscription.renewal_upcoming', label: 'Subscription Renewal Upcoming' },
-  { value: 'invoice.paid', label: 'Invoice Paid (Subscription Renewal)' },
-  { value: 'invoice.payment_failed', label: 'Invoice Payment Failed' },
-  { value: 'refund.issued', label: 'Refund Issued' },
+  { value: 'subscription.created', label: 'Subscription Created', category: 'subscriptions' },
+  { value: 'subscription.updated', label: 'Subscription Updated', category: 'subscriptions' },
+  { value: 'subscription.canceled', label: 'Subscription Canceled', category: 'subscriptions' },
+  { value: 'subscription.trial_ending', label: 'Subscription Trial Ending', category: 'subscriptions' },
+  { value: 'subscription.renewal_upcoming', label: 'Subscription Renewal Upcoming', category: 'subscriptions' },
+  { value: 'invoice.paid', label: 'Invoice Paid (Subscription Renewal)', category: 'subscriptions' },
+  { value: 'invoice.payment_failed', label: 'Invoice Payment Failed', category: 'subscriptions' },
+  { value: 'refund.issued', label: 'Refund Issued', category: 'purchases' },
 ];

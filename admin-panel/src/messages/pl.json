@@ -1767,6 +1767,26 @@
         "product_deleted": "Produkt usunięty",
         "test_event": "Zdarzenie testowe"
       },
+      "event_categories": {
+        "purchases": "Zakupy",
+        "subscriptions": "Subskrypcje",
+        "leads": "Leady i zapisy",
+        "system": "System"
+      },
+      "events_desc": {
+        "purchase_completed": "Jednorazowy zakup zakończony (płatność Stripe powiodła się lub potwierdzona po powrocie kupującego). Zawiera kupującego, produkt, zamówienie i custom fields.",
+        "refund_issued": "Wystawiono zwrot za zakup (pełny lub częściowy).",
+        "subscription_created": "Subskrypcja stała się aktywna (pierwsza płatność lub start triala) — dostęp przyznany.",
+        "subscription_updated": "Subskrypcja zmieniona — plan, ilość lub status (np. active, past_due).",
+        "subscription_canceled": "Subskrypcja całkowicie anulowana (zakończona).",
+        "subscription_trial_ending": "Trial dobiega końca (Stripe wysyła ~3 dni wcześniej).",
+        "subscription_renewal_upcoming": "Zbliża się odnowienie/obciążenie — zapowiedź przed kolejną fakturą.",
+        "invoice_paid": "Opłacono fakturę odnowienia subskrypcji (rozliczenie cykliczne). To NIE jednorazowy zakup — te idą jako Purchase Completed.",
+        "invoice_payment_failed": "Nieudana płatność za odnowienie subskrypcji (np. odrzucona karta); dostęp może wygasnąć do czasu opłacenia.",
+        "lead_captured": "Ktoś odebrał darmowy produkt — jego e-mail zapisany jako lead.",
+        "waitlist_signup": "Ktoś zapisał się na listę oczekujących produktu.",
+        "access_expired": "Wygasł czasowy dostęp kupującego do produktu (wysyłane przez zadanie cron, raz na wygasły rekord)."
+      },
       "logs": {
         "title": "Logi Dostarczeń",
         "status": "Status",

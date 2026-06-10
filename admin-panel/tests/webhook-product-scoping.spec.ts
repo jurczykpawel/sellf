@@ -76,6 +76,21 @@ test.describe('Per-product webhook scoping', () => {
     await admin.cleanup();
   });
 
+  test('the events picker groups events by category and exposes per-event descriptions', async ({ page }) => {
+    await gotoWebhooks(page, admin.email, admin.password);
+    await openAddEndpoint(page);
+
+    // Category headings render (additive grouping over the flat list).
+    await expect(page.locator('#webhook-form h4', { hasText: 'Subscriptions' })).toBeVisible();
+    await expect(page.locator('#webhook-form h4', { hasText: 'Purchases' })).toBeVisible();
+
+    // The info affordance carries the "when it fires" description (native title attr).
+    const invoicePaidInfo = page
+      .locator('#webhook-form label', { hasText: 'Invoice Paid' })
+      .locator('[title^="A subscription renewal invoice was paid"]');
+    await expect(invoicePaidInfo).toHaveCount(1);
+  });
+
   test('creating an all-products webhook shows the All products badge', async ({ page }) => {
     await gotoWebhooks(page, admin.email, admin.password);
     await openAddEndpoint(page);

@@ -1752,6 +1752,26 @@
         "product_deleted": "Product Deleted",
         "test_event": "Test Event"
       },
+      "event_categories": {
+        "purchases": "Purchases",
+        "subscriptions": "Subscriptions",
+        "leads": "Leads & Signups",
+        "system": "System"
+      },
+      "events_desc": {
+        "purchase_completed": "A one-time purchase was completed (Stripe payment succeeded, or confirmed on the buyer's return). Includes buyer, product, order and custom fields.",
+        "refund_issued": "A refund was issued for a purchase (full or partial).",
+        "subscription_created": "A subscription became active (first payment or trial start) — access is granted.",
+        "subscription_updated": "A subscription changed — plan, quantity or status (e.g. active, past_due).",
+        "subscription_canceled": "A subscription was fully canceled (ended).",
+        "subscription_trial_ending": "A free trial is about to end (Stripe sends this ~3 days before).",
+        "subscription_renewal_upcoming": "An upcoming renewal charge is approaching — advance notice before the next invoice.",
+        "invoice_paid": "A subscription renewal invoice was paid (recurring billing). NOT a one-time purchase — those fire Purchase Completed.",
+        "invoice_payment_failed": "A subscription renewal payment failed (e.g. card declined); access may lapse until it's paid.",
+        "lead_captured": "Someone claimed a free product — their email is captured as a lead.",
+        "waitlist_signup": "Someone joined a product's waitlist.",
+        "access_expired": "A buyer's time-limited access to a product expired (dispatched by a scheduled job, once per expired record)."
+      },
       "logs": {
         "title": "Delivery Logs",
         "status": "Status",

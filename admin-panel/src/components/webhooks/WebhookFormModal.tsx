@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { WebhookEndpoint, WEBHOOK_EVENTS } from '@/types/webhooks';
+import { WebhookEndpoint, WEBHOOK_EVENTS, WEBHOOK_EVENT_CATEGORIES } from '@/types/webhooks';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '../ui/Modal';
+import { Tooltip } from '../ui/Tooltip';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useProductsDropdown } from '@/hooks/useProducts';
@@ -242,23 +243,51 @@ export default function WebhookFormModal({
             <label className="block text-sm font-medium text-sf-body mb-2">
               {t('events')}
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium">
-              {WEBHOOK_EVENTS.map((ev) => (
-                <label key={ev.value} className="flex items-center space-x-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={formData.events.includes(ev.value)}
-                    onChange={() => toggleEvent(ev.value)}
-                    className="h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors"
-                  />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-sf-heading group-hover:text-sf-accent transition-colors">
-                      {getEventLabel(ev.value)}
-                    </span>
-                    <span className="text-[10px] text-sf-muted font-mono">{t('eventTypeLabel', { value: ev.value })}</span>
+            <div className="space-y-4 bg-sf-deep p-4 border-2 border-sf-border-medium">
+              {WEBHOOK_EVENT_CATEGORIES.map((cat) => {
+                const categoryEvents = WEBHOOK_EVENTS.filter((ev) => ev.category === cat);
+                if (categoryEvents.length === 0) return null;
+                return (
+                  <div key={cat}>
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wide text-sf-muted mb-2">
+                      {t(`event_categories.${cat}`)}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {categoryEvents.map((ev) => {
+                        const descKey = ev.value.replace('.', '_');
+                        const desc = t(`events_desc.${descKey}`);
+                        return (
+                          <label key={ev.value} className="flex items-center space-x-3 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={formData.events.includes(ev.value)}
+                              onChange={() => toggleEvent(ev.value)}
+                              className="h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors"
+                            />
+                            <div className="flex flex-col">
+                              <span className="flex items-center gap-1.5 text-sm font-medium text-sf-heading group-hover:text-sf-accent transition-colors">
+                                {getEventLabel(ev.value)}
+                                <Tooltip content={desc}>
+                                  <span
+                                    role="img"
+                                    aria-label={desc}
+                                    title={desc}
+                                    onClick={(e) => e.preventDefault()}
+                                    className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] text-sf-muted hover:text-sf-accent cursor-help select-none"
+                                  >
+                                    ⓘ
+                                  </span>
+                                </Tooltip>
+                              </span>
+                              <span className="text-[10px] text-sf-muted font-mono">{t('eventTypeLabel', { value: ev.value })}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                </label>
-              ))}
+                );
+              })}
             </div>
           </div>
 
