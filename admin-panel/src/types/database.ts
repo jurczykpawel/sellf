@@ -2565,10 +2565,13 @@ export type Database = {
       webhook_endpoints: {
         Row: {
           created_at: string
+          custom_headers_encrypted: string | null
+          custom_payload_fields: Json | null
           description: string | null
           events: string[]
           id: string
           is_active: boolean | null
+          payload_field_selection: Json | null
           product_filter_mode: string
           secret: string
           updated_at: string
@@ -2576,10 +2579,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_headers_encrypted?: string | null
+          custom_payload_fields?: Json | null
           description?: string | null
           events?: string[]
           id?: string
           is_active?: boolean | null
+          payload_field_selection?: Json | null
           product_filter_mode?: string
           secret?: string
           updated_at?: string
@@ -2587,10 +2593,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_headers_encrypted?: string | null
+          custom_payload_fields?: Json | null
           description?: string | null
           events?: string[]
           id?: string
           is_active?: boolean | null
+          payload_field_selection?: Json | null
           product_filter_mode?: string
           secret?: string
           updated_at?: string
