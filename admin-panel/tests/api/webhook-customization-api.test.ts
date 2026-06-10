@@ -110,9 +110,24 @@ async function seedEndpoint(): Promise<string> {
   return data.id;
 }
 
-beforeAll(() => {
+let savedLicenseKey: string | undefined;
+let savedDbLicense: string | null = null;
+
+beforeAll(async () => {
   // Pro/business path needs a valid 32-byte key for encryptHeaderMap.
   process.env.APP_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+
+  // Force a deterministic 'free' baseline for the free-tier cases, independent of
+  // any ambient license in .env.local (the api runner loads it). Pro cases set
+  // DEMO_MODE='true', which wins over both the env and DB license sources.
+  savedLicenseKey = process.env.SELLF_LICENSE_KEY;
+  delete process.env.SELLF_LICENSE_KEY;
+  const { data: cfg } = await admin
+    .from('integrations_config').select('sellf_license').eq('id', 1).maybeSingle();
+  savedDbLicense = (cfg as { sellf_license: string | null } | null)?.sellf_license ?? null;
+  if (savedDbLicense !== null) {
+    await admin.from('integrations_config').update({ sellf_license: null }).eq('id', 1);
+  }
 });
 
 afterEach(() => {
@@ -124,6 +139,11 @@ afterEach(() => {
 afterAll(async () => {
   if (createdEndpointIds.length > 0) {
     await admin.from('webhook_endpoints').delete().in('id', createdEndpointIds);
+  }
+  // Restore the ambient tier state we changed in beforeAll.
+  if (savedLicenseKey !== undefined) process.env.SELLF_LICENSE_KEY = savedLicenseKey;
+  if (savedDbLicense !== null) {
+    await admin.from('integrations_config').update({ sellf_license: savedDbLicense }).eq('id', 1);
   }
 });
 
