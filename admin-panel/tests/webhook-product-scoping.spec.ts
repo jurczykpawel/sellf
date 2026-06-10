@@ -111,6 +111,27 @@ test.describe('Per-product webhook scoping', () => {
     await expect(row.getByText(/Selected \(1\)/)).toBeVisible();
   });
 
+  test('the product filter narrows the Choose products list', async ({ page }) => {
+    // Two distinctively-named products so the filter substring matches exactly one.
+    await createProduct('Filter E2E Alpha Widget');
+    await createProduct('Filter E2E Beta Gadget');
+
+    await gotoWebhooks(page, admin.email, admin.password);
+    await openAddEndpoint(page);
+
+    await page.getByRole('button', { name: 'Selected products' }).click();
+
+    const alphaRow = page.locator('#webhook-form label', { hasText: 'Filter E2E Alpha Widget' });
+    const betaRow = page.locator('#webhook-form label', { hasText: 'Filter E2E Beta Gadget' });
+    await expect(alphaRow).toBeVisible();
+    await expect(betaRow).toBeVisible();
+
+    await page.getByPlaceholder('Filter products').fill('Alpha Widget');
+
+    await expect(alphaRow).toBeVisible();
+    await expect(betaRow).toHaveCount(0);
+  });
+
   test('editing an all-products webhook to selected updates the badge', async ({ page }) => {
     const url = `${URL_PREFIX}edit-${Date.now()}`;
     await supabaseAdmin.from('webhook_endpoints').insert({

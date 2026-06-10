@@ -43,6 +43,7 @@ export default function WebhookFormModal({
 
   const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
   const [showSecret, setShowSecret] = useState(false);
+  const [productFilter, setProductFilter] = useState('');
 
   const buildCustomState = (endpoint: typeof editingEndpoint) => ({
     payloadFieldsSelected: endpoint?.payload_field_selection ?? [...PAYLOAD_TOP_LEVEL_KEYS],
@@ -65,6 +66,7 @@ export default function WebhookFormModal({
     setShowSecret(false);
     setCustomState(buildCustomState(editingEndpoint));
     setShowCustom(false);
+    setProductFilter('');
   }
 
   useEffect(() => {
@@ -93,11 +95,19 @@ export default function WebhookFormModal({
     }));
   };
 
-  const allProductsSelected = products.length > 0 && products.every((p) => formData.product_ids.includes(p.id));
-  const toggleAllProducts = () => setFormData((prev) => ({
-    ...prev,
-    product_ids: allProductsSelected ? [] : products.map((p) => p.id),
-  }));
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(productFilter.trim().toLowerCase())
+  );
+
+  const allVisibleSelected = filteredProducts.length > 0 && filteredProducts.every((p) => formData.product_ids.includes(p.id));
+  const toggleAllVisibleProducts = () => setFormData((prev) => {
+    const visibleIds = filteredProducts.map((p) => p.id);
+    if (allVisibleSelected) {
+      const visible = new Set(visibleIds);
+      return { ...prev, product_ids: prev.product_ids.filter((id) => !visible.has(id)) };
+    }
+    return { ...prev, product_ids: Array.from(new Set([...prev.product_ids, ...visibleIds])) };
+  });
 
   const allFieldsSelected = PAYLOAD_TOP_LEVEL_KEYS.every((k) => customState.payloadFieldsSelected.includes(k));
   const toggleAllFields = () => setCustomState((s) => ({
@@ -299,8 +309,8 @@ export default function WebhookFormModal({
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-sf-body">{t('selectProductsLabel')}</label>
                   {products.length > 0 && (
-                    <button type="button" onClick={toggleAllProducts} className="text-xs text-sf-accent hover:underline">
-                      {allProductsSelected ? t('deselectAll') : t('selectAll')}
+                    <button type="button" onClick={toggleAllVisibleProducts} className="text-xs text-sf-accent hover:underline">
+                      {allVisibleSelected ? t('deselectAll') : t('selectAll')}
                     </button>
                   )}
                 </div>
@@ -311,21 +321,34 @@ export default function WebhookFormModal({
                 ) : products.length === 0 ? (
                   <p className="text-sm text-sf-muted">{t('noProductsToSelect')}</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium max-h-56 overflow-y-auto">
-                    {products.map((product) => (
-                      <label key={product.id} className="flex items-center space-x-3 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={formData.product_ids.includes(product.id)}
-                          onChange={() => toggleProduct(product.id)}
-                          className="h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors"
-                        />
-                        <span className="text-sm font-medium text-sf-heading group-hover:text-sf-accent transition-colors truncate">
-                          {product.name}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                  <>
+                    <input
+                      type="text"
+                      value={productFilter}
+                      onChange={(e) => setProductFilter(e.target.value)}
+                      placeholder={t('filterProductsPlaceholder')}
+                      className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all text-sm"
+                    />
+                    {filteredProducts.length === 0 ? (
+                      <p className="text-sm text-sf-muted">{t('noProductsMatchFilter')}</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-sf-deep p-4 border-2 border-sf-border-medium max-h-56 overflow-y-auto">
+                        {filteredProducts.map((product) => (
+                          <label key={product.id} className="flex items-center space-x-3 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={formData.product_ids.includes(product.id)}
+                              onChange={() => toggleProduct(product.id)}
+                              className="h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent transition-colors"
+                            />
+                            <span className="text-sm font-medium text-sf-heading group-hover:text-sf-accent transition-colors truncate">
+                              {product.name}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
                 <p className="text-xs text-sf-muted">{t('scopingNonProductNote')}</p>
               </div>

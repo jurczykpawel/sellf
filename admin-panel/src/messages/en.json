@@ -1855,6 +1855,8 @@
       "scopingNonProductNote": "Events not tied to a specific product will still fire for all products, regardless of this selection.",
       "selectAll": "Select all",
       "deselectAll": "Deselect all",
+      "filterProductsPlaceholder": "Filter products…",
+      "noProductsMatchFilter": "No products match your filter.",
       "customization": {
         "title": "Custom integration (Pro)",
         "lockedTitle": "Custom integration is a Pro feature",
