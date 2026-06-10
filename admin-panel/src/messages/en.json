@@ -1853,6 +1853,8 @@
       "scopingLockedTitle": "Per-product scoping is a Pro feature",
       "scopingLockedDescription": "Upgrade to Pro to limit this webhook to selected products.",
       "scopingNonProductNote": "Events not tied to a specific product will still fire for all products, regardless of this selection.",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
       "customization": {
         "title": "Custom integration (Pro)",
         "lockedTitle": "Custom integration is a Pro feature",

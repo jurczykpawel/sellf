@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession, createTestAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 
 // The webhook payload-customization block ("Custom integration (Pro)") is gated by
 // the license tier resolved SERVER-SIDE in the webhooks page (resolveCurrentTier →
@@ -142,6 +143,22 @@ test.describe('Webhook payload customization form', () => {
 
     // Pro controls render now.
     await expect(page.getByText('Payload fields to send')).toBeVisible();
+
+    // The Select all / Deselect all toggle drives every payload-field checkbox at once.
+    // Scope the toggle button to the modal so it never collides with the product-scope
+    // toggle (strict mode); assert each PAYLOAD_TOP_LEVEL_KEYS checkbox by its exact
+    // mono label (fieldCheckbox) so event-type checkboxes are never matched.
+    const form = page.locator('#webhook-form');
+
+    await form.getByRole('button', { name: 'Deselect all' }).click();
+    for (const key of PAYLOAD_TOP_LEVEL_KEYS) {
+      await expect(fieldCheckbox(page, key)).not.toBeChecked();
+    }
+
+    await form.getByRole('button', { name: 'Select all' }).click();
+    for (const key of PAYLOAD_TOP_LEVEL_KEYS) {
+      await expect(fieldCheckbox(page, key)).toBeChecked();
+    }
 
     // Uncheck the `customer` section (starts all-checked).
     const customerCb = fieldCheckbox(page, 'customer');

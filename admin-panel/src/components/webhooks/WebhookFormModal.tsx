@@ -93,6 +93,18 @@ export default function WebhookFormModal({
     }));
   };
 
+  const allProductsSelected = products.length > 0 && products.every((p) => formData.product_ids.includes(p.id));
+  const toggleAllProducts = () => setFormData((prev) => ({
+    ...prev,
+    product_ids: allProductsSelected ? [] : products.map((p) => p.id),
+  }));
+
+  const allFieldsSelected = PAYLOAD_TOP_LEVEL_KEYS.every((k) => customState.payloadFieldsSelected.includes(k));
+  const toggleAllFields = () => setCustomState((s) => ({
+    ...s,
+    payloadFieldsSelected: allFieldsSelected ? [] : [...PAYLOAD_TOP_LEVEL_KEYS],
+  }));
+
   const getEventLabel = (eventValue: string) => {
     const key = eventValue.replace('.', '_');
     try {
@@ -284,9 +296,14 @@ export default function WebhookFormModal({
 
             {!scopingLocked && formData.product_filter_mode === 'selected' && (
               <div className="mt-3 space-y-3">
-                <label className="block text-sm font-medium text-sf-body">
-                  {t('selectProductsLabel')}
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-sf-body">{t('selectProductsLabel')}</label>
+                  {products.length > 0 && (
+                    <button type="button" onClick={toggleAllProducts} className="text-xs text-sf-accent hover:underline">
+                      {allProductsSelected ? t('deselectAll') : t('selectAll')}
+                    </button>
+                  )}
+                </div>
                 {productsLoading ? (
                   <div className="flex justify-center py-6">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -334,7 +351,12 @@ export default function WebhookFormModal({
               <div className="mt-3 space-y-4">
                 {/* Payload field selection */}
                 <div>
-                  <label className="block text-sm font-medium text-sf-body mb-2">{t('customization.fieldsLabel')}</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-sf-body">{t('customization.fieldsLabel')}</label>
+                    <button type="button" onClick={toggleAllFields} className="text-xs text-sf-accent hover:underline">
+                      {allFieldsSelected ? t('deselectAll') : t('selectAll')}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 bg-sf-deep p-4 border-2 border-sf-border-medium">
                     {PAYLOAD_TOP_LEVEL_KEYS.map((k) => (
                       <label key={k} className="flex items-center space-x-2 cursor-pointer">
