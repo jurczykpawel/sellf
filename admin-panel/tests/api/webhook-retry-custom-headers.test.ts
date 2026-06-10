@@ -15,9 +15,17 @@
  * we intercept undici (capture `init.headers`) and stub the SSRF agent + URL
  * validator rather than weakening the production guards. No real network egress.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
+
+// Inert event so this endpoint is NEVER selected by another file's
+// WebhookService.trigger('purchase.completed') under the shared singleFork
+// process. The cron retry handler processes by due `webhook_logs` row (it does
+// NOT match on event), so the event value is free to be anything — keeping it
+// off 'purchase.completed' guarantees no cross-file pickup that would let this
+// endpoint's `Bearer RT` header leak into a sibling test's capture.
+const RETRY_EVENT = 'test.retry.only';
 
 // Capture every outbound webhook request, keyed by URL, so an assertion can find
 // THIS endpoint's request even if unrelated due deliveries are dispatched in the
@@ -57,7 +65,7 @@ beforeAll(async () => {
     .from('webhook_endpoints')
     .insert({
       url: HOOK_URL,
-      events: ['purchase.completed'],
+      events: [RETRY_EVENT],
       is_active: true,
       secret: 's',
       product_filter_mode: 'all',
@@ -73,8 +81,8 @@ beforeAll(async () => {
     .from('webhook_logs')
     .insert({
       endpoint_id: endpointId,
-      event_type: 'purchase.completed',
-      payload: { event: 'purchase.completed', data: {} },
+      event_type: RETRY_EVENT,
+      payload: { event: RETRY_EVENT, data: {} },
       status: 'pending_retry',
       attempt_count: 1,
       max_attempts: 3,
@@ -88,9 +96,22 @@ beforeAll(async () => {
   logId = log!.id;
 });
 
+beforeEach(() => {
+  // The undici mock and its capture map are module-level and therefore shared
+  // across files in the singleFork api process. Start from a clean slate so a
+  // stale capture (from another file's dispatch) can neither satisfy nor poison
+  // this test's assertion, and so this file's `Bearer RT` capture is not left
+  // lying around for a sibling file to read.
+  capturedByUrl.clear();
+  vi.clearAllMocks();
+});
+
 afterAll(async () => {
+  // Delete the seeded log + endpoint so no due `webhook_logs` row or
+  // 'purchase.completed'-adjacent endpoint survives into later files.
   if (logId) await admin.from('webhook_logs').delete().eq('id', logId);
   if (endpointId) await admin.from('webhook_endpoints').delete().eq('id', endpointId);
+  capturedByUrl.clear();
 });
 
 describe('cron webhook-deliveries-retry re-applies custom headers', () => {

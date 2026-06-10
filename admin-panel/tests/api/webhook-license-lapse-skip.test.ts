@@ -21,7 +21,7 @@
  * @see tests/api/webhook-customization-api.test.ts (free-tier 403 pattern)
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 // ── HTTP layer mocks (must come before the service import) ──────────────────
@@ -57,14 +57,22 @@ let savedSellfLicense: string | null = null;
 
 beforeAll(async () => {
   // ── Force free tier ─────────────────────────────────────────────────────
-  // Three sources all resolved to 'free':
+  // Three sources must ALL resolve to 'free' at the moment trigger() calls
+  // checkFeature():
   //   1. DEMO_MODE absent → not business
   //   2. SELLF_LICENSE_KEY absent → no env license
   //   3. integrations_config.sellf_license = null → no DB license
+  //
+  // The two env sources are (re)cleared in beforeEach — not just here — because
+  // the api suite runs every file in ONE process (vitest.config.api.ts:
+  // pool:'forks', singleFork:true). A sibling file (e.g.
+  // webhook-payload-customization-dispatch.test.ts) sets DEMO_MODE='true' in its
+  // own beforeAll; combined with Vitest's `retry:1` re-running this it-block, a
+  // leaked DEMO_MODE='true' would otherwise resolve tier to 'business' and the
+  // customized endpoint would be dispatched (1 log row) instead of skipped. Save
+  // the originals here so afterAll can restore them.
   savedDemoMode = process.env.DEMO_MODE;
   savedLicenseKey = process.env.SELLF_LICENSE_KEY;
-  delete process.env.DEMO_MODE;
-  delete process.env.SELLF_LICENSE_KEY;
 
   // Save and clear the DB license so any installed license key doesn't bleed in.
   const { data: cfgRow } = await admin
@@ -115,6 +123,28 @@ beforeAll(async () => {
   if (plainErr || !plainRow) throw new Error(`seed plain endpoint: ${plainErr?.message}`);
   plainEndpointId = plainRow.id;
 });
+
+beforeEach(() => {
+  // Re-assert free tier immediately before every it-block attempt (including
+  // Vitest's `retry:1`). In the shared singleFork process a sibling file may
+  // have set DEMO_MODE='true' / a license env after our beforeAll ran; clearing
+  // here guarantees the tier resolves to 'free' at trigger() time so the
+  // customized endpoint is genuinely skipped, not dispatched.
+  delete process.env.DEMO_MODE;
+  delete process.env.SELLF_LICENSE_KEY;
+  // Drop any log rows a prior attempt of this it-block (or a leaked sibling
+  // dispatch) wrote for OUR seeded endpoints, so the per-attempt row counts are
+  // exact rather than cumulative.
+  // (No await needed in beforeEach return — vitest awaits the returned promise.)
+  return cleanupSeededLogs();
+});
+
+async function cleanupSeededLogs(): Promise<void> {
+  const endpointIds = [customizedEndpointId, plainEndpointId].filter(Boolean);
+  if (endpointIds.length > 0) {
+    await admin.from('webhook_logs').delete().in('endpoint_id', endpointIds);
+  }
+}
 
 afterAll(async () => {
   // ── Restore env ─────────────────────────────────────────────────────────
