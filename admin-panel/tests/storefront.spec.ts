@@ -77,10 +77,15 @@ test.describe('Storefront & Checkout Flows', () => {
     freeProductId = product!.id;
   });
 
-  test('UNAUTHENTICATED user should claim free product via Magic Link flow', async ({ page }) => {
-    // Re-activate our product (other tests may have deactivated ALL products)
+  // The dev DB is shared across every spec in the full `tttt` run, and some specs
+  // deactivate ALL products. Re-activate ours before each test so these free-claim
+  // flows stay robust to run order — both pass in isolation; this only mattered
+  // under the full suite (the AUTHENTICATED test previously lacked this safeguard).
+  test.beforeEach(async () => {
     await supabaseAdmin.from('products').update({ is_active: true }).eq('id', freeProductId);
+  });
 
+  test('UNAUTHENTICATED user should claim free product via Magic Link flow', async ({ page }) => {
     // Log browser errors
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`BROWSER ERROR: ${msg.text()}`);
