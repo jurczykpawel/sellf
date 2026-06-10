@@ -9,5 +9,6 @@ export const metadata: Metadata = {
 export default async function WebhooksPage() {
   const tier = await resolveCurrentTier();
   const scopingLocked = !hasFeature(tier, 'webhook-product-scoping');
-  return <WebhooksPageContent scopingLocked={scopingLocked} />;
+  const customizationLocked = !hasFeature(tier, 'webhook-payload-customization');
+  return <WebhooksPageContent scopingLocked={scopingLocked} customizationLocked={customizationLocked} />;
 }

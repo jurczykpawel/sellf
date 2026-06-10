@@ -6,6 +6,7 @@ import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '../ui/Mo
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useProductsDropdown } from '@/hooks/useProducts';
+import { buildCustomizationPayload, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
 
 interface WebhookFormModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface WebhookFormModalProps {
   editingEndpoint: WebhookEndpoint | null;
   isSubmitting: boolean;
   scopingLocked?: boolean;
+  customizationLocked?: boolean;
 }
 
 export default function WebhookFormModal({
@@ -22,7 +24,8 @@ export default function WebhookFormModal({
   onSubmit,
   editingEndpoint,
   isSubmitting,
-  scopingLocked = false
+  scopingLocked = false,
+  customizationLocked = false
 }: WebhookFormModalProps) {
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
@@ -41,6 +44,17 @@ export default function WebhookFormModal({
   const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
   const [showSecret, setShowSecret] = useState(false);
 
+  const buildCustomState = (endpoint: typeof editingEndpoint) => ({
+    payloadFieldsSelected: endpoint?.payload_field_selection ?? [...PAYLOAD_TOP_LEVEL_KEYS],
+    extraFields: endpoint?.custom_payload_fields
+      ? Object.entries(endpoint.custom_payload_fields).map(([key, value]) => ({ key, value: String(value) }))
+      : [] as { key: string; value: string }[],
+    headerRows: [] as { key: string; value: string }[],
+    deleteHeaders: false,
+  });
+  const [customState, setCustomState] = useState(() => buildCustomState(editingEndpoint));
+  const [showCustom, setShowCustom] = useState(false);
+
   // Re-sync when parent swaps the endpoint or re-opens the modal.
   // setState-during-render avoids the effect-cascade (https://react.dev/learn/you-might-not-need-an-effect).
   const syncKey = isOpen ? editingEndpoint : null;
@@ -49,6 +63,8 @@ export default function WebhookFormModal({
     setTrackedSyncKey(syncKey);
     setFormData(buildFormData(editingEndpoint));
     setShowSecret(false);
+    setCustomState(buildCustomState(editingEndpoint));
+    setShowCustom(false);
   }
 
   useEffect(() => {
@@ -102,10 +118,15 @@ export default function WebhookFormModal({
           onSubmit={(e) => {
             e.preventDefault();
             const mode = scopingLocked ? 'all' : formData.product_filter_mode;
+            const customization = customizationLocked ? {} : buildCustomizationPayload({
+              ...customState,
+              hadHeaders: editingEndpoint?.has_custom_headers ?? false,
+            });
             onSubmit({
               ...formData,
               product_filter_mode: mode,
               product_ids: mode === 'selected' ? formData.product_ids : [],
+              ...customization,
             });
           }}
           className="space-y-4"
@@ -290,6 +311,89 @@ export default function WebhookFormModal({
                   </div>
                 )}
                 <p className="text-xs text-sf-muted">{t('scopingNonProductNote')}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Custom integration (Pro) */}
+          <div className="border-t border-sf-border-medium pt-4">
+            <button type="button" onClick={() => setShowCustom((v) => !v)}
+              className="flex items-center justify-between w-full text-sm font-medium text-sf-body">
+              <span>{t('customization.title')}</span>
+              <span className="text-sf-muted">{showCustom ? '−' : '+'}</span>
+            </button>
+
+            {showCustom && customizationLocked && (
+              <div className="mt-3 p-4 bg-sf-base border-2 border-sf-border-medium shadow-lg">
+                <p className="text-sm font-medium text-sf-heading">{t('customization.lockedTitle')}</p>
+                <p className="text-xs text-sf-muted">{t('customization.lockedDescription')}</p>
+              </div>
+            )}
+
+            {showCustom && !customizationLocked && (
+              <div className="mt-3 space-y-4">
+                {/* Payload field selection */}
+                <div>
+                  <label className="block text-sm font-medium text-sf-body mb-2">{t('customization.fieldsLabel')}</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 bg-sf-deep p-4 border-2 border-sf-border-medium">
+                    {PAYLOAD_TOP_LEVEL_KEYS.map((k) => (
+                      <label key={k} className="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" checked={customState.payloadFieldsSelected.includes(k)}
+                          onChange={() => setCustomState((s) => ({ ...s, payloadFieldsSelected:
+                            s.payloadFieldsSelected.includes(k) ? s.payloadFieldsSelected.filter((x) => x !== k) : [...s.payloadFieldsSelected, k] }))}
+                          className="h-4 w-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent" />
+                        <span className="text-sm text-sf-heading font-mono">{k}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-sf-muted">{t('customization.fieldsHint')}</p>
+                </div>
+
+                {/* Extra fields */}
+                <div>
+                  <label className="block text-sm font-medium text-sf-body mb-2">{t('customization.extraFieldsLabel')}</label>
+                  {customState.extraFields.map((row, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input value={row.key} placeholder={t('customization.keyPlaceholder')}
+                        onChange={(e) => setCustomState((s) => ({ ...s, extraFields: s.extraFields.map((r, j) => j === i ? { ...r, key: e.target.value } : r) }))}
+                        className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm" />
+                      <input value={row.value} placeholder={t('customization.valuePlaceholder')}
+                        onChange={(e) => setCustomState((s) => ({ ...s, extraFields: s.extraFields.map((r, j) => j === i ? { ...r, value: e.target.value } : r) }))}
+                        className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm" />
+                      <button type="button" onClick={() => setCustomState((s) => ({ ...s, extraFields: s.extraFields.filter((_, j) => j !== i) }))}
+                        className="px-2 text-sf-muted hover:text-red-500">×</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setCustomState((s) => ({ ...s, extraFields: [...s.extraFields, { key: '', value: '' }] }))}
+                    className="text-sm text-sf-accent hover:underline">{t('customization.addField')}</button>
+                  <p className="mt-1 text-xs text-sf-muted">{t('customization.placeholdersHint', { tokens: PLACEHOLDER_HINTS.map((p) => `{{${p}}}`).join(', ') })}</p>
+                </div>
+
+                {/* Custom headers (write-only) */}
+                <div>
+                  <label className="block text-sm font-medium text-sf-body mb-2">{t('customization.headersLabel')}</label>
+                  {editingEndpoint?.has_custom_headers && !customState.deleteHeaders && (
+                    <div className="flex items-center justify-between mb-2 p-2 bg-sf-deep border-2 border-sf-border-medium">
+                      <span className="text-sm text-sf-muted">{t('customization.headersConfigured')}</span>
+                      <button type="button" onClick={() => setCustomState((s) => ({ ...s, deleteHeaders: true }))}
+                        className="text-sm text-red-500 hover:underline">{t('customization.deleteHeaders')}</button>
+                    </div>
+                  )}
+                  {customState.headerRows.map((row, i) => (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <input value={row.key} placeholder={t('customization.headerNamePlaceholder')}
+                        onChange={(e) => setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, key: e.target.value } : r) }))}
+                        className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm" />
+                      <input type="password" value={row.value} placeholder={t('customization.headerValuePlaceholder')}
+                        onChange={(e) => setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, value: e.target.value } : r) }))}
+                        className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm font-mono" />
+                      <button type="button" onClick={() => setCustomState((s) => ({ ...s, headerRows: s.headerRows.filter((_, j) => j !== i) }))}
+                        className="px-2 text-sf-muted hover:text-red-500">×</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setCustomState((s) => ({ ...s, headerRows: [...s.headerRows, { key: '', value: '' }] }))}
+                    className="text-sm text-sf-accent hover:underline">{t('customization.addHeader')}</button>
+                </div>
               </div>
             )}
           </div>
