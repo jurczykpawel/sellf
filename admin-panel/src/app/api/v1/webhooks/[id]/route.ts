@@ -66,6 +66,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         is_active,
         secret,
         product_filter_mode,
+        custom_payload_fields,
+        payload_field_selection,
+        custom_headers_encrypted,
         created_at,
         updated_at
       `)
@@ -81,7 +84,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const product_ids = await getEndpointProductIds(adminClient, id);
-    return jsonResponse(successResponse({ ...webhook, product_ids }), request);
+    const { custom_headers_encrypted, ...rest } = webhook as typeof webhook & { custom_headers_encrypted?: string | null };
+    return jsonResponse(successResponse({ ...rest, product_ids, has_custom_headers: custom_headers_encrypted != null }), request);
   } catch (error) {
     return handleApiError(error, request);
   }

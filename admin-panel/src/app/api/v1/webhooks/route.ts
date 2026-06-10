@@ -74,6 +74,9 @@ export async function GET(request: NextRequest) {
         is_active,
         secret,
         product_filter_mode,
+        custom_payload_fields,
+        payload_field_selection,
+        custom_headers_encrypted,
         created_at,
         updated_at
       `);
@@ -113,10 +116,10 @@ export async function GET(request: NextRequest) {
       adminClient,
       (items as Array<{ id: string }>).map((w) => w.id),
     );
-    const itemsWithProducts = (items as Array<{ id: string }>).map((w) => ({
-      ...w,
-      product_ids: productMap[w.id] ?? [],
-    }));
+    const itemsWithProducts = (items as Array<{ id: string; custom_headers_encrypted?: string | null }>).map((w) => {
+      const { custom_headers_encrypted, ...rest } = w;
+      return { ...rest, product_ids: productMap[w.id] ?? [], has_custom_headers: custom_headers_encrypted != null };
+    });
 
     return jsonResponse(successResponse(itemsWithProducts, pagination), request);
   } catch (error) {

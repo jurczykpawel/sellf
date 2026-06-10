@@ -7,6 +7,9 @@ export interface WebhookEndpoint {
   secret: string;
   product_filter_mode: 'all' | 'selected';
   product_ids?: string[];
+  custom_payload_fields?: Record<string, unknown> | null;
+  payload_field_selection?: string[] | null;
+  has_custom_headers?: boolean;
   created_at: string;
 }
 
