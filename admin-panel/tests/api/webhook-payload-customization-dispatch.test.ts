@@ -35,7 +35,9 @@ beforeAll(async () => {
   const { data } = await admin.from('webhook_endpoints').insert({
     url: 'https://example.com/hook', events: ['purchase.completed'], is_active: true,
     secret: 'whsec_test', product_filter_mode: 'all',
-    custom_headers_encrypted: enc, custom_payload_fields: { brand: 'tsa', to: '{{email}}' }, payload_field_selection: ['email'],
+    custom_headers_encrypted: enc,
+    custom_payload_fields: { brand: 'tsa', to: '{{email}}', amount: '{{amount_major}}' },
+    payload_field_selection: ['order'],
   }).select('id').single();
   endpointId = data!.id;
 });
@@ -43,11 +45,20 @@ beforeAll(async () => {
 afterAll(async () => { await admin.from('webhook_endpoints').delete().eq('id', endpointId); delete process.env.DEMO_MODE; });
 
 describe('trigger applies endpoint customization', () => {
-  it('sends selected data + extra fields + custom header', async () => {
-    await WebhookService.trigger('purchase.completed', { email: 'a@b.com', amount: 10, secret_note: 'x' }, admin);
+  it('sends selected data + extra fields + custom header (real nested purchase payload)', async () => {
+    // The REAL purchase.completed payload is the nested PurchaseWebhookData
+    // (customer/product/order), not a flat object. This is the shape that
+    // {{email}}/{{amount_major}} and the field selection must resolve against.
+    await WebhookService.trigger('purchase.completed', {
+      customer: { email: 'a@b.com' },
+      order: { amount: 14900, currency: 'usd', paymentIntentId: 'pi_X' },
+      product: { name: 'Webinar', slug: 'webinar' },
+    }, admin);
     expect(captured.headers!['Authorization']).toBe('Bearer T');
     expect(captured.body.brand).toBe('tsa');
     expect(captured.body.to).toBe('a@b.com');
-    expect(captured.body.data).toEqual({ email: 'a@b.com' }); // secret_note filtered out
+    expect(captured.body.amount).toBe('149.00'); // {{amount_major}} from order.amount (cents)
+    // Field selection keeps the real top-level `order` key; customer/product dropped.
+    expect(captured.body.data).toEqual({ order: { amount: 14900, currency: 'usd', paymentIntentId: 'pi_X' } });
   });
 });

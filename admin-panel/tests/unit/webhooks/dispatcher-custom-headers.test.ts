@@ -31,4 +31,18 @@ describe('dispatcher custom headers', () => {
     expect(captured.headers!['Content-Type']).toBe('application/json');
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
   });
+
+  // C1 regression: retried deliveries (attemptCount > 1) must re-apply the
+  // endpoint's custom headers. The cron + legacy retry paths regressed by
+  // building the dispatch slice WITHOUT custom_headers_encrypted, so retries
+  // went out unauthenticated. As long as the slice carries the column, the
+  // dispatcher re-applies it on every attempt — this proves that property.
+  it('re-applies decrypted custom headers on a retry attempt', async () => {
+    const enc = await encryptHeaderMap({ Authorization: 'Bearer T' });
+    const endpoint = { id: 'e1', url: 'https://example.com/h', secret: 's', custom_headers_encrypted: enc };
+    const res = await WebhookDispatcher.dispatch(endpoint, 'purchase.completed', { a: 1 }, { attemptCount: 3 });
+    expect(res.ok).toBe(true);
+    expect(captured.headers!['Authorization']).toBe('Bearer T');
+    expect(captured.headers!['X-Sellf-Retry-Attempt']).toBe('3');
+  });
 });

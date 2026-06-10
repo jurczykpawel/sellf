@@ -49,7 +49,10 @@ export class WebhookService {
         : true;
 
       const ctx: Record<string, string> = buildPlaceholderContext(data);
-      const orderId = (data as any)?.payment_intent_id ?? (data as any)?.order_id ?? (data as any)?.session_id ?? null;
+      // Empty string (no order id) collapses to null so the delivery key stays
+      // null. Derived from the SAME helper as the {{order_id}} placeholder so the
+      // two can never drift.
+      const orderId = deriveOrderId(data) || null;
 
       await Promise.allSettled(
         endpoints.map(async (endpoint) => {
@@ -134,13 +137,15 @@ export class WebhookService {
 
     const { data: endpoint, error: endpointError } = await supabase
       .from('webhook_endpoints')
-      .select('id, url, secret')
+      .select('id, url, secret, custom_headers_encrypted')
       .eq('id', log.endpoint_id)
       .single();
     if (endpointError || !endpoint) throw new Error('Endpoint not found');
 
     const result = await WebhookDispatcher.dispatch(
-      endpoint,
+      // Include custom_headers_encrypted so manual retries re-apply the endpoint's
+      // configured headers (same defect as the cron retry path).
+      { id: endpoint.id, url: endpoint.url, secret: endpoint.secret, custom_headers_encrypted: endpoint.custom_headers_encrypted },
       log.event_type,
       log.payload,
       { attemptCount: 1, extraHeaders: { 'X-Sellf-Retry': 'true' } },
@@ -163,21 +168,49 @@ export class WebhookService {
   }
 }
 
-function buildPlaceholderContext(data: unknown): Record<string, string> {
+/**
+ * Build the {{placeholder}} substitution context for an outbound webhook body
+ * from the REAL nested `purchase.completed` payload (`PurchaseWebhookData` —
+ * see src/lib/services/webhook-payload.ts). Reads `customer`/`product`/`order`
+ * and the resolved `customFields` (DisplayCustomField), NOT flat top-level keys.
+ * Exported for unit testing.
+ */
+export function buildPlaceholderContext(data: unknown): Record<string, string> {
   const d = (data ?? {}) as Record<string, any>;
+  const customer = (d.customer ?? {}) as Record<string, any>;
   const product = (d.product ?? {}) as Record<string, any>;
+  const order = (d.order ?? {}) as Record<string, any>;
+  const amount = order.amount;
   const flat: Record<string, string> = {
-    email: str(d.customer_email ?? d.email),
-    amount: str(d.amount_display ?? d.amount),
-    amount_minor: str(d.amount),
-    currency: str(d.currency),
-    product_name: str(product.name ?? d.product_name),
-    product_slug: str(product.slug ?? d.product_slug),
-    order_id: str(d.payment_intent_id ?? d.order_id ?? d.session_id),
-    invoice_url: str(d.invoice_url),
+    email: str(customer.email),
+    first_name: str(customer.firstName),
+    last_name: str(customer.lastName),
+    amount: str(amount),                                   // raw minor units (cents)
+    amount_major: amount != null ? (Number(amount) / 100).toFixed(2) : '', // convenience
+    currency: str(order.currency),
+    product_name: str(product.name),
+    product_slug: str(product.slug),
+    order_id: deriveOrderId(d),
   };
-  const custom = (d.custom_field_values ?? {}) as Record<string, unknown>;
-  for (const [k, v] of Object.entries(custom)) flat[`custom_${k}`] = str(v);
+  const customFields = Array.isArray(d.customFields) ? d.customFields : [];
+  for (const f of customFields) {
+    // DisplayCustomField carries the machine key as `id` (label is the display
+    // text). Fall back through key/name/id so older/other shapes still resolve;
+    // use the machine key, not the display label.
+    const key = f?.key ?? f?.name ?? f?.id;
+    if (key != null && key !== '') flat[`custom_${String(key)}`] = str(f?.value);
+  }
   return flat;
 }
+
+/**
+ * Single source of truth for an event's order id, used both for the {{order_id}}
+ * placeholder and the queue delivery key. Returns '' when the (nested) payload
+ * has no order id. Exported for unit testing.
+ */
+export function deriveOrderId(data: unknown): string {
+  const order = ((data ?? {}) as Record<string, any>).order ?? {};
+  return str(order.paymentIntentId ?? order.sessionId);
+}
+
 function str(v: unknown): string { return v == null ? '' : String(v); }

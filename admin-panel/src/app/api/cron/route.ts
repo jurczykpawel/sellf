@@ -226,7 +226,10 @@ async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
 
         const nextAttempt = delivery.attemptCount + 1;
         const result = await WebhookDispatcher.dispatch(
-          { id: endpoint.id, url: endpoint.url, secret: endpoint.secret },
+          // Carry the encrypted custom headers into the slice so retried
+          // deliveries re-apply them — without this they were dropped, sending
+          // unauthenticated (e.g. → 401 → DLQ, PII posted without auth).
+          { id: endpoint.id, url: endpoint.url, secret: endpoint.secret, custom_headers_encrypted: endpoint.custom_headers_encrypted },
           delivery.eventType,
           delivery.payload,
           { attemptCount: nextAttempt },
