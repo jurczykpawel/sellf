@@ -10,6 +10,7 @@ export interface WebhookEndpoint {
   custom_payload_fields?: Record<string, unknown> | null;
   payload_field_selection?: string[] | null;
   has_custom_headers?: boolean;
+  custom_header_names?: string[];
   created_at: string;
 }
 

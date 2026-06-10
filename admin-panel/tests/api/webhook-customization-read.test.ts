@@ -86,6 +86,9 @@ describe('v1 GET returns non-secret customization + has_custom_headers', () => {
     expect(ep.custom_payload_fields).toEqual({ brand: 'tsa' });
     expect(ep.payload_field_selection).toEqual(['order']);
     expect(ep.has_custom_headers).toBe(true);
+    // The KEY NAMES are returned (so the edit form can list them)…
+    expect(ep.custom_header_names).toEqual(['Authorization']);
+    // …but never the encrypted blob, and never the secret VALUE.
     expect(ep.custom_headers_encrypted).toBeUndefined();
     expect(JSON.stringify(ep)).not.toContain('sk_secret');
   });

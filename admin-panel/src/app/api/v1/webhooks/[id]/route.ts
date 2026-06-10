@@ -22,7 +22,7 @@ import { validateUUID } from '@/lib/validations/product';
 import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { checkFeature } from '@/lib/license/resolve';
 import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
-import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
+import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const PRODUCT_SCOPING_DENIED =
   'Per-product webhook scoping requires a Pro license. Use product_filter_mode="all" or upgrade.';
@@ -85,7 +85,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const product_ids = await getEndpointProductIds(adminClient, id);
     const { custom_headers_encrypted, ...rest } = webhook as typeof webhook & { custom_headers_encrypted?: string | null };
-    return jsonResponse(successResponse({ ...rest, product_ids, has_custom_headers: custom_headers_encrypted != null }), request);
+    // Header NAMES are not secret and let the edit form show what's configured;
+    // the VALUES never leave the server. Decrypt failure → expose nothing.
+    let custom_header_names: string[] = [];
+    if (custom_headers_encrypted) {
+      try {
+        custom_header_names = Object.keys(await decryptHeaderMap(custom_headers_encrypted));
+      } catch {
+        custom_header_names = [];
+      }
+    }
+    return jsonResponse(successResponse({ ...rest, product_ids, has_custom_headers: custom_headers_encrypted != null, custom_header_names }), request);
   } catch (error) {
     return handleApiError(error, request);
   }

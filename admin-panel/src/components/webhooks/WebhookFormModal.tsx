@@ -447,10 +447,19 @@ export default function WebhookFormModal({
                 <div>
                   <label className="block text-sm font-medium text-sf-body mb-2">{t('customization.headersLabel')}</label>
                   {editingEndpoint?.has_custom_headers && !customState.deleteHeaders && (
-                    <div className="flex items-center justify-between mb-2 p-2 bg-sf-deep border-2 border-sf-border-medium">
-                      <span className="text-sm text-sf-muted">{t('customization.headersConfigured')}</span>
-                      <button type="button" onClick={() => setCustomState((s) => ({ ...s, deleteHeaders: true }))}
-                        className="text-sm text-red-500 hover:underline">{t('customization.deleteHeaders')}</button>
+                    <div className="mb-2 p-2 bg-sf-deep border-2 border-sf-border-medium">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-sf-muted">{t('customization.headersConfigured')}</span>
+                        <button type="button" onClick={() => setCustomState((s) => ({ ...s, deleteHeaders: true }))}
+                          className="text-sm text-red-500 hover:underline">{t('customization.deleteHeaders')}</button>
+                      </div>
+                      <ul className="space-y-0.5">
+                        {(editingEndpoint?.custom_header_names ?? []).map((name) => (
+                          <li key={name} className="flex justify-between text-xs font-mono text-sf-heading">
+                            <span>{name}</span><span className="text-sf-muted">••••••</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                   {customState.headerRows.map((row, i) => (

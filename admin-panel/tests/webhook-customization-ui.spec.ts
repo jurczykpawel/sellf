@@ -218,6 +218,10 @@ test.describe('Webhook payload customization form', () => {
     const deleteHeaders = page.locator('#webhook-form').getByRole('button', { name: 'Delete' });
     await expect(deleteHeaders).toBeVisible();
 
+    // The configured-headers block lists the header NAME (so the user sees what
+    // exists before deleting) — names are not secret.
+    await expect(page.locator('#webhook-form li', { hasText: 'Authorization' })).toBeVisible();
+
     // …but the secret value is NEVER present in the page DOM.
     expect(await page.content()).not.toContain(HEADER_VALUE);
 

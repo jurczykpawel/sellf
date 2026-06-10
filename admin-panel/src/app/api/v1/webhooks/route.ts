@@ -20,7 +20,7 @@ import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } fr
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { checkFeature } from '@/lib/license/resolve';
 import { setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
-import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
+import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const WEBHOOK_ENDPOINT_QUOTA = 50;
 
@@ -116,10 +116,22 @@ export async function GET(request: NextRequest) {
       adminClient,
       (items as Array<{ id: string }>).map((w) => w.id),
     );
-    const itemsWithProducts = (items as Array<{ id: string; custom_headers_encrypted?: string | null }>).map((w) => {
-      const { custom_headers_encrypted, ...rest } = w;
-      return { ...rest, product_ids: productMap[w.id] ?? [], has_custom_headers: custom_headers_encrypted != null };
-    });
+    const itemsWithProducts = await Promise.all(
+      (items as Array<{ id: string; custom_headers_encrypted?: string | null }>).map(async (w) => {
+        const { custom_headers_encrypted, ...rest } = w;
+        // Header NAMES are not secret and let the edit form show what's configured;
+        // the VALUES never leave the server. Decrypt failure → expose nothing.
+        let custom_header_names: string[] = [];
+        if (custom_headers_encrypted) {
+          try {
+            custom_header_names = Object.keys(await decryptHeaderMap(custom_headers_encrypted));
+          } catch {
+            custom_header_names = [];
+          }
+        }
+        return { ...rest, product_ids: productMap[w.id] ?? [], has_custom_headers: custom_headers_encrypted != null, custom_header_names };
+      }),
+    );
 
     return jsonResponse(successResponse(itemsWithProducts, pagination), request);
   } catch (error) {
