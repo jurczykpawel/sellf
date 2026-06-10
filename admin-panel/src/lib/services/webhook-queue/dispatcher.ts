@@ -1,6 +1,7 @@
 import { fetch as undiciFetch } from 'undici';
 import { getSsrfSafeAgent } from '@/lib/security/safe-fetch';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
+import { decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 import { signWebhookPayload } from './signature';
 import type { AttemptResult } from './types';
 
@@ -11,6 +12,7 @@ interface EndpointSlice {
   id: string;
   url: string;
   secret: string;
+  custom_headers_encrypted?: string | null;
 }
 
 interface DispatchOptions {
@@ -47,10 +49,30 @@ export class WebhookDispatcher {
       const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
       try {
-        // Security: callers can pass extra headers (e.g. X-Sellf-Retry), but the
-        // signature/event/content-type headers are owned by the dispatcher and
-        // must never be overwritten by an extraHeaders entry.
+        // Per-endpoint custom headers are stored encrypted; decrypt them here so
+        // they apply on every attempt (first send AND retries). A decryption
+        // failure must not silently drop the configured headers, so we abort the
+        // attempt (the surrounding `finally` still clears the timeout).
+        let customHeaders: Record<string, string> = {};
+        if (endpoint.custom_headers_encrypted) {
+          try {
+            customHeaders = await decryptHeaderMap(endpoint.custom_headers_encrypted);
+          } catch {
+            return {
+              ok: false,
+              httpStatus: 0,
+              responseBody: null,
+              errorMessage: 'Custom header decryption failed',
+              durationMs: Date.now() - startTime,
+            };
+          }
+        }
+
+        // Security: custom headers and caller-supplied extra headers (e.g.
+        // X-Sellf-Retry) are spread first, but the signature/event/content-type
+        // headers are owned by the dispatcher and must never be overwritten.
         const headers: Record<string, string> = {
+          ...customHeaders,
           ...(options.extraHeaders ?? {}),
           'Content-Type': 'application/json',
           'X-Sellf-Event': event,
