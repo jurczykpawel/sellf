@@ -31,6 +31,18 @@ const BUSINESS_LICENSE =
 
 const HEADER_VALUE = 'Bearer T'; // must NEVER appear in the page DOM
 
+// resolveCurrentTier resolves tier as DEMO_MODE → DB → env (SELLF_LICENSE_KEY).
+// The free-tier scenario needs the server to land on 'free', which is only reachable
+// when the dev server runs WITHOUT a tier-forcing env: DEMO_MODE off AND a blank
+// SELLF_LICENSE_KEY. On a licensed/demo .env.local the DB's null license falls
+// through to the env's business license, so 'free' is unreachable from the test and
+// the upsell never renders. playwright.config.ts loads .env.local, so we detect that
+// here and skip rather than fail spuriously — CI / a clean worktree (blank
+// SELLF_LICENSE_KEY) still exercises it. (Pro-tier scenarios are unaffected: the DB
+// can always raise the tier to business.)
+const ENV_FORCES_NONFREE =
+  process.env.DEMO_MODE === 'true' || Boolean(process.env.SELLF_LICENSE_KEY);
+
 async function setTier(tier: 'free' | 'pro'): Promise<void> {
   // resolveCurrentTier reads integrations_config.sellf_license (row id=1) before
   // the env fallback. null → free; business license → business (Pro+).
@@ -116,6 +128,10 @@ test.describe('Webhook payload customization form', () => {
   });
 
   test('free tier: expanding the block shows the upsell and renders no field/header inputs', async ({ page }) => {
+    test.skip(
+      ENV_FORCES_NONFREE,
+      'free-tier upsell is only testable with a clean .env.local (DEMO_MODE off + blank SELLF_LICENSE_KEY); this dev env resolves a business tier',
+    );
     await setTier('free');
     await gotoWebhooks(page, admin.email, admin.password);
     await openAddEndpoint(page);
