@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
+import { quoteForPostgrestOr } from '@/lib/api/filters';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 
 const COUPON_API_FIELDS = `
@@ -88,10 +89,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Search by code or name
+    // Search by code or name. Quote the value so commas/dots/parentheses in the
+    // user input cannot be parsed as additional PostgREST .or() filter clauses
+    // (mirrors the hardened products/tags list endpoints).
     if (search) {
-      const escapedSearch = escapeIlikePattern(search);
-      query = query.or(`code.ilike.%${escapedSearch}%,name.ilike.%${escapedSearch}%`);
+      const searchPattern = quoteForPostgrestOr(`%${escapeIlikePattern(search)}%`);
+      query = query.or(`code.ilike.${searchPattern},name.ilike.${searchPattern}`);
     }
 
     // Sorting

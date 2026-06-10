@@ -32,6 +32,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 });
     }
 
+    // Bound the free-text reason so an authenticated user can't bloat the row /
+    // downstream emails with an unbounded payload.
+    const MAX_REASON_LENGTH = 2000;
+    if (reason !== undefined && reason !== null) {
+      if (typeof reason !== 'string') {
+        return NextResponse.json({ error: 'Reason must be a string' }, { status: 400 });
+      }
+      if (reason.length > MAX_REASON_LENGTH) {
+        return NextResponse.json(
+          { error: `Reason must be ${MAX_REASON_LENGTH} characters or less` },
+          { status: 400 },
+        );
+      }
+    }
+
     const adminClient = createAdminClient();
 
     // Verify transaction belongs to authenticated user

@@ -4,6 +4,7 @@ import { verifyCaptchaToken } from '@/lib/captcha/verify';
 
 const SAVED_SECRET = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
 const SAVED_NODE_ENV = process.env.NODE_ENV;
+const SAVED_ALTCHA = process.env.ALTCHA_HMAC_KEY;
 const SAVED_FETCH = global.fetch;
 
 beforeEach(() => {
@@ -15,8 +16,24 @@ afterEach(() => {
   else process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = SAVED_SECRET;
   if (SAVED_NODE_ENV === undefined) delete process.env.NODE_ENV;
   else process.env.NODE_ENV = SAVED_NODE_ENV;
+  if (SAVED_ALTCHA === undefined) delete process.env.ALTCHA_HMAC_KEY;
+  else process.env.ALTCHA_HMAC_KEY = SAVED_ALTCHA;
   global.fetch = SAVED_FETCH;
   vi.restoreAllMocks();
+});
+
+describe('verifyCaptchaToken — ALTCHA replay/expiry', () => {
+  it('rejects an ALTCHA payload whose embedded expiry has already passed (no indefinite replay)', async () => {
+    process.env.ALTCHA_HMAC_KEY = 'test-altcha-key';
+    const pastEpoch = Math.floor((Date.now() - 60_000) / 1000);
+    const salt = `deadbeefcafe?expires=${pastEpoch}&`;
+    const payload = Buffer.from(
+      JSON.stringify({ algorithm: 'SHA-256', challenge: 'x', number: 1, salt, signature: 'y' }),
+    ).toString('base64');
+
+    const result = await verifyCaptchaToken(payload, 'altcha');
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('verifyCaptchaToken — provider=none fail-closed in production', () => {

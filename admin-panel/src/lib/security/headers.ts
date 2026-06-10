@@ -88,7 +88,10 @@ export function buildBaseSecurityHeaders(): HeaderEntry[] {
   return [
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-    { key: 'X-XSS-Protection', value: '1; mode=block' },
+    // Disabled by design: the legacy XSS Auditor is gone from modern browsers and
+    // `1; mode=block` enabled XS-Leak side channels in older ones. CSP (nonce +
+    // strict-dynamic, set per-request in middleware) is the actual XSS control.
+    { key: 'X-XSS-Protection', value: '0' },
     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
     { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },

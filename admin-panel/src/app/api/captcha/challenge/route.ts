@@ -26,6 +26,13 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 
 const CHALLENGE_METHODS = 'GET, OPTIONS';
 
+// Embed an expiry in every challenge so a solved proof-of-work cannot be
+// replayed indefinitely. ALTCHA round-trips the salt (which carries `expires`)
+// and `verifySolution` rejects expired payloads. 30 min comfortably covers
+// checkout form-fill while bounding the replay window; within that window the
+// per-IP / per-email rate limits on the embed endpoints are the binding control.
+const CHALLENGE_TTL_SECONDS = 30 * 60;
+
 async function corsHeadersFor(request: Request): Promise<Record<string, string>> {
   const origin = request.headers.get('origin');
   const productSlug = new URL(request.url).searchParams.get('productSlug');
@@ -71,6 +78,7 @@ export async function GET(request: Request) {
     const challenge = await createChallenge({
       hmacKey,
       maxNumber: 100_000,
+      expires: new Date(Date.now() + CHALLENGE_TTL_SECONDS * 1000),
     });
 
     return NextResponse.json(challenge, {

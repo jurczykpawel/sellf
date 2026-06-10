@@ -88,6 +88,16 @@ describe('GET /api/captcha/challenge', () => {
     expect(typeof body.signature).toBe('string');
   });
 
+  it('embeds an expiry in the challenge salt so a solved PoW cannot be replayed indefinitely', async () => {
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const params = new URLSearchParams((body.salt as string).split('?')[1] || '');
+    const expires = params.get('expires');
+    expect(expires).toBeTruthy();
+    expect(parseInt(expires!, 10) * 1000).toBeGreaterThan(Date.now());
+  });
+
   it('500s when ALTCHA is not configured', async () => {
     delete process.env.ALTCHA_HMAC_KEY;
     const res = await GET(makeRequest());

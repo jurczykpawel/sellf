@@ -49,6 +49,20 @@ export async function POST(request: NextRequest) {
     // Use the unified payment verification function
     const result = await verifyPaymentSession(session_id, user);
 
+    // PII guard: the session_id is the only secret here and it leaks (URL/Referer/
+    // history). An anonymous caller proves nothing about being the buyer, so never
+    // hand back the buyer's email or purchase details to an unauthenticated request.
+    // The post-purchase page renders these server-side via the lib function directly
+    // (not this route), so redaction here does not affect the buyer's own view.
+    if (!user && !result.error) {
+      result.customer_email = undefined;
+      result.amount_total = undefined;
+      result.currency = undefined;
+      if (result.metadata) {
+        result.metadata = { ...result.metadata, product_id: undefined };
+      }
+    }
+
     // Handle errors
     if (result.error) {
       if (result.error === 'Invalid session ID') {

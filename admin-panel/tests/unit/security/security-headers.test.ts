@@ -29,6 +29,10 @@ describe('Security headers', () => {
       expect(headerMap.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
     });
 
+    it('disables the legacy XSS Auditor (X-XSS-Protection: 0) — CSP is the real control', () => {
+      expect(headerMap.get('X-XSS-Protection')).toBe('0');
+    });
+
     it('does NOT emit a Content-Security-Policy here — middleware sets it per-request with a nonce', () => {
       expect(headerMap.has('Content-Security-Policy')).toBe(false);
     });
