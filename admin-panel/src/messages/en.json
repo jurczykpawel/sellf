@@ -1852,7 +1852,25 @@
       "scopeSelected": "Selected ({count})",
       "scopingLockedTitle": "Per-product scoping is a Pro feature",
       "scopingLockedDescription": "Upgrade to Pro to limit this webhook to selected products.",
-      "scopingNonProductNote": "Events not tied to a specific product will still fire for all products, regardless of this selection."
+      "scopingNonProductNote": "Events not tied to a specific product will still fire for all products, regardless of this selection.",
+      "customization": {
+        "title": "Custom integration (Pro)",
+        "lockedTitle": "Custom integration is a Pro feature",
+        "lockedDescription": "Upgrade to send custom headers and payload fields to any endpoint.",
+        "fieldsLabel": "Payload fields to send",
+        "fieldsHint": "All checked = send everything. Uncheck to send only selected sections.",
+        "extraFieldsLabel": "Extra fields",
+        "addField": "+ Add field",
+        "keyPlaceholder": "field name",
+        "valuePlaceholder": "value or a placeholder token",
+        "placeholdersHint": "Available: {tokens}",
+        "headersLabel": "Custom headers",
+        "headersConfigured": "Custom headers configured",
+        "deleteHeaders": "Delete",
+        "addHeader": "+ Add header",
+        "headerNamePlaceholder": "Header name",
+        "headerValuePlaceholder": "Header value (write-only)"
+      }
     },
     "apiKeys": {
       "title": "API Keys",

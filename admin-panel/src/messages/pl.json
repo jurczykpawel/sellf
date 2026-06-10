@@ -1867,7 +1867,25 @@
       "scopeSelected": "Wybrane ({count})",
       "scopingLockedTitle": "Zakres per produkt to funkcja Pro",
       "scopingLockedDescription": "Przejdź na Pro, aby ograniczyć ten webhook do wybranych produktów.",
-      "scopingNonProductNote": "Zdarzenia niepowiązane z konkretnym produktem i tak będą wysyłane dla wszystkich produktów, niezależnie od tego wyboru."
+      "scopingNonProductNote": "Zdarzenia niepowiązane z konkretnym produktem i tak będą wysyłane dla wszystkich produktów, niezależnie od tego wyboru.",
+      "customization": {
+        "title": "Własna integracja (Pro)",
+        "lockedTitle": "Własna integracja to funkcja Pro",
+        "lockedDescription": "Przejdź na Pro, aby wysyłać własne nagłówki i pola payloadu do dowolnego endpointu.",
+        "fieldsLabel": "Pola payloadu do wysłania",
+        "fieldsHint": "Wszystkie zaznaczone = wysyłaj wszystko. Odznacz, aby wysłać tylko wybrane sekcje.",
+        "extraFieldsLabel": "Dodatkowe pola",
+        "addField": "+ Dodaj pole",
+        "keyPlaceholder": "nazwa pola",
+        "valuePlaceholder": "wartość lub token placeholder",
+        "placeholdersHint": "Dostępne: {tokens}",
+        "headersLabel": "Własne nagłówki",
+        "headersConfigured": "Własne nagłówki skonfigurowane",
+        "deleteHeaders": "Usuń",
+        "addHeader": "+ Dodaj nagłówek",
+        "headerNamePlaceholder": "Nazwa nagłówka",
+        "headerValuePlaceholder": "Wartość nagłówka (tylko zapis)"
+      }
     },
     "apiKeys": {
       "title": "Klucze API",
