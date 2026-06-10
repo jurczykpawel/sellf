@@ -243,7 +243,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   );
 
   const renderForm = () => (
-    <div className="w-1/2 pl-8">
+    <div className="w-full lg:w-1/2 lg:pl-8">
       <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border">
         <h2 className="text-xl font-semibold text-sf-heading mb-4">
           {user ? t('getYourFreeProduct') : t('getInstantAccess')}
@@ -363,10 +363,10 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   );
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised">
-      <div className="max-w-4xl mx-auto p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
+      <div className="w-full max-w-4xl mx-auto p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         <DemoCheckoutNotice />
-        <div className="flex">
+        <div className="flex flex-col lg:flex-row">
           {renderProductInfo()}
           {renderForm()}
         </div>
