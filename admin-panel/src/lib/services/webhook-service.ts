@@ -93,24 +93,44 @@ export class WebhookService {
 
     const { data: endpoint, error } = await supabase
       .from('webhook_endpoints')
-      .select('id, url, secret')
+      // Include customization columns so the test request is sent AS CONFIGURED
+      // (same headers/fields/selection the real trigger() path applies), instead
+      // of a plain envelope that omits the endpoint's Authorization header etc.
+      .select('id, url, secret, custom_headers_encrypted, custom_payload_fields, payload_field_selection')
       .eq('id', endpointId)
       .single();
     if (error || !endpoint) throw new Error('Endpoint not found');
 
     const mockData = WEBHOOK_MOCK_PAYLOADS[eventType] || WEBHOOK_MOCK_PAYLOADS['test.event'];
+    const timestamp = new Date().toISOString();
     const envelope: EnvelopePayload = {
       event: eventType,
-      timestamp: new Date().toISOString(),
+      timestamp,
       data: mockData,
     };
 
-    const result = await WebhookDispatcher.dispatch(endpoint, eventType, envelope, { attemptCount: 1 });
+    // When the endpoint carries any customization, build the body the SAME way
+    // trigger() does (field selection + {{placeholder}} extra fields). Otherwise
+    // keep the plain mock envelope. The customized body is also what we persist
+    // in recordFirstAttempt so the test log reflects exactly what was sent.
+    const isCustomized =
+      endpoint.custom_headers_encrypted != null ||
+      endpoint.custom_payload_fields != null ||
+      endpoint.payload_field_selection != null;
+    const body: unknown = isCustomized
+      ? buildEndpointBody(
+          { event: eventType, timestamp, data: (mockData ?? {}) as Record<string, unknown> },
+          endpoint,
+          buildPlaceholderContext(mockData),
+        )
+      : envelope;
+
+    const result = await WebhookDispatcher.dispatch(endpoint, eventType, body, { attemptCount: 1 });
     const queue = new SupabaseWebhookQueue(supabase);
     await queue.recordFirstAttempt({
       endpointId,
       eventType,
-      payload: envelope,
+      payload: body,
       result,
       maxAttempts: 1,
     });
