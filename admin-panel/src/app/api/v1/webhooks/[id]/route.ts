@@ -22,9 +22,13 @@ import { validateUUID } from '@/lib/validations/product';
 import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { checkFeature } from '@/lib/license/resolve';
 import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
+import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const PRODUCT_SCOPING_DENIED =
   'Per-product webhook scoping requires a Pro license. Use product_filter_mode="all" or upgrade.';
+
+const PAYLOAD_CUSTOMIZATION_FEATURE = 'webhook-payload-customization' as const;
+const PAYLOAD_CUSTOMIZATION_ERROR = 'Custom headers/fields/selection require a Pro license.';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -125,6 +129,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       is_active?: boolean;
       product_filter_mode?: string;
       product_ids?: string[];
+      custom_headers?: Record<string, string>;
+      custom_payload_fields?: Record<string, unknown>;
+      payload_field_selection?: string[];
     }>(request);
 
     const updates: Record<string, unknown> = {};
@@ -179,6 +186,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
       scopedLinks =
         body.product_filter_mode === 'selected' ? Array.from(new Set(body.product_ids ?? [])) : [];
+    }
+
+    // Payload customization (custom headers/fields/field selection) is a Pro feature.
+    const hasCustomization =
+      body.custom_headers !== undefined ||
+      body.custom_payload_fields !== undefined ||
+      body.payload_field_selection !== undefined;
+    if (hasCustomization && !(await checkFeature(PAYLOAD_CUSTOMIZATION_FEATURE, { dataClient: adminClient }))) {
+      return apiError(request, 'FORBIDDEN', PAYLOAD_CUSTOMIZATION_ERROR);
+    }
+    if (body.custom_headers !== undefined) {
+      updates.custom_headers_encrypted =
+        body.custom_headers && Object.keys(body.custom_headers).length > 0
+          ? await encryptHeaderMap(body.custom_headers)
+          : null;
+    }
+    if (body.custom_payload_fields !== undefined) {
+      updates.custom_payload_fields = body.custom_payload_fields ?? null;
+    }
+    if (body.payload_field_selection !== undefined) {
+      updates.payload_field_selection = body.payload_field_selection ?? null;
     }
 
     // Nothing to change

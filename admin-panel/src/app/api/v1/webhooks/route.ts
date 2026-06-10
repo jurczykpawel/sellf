@@ -20,12 +20,16 @@ import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } fr
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { checkFeature } from '@/lib/license/resolve';
 import { setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
+import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const WEBHOOK_ENDPOINT_QUOTA = 50;
 
 const PRODUCT_SCOPING_FEATURE = 'webhook-product-scoping' as const;
 const PRODUCT_SCOPING_DENIED =
   'Per-product webhook scoping requires a Pro license. Use product_filter_mode="all" or upgrade.';
+
+const PAYLOAD_CUSTOMIZATION_FEATURE = 'webhook-payload-customization' as const;
+const PAYLOAD_CUSTOMIZATION_ERROR = 'Custom headers/fields/selection require a Pro license.';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -147,6 +151,11 @@ export async function POST(request: NextRequest) {
     }>(request);
 
     const { url, events, description, is_active = true, product_filter_mode, product_ids } = body;
+    const { custom_headers, custom_payload_fields, payload_field_selection } = body as {
+      custom_headers?: Record<string, string>;
+      custom_payload_fields?: Record<string, unknown>;
+      payload_field_selection?: string[];
+    };
 
     // Validate required fields
     if (!url) {
@@ -181,6 +190,17 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'FORBIDDEN', PRODUCT_SCOPING_DENIED);
     }
 
+    // Payload customization (custom headers/fields/field selection) is a Pro feature.
+    const hasCustomization =
+      custom_headers != null || custom_payload_fields != null || payload_field_selection != null;
+    if (hasCustomization && !(await checkFeature(PAYLOAD_CUSTOMIZATION_FEATURE, { dataClient: adminClient }))) {
+      return apiError(request, 'FORBIDDEN', PAYLOAD_CUSTOMIZATION_ERROR);
+    }
+    const custom_headers_encrypted =
+      custom_headers && Object.keys(custom_headers).length > 0
+        ? await encryptHeaderMap(custom_headers)
+        : null;
+
     // Validate description length
     if (description && description.length > 500) {
       return apiError(request, 'INVALID_INPUT', 'Description must be 500 characters or less');
@@ -212,6 +232,9 @@ export async function POST(request: NextRequest) {
         events,
         description: description || null,
         is_active,
+        custom_headers_encrypted,
+        custom_payload_fields: custom_payload_fields ?? null,
+        payload_field_selection: payload_field_selection ?? null,
       })
       .select('id, url, events, description, is_active, secret, product_filter_mode, created_at, updated_at')
       .single();
