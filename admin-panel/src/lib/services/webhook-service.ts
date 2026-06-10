@@ -4,6 +4,8 @@ import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queu
 import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
 import { DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
 import { fetchEligibleEndpoints } from '@/lib/webhooks/endpoint-selection';
+import { buildEndpointBody } from '@/lib/webhooks/payload-customization';
+import { checkFeature } from '@/lib/license/resolve';
 
 interface EnvelopePayload {
   event: string;
@@ -38,14 +40,35 @@ export class WebhookService {
       const timestamp = new Date().toISOString();
       const envelope: EnvelopePayload = { event, timestamp, data };
 
+      const isCustomized = (e: typeof endpoints[number]) =>
+        e.custom_headers_encrypted != null || e.custom_payload_fields != null || e.payload_field_selection != null;
+
+      const anyCustomized = endpoints.some(isCustomized);
+      const licenseOk = anyCustomized
+        ? await checkFeature('webhook-payload-customization', { dataClient: supabase })
+        : true;
+
+      const ctx: Record<string, string> = buildPlaceholderContext(data);
+
       await Promise.allSettled(
         endpoints.map(async (endpoint) => {
-          const result = await WebhookDispatcher.dispatch(endpoint, event, envelope, { attemptCount: 1 });
+          if (isCustomized(endpoint) && !licenseOk) {
+            console.warn(`[webhook] skipping customized endpoint ${endpoint.id}: license inactive`);
+            return;
+          }
+          const body = isCustomized(endpoint)
+            ? buildEndpointBody(
+                { event: envelope.event, timestamp: envelope.timestamp, data: (data ?? {}) as Record<string, unknown> },
+                endpoint,
+                ctx,
+              )
+            : envelope;
+          const result = await WebhookDispatcher.dispatch(endpoint, event, body, { attemptCount: 1 });
           try {
             await queue.recordFirstAttempt({
               endpointId: endpoint.id,
               eventType: event,
-              payload: envelope,
+              payload: body,
               result,
               maxAttempts: DEFAULT_MAX_ATTEMPTS,
             });
@@ -137,3 +160,22 @@ export class WebhookService {
     return { success: result.ok, status: result.httpStatus, error: result.errorMessage };
   }
 }
+
+function buildPlaceholderContext(data: unknown): Record<string, string> {
+  const d = (data ?? {}) as Record<string, any>;
+  const product = (d.product ?? {}) as Record<string, any>;
+  const flat: Record<string, string> = {
+    email: str(d.customer_email ?? d.email),
+    amount: str(d.amount_display ?? d.amount),
+    amount_minor: str(d.amount),
+    currency: str(d.currency),
+    product_name: str(product.name ?? d.product_name),
+    product_slug: str(product.slug ?? d.product_slug),
+    order_id: str(d.payment_intent_id ?? d.order_id ?? d.session_id),
+    invoice_url: str(d.invoice_url),
+  };
+  const custom = (d.custom_field_values ?? {}) as Record<string, unknown>;
+  for (const [k, v] of Object.entries(custom)) flat[`custom_${k}`] = str(v);
+  return flat;
+}
+function str(v: unknown): string { return v == null ? '' : String(v); }
