@@ -14,6 +14,7 @@ export interface FirstAttemptInput {
   payload: unknown;
   result: AttemptResult;
   maxAttempts?: number;
+  deliveryKey?: string | null;
 }
 
 export interface DueDelivery {

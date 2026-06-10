@@ -61,11 +61,17 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
         max_attempts: maxAttempts,
         next_retry_at: nextRetryAt,
         failed_permanently_at: failedPermanentlyAt,
+        delivery_key: input.deliveryKey ?? null,
       })
       .select('id')
       .single();
 
-    if (error) throw new Error(`recordFirstAttempt failed: ${error.message}`);
+    if (error) {
+      if ((error as { code?: string }).code === '23505') {
+        return { deliveryId: '', willRetry: false }; // already enqueued by a concurrent caller
+      }
+      throw new Error(`recordFirstAttempt failed: ${error.message}`);
+    }
     return { deliveryId: data.id, willRetry: status === 'pending_retry' };
   }
 

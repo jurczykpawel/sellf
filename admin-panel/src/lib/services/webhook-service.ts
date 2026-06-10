@@ -49,6 +49,7 @@ export class WebhookService {
         : true;
 
       const ctx: Record<string, string> = buildPlaceholderContext(data);
+      const orderId = (data as any)?.payment_intent_id ?? (data as any)?.order_id ?? (data as any)?.session_id ?? null;
 
       await Promise.allSettled(
         endpoints.map(async (endpoint) => {
@@ -71,6 +72,7 @@ export class WebhookService {
               payload: body,
               result,
               maxAttempts: DEFAULT_MAX_ATTEMPTS,
+              deliveryKey: orderId ? `${endpoint.id}:${event}:${orderId}` : null,
             });
           } catch (recordErr) {
             console.error('[WebhookService.trigger] Failed to record attempt:', recordErr);
