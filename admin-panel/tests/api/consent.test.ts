@@ -59,6 +59,15 @@ let originalConfig: Record<string, unknown> | null = null;
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
+  // Defensive: purge leftover consent_logs rows from any PRIOR run that was
+  // interrupted (Ctrl-C / killed / timed out) before its afterAll cleanup ran.
+  // Without this, a stale `consent-test-%` row makes the per-test maybeSingle()
+  // lookup return 2 rows → PGRST116 "requires 1 row" → spurious failure.
+  await supabase
+    .from('consent_logs')
+    .delete()
+    .like('anonymous_id', `${TEST_ANON_PREFIX}%`);
+
   // Save existing integrations_config row (if any) so we can restore later
   const { data } = await supabase
     .from('integrations_config')
@@ -139,7 +148,7 @@ describe('POST /api/consent', () => {
     });
 
     it('should return success and insert a row into consent_logs', async () => {
-      const anonId = `${TEST_ANON_PREFIX}insert-${Date.now()}`;
+      const anonId = `${TEST_ANON_PREFIX}insert-${Date.now()}-${crypto.randomUUID()}`;
       const res = await postConsent(
         validBody({
           anonymous_id: anonId,
@@ -166,7 +175,7 @@ describe('POST /api/consent', () => {
     });
 
     it('should store all fields correctly including ip_address and user_agent', async () => {
-      const anonId = `${TEST_ANON_PREFIX}fields-${Date.now()}`;
+      const anonId = `${TEST_ANON_PREFIX}fields-${Date.now()}-${crypto.randomUUID()}`;
       const consents = { 'google-tag-manager': true };
       const consentVersion = '2';
 
@@ -199,7 +208,7 @@ describe('POST /api/consent', () => {
     });
 
     it('should store multiple consent choices correctly in JSONB', async () => {
-      const anonId = `${TEST_ANON_PREFIX}multi-${Date.now()}`;
+      const anonId = `${TEST_ANON_PREFIX}multi-${Date.now()}-${crypto.randomUUID()}`;
       const consents = {
         'google-tag-manager': true,
         'facebook-pixel': false,
