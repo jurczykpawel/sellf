@@ -191,7 +191,7 @@ async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
 
 const WEBHOOK_RETRY_BATCH = 50;
 
-async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
+export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
   const adminClient = createAdminClient();
   const queue = getWebhookQueue();
 
