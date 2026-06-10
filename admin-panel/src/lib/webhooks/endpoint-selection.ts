@@ -40,6 +40,9 @@ export interface EligibleEndpoint {
   id: string;
   url: string;
   secret: string;
+  custom_headers_encrypted?: string | null;
+  custom_payload_fields?: Record<string, unknown> | null;
+  payload_field_selection?: string[] | null;
 }
 
 function normalizeProductIds(productIds?: string | string[]): string[] {
@@ -60,7 +63,7 @@ export async function fetchEligibleEndpoints(
 ): Promise<EligibleEndpoint[]> {
   const { data: candidates, error } = await client
     .from('webhook_endpoints')
-    .select('id, url, secret, product_filter_mode')
+    .select('id, url, secret, product_filter_mode, custom_headers_encrypted, custom_payload_fields, payload_field_selection')
     .eq('is_active', true)
     .contains('events', [event]);
 
@@ -89,5 +92,10 @@ export async function fetchEligibleEndpoints(
   const eligibleIds = new Set(selectEligibleEndpoints(candidates, linkedEndpointIds, hasProductContext));
   return candidates
     .filter((c: EligibleEndpoint) => eligibleIds.has(c.id))
-    .map((c: EligibleEndpoint) => ({ id: c.id, url: c.url, secret: c.secret }));
+    .map((c: any) => ({
+      id: c.id, url: c.url, secret: c.secret,
+      custom_headers_encrypted: c.custom_headers_encrypted ?? null,
+      custom_payload_fields: c.custom_payload_fields ?? null,
+      payload_field_selection: c.payload_field_selection ?? null,
+    }));
 }

@@ -208,7 +208,7 @@ async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
       try {
         const { data: endpoint, error } = await adminClient
           .from('webhook_endpoints')
-          .select('id, url, secret, is_active')
+          .select('id, url, secret, is_active, custom_headers_encrypted')
           .eq('id', delivery.endpointId)
           .single();
 
