@@ -24,6 +24,7 @@ const FEATURE_TIERS = {
   'api-key-scopes': 'pro',             // POST /api/v1/api-keys → enforceApiKeyScopeGate
   'webhook-product-scoping': 'pro',    // POST/PATCH /api/v1/webhooks → product_filter_mode='selected'
   'webhook-payload-customization': 'pro', // webhook custom headers/fields/selection
+  'license-key-issuance': 'pro',          // generate/upload signing keys + issue tokens on purchase
 } as const satisfies Record<string, LicenseTier>;
 
 // Planned features — NOT yet enforced. Add to FEATURE_TIERS when implemented.

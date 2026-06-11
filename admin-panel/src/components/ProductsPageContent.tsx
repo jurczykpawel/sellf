@@ -15,7 +15,11 @@ import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts } from '@/hooks/useProducts';
 
-const ProductsPageContent: React.FC = () => {
+interface ProductsPageContentProps {
+  hasLicenseIssuance?: boolean;
+}
+
+const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIssuance }) => {
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const t = useTranslations('admin.products');
   const searchParams = useSearchParams();
@@ -348,6 +352,7 @@ const ProductsPageContent: React.FC = () => {
           product={editingProduct}
           isSubmitting={submitting}
           error={null}
+          hasLicenseIssuance={hasLicenseIssuance}
         />
       )}
 

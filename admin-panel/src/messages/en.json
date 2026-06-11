@@ -1229,7 +1229,7 @@
       "generateCode": "Generate Code",
       "generateEmbedSnippet": "Generate embed checkout snippet",
       "generateLoginwallSnippet": "Generate login wall snippet",
-    "generateGatingSnippet": "Generate gating snippet",
+      "generateGatingSnippet": "Generate gating snippet",
       "viewDetails": "View Details",
       "edit": "Edit",
       "delete": "Delete",
@@ -1575,7 +1575,9 @@
           "tierHint": "Embedded in the license so your app can gate features by plan.",
           "durationLabel": "Validity (days)",
           "durationPlaceholder": "Leave empty for perpetual",
-          "durationHint": "How long the license stays valid. Empty means it never expires."
+          "durationHint": "How long the license stays valid. Empty means it never expires.",
+          "proRequired": "License key issuance requires a Pro license.",
+          "proRequiredHint": "Upgrade to Pro to issue signed license tokens to buyers on purchase."
         }
       }
     },
@@ -2868,7 +2870,9 @@
         "rotationBody": "When you generate a new key, the old one is deactivated. The JWKS endpoint only serves the active key, so after rotation your app can no longer verify old tokens via JWKS.",
         "rotationFix": "Keep the old public key hardcoded alongside the new one in your verifier so licenses issued before rotation stay valid.",
         "close": "Close"
-      }
+      },
+      "proRequired": "License key signing requires a Pro license.",
+      "proRequiredHint": "Upgrade to Pro to generate a signing key and issue license tokens on purchase."
     }
   },
   "stripe": {

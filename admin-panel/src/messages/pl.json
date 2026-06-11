@@ -1590,7 +1590,9 @@
           "tierHint": "Zapisany w licencji, dzięki czemu aplikacja może rozróżniać plany.",
           "durationLabel": "Ważność (dni)",
           "durationPlaceholder": "Puste = bezterminowo",
-          "durationHint": "Jak długo licencja jest ważna. Puste oznacza brak wygaśnięcia."
+          "durationHint": "Jak długo licencja jest ważna. Puste oznacza brak wygaśnięcia.",
+          "proRequired": "Wystawianie licencji wymaga licencji Pro.",
+          "proRequiredHint": "Przejdź na Pro, żeby wystawiać podpisane tokeny licencji kupującym."
         }
       }
     },
@@ -2883,7 +2885,9 @@
         "rotationBody": "Po wygenerowaniu nowego klucza stary jest deaktywowany. Endpoint JWKS zwraca tylko aktywny klucz, więc po rotacji aplikacja nie może weryfikować starych tokenów przez JWKS.",
         "rotationFix": "Zachowaj stary klucz publiczny w weryfikatorze obok nowego, żeby licencje wystawione przed rotacją nadal działały.",
         "close": "Zamknij"
-      }
+      },
+      "proRequired": "Podpisywanie licencji wymaga licencji Pro.",
+      "proRequiredHint": "Przejdź na Pro, żeby generować klucze podpisu i wystawiać tokeny licencji po zakupie."
     }
   },
   "stripe": {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('@/lib/license/resolve', () => ({
+  checkFeature: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock('@/lib/license-keys/keys', async () => {
   const actual = await vi.importActual<typeof import('@/lib/license-keys/keys')>('@/lib/license-keys/keys');
   return { ...actual, loadActiveSellerKey: vi.fn() };

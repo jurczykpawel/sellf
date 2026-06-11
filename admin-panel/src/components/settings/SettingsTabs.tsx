@@ -31,9 +31,10 @@ const TABS = [
 interface SettingsTabsProps {
   siteUrl: string
   initialCheckoutTheme?: string | null
+  hasLicenseIssuance?: boolean
 }
 
-export default function SettingsTabs({ siteUrl, initialCheckoutTheme }: SettingsTabsProps) {
+export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicenseIssuance }: SettingsTabsProps) {
   const t = useTranslations('settings')
   const searchParams = useSearchParams()
   // useSearchParams resolves identically on server and client, so the initial tab matches SSR (no hydration mismatch).
@@ -92,7 +93,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme }: Settings
 
         {active === 'system' && (
           <>
-            <LicenseKeysSettings />
+            <LicenseKeysSettings hasLicenseIssuance={hasLicenseIssuance} />
             <LicenseSettings />
             {role === 'platform_admin' && <SystemUpdateSettings />}
             {role === 'platform_admin' && !demoMode && <SecurityAuditSettings />}

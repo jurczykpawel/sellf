@@ -24,6 +24,7 @@ export interface ProductCreationWizardProps {
   isSubmitting: boolean;
   error: string | null;
   product?: Product | null; // for edit or duplicate mode
+  hasLicenseIssuance?: boolean;
 }
 
 const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
@@ -33,6 +34,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   isSubmitting,
   error,
   product,
+  hasLicenseIssuance,
 }) => {
   const t = useTranslations('admin.products.form');
   const router = useRouter();
@@ -255,6 +257,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 currentProductId={product?.id}
                 oto={oto}
                 setOto={setOto}
+                hasLicenseIssuance={hasLicenseIssuance}
               />
             )}
           </form>

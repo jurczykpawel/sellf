@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { withAdminAuth, type ActionResponse } from '@/lib/actions/admin-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
+import { checkFeature } from '@/lib/license/resolve'
 import {
   generateSellerKeypair,
   importSellerKey,
@@ -43,6 +44,9 @@ export async function setProductLicenseConfig(
     return { success: false, error: 'Invalid duration', errorCode: 'INVALID_INPUT' }
   }
   return withAdminAuth(async ({ user }) => {
+    if (input.enabled && !(await checkFeature('license-key-issuance'))) {
+      return { success: false, error: 'Issuing license keys requires a Pro license.', errorCode: 'FORBIDDEN' }
+    }
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('products')
@@ -82,6 +86,9 @@ async function deactivatePriorKeys(admin: SupabaseClient, sellerId: string): Pro
 export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: string; publicKeyPem: string }>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
   return withAdminAuth(async ({ user }) => {
+    if (!(await checkFeature('license-key-issuance'))) {
+      return { success: false, error: 'Generating a signing key requires a Pro license.', errorCode: 'FORBIDDEN' }
+    }
     const admin = createAdminClient()
     try {
       const keypair = generateSellerKeypair()
@@ -123,6 +130,9 @@ export async function uploadSellerLicenseKey(
     return { success: false, error: 'Invalid private key. Provide a PEM-encoded EC P-256 private key (PKCS8 PEM, starts with -----BEGIN PRIVATE KEY-----).' , errorCode: 'INVALID_KEY' }
   }
   return withAdminAuth(async ({ user }) => {
+    if (!(await checkFeature('license-key-issuance'))) {
+      return { success: false, error: 'Uploading a signing key requires a Pro license.', errorCode: 'FORBIDDEN' }
+    }
     const admin = createAdminClient()
     try {
       await deactivatePriorKeys(admin, user.id)

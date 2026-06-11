@@ -21,6 +21,10 @@ vi.mock('@/lib/license-keys/keys', () => ({
   loadActivePublicKeyInfo: vi.fn(),
 }));
 
+vi.mock('@/lib/license/resolve', () => ({
+  checkFeature: vi.fn().mockResolvedValue(true),
+}))
+
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 import {

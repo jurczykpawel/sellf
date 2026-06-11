@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
 import { loadActiveSellerKey } from '@/lib/license-keys/keys';
+import { checkFeature } from '@/lib/license/resolve';
 
 export interface IssueLicenseInput {
   productId: string;
@@ -36,6 +37,8 @@ export async function issueLicense(
   input: IssueLicenseInput,
   opts: { now?: Date } = {},
 ): Promise<IssueLicenseResult | null> {
+  if (!(await checkFeature('license-key-issuance', { dataClient: admin }))) return null;
+
   const existingResult = await admin
     .from('issued_licenses')
     .select('license_key, kid, seller_id')

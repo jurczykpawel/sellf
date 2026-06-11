@@ -30,6 +30,7 @@ interface StepSalesSettingsProps {
   currentProductId?: string;
   oto: OtoState;
   setOto: React.Dispatch<React.SetStateAction<OtoState>>;
+  hasLicenseIssuance?: boolean;
 }
 
 type GroupLetter = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -92,6 +93,7 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
   currentProductId,
   oto,
   setOto,
+  hasLicenseIssuance,
 }) => {
   const isTipJar = formData.checkout_template === 'tip-jar';
 
@@ -158,7 +160,7 @@ export const StepSalesSettings: React.FC<StepSalesSettingsProps> = ({
         <EmbedSection formData={formData} setFormData={setFormData} t={t} />
         <div>
           <h4 className="text-sm font-medium text-sf-heading mb-2">{t('license.sectionTitle')}</h4>
-          <LicenseSection formData={formData} setFormData={setFormData} t={t} />
+          <LicenseSection formData={formData} setFormData={setFormData} t={t} hasLicenseIssuance={hasLicenseIssuance} />
         </div>
       </StepGroup>
     </div>

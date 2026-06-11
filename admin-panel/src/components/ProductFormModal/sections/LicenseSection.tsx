@@ -1,9 +1,22 @@
 'use client';
 
 import React from 'react';
+import { Lock } from 'lucide-react';
 import { AccessSectionProps } from '../types';
 
-export function LicenseSection({ formData, setFormData, t }: AccessSectionProps) {
+export function LicenseSection({ formData, setFormData, t, hasLicenseIssuance = true }: AccessSectionProps) {
+  if (!hasLicenseIssuance) {
+    return (
+      <div className="flex items-start gap-3 p-4 bg-sf-raised border border-sf-border rounded opacity-75">
+        <Lock className="w-4 h-4 text-sf-muted mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-sf-heading">{t('license.proRequired')}</p>
+          <p className="text-xs text-sf-muted mt-0.5">{t('license.proRequiredHint')}</p>
+        </div>
+      </div>
+    );
+  }
+
   const enabled = formData.issue_license_on_purchase;
 
   return (

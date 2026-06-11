@@ -188,7 +188,9 @@ export interface AvailabilitySectionProps extends SectionProps {
   hasWaitlistWebhook: boolean | null;
 }
 
-export type AccessSectionProps = SectionProps;
+export interface AccessSectionProps extends SectionProps {
+  hasLicenseIssuance?: boolean;
+}
 
 // Initial form data
 export const initialFormData: ProductFormData = {

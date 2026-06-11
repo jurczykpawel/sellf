@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { KeyRound, Copy, Check } from 'lucide-react';
+import { KeyRound, Copy, Check, Lock } from 'lucide-react';
 import {
   getSellerLicenseInfo,
   generateSellerLicenseKey,
@@ -12,7 +12,11 @@ import {
 } from '@/lib/actions/license-config';
 import LicenseHowToUseModal from './LicenseHowToUseModal';
 
-export default function LicenseKeysSettings() {
+interface LicenseKeysSettingsProps {
+  hasLicenseIssuance?: boolean;
+}
+
+export default function LicenseKeysSettings({ hasLicenseIssuance = true }: LicenseKeysSettingsProps) {
   const t = useTranslations('settings.licenseKeys');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -102,6 +106,16 @@ export default function LicenseKeysSettings() {
         </div>
 
         <div className="p-6 space-y-6">
+          {!hasLicenseIssuance ? (
+            <div className="flex items-start gap-3 p-4 bg-sf-raised border border-sf-border rounded">
+              <Lock className="w-4 h-4 text-sf-muted mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-sf-heading">{t('proRequired')}</p>
+                <p className="text-xs text-sf-muted mt-0.5">{t('proRequiredHint')}</p>
+              </div>
+            </div>
+          ) : (
+          <>
           <p className="text-sm text-sf-body">{t('description')}</p>
 
           {loading ? (
@@ -198,6 +212,8 @@ export default function LicenseKeysSettings() {
               </>
             )}
           </div>
+          </>
+          )}
         </div>
       </div>
 
