@@ -102,3 +102,46 @@ describe('mapApiInputToProductRow', () => {
     expect(typeof ProductUpdateDTO.parse).toBe('function');
   });
 });
+
+describe('features sections', () => {
+  const validBase = {
+    name: 'Sample',
+    slug: 'sample',
+    description: 'd',
+    price: 10,
+  };
+  const sections = [
+    { title: 'In the box', items: ['Workflow JSON', 'PDF guide'] },
+    { title: 'Requirements', items: ['n8n instance'] },
+  ];
+
+  it('accepts feature sections shaped as { title, items } on create', () => {
+    const result = mapApiInputToProductRow({ ...validBase, features: sections }, 'create');
+    expect(result.features).toEqual(sections);
+  });
+
+  it('accepts feature sections on update', () => {
+    const result = mapApiInputToProductRow({ features: sections }, 'update');
+    expect(result.features).toEqual(sections);
+  });
+
+  it('accepts null and omitted features', () => {
+    expect(mapApiInputToProductRow({ ...validBase, features: null }, 'create').features).toBeNull();
+    expect(mapApiInputToProductRow({ ...validBase }, 'create').features).toBeUndefined();
+  });
+
+  it('rejects plain string features', () => {
+    expect(() =>
+      mapApiInputToProductRow({ ...validBase, features: ['plain string'] }, 'create'),
+    ).toThrowError();
+  });
+
+  it('rejects sections without a title or with non-string items', () => {
+    expect(() =>
+      mapApiInputToProductRow({ ...validBase, features: [{ title: ' ', items: [] }] }, 'create'),
+    ).toThrowError();
+    expect(() =>
+      mapApiInputToProductRow({ ...validBase, features: [{ title: 'Ok', items: [42] }] }, 'create'),
+    ).toThrowError();
+  });
+});

@@ -9,6 +9,12 @@ const isoDateOrEmpty = z
 const contentDelivery = z.enum(['content', 'redirect', 'download']);
 const productType = z.enum(['one_time', 'subscription']);
 
+// Mirrors the { title, items } sections expected by validateFeatures and the product page
+const featureSection = z.object({
+  title: z.string().trim().min(1).max(200),
+  items: z.array(z.string().max(500)),
+});
+
 const baseShape = {
   name: z.string().trim().min(1).max(200),
   slug: z
@@ -34,7 +40,7 @@ const baseShape = {
   image_url: z.string().max(2048).nullable().optional(),
   thumbnail_url: z.string().max(2048).nullable().optional(),
   preview_video_url: z.string().max(2048).nullable().optional(),
-  features: z.array(z.string().max(200)).max(20).nullable().optional(),
+  features: z.array(featureSection).max(20).nullable().optional(),
   layout_template: z.string().max(40).nullable().optional(),
   content_delivery_type: contentDelivery.optional(),
   content_config: z.record(z.string(), z.unknown()).optional(),
