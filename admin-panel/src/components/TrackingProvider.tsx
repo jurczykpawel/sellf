@@ -73,6 +73,39 @@ function getOrCreateAnonId(): string {
   }
 }
 
+/**
+ * Inject a tracking <script> as a PLAIN DOM node — never a React-rendered one.
+ *
+ * vanilla-cookieconsent's `manageScriptTags` activates a blocked script by
+ * REPLACING its DOM node: `document.querySelectorAll('script[data-category]')`
+ * → for each, `clone.textContent = original.innerHTML` → `original.replaceWith(clone)`.
+ * If React owned the original node, that replaceWith() detaches it from React's
+ * fiber tree; the next unmount of this provider (e.g. navigating into /dashboard,
+ * where it returns null) then calls `parent.removeChild(detachedNode)` and throws
+ *   NotFoundError: Failed to execute 'removeChild' on 'Node':
+ *   The node to be removed is not a child of this node.
+ * Keeping these nodes out of React's tree lets the library manage them safely.
+ *
+ * `category` present → render blocked (`text/plain` + `data-category`) so consent
+ * gates execution; absent → `text/javascript`, runs immediately on insertion.
+ * Idempotent by id.
+ */
+function injectInlineScript(
+  id: string,
+  code: string,
+  opts: { nonce?: string; category?: string; service?: string },
+): void {
+  if (typeof document === 'undefined' || document.getElementById(id)) return
+  const el = document.createElement('script')
+  el.id = id
+  el.type = opts.category ? 'text/plain' : 'text/javascript'
+  if (opts.category) el.setAttribute('data-category', opts.category)
+  if (opts.service) el.setAttribute('data-service', opts.service)
+  if (opts.nonce) el.setAttribute('nonce', opts.nonce)
+  el.text = code
+  document.head.appendChild(el)
+}
+
 export default function TrackingProvider({ config, nonce }: TrackingProviderProps) {
   // Always call hooks at the top — the early return below must not skip them.
   const initialisedRef = useRef(false)
@@ -97,6 +130,68 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
   const gtmBaseUrl = gtmLoaderBaseUrl()
   const cookie_consent_enabled = !!config?.cookie_consent_enabled
   const consent_logging_enabled = !!config?.consent_logging_enabled
+
+  // Inject GTM / Meta Pixel / Consent-Mode-defaults as PLAIN DOM nodes (not React
+  // children) so vanilla-cookieconsent can replace/activate them without corrupting
+  // React's fiber tree. Runs before the CookieConsent.run() effect below so the
+  // library's manageScriptTags finds the blocked tags. See injectInlineScript.
+  useEffect(() => {
+    if (!config || isAdminPath) return
+
+    // Consent Mode v2 defaults — must run BEFORE GTM; not consent-gated (denies
+    // everything until the user grants), so it executes immediately on insertion.
+    const consentModeDefaults = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied',
+      'analytics_storage': 'denied',
+      'wait_for_update': 500
+    });
+  `
+    const gtmBootstrap = `(function(w,d,s,l,i,u){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    u+'/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer',${JSON.stringify(gtm_container_id)},${JSON.stringify(gtmBaseUrl)});`
+    const fbPixelBootstrap = `!function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', ${JSON.stringify(facebook_pixel_id)});
+    fbq('track', 'PageView');`
+
+    if (gtm_container_id && cookie_consent_enabled) {
+      injectInlineScript('consent-mode-defaults', consentModeDefaults, { nonce })
+    }
+    if (gtm_container_id) {
+      injectInlineScript('gtm-script', gtmBootstrap, {
+        nonce,
+        category: cookie_consent_enabled ? 'analytics' : undefined,
+        service: cookie_consent_enabled ? 'gtm' : undefined,
+      })
+    }
+    if (facebook_pixel_id) {
+      injectInlineScript('fb-pixel', fbPixelBootstrap, {
+        nonce,
+        category: cookie_consent_enabled ? 'marketing' : undefined,
+        service: cookie_consent_enabled ? 'pixel' : undefined,
+      })
+    }
+
+    return () => {
+      // Plain DOM nodes — safe to remove ourselves (React never owned them).
+      for (const id of ['consent-mode-defaults', 'gtm-script', 'fb-pixel']) {
+        document.getElementById(id)?.remove()
+      }
+    }
+  }, [config, isAdminPath, gtm_container_id, facebook_pixel_id, cookie_consent_enabled, gtmBaseUrl, nonce])
 
   useEffect(() => {
     if (!config || !cookie_consent_enabled || initialisedRef.current) return
@@ -358,76 +453,13 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
 
   if (!config || isAdminPath) return null
 
-  // --- GOOGLE CONSENT MODE V2 DEFAULTS ---
-  // Must run before GTM; only emit when consent is enabled (otherwise GTM runs unrestricted).
-  const consentModeDefaults = `
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('consent', 'default', {
-      'ad_storage': 'denied',
-      'ad_user_data': 'denied',
-      'ad_personalization': 'denied',
-      'analytics_storage': 'denied',
-      'wait_for_update': 500
-    });
-  `
-
-  // Scripts use cookieconsent's `data-category` / `data-service` blocking convention.
-  const managedType = cookie_consent_enabled ? 'text/plain' : 'text/javascript'
-
   return (
     <>
-      {gtm_container_id && cookie_consent_enabled && (
-        <script
-          id="consent-mode-defaults"
-          nonce={nonce}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: consentModeDefaults }}
-        />
-      )}
-
-      {/* GTM */}
-      {gtm_container_id && (
-        <script
-          id="gtm-script"
-          type={managedType}
-          data-category={cookie_consent_enabled ? 'analytics' : undefined}
-          data-service={cookie_consent_enabled ? 'gtm' : undefined}
-          nonce={nonce}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `(function(w,d,s,l,i,u){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            u+'/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer',${JSON.stringify(gtm_container_id)},${JSON.stringify(gtmBaseUrl)});`,
-          }}
-        />
-      )}
-
-      {/* Facebook Pixel */}
-      {facebook_pixel_id && (
-        <script
-          id="fb-pixel"
-          type={managedType}
-          data-category={cookie_consent_enabled ? 'marketing' : undefined}
-          data-service={cookie_consent_enabled ? 'pixel' : undefined}
-          nonce={nonce}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `!function(f,b,e,v,n,t,s)
-            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-            n.queue=[];t=b.createElement(e);t.async=!0;
-            t.src=v;s=b.getElementsByTagName(e)[0];
-            s.parentNode.insertBefore(t,s)}(window, document,'script',
-            'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', ${JSON.stringify(facebook_pixel_id)});
-            fbq('track', 'PageView');`,
-          }}
-        />
-      )}
+      {/* GTM, Meta Pixel and Consent-Mode defaults are injected as plain DOM nodes
+          by the effect above — NOT rendered here. vanilla-cookieconsent activates a
+          blocked script via `node.replaceWith(clone)`; if React owned that node the
+          replacement would detach it from React's fiber tree and the next unmount
+          would throw `NotFoundError: removeChild`. */}
 
       {/*
         Umami — cookieless analytics, runs unconditionally.
