@@ -281,10 +281,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       .update({ is_active: false })
       .eq('source_product_id', productId);
 
-    // Then insert new OTO offer
+    // Then upsert the offer for this product pair (rows are unique per
+    // source/oto pair, so a repeated PUT updates the existing row)
     const { data, error } = await supabase
       .from('oto_offers')
-      .insert({
+      .upsert({
         source_product_id: productId,
         oto_product_id: String(oto_product_id),
         discount_type,
@@ -295,7 +296,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         downsell_discount_type: hasDownsell ? String(downsell_discount_type) : null,
         downsell_discount_value: hasDownsell ? (downsell_discount_value as number) : null,
         downsell_duration_minutes: hasDownsell ? (downsell_duration_minutes as number) : null,
-      })
+      }, { onConflict: 'source_product_id,oto_product_id' })
       .select()
       .single();
 

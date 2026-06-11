@@ -444,5 +444,70 @@ describe('Products OTO API v1', () => {
         await supabase.from('products').delete().eq('id', lifecycleSource!.id);
       }
     });
+
+    it('should update the offer when PUT is called again for the same product pair', async () => {
+      const randomStr = Math.random().toString(36).substring(7);
+
+      const { data: pairSource } = await supabase
+        .from('products')
+        .insert({
+          name: `Pair Source ${randomStr}`,
+          slug: `pair-source-${randomStr}`,
+          price: 8000,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      const { data: pairOto } = await supabase
+        .from('products')
+        .insert({
+          name: `Pair OTO ${randomStr}`,
+          slug: `pair-oto-${randomStr}`,
+          price: 2500,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      try {
+        const response1 = await put<ApiResponse<OtoConfig>>(
+          `/api/v1/products/${pairSource!.id}/oto`,
+          {
+            oto_product_id: pairOto!.id,
+            discount_type: 'percentage',
+            discount_value: 20,
+          }
+        );
+        expect(response1.status).toBe(200);
+
+        // Same pair, new values
+        const response2 = await put<ApiResponse<OtoConfig>>(
+          `/api/v1/products/${pairSource!.id}/oto`,
+          {
+            oto_product_id: pairOto!.id,
+            discount_type: 'percentage',
+            discount_value: 30,
+            duration_minutes: 30,
+          }
+        );
+        expect(response2.status).toBe(200);
+        expect(response2.data.data!.discount_value).toBe(30);
+        expect(response2.data.data!.duration_minutes).toBe(30);
+
+        const getResponse = await get<ApiResponse<OtoConfig>>(
+          `/api/v1/products/${pairSource!.id}/oto`
+        );
+        expect(getResponse.status).toBe(200);
+        expect(getResponse.data.data!.has_oto).toBe(true);
+        expect(getResponse.data.data!.discount_value).toBe(30);
+      } finally {
+        await supabase.from('oto_offers').delete().eq('source_product_id', pairSource!.id);
+        await supabase.from('products').delete().eq('id', pairOto!.id);
+        await supabase.from('products').delete().eq('id', pairSource!.id);
+      }
+    });
   });
 });
