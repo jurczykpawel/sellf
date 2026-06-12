@@ -20,7 +20,7 @@ interface Coupon {
   is_active: boolean;
   allowed_emails?: string[];
   usage_limit_global?: number;
-  usage_limit_per_user?: number;
+  usage_limit_per_user?: number | null;
   created_at: string;
 }
 
@@ -198,6 +198,33 @@ describe('Coupons API v1', () => {
       createdCouponIds.push(data.data!.id);
     });
 
+    it('should default per-user limit to 1 when omitted', async () => {
+      const { status, data } = await post<ApiResponse<Coupon>>('/api/v1/coupons', {
+        code: uniqueCode(),
+        discount_type: 'percentage',
+        discount_value: 10,
+      });
+
+      expect(status).toBe(201);
+      expect(data.data!.usage_limit_per_user).toBe(1);
+
+      createdCouponIds.push(data.data!.id);
+    });
+
+    it('should allow an unlimited per-user limit (null)', async () => {
+      const { status, data } = await post<ApiResponse<Coupon>>('/api/v1/coupons', {
+        code: uniqueCode(),
+        discount_type: 'percentage',
+        discount_value: 10,
+        usage_limit_per_user: null,
+      });
+
+      expect(status).toBe(201);
+      expect(data.data!.usage_limit_per_user).toBeNull();
+
+      createdCouponIds.push(data.data!.id);
+    });
+
     it('should create fixed discount coupon', async () => {
       const code = uniqueCode();
       const { status, data } = await post<ApiResponse<Coupon>>('/api/v1/coupons', {
@@ -355,6 +382,25 @@ describe('Coupons API v1', () => {
       expect(data.data!.name).toBe('Updated Name');
       expect(data.data!.discount_value).toBe(20);
       expect(data.data!.is_active).toBe(false);
+    });
+
+    it('should clear the per-user limit to unlimited (null)', async () => {
+      const createResult = await post<ApiResponse<Coupon>>('/api/v1/coupons', {
+        code: uniqueCode(),
+        discount_type: 'percentage',
+        discount_value: 10,
+        usage_limit_per_user: 5,
+      });
+      const couponId = createResult.data.data!.id;
+      createdCouponIds.push(couponId);
+      expect(createResult.data.data!.usage_limit_per_user).toBe(5);
+
+      const { status, data } = await patch<ApiResponse<Coupon>>(`/api/v1/coupons/${couponId}`, {
+        usage_limit_per_user: null,
+      });
+
+      expect(status).toBe(200);
+      expect(data.data!.usage_limit_per_user).toBeNull();
     });
 
     it('should reject update with no valid fields', async () => {

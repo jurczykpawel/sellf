@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       starts_at?: string;
       expires_at?: string;
       usage_limit_global?: number;
-      usage_limit_per_user?: number;
+      usage_limit_per_user?: number | null;
       allowed_emails?: string[];
       allowed_product_ids?: string[];
       exclude_order_bumps?: boolean;
@@ -260,7 +260,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (body.usage_limit_per_user !== undefined) {
+    // null means unlimited (per-user), matching usage_limit_global semantics
+    if (body.usage_limit_per_user !== undefined && body.usage_limit_per_user !== null) {
       if (!Number.isInteger(body.usage_limit_per_user) || body.usage_limit_per_user < 1 || body.usage_limit_per_user > 10000) {
         throw new ApiValidationError('usage_limit_per_user must be a positive integer up to 10,000');
       }
@@ -315,7 +316,8 @@ export async function POST(request: NextRequest) {
         starts_at: startsAt,
         expires_at: expiresAt,
         usage_limit_global: body.usage_limit_global || null,
-        usage_limit_per_user: body.usage_limit_per_user ?? 1,
+        // Omitted → default 1 (use once per user); explicit null → unlimited
+        usage_limit_per_user: body.usage_limit_per_user === undefined ? 1 : body.usage_limit_per_user,
         allowed_emails: body.allowed_emails || [],
         allowed_product_ids: body.allowed_product_ids || [],
         exclude_order_bumps: body.exclude_order_bumps ?? false,

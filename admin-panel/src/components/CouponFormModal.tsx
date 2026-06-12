@@ -44,7 +44,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
         is_active: coupon.is_active,
         exclude_order_bumps: coupon.exclude_order_bumps || false,
         usage_limit_global: coupon.usage_limit_global,
-        usage_limit_per_user: coupon.usage_limit_per_user || 1,
+        usage_limit_per_user: coupon.usage_limit_per_user ?? null,
         allowed_product_ids: (coupon.allowed_product_ids as string[]) || [],
         allowed_emails: (coupon.allowed_emails as string[]) || [],
         expires_at: coupon.expires_at ? new Date(coupon.expires_at).toISOString().split('T')[0] : null,
@@ -258,9 +258,10 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 <input
                   type="number"
                   min="1"
-                  value={formData.usage_limit_per_user}
-                  onChange={e => setFormData({ ...formData, usage_limit_per_user: parseInt(e.target.value) })}
+                  value={formData.usage_limit_per_user ?? ''}
+                  onChange={e => setFormData({ ...formData, usage_limit_per_user: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
+                  placeholder={t('form.unlimited')}
                 />
               </div>
               <div>

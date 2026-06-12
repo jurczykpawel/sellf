@@ -15,7 +15,7 @@ export interface CouponFormData {
   discount_value: number;
   currency?: string | null;
   usage_limit_global?: number | null;
-  usage_limit_per_user?: number;
+  usage_limit_per_user?: number | null;
   expires_at?: string | null;
   is_active: boolean;
   name?: string;

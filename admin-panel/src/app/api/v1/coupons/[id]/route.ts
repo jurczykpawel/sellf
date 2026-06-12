@@ -104,7 +104,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * - starts_at: string ISO date
  * - expires_at: string ISO date (or null to remove)
  * - usage_limit_global: number (or null to remove)
- * - usage_limit_per_user: number
+ * - usage_limit_per_user: number (or null for unlimited)
  * - allowed_emails: string[]
  * - allowed_product_ids: string[] (main checkout products only; a matching order bump alone does not activate the coupon)
  * - exclude_order_bumps: boolean
@@ -143,7 +143,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       starts_at?: string;
       expires_at?: string | null;
       usage_limit_global?: number | null;
-      usage_limit_per_user?: number;
+      usage_limit_per_user?: number | null;
       allowed_emails?: string[];
       allowed_product_ids?: string[];
       exclude_order_bumps?: boolean;
@@ -284,10 +284,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     if (body.usage_limit_per_user !== undefined) {
-      if (!Number.isInteger(body.usage_limit_per_user) || body.usage_limit_per_user < 1 || body.usage_limit_per_user > 10000) {
-        throw new ApiValidationError('usage_limit_per_user must be a positive integer up to 10,000');
+      if (body.usage_limit_per_user === null) {
+        updateData.usage_limit_per_user = null;
+      } else {
+        if (!Number.isInteger(body.usage_limit_per_user) || body.usage_limit_per_user < 1 || body.usage_limit_per_user > 10000) {
+          throw new ApiValidationError('usage_limit_per_user must be a positive integer up to 10,000 or null');
+        }
+        updateData.usage_limit_per_user = body.usage_limit_per_user;
       }
-      updateData.usage_limit_per_user = body.usage_limit_per_user;
     }
 
     // Array fields
