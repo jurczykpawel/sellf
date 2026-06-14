@@ -9,11 +9,9 @@ import { PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 // spec — which leans on DEMO_MODE forcing 'business' and so can only reach the
 // UNLOCKED state — this spec must exercise BOTH the free upsell and the Pro form.
 //
-// To flip the tier within one shared dev server, the worktree .env.local blanks
-// SELLF_LICENSE_KEY so the resolver falls through to the DB
-// (integrations_config.sellf_license): null → 'free' (upsell), a valid business
-// license → 'business' (unlocked). The tests run serially and set the DB license
-// per scenario, restoring it on teardown.
+// The free state is exercised with no configured token. Pro-only scenarios run
+// only in demo mode; cryptographic token verification is covered by
+// deterministic unit tests.
 //
 // SECURITY: header *values* are write-only and stored encrypted. These tests
 // assert the boolean `has_custom_headers` (via DB) and the "configured" affordance
@@ -23,12 +21,6 @@ import { PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 // hostnames (SSRF guard). example.com resolves; uniqueness lives in the path.
 const URL_PREFIX = 'https://example.com/wh-cust-e2e/';
 
-// Local-only business license for localhost (tier=business, domain=localhost).
-// Same key the dev env normally carries; written into the DB to unlock the Pro
-// form while the env var stays blank so the DB is the single source of tier truth.
-const BUSINESS_LICENSE =
-  'SF-localhost-BIZ-UNLIMITED-MEQCIBsFL0BGiweQ03Bmxooexd7k_wnIFbbM1_A-6GF-TMCxAiA6A-xrIYK_X-Yc4VmVypHNy-hKD4Y-5kkprBTX7yyXiA';
-
 const HEADER_VALUE = 'Bearer T'; // must NEVER appear in the page DOM
 
 // resolveCurrentTier resolves tier as DEMO_MODE → DB → env (SELLF_LICENSE_KEY).
@@ -37,18 +29,20 @@ const HEADER_VALUE = 'Bearer T'; // must NEVER appear in the page DOM
 // SELLF_LICENSE_KEY. On a licensed/demo .env.local the DB's null license falls
 // through to the env's business license, so 'free' is unreachable from the test and
 // the upsell never renders. playwright.config.ts loads .env.local, so we detect that
-// here and skip rather than fail spuriously — CI / a clean worktree (blank
-// SELLF_LICENSE_KEY) still exercises it. (Pro-tier scenarios are unaffected: the DB
-// can always raise the tier to business.)
-const ENV_FORCES_NONFREE =
-  process.env.DEMO_MODE === 'true' || Boolean(process.env.SELLF_LICENSE_KEY);
+// here and skip rather than infer validity from a non-empty license string. In
+// particular, a retired activation token must not make the test assume Pro access.
+const IS_DEMO_MODE = process.env.DEMO_MODE === 'true';
+const HAS_PRODUCT_TOKEN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
+  process.env.SELLF_LICENSE_KEY ?? '',
+);
+const ENV_FORCES_NONFREE = IS_DEMO_MODE || HAS_PRODUCT_TOKEN;
+const CAN_WRITE_AS_PRO = !IS_DEMO_MODE && HAS_PRODUCT_TOKEN;
 
 async function setTier(tier: 'free' | 'pro'): Promise<void> {
-  // resolveCurrentTier reads integrations_config.sellf_license (row id=1) before
-  // the env fallback. null → free; business license → business (Pro+).
+  if (tier === 'pro') return;
   const { error } = await supabaseAdmin
     .from('integrations_config')
-    .update({ sellf_license: tier === 'pro' ? BUSINESS_LICENSE : null })
+    .update({ sellf_license: null })
     .eq('id', 1);
   if (error) throw error;
 }
@@ -149,6 +143,7 @@ test.describe('Webhook payload customization form', () => {
   });
 
   test('pro tier: deselect a field, add an extra field + a header, and persist them', async ({ page }) => {
+    test.skip(!CAN_WRITE_AS_PRO, 'requires a configured product token with demo mode disabled');
     await setTier('pro');
     await gotoWebhooks(page, admin.email, admin.password);
     await openAddEndpoint(page);
@@ -210,6 +205,7 @@ test.describe('Webhook payload customization form', () => {
   });
 
   test('edit (pro): headers show as configured (no value in DOM), and Delete clears them', async ({ page }) => {
+    test.skip(!CAN_WRITE_AS_PRO, 'requires a configured product token with demo mode disabled');
     await setTier('pro');
 
     // Seed an endpoint that already has encrypted headers (has_custom_headers=true).

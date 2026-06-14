@@ -23,7 +23,7 @@ describe('Integrations Validation', () => {
         facebook_pixel_id: '1234567890',
         umami_website_id: '550e8400-e29b-41d4-a716-446655440000',
         umami_script_url: 'https://analytics.example.com/script.js',
-        sellf_license: 'SF-example.com-UNLIMITED-abc123XYZ',
+        sellf_license: 'payload.signature',
       };
       const result = validateIntegrations(input);
       expect(result.isValid).toBe(true);
@@ -165,29 +165,19 @@ describe('Integrations Validation', () => {
     });
 
     describe('Sellf License', () => {
-      it('should accept valid unlimited license format', () => {
-        const result = validateIntegrations({ sellf_license: 'SF-example.com-UNLIMITED-abc123XYZ_-' });
+      it('accepts the product-token wire shape', () => {
+        const result = validateIntegrations({ sellf_license: 'eyJ2IjoxfQ.signature_-' });
         expect(result.isValid).toBe(true);
       });
 
-      it('should accept valid dated license format', () => {
-        const result = validateIntegrations({ sellf_license: 'SF-example.com-20251231-abc123XYZ' });
-        expect(result.isValid).toBe(true);
-      });
-
-      it('should accept wildcard domain license', () => {
-        const result = validateIntegrations({ sellf_license: 'SF-*.example.com-UNLIMITED-signature' });
-        expect(result.isValid).toBe(true);
-      });
-
-      it('should reject invalid license format', () => {
+      it('rejects invalid token format', () => {
         const result = validateIntegrations({ sellf_license: 'invalid-license' });
         expect(result.isValid).toBe(false);
-        expect(result.errors.sellf_license[0]).toContain('Invalid license format');
+        expect(result.errors.sellf_license[0]).toContain('Invalid license token format');
       });
 
-      it('should reject missing prefix', () => {
-        const result = validateIntegrations({ sellf_license: 'example.com-UNLIMITED-abc123' });
+      it('rejects more than two segments', () => {
+        const result = validateIntegrations({ sellf_license: 'payload.signature.extra' });
         expect(result.isValid).toBe(false);
       });
     });

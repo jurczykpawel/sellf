@@ -529,7 +529,7 @@ describe('Payments API v1', () => {
     it('should merge metadata with existing data', async () => {
       const { status, data } = await patch<ApiResponse<{ id: string; metadata: Record<string, unknown> }>>(
         `/api/v1/payments/${testTransactionId}`,
-        { metadata: { license: { key: 'SF-test-PRO-UNLIMITED-sig', domain: 'test.com' } } }
+        { metadata: { license: { key: 'payload.signature', domain: 'test.com' } } }
       );
 
       expect(status).toBe(200);

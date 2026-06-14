@@ -288,7 +288,7 @@ export function getScopeDescription(scope: ApiScope): string {
 
 // ===== LICENSE-GATED SCOPE CUSTOMIZATION =====
 
-import type { LicenseTier } from '@/lib/license/verify';
+import type { LicenseTier } from '@/lib/license/features';
 
 /**
  * Resolve the final, concrete scope list for a new API key.

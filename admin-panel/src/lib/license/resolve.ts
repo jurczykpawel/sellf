@@ -1,115 +1,182 @@
-/**
- * Unified License Resolution
- *
- * Single source of truth for license tier resolution.
- * DB-first with env fallback.
- *
- * Usage:
- *   const tier = await resolveCurrentTier();
- *   const valid = await checkFeature('watermark-removal');
- *
- * @see verify.ts for cryptographic signature verification
- * @see features.ts for feature registry and tier ordering
- */
-
-import { validateLicense, extractDomainFromUrl, doesDomainMatch } from './verify';
-import { hasFeature } from './features';
+import { domainMatches, normalizeLicenseDomain } from '@/lib/license-keys/domain';
+import { parseLicenseClaims } from '@/lib/license-keys/format';
+import { verifySellfLicense, type SellfPublicKey } from '@/lib/license-keys/sdk';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { LicenseTier } from './verify';
-import type { Feature } from './features';
 
-// ===== OPTIONS =====
+import { hasFeature, type Feature, type LicenseTier } from './features';
+
+const PLATFORM_SELLER_ID = '83789f79-bdd7-4918-af1f-e56325fa5070';
+const DEFAULT_PLATFORM_JWKS_URL = `https://sellf.techskills.academy/api/licenses/jwks?seller=${PLATFORM_SELLER_ID}`;
+const JWKS_TTL_MS = 5 * 60 * 1000;
+const JWKS_FALLBACK_TTL_MS = 60 * 1000;
+
+let cachedKeys: { keys: SellfPublicKey[]; expiresAt: number } | null = null;
 
 export interface LicenseResolveOptions {
-  /** Supabase client override. Defaults to createAdminClient(). */
   dataClient?: { from: (table: string) => any };
+  keys?: SellfPublicKey[];
+  now?: Date;
+  allowedProducts?: ReadonlySet<string>;
 }
 
-// ===== RESOLVE =====
+export type PlatformLicenseVerification =
+  | {
+      valid: true;
+      tier: Exclude<LicenseTier, 'free'>;
+      domain: string;
+      expiry: number | null;
+    }
+  | {
+      valid: false;
+      reason: 'malformed' | 'signature' | 'expired' | 'domain' | 'product' | 'tier' | 'keys';
+      tier: null;
+      domain: string | null;
+      expiry: number | null;
+    };
 
-/**
- * Resolve license tier for the current context.
- *
- * Priority:
- *   1. Demo mode → 'business'
- *   2. DB (integrations_config.sellf_license)
- *   3. ENV (SELLF_LICENSE_KEY)
- */
-export async function resolveCurrentTier(options?: LicenseResolveOptions): Promise<LicenseTier> {
-  if (process.env.DEMO_MODE === 'true') return 'business';
-
-  const platformDomain = getPlatformDomain();
-
-  // 1. DB first
-  const dbTier = await readTierFromDb(options?.dataClient, platformDomain);
-  if (dbTier !== 'free') return dbTier;
-
-  // 2. ENV fallback
-  const envTier = readTierFromEnv(platformDomain);
-  if (envTier !== 'free') return envTier;
-
-  return 'free';
+function allowedProductsFromEnv(): ReadonlySet<string> {
+  const configured = process.env.SELLF_LICENSE_PRODUCTS ?? 'sellf-pro';
+  return new Set(configured.split(',').map((value) => value.trim()).filter(Boolean));
 }
 
-/**
- * Check if a specific feature is available in the current license context.
- */
-export async function checkFeature(
-  feature: Feature,
-  options?: LicenseResolveOptions
-): Promise<boolean> {
-  const tier = await resolveCurrentTier(options);
-  return hasFeature(tier, feature);
+function normalizeTier(value: unknown): Exclude<LicenseTier, 'free'> | null {
+  return value === 'registered' || value === 'pro' || value === 'business' ? value : null;
 }
 
-// ===== INTERNAL HELPERS =====
+function parseFallbackKeys(): SellfPublicKey[] {
+  const raw = process.env.SELLF_JWKS_FALLBACK;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const values = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === 'object' && Array.isArray((parsed as { keys?: unknown }).keys)
+        ? (parsed as { keys: unknown[] }).keys
+        : [];
+    return values.filter((value): value is SellfPublicKey => {
+      if (!value || typeof value !== 'object') return false;
+      const key = value as Record<string, unknown>;
+      return typeof key.kid === 'string' && key.alg === 'ES256' && typeof key.pem === 'string';
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function loadPlatformKeys(): Promise<SellfPublicKey[]> {
+  const now = Date.now();
+  if (cachedKeys && cachedKeys.expiresAt > now) return cachedKeys.keys;
+
+  const fallback = parseFallbackKeys();
+  const cacheFallback = () => {
+    cachedKeys = { keys: fallback, expiresAt: now + JWKS_FALLBACK_TTL_MS };
+    return fallback;
+  };
+  try {
+    const response = await fetch(process.env.SELLF_PLATFORM_JWKS_URL ?? DEFAULT_PLATFORM_JWKS_URL, {
+      headers: { accept: 'application/json' },
+      redirect: 'error',
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) return cacheFallback();
+    const body = await response.json() as { keys?: unknown };
+    if (!Array.isArray(body.keys)) return cacheFallback();
+    const keys = body.keys.filter((value): value is SellfPublicKey => {
+      if (!value || typeof value !== 'object') return false;
+      const key = value as Record<string, unknown>;
+      return typeof key.kid === 'string' && key.alg === 'ES256' && typeof key.pem === 'string';
+    });
+    if (keys.length === 0) return cacheFallback();
+    cachedKeys = { keys, expiresAt: now + JWKS_TTL_MS };
+    return keys;
+  } catch {
+    return cacheFallback();
+  }
+}
+
+export async function verifyPlatformLicenseToken(
+  token: string,
+  platformDomain: string,
+  options: Pick<LicenseResolveOptions, 'keys' | 'now' | 'allowedProducts'> = {},
+): Promise<PlatformLicenseVerification> {
+  const parsed = parseLicenseClaims(token);
+  if (!parsed) return { valid: false, reason: 'malformed', tier: null, domain: null, expiry: null };
+
+  const domain = normalizeLicenseDomain(parsed.domain) ?? null;
+  const expiry = parsed.exp;
+  const keys = options.keys ?? await loadPlatformKeys();
+  if (keys.length === 0) {
+    return { valid: false, reason: 'keys', tier: null, domain: null, expiry: null };
+  }
+
+  const verified = verifySellfLicense(token, { keys, now: options.now });
+  if (!verified.valid) {
+    const claimsAreTrusted = verified.reason === 'expired';
+    return {
+      valid: false,
+      reason: verified.reason,
+      tier: null,
+      domain: claimsAreTrusted ? domain : null,
+      expiry: claimsAreTrusted ? expiry : null,
+    };
+  }
+
+  const allowedProducts = options.allowedProducts ?? allowedProductsFromEnv();
+  if (!allowedProducts.has(verified.claims.product)) {
+    return { valid: false, reason: 'product', tier: null, domain, expiry };
+  }
+  const tier = normalizeTier(verified.claims.tier);
+  if (!tier) return { valid: false, reason: 'tier', tier: null, domain, expiry };
+  if (!domain || !domainMatches(domain, platformDomain)) {
+    return { valid: false, reason: 'domain', tier: null, domain, expiry };
+  }
+  return { valid: true, tier, domain, expiry };
+}
 
 function getPlatformDomain(): string | null {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN;
-  return siteUrl ? extractDomainFromUrl(siteUrl) : null;
+  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN;
+  return normalizeLicenseDomain(configured) ?? null;
 }
 
-/**
- * Read license tier from DB (integrations_config.sellf_license).
- */
-async function readTierFromDb(
-  client: { from: (table: string) => any } | undefined,
-  platformDomain: string | null
+async function tierForToken(
+  token: string | null | undefined,
+  platformDomain: string | null,
+  options: LicenseResolveOptions,
 ): Promise<LicenseTier> {
-  try {
-    const dbClient = client || createAdminClient();
+  if (!token || !platformDomain) return 'free';
+  const result = await verifyPlatformLicenseToken(token, platformDomain, options);
+  return result.valid ? result.tier : 'free';
+}
 
+async function readDbToken(client?: { from: (table: string) => any }): Promise<string | null> {
+  try {
+    const dbClient = client ?? createAdminClient();
     const { data } = await dbClient
       .from('integrations_config')
       .select('sellf_license')
       .eq('id', 1)
       .single();
-
-    const licenseKey = (data as { sellf_license: string | null } | null)?.sellf_license;
-    if (!licenseKey) return 'free';
-
-    const result = validateLicense(licenseKey);
-    if (!result.valid || !result.info.domain) return 'free';
-
-    // License domain must match platform domain
-    if (platformDomain && doesDomainMatch(result.info.domain, platformDomain)) {
-      return result.info.tier;
-    }
-
-    // No domain to check against - reject
-    return 'free';
+    return (data as { sellf_license: string | null } | null)?.sellf_license ?? null;
   } catch {
-    return 'free';
+    return null;
   }
 }
 
-/**
- * Read license tier from ENV var (sync).
- */
-function readTierFromEnv(platformDomain: string | null): LicenseTier {
-  const licenseKey = process.env.SELLF_LICENSE_KEY;
-  if (!licenseKey) return 'free';
+export async function resolveCurrentTier(options: LicenseResolveOptions = {}): Promise<LicenseTier> {
+  if (process.env.DEMO_MODE === 'true') return 'business';
 
-  const result = validateLicense(licenseKey, platformDomain || undefined);
-  return result.valid ? result.info.tier : 'free';
+  const platformDomain = getPlatformDomain();
+  if (!platformDomain) return 'free';
+
+  const dbTier = await tierForToken(await readDbToken(options.dataClient), platformDomain, options);
+  if (dbTier !== 'free') return dbTier;
+
+  return tierForToken(process.env.SELLF_LICENSE_KEY, platformDomain, options);
+}
+
+export async function checkFeature(
+  feature: Feature,
+  options?: LicenseResolveOptions,
+): Promise<boolean> {
+  return hasFeature(await resolveCurrentTier(options), feature);
 }

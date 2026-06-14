@@ -39,11 +39,6 @@ vi.mock('@/lib/validations/integrations', () => ({
   validateIntegrations: vi.fn(),
 }));
 
-vi.mock('@/lib/license/verify', () => ({
-  validateLicense: vi.fn(),
-  extractDomainFromUrl: vi.fn(),
-}));
-
 vi.mock('@/lib/stripe/payment-method-configs', () => ({
   fetchStripePaymentMethodConfigs: vi.fn(),
   fetchStripePaymentMethodConfig: vi.fn(),

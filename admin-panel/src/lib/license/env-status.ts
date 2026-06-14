@@ -1,5 +1,7 @@
-import { validateLicense } from './verify';
-import type { LicenseTier } from './verify';
+import type { SellfPublicKey } from '@/lib/license-keys/sdk';
+
+import { verifyPlatformLicenseToken } from './resolve';
+import type { LicenseTier } from './features';
 
 export type EnvLicenseStatusReason =
   | 'not_configured'
@@ -8,6 +10,9 @@ export type EnvLicenseStatusReason =
   | 'invalid_signature'
   | 'expired'
   | 'domain_mismatch'
+  | 'invalid_product'
+  | 'invalid_tier'
+  | 'keys_unavailable'
   | 'valid';
 
 export interface EnvLicenseStatus {
@@ -22,10 +27,17 @@ export interface EnvLicenseStatus {
   platformDomain: string | null;
 }
 
-export function getEnvLicenseStatus(
+interface EnvLicenseStatusOptions {
+  keys?: SellfPublicKey[];
+  now?: Date;
+  allowedProducts?: ReadonlySet<string>;
+}
+
+export async function getEnvLicenseStatus(
   licenseKey: string | undefined,
   platformDomain: string | null,
-): EnvLicenseStatus {
+  options: EnvLicenseStatusOptions = {},
+): Promise<EnvLicenseStatus> {
   if (!licenseKey) {
     return {
       configured: false,
@@ -39,47 +51,54 @@ export function getEnvLicenseStatus(
       platformDomain,
     };
   }
-
   if (!platformDomain) {
-    const info = validateLicense(licenseKey).info;
     return {
       configured: true,
       valid: false,
       reason: 'no_platform_domain',
-      tier: info.tier,
-      domain: info.domain,
-      expiry: info.expiry,
-      isExpired: info.isExpired,
+      tier: null,
+      domain: null,
+      expiry: null,
+      isExpired: false,
       domainMatch: false,
       platformDomain: null,
     };
   }
 
-  const result = validateLicense(licenseKey, platformDomain);
-  const { info, domainMatch } = result;
-
-  let reason: EnvLicenseStatusReason;
-  if (!info.domain || info.error === 'Invalid license format') {
-    reason = 'invalid_format';
-  } else if (info.error === 'Invalid license signature') {
-    reason = 'invalid_signature';
-  } else if (info.isExpired) {
-    reason = 'expired';
-  } else if (!domainMatch) {
-    reason = 'domain_mismatch';
-  } else {
-    reason = 'valid';
+  const result = await verifyPlatformLicenseToken(licenseKey, platformDomain, options);
+  const expiry = result.expiry === null ? null : new Date(result.expiry * 1000).toISOString();
+  if (result.valid) {
+    return {
+      configured: true,
+      valid: true,
+      reason: 'valid',
+      tier: result.tier,
+      domain: result.domain,
+      expiry,
+      isExpired: false,
+      domainMatch: true,
+      platformDomain,
+    };
   }
 
+  const reasonMap = {
+    malformed: 'invalid_format',
+    signature: 'invalid_signature',
+    expired: 'expired',
+    domain: 'domain_mismatch',
+    product: 'invalid_product',
+    tier: 'invalid_tier',
+    keys: 'keys_unavailable',
+  } as const;
   return {
     configured: true,
-    valid: result.valid && domainMatch,
-    reason,
-    tier: info.tier,
-    domain: info.domain,
-    expiry: info.expiry,
-    isExpired: info.isExpired,
-    domainMatch,
+    valid: false,
+    reason: reasonMap[result.reason],
+    tier: null,
+    domain: result.domain,
+    expiry,
+    isExpired: result.reason === 'expired',
+    domainMatch: false,
     platformDomain,
   };
 }

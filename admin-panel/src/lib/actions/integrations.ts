@@ -2,7 +2,8 @@
 
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { validateIntegrations, type IntegrationsInput } from '@/lib/validations/integrations'
-import { validateLicense, extractDomainFromUrl } from '@/lib/license/verify'
+import { normalizeLicenseDomain } from '@/lib/license-keys/domain'
+import { verifyPlatformLicenseToken } from '@/lib/license/resolve'
 import { getEnvLicenseStatus } from '@/lib/license/env-status'
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
@@ -43,8 +44,8 @@ export async function getIntegrationsConfig() {
     const { data, error } = await dataClient.from('integrations_config').select('*').single()
     const envLicenseConfigured = Boolean(process.env.SELLF_LICENSE_KEY)
     const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN
-    const platformDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null
-    const envLicenseStatus = getEnvLicenseStatus(process.env.SELLF_LICENSE_KEY, platformDomain)
+    const platformDomain = normalizeLicenseDomain(siteUrl) ?? null
+    const envLicenseStatus = await getEnvLicenseStatus(process.env.SELLF_LICENSE_KEY, platformDomain)
 
     if (error && error.code === 'PGRST116') {
       return {
@@ -79,16 +80,17 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
     // Validate Sellf license if provided
     if (sanitizedValues.sellf_license) {
       const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-      const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
+      const currentDomain = normalizeLicenseDomain(siteUrl);
+      const licenseValidation = currentDomain
+        ? await verifyPlatformLicenseToken(sanitizedValues.sellf_license, currentDomain)
+        : null;
 
-      const licenseValidation = validateLicense(sanitizedValues.sellf_license, currentDomain || undefined);
-
-      if (!licenseValidation.valid) {
+      if (!licenseValidation?.valid) {
         return {
           success: false,
           error: 'Invalid license',
           details: {
-            sellf_license: [licenseValidation.error || 'License validation failed']
+            sellf_license: ['License validation failed']
           }
         };
       }

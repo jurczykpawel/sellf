@@ -4,11 +4,10 @@
  * Central registry of features and their required license tiers.
  * All feature checks go through hasFeature() to keep gating logic in one place.
  *
- * @see verify.ts for license parsing and cryptographic verification
+ * @see ../license-keys/format.ts for token parsing and verification
  */
 
-import { validateLicense, extractDomainFromUrl } from './verify';
-import type { LicenseTier } from './verify';
+export type LicenseTier = 'free' | 'registered' | 'pro' | 'business';
 
 // ===== FEATURE REGISTRY =====
 
@@ -77,25 +76,6 @@ export function getAllFeatures(): Record<Feature, LicenseTier> {
   return { ...FEATURE_TIERS };
 }
 
-/**
- * @deprecated Use resolveCurrentTier() from '@/lib/license/resolve' instead.
- * This sync version reads ONLY from env var — misses DB-stored licenses.
- * Kept for edge cases where async is impossible.
- */
-export function getCurrentTier(): LicenseTier {
-  if (process.env.DEMO_MODE === 'true') return 'business';
-
-  const licenseKey = process.env.SELLF_LICENSE_KEY;
-  if (!licenseKey) return 'free';
-
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  const currentDomain = siteUrl ? extractDomainFromUrl(siteUrl) : null;
-  const result = validateLicense(licenseKey, currentDomain || undefined);
-
-  return result.valid ? result.info.tier : 'free';
-}
-
 // Re-export from resolve.ts for convenience
 export { resolveCurrentTier, checkFeature } from './resolve';
 export type { LicenseResolveOptions } from './resolve';
-

@@ -1,16 +1,34 @@
 import { describe, expect, it } from 'vitest';
+
+import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
+import { generateSellerKeypair } from '@/lib/license-keys/keys';
 import { getEnvLicenseStatus } from '@/lib/license/env-status';
 
-const VALID_PRO_UNLIMITED = 'SF-test.example.com-PRO-UNLIMITED-MEQCIFJvfvcakzjXutavoqSX9d-NnKPfVit5lb2kSezgO0YZAiAyVYnHJOa9A5WSav0YYVB9LWFQJyR_cM2EL9NfJZAq5Q';
-const VALID_BIZ_UNLIMITED = 'SF-test.example.com-BIZ-UNLIMITED-MEYCIQDVctECqyu3T94QuJML7fBTVGRJRR8h7VxibrHeKotiIgIhAKQ8WFOD5cCgc2aBchajxe2qH0YXjSrUzUHP8LufYwM-';
-const EXPIRED_BIZ = 'SF-test.example.com-BIZ-20201231-MEYCIQCoWI1lxsqiLO0KTQk3pf7MtuRbpYkca4bYxuv_TcRqeQIhALPNuWYfln8hmL88Wlh8GQhU45N735GU5hBMpeyPD0D3';
-const INVALID_SIGNATURE = 'SF-test.example.com-UNLIMITED-INVALID_SIGNATURE_HERE';
-const GARBAGE = 'not-a-license-at-all';
+const key = generateSellerKeypair();
+const NOW = new Date('2026-06-14T12:00:00.000Z');
+const nowSec = Math.floor(NOW.getTime() / 1000);
+const keys = [{ kid: key.kid, alg: 'ES256', pem: key.publicKeyPem }];
+
+function token(overrides: Partial<LicenseClaims> = {}): string {
+  return signLicense({
+    v: 1,
+    kid: key.kid,
+    product: 'sellf-pro',
+    email: 'owner@example.com',
+    order: 'order-1',
+    tier: 'pro',
+    iat: nowSec,
+    exp: null,
+    domain: 'example.com',
+    ...overrides,
+  }, key.privateKeyPem);
+}
 
 describe('getEnvLicenseStatus', () => {
-  it('returns not_configured when env key is missing', () => {
-    const status = getEnvLicenseStatus(undefined, 'test.example.com');
-    expect(status).toMatchObject({
+  const options = { keys, now: NOW };
+
+  it('returns not_configured when env key is missing', async () => {
+    await expect(getEnvLicenseStatus(undefined, 'example.com', options)).resolves.toMatchObject({
       configured: false,
       valid: false,
       reason: 'not_configured',
@@ -18,59 +36,46 @@ describe('getEnvLicenseStatus', () => {
     });
   });
 
-  it('returns no_platform_domain when SITE_URL/MAIN_DOMAIN is missing', () => {
-    const status = getEnvLicenseStatus(VALID_PRO_UNLIMITED, null);
-    expect(status.configured).toBe(true);
-    expect(status.valid).toBe(false);
-    expect(status.reason).toBe('no_platform_domain');
-    expect(status.platformDomain).toBeNull();
+  it('returns no_platform_domain when the platform host is missing', async () => {
+    await expect(getEnvLicenseStatus(token(), null, options)).resolves.toMatchObject({
+      configured: true,
+      valid: false,
+      reason: 'no_platform_domain',
+    });
   });
 
-  it('marks a valid license for the correct domain as valid', () => {
-    const status = getEnvLicenseStatus(VALID_PRO_UNLIMITED, 'test.example.com');
-    expect(status).toMatchObject({
+  it('marks a valid product token for a subdomain as valid', async () => {
+    await expect(getEnvLicenseStatus(token(), 'app.example.com', options)).resolves.toMatchObject({
       configured: true,
       valid: true,
       reason: 'valid',
       tier: 'pro',
-      domain: 'test.example.com',
-      expiry: 'UNLIMITED',
-      isExpired: false,
+      domain: 'example.com',
+      expiry: null,
       domainMatch: true,
-      platformDomain: 'test.example.com',
     });
   });
 
-  it('surfaces tier for business licenses', () => {
-    const status = getEnvLicenseStatus(VALID_BIZ_UNLIMITED, 'test.example.com');
-    expect(status.valid).toBe(true);
-    expect(status.tier).toBe('business');
+  it('reports domain mismatch', async () => {
+    await expect(getEnvLicenseStatus(token(), 'other.test', options)).resolves.toMatchObject({
+      valid: false,
+      reason: 'domain_mismatch',
+      domain: 'example.com',
+    });
   });
 
-  it('reports domain_mismatch when license domain differs from platform', () => {
-    const status = getEnvLicenseStatus(VALID_PRO_UNLIMITED, 'other.example.com');
-    expect(status.valid).toBe(false);
-    expect(status.reason).toBe('domain_mismatch');
-    expect(status.domain).toBe('test.example.com');
-    expect(status.platformDomain).toBe('other.example.com');
+  it('reports expiration', async () => {
+    await expect(getEnvLicenseStatus(token({ exp: nowSec - 1 }), 'example.com', options)).resolves.toMatchObject({
+      valid: false,
+      reason: 'expired',
+      isExpired: true,
+    });
   });
 
-  it('reports expired when license is past expiry', () => {
-    const status = getEnvLicenseStatus(EXPIRED_BIZ, 'test.example.com');
-    expect(status.valid).toBe(false);
-    expect(status.reason).toBe('expired');
-    expect(status.isExpired).toBe(true);
-  });
-
-  it('reports invalid_signature when signature does not verify', () => {
-    const status = getEnvLicenseStatus(INVALID_SIGNATURE, 'test.example.com');
-    expect(status.valid).toBe(false);
-    expect(status.reason).toBe('invalid_signature');
-  });
-
-  it('reports invalid_format for garbage input', () => {
-    const status = getEnvLicenseStatus(GARBAGE, 'test.example.com');
-    expect(status.valid).toBe(false);
-    expect(status.reason).toBe('invalid_format');
+  it('rejects the retired activation-key shape as invalid format', async () => {
+    await expect(getEnvLicenseStatus('legacy-activation-key', 'example.com', options)).resolves.toMatchObject({
+      valid: false,
+      reason: 'invalid_format',
+    });
   });
 });

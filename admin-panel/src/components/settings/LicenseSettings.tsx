@@ -65,35 +65,8 @@ export default function LicenseSettings() {
  }
  };
 
- const VALID_TIERS = ['REG', 'PRO', 'BIZ'];
- const TIER_LABELS: Record<string, string> = { REG: 'Registered Free', PRO: 'Pro', BIZ: 'Business' };
-
- const parseLicense = (licenseKey: string): { valid: true; domain: string; tier: string; expiry: string; signature: string } | { valid: false } => {
- const parts = licenseKey.split('-');
- if (parts.length < 4 || parts[0] !== 'SF') return { valid: false };
-
- // Current format: SF-{domain}-{TIER}-{expiry}-{signature}
- if (parts.length >= 5 && VALID_TIERS.includes(parts[2])) {
- return {
- valid: true,
- domain: parts[1],
- tier: parts[2],
- expiry: parts[3],
- signature: parts.slice(4).join('-'),
- };
- }
-
- // Legacy format: SF-{domain}-{expiry}-{signature}
- return {
- valid: true,
- domain: parts[1],
- tier: 'PRO',
- expiry: parts[2],
- signature: parts.slice(3).join('-'),
- };
- };
-
- const licenseInfo = license ? parseLicense(license) : null;
+ const licenseParts = license.split('.');
+ const hasTokenShape = licenseParts.length === 2 && licenseParts.every((part) => /^[A-Za-z0-9_-]+$/.test(part));
 
  if (loading) {
  return (
@@ -155,36 +128,17 @@ export default function LicenseSettings() {
  )}
  </div>
 
- {license && licenseInfo && (
+ {license && (
  <div className="p-4 bg-sf-deep border-2 border-sf-border-medium">
  <h4 className="text-sm font-medium text-sf-body mb-3">
  {t('licenseDetails')}
  </h4>
- {licenseInfo.valid ? (
+ {hasTokenShape ? (
  <div className="space-y-2 text-sm">
- <div className="flex justify-between items-center">
- <span className="text-sf-muted">{t('domain')}:</span>
- <span className="font-mono text-sf-heading">{licenseInfo.domain}</span>
- </div>
- <div className="flex justify-between items-center">
- <span className="text-sf-muted">{t('tier')}:</span>
- <span className="font-mono text-sf-heading">
- {TIER_LABELS[licenseInfo.tier] || licenseInfo.tier}
- </span>
- </div>
- <div className="flex justify-between items-center">
- <span className="text-sf-muted">{t('expires')}:</span>
- <span className={`font-mono ${licenseInfo.expiry === 'UNLIMITED' ? 'text-sf-success' : 'text-sf-heading'}`}>
- {licenseInfo.expiry === 'UNLIMITED'
- ? t('never')
- : `${licenseInfo.expiry.slice(0,4)}-${licenseInfo.expiry.slice(4,6)}-${licenseInfo.expiry.slice(6,8)}`
- }
- </span>
- </div>
  <div className="flex justify-between items-center">
  <span className="text-sf-muted">{t('signature')}:</span>
  <span className="font-mono text-sf-muted text-xs">
- {licenseInfo.signature?.slice(0, 20)}...
+ {licenseParts[1]?.slice(0, 20)}...
  </span>
  </div>
  </div>
@@ -250,6 +204,9 @@ function EnvLicenseStatusCard({ status, t }: { status: EnvLicenseStatus; t: Lice
  domain_mismatch: 'envInvalidDomain',
  invalid_signature: 'envInvalidSignature',
  invalid_format: 'envInvalidFormat',
+ invalid_product: 'envInvalidFormat',
+ invalid_tier: 'envInvalidFormat',
+ keys_unavailable: 'envInvalidSignature',
  no_platform_domain: 'envNoPlatformDomain',
  not_configured: 'envConfiguredDescription',
  };

@@ -104,9 +104,8 @@ export function validateIntegrations(data: IntegrationsInput): ValidationResult 
     addError('google_ads_conversion_label', 'Google Ads conversion label must be 200 characters or less');
   }
 
-  // Sellf License format: SF-{domain}-{TIER}-{expiry}-{signature} or legacy SF-{domain}-{expiry}-{signature}
-  if (data.sellf_license && !/^SF-[a-zA-Z0-9.*-]+-(?:(?:REG|PRO|BIZ|MKT)-)?(?:UNLIMITED|\d{8})-[A-Za-z0-9_-]+$/.test(data.sellf_license)) {
-    addError('sellf_license', 'Invalid license format (expected: SF-domain-TIER-expiry-signature)');
+  if (data.sellf_license && !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(data.sellf_license)) {
+    addError('sellf_license', 'Invalid license token format');
   }
 
   return { isValid: Object.keys(errors).length === 0, errors };
