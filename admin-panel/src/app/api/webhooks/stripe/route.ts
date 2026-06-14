@@ -93,8 +93,7 @@ async function handleCheckoutSessionCompleted(
       userId,
       orderId: replayPaymentIntentId || sessionId,
       customFieldValues: (existingTransaction.custom_field_values as Record<string, string> | null) ?? undefined,
-    })
-      .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
+    });
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
@@ -220,9 +219,6 @@ async function handleCheckoutSessionCompleted(
     userId,
     orderId: stripePaymentIntentId || sessionId,
     customFieldValues,
-  }).catch((err) => {
-    console.error('[Stripe Webhook] License issuance failed:', err);
-    return null;
   });
 
   const isExplicitRepurchase = session.metadata?.repurchase === 'true';
@@ -313,8 +309,7 @@ async function handlePaymentIntentSucceeded(
       userId,
       orderId: paymentIntent.id,
       customFieldValues: (byPI.custom_field_values as Record<string, string> | null) ?? undefined,
-    })
-      .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
+    });
     return { processed: true, message: `Already processed: ${byPI.id}` };
   }
 
@@ -332,8 +327,7 @@ async function handlePaymentIntentSucceeded(
       userId,
       orderId: paymentIntent.id,
       customFieldValues: (existingTransaction.custom_field_values as Record<string, string> | null) ?? undefined,
-    })
-      .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
+    });
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
 
@@ -419,9 +413,6 @@ async function handlePaymentIntentSucceeded(
     userId,
     orderId: paymentIntent.id,
     customFieldValues,
-  }).catch((err) => {
-    console.error('[Stripe Webhook] License issuance failed:', err);
-    return null;
   });
 
   const isExplicitRepurchase = paymentIntent.metadata?.repurchase === 'true';

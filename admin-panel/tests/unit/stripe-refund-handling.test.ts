@@ -56,4 +56,13 @@ describe('stripe refund handling', () => {
     expect(stripeWebhookSource).toContain('scheduleSubscriptionCancelAfterFullRefund');
     expect(stripeWebhookSource).toContain('subscription_id');
   });
+
+  it('does not swallow offline license revocation failures', () => {
+    expect(stripeWebhookSource).toContain('await revokeLicensesForOrder');
+    expect(stripeWebhookSource).not.toMatch(/revokeLicensesForOrder\([\s\S]*?\)\.catch/);
+  });
+
+  it('does not acknowledge payment events after a thrown license issuance error', () => {
+    expect(stripeWebhookSource).not.toContain('License issuance failed');
+  });
 });

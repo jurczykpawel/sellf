@@ -3238,7 +3238,7 @@ export type Database = {
       seller_revoked_orders: {
         Args: { seller: string }
         Returns: {
-          order_id: string
+          order_hash: string
         }[]
       }
       send_monitoring_email: {
@@ -3976,4 +3976,3 @@ export const Constants = {
     },
   },
 } as const
-

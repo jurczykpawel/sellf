@@ -41,9 +41,9 @@ describe('revokeLicensesForOrder', () => {
     expect(from).not.toHaveBeenCalled();
   });
 
-  it('fails safe (returns 0, never throws) on a db error', async () => {
+  it('throws on a db error so a retriable webhook is redelivered', async () => {
     const { from } = adminMock({ data: null, error: { message: 'boom' } });
-    const res = await call({ from }, { productId: 'p1', orderIds: ['pi_1'] });
-    expect(res.revoked).toBe(0);
+    await expect(call({ from }, { productId: 'p1', orderIds: ['pi_1'] }))
+      .rejects.toThrow('License revocation failed');
   });
 });

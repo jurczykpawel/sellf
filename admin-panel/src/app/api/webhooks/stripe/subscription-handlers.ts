@@ -802,15 +802,13 @@ export async function handleInvoicePaid(
     return { processed: true, message: 'Skipped: invoice not tied to a subscription' };
   }
 
-  // Idempotency: if we already booked this invoice, exit fast.
+  // Remember whether the invoice was already booked. We still resolve its
+  // subscription context so a prior license-issuance failure can be retried.
   const { data: existingTx } = await supabase
     .from('payment_transactions')
     .select('id')
     .eq('stripe_invoice_id', invoice.id!)
     .maybeSingle();
-  if (existingTx) {
-    return { processed: true, message: `Invoice already booked: ${invoice.id}` };
-  }
 
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   let email = customerEmailFromInvoiceOrSub(invoice, sub);
@@ -830,6 +828,34 @@ export async function handleInvoicePaid(
   const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, sub);
   if (!subscriptionRowId) {
     return { processed: false, message: 'Could not upsert subscription row' };
+  }
+
+  const stripeSideTerminal = TERMINAL_STATUSES.has(sub.status);
+  const dbSideTerminal =
+    ctx.priorStatus !== null &&
+    TERMINAL_STATUSES.has(ctx.priorStatus as Stripe.Subscription.Status);
+
+  const issueRenewalLicense = async () => {
+    const { data: checkoutTransaction } = await supabase
+      .from('payment_transactions')
+      .select('custom_field_values')
+      .eq('subscription_id', subscriptionRowId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    await issueLicense(supabase, {
+      productId: ctx.productId,
+      email: ctx.email,
+      userId: ctx.userId,
+      orderId: invoice.id!,
+      customFieldValues: (checkoutTransaction?.custom_field_values as Record<string, string> | null) ?? undefined,
+    });
+  };
+
+  if (existingTx) {
+    if (!stripeSideTerminal && !dbSideTerminal) await issueRenewalLicense();
+    return { processed: true, message: `Invoice already booked: ${invoice.id}` };
   }
 
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).
@@ -878,10 +904,6 @@ export async function handleInvoicePaid(
   // still blocks the grant.
   // invoice.paid is in RETRIABLE_EVENTS; surface helper failures so a
   // transient DB error forces a Stripe redelivery instead of silent loss.
-  const stripeSideTerminal = TERMINAL_STATUSES.has(sub.status);
-  const dbSideTerminal =
-    ctx.priorStatus !== null &&
-    TERMINAL_STATUSES.has(ctx.priorStatus as Stripe.Subscription.Status);
   if (!stripeSideTerminal && !dbSideTerminal) {
     const r = await upsertUserProductAccess(supabase, ctx.userId, ctx.productId, subscriptionRowId);
     if (!r.ok) {
@@ -892,22 +914,8 @@ export async function handleInvoicePaid(
     // Issue or refresh the license key for this billing period.
     // orderId = invoice.id — unique per period, so each renewal gets its own
     // token while the UNIQUE(order_id, product_id) constraint keeps it idempotent
-    // on webhook retries. Failure is non-fatal: access was already granted above.
-    const { data: checkoutTransaction } = await supabase
-      .from('payment_transactions')
-      .select('custom_field_values')
-      .eq('subscription_id', subscriptionRowId)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    await issueLicense(supabase, {
-      productId: ctx.productId,
-      email: ctx.email,
-      userId: ctx.userId,
-      orderId: invoice.id!,
-      customFieldValues: (checkoutTransaction?.custom_field_values as Record<string, string> | null) ?? undefined,
-    }).catch(err => console.error('[handleInvoicePaid] License issuance failed:', err));
+    // on webhook retries. A thrown failure propagates so Stripe redelivers the event.
+    await issueRenewalLicense();
   }
 
   const payload = buildInvoicePaidPayload({

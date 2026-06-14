@@ -4,10 +4,10 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 
 /**
  * Revoke any issued licenses tied to a product + order (refund / chargeback). Idempotent —
- * only flips rows whose `revoked_at` is still null, so replays are no-ops. Fail-safe: logs and
- * returns 0 on error so it can never break the payment webhook. Once revoked, the public CRL
- * (`/api/licenses/revoked`) publishes the order id and offline consumers refuse the token on
- * their next refresh.
+ * only flips rows whose `revoked_at` is still null, so replays are no-ops. Database failures
+ * throw so retriable Stripe refund/dispute events are redelivered instead of acknowledging a
+ * refund while its offline license remains active. Once revoked, the public CRL publishes the
+ * SHA-256 order hash and consumers compare it with SHA-256(token.order).
  *
  * `orderIds` accepts both the payment-intent id and the session id because issuance keys the
  * license on `paymentIntentId || sessionId` — passing both reliably matches the row.
@@ -29,7 +29,7 @@ export async function revokeLicensesForOrder(
 
   if (error) {
     console.error('[revokeLicensesForOrder] Error:', error.message);
-    return { revoked: 0 };
+    throw new Error('License revocation failed');
   }
   return { revoked: data?.length ?? 0 };
 }
