@@ -23,6 +23,7 @@ import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
@@ -76,7 +77,7 @@ async function handleCheckoutSessionCompleted(
   // must still process it and attach the eventual PaymentIntent ID.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
-    .select('id, status, stripe_payment_intent_id')
+    .select('id, status, stripe_payment_intent_id, custom_field_values')
     .eq('session_id', sessionId)
     .maybeSingle();
 
@@ -86,7 +87,13 @@ async function handleCheckoutSessionCompleted(
     const replayPaymentIntentId = typeof session.payment_intent === 'string'
       ? session.payment_intent
       : (session.payment_intent as { id?: string } | null)?.id ?? null;
-    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: replayPaymentIntentId || sessionId })
+    await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      orderId: replayPaymentIntentId || sessionId,
+      customFieldValues: (existingTransaction.custom_field_values as Record<string, string> | null) ?? undefined,
+    })
       .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
@@ -200,11 +207,19 @@ async function handleCheckoutSessionCompleted(
   // Issue license — always, regardless of already_had_access.
   // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
   // Prefer payment-intent id: both webhook paths use it so the unique constraint backs idempotency.
+  const { data: txCustomFields } = await supabase
+    .from('payment_transactions')
+    .select('custom_field_values')
+    .eq('session_id', sessionId)
+    .maybeSingle();
+  const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
+
   const licenseResult = await issueLicense(supabase, {
     productId,
     email: customerEmail,
     userId,
     orderId: stripePaymentIntentId || sessionId,
+    customFieldValues,
   }).catch((err) => {
     console.error('[Stripe Webhook] License issuance failed:', err);
     return null;
@@ -217,12 +232,6 @@ async function handleCheckoutSessionCompleted(
     // Pull buyer's custom-field answers so the webhook payload + admin UI can
     // surface them. They were written by the checkout PaymentIntent flow on
     // the same payment_transactions row keyed by session_id.
-    const { data: txCustomFields } = await supabase
-      .from('payment_transactions')
-      .select('custom_field_values')
-      .eq('session_id', sessionId)
-      .maybeSingle();
-
     const webhookData = await buildPurchaseWebhookPayload({
       supabaseClient: supabase,
       customerEmail,
@@ -237,7 +246,7 @@ async function handleCheckoutSessionCompleted(
       couponId: hasCoupon && couponId ? couponId : null,
       isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
-      customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
+      customFieldValues: customFieldValues ?? null,
     });
 
     if (licenseResult) {
@@ -293,12 +302,18 @@ async function handlePaymentIntentSucceeded(
   // Fast idempotency check by PI ID (UNIQUE column — no multi-row risk from concurrent handlers).
   const { data: byPI } = await supabase
     .from('payment_transactions')
-    .select('id, status')
+    .select('id, status, custom_field_values')
     .eq('stripe_payment_intent_id', paymentIntent.id)
     .maybeSingle();
 
   if (byPI?.status === 'completed') {
-    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: paymentIntent.id })
+    await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      orderId: paymentIntent.id,
+      customFieldValues: (byPI.custom_field_values as Record<string, string> | null) ?? undefined,
+    })
       .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${byPI.id}` };
   }
@@ -306,12 +321,18 @@ async function handlePaymentIntentSucceeded(
   // Fallback: direct payment flow where PI id is also used as session_id.
   const { data: existingTransaction } = await supabase
     .from('payment_transactions')
-    .select('id, status')
+    .select('id, status, custom_field_values')
     .eq('session_id', paymentIntent.id)
     .maybeSingle();
 
   if (existingTransaction?.status === 'completed') {
-    await issueLicense(supabase, { productId, email: customerEmail, userId, orderId: paymentIntent.id })
+    await issueLicense(supabase, {
+      productId,
+      email: customerEmail,
+      userId,
+      orderId: paymentIntent.id,
+      customFieldValues: (existingTransaction.custom_field_values as Record<string, string> | null) ?? undefined,
+    })
       .catch(err => console.error('[Stripe Webhook] License issuance failed (replay):', err));
     return { processed: true, message: `Already processed: ${existingTransaction.id}` };
   }
@@ -385,11 +406,19 @@ async function handlePaymentIntentSucceeded(
 
   // Issue license — always, regardless of already_had_access.
   // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
+  const { data: txCustomFields } = await supabase
+    .from('payment_transactions')
+    .select('custom_field_values')
+    .eq('stripe_payment_intent_id', paymentIntent.id)
+    .maybeSingle();
+  const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
+
   const licenseResult = await issueLicense(supabase, {
     productId,
     email: customerEmail,
     userId,
     orderId: paymentIntent.id,
+    customFieldValues,
   }).catch((err) => {
     console.error('[Stripe Webhook] License issuance failed:', err);
     return null;
@@ -399,12 +428,6 @@ async function handlePaymentIntentSucceeded(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access || isExplicitRepurchase) {
-    const { data: txCustomFields } = await supabase
-      .from('payment_transactions')
-      .select('custom_field_values')
-      .eq('stripe_payment_intent_id', paymentIntent.id)
-      .maybeSingle();
-
     const webhookData = await buildPurchaseWebhookPayload({
       supabaseClient: supabase,
       customerEmail,
@@ -418,7 +441,7 @@ async function handlePaymentIntentSucceeded(
       couponId: couponId || null,
       isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
-      customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
+      customFieldValues: customFieldValues ?? null,
     });
 
     if (licenseResult) {
@@ -602,6 +625,12 @@ async function processRefundForTransaction(
     console.error('[Stripe Webhook] Revocation warnings after refund:', revocation.warnings);
   }
 
+  // Revoke any offline license issued for this order so a refunded token stops working.
+  await revokeLicensesForOrder(supabase, {
+    productId: transaction.product_id,
+    orderIds: [transaction.stripe_payment_intent_id, transaction.session_id],
+  });
+
   const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
     supabase: supabase as never,
     stripe,
@@ -704,6 +733,12 @@ async function handleChargeDisputeCreated(
   if (revocation.warnings.length > 0) {
     console.error('[Stripe Webhook] Revocation warnings after dispute:', revocation.warnings);
   }
+
+  // Revoke any offline license issued for this order (chargeback = lost payment).
+  await revokeLicensesForOrder(supabase, {
+    productId: transaction.product_id,
+    orderIds: [paymentIntentId, transaction.session_id],
+  });
 
   return { processed: true, message: 'Dispute recorded and access revoked (main + bumps)' };
 }

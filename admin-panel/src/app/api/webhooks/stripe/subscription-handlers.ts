@@ -893,11 +893,20 @@ export async function handleInvoicePaid(
     // orderId = invoice.id — unique per period, so each renewal gets its own
     // token while the UNIQUE(order_id, product_id) constraint keeps it idempotent
     // on webhook retries. Failure is non-fatal: access was already granted above.
+    const { data: checkoutTransaction } = await supabase
+      .from('payment_transactions')
+      .select('custom_field_values')
+      .eq('subscription_id', subscriptionRowId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
     await issueLicense(supabase, {
       productId: ctx.productId,
       email: ctx.email,
       userId: ctx.userId,
       orderId: invoice.id!,
+      customFieldValues: (checkoutTransaction?.custom_field_values as Record<string, string> | null) ?? undefined,
     }).catch(err => console.error('[handleInvoicePaid] License issuance failed:', err));
   }
 

@@ -81,6 +81,7 @@ export default function CustomCheckoutFieldsForm({
               <input
                 id={inputId}
                 type={field.type === 'email' ? 'email' : 'text'}
+                inputMode={field.type === 'domain' ? 'url' : undefined}
                 value={value}
                 onChange={(e) => update(field.id, e.target.value)}
                 maxLength={field.max_length}

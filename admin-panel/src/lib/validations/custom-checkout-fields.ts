@@ -8,14 +8,19 @@
 // indexing + writes). They are the single source of truth — DB has no
 // per-row size check, the API is the gate.
 
+import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
+
 const FIELD_ID_PATTERN = /^[a-z0-9_-]+$/;
+const FIELD_ID_MAX = 64;
+const FIELD_LABEL_MAX = 200;
 const PLACEHOLDER_MAX = 200;
+const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
 export const CUSTOM_FIELD_MAX_PER_PRODUCT = 10;
 export const CUSTOM_FIELD_MAX_VALUE_LENGTH = 500;
 export const CUSTOM_FIELDS_VALUES_MAX_BYTES = 5_000;
 
-export type CustomFieldType = 'text' | 'textarea' | 'email';
+export type CustomFieldType = 'text' | 'textarea' | 'email' | 'domain';
 
 // Forward-compat: label as string today, dict {en,pl} later when we add
 // multi-language support. Walidator handles both shapes from day one so the
@@ -31,6 +36,40 @@ export interface CustomFieldDefinition {
   placeholder?: string;
 }
 
+export const PREDEFINED_CUSTOM_FIELDS = {
+  license_domain: {
+    id: '_sellf_license_domain',
+    type: 'domain',
+    label: { en: 'License domain', pl: 'Domena licencji' },
+    required: false,
+    max_length: 253,
+    claim: 'domain',
+  },
+} as const satisfies Record<string, CustomFieldDefinition & { claim: string }>;
+
+export type PredefinedCustomField = keyof typeof PREDEFINED_CUSTOM_FIELDS;
+
+const PREDEFINED_BY_ID = new Map<string, CustomFieldDefinition & { claim: string }>(
+  Object.values(PREDEFINED_CUSTOM_FIELDS).map((field) => [field.id, field]),
+);
+const RESERVED_FIELD_PREFIX = '_sellf_';
+
+export function createPredefinedCustomField(kind: PredefinedCustomField): CustomFieldDefinition {
+  const field = PREDEFINED_CUSTOM_FIELDS[kind];
+  return structuredClone({
+    id: field.id,
+    type: field.type,
+    label: field.label,
+    required: field.required,
+    max_length: field.max_length,
+  });
+}
+
+export function customFieldClaimName(fieldId: string): string | null {
+  if (!FIELD_ID_PATTERN.test(fieldId) || fieldId.startsWith(RESERVED_FIELD_PREFIX)) return null;
+  return `custom_${fieldId.replace(/-/g, '_')}`;
+}
+
 export type CustomFieldValues = Record<string, string>;
 
 export type DefinitionsResult =
@@ -41,7 +80,7 @@ export type ValuesResult =
   | { ok: true; values: CustomFieldValues }
   | { ok: false; errors: Record<string, string> };
 
-const ALLOWED_TYPES: ReadonlySet<CustomFieldType> = new Set(['text', 'textarea', 'email']);
+const ALLOWED_TYPES: ReadonlySet<CustomFieldType> = new Set(['text', 'textarea', 'email', 'domain']);
 
 // RFC-5322 lite: enough to reject obvious garbage without locking out odd-but-valid
 // TLDs. Server is not the final gate (no SMTP probe here) — Stripe / outbound mail
@@ -49,7 +88,7 @@ const ALLOWED_TYPES: ReadonlySet<CustomFieldType> = new Set(['text', 'textarea',
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidLabel(label: unknown): label is CustomFieldLabel {
-  if (typeof label === 'string') return label.trim().length > 0;
+  if (typeof label === 'string') return label.trim().length > 0 && label.length <= FIELD_LABEL_MAX;
   if (label && typeof label === 'object') {
     const obj = label as Record<string, unknown>;
     return (
@@ -57,6 +96,8 @@ function isValidLabel(label: unknown): label is CustomFieldLabel {
       && typeof obj.pl === 'string'
       && obj.en.trim().length > 0
       && obj.pl.trim().length > 0
+      && obj.en.length <= FIELD_LABEL_MAX
+      && obj.pl.length <= FIELD_LABEL_MAX
     );
   }
   return false;
@@ -75,6 +116,7 @@ export function validateCustomFieldDefinitions(defs: unknown): DefinitionsResult
 
   const errors: Record<string, string> = {};
   const seenIds = new Set<string>();
+  const seenClaims = new Set<string>();
   const out: CustomFieldDefinition[] = [];
 
   defs.forEach((raw, index) => {
@@ -84,7 +126,12 @@ export function validateCustomFieldDefinitions(defs: unknown): DefinitionsResult
     }
     const f = raw as Record<string, unknown>;
 
-    if (typeof f.id !== 'string' || !FIELD_ID_PATTERN.test(f.id)) {
+    if (
+      typeof f.id !== 'string'
+      || f.id.length > FIELD_ID_MAX
+      || !FIELD_ID_PATTERN.test(f.id)
+      || UNSAFE_OBJECT_KEYS.has(f.id)
+    ) {
       errors[String(index)] = 'Invalid id (use [a-z0-9_-])';
       return;
     }
@@ -94,10 +141,27 @@ export function validateCustomFieldDefinitions(defs: unknown): DefinitionsResult
     }
     seenIds.add(f.id);
 
+    const predefined = PREDEFINED_BY_ID.get(f.id);
+    if (f.id.startsWith(RESERVED_FIELD_PREFIX) && !predefined) {
+      errors[String(index)] = 'Field id uses a reserved namespace';
+      return;
+    }
+
     if (typeof f.type !== 'string' || !ALLOWED_TYPES.has(f.type as CustomFieldType)) {
       errors[String(index)] = `Invalid type (allowed: ${[...ALLOWED_TYPES].join(', ')})`;
       return;
     }
+    if (predefined && f.type !== predefined.type) {
+      errors[String(index)] = `Predefined field must use type ${predefined.type}`;
+      return;
+    }
+
+    const claimName = predefined?.claim ?? customFieldClaimName(f.id);
+    if (claimName && seenClaims.has(claimName)) {
+      errors[String(index)] = `Claim name collision for "${claimName}"`;
+      return;
+    }
+    if (claimName) seenClaims.add(claimName);
     if (!isValidLabel(f.label)) {
       errors[String(index)] = 'Invalid label (non-empty string or {en,pl})';
       return;
@@ -188,6 +252,15 @@ export function validateCustomFieldValues(
     }
     if (field.type === 'email' && !EMAIL_PATTERN.test(trimmed)) {
       errors[field.id] = 'Invalid email';
+      continue;
+    }
+    if (field.type === 'domain') {
+      const domain = normalizeLicenseDomain(trimmed);
+      if (!domain) {
+        errors[field.id] = 'Invalid domain';
+        continue;
+      }
+      out[field.id] = domain;
       continue;
     }
     out[field.id] = trimmed;

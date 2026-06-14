@@ -1,5 +1,7 @@
 import { createSign, createVerify } from 'node:crypto';
 
+export { domainMatches, normalizeLicenseDomain } from '@/lib/license-keys/domain';
+
 /**
  * Seller-issued product license token. Format: `payloadB64url.sigB64url`,
  * payload = base64url(JSON claims), signature = ECDSA P-256 / SHA-256 over the
@@ -14,6 +16,8 @@ export interface LicenseClaims {
   tier: string | null;
   iat: number;
   exp: number | null;
+  domain?: string;
+  [claim: string]: unknown;
 }
 
 export type LicenseVerifyResult =
@@ -34,6 +38,7 @@ function isLicenseClaims(value: unknown): value is LicenseClaims {
     (v.exp === null || typeof v.exp === 'number')
   );
 }
+
 
 export function signLicense(claims: LicenseClaims, privateKeyPem: string): string {
   const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');

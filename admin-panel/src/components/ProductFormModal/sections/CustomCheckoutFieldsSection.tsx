@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ProductFormData } from '../types';
 import { getTipJarDefaultCustomFields } from '@/lib/checkout-templates/tip-jar';
 import {
+  createPredefinedCustomField,
+  PREDEFINED_CUSTOM_FIELDS,
   validateCustomFieldDefinitions,
   CUSTOM_FIELD_MAX_PER_PRODUCT,
   CUSTOM_FIELD_MAX_VALUE_LENGTH,
@@ -24,9 +26,13 @@ function asLabelString(label: CustomFieldDefinition['label'], locale: string): s
 
 export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
   const t = useTranslations('productForm.customFields');
+  const locale = useLocale();
 
   const validation = validateCustomFieldDefinitions(formData.custom_checkout_fields);
   const fieldErrors = validation.ok ? {} : validation.errors;
+  const hasLicenseDomain = formData.custom_checkout_fields.some(
+    (field) => field.id === PREDEFINED_CUSTOM_FIELDS.license_domain.id,
+  );
 
   const addField = () => {
     if (formData.custom_checkout_fields.length >= CUSTOM_FIELD_MAX_PER_PRODUCT) return;
@@ -41,6 +47,17 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
           required: false,
           max_length: 200,
         },
+      ],
+    }));
+  };
+
+  const addLicenseDomain = () => {
+    if (hasLicenseDomain || formData.custom_checkout_fields.length >= CUSTOM_FIELD_MAX_PER_PRODUCT) return;
+    setFormData((prev) => ({
+      ...prev,
+      custom_checkout_fields: [
+        ...prev.custom_checkout_fields,
+        createPredefinedCustomField('license_domain'),
       ],
     }));
   };
@@ -71,6 +88,7 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
 
   return (
     <div className="space-y-3">
+      <p className="text-xs text-sf-muted">{t('automaticEmailHint')}</p>
       <header className="flex items-center justify-between">
         <p className="text-xs text-sf-muted">{t('helpText')}</p>
         <div className="flex items-center gap-2">
@@ -91,6 +109,14 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
           >
             {t('addButton')}
           </button>
+          <button
+            type="button"
+            onClick={addLicenseDomain}
+            disabled={hasLicenseDomain || formData.custom_checkout_fields.length >= CUSTOM_FIELD_MAX_PER_PRODUCT}
+            className="px-3 py-1.5 text-sm font-medium border border-sf-accent text-sf-accent rounded-full disabled:text-sf-muted disabled:border-sf-border disabled:cursor-not-allowed"
+          >
+            {t('addLicenseDomain')}
+          </button>
         </div>
       </header>
 
@@ -99,8 +125,9 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
       ) : (
         <ul className="space-y-3">
           {formData.custom_checkout_fields.map((field, idx) => {
-            const labelString = asLabelString(field.label, 'pl');
+            const labelString = asLabelString(field.label, locale);
             const error = fieldErrors[String(idx)];
+            const isLicenseDomain = field.id === PREDEFINED_CUSTOM_FIELDS.license_domain.id;
             return (
               <li
                 key={idx}
@@ -111,21 +138,28 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
                     aria-label={t('fieldId')}
                     placeholder={t('fieldId')}
                     value={field.id}
+                    disabled={isLicenseDomain}
                     onChange={(e) => updateField(idx, { id: e.target.value })}
                     className="lg:col-span-3 p-2 text-sm border border-sf-border rounded bg-sf-input text-sf-heading"
                   />
-                  <select
-                    aria-label={t('fieldType.label')}
-                    value={field.type}
-                    onChange={(e) =>
-                      updateField(idx, { type: e.target.value as CustomFieldType })
-                    }
-                    className="lg:col-span-2 p-2 text-sm border border-sf-border rounded bg-sf-input text-sf-heading"
-                  >
-                    <option value="text">{t('fieldType.text')}</option>
-                    <option value="textarea">{t('fieldType.textarea')}</option>
-                    <option value="email">{t('fieldType.email')}</option>
-                  </select>
+                  {isLicenseDomain ? (
+                    <div className="lg:col-span-2 p-2 text-sm border border-sf-border rounded bg-sf-raised text-sf-body">
+                      {t('fieldType.domain')}
+                    </div>
+                  ) : (
+                    <select
+                      aria-label={t('fieldType.label')}
+                      value={field.type}
+                      onChange={(e) =>
+                        updateField(idx, { type: e.target.value as CustomFieldType })
+                      }
+                      className="lg:col-span-2 p-2 text-sm border border-sf-border rounded bg-sf-input text-sf-heading"
+                    >
+                      <option value="text">{t('fieldType.text')}</option>
+                      <option value="textarea">{t('fieldType.textarea')}</option>
+                      <option value="email">{t('fieldType.email')}</option>
+                    </select>
+                  )}
                   <input
                     aria-label={t('fieldLabel')}
                     placeholder={t('fieldLabel')}
@@ -156,6 +190,7 @@ export function CustomCheckoutFieldsSection({ formData, setFormData }: Props) {
                   </label>
                 </div>
                 {error && <p className="text-xs text-sf-danger">{error}</p>}
+                {isLicenseDomain && <p className="text-xs text-sf-muted">{t('licenseDomainHint')}</p>}
                 <div className="flex justify-end">
                   <button
                     type="button"

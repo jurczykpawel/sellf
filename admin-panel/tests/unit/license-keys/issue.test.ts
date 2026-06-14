@@ -24,6 +24,7 @@ interface ProductRow {
   issue_license_on_purchase: boolean;
   license_tier: string | null;
   license_duration_days: number | null;
+  custom_checkout_fields: unknown[];
 }
 
 type LicenseRow = { license_key: string; kid: string; seller_id: string };
@@ -58,11 +59,11 @@ function adminMock(opts: {
 }
 
 const product = (over: Partial<ProductRow> = {}): ProductRow => ({
-  seller_id: SELLER, slug: 'pro-kit', issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: null, ...over,
+  seller_id: SELLER, slug: 'pro-kit', issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: null, custom_checkout_fields: [], ...over,
 });
 
-const call = (admin: unknown) =>
-  issueLicense(admin as never, { productId: PRODUCT, email: 'a@b.co', userId: null, orderId: 'ord_1' }, { now: NOW });
+const call = (admin: unknown, customFieldValues?: Record<string, string>) =>
+  issueLicense(admin as never, { productId: PRODUCT, email: 'a@b.co', userId: null, orderId: 'ord_1', customFieldValues }, { now: NOW });
 
 beforeEach(() => {
   vi.mocked(loadActiveSellerKey).mockReset();
@@ -113,6 +114,60 @@ describe('issueLicense', () => {
     const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
     if (!r.valid) throw new Error('expected valid');
     expect(r.claims.exp).toBe(Math.floor(NOW.getTime() / 1000) + 30 * 86400);
+  });
+
+  it('emits normalized domain and namespaced custom claims without replacing system claims', async () => {
+    const result = await call(adminMock({
+      product: product({
+        custom_checkout_fields: [
+          { id: '_sellf_license_domain', type: 'domain', label: 'License domain', required: false, max_length: 253 },
+          { id: 'company-name', type: 'text', label: 'Company', required: false, max_length: 100 },
+          { id: 'tier', type: 'text', label: 'Tier note', required: false, max_length: 20 },
+        ],
+      }),
+    }), {
+      _sellf_license_domain: 'https://www.Example.com:443/path',
+      'company-name': ' ACME ',
+      tier: 'business',
+    });
+
+    const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
+    if (!r.valid) throw new Error('expected valid');
+    expect(r.claims).toMatchObject({
+      email: 'a@b.co',
+      tier: 'pro',
+      domain: 'example.com',
+      custom_company_name: 'ACME',
+      custom_tier: 'business',
+    });
+  });
+
+  it('omits an empty optional domain claim', async () => {
+    const result = await call(adminMock({
+      product: product({
+        custom_checkout_fields: [
+          { id: '_sellf_license_domain', type: 'domain', label: 'License domain', required: false, max_length: 253 },
+        ],
+      }),
+    }), {});
+    const r = verifyLicense(result!.token, key.publicKeyPem, { now: NOW });
+    if (!r.valid) throw new Error('expected valid');
+    expect(r.claims).not.toHaveProperty('domain');
+  });
+
+  it('fails closed when paid checkout values contain an unknown field', async () => {
+    await expect(call(adminMock({ product: product() }), { attacker: 'value' }))
+      .rejects.toThrow('Invalid custom field values');
+  });
+
+  it('fails closed when stored custom field definitions are invalid', async () => {
+    await expect(call(adminMock({
+      product: product({
+        custom_checkout_fields: [
+          { id: '_sellf_attacker', type: 'text', label: 'Bad', required: false, max_length: 10 },
+        ],
+      }),
+    }))).rejects.toThrow('Invalid custom field definitions');
   });
 
   it('is idempotent — returns the already-issued result without re-inserting', async () => {

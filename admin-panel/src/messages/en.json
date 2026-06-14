@@ -2683,7 +2683,7 @@
       "title": "Sellf License",
       "subtitle": "Remove Sellf branding from checkout and other pages",
       "licenseKey": "License Key",
-      "formatHint": "Format: SF-domain-TIER-expiry-signature (e.g., SF-example.com-PRO-UNLIMITED-MEUCIQDx...)",
+      "formatHint": "Paste the signed product-license token issued for this Sellf installation and domain.",
       "licenseDetails": "License Details",
       "domain": "Domain",
       "tier": "Tier",
@@ -2710,7 +2710,7 @@
       "howItWorks2": "Valid license removes Sellf branding from checkout page",
       "howItWorks3": "License is bound to a specific domain",
       "howItWorks4": "Get a license at",
-      "keyPlaceholder": "SF-yourdomain.com-PRO-UNLIMITED-xxxxxxxxxxxx"
+      "keyPlaceholder": "payload.signature"
     },
     "paymentMethods": {
       "title": "Payment Method Configuration",
@@ -4159,6 +4159,9 @@
       "label": "Custom fields",
       "helpText": "Fields the buyer fills at checkout (message, domain, etc.).",
       "addButton": "Add field",
+      "addLicenseDomain": "Add license domain",
+      "automaticEmailHint": "Buyer email is a protected system claim and is included in every license automatically.",
+      "licenseDomainHint": "This protected field binds an issued license to the buyer's domain and its subdomains.",
       "removeButton": "Remove",
       "resetDefaults": "Reset to defaults",
       "emptyState": "No custom fields. Add your first one.",
@@ -4170,7 +4173,8 @@
         "label": "Field type",
         "text": "Text",
         "textarea": "Multiline",
-        "email": "Email"
+        "email": "Email",
+        "domain": "License domain"
       }
     },
     "badgeGenerator": {

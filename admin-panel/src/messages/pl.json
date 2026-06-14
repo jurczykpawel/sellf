@@ -2698,7 +2698,7 @@
       "title": "Licencja Sellf",
       "subtitle": "Usuń branding Sellf ze strony koszyka i innych miejsc",
       "licenseKey": "Klucz licencji",
-      "formatHint": "Format: SF-domena-TIER-wygaśnięcie-podpis (np. SF-example.com-PRO-UNLIMITED-MEUCIQDx...)",
+      "formatHint": "Wklej podpisany token licencji produktowej wystawiony dla tej instalacji Sellf i domeny.",
       "licenseDetails": "Szczegóły licencji",
       "domain": "Domena",
       "tier": "Plan",
@@ -2725,7 +2725,7 @@
       "howItWorks2": "Ważna licencja usuwa branding Sellf ze strony koszyka",
       "howItWorks3": "Licencja jest przypisana do konkretnej domeny",
       "howItWorks4": "Kup licencję na",
-      "keyPlaceholder": "SF-twojadomena.pl-PRO-UNLIMITED-xxxxxxxxxxxx"
+      "keyPlaceholder": "payload.podpis"
     },
     "paymentMethods": {
       "title": "Konfiguracja Metod Płatności",
@@ -4174,6 +4174,9 @@
       "label": "Pola dodatkowe",
       "helpText": "Pola, które kupujący wypełnia w koszyku (np. wiadomość, domena).",
       "addButton": "Dodaj pole",
+      "addLicenseDomain": "Dodaj domenę licencji",
+      "automaticEmailHint": "Email kupującego jest chronionym claimem systemowym i trafia automatycznie do każdej licencji.",
+      "licenseDomainHint": "To chronione pole wiąże wystawioną licencję z domeną klienta i jej subdomenami.",
       "removeButton": "Usuń",
       "resetDefaults": "Przywróć domyślne",
       "emptyState": "Brak pól dodatkowych. Dodaj pierwsze pole.",
@@ -4186,6 +4189,7 @@
         "text": "Tekst",
         "textarea": "Wieloliniowy",
         "email": "Email"
+        ,"domain": "Domena licencji"
       }
     },
     "badgeGenerator": {

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  createPredefinedCustomField,
+  customFieldClaimName,
+  PREDEFINED_CUSTOM_FIELDS,
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
   CUSTOM_FIELD_MAX_PER_PRODUCT,
@@ -46,6 +49,41 @@ describe('validateCustomFieldDefinitions', () => {
     expect(validateCustomFieldDefinitions(fields).ok).toBe(true);
   });
 
+  it('accepts the registered license-domain field', () => {
+    const field = createPredefinedCustomField('license_domain');
+    expect(field).toMatchObject({ id: '_sellf_license_domain', type: 'domain' });
+    expect(validateCustomFieldDefinitions([field]).ok).toBe(true);
+  });
+
+  it('rejects unknown identifiers in the reserved namespace', () => {
+    const r = validateCustomFieldDefinitions([{ ...minimalText, id: '_sellf_tier' }]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors['0']).toMatch(/reserved/i);
+  });
+
+  it('rejects repurposing a predefined identifier with another type', () => {
+    const r = validateCustomFieldDefinitions([
+      { ...minimalText, id: PREDEFINED_CUSTOM_FIELDS.license_domain.id, type: 'text' },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors['0']).toMatch(/domain/i);
+  });
+
+  it('rejects custom ids whose normalized claim names collide', () => {
+    const r = validateCustomFieldDefinitions([
+      minimalText,
+      { ...minimalText, id: 'company-name' },
+      { ...minimalText, id: 'company_name' },
+    ]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(JSON.stringify(r.errors)).toMatch(/claim|collision/i);
+  });
+
+  it('derives namespaced claims only for ordinary fields', () => {
+    expect(customFieldClaimName('company-name')).toBe('custom_company_name');
+    expect(customFieldClaimName('_sellf_license_domain')).toBeNull();
+  });
+
   it('accepts a label given as multi-language dict (forward-compat shape)', () => {
     const r = validateCustomFieldDefinitions([
       { ...minimalText, label: { en: 'Message', pl: 'Wiadomość' } },
@@ -76,6 +114,15 @@ describe('validateCustomFieldDefinitions', () => {
       { ...minimalText, id: 'My Field!' },
     ]);
     expect(r.ok).toBe(false);
+  });
+
+  it.each(['__proto__', 'prototype', 'constructor'])('rejects unsafe object key %s', (id) => {
+    expect(validateCustomFieldDefinitions([{ ...minimalText, id }]).ok).toBe(false);
+  });
+
+  it('limits field ids and labels', () => {
+    expect(validateCustomFieldDefinitions([{ ...minimalText, id: 'a'.repeat(65) }]).ok).toBe(false);
+    expect(validateCustomFieldDefinitions([{ ...minimalText, label: 'a'.repeat(201) }]).ok).toBe(false);
   });
 
   it('rejects duplicate ids', () => {
@@ -216,5 +263,26 @@ describe('validateCustomFieldValues', () => {
     const r = validateCustomFieldValues(onlyDomain, { domain: '   example.com   ' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.values.domain).toBe('example.com');
+  });
+
+  it('normalizes a valid predefined license domain', () => {
+    const domain = createPredefinedCustomField('license_domain');
+    const r = validateCustomFieldValues([domain], {
+      [domain.id]: 'https://www.Example.com:443/path?x=1',
+    });
+    expect(r).toEqual({ ok: true, values: { [domain.id]: 'example.com' } });
+  });
+
+  it.each([
+      'https://user@example.com',
+    'example.com/path',
+    '127.0.0.1',
+    '[::1]',
+    'exa mple.com',
+    'javascript:alert(1)',
+  ])('rejects unsafe or ambiguous domain input: %s', (value) => {
+    const domain = createPredefinedCustomField('license_domain');
+    const r = validateCustomFieldValues([domain], { [domain.id]: value });
+    expect(r.ok).toBe(false);
   });
 });

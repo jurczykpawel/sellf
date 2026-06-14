@@ -3,12 +3,19 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
 import { loadActiveSellerKey } from '@/lib/license-keys/keys';
 import { checkFeature } from '@/lib/license/resolve';
+import {
+  customFieldClaimName,
+  PREDEFINED_CUSTOM_FIELDS,
+  validateCustomFieldDefinitions,
+  validateCustomFieldValues,
+} from '@/lib/validations/custom-checkout-fields';
 
 export interface IssueLicenseInput {
   productId: string;
   email: string;
   userId: string | null;
   orderId: string;
+  customFieldValues?: Record<string, string>;
 }
 
 interface ProductLicenseRow {
@@ -17,6 +24,7 @@ interface ProductLicenseRow {
   issue_license_on_purchase: boolean;
   license_tier: string | null;
   license_duration_days: number | null;
+  custom_checkout_fields: unknown;
 }
 
 export interface IssueLicenseResult {
@@ -50,7 +58,7 @@ export async function issueLicense(
 
   const productResult = await admin
     .from('products')
-    .select('seller_id, slug, issue_license_on_purchase, license_tier, license_duration_days')
+    .select('seller_id, slug, issue_license_on_purchase, license_tier, license_duration_days, custom_checkout_fields')
     .eq('id', input.productId)
     .maybeSingle();
   const product = (productResult.data ?? null) as ProductLicenseRow | null;
@@ -75,6 +83,29 @@ export async function issueLicense(
     iat,
     exp,
   };
+
+  const definitions = validateCustomFieldDefinitions(product.custom_checkout_fields ?? []);
+  if (!definitions.ok) {
+    throw new Error('issueLicense: Invalid custom field definitions');
+  }
+  const values = validateCustomFieldValues(
+    definitions.value,
+    input.customFieldValues ?? {},
+    { requireAll: input.customFieldValues !== undefined },
+  );
+  if (!values.ok) {
+    throw new Error('issueLicense: Invalid custom field values');
+  }
+  for (const field of definitions.value) {
+    const value = values.values[field.id];
+    if (!value) continue;
+    if (field.id === PREDEFINED_CUSTOM_FIELDS.license_domain.id) {
+      claims.domain = value;
+      continue;
+    }
+    const claim = customFieldClaimName(field.id);
+    if (claim) claims[claim] = value;
+  }
   const token = signLicense(claims, key.privateKeyPem);
 
   const { error } = await admin.from('issued_licenses').insert({
