@@ -3235,6 +3235,12 @@ export type Database = {
           public_key: string
         }[]
       }
+      seller_revoked_orders: {
+        Args: { seller: string }
+        Returns: {
+          order_id: string
+        }[]
+      }
       send_monitoring_email: {
         Args: { alert_details: Json; alert_type: string }
         Returns: undefined

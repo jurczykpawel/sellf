@@ -103,6 +103,7 @@ const PUBLIC_ROUTES = new Set([
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
   'loginwall/login.js/route.ts',              // Login wall loader script — per-product, rate-limited, no secrets
   'licenses/jwks/route.ts',                   // Seller license public keys — public keys only, rate-limited
+  'licenses/revoked/route.ts',                // Seller revocation list — public, rate-limited
   'loginwall/gate.js/route.ts',               // Element gating runtime script — per-product, rate-limited, no secrets
 ]);
 
