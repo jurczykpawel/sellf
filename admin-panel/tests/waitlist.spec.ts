@@ -461,11 +461,11 @@ test.describe('Waitlist Feature', () => {
       await page.fill('input#name', 'Waitlist Temp Product');
       await page.fill('input#price', '10');
 
-      // Uncheck "price includes VAT" to bypass VAT validation on step 1.
-      // Without this, clicking Dalej is a no-op until getShopConfig() resolves — a race condition.
-      const vatCheckbox = page.locator('input#price_includes_vat');
-      if (await vatCheckbox.isChecked()) {
-        await vatCheckbox.uncheck();
+      // In local-tax mode, wait for shop config to auto-populate vat_rate.
+      // In Stripe Tax mode there is no #vat_rate input — the wait is skipped.
+      const vatRateInput = page.locator('#vat_rate');
+      if (await vatRateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await expect(vatRateInput).not.toHaveValue('', { timeout: 10000 });
       }
 
       // Step 1 → Step 2 (fill description on step 2)

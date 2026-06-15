@@ -25,37 +25,46 @@ if (!ANON_KEY) {
 
 export const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+export async function createTestUser(prefix: string = 'test-user') {
+  const randomStr = Math.random().toString(36).substring(7);
+  const email = `${prefix}-${Date.now()}-${randomStr}@example.com`;
+  const password = 'password123';
+
+  const { data: { user }, error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (error || !user) throw error ?? new Error('Test user was not created');
+
+  return {
+    userId: user.id,
+    email,
+    password,
+    cleanup: async () => {
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+    },
+  };
+}
+
 /**
  * Creates a test admin user
  * @param prefix - Prefix for the email address
  * @returns Object with email and cleanup function
  */
 export async function createTestAdmin(prefix: string = 'test-admin') {
-  const randomStr = Math.random().toString(36).substring(7);
-  const email = `${prefix}-${Date.now()}-${randomStr}@example.com`;
-  const password = 'password123';
-
-  const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-  if (createError) throw createError;
+  const testUser = await createTestUser(prefix);
 
   await supabaseAdmin
     .from('admin_users')
-    .insert({ user_id: user!.id });
+    .insert({ user_id: testUser.userId });
 
   const cleanup = async () => {
-    const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-    const testUser = users?.users.find(u => u.email === email);
-    if (testUser) {
-      await supabaseAdmin.from('admin_users').delete().eq('user_id', testUser.id);
-      await supabaseAdmin.auth.admin.deleteUser(testUser.id);
-    }
+    await supabaseAdmin.from('admin_users').delete().eq('user_id', testUser.userId);
+    await testUser.cleanup();
   };
 
-  return { email, password, cleanup };
+  return { email: testUser.email, password: testUser.password, cleanup };
 }
 
 /**

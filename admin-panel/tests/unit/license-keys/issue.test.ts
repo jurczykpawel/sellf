@@ -27,7 +27,7 @@ interface ProductRow {
   custom_checkout_fields: unknown[];
 }
 
-type LicenseRow = { license_key: string; kid: string; seller_id: string };
+type LicenseRow = { id?: string; license_key: string; kid: string; seller_id: string };
 
 function adminMock(opts: {
   product?: ProductRow | null;
@@ -172,17 +172,19 @@ describe('issueLicense', () => {
 
   it('is idempotent — returns the already-issued result without re-inserting', async () => {
     const insert = vi.fn();
-    const existing = { license_key: 'EXISTING.TOKEN', kid: 'existingkid', seller_id: SELLER };
+    const existing = { id: '44444444-4444-4444-8444-444444444444', license_key: 'EXISTING.TOKEN', kid: 'existingkid', seller_id: SELLER };
     const result = await call(adminMock({ product: product(), existing, insert }));
-    expect(result).toEqual({ token: 'EXISTING.TOKEN', kid: 'existingkid', sellerId: SELLER });
+    expect(result).toMatchObject({ token: 'EXISTING.TOKEN', kid: 'existingkid', sellerId: SELLER });
+    expect(result?.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(insert).not.toHaveBeenCalled();
   });
 
   it('handles concurrent insert race (23505) by re-querying and returning the winner', async () => {
-    const winner: LicenseRow = { license_key: 'RACE.WINNER.TOKEN', kid: 'racekid', seller_id: SELLER };
+    const winner: LicenseRow = { id: '55555555-5555-4555-8555-555555555555', license_key: 'RACE.WINNER.TOKEN', kid: 'racekid', seller_id: SELLER };
     const insert = vi.fn().mockResolvedValue({ error: { code: '23505', message: 'duplicate key value violates unique constraint "issued_licenses_order_id_product_id_key"' } });
     const result = await call(adminMock({ product: product(), insert, raceWinner: winner }));
-    expect(result).toEqual({ token: 'RACE.WINNER.TOKEN', kid: 'racekid', sellerId: SELLER });
+    expect(result).toMatchObject({ token: 'RACE.WINNER.TOKEN', kid: 'racekid', sellerId: SELLER });
+    expect(result?.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('re-throws on non-23505 insert errors', async () => {

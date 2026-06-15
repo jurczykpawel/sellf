@@ -71,7 +71,7 @@ run_shards() {
        /✓/ {printf "%s%s%s\n", dim, $0, reset; fflush(); next}
        {print; fflush()}'
     local rc=${PIPESTATUS[0]}
-    local errors; errors=$(awk '/^\s*[0-9]+\)\s/{f=1} f' "$_tmp")
+    local errors; errors=$(awk '/^[[:space:]]*[0-9]+\)[[:space:]]/{f=1} f' "$_tmp")
     if [ -n "$errors" ]; then
       echo ""
       echo "${RED}===== FAILURES =====${RESET}"
@@ -81,8 +81,10 @@ run_shards() {
 ${errors}"
     fi
     local pass_n fail_n
-    pass_n=$(grep -c '✓' "$_tmp" 2>/dev/null || true)
-    fail_n=$(grep -c '✘' "$_tmp" 2>/dev/null || true)
+    pass_n=$(awk '/^[[:space:]]*[0-9]+ passed/{print $1; exit}' "$_tmp")
+    fail_n=$(awk '/^[[:space:]]*[0-9]+ failed/{print $1; exit}' "$_tmp")
+    pass_n=${pass_n:-0}
+    fail_n=${fail_n:-0}
     TOTAL_PASS=$((TOTAL_PASS + pass_n))
     TOTAL_FAIL=$((TOTAL_FAIL + fail_n))
     echo "${DIM}shard result: ${pass_n} passed, ${fail_n} failed${RESET}"

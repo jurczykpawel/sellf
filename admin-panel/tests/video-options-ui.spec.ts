@@ -59,22 +59,27 @@ async function openWizardAndGoToStep2(page: Page, productName: string) {
   // Wait for slug auto-generation from name (required for step 1 validation)
   await expect(dlg.locator('input#slug')).not.toHaveValue('', { timeout: 10000 });
 
-  // Wait for shop config async fetch to auto-populate vat_rate — without it,
-  // step 1 validation rejects with "Stawka VAT jest wymagana" and the Dalej
-  // click silently stays on step 1.
-  await expect(dlg.locator('#vat_rate')).not.toHaveValue('', { timeout: 10000 });
-
-  // Navigate to step 2 — verify textarea#description appears (step 2 marker)
-  // before filling. Retry the click if validation kept us on step 1.
-  const nextBtn = dlg.getByRole('button', { name: /Dalej/i });
-  await nextBtn.click();
-  const descTextarea = dlg.locator('textarea#description');
-  try {
-    await expect(descTextarea).toBeVisible({ timeout: 5000 });
-  } catch {
-    await nextBtn.click();
-    await expect(descTextarea).toBeVisible({ timeout: 10000 });
+  // In local-tax mode (default), `vat_rate` must not be null when
+  // `price_includes_vat=true`. The form auto-fetches the default from shop
+  // config; wait for that value so step-1 validation passes.
+  // In Stripe Tax mode there is no #vat_rate input — the wait is a no-op.
+  const vatRateInput = dlg.locator('#vat_rate');
+  if (await vatRateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await expect(vatRateInput).not.toHaveValue('', { timeout: 10000 });
   }
+
+  // Advance to step 2. Retry the click ONLY if step-1 validation held us back
+  // (name input still visible). Clicking again when already on step 2 would
+  // inadvertently advance to step 3 before the textarea renders.
+  const nextBtn = dlg.getByRole('button', { name: /Dalej/i });
+  const nameInput = dlg.locator('input#name');
+  const descTextarea = dlg.locator('textarea#description');
+  await nextBtn.click();
+  const stuckOnStep1 = await nameInput.isVisible({ timeout: 1500 }).catch(() => false);
+  if (stuckOnStep1) {
+    await nextBtn.click();
+  }
+  await expect(descTextarea).toBeVisible({ timeout: 12000 });
   await descTextarea.fill('Video options test');
 
   // Confirm content delivery section is rendered

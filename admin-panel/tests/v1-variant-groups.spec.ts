@@ -472,9 +472,24 @@ test.describe('v1 API: Variant Groups', () => {
     });
 
     test('should successfully delete variant group', async ({ page }) => {
+      // Create a group owned by THIS test run so retries never race against
+      // the beforeAll group (which may have been left in an unknown state if
+      // the server restarted mid-shard).
+      const { data: freshGroup } = await supabaseAdmin
+        .from('variant_groups')
+        .insert({ name: `V1 Delete Fresh ${Date.now()}` })
+        .select('id')
+        .single();
+      const freshId = freshGroup!.id;
+
+      await supabaseAdmin.from('product_variant_groups').insert([
+        { group_id: freshId, product_id: testProducts[2].id, variant_name: 'Fresh Del 1', display_order: 0 },
+        { group_id: freshId, product_id: testProducts[3].id, variant_name: 'Fresh Del 2', display_order: 1 },
+      ]);
+
       await loginAsAdmin(page);
 
-      const response = await page.request.delete(`/api/v1/variant-groups/${groupToDelete}`);
+      const response = await page.request.delete(`/api/v1/variant-groups/${freshId}`);
 
       // v1 API returns 204 No Content on successful delete
       expect(response.status()).toBe(204);
@@ -483,7 +498,7 @@ test.describe('v1 API: Variant Groups', () => {
       const { data: group } = await supabaseAdmin
         .from('variant_groups')
         .select('id')
-        .eq('id', groupToDelete)
+        .eq('id', freshId)
         .single();
 
       expect(group).toBeNull();
@@ -492,7 +507,7 @@ test.describe('v1 API: Variant Groups', () => {
       const { data: pvgs } = await supabaseAdmin
         .from('product_variant_groups')
         .select('id')
-        .eq('group_id', groupToDelete);
+        .eq('group_id', freshId);
 
       expect(pvgs).toHaveLength(0);
     });

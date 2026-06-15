@@ -95,7 +95,8 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
         toast.success(data.message || t('accessGrantedSuccessfully'));
 
         // Track generate_lead event for free product
-        await track('generate_lead', {
+        // Analytics must never delay or block access to the purchased content.
+        void track('generate_lead', {
           value: 0,
           currency: product.currency,
           items: [{
@@ -105,7 +106,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
             quantity: 1,
           }],
           userEmail: user.email || undefined,
-        });
+        }).catch(() => {});
 
         // Redirect to OTO checkout if an OTO offer is configured for this product
         if (data.otoInfo?.has_oto && data.otoInfo.oto_product_slug) {

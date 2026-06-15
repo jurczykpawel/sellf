@@ -11,10 +11,9 @@ function readDimensions(): WindowDimensions {
 }
 
 export function useWindowDimensions(): WindowDimensions {
-  // Lazy init reads window once on first render (client only). This avoids the
-  // mount → effect → setState → re-render cascade that the previous version
-  // produced on every consumer of the hook.
-  const [dimensions, setDimensions] = useState<WindowDimensions>(readDimensions);
+  // SSR and the first client render must use the same snapshot. Reading window
+  // in the initializer renders confetti only on the client and breaks hydration.
+  const [dimensions, setDimensions] = useState<WindowDimensions>({ width: 0, height: 0 });
 
   useEffect(() => {
     const handleResize = () => {
@@ -22,6 +21,7 @@ export function useWindowDimensions(): WindowDimensions {
     };
 
     window.addEventListener('resize', handleResize, { passive: true });
+    handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 

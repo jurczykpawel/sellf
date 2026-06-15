@@ -22,3 +22,11 @@ describe('license-key-issuance feature gate', () => {
     expect(hasFeature('business', 'license-key-issuance')).toBe(true);
   });
 });
+
+describe('webhook payload customization feature gate', () => {
+  it('keeps custom fields and headers unavailable on the free tier', () => {
+    expect(hasFeature('free', 'webhook-payload-customization')).toBe(false);
+    expect(hasFeature('pro', 'webhook-payload-customization')).toBe(true);
+    expect(hasFeature('business', 'webhook-payload-customization')).toBe(true);
+  });
+});

@@ -58,4 +58,11 @@ describe('API test runner contract', () => {
     expect(shardedRunner).toContain('scripts/kill-dev-server.sh 3777');
     expect(shardedRunner).not.toMatch(/kill \$\(lsof -ti:3777/);
   });
+
+  it('records full failure details and counts summary totals instead of retries', () => {
+    expect(shardedRunner).toContain("/^[[:space:]]*[0-9]+\\)[[:space:]]/{f=1}");
+    expect(shardedRunner).toContain("/^[[:space:]]*[0-9]+ passed/{print $1; exit}");
+    expect(shardedRunner).toContain("/^[[:space:]]*[0-9]+ failed/{print $1; exit}");
+    expect(shardedRunner).not.toContain("grep -c '✘'");
+  });
 });

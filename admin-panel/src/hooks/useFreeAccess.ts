@@ -80,12 +80,13 @@ export function useFreeAccess({
         onError(data.error || t('failedToGetAccess'));
         return;
       }
-      await track('generate_lead', {
+      // Analytics must never delay or block the success transition.
+      void track('generate_lead', {
         value: 0,
         currency: product.currency,
         items: [{ item_id: product.id, item_name: product.name, price: 0, quantity: 1 }],
         userEmail: user.email || undefined,
-      });
+      }).catch(() => {});
       onAccessGranted();
     } catch {
       onError(t('unexpectedError'));

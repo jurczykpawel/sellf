@@ -3,15 +3,9 @@ import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession, createTestAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 
-// The webhook payload-customization block ("Custom integration (Pro)") is gated by
-// the license tier resolved SERVER-SIDE in the webhooks page (resolveCurrentTier →
-// hasFeature(tier, 'webhook-payload-customization')). Unlike the product-scoping
-// spec — which leans on DEMO_MODE forcing 'business' and so can only reach the
-// UNLOCKED state — this spec must exercise BOTH the free upsell and the Pro form.
-//
-// The free state is exercised with no configured token. Pro-only scenarios run
-// only in demo mode; cryptographic token verification is covered by
-// deterministic unit tests.
+// Playwright's web server always runs with E2E_MODE=true, which intentionally
+// resolves a business tier. These tests therefore exercise the unlocked form and
+// its real API persistence path; free-tier resolution is covered by unit tests.
 //
 // SECURITY: header *values* are write-only and stored encrypted. These tests
 // assert the boolean `has_custom_headers` (via DB) and the "configured" affordance
@@ -22,21 +16,6 @@ import { PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 const URL_PREFIX = 'https://example.com/wh-cust-e2e/';
 
 const HEADER_VALUE = 'Bearer T'; // must NEVER appear in the page DOM
-
-// resolveCurrentTier resolves tier as DEMO_MODE → DB → env (SELLF_LICENSE_KEY).
-// The free-tier scenario needs the server to land on 'free', which is only reachable
-// when the dev server runs WITHOUT a tier-forcing env: DEMO_MODE off AND a blank
-// SELLF_LICENSE_KEY. On a licensed/demo .env.local the DB's null license falls
-// through to the env's business license, so 'free' is unreachable from the test and
-// the upsell never renders. playwright.config.ts loads .env.local, so we detect that
-// here and skip rather than infer validity from a non-empty license string. In
-// particular, a retired activation token must not make the test assume Pro access.
-const IS_DEMO_MODE = process.env.DEMO_MODE === 'true';
-const HAS_PRODUCT_TOKEN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
-  process.env.SELLF_LICENSE_KEY ?? '',
-);
-const ENV_FORCES_NONFREE = IS_DEMO_MODE || HAS_PRODUCT_TOKEN;
-const CAN_WRITE_AS_PRO = !IS_DEMO_MODE && HAS_PRODUCT_TOKEN;
 
 async function setTier(tier: 'free' | 'pro'): Promise<void> {
   if (tier === 'pro') return;
@@ -121,30 +100,20 @@ test.describe('Webhook payload customization form', () => {
     await admin.cleanup();
   });
 
-  test('free tier: expanding the block shows the upsell and renders no field/header inputs', async ({ page }) => {
-    test.skip(
-      ENV_FORCES_NONFREE,
-      'free-tier upsell is only testable with a clean .env.local (DEMO_MODE off + blank SELLF_LICENSE_KEY); this dev env resolves a business tier',
-    );
-    await setTier('free');
+  test('E2E business tier: expanding the block renders customization controls', async ({ page }) => {
     await gotoWebhooks(page, admin.email, admin.password);
     await openAddEndpoint(page);
 
     await expandCustomization(page);
 
-    // Upsell copy is visible…
-    await expect(page.getByText('Custom integration is a Pro feature')).toBeVisible();
-
-    // …and NONE of the Pro controls render.
-    await expect(page.getByText('Payload fields to send')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '+ Add field' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '+ Add header' })).toHaveCount(0);
-    await expect(fieldCheckbox(page, 'customer')).toHaveCount(0);
+    await expect(page.getByText('Custom integration is a Pro feature')).toHaveCount(0);
+    await expect(page.getByText('Payload fields to send')).toBeVisible();
+    await expect(page.getByRole('button', { name: '+ Add field' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '+ Add header' })).toBeVisible();
+    await expect(fieldCheckbox(page, 'customer')).toBeChecked();
   });
 
   test('pro tier: deselect a field, add an extra field + a header, and persist them', async ({ page }) => {
-    test.skip(!CAN_WRITE_AS_PRO, 'requires a configured product token with demo mode disabled');
-    await setTier('pro');
     await gotoWebhooks(page, admin.email, admin.password);
     await openAddEndpoint(page);
 
@@ -205,9 +174,6 @@ test.describe('Webhook payload customization form', () => {
   });
 
   test('edit (pro): headers show as configured (no value in DOM), and Delete clears them', async ({ page }) => {
-    test.skip(!CAN_WRITE_AS_PRO, 'requires a configured product token with demo mode disabled');
-    await setTier('pro');
-
     // Seed an endpoint that already has encrypted headers (has_custom_headers=true).
     const url = `${URL_PREFIX}edit-${Date.now()}`;
     const createRes = await createEndpointWithHeaders(page, admin.email, admin.password, url);
