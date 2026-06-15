@@ -12,12 +12,14 @@ const SAVED_NODE_ENV = process.env.NODE_ENV;
 const SAVED_TRUSTED_PROXY = process.env.TRUSTED_PROXY;
 const SAVED_E2E_MODE = process.env.E2E_MODE;
 const SAVED_DEMO_MODE = process.env.DEMO_MODE;
+const SAVED_ALLOW_PRODUCTION_DEMO_MODE = process.env.ALLOW_PRODUCTION_DEMO_MODE;
 const SAVED_BINDING_SECRET = process.env.CHECKOUT_BINDING_SECRET;
 
 beforeEach(() => {
   delete process.env.TRUSTED_PROXY;
   delete process.env.E2E_MODE;
   delete process.env.DEMO_MODE;
+  delete process.env.ALLOW_PRODUCTION_DEMO_MODE;
   delete process.env.CHECKOUT_BINDING_SECRET;
 });
 
@@ -30,6 +32,8 @@ afterEach(() => {
   else process.env.E2E_MODE = SAVED_E2E_MODE;
   if (SAVED_DEMO_MODE === undefined) delete process.env.DEMO_MODE;
   else process.env.DEMO_MODE = SAVED_DEMO_MODE;
+  if (SAVED_ALLOW_PRODUCTION_DEMO_MODE === undefined) delete process.env.ALLOW_PRODUCTION_DEMO_MODE;
+  else process.env.ALLOW_PRODUCTION_DEMO_MODE = SAVED_ALLOW_PRODUCTION_DEMO_MODE;
   if (SAVED_BINDING_SECRET === undefined) delete process.env.CHECKOUT_BINDING_SECRET;
   else process.env.CHECKOUT_BINDING_SECRET = SAVED_BINDING_SECRET;
 });
@@ -83,6 +87,13 @@ describe('assertNonProductionFlagsOff', () => {
     process.env.NODE_ENV = 'production';
     process.env.DEMO_MODE = 'true';
     expect(() => assertNonProductionFlagsOff()).toThrow(/DEMO_MODE/);
+  });
+
+  it('allows production demo mode only with an explicit acknowledgement', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.DEMO_MODE = 'true';
+    process.env.ALLOW_PRODUCTION_DEMO_MODE = 'true';
+    expect(() => assertNonProductionFlagsOff()).not.toThrow();
   });
 
   it('passes in production when both flags are off', () => {

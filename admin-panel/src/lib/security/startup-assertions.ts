@@ -26,10 +26,13 @@ export function assertNonProductionFlagsOff(): void {
         'Unset E2E_MODE before deploying to a production environment.',
     );
   }
-  if (process.env.DEMO_MODE === 'true') {
+  if (
+    process.env.DEMO_MODE === 'true'
+    && process.env.ALLOW_PRODUCTION_DEMO_MODE !== 'true'
+  ) {
     throw new Error(
       'Refusing to start: NODE_ENV=production but DEMO_MODE="true". ' +
-        'Unset DEMO_MODE before deploying to a production environment.',
+        'Unset DEMO_MODE or explicitly set ALLOW_PRODUCTION_DEMO_MODE="true" for a public demo instance.',
     );
   }
 }
