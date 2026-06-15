@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildBaseSecurityHeaders,
   buildEmbeddableResourceHeaders,
+  buildPublicLicenseCacheHeaders,
   EMBEDDABLE_RESOURCE_PATHS,
 } from '@/lib/security/headers';
 
@@ -50,6 +51,14 @@ describe('Security headers', () => {
     it('does not lock these endpoints behind COOP same-origin (would break popup-based embeds)', () => {
       // We intentionally OMIT COOP on cross-origin embed targets; admin app keeps it.
       expect(headerMap.has('Cross-Origin-Opener-Policy')).toBe(false);
+    });
+  });
+
+  describe('buildPublicLicenseCacheHeaders', () => {
+    it('allows short public caching for JWKS and revocation lists', () => {
+      expect(buildPublicLicenseCacheHeaders()).toEqual([
+        { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=300' },
+      ]);
     });
   });
 

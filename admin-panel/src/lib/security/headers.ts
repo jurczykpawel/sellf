@@ -115,3 +115,9 @@ export function buildApiSecurityHeaders(): HeaderEntry[] {
     { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
   ];
 }
+
+export function buildPublicLicenseCacheHeaders(): HeaderEntry[] {
+  return [
+    { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=300' },
+  ];
+}

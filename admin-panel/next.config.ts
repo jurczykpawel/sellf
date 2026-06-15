@@ -6,6 +6,7 @@ import {
   buildBaseSecurityHeaders,
   buildEmbeddableResourceHeaders,
   buildApiSecurityHeaders,
+  buildPublicLicenseCacheHeaders,
   EMBEDDABLE_RESOURCE_PATHS,
 } from './src/lib/security/headers';
 
@@ -157,6 +158,12 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         headers: buildApiSecurityHeaders(),
       },
+      // Public license verification material is safe and intentionally cached.
+      // These exact routes come after the generic API rule so this value wins.
+      ...['/api/licenses/jwks', '/api/licenses/revoked'].map((source) => ({
+        source,
+        headers: buildPublicLicenseCacheHeaders(),
+      })),
       // Embeddable cross-domain endpoints — relax CORP only.
       // Listed AFTER /api/:path* so CORP override wins.
       ...EMBEDDABLE_RESOURCE_PATHS.map((source) => ({
