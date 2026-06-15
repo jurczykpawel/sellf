@@ -180,8 +180,8 @@ export default defineConfig({
   webServer: [
     {
       command: isRateLimitTestMode
-        ? 'NODE_OPTIONS=--max-old-space-size=8192 PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
-        : 'NODE_OPTIONS=--max-old-space-size=8192 PORT=3777 bun run dev',
+        ? 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
+        : 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true PORT=3777 bun run dev',
       url: 'http://localhost:3777',
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
       reuseExistingServer: process.env.PW_REUSE_SERVER === '1',

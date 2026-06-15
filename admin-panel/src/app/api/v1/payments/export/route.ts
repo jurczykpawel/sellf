@@ -37,13 +37,13 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+
     // CSV export requires at least Registered Free license
     const tier = await resolveCurrentTier();
     if (!hasFeature(tier, 'csv-export')) {
       return apiError(request, 'FORBIDDEN', 'CSV export requires a Sellf license. Register at sellf.app to get a free key.');
     }
-
-    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
 
     const filters = await parseJsonBody<{
       status?: string;

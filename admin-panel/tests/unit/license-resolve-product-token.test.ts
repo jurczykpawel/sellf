@@ -39,6 +39,7 @@ describe('product-token platform license resolution', () => {
   beforeEach(() => {
     process.env = { ...originalEnv, SITE_URL: 'https://app.example.com' };
     delete process.env.DEMO_MODE;
+    delete process.env.E2E_MODE;
     delete process.env.SELLF_LICENSE_KEY;
   });
 
@@ -93,6 +94,11 @@ describe('product-token platform license resolution', () => {
 
   it('keeps demo mode at business tier', async () => {
     process.env.DEMO_MODE = 'true';
+    await expect(resolveCurrentTier({ dataClient: dbWith(null), keys, now: NOW })).resolves.toBe('business');
+  });
+
+  it('enables licensed features in explicit E2E mode', async () => {
+    process.env.E2E_MODE = 'true';
     await expect(resolveCurrentTier({ dataClient: dbWith(null), keys, now: NOW })).resolves.toBe('business');
   });
 });

@@ -163,7 +163,7 @@ async function readDbToken(client?: { from: (table: string) => any }): Promise<s
 }
 
 export async function resolveCurrentTier(options: LicenseResolveOptions = {}): Promise<LicenseTier> {
-  if (process.env.DEMO_MODE === 'true') return 'business';
+  if (process.env.DEMO_MODE === 'true' || process.env.E2E_MODE === 'true') return 'business';
 
   const platformDomain = getPlatformDomain();
   if (!platformDomain) return 'free';
