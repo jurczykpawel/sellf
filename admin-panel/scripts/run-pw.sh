@@ -4,18 +4,30 @@
 # Results saved to test-runs/ for future reference.
 # Usage: scripts/run-pw.sh [playwright args...]
 
+set -uo pipefail
+
 RED=$'\033[1;31m'
 GREEN=$'\033[32m'
 DIM=$'\033[2m'
 RESET=$'\033[0m'
 
 _PW=$(mktemp)
-trap 'rm -f "$_PW"' EXIT
+
+cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  rm -f "$_PW"
+  bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
+  exit "$status"
+}
+
+trap cleanup EXIT INT TERM
 
 FORCE_COLOR=0 npx playwright test "$@" --reporter=list 2>&1 | tee "$_PW" | grep --line-buffered -E '^\s*[✓✘]' | awk -v red="$RED" -v green="$GREEN" -v dim="$DIM" -v reset="$RESET" \
   '/✘/ {printf "%s%s%s\n", red, $0, reset; fflush(); next}
    /✓/ {printf "%s%s%s\n", dim, $0, reset; fflush(); next}
    {print; fflush()}'
+PW_STATUS=${PIPESTATUS[0]}
 
 # Print error details (Playwright list reporter prints numbered failures at the bottom)
 ERRORS=$(awk '/^\s*[0-9]+\)\s/{f=1} f' "$_PW")
@@ -96,9 +108,13 @@ LOGFILE="test-runs/${TIMESTAMP}_${COMMIT}.log"
 } > "$LOGFILE"
 
 echo ""
-if [ "$FAIL" -gt 0 ]; then
+if [ "$PW_STATUS" -ne 0 ] || [ "$FAIL" -gt 0 ]; then
   echo "${RED}Result: ${PASS} passed, ${FAIL} failed${RESET}"
+  if [ "$PW_STATUS" -ne 0 ] && [ "$FAIL" -eq 0 ]; then
+    echo "${RED}Playwright exited with status ${PW_STATUS} before reporting a failed test.${RESET}"
+  fi
   echo "${DIM}Log: ${LOGFILE}${RESET}"
+  [ "$PW_STATUS" -ne 0 ] && exit "$PW_STATUS"
   exit 1
 else
   echo "${GREEN}Result: ${PASS} passed, 0 failed${RESET}"

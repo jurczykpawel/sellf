@@ -23,7 +23,7 @@
 #
 # Usage: scripts/run-pw-sharded.sh [LIGHT_N] [HEAVY_N]   (defaults: 6 4 -> 10 server boots)
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 RED=$'\033[1;31m'
 DIM=$'\033[2m'
@@ -35,6 +35,17 @@ FAILED=""
 TOTAL_PASS=0
 TOTAL_FAIL=0
 ALL_ERRORS=""
+ACTIVE_TMP=""
+
+cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  [ -z "$ACTIVE_TMP" ] || rm -f "$ACTIVE_TMP"
+  bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
+  exit "$status"
+}
+
+trap cleanup EXIT INT TERM
 
 mkdir -p test-runs
 TIMESTAMP=$(date '+%Y-%m-%d_%H%M%S')
@@ -47,14 +58,14 @@ run_shards() {
   for k in $(seq 1 "$n"); do
     echo ""
     echo "===================== $project shard $k/$n ====================="
-    kill $(lsof -ti:3777 2>/dev/null) 2>/dev/null; sleep 1
+    bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
     # Wipe Turbopack's persistent on-disk cache before each fresh server. Killing the
     # dev server between shards can interrupt Turbopack mid-write to .next/dev/cache,
     # leaving a dangling .meta -> missing .sst reference. The NEXT server then panics on
     # boot ("Failed to lookup task ids ... Failed to open SST file"), serves no pages,
     # and the whole shard fails. Starting each shard from a clean cache removes the class.
     rm -rf .next/dev/cache 2>/dev/null
-    local _tmp; _tmp=$(mktemp)
+    local _tmp; _tmp=$(mktemp); ACTIVE_TMP="$_tmp"
     FORCE_COLOR=0 npx playwright test --project="$project" --shard="$k/$n" --reporter=list 2>&1 | tee "$_tmp" | grep --line-buffered -E '^\s*[✓✘]' | awk -v red="$RED" -v dim="$DIM" -v reset="$RESET" \
       '/✘/ {printf "%s%s%s\n", red, $0, reset; fflush(); next}
        /✓/ {printf "%s%s%s\n", dim, $0, reset; fflush(); next}
@@ -76,6 +87,7 @@ ${errors}"
     TOTAL_FAIL=$((TOTAL_FAIL + fail_n))
     echo "${DIM}shard result: ${pass_n} passed, ${fail_n} failed${RESET}"
     rm -f "$_tmp"
+    ACTIVE_TMP=""
     if [ "$rc" != 0 ]; then
       FAILED="$FAILED $project:$k/$n"
       echo ">>> $project shard $k/$n exited $rc"
@@ -86,7 +98,7 @@ ${errors}"
 echo "=== Sharded chromium E2E: heavy=$HEAVY_N + light=$LIGHT_N shards, fresh dev server per shard ==="
 run_shards "chromium-heavy" "$HEAVY_N"
 run_shards "chromium" "$LIGHT_N"
-kill $(lsof -ti:3777 2>/dev/null) 2>/dev/null
+bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
 
 # Write log
 {
