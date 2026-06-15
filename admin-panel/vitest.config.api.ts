@@ -25,13 +25,9 @@ export default defineConfig({
     retry: 1,
     setupFiles: [],
     globalSetup: ['./tests/api/global-setup.ts'],
-    // Run tests sequentially to avoid race conditions
+    // API files share database state, so run them sequentially.
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    fileParallelism: false,
   },
   resolve: {
     alias: {

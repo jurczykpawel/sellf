@@ -1,18 +1,31 @@
 #!/usr/bin/env bash
-# Kill the Next.js dev server between Playwright test passes.
-# Next.js 16 writes .next/dev/lock with PID — kill that process and remove the lock.
+# Kill Next.js dev servers listening on explicit test ports.
+# Defaults preserve the existing Playwright cleanup behavior.
 
 LOCK=".next/dev/lock"
+PORTS=("$@")
 
-# Kill by PID from lock file (survives even after port is released)
-if [ -f "$LOCK" ]; then
-  PID=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('$LOCK','utf8')).pid)}catch(e){}" 2>/dev/null)
-  if [ -n "$PID" ]; then
-    kill -9 "$PID" 2>/dev/null
-  fi
-  rm -f "$LOCK"
+if [ "${#PORTS[@]}" -eq 0 ]; then
+  PORTS=(3777 3778)
 fi
 
-# Kill anything still on test ports
-kill $(lsof -ti:3777) $(lsof -ti:3778) 2>/dev/null
-sleep 1
+PIDS=()
+for port in "${PORTS[@]}"; do
+  while IFS= read -r pid; do
+    [ -n "$pid" ] && PIDS+=("$pid")
+  done < <(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+done
+
+if [ "${#PIDS[@]}" -gt 0 ]; then
+  kill "${PIDS[@]}" 2>/dev/null || true
+  sleep 1
+
+  for pid in "${PIDS[@]}"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+  done
+fi
+
+# Next.js can leave the lock behind after a forced or interrupted shutdown.
+rm -f "$LOCK"
