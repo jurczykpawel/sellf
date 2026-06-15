@@ -1,6 +1,6 @@
 {
   "name": "admin-panel",
-  "version": "2026.6.8",
+  "version": "2026.6.9",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
