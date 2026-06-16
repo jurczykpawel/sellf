@@ -19,6 +19,7 @@ import {
 import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { checkFeature } from '@/lib/license/resolve';
+import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
 import { setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
 import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
@@ -191,6 +192,12 @@ export async function POST(request: NextRequest) {
     const eventsValidation = validateEventTypes(events);
     if (!eventsValidation.valid) {
       return apiError(request, 'INVALID_INPUT', eventsValidation.error || 'Invalid event types');
+    }
+
+    // Some events (e.g. license.revoked) require a paid feature to subscribe to.
+    const deniedEvent = await findDeniedEventFeature(events, adminClient);
+    if (deniedEvent) {
+      return apiError(request, 'FORBIDDEN', `Subscribing to "${deniedEvent.event}" requires a Pro license.`);
     }
 
     // Validate product scoping

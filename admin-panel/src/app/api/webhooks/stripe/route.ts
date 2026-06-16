@@ -24,6 +24,7 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
+import { emitLicenseRevokedWebhooks } from '@/lib/services/license-revoke-webhook-payload';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
@@ -617,10 +618,16 @@ async function processRefundForTransaction(
   }
 
   // Revoke any offline license issued for this order so a refunded token stops working.
-  await revokeLicensesForOrder(supabase, {
+  const refundRevoked = await revokeLicensesForOrder(supabase, {
     productId: transaction.product_id,
     orderIds: [transaction.stripe_payment_intent_id, transaction.session_id],
   });
+  // Notify integrations (Pro, fire-and-forget — never throws, so it can't redeliver this event).
+  await emitLicenseRevokedWebhooks(
+    supabase,
+    refundRevoked.rows,
+    process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '',
+  );
 
   const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
     supabase: supabase as never,
@@ -726,10 +733,16 @@ async function handleChargeDisputeCreated(
   }
 
   // Revoke any offline license issued for this order (chargeback = lost payment).
-  await revokeLicensesForOrder(supabase, {
+  const disputeRevoked = await revokeLicensesForOrder(supabase, {
     productId: transaction.product_id,
     orderIds: [paymentIntentId, transaction.session_id],
   });
+  // Notify integrations (Pro, fire-and-forget — never throws, so it can't redeliver this event).
+  await emitLicenseRevokedWebhooks(
+    supabase,
+    disputeRevoked.rows,
+    process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '',
+  );
 
   return { processed: true, message: 'Dispute recorded and access revoked (main + bumps)' };
 }

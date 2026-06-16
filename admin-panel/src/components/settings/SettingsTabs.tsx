@@ -14,6 +14,7 @@ import LegalDocumentsSettings from './LegalDocumentsSettings'
 import OmnibusSettings from './OmnibusSettings'
 import LicenseSettings from './LicenseSettings'
 import LicenseKeysSettings from './LicenseKeysSettings'
+import IssuedLicensesSettings from './IssuedLicensesSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
 import { useConfig } from '@/components/providers/config-provider'
@@ -94,6 +95,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
         {active === 'system' && (
           <>
             <LicenseKeysSettings hasLicenseIssuance={hasLicenseIssuance} />
+            {role === 'platform_admin' && !demoMode && <IssuedLicensesSettings enabled={Boolean(hasLicenseIssuance)} />}
             <LicenseSettings />
             {role === 'platform_admin' && <SystemUpdateSettings />}
             {role === 'platform_admin' && !demoMode && <SecurityAuditSettings />}

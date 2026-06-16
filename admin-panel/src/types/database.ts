@@ -791,6 +791,8 @@ export type Database = {
           id: string
           issued_at: string
           kid: string
+          issuance_source: string
+          license_domain: string | null
           license_key: string
           order_id: string
           product_id: string
@@ -804,6 +806,8 @@ export type Database = {
           id?: string
           issued_at?: string
           kid: string
+          issuance_source?: string
+          license_domain?: string | null
           license_key: string
           order_id: string
           product_id: string
@@ -817,6 +821,8 @@ export type Database = {
           id?: string
           issued_at?: string
           kid?: string
+          issuance_source?: string
+          license_domain?: string | null
           license_key?: string
           order_id?: string
           product_id?: string
@@ -3236,7 +3242,7 @@ export type Database = {
         }[]
       }
       seller_revoked_orders: {
-        Args: { seller: string }
+        Args: { seller: string; hash_prefix: string }
         Returns: {
           order_hash: string
         }[]

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
+import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 import { loadActiveSellerKey } from '@/lib/license-keys/keys';
 import { checkFeature } from '@/lib/license/resolve';
 import {
@@ -16,6 +18,8 @@ export interface IssueLicenseInput {
   userId: string | null;
   orderId: string;
   customFieldValues?: Record<string, string>;
+  domain?: string;
+  source?: 'purchase' | 'manual';
 }
 
 interface ProductLicenseRow {
@@ -28,6 +32,7 @@ interface ProductLicenseRow {
 }
 
 export interface IssueLicenseResult {
+  id?: string;
   token: string;
   kid: string;
   sellerId: string;
@@ -49,12 +54,12 @@ export async function issueLicense(
 
   const existingResult = await admin
     .from('issued_licenses')
-    .select('license_key, kid, seller_id')
+    .select('id, license_key, kid, seller_id')
     .eq('order_id', input.orderId)
     .eq('product_id', input.productId)
     .maybeSingle();
-  const existing = (existingResult.data ?? null) as { license_key: string; kid: string; seller_id: string } | null;
-  if (existing) return { token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id };
+  const existing = (existingResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string } | null;
+  if (existing) return { id: existing.id, token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id };
 
   const productResult = await admin
     .from('products')
@@ -83,6 +88,11 @@ export async function issueLicense(
     iat,
     exp,
   };
+  if (input.domain !== undefined) {
+    const domain = normalizeLicenseDomain(input.domain);
+    if (!domain) throw new Error('issueLicense: Invalid domain');
+    claims.domain = domain;
+  }
 
   const definitions = validateCustomFieldDefinitions(product.custom_checkout_fields ?? []);
   if (!definitions.ok) {
@@ -108,7 +118,9 @@ export async function issueLicense(
   }
   const token = signLicense(claims, key.privateKeyPem);
 
+  const licenseId = randomUUID();
   const { error } = await admin.from('issued_licenses').insert({
+    id: licenseId,
     seller_id: product.seller_id,
     product_id: input.productId,
     email: input.email,
@@ -117,6 +129,8 @@ export async function issueLicense(
     kid: key.kid,
     license_key: token,
     expires_at: exp ? new Date(exp * 1000).toISOString() : null,
+    issuance_source: input.source ?? 'purchase',
+    license_domain: claims.domain ?? null,
   });
 
   if (error) {
@@ -125,15 +139,15 @@ export async function issueLicense(
     if (error.code === '23505') {
       const raceResult = await admin
         .from('issued_licenses')
-        .select('license_key, kid, seller_id')
+        .select('id, license_key, kid, seller_id')
         .eq('order_id', input.orderId)
         .eq('product_id', input.productId)
         .maybeSingle();
-      const winner = (raceResult.data ?? null) as { license_key: string; kid: string; seller_id: string } | null;
-      if (winner) return { token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id };
+      const winner = (raceResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string } | null;
+      if (winner) return { id: winner.id, token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id };
     }
     throw new Error(`issueLicense: ${error.message}`);
   }
 
-  return { token, kid: key.kid, sellerId: product.seller_id };
+  return { id: licenseId, token, kid: key.kid, sellerId: product.seller_id };
 }

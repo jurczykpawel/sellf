@@ -205,6 +205,21 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       source: 'admin'
     }
   },
+  'license.revoked': {
+    license: {
+      id: 'lic_12345678',
+      order: 'cs_test_a1b2c3d4e5f6g7h8i9j0',
+      email: 'customer@example.com',
+      tier: 'pro',
+      domain: 'customer.example.com',
+      issuanceSource: 'purchase',
+      issuedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2027-01-01T00:00:00.000Z',
+      revokedAt: new Date().toISOString()
+    },
+    product: { id: 'prod_12345678', name: 'Premium Plugin', slug: 'premium-plugin' },
+    crlUrl: 'https://example.com/api/licenses/revoked?seller=seller-id'
+  },
   'test.event': {
     message: 'This is a test event from Sellf',
     system: { version: '1.0.0', environment: 'production' }

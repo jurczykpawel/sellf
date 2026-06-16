@@ -21,6 +21,7 @@ import {
 import { validateUUID } from '@/lib/validations/product';
 import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
 import { checkFeature } from '@/lib/license/resolve';
+import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
 import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
 import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
@@ -164,6 +165,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const eventsValidation = validateEventTypes(body.events);
       if (!eventsValidation.valid) {
         return apiError(request, 'INVALID_INPUT', eventsValidation.error || 'Invalid event types');
+      }
+      // Some events (e.g. license.revoked) require a paid feature to subscribe to.
+      const deniedEvent = await findDeniedEventFeature(body.events, adminClient);
+      if (deniedEvent) {
+        return apiError(request, 'FORBIDDEN', `Subscribing to "${deniedEvent.event}" requires a Pro license.`);
       }
       updates.events = body.events;
     }

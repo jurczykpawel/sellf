@@ -28,6 +28,13 @@ describe('revokeLicensesForOrder', () => {
     expect(chain.is).toHaveBeenCalledWith('revoked_at', null); // only un-revoked rows → idempotent
   });
 
+  it('returns the revoked rows so the caller can fire license.revoked', async () => {
+    const rows = [{ id: 'a', product_id: 'p1', order_id: 'pi_1', seller_id: 's1' }];
+    const { from } = adminMock({ data: rows, error: null });
+    const res = await call({ from }, { productId: 'p1', orderIds: ['pi_1'] });
+    expect(res.rows).toEqual(rows);
+  });
+
   it('dedupes and drops empty order ids', async () => {
     const { from, chain } = adminMock({ data: [{ id: 'a' }], error: null });
     await call({ from }, { productId: 'p1', orderIds: ['pi_1', 'pi_1', null, undefined, ''] });

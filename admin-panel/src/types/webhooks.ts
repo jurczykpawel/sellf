@@ -73,4 +73,5 @@ export const WEBHOOK_EVENTS: WebhookEventDefinition[] = [
   { value: 'invoice.paid', label: 'Invoice Paid (Subscription Renewal)', category: 'subscriptions' },
   { value: 'invoice.payment_failed', label: 'Invoice Payment Failed', category: 'subscriptions' },
   { value: 'refund.issued', label: 'Refund Issued', category: 'purchases' },
+  { value: 'license.revoked', label: 'License Revoked (Pro)', category: 'system' },
 ];

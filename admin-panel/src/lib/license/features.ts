@@ -24,6 +24,7 @@ const FEATURE_TIERS = {
   'webhook-product-scoping': 'pro',    // POST/PATCH /api/v1/webhooks → product_filter_mode='selected'
   'webhook-payload-customization': 'pro', // webhook custom headers/fields/selection
   'license-key-issuance': 'pro',          // generate/upload signing keys + issue tokens on purchase
+  'license-revoked-webhook': 'pro',       // outbound license.revoked webhook (subscription + dispatch)
 } as const satisfies Record<string, LicenseTier>;
 
 // Planned features — NOT yet enforced. Add to FEATURE_TIERS when implemented.
@@ -32,6 +33,16 @@ const FEATURE_TIERS = {
 // business:   rbac, sso, unlimited-api-keys, advanced-analytics, backup-restore, multi-currency-reports
 
 export type Feature = keyof typeof FEATURE_TIERS;
+
+/**
+ * Webhook events whose SUBSCRIPTION (and dispatch) requires a paid feature.
+ * Defense in depth: the write-path rejects subscribing without the feature and
+ * the dispatcher only fires the event when the feature is active. Most events
+ * are free; only the ones listed here are gated.
+ */
+export const EVENT_FEATURE_REQUIREMENTS = {
+  'license.revoked': 'license-revoked-webhook',
+} as const satisfies Record<string, Feature>;
 
 // ===== TIER ORDERING =====
 

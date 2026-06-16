@@ -511,6 +511,28 @@ function. Issuance never breaks the payment webhook (fail-safe, logged).
 `src/lib/actions/license-config.ts`, `src/components/ProductFormModal/sections/LicenseSection.tsx` +
 `src/components/settings/LicenseKeysSettings.tsx`, migration `20260529000000_license_keys.sql`.
 `verifySellfLicense` (`sdk.ts`) is the reference offline verifier sellers can copy.
+
+**Revocation:** licenses verify offline, so a refunded/abused token would work until
+expiry. Revocation happens **automatically** on full refund + chargeback (the Stripe webhook
+calls `revokeLicensesForOrder`, keyed on `paymentIntentId || sessionId`) and **manually** via
+`DELETE /api/admin/licenses/:id`. Both flip `revoked_at`. Two surfaces then turn the token off:
+
+- **CRL (k-anonymity range query)** — `GET /api/licenses/revoked?seller=<id>&prefix=<hex>`.
+  The consumer computes `SHA-256(order)`, sends a short hex **prefix** (4 chars) of that hash,
+  and gets back only the revoked hashes in that bucket (via the `seller_revoked_orders(uuid,text)`
+  SECURITY DEFINER RPC — **service-role only**, with an internal hex guard so a `%`/`_` can't
+  widen the bucket). No full-dump mode, so the revocation count can't be scraped and the server
+  never sees the full hash. Never exposes tokens/PII. Consumer side lives in the unified
+  ReplyStack/PostStack repo (`src/lib/license/revocation.ts` + `gate.ts`).
+- **`license.revoked` webhook** — both revocation paths call `emitLicenseRevokedWebhooks`
+  (`lib/services/license-revoke-webhook-payload.ts`) so a seller's integration reacts immediately.
+  **Pro-gated** twice: subscribing to the event (`findDeniedEventFeature` on the `/api/v1/webhooks`
+  write path) and dispatch (`checkFeature('license-revoked-webhook')`) — feature key in
+  `lib/license/features.ts`, event→feature map in `EVENT_FEATURE_REQUIREMENTS`. Payload carries the
+  order, customer, tier, domain, issuance source and the CRL URL — **never the signed token**.
+  Fire-and-forget: it never throws, so a webhook failure neither undoes a revocation nor causes a
+  Stripe refund/dispute event to be redelivered; the queue worker retries failed deliveries.
+
 ### Element gating (per-element content + features)
 
 Where the login wall gates a whole page, **element gating** lets a seller gate

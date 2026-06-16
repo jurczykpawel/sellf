@@ -10,6 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const SELLER = '33333333-3333-4333-8333-333333333333';
 const HASH = 'a'.repeat(64);
+const PREFIX = 'aaaa';
 
 function req(query: string) {
   return new NextRequest(`http://localhost:3000/api/licenses/revoked?${query}`);
@@ -25,8 +26,8 @@ beforeEach(() => {
 });
 
 describe('GET /api/licenses/revoked', () => {
-  it('returns only SHA-256 order hashes', async () => {
-    const response = await GET(req(`seller=${SELLER}`));
+  it('returns only SHA-256 order hashes in the prefix bucket', async () => {
+    const response = await GET(req(`seller=${SELLER}&prefix=${PREFIX}`));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ order_hashes: [HASH] });
   });
@@ -38,7 +39,7 @@ describe('GET /api/licenses/revoked', () => {
         error: null,
       }),
     } as never);
-    const response = await GET(req(`seller=${SELLER}`));
+    const response = await GET(req(`seller=${SELLER}&prefix=${PREFIX}`));
     expect(JSON.stringify(await response.json())).not.toContain('pi_sensitive');
   });
 
@@ -46,17 +47,27 @@ describe('GET /api/licenses/revoked', () => {
     vi.mocked(createAdminClient).mockReturnValue({
       rpc: vi.fn().mockResolvedValue({ data: [{ order_hash: 'not-a-hash' }], error: null }),
     } as never);
-    expect((await GET(req(`seller=${SELLER}`))).status).toBe(500);
+    expect((await GET(req(`seller=${SELLER}&prefix=${PREFIX}`))).status).toBe(500);
   });
 
-  it('uses the scoped RPC and validates/rate-limits requests', async () => {
+  it('passes the seller + hex prefix to the scoped RPC', async () => {
     const admin = { rpc: vi.fn().mockResolvedValue({ data: [], error: null }) };
     vi.mocked(createAdminClient).mockReturnValue(admin as never);
-    await GET(req(`seller=${SELLER}`));
-    expect(admin.rpc).toHaveBeenCalledWith('seller_revoked_orders', { seller: SELLER });
+    await GET(req(`seller=${SELLER}&prefix=${PREFIX}`));
+    expect(admin.rpc).toHaveBeenCalledWith('seller_revoked_orders', { seller: SELLER, hash_prefix: PREFIX });
+  });
 
-    expect((await GET(req('seller=invalid'))).status).toBe(400);
+  it('requires a valid seller and hex prefix; rate-limits', async () => {
+    expect((await GET(req(`seller=invalid&prefix=${PREFIX}`))).status).toBe(400);
+    // prefix is mandatory — there is no full-dump mode
+    expect((await GET(req(`seller=${SELLER}`))).status).toBe(400);
+    // wildcards / non-hex are rejected before reaching the RPC
+    expect((await GET(req(`seller=${SELLER}&prefix=%25`))).status).toBe(400);
+    expect((await GET(req(`seller=${SELLER}&prefix=ZZZZ`))).status).toBe(400);
+    // too short (< 2 hex)
+    expect((await GET(req(`seller=${SELLER}&prefix=a`))).status).toBe(400);
+
     vi.mocked(checkRateLimit).mockResolvedValue(false);
-    expect((await GET(req(`seller=${SELLER}`))).status).toBe(429);
+    expect((await GET(req(`seller=${SELLER}&prefix=${PREFIX}`))).status).toBe(429);
   });
 });

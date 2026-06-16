@@ -4,7 +4,14 @@ import { z } from 'zod';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const querySchema = z.object({ seller: z.string().uuid() });
+const querySchema = z.object({
+  seller: z.string().uuid(),
+  // k-anonymity range query: the caller sends a hex PREFIX of SHA-256(order) and gets back
+  // only the revoked hashes in that bucket — never the whole list. 2–16 hex chars balances
+  // bucket size against how much of its hash the caller reveals. Required: there is no
+  // full-dump mode, so the revocation count can't be scraped in one request.
+  prefix: z.string().regex(/^[a-f0-9]{2,16}$/),
+});
 
 interface RevokedRow {
   order_hash: string;
@@ -14,11 +21,15 @@ const SHA256_HEX = /^[a-f0-9]{64}$/;
 
 /**
  * License revocation list (CRL). Licensed products verify offline, so this is how a
- * refunded/abused token is turned off: the consumer hashes its `order` claim and refuses
- * a token whose SHA-256 hash appears here. Seller-scoped, public, cached — mirrors JWKS.
+ * refunded/abused token is turned off: the consumer computes SHA-256 of its `order` claim,
+ * queries this endpoint with a prefix of that hash, and refuses the token if the full hash
+ * is in the returned bucket. Seller-scoped, public, cached — mirrors JWKS.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const parsed = querySchema.safeParse({ seller: request.nextUrl.searchParams.get('seller') });
+  const parsed = querySchema.safeParse({
+    seller: request.nextUrl.searchParams.get('seller'),
+    prefix: request.nextUrl.searchParams.get('prefix'),
+  });
   if (!parsed.success) {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
@@ -28,9 +39,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
   }
 
-  // Revoked order hashes only — read via a SECURITY DEFINER RPC so the token/email columns
-  // of issued_licenses are never reachable from this public endpoint.
-  const { data, error } = await createAdminClient().rpc('seller_revoked_orders', { seller: parsed.data.seller });
+  // Revoked order hashes in the prefix bucket only — read via a SECURITY DEFINER RPC so the
+  // token/email columns of issued_licenses are never reachable from this public endpoint.
+  const { data, error } = await createAdminClient().rpc('seller_revoked_orders', {
+    seller: parsed.data.seller,
+    hash_prefix: parsed.data.prefix,
+  });
   if (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
