@@ -26,6 +26,16 @@ describe('issued license ledger migration', () => {
     expect(sql).toMatch(/REVOKE EXECUTE ON FUNCTION public\.seller_revoked_orders\(UUID, TEXT\) FROM PUBLIC, anon, authenticated/);
   });
 
+  it('publishes the order hash as lowercase hex SHA-256 (cross-repo CRL contract)', () => {
+    // CONTRACT: offline consumers (PostStack/ReplyStack `src/lib/license/revocation.ts`) hash the
+    // token's `order` claim with SHA-256 → lowercase hex and match it against this list. Changing
+    // this expression silently breaks their revocation (fail-open) — they keep honouring a revoked
+    // token. Pinned on BOTH sides: the consumer pins the byte value of SHA-256('cs_test_123') =
+    // 9ee7e06645426cb1d3597dc641a1410e77e88a1d423b4e802948e427189f2df1; this side pins the SQL that
+    // must produce exactly that. A drift on either side turns the test red on the side that drifted.
+    expect(sql).toContain("encode(extensions.digest(convert_to(l.order_id, 'UTF8'), 'sha256'), 'hex')");
+  });
+
   it('does NOT mutate the already-shipped 20260612120000 migration (immutability)', () => {
     expect(originalCrl).not.toMatch(/hash_prefix/);
     expect(originalCrl).not.toMatch(/ADD COLUMN/);
