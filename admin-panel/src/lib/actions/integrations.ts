@@ -55,16 +55,22 @@ export async function getIntegrationsConfig() {
           consent_logging_enabled: false,
           sellf_license_env_configured: envLicenseConfigured,
           sellf_license_env_status: envLicenseStatus,
+          sellf_license_status: null,
         } as Record<string, unknown>,
       }
     }
     if (error) return { success: false as const, error: error.message }
+    // Validate the DB-stored token the same way the resolver does, so the UI can show full
+    // status (valid/reason + tier + domain + expiry) — not just the signature snippet.
+    const dbToken = (data as Record<string, unknown>)?.sellf_license as string | null | undefined
+    const dbLicenseStatus = dbToken ? await getEnvLicenseStatus(dbToken, platformDomain) : null
     return {
       success: true as const,
       data: {
         ...(data as Record<string, unknown>),
         sellf_license_env_configured: envLicenseConfigured,
         sellf_license_env_status: envLicenseStatus,
+        sellf_license_status: dbLicenseStatus,
       },
     }
   })

@@ -5,6 +5,7 @@ import { getIntegrationsConfig, updateIntegrationsConfig } from '@/lib/actions/i
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import type { EnvLicenseStatus } from '@/lib/license/env-status';
+import { parseLicenseClaimsForDisplay } from '@/lib/license/license-claims-display';
 
 export default function LicenseSettings() {
  const t = useTranslations('settings.license');
@@ -12,6 +13,7 @@ export default function LicenseSettings() {
  const [saving, setSaving] = useState(false);
  const [license, setLicense] = useState('');
  const [envLicenseStatus, setEnvLicenseStatus] = useState<EnvLicenseStatus | null>(null);
+ const [dbLicenseStatus, setDbLicenseStatus] = useState<EnvLicenseStatus | null>(null);
 
  useEffect(() => {
  let cancelled = false;
@@ -24,6 +26,7 @@ export default function LicenseSettings() {
  setLicense(data.sellf_license as string);
  }
  setEnvLicenseStatus((data?.sellf_license_env_status as EnvLicenseStatus | undefined) ?? null);
+ setDbLicenseStatus((data?.sellf_license_status as EnvLicenseStatus | undefined) ?? null);
  } catch (error) {
  if (!cancelled) console.error('Failed to load license:', error);
  } finally {
@@ -134,14 +137,7 @@ export default function LicenseSettings() {
  {t('licenseDetails')}
  </h4>
  {hasTokenShape ? (
- <div className="space-y-2 text-sm">
- <div className="flex justify-between items-center">
- <span className="text-sf-muted">{t('signature')}:</span>
- <span className="font-mono text-sf-muted text-xs">
- {licenseParts[1]?.slice(0, 20)}...
- </span>
- </div>
- </div>
+ <LicenseDetailCard status={dbLicenseStatus} token={license} t={t} />
  ) : (
  <p className="text-sm text-sf-danger">{t('invalidFormat')}</p>
  )}
@@ -229,6 +225,69 @@ function EnvLicenseStatusCard({ status, t }: { status: EnvLicenseStatus; t: Lice
  tier: status.tier ? (TIER_LABELS[status.tier] ?? status.tier) : '—',
  })}
  </p>
+ </div>
+ );
+}
+
+const DETAIL_TIER_LABELS: Record<string, string> = { registered: 'Registered Free', pro: 'Pro', business: 'Business' };
+
+const DETAIL_REASON_KEY: Record<EnvLicenseStatus['reason'], string | null> = {
+ valid: null,
+ expired: 'reasonExpired',
+ domain_mismatch: 'reasonDomainMismatch',
+ invalid_signature: 'reasonSignature',
+ invalid_format: 'reasonFormat',
+ invalid_product: 'reasonProduct',
+ invalid_tier: 'reasonTier',
+ keys_unavailable: 'reasonKeys',
+ no_platform_domain: 'reasonNoPlatformDomain',
+ not_configured: null,
+};
+
+function fmtIsoDay(iso: string | null, t: LicenseTranslator): string {
+ if (!iso) return t('never');
+ return iso.slice(0, 10);
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+ return (
+ <div className="flex justify-between items-center gap-4">
+ <span className="text-sf-muted">{label}:</span>
+ <span className="font-mono text-sf-body text-xs text-right break-all">{value}</span>
+ </div>
+ );
+}
+
+function LicenseDetailCard({ status, token, t }: { status: EnvLicenseStatus | null; token: string; t: LicenseTranslator }) {
+ const claims = parseLicenseClaimsForDisplay(token);
+ const valid = status?.valid ?? false;
+ const tone = valid
+ ? { border: 'border-sf-success', bg: 'bg-sf-success-soft', text: 'text-sf-success' }
+ : { border: 'border-sf-danger', bg: 'bg-sf-danger-soft', text: 'text-sf-danger' };
+ const reasonKey = status ? DETAIL_REASON_KEY[status.reason] : null;
+ const tierVal = status?.tier ?? claims?.tier ?? null;
+ const tierLabel = tierVal ? (DETAIL_TIER_LABELS[tierVal] ?? tierVal) : '—';
+ const domainVal = status?.domain ?? claims?.domain ?? '—';
+ const platformDomainVal = status?.platformDomain ?? '—';
+ const expiryVal = status ? fmtIsoDay(status.expiry, t) : t('never');
+
+ return (
+ <div className="space-y-3">
+ <div className={`border ${tone.border} ${tone.bg} p-3 text-sm ${tone.text}`}>
+ <p className="font-medium">{valid ? t('statusValidTitle') : t('statusInvalidTitle')}</p>
+ {reasonKey && (
+ <p className="mt-1 text-xs">
+ {t(reasonKey, { domain: domainVal, platformDomain: platformDomainVal, expiry: expiryVal })}
+ </p>
+ )}
+ </div>
+ <div className="space-y-2 text-sm">
+ <DetailRow label={t('tier')} value={tierLabel} />
+ <DetailRow label={t('product')} value={claims?.product ?? '—'} />
+ <DetailRow label={t('domain')} value={domainVal} />
+ <DetailRow label={t('platformDomain')} value={platformDomainVal} />
+ <DetailRow label={t('expires')} value={expiryVal} />
+ </div>
  </div>
  );
 }
