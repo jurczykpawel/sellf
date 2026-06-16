@@ -2873,6 +2873,7 @@
       "shop": "Store",
       "payments": "Payments",
       "legal": "Legal",
+      "license": "License",
       "system": "System"
     },
     "licenseKeys": {

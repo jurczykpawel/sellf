@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Store, CreditCard, FileText, Wrench } from 'lucide-react'
+import { Store, CreditCard, FileText, Wrench, KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ShopSettings from './ShopSettings'
 import BrandingSettings from './BrandingSettings'
@@ -20,12 +20,13 @@ import SecurityAuditSettings from './SecurityAuditSettings'
 import { useConfig } from '@/components/providers/config-provider'
 import { useAuth } from '@/contexts/AuthContext'
 
-type TabId = 'shop' | 'payments' | 'legal' | 'system'
+type TabId = 'shop' | 'payments' | 'legal' | 'license' | 'system'
 
 const TABS = [
   { id: 'shop' as TabId,        icon: Store,       labelKey: 'tabs.shop' },
   { id: 'payments' as TabId,    icon: CreditCard,  labelKey: 'tabs.payments' },
   { id: 'legal' as TabId,       icon: FileText,    labelKey: 'tabs.legal' },
+  { id: 'license' as TabId,     icon: KeyRound,    labelKey: 'tabs.license' },
   { id: 'system' as TabId,      icon: Wrench,      labelKey: 'tabs.system' },
 ]
 
@@ -92,11 +93,16 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
           </>
         )}
 
-        {active === 'system' && (
+        {active === 'license' && (
           <>
+            <LicenseSettings />
             <LicenseKeysSettings hasLicenseIssuance={hasLicenseIssuance} />
             {role === 'platform_admin' && !demoMode && <IssuedLicensesSettings enabled={Boolean(hasLicenseIssuance)} />}
-            <LicenseSettings />
+          </>
+        )}
+
+        {active === 'system' && (
+          <>
             {role === 'platform_admin' && <SystemUpdateSettings />}
             {role === 'platform_admin' && !demoMode && <SecurityAuditSettings />}
           </>

@@ -28,7 +28,8 @@ test.describe('License Settings', () => {
 
   async function gotoSystemSettings(page: Page): Promise<void> {
     await page.goto('/pl/dashboard/settings');
-    await page.getByRole('button', { name: /^System$/i }).click();
+    // License management moved to its own "Licencja" tab (out of "System").
+    await page.getByRole('button', { name: /^Licencja$/i }).click();
     await page.waitForSelector('h2:text-matches("Sellf License|Licencja Sellf", "i")');
   }
 

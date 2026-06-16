@@ -183,7 +183,7 @@ export default function LicenseSettings() {
 type LicenseTranslator = (key: string, values?: Record<string, string | number>) => string;
 
 function formatExpiry(expiry: string | null, t: LicenseTranslator): string {
- if (!expiry) return '—';
+ if (!expiry) return t('never');
  if (expiry === 'UNLIMITED') return t('never');
  if (/^\d{8}$/.test(expiry)) {
  return `${expiry.slice(0, 4)}-${expiry.slice(4, 6)}-${expiry.slice(6, 8)}`;
