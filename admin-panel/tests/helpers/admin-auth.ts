@@ -89,6 +89,18 @@ export async function setAuthSession(page: Page, email: string, password: string
 
   const supabaseHostname = new URL(SUPABASE_URL).hostname;
   const cookieKey = `sb-${supabaseHostname.split('.')[0]}-auth-token`;
+
+  // Clear any stale Supabase auth cookies (including chunked variants from prior
+  // magic-link navigations) before injecting the fresh session. If chunked cookies
+  // from a previous test's magic-link flow are left in place alongside the new
+  // non-chunked cookie, @supabase/ssr may assemble the wrong session on the server.
+  const existingCookies = await page.context().cookies();
+  const staleAuthCookies = existingCookies.filter(c =>
+    c.name === cookieKey || c.name.startsWith(`${cookieKey}.`)
+  );
+  if (staleAuthCookies.length > 0) {
+    await page.context().clearCookies({ name: new RegExp(`^${cookieKey}(\\.[0-9]+)?$`) });
+  }
   const sessionJson = JSON.stringify(session);
   const base64Value = Buffer.from(sessionJson).toString('base64url');
   const cookieValue = `base64-${base64Value}`;
