@@ -163,7 +163,14 @@ async function readDbToken(client?: { from: (table: string) => any }): Promise<s
 }
 
 export async function resolveCurrentTier(options: LicenseResolveOptions = {}): Promise<LicenseTier> {
-  if (process.env.DEMO_MODE === 'true' || process.env.E2E_MODE === 'true') return 'business';
+  // DEMO_MODE / E2E_MODE unlock all features as a NON-PRODUCTION test/dev seam only.
+  // In a production build (the release tarball + Docker image both build with
+  // NODE_ENV=production) these flags are IGNORED, so a self-hoster cannot flip one env
+  // var to get business for free — every real install must present a signed token.
+  // The public demo runs a production build and is licensed by its own signed token.
+  if (process.env.NODE_ENV !== 'production' && (process.env.DEMO_MODE === 'true' || process.env.E2E_MODE === 'true')) {
+    return 'business';
+  }
 
   const platformDomain = getPlatformDomain();
   if (!platformDomain) return 'free';

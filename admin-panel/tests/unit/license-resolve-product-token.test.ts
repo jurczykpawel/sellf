@@ -101,4 +101,12 @@ describe('product-token platform license resolution', () => {
     process.env.E2E_MODE = 'true';
     await expect(resolveCurrentTier({ dataClient: dbWith(null), keys, now: NOW })).resolves.toBe('business');
   });
+
+  it('IGNORES DEMO_MODE / E2E_MODE in a production build (no free unlock for self-hosters)', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.DEMO_MODE = 'true';
+    process.env.E2E_MODE = 'true';
+    // No DB token and no env token: the flags must NOT grant business in production.
+    await expect(resolveCurrentTier({ dataClient: dbWith(null), keys, now: NOW })).resolves.toBe('free');
+  });
 });
