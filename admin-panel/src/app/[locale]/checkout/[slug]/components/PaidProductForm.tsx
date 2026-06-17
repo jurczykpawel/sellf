@@ -26,6 +26,7 @@ import { useOto } from '@/hooks/useOto';
 import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
+import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
@@ -187,9 +188,16 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     getFunnelTestOtoSlug: oto.getFunnelTestOtoSlug,
   });
 
+  // Effective unit price: active sale price (Omnibus) when running, else regular
+  // price. Single source shared with the server charge + DB validation so the
+  // cart total, the "Pay" button and the actual charge can never diverge.
+  const effectiveUnitPrice = isSubscription
+    ? product.recurring_price ?? 0
+    : getEffectiveUnitPrice(product);
+
   const pricing = calculatePricing({
     baseProductId: product.id,
-    productPrice: isSubscription ? product.recurring_price ?? 0 : product.price,
+    productPrice: effectiveUnitPrice,
     productCurrency: product.currency,
     productVatRate: product.vat_rate ?? undefined,
     priceIncludesVat: product.price_includes_vat ?? undefined,
@@ -247,19 +255,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     trackingFired.current = true;
 
     const trackingData = {
-      value: isSubscription ? product.recurring_price ?? 0 : product.price,
+      value: effectiveUnitPrice,
       currency: product.currency,
       items: [{
         item_id: product.id,
         item_name: product.name,
-        price: isSubscription ? product.recurring_price ?? 0 : product.price,
+        price: effectiveUnitPrice,
         quantity: 1,
       }],
     };
 
     track('view_item', trackingData);
     track('begin_checkout', trackingData);
-  }, [product, track]);
+  }, [product, track, effectiveUnitPrice]);
 
   // Fetch Stripe client secret. Inlined inside the effect (rather than a
   // useCallback) so React Compiler doesn't flag the call site as

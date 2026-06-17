@@ -64,7 +64,11 @@ describe('subscription checkout and price display routing', () => {
     expect(paidProductFormSource).toContain('{(!isSubscription || isPwywSubscription) && (');
     expect(paidProductFormSource).toContain('{!isSubscription && !hasAccess && !error && !isFreeAccess');
     expect(paidProductFormSource).toContain('{!isSubscription && !hasAccess && !error && !isPwywFree');
-    expect(paidProductFormSource).toContain('productPrice: isSubscription ? product.recurring_price ?? 0 : product.price');
+    // Subscriptions still bill the recurring price; one-time products bill the
+    // effective unit price (active sale price when running, else regular price).
+    expect(paidProductFormSource).toContain('? product.recurring_price ?? 0');
+    expect(paidProductFormSource).toContain(': getEffectiveUnitPrice(product)');
+    expect(paidProductFormSource).toContain('productPrice: effectiveUnitPrice');
   });
 
   it('formats subscription recurring price without falling back to free one-time price', () => {

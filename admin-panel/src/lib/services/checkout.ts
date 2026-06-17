@@ -14,6 +14,7 @@ import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
 import { allocateCouponDiscount, toMinorUnits } from '@/lib/pricing/coupon-allocation';
+import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { normalizeBumpIds } from '@/lib/validations/product';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
@@ -165,7 +166,9 @@ export class CheckoutService {
         ? options.bumpProducts
         : options.bumpProduct ? [options.bumpProduct] : [];
 
-      // Calculate base price - use customAmount if provided (Pay What You Want)
+      // Calculate base price - use customAmount if provided (Pay What You Want),
+      // otherwise the active sale price (Omnibus) when running, else regular price.
+      // The coupon allocation below then applies on top of whichever base wins.
       let pricedMainProduct = options.product;
       if (customAmount !== undefined && customAmount > 0) {
         const minPrice = pricedMainProduct.custom_price_min ?? STRIPE_MINIMUM_AMOUNT;
@@ -177,6 +180,8 @@ export class CheckoutService {
           );
         }
         pricedMainProduct = { ...pricedMainProduct, price: customAmount };
+      } else {
+        pricedMainProduct = { ...pricedMainProduct, price: getEffectiveUnitPrice(pricedMainProduct) };
       }
 
       // Resolve checkout config: DB > env var > default

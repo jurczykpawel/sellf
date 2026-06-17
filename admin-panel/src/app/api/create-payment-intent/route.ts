@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
+import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
@@ -485,7 +486,8 @@ export async function POST(request: NextRequest) {
     // 6. Calculate pricing using centralized function (multi-bump aware)
     const pricing = calculatePricing({
       baseProductId: product.id,
-      productPrice: product.price,
+      // Charge the active sale price (Omnibus) when running; coupon stacks on top.
+      productPrice: getEffectiveUnitPrice(product),
       productCurrency: product.currency,
       customAmount,
       bumps: validatedBumps.map(vb => ({ id: vb.product.id, price: vb.bumpPrice, selected: true })),

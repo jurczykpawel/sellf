@@ -56,6 +56,11 @@ export interface ProductForCheckout {
   // Pay What You Want fields
   allow_custom_price?: boolean;
   custom_price_min?: number;
+  // Sale price (Omnibus) — when active, this is the price actually charged
+  sale_price?: number | null;
+  sale_price_until?: string | null;
+  sale_quantity_limit?: number | null;
+  sale_quantity_sold?: number | null;
   // VAT/Tax fields
   vat_rate: number | null;
   price_includes_vat: boolean;

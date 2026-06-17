@@ -91,7 +91,7 @@ export default function OrderSummary({
             </div>
           )}
         </div>
-        <div className={`text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
+        <div data-testid="order-summary-total" className={`text-2xl font-bold ${customAmountError ? 'text-sf-danger line-through' : 'text-sf-heading'}`}>
           {formatPrice(totalGross, currency)}
           {intervalLabel && <span className="text-base font-medium text-sf-muted"> / {intervalLabel}</span>}
         </div>

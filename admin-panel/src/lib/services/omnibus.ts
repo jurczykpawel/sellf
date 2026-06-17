@@ -135,6 +135,32 @@ export function isSalePriceActive(
 }
 
 /**
+ * Resolve the unit price a buyer should actually be charged: the active sale
+ * price when a sale is running, otherwise the regular catalog price.
+ *
+ * This is the single source of truth shared by every charge layer (checkout
+ * session line items, payment-intent totals, client cart total) so the price
+ * shown, the price charged, and the price the DB validates can never diverge.
+ * Pure function — no DB access needed.
+ */
+export function getEffectiveUnitPrice(product: {
+  price: number;
+  sale_price?: number | null;
+  sale_price_until?: string | null;
+  sale_quantity_limit?: number | null;
+  sale_quantity_sold?: number | null;
+}): number {
+  return isSalePriceActive(
+    product.sale_price ?? null,
+    product.sale_price_until ?? null,
+    product.sale_quantity_limit ?? null,
+    product.sale_quantity_sold ?? null,
+  )
+    ? (product.sale_price as number)
+    : product.price;
+}
+
+/**
  * Calculate effective price considering regular price, sale price, and coupon.
  * Promotions do NOT stack — chooses the most beneficial for the customer.
  * Pure function — no DB access needed.

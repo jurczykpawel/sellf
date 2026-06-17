@@ -15,6 +15,7 @@ import { parseVideoUrl } from '@/lib/videoUtils';
 import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
 import { isPlayerstackPlatform } from '@/lib/playerstack';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
+import { isSalePriceActive, getEffectiveUnitPrice } from '@/lib/services/omnibus';
 
 interface ProductShowcaseProps {
   product: Product;
@@ -27,20 +28,23 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
   const isSubscription = product.product_type === 'subscription';
   const recurringPriceDisplay = formatRecurringProductPrice(product, locale);
 
-  // Check if sale price is active (considers both time and quantity limits)
+  // Check if sale price is active (considers both time and quantity limits).
+  // Reuses the shared helpers so display, charge and DB validation agree.
   const saleQuantitySold = product.sale_quantity_sold ?? 0;
   const saleQuantityLimit = product.sale_quantity_limit ?? null;
   const saleQuantityRemaining = saleQuantityLimit !== null ? saleQuantityLimit - saleQuantitySold : null;
 
   const isSaleActive =
     !isSubscription &&
-    product.sale_price &&
-    product.sale_price > 0 &&
-    (!product.sale_price_until || new Date(product.sale_price_until) > new Date()) &&
-    (saleQuantityLimit === null || saleQuantitySold < saleQuantityLimit);
+    isSalePriceActive(
+      product.sale_price ?? null,
+      product.sale_price_until ?? null,
+      saleQuantityLimit,
+      saleQuantitySold,
+    );
 
   // Determine effective price (sale price if active, otherwise regular price)
-  const effectivePrice = isSaleActive ? product.sale_price! : product.price;
+  const effectivePrice = isSaleActive ? getEffectiveUnitPrice(product) : product.price;
 
   // Calculate net price if VAT is included
   const vatRate = product.vat_rate || 0;
