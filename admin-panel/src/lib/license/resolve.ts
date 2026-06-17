@@ -34,8 +34,14 @@ export type PlatformLicenseVerification =
       expiry: number | null;
     };
 
+// Official Sellf tier products. A buyer's self-hosted instance must accept the
+// slug carried in their license token's `product` claim; defaulting to all three
+// tier slugs makes registered/pro/business licenses validate out of the box
+// without each self-hoster having to set SELLF_LICENSE_PRODUCTS.
+const DEFAULT_LICENSE_PRODUCTS = 'sellf-registered,sellf-pro,sellf-business';
+
 function allowedProductsFromEnv(): ReadonlySet<string> {
-  const configured = process.env.SELLF_LICENSE_PRODUCTS ?? 'sellf-pro';
+  const configured = process.env.SELLF_LICENSE_PRODUCTS ?? DEFAULT_LICENSE_PRODUCTS;
   return new Set(configured.split(',').map((value) => value.trim()).filter(Boolean));
 }
 

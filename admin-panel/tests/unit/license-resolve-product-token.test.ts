@@ -41,6 +41,7 @@ describe('product-token platform license resolution', () => {
     delete process.env.DEMO_MODE;
     delete process.env.E2E_MODE;
     delete process.env.SELLF_LICENSE_KEY;
+    delete process.env.SELLF_LICENSE_PRODUCTS;
   });
 
   afterEach(() => {
@@ -49,6 +50,15 @@ describe('product-token platform license resolution', () => {
 
   it('resolves a signed allowed product for the bound domain', async () => {
     await expect(resolveCurrentTier({ dataClient: dbWith(token()), keys, now: NOW })).resolves.toBe('pro');
+  });
+
+  it.each([
+    ['sellf-registered', 'registered', 'registered'],
+    ['sellf-pro', 'pro', 'pro'],
+    ['sellf-business', 'business', 'business'],
+  ])('accepts the official %s tier product by default (no SELLF_LICENSE_PRODUCTS env)', async (product, tier, expected) => {
+    const license = token({ product, tier });
+    await expect(resolveCurrentTier({ dataClient: dbWith(license), keys, now: NOW })).resolves.toBe(expected);
   });
 
   it.each([
