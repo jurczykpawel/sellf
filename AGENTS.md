@@ -429,9 +429,13 @@ This pattern allows purchasing before account creation, critical for conversion 
 A small set of admin-panel features are gated by a license tier (`free`, `registered`, `pro`, `business`). The registry lives in `admin-panel/src/lib/license/features.ts` and the resolver in `admin-panel/src/lib/license/resolve.ts`. Currently gated:
 
 - `csv-export` — payment CSV export (`registered+`)
+- `api-keys` — creating an API key, `POST /api/v1/api-keys` (`registered+`; existing keys keep working)
+- `webhooks` — creating a webhook endpoint, `POST /api/v1/webhooks` (`registered+`; existing endpoints keep firing)
 - `watermark-removal` — hides the "Powered by Sellf" badge on checkout / product pages (`pro+`)
 - `theme-customization` — saving custom themes (`pro+`)
 - `api-key-scopes` — broader API key scopes (`pro+`)
+- `webhook-product-scoping` / `webhook-payload-customization` — advanced webhook config (`pro+`)
+- `license-key-issuance` / `license-revoked-webhook` — sell licensed products (`pro+`)
 
 Resolution is DB-first (`license_keys` table) with env fallback (`SELLF_LICENSE_KEY`).
 

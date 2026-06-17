@@ -238,8 +238,11 @@ describe('POST /api/v1/webhooks — payload customization gate', () => {
     expect(res.status).toBe(403);
   });
 
-  it('leaves a customization-free request unchanged (no gate, no new columns set)', async () => {
-    delete process.env.DEMO_MODE; // free tier — must still succeed without customization
+  it('leaves a customization-free request unchanged (no new columns set)', async () => {
+    // A tier allowed to create webhooks (creation itself is now Registered+),
+    // with NO customization fields — must succeed and persist no customization
+    // columns. The customization gate only fires when those fields are present.
+    process.env.DEMO_MODE = 'true';
 
     const url = `https://example.com/cust-none-${TS}-${RAND}`;
     const res = asResponse(

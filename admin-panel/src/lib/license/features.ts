@@ -14,8 +14,13 @@ export type LicenseTier = 'free' | 'registered' | 'pro' | 'business';
 // Features with active enforcement in the codebase.
 // Only add here when the gate is actually wired up (route, UI, or middleware).
 const FEATURE_TIERS = {
-  // Registered Free (free key from sellf.app registration)
+  // Registered Free (free key from sellf.app registration) — the "automation /
+  // power user" layer. Cheap to obtain (just register), strong reason to do so,
+  // and captures the lead. Only CREATION of new keys/webhooks is gated; existing
+  // ones keep working so a downgrade never breaks live integrations.
   'csv-export': 'registered',          // POST /api/v1/payments/export, POST /api/admin/payments/export
+  'api-keys': 'registered',            // POST /api/v1/api-keys → create an API key
+  'webhooks': 'registered',            // POST /api/v1/webhooks → create a webhook endpoint
 
   // Pro
   'watermark-removal': 'pro',          // SellfBranding component on checkout + product pages

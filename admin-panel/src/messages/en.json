@@ -3873,6 +3873,7 @@
         "products": "Unlimited products",
         "buyers": "Unlimited buyers",
         "payments": "Stripe + 26 currencies",
+        "apiKeys": "REST API keys",
         "webhooks": "Webhooks + DLQ + retry",
         "csvExport": "Payment CSV export",
         "watermark": "Hide \"Powered by Sellf\"",

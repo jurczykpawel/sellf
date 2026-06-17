@@ -25,6 +25,7 @@ type RowKey =
   | 'products'
   | 'buyers'
   | 'payments'
+  | 'apiKeys'
   | 'webhooks'
   | 'csvExport'
   | 'watermark'
@@ -35,6 +36,7 @@ const ROW_KEYS: RowKey[] = [
   'products',
   'buyers',
   'payments',
+  'apiKeys',
   'webhooks',
   'csvExport',
   'watermark',
@@ -42,11 +44,13 @@ const ROW_KEYS: RowKey[] = [
   'apiScopes',
 ];
 
+// Keep this matrix in sync with FEATURE_TIERS in src/lib/license/features.ts.
 const MATRIX: Record<RowKey, Record<TierKey, boolean>> = {
   products:   { free: true,  registered: true,  pro: true,  business: true  },
   buyers:     { free: true,  registered: true,  pro: true,  business: true  },
   payments:   { free: true,  registered: true,  pro: true,  business: true  },
-  webhooks:   { free: true,  registered: true,  pro: true,  business: true  },
+  apiKeys:    { free: false, registered: true,  pro: true,  business: true  },
+  webhooks:   { free: false, registered: true,  pro: true,  business: true  },
   csvExport:  { free: false, registered: true,  pro: true,  business: true  },
   watermark:  { free: false, registered: false, pro: true,  business: true  },
   themes:     { free: false, registered: false, pro: true,  business: true  },

@@ -24,6 +24,7 @@ import {
   enforceApiKeyScopeGate,
 } from '@/lib/api';
 import { resolveCurrentTier } from '@/lib/license/resolve';
+import { hasFeature } from '@/lib/license/features';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -127,6 +128,17 @@ export async function POST(request: NextRequest) {
     // Resolve scopes: wildcard expansion + per-tier policy. The returned
     // list is concrete (no '*') and validated; '*' is never persisted.
     const tier = await resolveCurrentTier();
+
+    // Creating an API key requires at least the free Registered tier. Existing
+    // keys keep working; only new-key creation is gated.
+    if (!hasFeature(tier, 'api-keys')) {
+      return apiError(
+        request,
+        'FORBIDDEN',
+        'Creating API keys requires a free Registered license (or higher).',
+      );
+    }
+
     const scopes = enforceApiKeyScopeGate(tier, body.scopes);
 
     // Defense in depth: validate after gating. expandScopes already throws

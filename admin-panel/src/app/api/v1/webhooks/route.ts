@@ -25,6 +25,10 @@ import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-header
 
 const WEBHOOK_ENDPOINT_QUOTA = 50;
 
+const WEBHOOKS_FEATURE = 'webhooks' as const;
+const WEBHOOKS_FEATURE_DENIED =
+  'Creating webhooks requires a free Registered license (or higher).';
+
 const PRODUCT_SCOPING_FEATURE = 'webhook-product-scoping' as const;
 const PRODUCT_SCOPING_DENIED =
   'Per-product webhook scoping requires a Pro license. Use product_filter_mode="all" or upgrade.';
@@ -156,6 +160,12 @@ export async function POST(request: NextRequest) {
     const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
 
     const adminClient = auth.supabase;
+
+    // Creating a webhook endpoint requires at least the free Registered tier.
+    // Existing endpoints keep firing; only new-endpoint creation is gated.
+    if (!(await checkFeature(WEBHOOKS_FEATURE, { dataClient: adminClient }))) {
+      return apiError(request, 'FORBIDDEN', WEBHOOKS_FEATURE_DENIED);
+    }
 
     const body = await parseJsonBody<{
       url?: string;

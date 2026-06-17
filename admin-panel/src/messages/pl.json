@@ -3888,6 +3888,7 @@
         "products": "Nielimitowane produkty",
         "buyers": "Nielimitowani kupujący",
         "payments": "Stripe + 26 walut",
+        "apiKeys": "Klucze REST API",
         "webhooks": "Webhooki + DLQ + retry",
         "csvExport": "Eksport płatności do CSV",
         "watermark": "Ukrycie \"Powered by Sellf\"",
