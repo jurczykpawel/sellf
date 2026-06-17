@@ -67,6 +67,19 @@ const PRODUCT = {
   available_until: null,
 };
 
+const DOMAIN_FIELD = {
+  id: '_sellf_license_domain',
+  type: 'domain' as const,
+  label: { en: 'License domain', pl: 'Domena licencji' },
+  required: true,
+  max_length: 253,
+};
+
+const PRODUCT_WITH_DOMAIN = {
+  ...PRODUCT,
+  custom_checkout_fields: [DOMAIN_FIELD],
+};
+
 const USER = {
   id: 'user-abc',
   email: 'user@example.com',
@@ -78,10 +91,11 @@ const LICENSE_RESULT = {
   sellerId: 'seller-1',
 };
 
-function makeRequest(slug = PRODUCT.slug): Request {
+function makeRequest(slug = PRODUCT.slug, body?: unknown): Request {
   return new Request(`http://localhost/api/public/products/${slug}/grant-access`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
 
@@ -97,12 +111,12 @@ function makeChain(resolvedValue: unknown) {
   return chain;
 }
 
-function setupDefaultMocks() {
+function setupDefaultMocks(product: unknown = PRODUCT) {
   const adminClient = { from: vi.fn() };
   mocks.createAdminClient.mockReturnValue(adminClient);
   // adminClient is only used for grantFreeProductAccess (mocked) + WebhookService; no real DB calls needed.
 
-  const productChain = makeChain({ data: PRODUCT, error: null });
+  const productChain = makeChain({ data: product, error: null });
   const userClient = {
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: USER }, error: null }) },
     from: vi.fn().mockReturnValue(productChain),
@@ -211,6 +225,75 @@ describe('grant-access route — license issuance', () => {
 
     expect(mocks.issueLicense).not.toHaveBeenCalled();
     expect(mocks.webhookTrigger).not.toHaveBeenCalled();
+  });
+
+  it('forwards valid customFieldValues (license domain) to issueLicense', async () => {
+    setupDefaultMocks(PRODUCT_WITH_DOMAIN);
+    mocks.grantFreeProductAccess.mockResolvedValue({
+      accessGranted: true,
+      alreadyHadAccess: false,
+      otoInfo: null,
+    });
+    mocks.issueLicense.mockResolvedValue(LICENSE_RESULT);
+
+    await POST(
+      makeRequest(PRODUCT.slug, { customFieldValues: { _sellf_license_domain: 'client.com' } }),
+      makeContext(),
+    );
+
+    expect(mocks.issueLicense).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        productId: PRODUCT.id,
+        customFieldValues: { _sellf_license_domain: 'client.com' },
+      }),
+    );
+  });
+
+  it('returns 400 and does NOT grant when a required custom field is missing', async () => {
+    setupDefaultMocks(PRODUCT_WITH_DOMAIN);
+
+    const response = await POST(
+      makeRequest(PRODUCT.slug, { customFieldValues: {} }),
+      makeContext(),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.grantFreeProductAccess).not.toHaveBeenCalled();
+    expect(mocks.issueLicense).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when a custom field value is invalid (bad domain)', async () => {
+    setupDefaultMocks(PRODUCT_WITH_DOMAIN);
+
+    const response = await POST(
+      makeRequest(PRODUCT.slug, { customFieldValues: { _sellf_license_domain: 'not a domain!!' } }),
+      makeContext(),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.grantFreeProductAccess).not.toHaveBeenCalled();
+  });
+
+  it('does not require custom fields when none are submitted (guest magic-link path)', async () => {
+    // Body without customFieldValues must keep working even if the product has a
+    // required field — the guest magic-link callback re-calls grant-access with no body.
+    setupDefaultMocks(PRODUCT_WITH_DOMAIN);
+    mocks.grantFreeProductAccess.mockResolvedValue({
+      accessGranted: true,
+      alreadyHadAccess: false,
+      otoInfo: null,
+    });
+    mocks.issueLicense.mockResolvedValue(null);
+
+    const response = await POST(makeRequest(), makeContext());
+
+    expect(response.status).toBe(200);
+    expect(mocks.grantFreeProductAccess).toHaveBeenCalled();
+    expect(mocks.issueLicense).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ customFieldValues: expect.anything() }),
+    );
   });
 
   it('returns 200 even when issueLicense throws', async () => {

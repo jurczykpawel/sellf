@@ -13,9 +13,10 @@ import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
-import type {
-  CustomFieldDefinition,
-  CustomFieldValues,
+import {
+  validateCustomFieldValues,
+  type CustomFieldDefinition,
+  type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
 import { createClient } from '@/lib/supabase/client';
@@ -51,6 +52,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
     [product.custom_checkout_fields],
   );
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
+  const [customFieldErrors, setCustomFieldErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info' | null; text: string }>({
     type: null,
     text: '',
@@ -76,13 +78,23 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   const handleFreeAccess = async () => {
     if (user) {
       // Logged in user - grant access directly (ToS accepted at registration)
+      const hasCustomFields = customFieldDefs.length > 0;
+      if (hasCustomFields) {
+        // Reuse the canonical validator (same rules as the server + paid flow).
+        const validation = validateCustomFieldValues(customFieldDefs, customFieldValues, { requireAll: true });
+        if (!validation.ok) {
+          setCustomFieldErrors(validation.errors);
+          return;
+        }
+        setCustomFieldErrors({});
+      }
       try {
         setLoading(true);
-        
+
         const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
+          body: JSON.stringify(hasCustomFields ? { customFieldValues } : {}),
         });
 
         if (!response.ok) {
@@ -279,17 +291,20 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
             </div>
           )}
 
-          {/* Product-defined custom checkout fields (e.g. message, domain).
-              Free product persistence of these values is deferred — values
-              flow through the grant-access path only once that endpoint is
-              extended (follow-up). For now they render so admins can preview
-              the layout when toggling allow_custom_price + tip-jar template
-              before going paid. */}
+          {/* Product-defined custom checkout fields (e.g. message, license domain).
+              For logged-in users the values are validated and forwarded to the
+              grant-access endpoint so a free/coupon grant issues the same license
+              claims as a paid purchase. (Guest magic-link grants can't carry these
+              across the round-trip yet — see grant-access route.) */}
           {customFieldDefs.length > 0 && (
             <CustomCheckoutFieldsForm
               fields={customFieldDefs}
               values={customFieldValues}
-              onChange={setCustomFieldValues}
+              onChange={(next) => {
+                setCustomFieldValues(next);
+                if (Object.keys(customFieldErrors).length > 0) setCustomFieldErrors({});
+              }}
+              errors={customFieldErrors}
               disabled={loading}
             />
           )}

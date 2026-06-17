@@ -14,9 +14,10 @@ import { useConfig } from '@/components/providers/config-provider';
 import { useTheme } from '@/components/providers/theme-provider';
 import { useOrderBumps } from '@/hooks/useOrderBumps';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
-import type {
-  CustomFieldDefinition,
-  CustomFieldValues,
+import {
+  validateCustomFieldValues,
+  type CustomFieldDefinition,
+  type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { useTranslations } from 'next-intl';
 import { useTracking } from '@/hooks/useTracking';
@@ -223,7 +224,22 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     onAccessGranted: grantAccess,
     onError: setError,
     couponCode: isFullDiscountCoupon ? coupon.appliedCoupon?.code ?? null : null,
+    customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
   });
+
+  // Validate product-defined custom fields before claiming a free/coupon grant,
+  // mirroring the paid flow. Reuses the canonical validator (same rules server-side).
+  const claimFreeAccess = useCallback(async () => {
+    if (customFieldDefs.length > 0) {
+      const validation = validateCustomFieldValues(customFieldDefs, customFieldValues, { requireAll: true });
+      if (!validation.ok) {
+        setCustomFieldErrors(validation.errors);
+        return;
+      }
+      setCustomFieldErrors({});
+    }
+    await pwyw.handlePwywFreeAccess();
+  }, [customFieldDefs, customFieldValues, pwyw]);
 
   // Track view_item and begin_checkout on mount
   useEffect(() => {
@@ -391,6 +407,24 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           PWYW amount picker). Subscription + PWYW takes the raw subscription
           path on submit; non-PWYW subscriptions keep the existing fixed-price
           Checkout Session flow. */}
+      {/* Custom checkout fields on the free-access path (PWYW=0 or 100% coupon).
+          The paid path renders these inside the Stripe checkout card, which is
+          hidden when isFreeAccess — so render them here too, with the same state,
+          so the buyer can fill them (e.g. license domain) before claiming. */}
+      {isFreeAccess && !hasAccess && !error && customFieldDefs.length > 0 && (
+        <div className="mb-6 p-5 bg-sf-raised backdrop-blur-sm rounded-2xl border border-sf-border">
+          <CustomCheckoutFieldsForm
+            fields={customFieldDefs}
+            values={customFieldValues}
+            onChange={(next) => {
+              setCustomFieldValues(next);
+              if (Object.keys(customFieldErrors).length > 0) setCustomFieldErrors({});
+            }}
+            errors={customFieldErrors}
+          />
+        </div>
+      )}
+
       {(!isSubscription || isPwywSubscription) && (
         <PwywSection
           product={product}
@@ -402,7 +436,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           isFullDiscountCoupon={isFullDiscountCoupon}
           hasAccess={hasAccess}
           error={error}
-          pwyw={pwyw}
+          pwyw={{ ...pwyw, handlePwywFreeAccess: claimFreeAccess }}
           onAmountInputChange={(raw) => setCustomAmountInput(raw)}
           onAmountBlur={() => {
             const value = parseFloat(customAmountInput) || 0;

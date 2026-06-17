@@ -30,6 +30,10 @@ interface UseFreeAccessOptions {
   /** When set, this is a full-discount coupon flow. The code is attached to
    *  the grant-access request and to the magic-link redirect URL. */
   couponCode?: string | null;
+  /** Product-defined custom checkout field values (e.g. license domain) collected
+   *  from the logged-in form. Forwarded to grant-access so the issued license
+   *  carries the same claims as a paid purchase. */
+  customFieldValues?: Record<string, string>;
 }
 
 interface UseFreeAccessReturn {
@@ -50,6 +54,7 @@ export function useFreeAccess({
   onAccessGranted,
   onError,
   couponCode,
+  customFieldValues,
 }: UseFreeAccessOptions): UseFreeAccessReturn {
   const t = useTranslations('checkout');
   const tCompliance = useTranslations('compliance');
@@ -66,10 +71,14 @@ export function useFreeAccess({
     if (!user) return;
     setPwywFreeLoading(true);
     try {
+      const hasCustomFields = !!customFieldValues && Object.keys(customFieldValues).length > 0;
       const response = await fetch(`/api/public/products/${product.slug}/grant-access`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(couponCode ? { couponCode } : {}),
+        body: JSON.stringify({
+          ...(couponCode ? { couponCode } : {}),
+          ...(hasCustomFields ? { customFieldValues } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -93,7 +102,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [user, product, couponCode, track, onAccessGranted, onError, t]);
+  }, [user, product, couponCode, customFieldValues, track, onAccessGranted, onError, t]);
 
   const handlePwywFreeMagicLink = useCallback(async () => {
     if (!pwywFreeEmail) {
