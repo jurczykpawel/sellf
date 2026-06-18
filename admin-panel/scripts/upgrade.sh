@@ -334,6 +334,12 @@ if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^TRUSTED_PROXY=" "$INSTALL_DIR
   echo "  → enabled TRUSTED_PROXY (read client IP from last X-Forwarded-For hop)"
 fi
 
+if [ -f "$INSTALL_DIR/.env.local" ] && ! grep -q "^SELLF_PM2_MAX_MEMORY=" "$INSTALL_DIR/.env.local"; then
+  printf "SELLF_PM2_MAX_MEMORY=512M\n" >> "$INSTALL_DIR/.env.local"
+  printf "SELLF_NODE_MAX_OLD_SPACE=400\n" >> "$INSTALL_DIR/.env.local"
+  echo "  → set SELLF_PM2_MAX_MEMORY=512M + SELLF_NODE_MAX_OLD_SPACE=400 (raise to 1G/800 on prod)"
+fi
+
 # Copy .env.local into standalone dir
 STANDALONE_DIR="$INSTALL_DIR/.next/standalone/admin-panel"
 if [ -d "$STANDALONE_DIR" ] && [ -f "$INSTALL_DIR/.env.local" ]; then
@@ -458,7 +464,12 @@ if [ -f "$INSTALL_DIR/.env.local" ]; then
   source "$INSTALL_DIR/.env.local"
   set +o allexport
 fi
-PORT="${PORT}" HOSTNAME="::" pm2 start "$(basename "$SERVER_JS")" --name "$PM2_NAME" >> "$LOG_FILE" 2>&1
+MEM_LIMIT="${SELLF_PM2_MAX_MEMORY:-512M}"
+OLD_SPACE="${SELLF_NODE_MAX_OLD_SPACE:-400}"
+# ::: loopback only — app runs behind Caddy, never exposed directly
+PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" pm2 start "$(basename "$SERVER_JS")" --name "$PM2_NAME" \
+  --max-memory-restart "${MEM_LIMIT}" \
+  --node-args="--max-old-space-size=${OLD_SPACE}" >> "$LOG_FILE" 2>&1
 
 # Wait for app to start and verify
 sleep 5
@@ -498,13 +509,24 @@ else
       source "$INSTALL_DIR/.env.local"
       set +o allexport
     fi
-    PORT="${PORT}" HOSTNAME="::" pm2 start "$(basename "$OLD_SERVER_JS")" --name "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+    PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" pm2 start "$(basename "$OLD_SERVER_JS")" --name "$PM2_NAME" \
+      --max-memory-restart "${MEM_LIMIT:-512M}" \
+      --node-args="--max-old-space-size=${OLD_SPACE:-400}" >> "$LOG_FILE" 2>&1 || true
     pm2 save >> "$LOG_FILE" 2>&1 || true
   fi
 
   write_error "Upgrade failed: health check timeout. Rolled back to previous version." true
   rm -rf "$TMP_DIR"
   exit 1
+fi
+
+# ===== FIREWALL CHECK =====
+# Sellf binds to HOSTNAME=:: (all interfaces). Warn if iptables INPUT is not DROP.
+if command -v ip6tables >/dev/null 2>&1; then
+  FW_POLICY=$(ip6tables -S INPUT 2>/dev/null | grep '^-P INPUT' | awk '{print $3}')
+  if [ "$FW_POLICY" != "DROP" ]; then
+    log "WARN: ip6tables INPUT policy = ${FW_POLICY:-UNKNOWN}. Port ${PORT} may be exposed directly. Run: ./local/setup-firewall.sh <ssh_alias>"
+  fi
 fi
 
 # ===== CLEANUP =====
