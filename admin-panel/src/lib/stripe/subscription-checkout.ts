@@ -14,6 +14,7 @@
 
 import type { ValidatedProduct } from '@/lib/services/product-validation';
 import type { CheckoutConfig } from '@/lib/stripe/checkout-config';
+import { applyTosConsent } from '@/lib/stripe/tos-consent';
 
 export interface SubscriptionSessionInput {
   product: ValidatedProduct;
@@ -109,11 +110,10 @@ export function buildSubscriptionSessionConfig(
     sessionConfig.payment_method_types = [...checkoutConfig.payment_method_types];
   }
 
-  if (checkoutConfig.collect_terms_of_service) {
-    sessionConfig.consent_collection = {
-      terms_of_service: 'required',
-    };
-  }
+  // ToS consent: storefront subscription uses ui_mode 'elements' (Sellf renders
+  // its own TermsCheckbox, no consent_collection); a Stripe-rendered subscription
+  // (embedded_page) keeps Stripe consent. applyTosConsent encodes this.
+  applyTosConsent(sessionConfig, checkoutConfig);
 
   return sessionConfig;
 }
