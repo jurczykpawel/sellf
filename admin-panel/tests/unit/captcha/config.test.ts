@@ -74,6 +74,10 @@ describe('getCaptchaConfig', () => {
     expect(config.provider).toBe('altcha');
     expect(config.siteKey).toBeNull();
     expect(config.scriptUrl).toContain('altcha');
+    // Must use the DEFAULT build (bundles the SHA-256 PoW worker), never the
+    // `external` build, which ships without workers and can never solve.
+    expect(config.scriptUrl).toContain('/dist/main/');
+    expect(config.scriptUrl).not.toContain('/dist/external/');
     expect(config.widgetTag).toBe('altcha-widget');
     expect(config.challengeUrl).toBe('/api/captcha/challenge');
   });

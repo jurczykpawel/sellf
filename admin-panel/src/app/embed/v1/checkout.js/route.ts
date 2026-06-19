@@ -94,12 +94,16 @@ export async function GET() {
           challengeUrl += (captcha.challengeUrl.indexOf('?') >= 0 ? '&' : '?') +
             'productSlug=' + encodeURIComponent(productSlug);
         }
-        widget.setAttribute('challengeurl', challengeUrl);
+        // ALTCHA v3's widget reads the challenge endpoint from the "challenge"
+        // attribute. There is no "challengeurl" attribute (it is silently
+        // ignored), which makes the widget fetch its default URL — the host
+        // page itself — and fail with "invalid content-type" (HTML, not JSON).
+        // Matches the in-app AltchaWidget, which also uses "challenge".
+        widget.setAttribute('challenge', challengeUrl);
         // Mirror the in-app AltchaWidget: solve the proof-of-work invisibly on
-        // load. The embed loads ALTCHA's "external" build (no bundled CSS), so a
-        // visible widget renders unstyled; invisible + auto-solve sidesteps the
-        // styling entirely and removes the "where do I click" friction while
-        // keeping the same proof-of-work protection.
+        // load. Invisible + auto-solve sidesteps widget styling entirely and
+        // removes the "where do I click" friction while keeping the same
+        // proof-of-work protection.
         widget.setAttribute('auto', 'onload');
         widget.setAttribute('display', 'invisible');
         widget.setAttribute('hidelogo', '');

@@ -1,7 +1,12 @@
 import type { CaptchaConfig, CaptchaProvider } from './types';
 
 const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-const ALTCHA_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/altcha@3/dist/external/altcha.min.js';
+// Use the DEFAULT build, not `dist/external`: the external build excludes the
+// bundled proof-of-work workers (SHA-256/PBKDF2) and requires registering them
+// manually via `$altcha.algorithms.set(...)`. Without a worker the widget can
+// never solve the challenge and ends in the `error` state ("Verification
+// failed"). The main build bundles the SHA-256 worker used by our challenges.
+const ALTCHA_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/altcha@3/dist/main/altcha.js';
 const ALTCHA_CHALLENGE_URL = '/api/captcha/challenge';
 
 const NONE_CONFIG: CaptchaConfig = {

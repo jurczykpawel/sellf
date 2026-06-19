@@ -31,6 +31,14 @@ describe('GET /embed/v1/checkout.js — provider-aware captcha loader', () => {
     expect(script).toMatch(/captcha\.challengeUrl/);
   });
 
+  it('binds the challenge via the `challenge` attribute (ALTCHA v3 — `challengeurl` does not exist)', async () => {
+    const script = await getEmbedScript();
+    // Regression: `challengeurl` is silently ignored by the v3 widget, so it
+    // fetched the host page (HTML) and failed with "invalid content-type".
+    expect(script).toMatch(/setAttribute\(\s*['"]challenge['"]\s*,/);
+    expect(script).not.toMatch(/setAttribute\(\s*['"]challengeurl['"]/);
+  });
+
   it('keeps turnstileToken field on the submit payload (backward-compat naming)', async () => {
     const script = await getEmbedScript();
     expect(script).toMatch(/turnstileToken/);
@@ -38,9 +46,8 @@ describe('GET /embed/v1/checkout.js — provider-aware captcha loader', () => {
 
   it('mounts the ALTCHA widget invisibly and auto-solves (matches in-app; no unstyled checkbox to click)', async () => {
     const script = await getEmbedScript();
-    // The embed loads the `external` ALTCHA build (no bundled CSS); a visible
-    // widget renders unstyled. Invisible + auto-solve sidesteps styling entirely
-    // and mirrors the in-app AltchaWidget config.
+    // Invisible + auto-solve sidesteps widget styling entirely and mirrors the
+    // in-app AltchaWidget config.
     expect(script).toMatch(/setAttribute\(\s*['"]auto['"]\s*,\s*['"]onload['"]\s*\)/);
     expect(script).toMatch(/setAttribute\(\s*['"]display['"]\s*,\s*['"]invisible['"]\s*\)/);
     expect(script).toMatch(/setAttribute\(\s*['"]hidelogo['"]/);
