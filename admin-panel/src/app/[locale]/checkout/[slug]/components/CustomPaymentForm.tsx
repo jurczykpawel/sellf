@@ -40,7 +40,7 @@ interface CustomPaymentFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
-  collectTermsOfService?: boolean;
+  collectTermsOfService: boolean;
   customFieldDefs?: CustomFieldDefinition[];
   customFieldValues?: CustomFieldValues;
   onCustomFieldValuesChange?: (next: CustomFieldValues) => void;
@@ -75,7 +75,7 @@ export default function CustomPaymentForm({
   paymentMethodOrder,
   expressCheckoutConfig,
   taxMode,
-  collectTermsOfService = false,
+  collectTermsOfService,
   customFieldDefs = [],
   customFieldValues = {},
   onCustomFieldValuesChange,

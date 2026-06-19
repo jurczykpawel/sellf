@@ -44,7 +44,7 @@ interface PwywSectionProps {
   onAmountInputChange: (raw: string) => void;
   onAmountBlur: () => void;
   onPresetClick: (preset: number) => void;
-  collectTermsOfService?: boolean;
+  collectTermsOfService: boolean;
 }
 
 export default function PwywSection({
@@ -61,7 +61,7 @@ export default function PwywSection({
   onAmountInputChange,
   onAmountBlur,
   onPresetClick,
-  collectTermsOfService = false,
+  collectTermsOfService,
 }: PwywSectionProps) {
   const t = useTranslations('checkout');
   const tSecurity = useTranslations('security');

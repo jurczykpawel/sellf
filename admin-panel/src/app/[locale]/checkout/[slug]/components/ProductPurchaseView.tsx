@@ -16,7 +16,7 @@ interface ProductPurchaseViewProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   licenseValid?: boolean;
   taxMode?: TaxMode;
-  collectTermsOfService?: boolean;
+  collectTermsOfService: boolean;
   layoutMode?: 'standalone' | 'embedded';
   afterCheckoutSlot?: React.ReactNode;
 }
@@ -49,7 +49,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, collectTermsOfService = false, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, collectTermsOfService, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled

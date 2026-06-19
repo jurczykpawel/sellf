@@ -28,10 +28,10 @@ import ProductShowcase from './ProductShowcase';
 
 interface FreeProductFormProps {
   product: Product;
-  collectTermsOfService?: boolean;
+  collectTermsOfService: boolean;
 }
 
-export default function FreeProductForm({ product, collectTermsOfService = false }: FreeProductFormProps) {
+export default function FreeProductForm({ product, collectTermsOfService }: FreeProductFormProps) {
   const t = useTranslations('productView');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');

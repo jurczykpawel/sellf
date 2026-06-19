@@ -40,7 +40,7 @@ interface PaidProductFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
-  collectTermsOfService?: boolean;
+  collectTermsOfService: boolean;
   /**
    * `standalone` (default): full page shell + ProductShowcase + form.
    * `embedded`: form column only (host template provides product info / chrome).
@@ -49,7 +49,7 @@ interface PaidProductFormProps {
   afterCheckoutSlot?: React.ReactNode;
 }
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService = false, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const isSubscription = product.product_type === 'subscription';
   // PWYW subscriptions allow buyers to choose their recurring amount. The
