@@ -24,7 +24,7 @@ USERS = {
 CONSOLE_NOISE = [
     'favicon', 'serviceWorker', 'chunk', 'websocket',
     'realtime', 'Connecting to', 'wss://', 'Download the',
-    'third-party cookie', 'Klaro',
+    'third-party cookie', 'cookieconsent',
 ]
 
 
@@ -36,7 +36,7 @@ def setup_screenshot_dir(prefix=''):
 
 
 def dismiss_cookies(page):
-    """Dismiss Klaro cookie consent banner."""
+    """Dismiss the cookieconsent banner."""
     try:
         btn = page.locator("text=That's ok")
         if btn.is_visible(timeout=1500):

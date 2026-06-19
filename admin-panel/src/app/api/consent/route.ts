@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const ip_address = getClientIp(request)
     const user_agent = (request.headers.get('user-agent') || 'unknown').substring(0, 500)
 
-    // Use admin client — this endpoint is public (called by Klaro consent callback
+    // Use admin client — this endpoint is public (called by the cookieconsent callback
     // for anonymous visitors), so the anon-scoped client can't read integrations_config
     const supabase = createAdminClient()
 

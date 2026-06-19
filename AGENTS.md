@@ -631,7 +631,7 @@ Python (Flask + Django), and cURL.
 
 ### Testing Complex Flows (Playwright)
 - **Magic Links:** Use `Mailpit` API to capture emails and extract tokens programmatically
-- **Consent Banners (Klaro):** Banners block UI interactions in tests. Use a helper (e.g., `acceptAllCookies`) to inject the consent cookie *before* navigation to bypass the banner
+- **Consent Banners (vanilla-cookieconsent):** Banners block UI interactions in tests. Use a helper (e.g., `acceptAllCookies`) to inject the consent cookie *before* navigation to bypass the banner
 - **Race Conditions:** When testing high-concurrency scenarios (like multiple signups), ensuring DB triggers use transaction-level locks (`pg_advisory_xact_lock`) prevents "tuple concurrently updated" errors
 
 ## File Structure Context

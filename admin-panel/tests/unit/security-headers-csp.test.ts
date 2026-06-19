@@ -21,7 +21,7 @@ describe('CSP with nonce — production posture', () => {
     expect(csp).toMatch(new RegExp(`script-src[^;]*'nonce-${nonce}'`));
   });
 
-  it('uses strict-dynamic so nonced scripts can transitively load loaders (gtm, klaro)', () => {
+  it('uses strict-dynamic so nonced scripts can transitively load loaders (gtm, cookieconsent)', () => {
     expect(csp).toMatch(/script-src[^;]*'strict-dynamic'/);
   });
 

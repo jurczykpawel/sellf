@@ -37,7 +37,7 @@ interface CspBuildOptions {
  * The nonce authorizes inline `<script nonce="...">` tags emitted by Server
  * Components (theme detection, tracking/consent loaders) without needing
  * `'unsafe-inline'`. `'strict-dynamic'` allows nonced loader scripts to
- * pull in their own subscripts (GTM/Klaro/FB Pixel bootstrap).
+ * pull in their own subscripts (GTM/cookieconsent/FB Pixel bootstrap).
  *
  * Style is intentionally still `'unsafe-inline'` — Tailwind v4 + Next.js
  * emit dynamic critical CSS, and inline styles cannot execute JavaScript.

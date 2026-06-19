@@ -138,7 +138,7 @@ export async function setAuthSession(page: Page, email: string, password: string
 export async function loginAsAdmin(page: Page, email: string, password: string) {
   await acceptAllCookies(page);
 
-  // Hide Klaro consent banner
+  // Hide cookieconsent banner
   await page.addInitScript(() => {
     const addStyle = () => {
       if (document.head) {

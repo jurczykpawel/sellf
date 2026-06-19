@@ -178,7 +178,7 @@ test.describe('Integrations & Script Injection', () => {
     await loginAsAdmin(page);
     await page.goto('/dashboard/integrations');
     
-    // Hide Klaro on dashboard to avoid blocking clicks
+    // Hide cookieconsent banner on dashboard to avoid blocking clicks
     await page.addStyleTag({ content: '#cc-main { display: none !important; }' });
 
     await page.getByRole('button', { name: 'Analytics' }).click();
@@ -250,7 +250,7 @@ test.describe('Integrations & Script Injection', () => {
     expect(gtmActive).toBeFalsy();
 
     // 2. Accept Consent
-    // Find Klaro "I accept" button. It's usually "Accept all" or similar.
+    // Find the cookieconsent "I accept" button. It's usually "Accept all" or similar.
     const acceptBtn = page.locator('.cm-btn-success, button:has-text("Accept"), button:has-text("Zgoda")').first();
     await expect(acceptBtn).toBeVisible({ timeout: 15000 });
     await acceptBtn.click();

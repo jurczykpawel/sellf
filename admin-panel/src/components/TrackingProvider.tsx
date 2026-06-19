@@ -323,7 +323,7 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
         // <body>, so React's reconciler and the library never fight over the
         // same DOM children.
         root: ccRoot,
-        // Distinct from Klaro's old `sellf_consent` cookie — a same-name host-only
+        // Distinct from the old consent lib's `sellf_consent` cookie — a same-name host-only
         // leftover would shadow this one and re-trigger the banner forever.
         cookie: { name: CONSENT_COOKIE_NAME, expiresAfterDays: 365 },
         // Explicit opt-in: GDPR requires consent BEFORE non-essential cookies.

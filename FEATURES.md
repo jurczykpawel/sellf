@@ -400,7 +400,7 @@ Sellf does not send transactional emails for subscription events. It dispatches 
   - Test event code support
 
 ### Google Consent Mode V2
-- **Klaro integration** - Consent management
+- **vanilla-cookieconsent integration** - Consent management
 - **Cookie consent** - Blocking before consent
 - **Consent logging** - `consent_logs` table
 

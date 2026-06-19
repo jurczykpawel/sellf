@@ -37,7 +37,7 @@ async function closeCookieBanner(page: any) {
 async function signInUser(page: any, email: string, password: string) {
   await acceptAllCookies(page);
 
-  // Aggressively hide Klaro via CSS to prevent click interception
+  // Aggressively hide the cookieconsent banner via CSS to prevent click interception
   await page.addInitScript(() => {
     const addStyle = () => {
       if (document.head) {

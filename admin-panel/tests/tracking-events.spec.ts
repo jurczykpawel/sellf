@@ -521,7 +521,7 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
     // When consent is required and not given, the GTM container script should be blocked.
     // Note: An inline config script (defining gtag function) may run regardless — that's OK
     // because it only sets up the function without sending data. The actual tracking is in
-    // the container script which Klaro blocks via type="text/plain" and data-name attribute.
+    // the container script which cookieconsent blocks via type="text/plain" and data-name attribute.
     const gtmScriptStatus = await page.evaluate((gtmId) => {
       const scripts = document.querySelectorAll('script');
       let containerBlocked = false;
@@ -532,7 +532,7 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
         // Inline config scripts (no data-name, no src) only define gtag() — skip them
         if (!script.src && !script.hasAttribute('data-name') && script.type !== 'text/plain') continue;
         containerFound = true;
-        // The container script should be blocked by Klaro
+        // The container script should be blocked by cookieconsent
         if (script.type === 'text/plain' || script.hasAttribute('data-name')) {
           containerBlocked = true;
         }
@@ -569,7 +569,7 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
       });
     }
 
-    // Accept all cookies via Klaro banner
+    // Accept all cookies via cookieconsent banner
     const acceptBtn = page.locator('.cm-btn-success, button:has-text("Accept"), button:has-text("Zgoda")').first();
     await expect(acceptBtn).toBeVisible({ timeout: 5000 });
     await acceptBtn.click();
@@ -577,7 +577,7 @@ test.describe('Tracking Events - Consent Mode Integration', () => {
 
     // Verify consent was updated to 'granted'
     const postConsentEvents = await getDataLayerEvents(page);
-    // Klaro fires callbacks per-service, so multiple consent updates are pushed.
+    // cookieconsent fires callbacks per-service, so multiple consent updates are pushed.
     // The LAST update has the final accumulated state with all consents granted.
     const consentUpdates = postConsentEvents.filter(
       (e: any) => Array.isArray(e) && e[0] === 'consent' && e[1] === 'update'
@@ -1071,26 +1071,26 @@ test.describe('Tracking Events - Partial Consent', () => {
 
 // ===== CONSENT LOGGING E2E =====
 //
-// GAP: Klaro's consent callback in TrackingProvider.tsx currently only updates
+// GAP: the cookieconsent callback in TrackingProvider.tsx currently only updates
 // Google Consent Mode V2 (gtag('consent', 'update', ...)). It does NOT POST
 // to /api/consent. The /api/consent endpoint and consent_logs table are ready,
 // but the client-side wiring is missing.
 //
-// TODO: To enable the full Klaro -> POST /api/consent -> consent_logs E2E flow,
-// add a fetch('/api/consent', { method: 'POST', ... }) call inside the Klaro
+// TODO: To enable the full cookieconsent -> POST /api/consent -> consent_logs E2E flow,
+// add a fetch('/api/consent', { method: 'POST', ... }) call inside the cookieconsent
 // callback in TrackingProvider.tsx (around line 124), passing:
 //   - anonymous_id: a stable anonymous identifier (e.g., from localStorage or cookie)
-//   - consents: the consent object from Klaro callback parameter
-//   - consent_version: klaroConfig.version (currently "1")
+//   - consents: the consent object from the cookieconsent callback parameter
+//   - consent_version: the cookieconsent config version (currently "1")
 //
 // Until that wiring is added, these tests exercise the API endpoint directly
-// via fetch (not through the Klaro banner UI flow).
+// via fetch (not through the cookieconsent banner UI flow).
 
 test.describe('Tracking Events - Consent Logging E2E', () => {
   const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 
   test.beforeAll(async () => {
-    // Enable cookie consent + consent logging + GTM (so Klaro banner appears)
+    // Enable cookie consent + consent logging + GTM (so cookieconsent banner appears)
     await supabaseAdmin.from('integrations_config').upsert({
       id: 1,
       gtm_container_id: TEST_GTM_ID,
@@ -1115,7 +1115,7 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
       'umami-analytics': false,
     };
 
-    // POST to /api/consent directly (tests API independently from Klaro callback)
+    // POST to /api/consent directly (tests API independently from the cookieconsent callback)
     const response = await request.post(`${BASE_URL}/api/consent`, {
       headers: { origin: BASE_URL },
       data: {
@@ -1219,7 +1219,7 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
     expect(logs![0].consents).toEqual(declinedConsents);
   });
 
-  test('Klaro banner triggers POST to /api/consent on accept', async ({ page }) => {
+  test('cookieconsent banner triggers POST to /api/consent on accept', async ({ page }) => {
     await mockStripe(page);
     await page.context().clearCookies();
 
@@ -1250,13 +1250,13 @@ test.describe('Tracking Events - Consent Logging E2E', () => {
       await page.goto(`/checkout/${tempProduct!.slug}`);
       await page.waitForLoadState('domcontentloaded');
 
-      // Accept cookies via Klaro banner
+      // Accept cookies via cookieconsent banner
       const acceptBtn = page.locator('.cm-btn-success, button:has-text("Accept"), button:has-text("Zgoda")').first();
       await expect(acceptBtn).toBeVisible({ timeout: 5000 });
       await acceptBtn.click();
       await page.waitForTimeout(2000);
 
-      // Klaro callback should now POST to /api/consent
+      // the cookieconsent callback should now POST to /api/consent
       expect(consentApiCalled).toBe(true);
 
       // Verify payload structure

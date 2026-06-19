@@ -87,7 +87,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dmSans.variable} ${dmMono.variable} antialiased`}
       >
-        {/* Tracking Scripts (GTM, Pixel, Klaro, Custom Scripts) */}
+        {/* Tracking Scripts (GTM, Pixel, cookieconsent, Custom Scripts) */}
         <Suspense fallback={null}>
           <TrackingProvider config={config} nonce={cspNonce} />
         </Suspense>

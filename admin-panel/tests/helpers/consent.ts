@@ -81,7 +81,7 @@ export async function acceptAllCookies(page: Page) {
 /**
  * Sets specific consent preferences.
  *
- * Accepts both legacy Klaro service names (`'google-tag-manager'`,
+ * Accepts both legacy consent-lib service names (`'google-tag-manager'`,
  * `'facebook-pixel'`, `'umami-analytics'`) and short canonical names
  * (`'gtm'`, `'pixel'`, `'umami'`) so existing callers do not have to change.
  */

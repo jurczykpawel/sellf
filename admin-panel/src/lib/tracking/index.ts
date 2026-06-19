@@ -4,7 +4,7 @@
  * Provides unified tracking for GTM, Facebook Pixel, and server-side destinations
  * (GTM SS + Facebook CAPI) with automatic deduplication via shared event IDs.
  *
- * Client-side: Use trackEvent() for browser tracking (respects Klaro consent)
+ * Client-side: Use trackEvent() for browser tracking (respects cookieconsent)
  * Server-side: Use trackServerSideConversion() for GTM SS + FB CAPI
  */
 
