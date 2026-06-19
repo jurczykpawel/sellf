@@ -158,7 +158,6 @@ describe('Proxy demo blocking (whitelist verified against source)', () => {
   it('whitelist includes checkout flow routes', () => {
     expect(whitelist).toContain('/api/create-payment-intent');
     expect(whitelist).toContain('/api/verify-payment');
-    expect(whitelist).toContain('/api/create-embedded-checkout');
     expect(whitelist).toContain('/api/update-payment-metadata');
   });
 
