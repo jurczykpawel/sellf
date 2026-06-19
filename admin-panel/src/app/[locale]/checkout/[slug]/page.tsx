@@ -9,6 +9,7 @@ import { checkFeature } from '@/lib/license/resolve';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { getTemplate } from '@/lib/checkout-templates/registry';
+import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 
 interface PageProps {
   params: Promise<{ slug: string; locale: string }>;
@@ -87,6 +88,10 @@ export default async function CheckoutPage({ params }: PageProps) {
   const shopConfig = await getShopConfig();
   const taxMode: TaxMode = (shopConfig?.tax_mode as TaxMode) || 'local';
 
+  // Resolve ToS consent setting server-side
+  const checkoutConfig = await getCheckoutConfig();
+  const collectTermsOfService = checkoutConfig.collect_terms_of_service;
+
   // Dispatch to the registered template (default / tip-jar / future). Unknown
   // slugs fall back to default — verified by tests/unit/checkout-templates/registry.test.ts.
   const template = getTemplate(product.checkout_template);
@@ -98,6 +103,7 @@ export default async function CheckoutPage({ params }: PageProps) {
       expressCheckoutConfig={expressCheckoutConfig}
       licenseValid={licenseValid}
       taxMode={taxMode}
+      collectTermsOfService={collectTermsOfService}
     />
   );
 }

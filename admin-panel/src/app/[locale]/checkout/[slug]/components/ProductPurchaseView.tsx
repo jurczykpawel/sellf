@@ -16,6 +16,7 @@ interface ProductPurchaseViewProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   licenseValid?: boolean;
   taxMode?: TaxMode;
+  collectTermsOfService?: boolean;
   layoutMode?: 'standalone' | 'embedded';
   afterCheckoutSlot?: React.ReactNode;
 }
@@ -48,7 +49,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, collectTermsOfService = false, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled
@@ -63,9 +64,9 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       {showWaitlist ? (
         <WaitlistForm product={product} unavailableReason={unavailableReason} />
       ) : product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
-        <FreeProductForm product={product} />
+        <FreeProductForm product={product} collectTermsOfService={collectTermsOfService} />
       ) : (
-        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} />
+        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} collectTermsOfService={collectTermsOfService} />
       )}
 
       {/* Sellf branding — hidden when a valid license is active. In embedded
