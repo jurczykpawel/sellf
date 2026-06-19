@@ -600,6 +600,11 @@ export default function StripeTaxSettings() {
  label={t('toggles.collectTerms')}
  />
  </div>
+ {collectTerms && (
+  <p className="mt-1 text-xs text-sf-warning bg-sf-warning-soft border border-sf-warning/30 rounded-md px-3 py-2">
+   {t('toggles.tosDashboardWarning')}
+  </p>
+ )}
  </div>
 
  {/* Dashboard Links */}
