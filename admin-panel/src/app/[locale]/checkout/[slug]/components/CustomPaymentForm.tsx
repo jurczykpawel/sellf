@@ -23,6 +23,7 @@ import type {
   CustomFieldDefinition,
   CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 
 interface CustomPaymentFormProps {
   product: Product;
@@ -96,6 +97,7 @@ export default function CustomPaymentForm({
   const [emailConfirmed, setEmailConfirmed] = useState(false);
   const emailMismatch = !!(email && linkEmail && linkEmail.toLowerCase() !== email.toLowerCase());
 
+  const showTos = shouldShowTosCheckbox(collectTermsOfService, !email);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -154,7 +156,7 @@ export default function CustomPaymentForm({
       return;
     }
 
-    if (!email && !termsAccepted) {
+    if (showTos && !termsAccepted) {
       setErrorMessage(t('termsRequired', { defaultValue: 'Please accept Terms and Conditions' }));
       return;
     }
@@ -199,7 +201,7 @@ export default function CustomPaymentForm({
             bindingToken,
             productId: product.id,
             fullName: invoice.fullName,
-            termsAccepted: !email ? termsAccepted : undefined,
+            termsAccepted: showTos ? termsAccepted : undefined,
             needsInvoice: hasValidTaxId ? true : false,
             nip: invoice.nip || undefined,
             companyName: invoice.companyName || undefined,
@@ -361,8 +363,8 @@ export default function CustomPaymentForm({
         />
       </div>
 
-      {/* Terms & Conditions — guests only */}
-      {!email && (
+      {/* Terms & Conditions — guests only, and only when collect_terms_of_service is ON */}
+      {showTos && (
         <div className="py-1">
           <label className="flex items-start cursor-pointer group">
             <input

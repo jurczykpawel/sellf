@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import { formatPrice, STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import TermsCheckbox from '@/components/TermsCheckbox';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 
 /** Narrow props — only what PwywSection actually needs from useFreeAccess */
 interface PwywFreeAccessProps {
@@ -65,6 +66,8 @@ export default function PwywSection({
 }: PwywSectionProps) {
   const t = useTranslations('checkout');
   const tSecurity = useTranslations('security');
+  // PWYW free-access form is guests-only
+  const showTos = shouldShowTosCheckbox(collectTermsOfService, true);
 
   return (
     <>
@@ -166,12 +169,14 @@ export default function PwywSection({
                 placeholder={t('emailAddress')}
                 className="w-full px-4 py-3 border border-sf-border rounded-lg bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
               />
-              <TermsCheckbox
-                checked={pwyw.pwywFreeTermsAccepted}
-                onChange={pwyw.setPwywFreeTermsAccepted}
-                termsUrl="/terms"
-                privacyUrl="/privacy"
-              />
+              {showTos && (
+                <TermsCheckbox
+                  checked={pwyw.pwywFreeTermsAccepted}
+                  onChange={pwyw.setPwywFreeTermsAccepted}
+                  termsUrl="/terms"
+                  privacyUrl="/privacy"
+                />
+              )}
               <button
                 type="button"
                 onClick={pwyw.handlePwywFreeMagicLink}
@@ -179,7 +184,7 @@ export default function PwywSection({
                   pwyw.pwywFreeLoading ||
                   pwyw.captcha.isLoading ||
                   !pwyw.pwywFreeEmail ||
-                  !pwyw.pwywFreeTermsAccepted ||
+                  (showTos && !pwyw.pwywFreeTermsAccepted) ||
                   (process.env.NODE_ENV === 'production' && !pwyw.captcha.token)
                 }
                 className="w-full py-3 px-6 bg-sf-success hover:bg-sf-success/90 disabled:opacity-50 text-sf-inverse font-semibold rounded-full transition-all active:scale-[0.98]"
