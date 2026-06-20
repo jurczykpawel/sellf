@@ -74,7 +74,7 @@ describe('process_stripe_payment_completion_with_bump — registered-user single
     if (prodErr || !product) throw new Error(`insert product failed: ${prodErr?.message}`);
     productId = product.id;
 
-    // Pre-create the pending transaction (mirrors what create-embedded-checkout does
+    // Pre-create the pending transaction (mirrors what the embed checkout-session route does
     // for an authenticated buyer: session_id, pi, and user_id all populated).
     const { error: txErr } = await supabaseAdmin.from('payment_transactions').insert({
       session_id: cs, product_id: productId, customer_email: email,
