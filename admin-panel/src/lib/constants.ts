@@ -70,7 +70,7 @@ export const STRIPE_MAX_AMOUNT = 999999.99;
  * When updating, also update the webhook endpoint version in the Stripe Dashboard.
  * @see https://stripe.com/docs/upgrades
  */
-export const STRIPE_API_VERSION = '2026-04-22.dahlia' as const;
+export const STRIPE_API_VERSION = '2026-05-27.dahlia' as const;
 
 /**
  * Stripe webhook events that must be subscribed to in the Stripe Dashboard.
