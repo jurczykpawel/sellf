@@ -264,7 +264,7 @@ describe('Cat 11: Payment Flow', () => {
 
     const response = await POST(makeRequest({ productSlug: 'does-not-exist' }));
 
-    expect([403, 404]).toContain(response.status);
+    expect(response.status).toBe(403);
     expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
   });
 
@@ -302,7 +302,7 @@ describe('Cat 15: Body Size / DoS', () => {
     const response = await POST(req);
 
     // 400 (unknown key 'a'), 413 (body limit), or 0 (connection drop) — not 200
-    expect([400, 413, 500]).toContain(response.status);
+    expect([400, 413]).toContain(response.status);
     expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
   });
 
@@ -321,7 +321,7 @@ describe('Cat 15: Body Size / DoS', () => {
     });
     const response = await POST(req);
 
-    expect([400, 413, 500]).toContain(response.status);
+    expect([400, 413]).toContain(response.status);
     expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
   });
 });
