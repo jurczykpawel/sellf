@@ -42,7 +42,6 @@ const intlMiddleware = createMiddleware({
 const DEMO_MUTATION_ALLOWED = [
   '/api/create-payment-intent',
   '/api/verify-payment',
-  '/api/create-embedded-checkout',
   '/api/update-payment-metadata',
   '/api/webhooks/',
   '/api/auth/',

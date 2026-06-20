@@ -24,13 +24,15 @@ import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirec
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
+import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import ProductShowcase from './ProductShowcase';
 
 interface FreeProductFormProps {
   product: Product;
+  collectTermsOfService: boolean;
 }
 
-export default function FreeProductForm({ product }: FreeProductFormProps) {
+export default function FreeProductForm({ product, collectTermsOfService }: FreeProductFormProps) {
   const t = useTranslations('productView');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');
@@ -43,6 +45,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   const { track } = useTracking();
   const trackingFired = useRef(false);
   
+  const showTos = shouldShowTosCheckbox(collectTermsOfService, !user);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -156,7 +159,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
     }
 
     // Check if terms are accepted for non-logged in users
-    if (!termsAccepted) {
+    if (showTos && !termsAccepted) {
       setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
       captcha.reset();
       return;
@@ -238,7 +241,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
   };
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
-    if (!termsAccepted) {
+    if (showTos && !termsAccepted) {
       setMessage({ type: 'error', text: tCompliance('pleaseAcceptTerms') });
       return;
     }
@@ -309,8 +312,8 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
             />
           )}
 
-          {/* Terms checkbox — only for guests (logged-in users accepted at registration) */}
-          {!user && (
+          {/* Terms checkbox — only for guests when collect_terms_of_service is ON */}
+          {showTos && (
             <TermsCheckbox
               checked={termsAccepted}
               onChange={setTermsAccepted}
@@ -324,7 +327,7 @@ export default function FreeProductForm({ product }: FreeProductFormProps) {
             disabled={
               loading ||
               captcha.isLoading ||
-              (!user && !termsAccepted) ||
+              (showTos && !termsAccepted) ||
               (!user && (!email || (process.env.NODE_ENV === 'production' && !captcha.token)))
             }
             className="w-full bg-sf-success hover:bg-sf-success/90 disabled:bg-sf-muted/30 disabled:cursor-not-allowed text-sf-inverse font-semibold py-3 px-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sf-success focus:ring-offset-2 active:scale-[0.98]"

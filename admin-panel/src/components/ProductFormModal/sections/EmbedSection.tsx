@@ -33,6 +33,12 @@ export function EmbedSection({
         </label>
 
         {enabled && (
+          <p className="mt-2 text-xs text-sf-warning">
+            {t('embedSection.tosDashboardNote')}
+          </p>
+        )}
+
+        {enabled && (
           <div className="bg-sf-info-soft border border-sf-info/20 p-4 rounded">
             <div className="flex items-start gap-3">
               <svg className="h-5 w-5 text-sf-info flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

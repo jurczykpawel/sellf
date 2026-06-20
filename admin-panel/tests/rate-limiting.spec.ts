@@ -420,21 +420,6 @@ test.describe('Rate Limiting', () => {
       // Note: successCount may be 0 if rate limit was already exhausted from previous test runs
     });
 
-    test('create-embedded-checkout should be rate limited', async ({ request }) => {
-      const result = await makeRequestsUntilRateLimited(
-        request,
-        'post',
-        '/api/create-embedded-checkout',
-        {
-          productId: '00000000-0000-0000-0000-000000000000',
-          email: 'test@example.com',
-        }
-      );
-
-      expect(result.gotRateLimited).toBe(true);
-      expect(result.successCount).toBeGreaterThan(0);
-    });
-
     test('create-payment-intent should be rate limited', async ({ request }) => {
       const result = await makeRequestsUntilRateLimited(
         request,

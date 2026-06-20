@@ -20,6 +20,8 @@ export interface CheckoutTemplateProps {
   expressCheckoutConfig: ExpressCheckoutConfig;
   licenseValid: boolean;
   taxMode: TaxMode;
+  /** Single ToS setting (collect_terms_of_service), resolved server-side. */
+  collectTermsOfService: boolean;
 }
 
 export interface CheckoutTemplate {

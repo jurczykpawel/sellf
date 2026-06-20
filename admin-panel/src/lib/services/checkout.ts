@@ -19,6 +19,7 @@ import { normalizeBumpIds } from '@/lib/validations/product';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
+import { applyTosConsent } from '@/lib/stripe/tos-consent';
 
 
 // Remove the local ProductForCheckout interface since we now use ValidatedProduct
@@ -349,12 +350,9 @@ export class CheckoutService {
         sessionConfig.customer_email = options.email;
       }
 
-      // Add terms of service collection if enabled (resolved via DB > env > default)
-      if (checkoutConfig.collect_terms_of_service) {
-        sessionConfig.consent_collection = {
-          terms_of_service: 'required',
-        };
-      }
+      // ToS consent: single rule in applyTosConsent (set only for Stripe-rendered
+      // sessions; Elements collects consent via Sellf's own TermsCheckbox).
+      applyTosConsent(sessionConfig, checkoutConfig);
 
       const session = await this.stripe.checkout.sessions.create(sessionConfig);
 

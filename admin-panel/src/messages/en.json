@@ -1370,7 +1370,8 @@
           "toggleLabel": "Allow embedding this product's checkout on a third-party page",
           "toggleHelp": "When ON you can generate a 2-line snippet from the product menu (action “Generate embed checkout snippet”).",
           "nextStepTitle": "Next step",
-          "nextStepBody": "After saving the product, open the dots menu on the product row and pick “Generate embed checkout snippet”."
+          "nextStepBody": "After saving the product, open the dots menu on the product row and pick “Generate embed checkout snippet”.",
+          "tosDashboardNote": "Embedded carts require a Terms of Service URL in your Stripe Dashboard → Public details. Without it, embedded checkout will fail (Stripe rejects the consent). The storefront is unaffected."
         },
         "contentDelivery": "Content Delivery",
         "contentDeliveryType": "Content Delivery Type",
@@ -2591,7 +2592,8 @@
         "expiresHoursDescription": "How many hours a checkout session remains valid (1–168).",
         "expiresHoursSuffix": "hours",
         "collectTerms": "Terms of Service Consent",
-        "collectTermsDescription": "Require customers to accept Terms of Service during checkout."
+        "collectTermsDescription": "Require customers to accept Terms of Service during checkout.",
+        "tosDashboardWarning": "Embedded carts require a Terms of Service URL in your Stripe Dashboard → Public details. Without it, embedded checkout will fail (Stripe rejects the consent). The storefront is unaffected."
       },
       "saveSuccess": "Tax settings saved",
       "saveError": "Failed to save tax settings",

@@ -84,7 +84,6 @@ const PUBLIC_ROUTES = new Set([
   'waitlist/signup/route.ts',
   'coupons/auto-apply/route.ts',
   'coupons/verify/route.ts',
-  'create-embedded-checkout/route.ts',
   'embed/checkout-session/route.ts',
   'embed/free-access/route.ts',
   'create-payment-intent/route.ts',

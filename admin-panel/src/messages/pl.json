@@ -1385,7 +1385,8 @@
           "toggleLabel": "Pozwól osadzić koszyk tego produktu na cudzej stronie",
           "toggleHelp": "Po włączeniu wygenerujesz 2-linijkowy snippet w menu produktu (akcja „Generuj kod osadzania koszyka”).",
           "nextStepTitle": "Następny krok",
-          "nextStepBody": "Po zapisaniu produktu otwórz menu kropek przy produkcie i wybierz „Generuj kod osadzania koszyka”."
+          "nextStepBody": "Po zapisaniu produktu otwórz menu kropek przy produkcie i wybierz „Generuj kod osadzania koszyka”.",
+          "tosDashboardNote": "Koszyki osadzane (embed) wymagają adresu URL Regulaminu w Stripe Dashboard → Dane publiczne. Bez tego osadzony checkout nie zadziała (Stripe odrzuca zgodę). Sklepu to nie dotyczy."
         },
         "contentDelivery": "Dostarczanie treści",
         "contentDeliveryType": "Typ dostarczania treści",
@@ -2606,7 +2607,8 @@
         "expiresHoursDescription": "Ile godzin sesja checkout pozostaje aktywna (1–168).",
         "expiresHoursSuffix": "godz.",
         "collectTerms": "Zgoda na regulamin",
-        "collectTermsDescription": "Wymagaj od klientów akceptacji regulaminu podczas checkout."
+        "collectTermsDescription": "Wymagaj od klientów akceptacji regulaminu podczas checkout.",
+        "tosDashboardWarning": "Koszyki osadzane (embed) wymagają adresu URL Regulaminu w Stripe Dashboard → Dane publiczne. Bez tego osadzony checkout nie zadziała (Stripe odrzuca zgodę). Sklepu to nie dotyczy."
       },
       "saveSuccess": "Ustawienia podatkowe zapisane",
       "saveError": "Nie udało się zapisać ustawień podatkowych",
