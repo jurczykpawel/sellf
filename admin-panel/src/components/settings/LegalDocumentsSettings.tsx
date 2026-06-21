@@ -577,6 +577,15 @@ export default function LegalDocumentsSettings() {
           </button>
         </div>
 
+        {/* Missing contact e-mail notice — the email field is in Shop Settings, not here */}
+        {highlightMissing.includes('email') && (
+          <div className="mb-4 p-4 border-2 border-red-400/60 bg-red-50 dark:bg-red-900/20">
+            <p className="text-sm font-medium text-red-800 dark:text-red-300">
+              {t('missingEmailNotice')}
+            </p>
+          </div>
+        )}
+
         {/* Show resulting URLs after successful generation */}
         {generatedUrls && (
           <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-400/40">

@@ -81,9 +81,39 @@ export interface ShopConfig {
 // In non-production the cache is disabled so direct DB writes (e.g. E2E test
 // fixtures) take effect immediately without needing to round-trip through the
 // server action that calls revalidateTag.
+// Explicit column list for anon (public) reads of shop_config.
+// Must match the column-level GRANT in migration 20260621000001_restrict_shop_config_anon_pii.sql.
+// Seller PII columns (nip, regon, krs, address, company_*, contact_email, dpo_*,
+// is_vat_exempt, is_micro_enterprise, has_dpo, complaints_email, legal_form) are excluded.
+const SHOP_CONFIG_PUBLIC_COLUMNS = [
+  'id',
+  'shop_name',
+  'default_currency',
+  'tax_rate',
+  'tax_mode',
+  'stripe_tax_rate_cache',
+  'logo_url',
+  'font_family',
+  'checkout_theme',
+  'automatic_tax_enabled',
+  'tax_id_collection_enabled',
+  'checkout_billing_address',
+  'checkout_expires_hours',
+  'checkout_collect_terms',
+  'terms_of_service_url',
+  'privacy_policy_url',
+  'omnibus_enabled',
+  'custom_settings',
+  'created_at',
+  'updated_at',
+].join(',')
+
 const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {
   const supabase = createPublicClient()
-  const { data, error } = await supabase.from('shop_config').select('*').maybeSingle()
+  const { data, error } = await supabase
+    .from('shop_config')
+    .select(SHOP_CONFIG_PUBLIC_COLUMNS)
+    .maybeSingle()
   if (error) {
     console.error('Error fetching shop config:', error)
     return null

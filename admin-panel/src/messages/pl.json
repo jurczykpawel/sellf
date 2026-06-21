@@ -2755,7 +2755,8 @@
       "missingFieldStreet": "ulica",
       "missingFieldBuildingNo": "numer budynku",
       "missingFieldCity": "miasto",
-      "missingFieldPostal": "kod pocztowy"
+      "missingFieldPostal": "kod pocztowy",
+      "missingEmailNotice": "E-mail kontaktowy jest wymagany, ale ustawia się go w Ustawieniach sklepu (zakładka Ogólne), nie tutaj. Przejdź do Ustawienia → Ogólne i uzupełnij e-mail kontaktowy, a następnie spróbuj ponownie."
     },
     "license": {
       "title": "Licencja Sellf",

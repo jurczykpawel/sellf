@@ -2740,7 +2740,8 @@
       "missingFieldStreet": "street",
       "missingFieldBuildingNo": "building no.",
       "missingFieldCity": "city",
-      "missingFieldPostal": "postal code"
+      "missingFieldPostal": "postal code",
+      "missingEmailNotice": "Contact e-mail is required but it is set in Shop Settings (General tab), not here. Please go to Settings → General and fill in your contact e-mail, then try again."
     },
     "license": {
       "title": "Sellf License",

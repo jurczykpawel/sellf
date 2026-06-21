@@ -78,6 +78,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'config_unavailable' }, { status: 500 });
     }
 
+    if (productsResult.error) {
+      console.error('[legal/generate] Failed to load products:', productsResult.error);
+      return NextResponse.json({ ok: false, error: 'products_unavailable' }, { status: 502 });
+    }
+
     const shopConfig = shopConfigResult.data as SellerShopConfig & { id: string };
     const integrations: SellerIntegrations = integrationsResult.data ?? {
       gtm_container_id: null,
