@@ -83,7 +83,7 @@ export interface ShopConfig {
 // fixtures) take effect immediately without needing to round-trip through the
 // server action that calls revalidateTag.
 // Explicit column list for anon (public) reads of shop_config.
-// Must match the column-level GRANT in migration 20260621000001_restrict_shop_config_anon_pii.sql.
+// Must match the column-level GRANT in migration 20260621000000_legal_document_generation.sql.
 // contact_email is included — it is the shop's intentionally-public contact address,
 // already rendered to anonymous visitors on the public "Coming Soon" page.
 // Seller PII columns (nip, regon, krs, address, company_*, dpo_*,
