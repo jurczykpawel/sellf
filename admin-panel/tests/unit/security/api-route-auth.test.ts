@@ -58,6 +58,7 @@ function findRoutes(dir: string, base = dir): Array<{ rel: string; source: strin
 const ADMIN_ROUTE_PREFIXES = [
   'admin/',
   'v1/',
+  'legal/',   // legal document generation — admin-only
 ];
 
 /**
