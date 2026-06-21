@@ -277,8 +277,21 @@ export default function LegalDocumentsSettings() {
     Boolean(config?.terms_of_service_url) ||
     Boolean(config?.privacy_policy_url);
 
+  const isPolishInstallation = config?.country === 'PL';
+
   return (
     <div className="space-y-6">
+      {/* Poland-only gate — show notice when country is not PL */}
+      {!isPolishInstallation && (
+        <div className="bg-sf-base border-2 border-sf-border-medium p-6">
+          <p className="text-sm text-sf-body">
+            {t('notPolishInstallation')}
+          </p>
+        </div>
+      )}
+
+      {isPolishInstallation && (
+      <>
       {/* ===== SECTION 1: Company data for document generation ===== */}
       <div className="bg-sf-base border-2 border-sf-border-medium p-6">
         <h2 className="text-xl font-semibold text-sf-heading mb-2">
@@ -619,6 +632,8 @@ export default function LegalDocumentsSettings() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* ===== SECTION 3: Manual URL overrides (existing) ===== */}
       <div className="bg-sf-base border-2 border-sf-border-medium p-6">

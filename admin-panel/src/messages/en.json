@@ -2744,7 +2744,8 @@
       "missingFieldBuildingNo": "building no.",
       "missingFieldCity": "city",
       "missingFieldPostal": "postal code",
-      "missingEmailNotice": "Contact e-mail is required but it is set in Shop Settings (General tab), not here. Please go to Settings → General and fill in your contact e-mail, then try again."
+      "missingEmailNotice": "Contact e-mail is required but it is set in Shop Settings (General tab), not here. Please go to Settings → General and fill in your contact e-mail, then try again.",
+      "notPolishInstallation": "Legal document generation is available only for Polish installations — set the shop country to Poland in the shop settings (General tab)."
     },
     "license": {
       "title": "Sellf License",
