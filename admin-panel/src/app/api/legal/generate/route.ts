@@ -26,6 +26,8 @@ import type { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
+import { checkRateLimit } from '@/lib/rate-limiting';
+import { isAllowedOrigin } from '@/lib/security/origin-match';
 import { deriveLegalConfig } from '@/lib/legal/derive-config';
 import { validateSeller } from '@/lib/legal/validate-seller';
 import { wrapHtml } from '@/lib/legal/wrap-html';
@@ -37,6 +39,24 @@ const BASE = process.env.LEGAL_ENGINE_URL ?? 'https://legal.sellf.app';
 
 export async function POST(request: NextRequest) {
   try {
+    // 0) Rate limiting — 10 requests per 5 minutes (admin-only endpoint, heavy operation)
+    const rateLimitOk = await checkRateLimit('legal_generate', 10, 5);
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Too many requests. Please try again later.',
+          code: 'RATE_LIMIT_EXCEEDED',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': '300', // 5 minutes
+          },
+        },
+      );
+    }
+
     // 1) Admin gate — throws 'Unauthorized' or 'Forbidden' on failure
     const supabase = await createClient();
     await requireAdminApi(supabase);
@@ -129,6 +149,7 @@ export async function POST(request: NextRequest) {
       console.error('[legal/generate] Failed to update shop_config URLs:', updateError);
       // Docs are published but URLs not saved — log and still return success with URLs
       // so caller can manually set them if needed.
+      return NextResponse.json({ ok: true, termsUrl, privacyUrl, warning: 'url_save_failed' });
     }
 
     return NextResponse.json({ ok: true, termsUrl, privacyUrl });
@@ -142,4 +163,30 @@ export async function POST(request: NextRequest) {
     console.error('[legal/generate] Unexpected error:', error);
     return NextResponse.json({ ok: false, error: 'internal_error' }, { status: 500 });
   }
+}
+
+/**
+ * Handle OPTIONS request for CORS preflight
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const siteUrl = process.env.SITE_URL;
+
+  if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
+    return new NextResponse(null, {
+      status: 403,
+      headers: { Vary: 'Origin' },
+    });
+  }
+
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': new URL(siteUrl).origin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+      Vary: 'Origin',
+    },
+  });
 }

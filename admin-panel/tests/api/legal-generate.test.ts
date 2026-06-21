@@ -3,7 +3,7 @@
  *
  * Unit-mocked tests for the legal document generation route.
  * Mocks: @/lib/legal/client, @/lib/legal/storage, @/lib/supabase/server,
- *        @/lib/supabase/admin, @/lib/rate-limiting
+ *        @/lib/supabase/admin, @/lib/rate-limiting, @/lib/security/origin-match
  *
  * Run: cd admin-panel && bunx vitest run --config vitest.config.api.ts tests/api/legal-generate.test.ts
  */
@@ -46,17 +46,23 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }));
 
-// Rate limiting always passes by default
+// Rate limiting always passes by default; individual tests can override
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: vi.fn().mockResolvedValue(true),
+}));
+
+// CORS origin-match — always allow by default
+vi.mock('@/lib/security/origin-match', () => ({
+  isAllowedOrigin: vi.fn().mockReturnValue(true),
 }));
 
 // Import mocks for assertions
 import { renderDocument } from '@/lib/legal/client';
 import { publishSnapshot } from '@/lib/legal/storage';
+import { checkRateLimit } from '@/lib/rate-limiting';
 
 // Import route AFTER mocks are declared
-const { POST } = await import('@/app/api/legal/generate/route');
+const { POST, OPTIONS } = await import('@/app/api/legal/generate/route');
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -161,7 +167,7 @@ function setupAuth(isAdmin: boolean) {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({ data: { user_id: fakeUserId }, error: null }),
+          single: vi.fn().mockResolvedValue({ data: { id: 'admin-row-id' }, error: null }),
         };
       }
       return mockAdminFrom(table);
@@ -196,6 +202,8 @@ function makeRequest(opts: { isAdmin?: boolean } = {}): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Re-establish default implementations after clearAllMocks wipes them
+  (checkRateLimit as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 });
 
 describe('POST /api/legal/generate', () => {
@@ -287,7 +295,43 @@ describe('POST /api/legal/generate', () => {
   describe('storage failure → no URLs changed', () => {
     it('returns 502 and does not update shop_config when publishSnapshot throws', async () => {
       setupAuth(true);
-      setupAdminMocks();
+
+      // Capture the update spy so we can assert it was never called
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+      mockAdminFrom.mockImplementation((table: string) => {
+        if (table === 'shop_config') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: makeShopConfig(), error: null }),
+            update: mockUpdate,
+            eq: mockEq,
+          };
+        }
+        if (table === 'integrations_config') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { gtm_container_id: null, facebook_pixel_id: null, google_ads_conversion_id: null },
+              error: null,
+            }),
+          };
+        }
+        if (table === 'products') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            then: (resolve: (val: { data: unknown[]; error: null }) => void) =>
+              resolve({ data: [], error: null }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnThis(),
+          update: mockUpdate,
+          eq: mockEq,
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      });
 
       (renderDocument as ReturnType<typeof vi.fn>)
         .mockResolvedValue({ ok: true, html: '<p>doc</p>' });
@@ -301,6 +345,89 @@ describe('POST /api/legal/generate', () => {
       expect(res.status).toBe(502);
       expect(json.ok).toBe(false);
       expect(json.error).toBe('storage_failed');
+
+      // Atomicity guard: shop_config.update() must NEVER be called on storage failure
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('rate limiting', () => {
+    it('returns 429 when rate limit is exceeded', async () => {
+      // Override the default (passes) to deny
+      (checkRateLimit as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+
+      const res = await POST(makeRequest());
+      const json = await res.json();
+
+      expect(res.status).toBe(429);
+      expect(json.ok).toBe(false);
+      expect(json.code).toBe('RATE_LIMIT_EXCEEDED');
+      expect(res.headers.get('Retry-After')).toBe('300');
+    });
+
+    it('does not check admin or call renderDocument when rate limited', async () => {
+      (checkRateLimit as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+
+      await POST(makeRequest());
+
+      expect(mockGetUser).not.toHaveBeenCalled();
+      expect(renderDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('url_save_failed warning', () => {
+    it('returns ok:true with warning when shop_config update fails after publish', async () => {
+      setupAuth(true);
+
+      // Override admin mocks so that shop_config.update().eq() returns an error
+      mockAdminFrom.mockImplementation((table: string) => {
+        if (table === 'shop_config') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: makeShopConfig(), error: null }),
+            update: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB write failed' } }),
+          };
+        }
+        if (table === 'integrations_config') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { gtm_container_id: null, facebook_pixel_id: null, google_ads_conversion_id: null },
+              error: null,
+            }),
+          };
+        }
+        if (table === 'products') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            then: (resolve: (val: { data: unknown[]; error: null }) => void) =>
+              resolve({ data: [], error: null }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnThis(),
+          update: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      });
+
+      (renderDocument as ReturnType<typeof vi.fn>)
+        .mockResolvedValue({ ok: true, html: '<h1>OK</h1>' });
+
+      (publishSnapshot as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce('https://s/terms.html')
+        .mockResolvedValueOnce('https://s/privacy.html');
+
+      const res = await POST(makeRequest());
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.ok).toBe(true);
+      expect(json.termsUrl).toBe('https://s/terms.html');
+      expect(json.privacyUrl).toBe('https://s/privacy.html');
+      expect(json.warning).toBe('url_save_failed');
     });
   });
 

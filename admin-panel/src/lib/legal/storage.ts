@@ -32,9 +32,12 @@ export async function publishSnapshot(
   const { data: existing } = await supabase.storage.from(BUCKET).download(currentPath);
   if (existing) {
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-    await supabase.storage
+    const { error: archiveErr } = await supabase.storage
       .from(BUCKET)
       .upload(`${shopId}/${docType}/archive/${ts}.html`, existing, { contentType: 'text/html' });
+    if (archiveErr) {
+      console.warn('[publishSnapshot] archive failed:', archiveErr);
+    }
   }
 
   // 2) Overwrite the current document
