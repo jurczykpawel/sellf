@@ -43,6 +43,24 @@ export interface ShopConfig {
   terms_of_service_url?: string | null
   privacy_policy_url?: string | null
 
+  // Legal company data (for document generation)
+  legal_form?: 'jdg' | 'spzoo' | 'fundacja' | 'osoba_fizyczna' | null
+  company_legal_name?: string | null
+  nip?: string | null
+  regon?: string | null
+  krs?: string | null
+  company_street?: string | null
+  company_building_no?: string | null
+  company_flat_no?: string | null
+  company_city?: string | null
+  company_postal?: string | null
+  company_phone?: string | null
+  complaints_email?: string | null
+  is_vat_exempt?: boolean
+  is_micro_enterprise?: boolean
+  has_dpo?: boolean
+  dpo_contact?: string | null
+
   custom_settings: Record<string, any>
   created_at: string
   updated_at: string
