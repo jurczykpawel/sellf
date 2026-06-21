@@ -1,5 +1,25 @@
 import { BASE_FLAGS, type DeriveInput, type LegalCompany, type LegalFlags } from './types';
 
+/**
+ * Strips protocol, port, and path from a URL-like string, returning bare hostname.
+ * Handles: "http://localhost:3777" → "localhost"
+ *          "https://shop.pl" → "shop.pl"
+ *          "shop.pl" → "shop.pl"
+ *          "shop.pl/path" → "shop.pl"
+ */
+export function normalizeWebsiteDomain(raw: string): string {
+  if (!raw) return '';
+  try {
+    if (raw.includes('://')) {
+      return new URL(raw).hostname;
+    }
+    // No protocol — treat as host[/path], strip path and port
+    return raw.split('/')[0].split(':')[0];
+  } catch {
+    return raw;
+  }
+}
+
 function periodFromInterval(i: string | null): LegalFlags['subscriptionPeriod'] {
   if (i === 'year') return 'yearly';
   if (i === 'month') return 'monthly';

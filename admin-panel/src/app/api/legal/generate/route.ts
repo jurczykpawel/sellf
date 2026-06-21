@@ -28,7 +28,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { isAllowedOrigin } from '@/lib/security/origin-match';
-import { deriveLegalConfig } from '@/lib/legal/derive-config';
+import { deriveLegalConfig, normalizeWebsiteDomain } from '@/lib/legal/derive-config';
 import { validateSeller } from '@/lib/legal/validate-seller';
 import { wrapHtml } from '@/lib/legal/wrap-html';
 import { renderDocument } from '@/lib/legal/client';
@@ -102,12 +102,14 @@ export async function POST(request: NextRequest) {
     const products: Array<{ product_type: string; billing_interval: string | null }> =
       productsResult.data ?? [];
 
-    // Derive website domain from env
-    const websiteDomain =
+    // Derive website domain from env — normalize to bare hostname (no protocol/port/path)
+    // so legal-engine receives e.g. "shop.pl" not "https://shop.pl" or "http://localhost:3777"
+    const websiteDomain = normalizeWebsiteDomain(
       process.env.MAIN_DOMAIN ||
       process.env.NEXT_PUBLIC_BASE_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      '';
+      '',
+    );
 
     // 3) Derive legal config from shop data
     const { company, flags } = deriveLegalConfig({ shopConfig, products, integrations, websiteDomain });

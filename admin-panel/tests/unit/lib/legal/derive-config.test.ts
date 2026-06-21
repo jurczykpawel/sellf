@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveLegalConfig } from '@/lib/legal/derive-config';
+import { deriveLegalConfig, normalizeWebsiteDomain } from '@/lib/legal/derive-config';
 
 const baseInput = {
   shopConfig: {
@@ -64,5 +64,19 @@ describe('deriveLegalConfig', () => {
     expect(flags.addComments).toBe(false);
     expect(flags.aiChatbot).toBe(false);
     expect(flags.intermediaryService).toBe(false);
+  });
+});
+
+describe('normalizeWebsiteDomain', () => {
+  it.each([
+    ['http://localhost:3777', 'localhost'],
+    ['https://shop.pl', 'shop.pl'],
+    ['shop.pl', 'shop.pl'],
+    ['shop.pl/path', 'shop.pl'],
+    ['http://shop.pl/some/path', 'shop.pl'],
+    ['https://sub.domain.com:8443/app', 'sub.domain.com'],
+    ['', ''],
+  ])('normalizes %s → %s', (input, expected) => {
+    expect(normalizeWebsiteDomain(input)).toBe(expected);
   });
 });
