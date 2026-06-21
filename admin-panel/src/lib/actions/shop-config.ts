@@ -83,7 +83,9 @@ export interface ShopConfig {
 // server action that calls revalidateTag.
 // Explicit column list for anon (public) reads of shop_config.
 // Must match the column-level GRANT in migration 20260621000001_restrict_shop_config_anon_pii.sql.
-// Seller PII columns (nip, regon, krs, address, company_*, contact_email, dpo_*,
+// contact_email is included — it is the shop's intentionally-public contact address,
+// already rendered to anonymous visitors on the public "Coming Soon" page.
+// Seller PII columns (nip, regon, krs, address, company_*, dpo_*,
 // is_vat_exempt, is_micro_enterprise, has_dpo, complaints_email, legal_form) are excluded.
 const SHOP_CONFIG_PUBLIC_COLUMNS = [
   'id',
@@ -106,6 +108,7 @@ const SHOP_CONFIG_PUBLIC_COLUMNS = [
   'custom_settings',
   'created_at',
   'updated_at',
+  'contact_email',
 ].join(',')
 
 const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {

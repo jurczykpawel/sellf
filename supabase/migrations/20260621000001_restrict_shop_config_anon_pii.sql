@@ -14,13 +14,12 @@
 --   logo_url, font_family, checkout_theme, automatic_tax_enabled,
 --   tax_id_collection_enabled, checkout_billing_address, checkout_expires_hours,
 --   checkout_collect_terms, terms_of_service_url, privacy_policy_url,
---   omnibus_enabled, custom_settings, created_at, updated_at
+--   omnibus_enabled, custom_settings, created_at, updated_at, contact_email
 --
--- Note: contact_email is deliberately excluded — it is PII. The public storefront
--- reads shop_name, default_currency, logo_url, font_family, checkout_theme,
--- tax_mode, stripe_tax_rate_cache, omnibus_enabled, terms_of_service_url,
--- privacy_policy_url (via named-column select or the getShopConfig() path which
--- is fixed below to name columns explicitly).
+-- Note: contact_email is included — it is the shop's intentionally-public
+-- contact address, already rendered to anonymous visitors on the public
+-- "Coming Soon" page (SmartLandingClient.tsx → ComingSoonEmptyState) and was
+-- anon-readable before this feature. It is NOT seller PII.
 --
 -- IMPORTANT: The application-side getShopConfig() (shop-config.ts) was using
 -- select('*') via createPublicClient(). That query must be changed to enumerate
@@ -28,7 +27,7 @@
 -- applied in the TypeScript layer alongside this migration.
 --
 -- Columns excluded from anon grant (seller PII — admin-only):
---   contact_email, legal_form, company_legal_name, nip, regon, krs,
+--   legal_form, company_legal_name, nip, regon, krs,
 --   company_street, company_building_no, company_flat_no, company_city,
 --   company_postal, company_phone, complaints_email, is_vat_exempt,
 --   is_micro_enterprise, has_dpo, dpo_contact
@@ -57,5 +56,6 @@ GRANT SELECT (
   omnibus_enabled,
   custom_settings,
   created_at,
-  updated_at
+  updated_at,
+  contact_email
 ) ON public.shop_config TO anon;
