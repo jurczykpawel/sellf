@@ -14,6 +14,7 @@ export interface ShopConfig {
   default_currency: string
   shop_name: string
   contact_email?: string | null
+  country?: string | null
   tax_rate?: number | null
 
   // Dual tax mode
@@ -109,6 +110,7 @@ const SHOP_CONFIG_PUBLIC_COLUMNS = [
   'created_at',
   'updated_at',
   'contact_email',
+  'country',
 ].join(',')
 
 const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {

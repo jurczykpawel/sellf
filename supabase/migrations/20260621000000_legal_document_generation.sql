@@ -25,6 +25,12 @@ alter table public.shop_config
   add column if not exists dpo_contact text;
 
 -- ============================================================================
+-- 1b) Shop country (ISO-3166-1 alpha-2, nullable) — gates Poland-only features
+-- ============================================================================
+alter table public.shop_config
+  add column if not exists country text;
+
+-- ============================================================================
 -- 2) Restrict anon SELECT to public-safe columns (seller PII = admin-only)
 -- ============================================================================
 -- shop_config already had a blanket GRANT SELECT ... TO anon (20250103000000_features.sql)

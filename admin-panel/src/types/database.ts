@@ -2020,6 +2020,7 @@ export type Database = {
           company_street: string | null
           complaints_email: string | null
           contact_email: string | null
+          country: string | null
           created_at: string
           custom_settings: Json | null
           default_currency: string
@@ -2059,6 +2060,7 @@ export type Database = {
           company_street?: string | null
           complaints_email?: string | null
           contact_email?: string | null
+          country?: string | null
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
@@ -2098,6 +2100,7 @@ export type Database = {
           company_street?: string | null
           complaints_email?: string | null
           contact_email?: string | null
+          country?: string | null
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
