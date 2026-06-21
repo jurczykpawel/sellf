@@ -31,7 +31,7 @@ export async function publishSnapshot(
   // 1) Archive the current version if it exists
   const { data: existing } = await supabase.storage.from(BUCKET).download(currentPath);
   if (existing) {
-    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const { error: archiveErr } = await supabase.storage
       .from(BUCKET)
       .upload(`${shopId}/${docType}/archive/${ts}.html`, existing, { contentType: 'text/html' });
