@@ -43,6 +43,7 @@ export const BASE_FLAGS: LegalFlags = {
 };
 
 export interface SellerShopConfig {
+  country?: string | null;
   shop_name: string | null; company_legal_name: string | null;
   legal_form: LegalForm | null; contact_email: string | null; complaints_email: string | null;
   nip: string | null; regon: string | null; krs: string | null;

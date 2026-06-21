@@ -84,6 +84,16 @@ export async function POST(request: NextRequest) {
     }
 
     const shopConfig = shopConfigResult.data as SellerShopConfig & { id: string };
+
+    // Poland-only gate — legal documents are Polish-law only.
+    // Enforce BEFORE deriving/rendering to avoid unnecessary work.
+    if (shopConfig.country !== 'PL') {
+      return NextResponse.json(
+        { ok: false, error: 'not_polish_installation' },
+        { status: 403 },
+      );
+    }
+
     const integrations: SellerIntegrations = integrationsResult.data ?? {
       gtm_container_id: null,
       facebook_pixel_id: null,

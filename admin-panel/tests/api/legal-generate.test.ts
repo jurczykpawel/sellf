@@ -74,6 +74,7 @@ const { POST, OPTIONS } = await import('@/app/api/legal/generate/route');
 function makeShopConfig(overrides: Record<string, unknown> = {}) {
   return {
     id: 'shop-uuid-1',
+    country: 'PL',
     shop_name: 'Test Shop',
     company_legal_name: 'Test Sp. z o.o.',
     legal_form: 'spzoo',
@@ -458,6 +459,59 @@ describe('POST /api/legal/generate', () => {
       expect(firstCall[2]).toBe('terms');
       const secondCall = (publishSnapshot as ReturnType<typeof vi.fn>).mock.calls[1] as unknown[];
       expect(secondCall[2]).toBe('privacy');
+    });
+  });
+
+  describe('Poland-only gate', () => {
+    it('returns 403 with not_polish_installation when country is not PL', async () => {
+      setupAuth(true);
+      setupAdminMocks({ country: 'DE' });
+
+      const res = await POST(makeRequest());
+      const json = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(json.ok).toBe(false);
+      expect(json.error).toBe('not_polish_installation');
+    });
+
+    it('does not call renderDocument or publishSnapshot when country gate fails', async () => {
+      setupAuth(true);
+      setupAdminMocks({ country: 'US' });
+
+      await POST(makeRequest());
+
+      expect(renderDocument).not.toHaveBeenCalled();
+      expect(publishSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 when country is null (not set)', async () => {
+      setupAuth(true);
+      setupAdminMocks({ country: null });
+
+      const res = await POST(makeRequest());
+      const json = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(json.ok).toBe(false);
+      expect(json.error).toBe('not_polish_installation');
+    });
+
+    it('proceeds normally when country is PL', async () => {
+      setupAuth(true);
+      setupAdminMocks({ country: 'PL' });
+
+      (renderDocument as ReturnType<typeof vi.fn>)
+        .mockResolvedValue({ ok: true, html: '<h1>Generated</h1>' });
+      (publishSnapshot as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce('https://s/terms.html')
+        .mockResolvedValueOnce('https://s/privacy.html');
+
+      const res = await POST(makeRequest());
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.ok).toBe(true);
     });
   });
 });
