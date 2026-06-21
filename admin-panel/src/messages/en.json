@@ -2472,7 +2472,10 @@
       "saving": "Saving...",
       "saveSuccess": "Settings saved successfully",
       "saveError": "Failed to save settings",
-      "defaultCurrencyHelp": "This currency will be used for revenue goals and as the default display currency for all admins."
+      "defaultCurrencyHelp": "This currency will be used for revenue goals and as the default display currency for all admins.",
+      "country": "Shop Country",
+      "countryPlaceholder": "Select country",
+      "countryHelp": "Sets the legal jurisdiction. Some features (e.g. legal document generation) are only available for Polish installations."
     },
     "omnibus": {
       "title": "EU Omnibus Directive",

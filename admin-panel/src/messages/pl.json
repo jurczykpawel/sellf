@@ -2487,7 +2487,10 @@
       "saving": "Zapisywanie...",
       "saveSuccess": "Ustawienia zapisane pomyślnie",
       "saveError": "Nie udało się zapisać ustawień",
-      "defaultCurrencyHelp": "Ta waluta będzie używana do celów przychodów i jako domyślna waluta wyświetlania dla wszystkich adminów."
+      "defaultCurrencyHelp": "Ta waluta będzie używana do celów przychodów i jako domyślna waluta wyświetlania dla wszystkich adminów.",
+      "country": "Kraj sklepu",
+      "countryPlaceholder": "Wybierz kraj",
+      "countryHelp": "Ustawia jurysdykcję prawną. Niektóre funkcje (np. generowanie dokumentów prawnych) są dostępne tylko dla instalacji w Polsce."
     },
     "omnibus": {
       "title": "Dyrektywa Omnibus EU",
