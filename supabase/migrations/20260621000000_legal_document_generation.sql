@@ -139,13 +139,11 @@ ALTER TABLE public.products
   ADD COLUMN vat_exempt      boolean NOT NULL DEFAULT false,
   ADD COLUMN vat_exempt_note text;
 
-COMMENT ON COLUMN public.products.vat_exempt IS 'Product sold VAT-exempt ("zwolniony / zw."), distinct from a 0% rate. Carried into the order tax snapshot.';
+COMMENT ON COLUMN public.products.vat_exempt IS 'Product sold VAT-exempt ("zwolniony / zw."), distinct from a 0% rate. Carried into the order tax snapshot. Default for new products inherits shop_config.is_vat_exempt.';
 
--- shop_config: default exempt status for new products
-ALTER TABLE public.shop_config
-  ADD COLUMN default_vat_exempt boolean;
-
-COMMENT ON COLUMN public.shop_config.default_vat_exempt IS 'Default vat_exempt for newly created products (admin-only; not exposed to anon).';
+-- NOTE: the shop-level default for a new product's vat_exempt reuses the existing
+-- shop_config.is_vat_exempt (company VAT-exempt status, from the legal-docs feature) —
+-- no separate default_vat_exempt column (DRY).
 
 -- Grants: products.vat_exempt/note must be readable by checkout (like vat_rate).
 -- Column-level grant: harmless if products already has table-level SELECT to these

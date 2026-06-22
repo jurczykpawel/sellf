@@ -2060,7 +2060,6 @@ export type Database = {
           created_at: string
           custom_settings: Json | null
           default_currency: string
-          default_vat_exempt: boolean | null
           dpo_contact: string | null
           font_family: string | null
           has_dpo: boolean
@@ -2101,7 +2100,6 @@ export type Database = {
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
-          default_vat_exempt?: boolean | null
           dpo_contact?: string | null
           font_family?: string | null
           has_dpo?: boolean
@@ -2142,7 +2140,6 @@ export type Database = {
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
-          default_vat_exempt?: boolean | null
           dpo_contact?: string | null
           font_family?: string | null
           has_dpo?: boolean

@@ -145,3 +145,27 @@ describe('features validation', () => {
     });
   });
 });
+
+describe('vat_exempt validation', () => {
+  it('accepts vat_exempt true/false on create', () => {
+    expect(validateCreateProduct({ ...VALID_BASE, vat_exempt: true }).isValid).toBe(true);
+    expect(validateCreateProduct({ ...VALID_BASE, vat_exempt: false }).isValid).toBe(true);
+  });
+
+  it('accepts a vat_exempt_note within 500 chars', () => {
+    const result = validateCreateProduct({ ...VALID_BASE, vat_exempt: true, vat_exempt_note: 'zw. z VAT — art. 113 ust. 1' });
+    expect(result.isValid).toBe(true);
+  });
+
+  it('rejects a vat_exempt_note longer than 500 chars (create)', () => {
+    const result = validateCreateProduct({ ...VALID_BASE, vat_exempt_note: 'x'.repeat(501) });
+    expect(result.isValid).toBe(false);
+    expect(result.errors.some((e) => e.includes('vat_exempt_note'))).toBe(true);
+  });
+
+  it('rejects a vat_exempt_note longer than 500 chars (update)', () => {
+    const result = validateUpdateProduct({ vat_exempt_note: 'y'.repeat(501) });
+    expect(result.isValid).toBe(false);
+    expect(result.errors.some((e) => e.includes('vat_exempt_note'))).toBe(true);
+  });
+});
