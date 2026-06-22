@@ -73,6 +73,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         refund_reason,
         metadata,
         custom_field_values,
+        net_total,
+        tax_total,
+        tax_snapshot_status,
         created_at,
         updated_at
       `)
@@ -125,6 +128,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         })(),
         user: userInfo,
         session_id: payment.session_id,
+        net_total: payment.net_total,
+        tax_total: payment.tax_total,
+        tax_snapshot_status: payment.tax_snapshot_status,
         refund: payment.refund_id ? {
           id: payment.refund_id,
           amount: payment.refunded_amount,
