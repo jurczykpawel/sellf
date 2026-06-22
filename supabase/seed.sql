@@ -1135,3 +1135,10 @@ UPDATE products
    SET success_redirect_url = '/checkout/funnel-premium-course',
        pass_params_to_redirect = true
  WHERE slug = 'funnel-mini-pdf';
+
+-- VAT sample (2026-06-22 vat_tax_snapshot): one product sold VAT-exempt ("zw."),
+-- distinct from a 0% rate — exercises products.vat_exempt + vat_exempt_note.
+UPDATE products
+   SET vat_exempt = true,
+       vat_exempt_note = 'zw. z VAT — art. 113 ust. 1 ustawy o VAT'
+ WHERE slug = 'vip-masterclass';

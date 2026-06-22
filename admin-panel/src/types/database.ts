@@ -789,9 +789,9 @@ export type Database = {
           email: string | null
           expires_at: string | null
           id: string
+          issuance_source: string
           issued_at: string
           kid: string
-          issuance_source: string
           license_domain: string | null
           license_key: string
           order_id: string
@@ -804,9 +804,9 @@ export type Database = {
           email?: string | null
           expires_at?: string | null
           id?: string
+          issuance_source?: string
           issued_at?: string
           kid: string
-          issuance_source?: string
           license_domain?: string | null
           license_key: string
           order_id: string
@@ -819,9 +819,9 @@ export type Database = {
           email?: string | null
           expires_at?: string | null
           id?: string
+          issuance_source?: string
           issued_at?: string
           kid?: string
-          issuance_source?: string
           license_domain?: string | null
           license_key?: string
           order_id?: string
@@ -1061,13 +1061,20 @@ export type Database = {
           id: string
           item_type: Database["public"]["Enums"]["line_item_type"]
           metadata: Json
+          net_amount: number | null
           order_bump_id: string | null
           product_id: string
           product_name: string | null
           quantity: number
+          tax_amount: number | null
+          tax_behavior: string | null
+          tax_breakdown: Json
+          taxability_reason: string | null
           total_price: number
           transaction_id: string
           unit_price: number
+          vat_exempt: boolean
+          vat_rate: number | null
         }
         Insert: {
           access_duration_override?: number | null
@@ -1076,13 +1083,20 @@ export type Database = {
           id?: string
           item_type: Database["public"]["Enums"]["line_item_type"]
           metadata?: Json
+          net_amount?: number | null
           order_bump_id?: string | null
           product_id: string
           product_name?: string | null
           quantity?: number
+          tax_amount?: number | null
+          tax_behavior?: string | null
+          tax_breakdown?: Json
+          taxability_reason?: string | null
           total_price: number
           transaction_id: string
           unit_price: number
+          vat_exempt?: boolean
+          vat_rate?: number | null
         }
         Update: {
           access_duration_override?: number | null
@@ -1091,13 +1105,20 @@ export type Database = {
           id?: string
           item_type?: Database["public"]["Enums"]["line_item_type"]
           metadata?: Json
+          net_amount?: number | null
           order_bump_id?: string | null
           product_id?: string
           product_name?: string | null
           quantity?: number
+          tax_amount?: number | null
+          tax_behavior?: string | null
+          tax_breakdown?: Json
+          taxability_reason?: string | null
           total_price?: number
           transaction_id?: string
           unit_price?: number
+          vat_exempt?: boolean
+          vat_rate?: number | null
         }
         Relationships: [
           {
@@ -1206,6 +1227,7 @@ export type Database = {
           expires_at: string | null
           id: string
           metadata: Json
+          net_total: number | null
           product_id: string
           refund_id: string | null
           refund_reason: string | null
@@ -1217,6 +1239,8 @@ export type Database = {
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
           subscription_id: string | null
+          tax_snapshot_status: string
+          tax_total: number | null
           updated_at: string
           user_id: string | null
         }
@@ -1230,6 +1254,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           metadata?: Json
+          net_total?: number | null
           product_id: string
           refund_id?: string | null
           refund_reason?: string | null
@@ -1241,6 +1266,8 @@ export type Database = {
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
+          tax_snapshot_status?: string
+          tax_total?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1254,6 +1281,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           metadata?: Json
+          net_total?: number | null
           product_id?: string
           refund_id?: string | null
           refund_reason?: string | null
@@ -1265,6 +1293,8 @@ export type Database = {
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
+          tax_snapshot_status?: string
+          tax_total?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1546,6 +1576,8 @@ export type Database = {
           thumbnail_url: string | null
           trial_days: number | null
           updated_at: string
+          vat_exempt: boolean
+          vat_exempt_note: string | null
           vat_rate: number | null
         }
         Insert: {
@@ -1602,6 +1634,8 @@ export type Database = {
           thumbnail_url?: string | null
           trial_days?: number | null
           updated_at?: string
+          vat_exempt?: boolean
+          vat_exempt_note?: string | null
           vat_rate?: number | null
         }
         Update: {
@@ -1658,6 +1692,8 @@ export type Database = {
           thumbnail_url?: string | null
           trial_days?: number | null
           updated_at?: string
+          vat_exempt?: boolean
+          vat_exempt_note?: string | null
           vat_rate?: number | null
         }
         Relationships: [
@@ -2024,6 +2060,7 @@ export type Database = {
           created_at: string
           custom_settings: Json | null
           default_currency: string
+          default_vat_exempt: boolean | null
           dpo_contact: string | null
           font_family: string | null
           has_dpo: boolean
@@ -2064,6 +2101,7 @@ export type Database = {
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
+          default_vat_exempt?: boolean | null
           dpo_contact?: string | null
           font_family?: string | null
           has_dpo?: boolean
@@ -2104,6 +2142,7 @@ export type Database = {
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
+          default_vat_exempt?: boolean | null
           dpo_contact?: string | null
           font_family?: string | null
           has_dpo?: boolean
@@ -2668,6 +2707,7 @@ export type Database = {
         Row: {
           attempt_count: number
           created_at: string
+          delivery_key: string | null
           duration_ms: number | null
           endpoint_id: string | null
           error_message: string | null
@@ -2684,6 +2724,7 @@ export type Database = {
         Insert: {
           attempt_count?: number
           created_at?: string
+          delivery_key?: string | null
           duration_ms?: number | null
           endpoint_id?: string | null
           error_message?: string | null
@@ -2700,6 +2741,7 @@ export type Database = {
         Update: {
           attempt_count?: number
           created_at?: string
+          delivery_key?: string | null
           duration_ms?: number | null
           endpoint_id?: string | null
           error_message?: string | null
@@ -3293,7 +3335,7 @@ export type Database = {
         }[]
       }
       seller_revoked_orders: {
-        Args: { seller: string; hash_prefix: string }
+        Args: { hash_prefix: string; seller: string }
         Returns: {
           order_hash: string
         }[]
@@ -4033,3 +4075,4 @@ export const Constants = {
     },
   },
 } as const
+
