@@ -452,6 +452,34 @@ test.describe('PWYW Free Option — Checkout UI', () => {
     await expect(captchaArea).toBeAttached();
   });
 
+  test('anonymous $0 should NOT show terms checkbox when consent collection is OFF', async ({ page }) => {
+    // Complement of the test above. This describe runs with consent ON, so flip
+    // it OFF for this case, assert a guest sees no terms checkbox, then restore ON.
+    await supabaseAdminClient
+      .from('shop_config')
+      .update({ checkout_collect_terms: false })
+      .not('id', 'is', null);
+    try {
+      await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.getByText('Wybierz kwotę')).toBeVisible({ timeout: 15000 });
+
+      const freePreset = page.locator('button').filter({ hasText: /Za darmo/i });
+      await freePreset.first().click();
+
+      const freeCard = page.locator('.bg-sf-success-soft').first();
+      await expect(freeCard).toBeVisible({ timeout: 5000 });
+
+      // collect_terms_of_service OFF → no terms checkbox even for a guest.
+      await expect(freeCard.locator('#terms-checkbox')).not.toBeVisible();
+    } finally {
+      await supabaseAdminClient
+        .from('shop_config')
+        .update({ checkout_collect_terms: true })
+        .not('id', 'is', null);
+    }
+  });
+
   test('anonymous $0 magic link button should be disabled without terms accepted', async ({ page }) => {
     await page.goto(`/pl/checkout/${pwywFreeProduct.slug}`);
     await page.waitForLoadState('domcontentloaded');
