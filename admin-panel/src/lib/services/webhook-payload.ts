@@ -12,6 +12,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { formatCustomFieldsForDisplay, type DisplayCustomField } from '@/lib/format-custom-fields';
 import type { CustomFieldDefinition } from '@/lib/validations/custom-checkout-fields';
+import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 
 type AnySupabaseClient = SupabaseClient<any, any, any>;
 
@@ -22,6 +23,14 @@ export interface ProductDetail {
   price: number;
   currency: string;
   icon: string | null;
+  // VAT snapshot for this line (present when tax was captured). Amounts in MINOR units.
+  net?: number | null;
+  tax?: number | null;
+  gross?: number | null;
+  vatRate?: number | null;
+  vatExempt?: boolean;
+  taxBehavior?: 'inclusive' | 'exclusive' | null;
+  taxabilityReason?: string | null;
 }
 
 export interface PurchaseWebhookData {
@@ -41,6 +50,9 @@ export interface PurchaseWebhookData {
     paymentIntentId: string | null | undefined;
     couponId: string | null;
     isGuest: boolean | undefined;
+    // Order-level tax totals (MINOR units), present when tax was captured.
+    netTotal?: number | null;
+    taxTotal?: number | null;
   };
   invoice?: {
     needsInvoice: boolean;
@@ -86,6 +98,31 @@ export interface BuildWebhookPayloadParams {
    * before landing in the webhook payload.
    */
   customFieldValues?: Record<string, unknown> | null;
+  /** Per-line tax snapshot captured from Stripe (added per product/bump + order totals). */
+  taxSnapshot?: OrderTaxSnapshot;
+}
+
+/**
+ * Apply a captured tax line to a product/bump detail (matched by productId).
+ * Returns the detail unchanged when no snapshot line matches.
+ */
+function applyLineTax(
+  detail: ProductDetail,
+  taxSnapshot: OrderTaxSnapshot | undefined,
+  vatExemptById: Map<string, boolean>,
+): ProductDetail {
+  const line = taxSnapshot?.lines.find((l) => l.productId === detail.id);
+  if (!line) return detail;
+  return {
+    ...detail,
+    net: line.netAmount,
+    tax: line.taxAmount,
+    gross: line.grossAmount,
+    vatRate: line.vatRate,
+    vatExempt: vatExemptById.get(detail.id) ?? false,
+    taxBehavior: line.taxBehavior,
+    taxabilityReason: line.taxabilityReason,
+  };
 }
 
 /**
@@ -100,24 +137,33 @@ export async function buildPurchaseWebhookPayload(
   const {
     supabaseClient, customerEmail, userId, productId, bumpProductIds,
     metadata, amount, currency, sessionId, paymentIntentId,
-    couponId, isGuest, source, customFieldValues,
+    couponId, isGuest, source, customFieldValues, taxSnapshot,
   } = params;
 
-  // Fetch main product details
+  // Fetch main product details (incl. vat_exempt for the tax-snapshot label)
   const { data: productDetails } = await supabaseClient
     .from('products')
-    .select('id, name, slug, price, currency, icon, custom_checkout_fields')
+    .select('id, name, slug, price, currency, icon, custom_checkout_fields, vat_exempt')
     .eq('id', productId)
     .single();
+
+  // vat_exempt per product (label authority in local tax mode) — keyed by id.
+  const vatExemptById = new Map<string, boolean>();
+  if (productDetails) vatExemptById.set(productDetails.id, productDetails.vat_exempt ?? false);
 
   // Fetch bump product details (batch)
   let bumpProductDetailsList: ProductDetail[] = [];
   if (bumpProductIds.length > 0) {
     const { data: bumps } = await supabaseClient
       .from('products')
-      .select('id, name, slug, price, currency, icon')
+      .select('id, name, slug, price, currency, icon, vat_exempt')
       .in('id', bumpProductIds);
-    if (bumps) bumpProductDetailsList = bumps as ProductDetail[];
+    if (bumps) {
+      bumpProductDetailsList = bumps.map((b) => ({
+        id: b.id, name: b.name, slug: b.slug, price: b.price, currency: b.currency, icon: b.icon,
+      }));
+      for (const b of bumps) vatExemptById.set(b.id, b.vat_exempt ?? false);
+    }
   }
 
   const webhookData: PurchaseWebhookData = {
@@ -128,30 +174,24 @@ export async function buildPurchaseWebhookPayload(
       userId,
     },
     product: productDetails
-      ? {
-          id: productDetails.id,
-          name: productDetails.name,
-          slug: productDetails.slug,
-          price: productDetails.price,
-          currency: productDetails.currency,
-          icon: productDetails.icon,
-        }
+      ? applyLineTax(
+          {
+            id: productDetails.id,
+            name: productDetails.name,
+            slug: productDetails.slug,
+            price: productDetails.price,
+            currency: productDetails.currency,
+            icon: productDetails.icon,
+          },
+          taxSnapshot,
+          vatExemptById,
+        )
       : { id: productId },
     // Backward compat: first bump as bumpProduct
     bumpProduct: bumpProductDetailsList.length > 0
-      ? {
-          id: bumpProductDetailsList[0].id,
-          name: bumpProductDetailsList[0].name,
-          slug: bumpProductDetailsList[0].slug,
-          price: bumpProductDetailsList[0].price,
-          currency: bumpProductDetailsList[0].currency,
-          icon: bumpProductDetailsList[0].icon,
-        }
+      ? applyLineTax(bumpProductDetailsList[0], taxSnapshot, vatExemptById)
       : null,
-    bumpProducts: bumpProductDetailsList.map(b => ({
-      id: b.id, name: b.name, slug: b.slug,
-      price: b.price, currency: b.currency, icon: b.icon,
-    })),
+    bumpProducts: bumpProductDetailsList.map((b) => applyLineTax(b, taxSnapshot, vatExemptById)),
     order: {
       amount,
       currency,
@@ -159,6 +199,7 @@ export async function buildPurchaseWebhookPayload(
       paymentIntentId,
       couponId,
       isGuest,
+      ...(taxSnapshot && { netTotal: taxSnapshot.netTotal, taxTotal: taxSnapshot.taxTotal }),
     },
     ...(source && { source }),
   };

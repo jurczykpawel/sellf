@@ -606,7 +606,7 @@ export async function verifyPaymentSession(
 
             // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe:
             // never blocks access granting or the purchase webhook.
-            await captureAndPersistOrderTax({
+            const taxSnapshot = await captureAndPersistOrderTax({
               stripe,
               supabase: serviceClient,
               transactionId: txCustomFields?.id,
@@ -623,6 +623,7 @@ export async function verifyPaymentSession(
               amount: session.amount_total,
               currency: session.currency,
               sessionId: session.id,
+              taxSnapshot,
               paymentIntentId: stripePaymentIntentId,
               couponId: hasCoupon && couponId ? couponId : null,
               isGuest: paymentResult?.is_guest_purchase,
@@ -888,7 +889,7 @@ export async function verifyPaymentIntent(
 
             // VAT tax snapshot — the PI's tax lives on its owning Checkout Session;
             // resolve it from the transaction's session_id. Fail-safe.
-            await captureAndPersistOrderTax({
+            const taxSnapshot = await captureAndPersistOrderTax({
               stripe,
               supabase: serviceClient,
               transactionId: txCustomFields?.id,
@@ -905,6 +906,7 @@ export async function verifyPaymentIntent(
               amount: paymentIntent.amount,
               currency: paymentIntent.currency,
               paymentIntentId: paymentIntent.id,
+              taxSnapshot,
               couponId: couponId || null,
               isGuest: paymentResult?.is_guest_purchase,
               customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import type { CustomFieldDefinition } from '@/lib/validations/custom-checkout-fields';
+import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 
 /**
  * Mocks the supabase client so we exercise the payload-build logic without DB.
@@ -127,5 +128,83 @@ describe('buildPurchaseWebhookPayload — custom fields', () => {
     expect(payload.customFields).toEqual([
       { id: 'note', label: 'Wiadomość', value: 'kept', type: 'textarea' },
     ]);
+  });
+});
+
+describe('buildPurchaseWebhookPayload — tax snapshot', () => {
+  it('emits per-line tax on product + bump and order totals', async () => {
+    const supabase = mockSupabase({
+      productRow: {
+        id: 'prod_1', name: 'Course', slug: 'course', price: 100, currency: 'PLN', icon: null,
+        custom_checkout_fields: null, vat_exempt: false,
+      },
+      bumpRows: [
+        { id: 'bump_1', name: 'Toolkit', slug: 'toolkit', price: 50, currency: 'PLN', icon: null, vat_exempt: true },
+      ],
+    });
+
+    const taxSnapshot: OrderTaxSnapshot = {
+      netTotal: 15000,
+      taxTotal: 2300,
+      currency: 'pln',
+      status: 'captured',
+      lines: [
+        { productId: 'prod_1', isBump: false, netAmount: 10000, taxAmount: 2300, grossAmount: 12300, vatRate: 23, taxBehavior: 'exclusive', taxabilityReason: 'standard_rated', breakdown: [] },
+        { productId: 'bump_1', isBump: true, netAmount: 5000, taxAmount: 0, grossAmount: 5000, vatRate: null, taxBehavior: null, taxabilityReason: null, breakdown: [] },
+      ],
+    };
+
+    const payload = await buildPurchaseWebhookPayload({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabaseClient: supabase as any,
+      customerEmail: 'b@e.com',
+      userId: null,
+      productId: 'prod_1',
+      bumpProductIds: ['bump_1'],
+      metadata: null,
+      amount: 17300,
+      currency: 'PLN',
+      paymentIntentId: 'pi_x',
+      couponId: null,
+      isGuest: true,
+      taxSnapshot,
+    });
+
+    expect(payload.product).toMatchObject({
+      id: 'prod_1', net: 10000, tax: 2300, gross: 12300, vatRate: 23,
+      vatExempt: false, taxBehavior: 'exclusive', taxabilityReason: 'standard_rated',
+    });
+    expect(payload.bumpProducts[0]).toMatchObject({
+      id: 'bump_1', net: 5000, tax: 0, vatRate: null, vatExempt: true,
+    });
+    expect(payload.order.netTotal).toBe(15000);
+    expect(payload.order.taxTotal).toBe(2300);
+  });
+
+  it('omits tax fields when no snapshot provided (backward-compatible)', async () => {
+    const supabase = mockSupabase({
+      productRow: {
+        id: 'prod_1', name: 'C', slug: 'c', price: 100, currency: 'PLN', icon: null,
+        custom_checkout_fields: null, vat_exempt: false,
+      },
+    });
+
+    const payload = await buildPurchaseWebhookPayload({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabaseClient: supabase as any,
+      customerEmail: 'b@e.com',
+      userId: null,
+      productId: 'prod_1',
+      bumpProductIds: [],
+      metadata: null,
+      amount: 10000,
+      currency: 'PLN',
+      paymentIntentId: 'pi_x',
+      couponId: null,
+      isGuest: true,
+    });
+
+    expect((payload.product as { net?: number }).net).toBeUndefined();
+    expect(payload.order.netTotal).toBeUndefined();
   });
 });

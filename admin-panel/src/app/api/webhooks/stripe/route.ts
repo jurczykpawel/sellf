@@ -229,7 +229,7 @@ async function handleCheckoutSessionCompleted(
   if (!result.already_had_access || isExplicitRepurchase) {
     // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe.
     const stripe = await getStripeServer();
-    await captureAndPersistOrderTax({
+    const taxSnapshot = await captureAndPersistOrderTax({
       stripe,
       supabase,
       transactionId: txCustomFields?.id,
@@ -249,6 +249,7 @@ async function handleCheckoutSessionCompleted(
       amount: session.amount_total,
       currency: session.currency,
       sessionId,
+      taxSnapshot,
       paymentIntentId: stripePaymentIntentId,
       couponId: hasCoupon && couponId ? couponId : null,
       isGuest: result.is_guest_purchase as boolean,
@@ -432,7 +433,7 @@ async function handlePaymentIntentSucceeded(
   if (!result.already_had_access || isExplicitRepurchase) {
     // VAT tax snapshot — resolve the PI's owning session from session_id. Fail-safe.
     const stripe = await getStripeServer();
-    await captureAndPersistOrderTax({
+    const taxSnapshot = await captureAndPersistOrderTax({
       stripe,
       supabase,
       transactionId: txCustomFields?.id,
@@ -449,6 +450,7 @@ async function handlePaymentIntentSucceeded(
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
       paymentIntentId: paymentIntent.id,
+      taxSnapshot,
       couponId: couponId || null,
       isGuest: result.is_guest_purchase as boolean,
       source: 'stripe_webhook',
