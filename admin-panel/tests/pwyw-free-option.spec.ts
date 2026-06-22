@@ -206,6 +206,15 @@ test.describe('PWYW Free Option — Checkout UI', () => {
       .single();
     if (err4) throw err4;
     freeProduct = free;
+
+    // This describe's tests verify the consent-ON path (terms checkbox required
+    // for guests — shouldShowTosCheckbox). collect_terms_of_service defaults OFF,
+    // so set it explicitly instead of depending on leaked state from other specs
+    // (e.g. stripe-tax-settings toggles it), which made these tests ordering-flaky.
+    await supabaseAdminClient
+      .from('shop_config')
+      .update({ checkout_collect_terms: true })
+      .not('id', 'is', null);
   });
 
   test.afterAll(async () => {
@@ -215,6 +224,11 @@ test.describe('PWYW Free Option — Checkout UI', () => {
         await supabaseAdminClient.from('products').delete().eq('id', p.id);
       }
     }
+    // Restore the consent default so we don't leak ON to other specs.
+    await supabaseAdminClient
+      .from('shop_config')
+      .update({ checkout_collect_terms: null })
+      .not('id', 'is', null);
   });
 
   test.beforeEach(async ({ page }) => {
