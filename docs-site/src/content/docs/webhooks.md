@@ -17,6 +17,35 @@ Every delivery carries this envelope:
 }
 ```
 
+### `purchase.completed` — VAT tax snapshot
+
+Each `product` and every `bumpProducts[]` entry, plus the `order`, carry a tax
+snapshot captured from Stripe at purchase. **All amounts are in minor units**
+(cents/grosze), matching `order.amount`:
+
+```json
+{
+  "product": {
+    "id": "…", "name": "…", "slug": "…", "price": 100, "currency": "PLN",
+    "net": 10000, "tax": 2300, "gross": 12300,
+    "vatRate": 23, "vatExempt": false,
+    "taxBehavior": "exclusive", "taxabilityReason": "standard_rated"
+  },
+  "bumpProducts": [ { "id": "…", "net": 5000, "tax": 0, "vatRate": null, "vatExempt": true } ],
+  "order": { "amount": 17300, "netTotal": 15000, "taxTotal": 2300 }
+}
+```
+
+- `vatRate` is the single applied rate, or `null` when a line has **0 or multiple**
+  tax components (Stripe Tax can split jurisdictions — the full breakdown is on
+  `/api/v1/payments` `line_items[].tax_breakdown`).
+- `vatExempt: true` marks a **"zwolniony / zw."** line — distinct from a 0% rate.
+- `taxBehavior` is `inclusive` / `exclusive`; `taxabilityReason` carries Stripe's
+  reason in `stripe_tax` mode (`reverse_charge`, `customer_exempt`, `zero_rated`, …).
+- The tax fields are present only when tax was captured. The order's
+  `tax_snapshot_status` (on `/api/v1/payments`: `none` / `captured` / `partial` /
+  `unavailable`) distinguishes "no VAT line" from "not computed".
+
 ### Headers
 
 | Header | Notes |
