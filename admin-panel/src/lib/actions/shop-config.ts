@@ -7,6 +7,7 @@ import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/c
 import { isDemoMode } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { resolveLegalDocsSource, type LegalDocsSource } from '@/lib/legal/legal-docs-source'
+import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -83,42 +84,15 @@ export interface ShopConfig {
 // In non-production the cache is disabled so direct DB writes (e.g. E2E test
 // fixtures) take effect immediately without needing to round-trip through the
 // server action that calls revalidateTag.
-// Explicit column list for anon (public) reads of shop_config.
-// Must match the column-level GRANT in migration 20260621000000_legal_document_generation.sql.
-// contact_email is included — it is the shop's intentionally-public contact address,
-// already rendered to anonymous visitors on the public "Coming Soon" page.
-// Seller PII columns (nip, regon, krs, address, company_*, dpo_*,
-// is_vat_exempt, is_micro_enterprise, has_dpo, complaints_email, legal_form) are excluded.
-const SHOP_CONFIG_PUBLIC_COLUMNS = [
-  'id',
-  'shop_name',
-  'default_currency',
-  'tax_rate',
-  'tax_mode',
-  'stripe_tax_rate_cache',
-  'logo_url',
-  'font_family',
-  'checkout_theme',
-  'automatic_tax_enabled',
-  'tax_id_collection_enabled',
-  'checkout_billing_address',
-  'checkout_expires_hours',
-  'checkout_collect_terms',
-  'terms_of_service_url',
-  'privacy_policy_url',
-  'omnibus_enabled',
-  'custom_settings',
-  'created_at',
-  'updated_at',
-  'contact_email',
-  'country',
-].join(',')
-
+// Anon (public) reads use the explicit public-safe column list from
+// shop-config-columns.ts (NOT select('*') — the column-level grant would deny it).
+// That list is shared with the storefront-anon-read security test so app + SQL
+// grant stay in sync. See SHOP_CONFIG_PUBLIC_COLUMNS_CSV import above.
 const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {
   const supabase = createPublicClient()
   const { data, error } = await supabase
     .from('shop_config')
-    .select(SHOP_CONFIG_PUBLIC_COLUMNS)
+    .select(SHOP_CONFIG_PUBLIC_COLUMNS_CSV)
     .maybeSingle()
   if (error) {
     console.error('Error fetching shop config:', error)

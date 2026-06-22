@@ -10,6 +10,8 @@
  */
 import { describe, it, expect } from 'vitest';
 
+import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns';
+
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
@@ -35,7 +37,8 @@ const STOREFRONT_ANON_READ_TABLES = [
   'product_variant_groups',
   'product_categories',
   'product_tags',
-  'shop_config',
+  // shop_config is NOT here: it uses column-level anon grants (PII is admin-only),
+  // so select=* is intentionally denied. It has dedicated tests below.
 ] as const;
 
 describe('Storefront anon read access', () => {
@@ -59,4 +62,34 @@ describe('Storefront anon read access', () => {
       ).toBeLessThan(300);
     },
   );
+
+  // shop_config uses COLUMN-LEVEL grants (seller PII — nip/regon/address/dpo — is
+  // admin-only, migration 20260621000000). So anon MUST read the public-safe
+  // columns, but must NOT be able to read PII. `select=*` is intentionally denied.
+  // We query the SAME list the app's anon read uses (shared module), so a column
+  // added to one but not GRANTed (the `country` regression) fails this test.
+  it('anon CAN read shop_config public columns (no 42501)', async () => {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/shop_config?select=${SHOP_CONFIG_PUBLIC_COLUMNS_CSV}&limit=1`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } },
+    );
+    const body = res.ok ? null : await res.text();
+    expect(
+      res.status,
+      `anon SELECT of public columns on shop_config failed with HTTP ${res.status}. ` +
+        `Body: ${body ?? '<ok>'}. The anon column-level GRANT (migration 20260621000000) ` +
+        `must stay in sync with SHOP_CONFIG_PUBLIC_COLUMNS in shop-config.ts.`,
+    ).toBeLessThan(300);
+  });
+
+  it('anon CANNOT read shop_config seller PII columns (column-level grant)', async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shop_config?select=nip&limit=1`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+    });
+    expect(
+      res.status,
+      `anon should be DENIED the PII column "nip" on shop_config, but got HTTP ${res.status}. ` +
+        `If this is 2xx, seller PII (NIP/REGON/address/DPO) is world-readable via PostgREST.`,
+    ).toBeGreaterThanOrEqual(400);
+  });
 });
