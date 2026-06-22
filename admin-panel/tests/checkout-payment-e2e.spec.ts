@@ -589,16 +589,23 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
     const fullNameInput = page.locator('input#fullName');
     await fullNameInput.fill('Express User');
 
-    // Accept terms
+    // Accept terms — only if the checkbox is shown. It's gated per-seller by
+    // shouldShowTosCheckbox (collect_terms_of_service + guest), so it may be
+    // absent (consent OFF). Mirrors the guard in the "form fields render" test.
     const termsCheckbox = page.locator('input[type="checkbox"]').first();
-    await termsCheckbox.check();
+    const hasTerms = (await termsCheckbox.count()) > 0;
+    if (hasTerms) {
+      await termsCheckbox.check();
+    }
 
     // Wait for payment form to initialize
     await page.waitForTimeout(1000);
 
     // Verify form rendered correctly with filled data
     await expect(fullNameInput).toHaveValue('Express User');
-    await expect(termsCheckbox).toBeChecked();
+    if (hasTerms) {
+      await expect(termsCheckbox).toBeChecked();
+    }
 
     // Verify the form structure is complete for submission
     // (Payment Element container depends on Stripe.js, but form fields must be present)
