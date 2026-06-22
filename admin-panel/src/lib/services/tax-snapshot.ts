@@ -14,6 +14,8 @@
  */
 
 import type Stripe from 'stripe';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, Json } from '@/types/database';
 
 /** One Stripe tax component on a line (one jurisdiction/rate). Amounts MINOR units. */
 export interface TaxComponent {
@@ -160,4 +162,105 @@ export async function captureCheckoutSessionTax(
  */
 export function buildTaxSnapshotFromInvoice(_invoice: Stripe.Invoice): OrderTaxSnapshot {
   throw new Error('buildTaxSnapshotFromInvoice: subscriptions are Phase 2');
+}
+
+/** A payment_line_items row, subset needed to match a snapshot line to it. */
+export interface LineRow {
+  id: string;
+  product_id: string | null;
+  item_type: 'main_product' | 'order_bump';
+}
+
+export interface SnapshotPair {
+  row: LineRow;
+  line: LineTaxSnapshot;
+}
+
+/**
+ * PURE: match snapshot lines (from Stripe) to the payment_line_items rows the RPC
+ * already wrote. Strategy: by product_id when every line carries it (handles bumps
+ * + reordering); else positional only when counts match exactly; else cannot match
+ * safely. `complete: false` means the caller MUST NOT write per-line values — only
+ * order-level totals + status 'partial' (never fabricate a per-line tax number).
+ */
+export function matchSnapshotLinesToRows(
+  lines: LineTaxSnapshot[],
+  rows: LineRow[],
+): { pairs: SnapshotPair[]; complete: boolean } {
+  // Strategy 1: product_id (strongest — survives bumps + reordering).
+  if (lines.length > 0 && lines.every((l) => l.productId)) {
+    const pairs: SnapshotPair[] = [];
+    const remaining = [...lines];
+    for (const row of rows) {
+      const idx = remaining.findIndex((l) => l.productId === row.product_id);
+      if (idx >= 0) pairs.push({ row, line: remaining.splice(idx, 1)[0] });
+    }
+    const complete = pairs.length === rows.length && remaining.length === 0;
+    return { pairs, complete };
+  }
+  // Strategy 2: positional, only when counts match exactly.
+  if (rows.length > 0 && rows.length === lines.length) {
+    return { pairs: rows.map((row, i) => ({ row, line: lines[i] })), complete: true };
+  }
+  // Strategy 3: cannot match safely.
+  return { pairs: [], complete: false };
+}
+
+/**
+ * Persist a captured snapshot: UPDATE the payment_line_items rows (only when the
+ * match is complete — never write partial/guessed per-line numbers) and the
+ * payment_transactions totals + status. Per-line `vat_exempt` is the product's
+ * vat_exempt snapshot at purchase (label authority in local tax mode).
+ */
+export async function persistTaxSnapshot(
+  supabase: SupabaseClient<Database>,
+  transactionId: string,
+  snapshot: OrderTaxSnapshot,
+): Promise<{ matched: number; status: TaxSnapshotStatus }> {
+  const { data: rows } = await supabase
+    .from('payment_line_items')
+    .select('id, product_id, item_type')
+    .eq('transaction_id', transactionId);
+
+  const { pairs, complete } = matchSnapshotLinesToRows(snapshot.lines, (rows ?? []) as LineRow[]);
+
+  let matched = 0;
+  if (complete) {
+    const productIds = [
+      ...new Set(pairs.map((p) => p.row.product_id).filter((id): id is string => !!id)),
+    ];
+    const exemptById = new Map<string, boolean>();
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, vat_exempt')
+        .in('id', productIds);
+      for (const p of products ?? []) exemptById.set(p.id, p.vat_exempt ?? false);
+    }
+    for (const { row, line } of pairs) {
+      await supabase
+        .from('payment_line_items')
+        .update({
+          tax_breakdown: line.breakdown as unknown as Json,
+          tax_amount: line.taxAmount,
+          net_amount: line.netAmount,
+          vat_rate: line.vatRate,
+          tax_behavior: line.taxBehavior,
+          vat_exempt: row.product_id ? exemptById.get(row.product_id) ?? false : false,
+          taxability_reason: line.taxabilityReason,
+        })
+        .eq('id', row.id);
+      matched += 1;
+    }
+  }
+
+  const status: TaxSnapshotStatus =
+    snapshot.status === 'unavailable' ? 'unavailable' : !complete ? 'partial' : snapshot.status;
+
+  await supabase
+    .from('payment_transactions')
+    .update({ net_total: snapshot.netTotal, tax_total: snapshot.taxTotal, tax_snapshot_status: status })
+    .eq('id', transactionId);
+
+  return { matched, status };
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type Stripe from 'stripe';
-import { buildTaxSnapshotFromCheckoutLines } from '@/lib/services/tax-snapshot';
+import { buildTaxSnapshotFromCheckoutLines, matchSnapshotLinesToRows } from '@/lib/services/tax-snapshot';
+import type { LineTaxSnapshot, LineRow } from '@/lib/services/tax-snapshot';
 
 /** Build a minimal Stripe.LineItem fixture for the normalizer. */
 function makeLine(opts: {
@@ -128,5 +129,59 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
     const line = makeLine({ productId: 'p1', netAmount: 10000, taxAmount: null, taxes: [] });
     const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: null, currency: 'pln' });
     expect(snap.status).toBe('unavailable');
+  });
+});
+
+describe('matchSnapshotLinesToRows', () => {
+  function snapLine(productId: string | null, isBump = false): LineTaxSnapshot {
+    return {
+      productId,
+      isBump,
+      netAmount: 100,
+      taxAmount: 23,
+      grossAmount: 123,
+      vatRate: 23,
+      taxBehavior: 'exclusive',
+      taxabilityReason: null,
+      breakdown: [],
+    };
+  }
+  function row(id: string, product_id: string | null, item_type: LineRow['item_type'] = 'main_product'): LineRow {
+    return { id, product_id, item_type };
+  }
+
+  it('matches by product_id across main + bump → complete', () => {
+    const lines = [snapLine('main'), snapLine('bump', true)];
+    const rows = [row('r1', 'main'), row('r2', 'bump', 'order_bump')];
+    const { pairs, complete } = matchSnapshotLinesToRows(lines, rows);
+    expect(complete).toBe(true);
+    expect(pairs).toHaveLength(2);
+    expect(pairs.find((p) => p.row.id === 'r1')?.line.productId).toBe('main');
+    expect(pairs.find((p) => p.row.id === 'r2')?.line.productId).toBe('bump');
+  });
+
+  it('product_id present but fewer lines than rows → incomplete (no safe per-line write)', () => {
+    const lines = [snapLine('main')];
+    const rows = [row('r1', 'main'), row('r2', 'bump', 'order_bump')];
+    const { complete } = matchSnapshotLinesToRows(lines, rows);
+    expect(complete).toBe(false);
+  });
+
+  it('no product_id metadata but equal counts → positional, complete', () => {
+    const lines = [snapLine(null), snapLine(null)];
+    const rows = [row('r1', 'main'), row('r2', 'bump', 'order_bump')];
+    const { pairs, complete } = matchSnapshotLinesToRows(lines, rows);
+    expect(complete).toBe(true);
+    expect(pairs).toHaveLength(2);
+    expect(pairs[0].row.id).toBe('r1');
+    expect(pairs[1].row.id).toBe('r2');
+  });
+
+  it('no product_id + count mismatch → cannot match safely (incomplete, no pairs)', () => {
+    const lines = [snapLine(null)];
+    const rows = [row('r1', 'main'), row('r2', 'bump', 'order_bump')];
+    const { pairs, complete } = matchSnapshotLinesToRows(lines, rows);
+    expect(complete).toBe(false);
+    expect(pairs).toHaveLength(0);
   });
 });
