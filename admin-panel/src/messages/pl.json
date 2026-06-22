@@ -1334,6 +1334,8 @@
         "productIcon": "Ikona produktu",
         "vatIncluded": "Cena zawiera VAT",
         "vatExcluded": "Cena nie zawiera VAT",
+        "vatExempt": "Zwolniony z VAT (zw.)",
+        "vatExemptNotePlaceholder": "Podstawa zwolnienia (np. art. 113 ust. 1) — opcjonalnie",
         "vatIncludedHelp": "Jeśli zaznaczono, wyświetlana cena już zawiera VAT, a kwota netto zostanie obliczona automatycznie.",
         "vatStripeTaxInfo": "Podatek naliczany przez Stripe",
         "vatRateRequired": "Stawka VAT jest wymagana (brak domyślnej w ustawieniach podatków)",

@@ -104,6 +104,10 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
           // Default currency for new products
           if (!product) {
             setDefaultCurrency(config.default_currency || 'USD');
+            // New products inherit the shop's VAT-exempt status as the default.
+            if (config.is_vat_exempt) {
+              setFormData(prev => ({ ...prev, vat_exempt: true }));
+            }
           }
           setOmnibusEnabled(config.omnibus_enabled);
           // tax_rate is stored as decimal (0.23 = 23%)
@@ -187,6 +191,8 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         // VAT/Tax
         vat_rate: product.vat_rate ?? null,
         price_includes_vat: product.price_includes_vat ?? true,
+        vat_exempt: product.vat_exempt ?? false,
+        vat_exempt_note: product.vat_exempt_note ?? null,
         // Pay What You Want / Custom Pricing
         allow_custom_price: product.allow_custom_price || false,
         custom_price_min: product.custom_price_min ?? 5.00,

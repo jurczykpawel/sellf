@@ -55,6 +55,8 @@ export interface ProductFormData {
   // VAT/Tax configuration
   vat_rate?: number | null;
   price_includes_vat: boolean;
+  vat_exempt: boolean;
+  vat_exempt_note: string | null;
   // Pay What You Want / Custom Pricing
   allow_custom_price: boolean;
   custom_price_min: number;
@@ -229,6 +231,8 @@ export const initialFormData: ProductFormData = {
   // VAT/Tax
   vat_rate: null,
   price_includes_vat: true,
+  vat_exempt: false,
+  vat_exempt_note: null,
   // Pay What You Want / Custom Pricing
   allow_custom_price: false,
   custom_price_min: 5.00,
