@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type Stripe from 'stripe';
-import { buildTaxSnapshotFromCheckoutLines, matchSnapshotLinesToRows } from '@/lib/services/tax-snapshot';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
+import {
+  buildTaxSnapshotFromCheckoutLines,
+  matchSnapshotLinesToRows,
+  captureAndPersistOrderTax,
+} from '@/lib/services/tax-snapshot';
 import type { LineTaxSnapshot, LineRow } from '@/lib/services/tax-snapshot';
 
 /** Build a minimal Stripe.LineItem fixture for the normalizer. */
@@ -183,5 +189,73 @@ describe('matchSnapshotLinesToRows', () => {
     const { pairs, complete } = matchSnapshotLinesToRows(lines, rows);
     expect(complete).toBe(false);
     expect(pairs).toHaveLength(0);
+  });
+});
+
+describe('captureAndPersistOrderTax — fail-safe (never blocks payment)', () => {
+  function fakeSupabase() {
+    const updates: Array<{ table: string; values: Record<string, unknown> }> = [];
+    const client = {
+      from(table: string) {
+        return {
+          update(values: Record<string, unknown>) {
+            return {
+              eq: async () => {
+                updates.push({ table, values });
+                return { data: null, error: null };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as SupabaseClient<Database>;
+    return { client, updates };
+  }
+
+  const throwingStripe = {
+    checkout: {
+      sessions: {
+        listLineItems: async () => {
+          throw new Error('stripe boom');
+        },
+        retrieve: async () => ({}),
+      },
+    },
+  } as unknown as Stripe;
+
+  it('no transactionId → undefined, no DB writes', async () => {
+    const { client, updates } = fakeSupabase();
+    const res = await captureAndPersistOrderTax({
+      stripe: throwingStripe,
+      supabase: client,
+      transactionId: null,
+      sessionId: 'cs_1',
+    });
+    expect(res).toBeUndefined();
+    expect(updates).toHaveLength(0);
+  });
+
+  it('missing sessionId → marks unavailable, returns undefined', async () => {
+    const { client, updates } = fakeSupabase();
+    const res = await captureAndPersistOrderTax({
+      stripe: throwingStripe,
+      supabase: client,
+      transactionId: 'tx_1',
+      sessionId: null,
+    });
+    expect(res).toBeUndefined();
+    expect(updates).toEqual([{ table: 'payment_transactions', values: { tax_snapshot_status: 'unavailable' } }]);
+  });
+
+  it('Stripe error → never throws, marks unavailable, returns undefined', async () => {
+    const { client, updates } = fakeSupabase();
+    const res = await captureAndPersistOrderTax({
+      stripe: throwingStripe,
+      supabase: client,
+      transactionId: 'tx_1',
+      sessionId: 'cs_1',
+    });
+    expect(res).toBeUndefined();
+    expect(updates).toEqual([{ table: 'payment_transactions', values: { tax_snapshot_status: 'unavailable' } }]);
   });
 });

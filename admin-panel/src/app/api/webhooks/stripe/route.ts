@@ -22,6 +22,7 @@ import Stripe from 'stripe';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import { emitLicenseRevokedWebhooks } from '@/lib/services/license-revoke-webhook-payload';
@@ -209,7 +210,7 @@ async function handleCheckoutSessionCompleted(
   // Prefer payment-intent id: both webhook paths use it so the unique constraint backs idempotency.
   const { data: txCustomFields } = await supabase
     .from('payment_transactions')
-    .select('custom_field_values')
+    .select('id, custom_field_values')
     .eq('session_id', sessionId)
     .maybeSingle();
   const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
@@ -226,6 +227,15 @@ async function handleCheckoutSessionCompleted(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access || isExplicitRepurchase) {
+    // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe.
+    const stripe = await getStripeServer();
+    await captureAndPersistOrderTax({
+      stripe,
+      supabase,
+      transactionId: txCustomFields?.id,
+      sessionId,
+    });
+
     // Pull buyer's custom-field answers so the webhook payload + admin UI can
     // surface them. They were written by the checkout PaymentIntent flow on
     // the same payment_transactions row keyed by session_id.
@@ -403,7 +413,7 @@ async function handlePaymentIntentSucceeded(
   // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
   const { data: txCustomFields } = await supabase
     .from('payment_transactions')
-    .select('custom_field_values')
+    .select('id, session_id, custom_field_values')
     .eq('stripe_payment_intent_id', paymentIntent.id)
     .maybeSingle();
   const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
@@ -420,6 +430,15 @@ async function handlePaymentIntentSucceeded(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access || isExplicitRepurchase) {
+    // VAT tax snapshot — resolve the PI's owning session from session_id. Fail-safe.
+    const stripe = await getStripeServer();
+    await captureAndPersistOrderTax({
+      stripe,
+      supabase,
+      transactionId: txCustomFields?.id,
+      sessionId: txCustomFields?.session_id,
+    });
+
     const webhookData = await buildPurchaseWebhookPayload({
       supabaseClient: supabase,
       customerEmail,

@@ -157,6 +157,51 @@ export async function captureCheckoutSessionTax(
 }
 
 /**
+ * Capture Stripe's computed tax for a completed order and persist the per-line
+ * snapshot. FAIL-SAFE: never throws — a snapshot error must never block access
+ * granting or the purchase webhook. On any failure (or a missing session) it marks
+ * the transaction `tax_snapshot_status='unavailable'` and returns undefined.
+ * Returns the snapshot on success (for the webhook payload). Shared by every capture
+ * site (verify-payment session + PI flows, Stripe webhook session + PI handlers).
+ */
+export async function captureAndPersistOrderTax(params: {
+  stripe: Stripe;
+  supabase: SupabaseClient<Database>;
+  transactionId: string | null | undefined;
+  /** Checkout Session id. For the PI flow, resolve it from payment_transactions.session_id first. */
+  sessionId: string | null | undefined;
+}): Promise<OrderTaxSnapshot | undefined> {
+  const { stripe, supabase, transactionId, sessionId } = params;
+  if (!transactionId) return undefined;
+
+  const markUnavailable = async () => {
+    try {
+      await supabase
+        .from('payment_transactions')
+        .update({ tax_snapshot_status: 'unavailable' })
+        .eq('id', transactionId);
+    } catch {
+      /* swallow — never throw out of the payment path */
+    }
+  };
+
+  if (!sessionId) {
+    await markUnavailable();
+    return undefined;
+  }
+
+  try {
+    const snapshot = await captureCheckoutSessionTax(stripe, sessionId);
+    await persistTaxSnapshot(supabase, transactionId, snapshot);
+    return snapshot;
+  } catch (e) {
+    console.error('[tax-snapshot] capture failed (non-fatal):', e instanceof Error ? e.message : e);
+    await markUnavailable();
+    return undefined;
+  }
+}
+
+/**
  * Phase 2 seam: subscription invoices carry tax differently (invoice.lines.data[].
  * tax_amounts[] with tax_rate ids). Not wired in Phase 1.
  */

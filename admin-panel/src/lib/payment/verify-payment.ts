@@ -12,6 +12,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -599,9 +600,18 @@ export async function verifyPaymentSession(
           if (!paymentResult.already_had_access) {
             const { data: txCustomFields } = await serviceClient
               .from('payment_transactions')
-              .select('custom_field_values')
+              .select('id, custom_field_values')
               .eq('session_id', session.id)
               .maybeSingle();
+
+            // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe:
+            // never blocks access granting or the purchase webhook.
+            await captureAndPersistOrderTax({
+              stripe,
+              supabase: serviceClient,
+              transactionId: txCustomFields?.id,
+              sessionId: session.id,
+            });
 
             const webhookData = await buildPurchaseWebhookPayload({
               supabaseClient: serviceClient,
@@ -872,9 +882,18 @@ export async function verifyPaymentIntent(
           if (!paymentResult.already_had_access) {
             const { data: txCustomFields } = await serviceClient
               .from('payment_transactions')
-              .select('custom_field_values')
+              .select('id, session_id, custom_field_values')
               .eq('stripe_payment_intent_id', paymentIntent.id)
               .maybeSingle();
+
+            // VAT tax snapshot — the PI's tax lives on its owning Checkout Session;
+            // resolve it from the transaction's session_id. Fail-safe.
+            await captureAndPersistOrderTax({
+              stripe,
+              supabase: serviceClient,
+              transactionId: txCustomFields?.id,
+              sessionId: txCustomFields?.session_id,
+            });
 
             const webhookData = await buildPurchaseWebhookPayload({
               supabaseClient: serviceClient,
