@@ -2692,6 +2692,7 @@
       "termsHelp": "Link do dokumentu Regulaminu (PDF, strona www, itp.)",
       "privacyPolicyUrl": "URL Polityki Prywatności",
       "privacyHelp": "Link do dokumentu Polityki Prywatności (PDF, strona www, itp.)",
+      "envValueHint": "Obecnie używana (z env): {url}",
       "infoTitle": "Jak to działa",
       "infoDescription": "Gdy odwiedzający wejdą na te strony, zostaną automatycznie przekierowani pod skonfigurowane adresy URL. Pozostaw puste, aby wyświetlić komunikat o konfiguracji.",
       "saving": "Zapisywanie...",

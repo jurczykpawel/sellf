@@ -13,7 +13,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getMyShopConfig, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
+import { getMyShopConfig, getMyLegalDocsSource, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
+import SourceBadge from '@/components/ui/SourceBadge';
+import type { LegalDocsSource } from '@/lib/legal/legal-docs-source';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -53,6 +55,7 @@ export default function LegalDocumentsSettings() {
   const t = useTranslations('settings.legal');
 
   const [config, setConfig] = useState<ShopConfig | null>(null);
+  const [legalSource, setLegalSource] = useState<LegalDocsSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingCompany, setSavingCompany] = useState(false);
@@ -134,6 +137,21 @@ export default function LegalDocumentsSettings() {
       cancelled = true;
     };
   }, []);
+
+  // Resolve the effective legal-doc URL provenance (db / env / default) and
+  // refresh whenever config changes (after a manual save or a generate), so the
+  // panel surfaces an env fallback instead of rendering an empty DB column.
+  useEffect(() => {
+    let cancelled = false;
+    getMyLegalDocsSource()
+      .then((src) => { if (!cancelled) setLegalSource(src); })
+      .catch((error) => {
+        console.error('[LegalDocumentsSettings] Failed to load legal docs source:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [config]);
 
   // ---- Handler: save manual URL fields ----
   const handleUrlSubmit = async (e: React.FormEvent) => {
@@ -647,9 +665,14 @@ export default function LegalDocumentsSettings() {
         <form onSubmit={handleUrlSubmit} className="space-y-6">
           {/* Terms of Service URL */}
           <div>
-            <label htmlFor="legal-terms-url" className="block text-sm font-medium text-sf-body mb-2">
-              {t('termsOfServiceUrl')}
-            </label>
+            <div className="flex items-center gap-2 mb-2">
+              <label htmlFor="legal-terms-url" className="text-sm font-medium text-sf-body">
+                {t('termsOfServiceUrl')}
+              </label>
+              {legalSource && (
+                <SourceBadge source={legalSource.terms.source} envAlsoSet={!!legalSource.terms.envValue} />
+              )}
+            </div>
             <input
               id="legal-terms-url"
               type="url"
@@ -658,6 +681,11 @@ export default function LegalDocumentsSettings() {
               className="w-full px-4 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
               placeholder={t('termsPlaceholder')}
             />
+            {legalSource?.terms.source === 'env' && legalSource.terms.envValue && (
+              <p className="mt-1 text-xs text-sf-accent break-all">
+                {t('envValueHint', { url: legalSource.terms.envValue })}
+              </p>
+            )}
             <p className="mt-1 text-xs text-sf-muted">
               {t('termsHelp')}
             </p>
@@ -665,9 +693,14 @@ export default function LegalDocumentsSettings() {
 
           {/* Privacy Policy URL */}
           <div>
-            <label htmlFor="legal-privacy-url" className="block text-sm font-medium text-sf-body mb-2">
-              {t('privacyPolicyUrl')}
-            </label>
+            <div className="flex items-center gap-2 mb-2">
+              <label htmlFor="legal-privacy-url" className="text-sm font-medium text-sf-body">
+                {t('privacyPolicyUrl')}
+              </label>
+              {legalSource && (
+                <SourceBadge source={legalSource.privacy.source} envAlsoSet={!!legalSource.privacy.envValue} />
+              )}
+            </div>
             <input
               id="legal-privacy-url"
               type="url"
@@ -676,6 +709,11 @@ export default function LegalDocumentsSettings() {
               className="w-full px-4 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
               placeholder={t('privacyPlaceholder')}
             />
+            {legalSource?.privacy.source === 'env' && legalSource.privacy.envValue && (
+              <p className="mt-1 text-xs text-sf-accent break-all">
+                {t('envValueHint', { url: legalSource.privacy.envValue })}
+              </p>
+            )}
             <p className="mt-1 text-xs text-sf-muted">
               {t('privacyHelp')}
             </p>

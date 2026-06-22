@@ -2677,6 +2677,7 @@
       "termsHelp": "Link to your Terms of Service document (PDF, webpage, etc.)",
       "privacyPolicyUrl": "Privacy Policy URL",
       "privacyHelp": "Link to your Privacy Policy document (PDF, webpage, etc.)",
+      "envValueHint": "Currently in use (from env): {url}",
       "infoTitle": "How it works",
       "infoDescription": "When visitors access these pages, they will be automatically redirected to the configured URLs. Leave empty to show a configuration message instead.",
       "saving": "Saving...",

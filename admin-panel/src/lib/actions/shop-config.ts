@@ -6,6 +6,7 @@ import { cache } from 'react'
 import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
+import { resolveLegalDocsSource, type LegalDocsSource } from '@/lib/legal/legal-docs-source'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -169,6 +170,21 @@ export async function getMyShopConfig(): Promise<ShopConfig | null> {
     return { success: true, data: data as ShopConfig | null }
   })
   return result.success ? (result.data ?? null) : null
+}
+
+/**
+ * Resolve the legal-doc URLs (terms/privacy) for the current seller WITH their
+ * provenance: db / env / default. Mirrors how the public `/terms` & `/privacy`
+ * routes resolve the URL (`config value || process.env`), so the Settings UI
+ * can show when a value is actually coming from an env var (and which one),
+ * instead of rendering the empty DB column as "not configured".
+ */
+export async function getMyLegalDocsSource(): Promise<LegalDocsSource> {
+  const config = await getMyShopConfig()
+  return resolveLegalDocsSource(config, {
+    terms: process.env.TERMS_OF_SERVICE_URL,
+    privacy: process.env.PRIVACY_POLICY_URL,
+  })
 }
 
 /**
