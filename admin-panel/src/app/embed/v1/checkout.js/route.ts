@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 
+import { getStripePublishableKey } from '@/lib/stripe/publishable-key';
+
 export async function GET() {
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+  const publishableKey = getStripePublishableKey();
 
   // SDK reads data-* attributes:
   //   data-product-slug   (required)
