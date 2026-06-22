@@ -259,6 +259,8 @@ export async function POST(request: NextRequest) {
         custom_price_min: product.custom_price_min ?? undefined,
         vat_rate: product.vat_rate,
         price_includes_vat: product.price_includes_vat,
+        vat_exempt: product.vat_exempt,
+        vat_exempt_note: product.vat_exempt_note,
         product_type: 'subscription',
         billing_interval: product.billing_interval as BillingInterval | null,
         billing_interval_count: product.billing_interval_count,
