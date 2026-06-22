@@ -257,7 +257,8 @@ test.describe('guest checkout variants', () => {
     await page.locator('input#checkoutEmail').fill(`subscription-checkout-${Date.now()}@gmail.com`);
     await expect(page.locator('input#fullName')).toBeVisible({ timeout: 30000 });
     await page.locator('input#fullName').fill('Subscription Buyer');
-    await page.locator('input[type="checkbox"]').first().check();
+    const termsCb = page.locator('input[type="checkbox"]').first();
+    if ((await termsCb.count()) > 0) await termsCb.check();
     // Subscription CTA must say "Subskrybuj", NOT "Zapłać" — recurrence signal.
     const cta = page.getByRole('button', { name: /Subskrybuj|Subscribe/i });
     await expect(cta).toBeVisible({ timeout: 30000 });
@@ -277,7 +278,8 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill(`paid-${Date.now()}@gmail.com`);
     await page.locator('input#fullName').fill('Paid Buyer');
-    await page.locator('input[type="checkbox"]').first().check();
+    const termsCb = page.locator('input[type="checkbox"]').first();
+    if ((await termsCb.count()) > 0) await termsCb.check();
     const cta = page.getByRole('button', { name: /Zapłać|Pay/i });
     await expect(cta).toBeVisible({ timeout: 30000 });
     await expect(cta).not.toHaveText(/Subskrybuj|Subscribe/i);
@@ -312,7 +314,8 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill('buyer@mailinator.com');
     await page.locator('input#fullName').fill('Buyer Testowy');
-    await page.locator('input[type="checkbox"]').first().check();
+    const termsCb = page.locator('input[type="checkbox"]').first();
+    if ((await termsCb.count()) > 0) await termsCb.check();
     await page.getByRole('button', { name: /Zapłać|Pay|Subskrybuj|Subscribe/i }).click();
 
     await expect(page.getByText(/Invalid or disposable email address not allowed/i)).toBeVisible();

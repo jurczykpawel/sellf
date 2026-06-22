@@ -2011,15 +2011,32 @@ export type Database = {
           checkout_collect_terms: boolean | null
           checkout_expires_hours: number | null
           checkout_theme: string | null
+          company_building_no: string | null
+          company_city: string | null
+          company_flat_no: string | null
+          company_legal_name: string | null
+          company_phone: string | null
+          company_postal: string | null
+          company_street: string | null
+          complaints_email: string | null
           contact_email: string | null
+          country: string | null
           created_at: string
           custom_settings: Json | null
           default_currency: string
+          dpo_contact: string | null
           font_family: string | null
+          has_dpo: boolean
           id: string
+          is_micro_enterprise: boolean
+          is_vat_exempt: boolean
+          krs: string | null
+          legal_form: string | null
           logo_url: string | null
+          nip: string | null
           omnibus_enabled: boolean
           privacy_policy_url: string | null
+          regon: string | null
           shop_name: string
           stripe_tax_rate_cache: Json | null
           tax_id_collection_enabled: boolean | null
@@ -2034,15 +2051,32 @@ export type Database = {
           checkout_collect_terms?: boolean | null
           checkout_expires_hours?: number | null
           checkout_theme?: string | null
+          company_building_no?: string | null
+          company_city?: string | null
+          company_flat_no?: string | null
+          company_legal_name?: string | null
+          company_phone?: string | null
+          company_postal?: string | null
+          company_street?: string | null
+          complaints_email?: string | null
           contact_email?: string | null
+          country?: string | null
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
+          dpo_contact?: string | null
           font_family?: string | null
+          has_dpo?: boolean
           id?: string
+          is_micro_enterprise?: boolean
+          is_vat_exempt?: boolean
+          krs?: string | null
+          legal_form?: string | null
           logo_url?: string | null
+          nip?: string | null
           omnibus_enabled?: boolean
           privacy_policy_url?: string | null
+          regon?: string | null
           shop_name?: string
           stripe_tax_rate_cache?: Json | null
           tax_id_collection_enabled?: boolean | null
@@ -2057,15 +2091,32 @@ export type Database = {
           checkout_collect_terms?: boolean | null
           checkout_expires_hours?: number | null
           checkout_theme?: string | null
+          company_building_no?: string | null
+          company_city?: string | null
+          company_flat_no?: string | null
+          company_legal_name?: string | null
+          company_phone?: string | null
+          company_postal?: string | null
+          company_street?: string | null
+          complaints_email?: string | null
           contact_email?: string | null
+          country?: string | null
           created_at?: string
           custom_settings?: Json | null
           default_currency?: string
+          dpo_contact?: string | null
           font_family?: string | null
+          has_dpo?: boolean
           id?: string
+          is_micro_enterprise?: boolean
+          is_vat_exempt?: boolean
+          krs?: string | null
+          legal_form?: string | null
           logo_url?: string | null
+          nip?: string | null
           omnibus_enabled?: boolean
           privacy_policy_url?: string | null
+          regon?: string | null
           shop_name?: string
           stripe_tax_rate_cache?: Json | null
           tax_id_collection_enabled?: boolean | null

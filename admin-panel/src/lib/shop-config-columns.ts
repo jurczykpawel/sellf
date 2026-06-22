@@ -1,0 +1,45 @@
+/**
+ * Public-safe columns of `shop_config` that anon (the public storefront) may read.
+ *
+ * MUST stay in sync with the column-level anon GRANT in
+ * `supabase/migrations/20260621000000_legal_document_generation.sql`.
+ *
+ * Excluded (anon must NOT read them):
+ *  - Seller PII: legal_form, company_legal_name, nip, regon, krs, company_street,
+ *    company_building_no, company_flat_no, company_city, company_postal, company_phone,
+ *    complaints_email, is_vat_exempt, is_micro_enterprise, has_dpo, dpo_contact
+ *  - `country`: admin-only (PL legal-doc gate); read via getMyShopConfig (select '*').
+ *
+ * `contact_email` IS included — the shop's intentionally-public contact, already
+ * shown to anonymous visitors on the "Coming Soon" page.
+ *
+ * Lives in its own (non-`'use server'`) module so the storefront-anon-read security
+ * test can import the exact list and assert it matches the SQL grant — catching
+ * drift (a column listed here but not GRANTed, which 42501s the public storefront).
+ */
+export const SHOP_CONFIG_PUBLIC_COLUMNS = [
+  'id',
+  'shop_name',
+  'default_currency',
+  'tax_rate',
+  'tax_mode',
+  'stripe_tax_rate_cache',
+  'logo_url',
+  'font_family',
+  'checkout_theme',
+  'automatic_tax_enabled',
+  'tax_id_collection_enabled',
+  'checkout_billing_address',
+  'checkout_expires_hours',
+  'checkout_collect_terms',
+  'terms_of_service_url',
+  'privacy_policy_url',
+  'omnibus_enabled',
+  'custom_settings',
+  'created_at',
+  'updated_at',
+  'contact_email',
+] as const
+
+/** Comma-joined form for PostgREST `.select(...)`. */
+export const SHOP_CONFIG_PUBLIC_COLUMNS_CSV = SHOP_CONFIG_PUBLIC_COLUMNS.join(',')

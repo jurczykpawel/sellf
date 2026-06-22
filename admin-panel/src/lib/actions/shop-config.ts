@@ -6,6 +6,8 @@ import { cache } from 'react'
 import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/redis/cache'
 import { isDemoMode } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
+import { resolveLegalDocsSource, type LegalDocsSource } from '@/lib/legal/legal-docs-source'
+import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -14,6 +16,7 @@ export interface ShopConfig {
   default_currency: string
   shop_name: string
   contact_email?: string | null
+  country?: string | null
   tax_rate?: number | null
 
   // Dual tax mode
@@ -43,6 +46,24 @@ export interface ShopConfig {
   terms_of_service_url?: string | null
   privacy_policy_url?: string | null
 
+  // Legal company data (for document generation)
+  legal_form?: 'jdg' | 'spzoo' | 'fundacja' | 'osoba_fizyczna' | null
+  company_legal_name?: string | null
+  nip?: string | null
+  regon?: string | null
+  krs?: string | null
+  company_street?: string | null
+  company_building_no?: string | null
+  company_flat_no?: string | null
+  company_city?: string | null
+  company_postal?: string | null
+  company_phone?: string | null
+  complaints_email?: string | null
+  is_vat_exempt?: boolean
+  is_micro_enterprise?: boolean
+  has_dpo?: boolean
+  dpo_contact?: string | null
+
   custom_settings: Record<string, any>
   created_at: string
   updated_at: string
@@ -63,9 +84,16 @@ export interface ShopConfig {
 // In non-production the cache is disabled so direct DB writes (e.g. E2E test
 // fixtures) take effect immediately without needing to round-trip through the
 // server action that calls revalidateTag.
+// Anon (public) reads use the explicit public-safe column list from
+// shop-config-columns.ts (NOT select('*') — the column-level grant would deny it).
+// That list is shared with the storefront-anon-read security test so app + SQL
+// grant stay in sync. See SHOP_CONFIG_PUBLIC_COLUMNS_CSV import above.
 const fetchShopConfigFromDbRaw = async (): Promise<ShopConfig | null> => {
   const supabase = createPublicClient()
-  const { data, error } = await supabase.from('shop_config').select('*').maybeSingle()
+  const { data, error } = await supabase
+    .from('shop_config')
+    .select(SHOP_CONFIG_PUBLIC_COLUMNS_CSV)
+    .maybeSingle()
   if (error) {
     console.error('Error fetching shop config:', error)
     return null
@@ -116,6 +144,21 @@ export async function getMyShopConfig(): Promise<ShopConfig | null> {
     return { success: true, data: data as ShopConfig | null }
   })
   return result.success ? (result.data ?? null) : null
+}
+
+/**
+ * Resolve the legal-doc URLs (terms/privacy) for the current seller WITH their
+ * provenance: db / env / default. Mirrors how the public `/terms` & `/privacy`
+ * routes resolve the URL (`config value || process.env`), so the Settings UI
+ * can show when a value is actually coming from an env var (and which one),
+ * instead of rendering the empty DB column as "not configured".
+ */
+export async function getMyLegalDocsSource(): Promise<LegalDocsSource> {
+  const config = await getMyShopConfig()
+  return resolveLegalDocsSource(config, {
+    terms: process.env.TERMS_OF_SERVICE_URL,
+    privacy: process.env.PRIVACY_POLICY_URL,
+  })
 }
 
 /**

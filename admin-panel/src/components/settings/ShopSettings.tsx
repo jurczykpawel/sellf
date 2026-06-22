@@ -25,6 +25,7 @@ export default function ShopSettings() {
  default_currency: 'USD',
  shop_name: '',
  contact_email: '',
+ country: '',
  });
 
  useEffect(() => {
@@ -39,6 +40,7 @@ export default function ShopSettings() {
  default_currency: data.default_currency,
  shop_name: data.shop_name,
  contact_email: data.contact_email || '',
+ country: data.country || '',
  });
  }
  } catch (error) {
@@ -61,6 +63,7 @@ export default function ShopSettings() {
  default_currency: formData.default_currency,
  shop_name: formData.shop_name,
  contact_email: formData.contact_email || null,
+ country: formData.country || null,
  };
 
  const success = await updateShopConfig(updates);
@@ -151,6 +154,34 @@ export default function ShopSettings() {
  className="w-full px-4 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
  placeholder={t('contactEmailPlaceholder')}
  />
+ </div>
+
+ {/* Shop Country */}
+ <div>
+ <label htmlFor="shop-country" className="block text-sm font-medium text-sf-body mb-2">
+ {t('country')}
+ <span className="block text-xs text-sf-muted font-normal mt-1">
+ {t('countryHelp')}
+ </span>
+ </label>
+ <select
+ id="shop-country"
+ value={formData.country}
+ onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+ className="w-full px-4 py-2 border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+ >
+ <option value="">{t('countryPlaceholder')}</option>
+ <option value="PL">Polska / Poland</option>
+ <option value="DE">Deutschland / Germany</option>
+ <option value="GB">United Kingdom</option>
+ <option value="US">United States</option>
+ <option value="FR">France</option>
+ <option value="NL">Netherlands</option>
+ <option value="CZ">Czech Republic</option>
+ <option value="SK">Slovakia</option>
+ <option value="AT">Austria</option>
+ <option value="SE">Sweden</option>
+ </select>
  </div>
 
  {/* Save Button */}

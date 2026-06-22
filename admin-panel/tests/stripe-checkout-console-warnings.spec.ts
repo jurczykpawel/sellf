@@ -116,7 +116,11 @@ test('subscription Pay click produces NO Stripe contract warnings in console', a
   await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
   await page.locator('input#checkoutEmail').fill(`stripe-warn-${Date.now()}@gmail.com`);
   await page.locator('input#fullName').fill('Stripe Warning Buyer');
-  await page.locator('input[type="checkbox"]').first().check();
+  // Accept terms only if shown — the checkbox is per-seller (consent defaults OFF),
+  // so it may be absent; a blind .check() would hang to the test timeout. We still
+  // reach Pay + the warning assertion either way (its actual purpose).
+  const termsCb = page.locator('input[type="checkbox"]').first();
+  if ((await termsCb.count()) > 0) await termsCb.check();
 
   await expect(
     page.getByRole('button', { name: /Subskrybuj|Subscribe|Zapłać|Pay/i }),
