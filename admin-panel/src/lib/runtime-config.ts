@@ -2,6 +2,7 @@ import 'server-only';
 import { getCaptchaConfig } from '@/lib/captcha/config';
 import type { CaptchaConfig } from '@/lib/captcha/types';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
+import { getStripePublishableKey } from '@/lib/stripe/publishable-key';
 
 export interface RuntimeAppConfig {
   supabaseUrl: string;
@@ -19,8 +20,7 @@ export function buildRuntimeConfig(): RuntimeAppConfig {
   return {
     supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    stripePublishableKey:
-      process.env.STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+    stripePublishableKey: getStripePublishableKey(),
     captcha: getCaptchaConfig(),
     siteUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL!,
     demoMode: process.env.DEMO_MODE === 'true',
