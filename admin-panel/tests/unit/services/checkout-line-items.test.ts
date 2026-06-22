@@ -24,6 +24,10 @@ const scenarios: Scenario[] = [
   { name: 'PWYW custom 25', productPrice: 100, customAmount: 25, bumps: [], coupon: null },
   { name: 'PWYW + bump + 15% coupon', productPrice: 100, customAmount: 70, bumps: [{ product: bumpA, price: 50 }], coupon: { discount_type: 'percentage', discount_value: 15, code: 'Z' } },
   { name: 'odd amounts + 33% (rounding/remainder)', productPrice: 99.99, bumps: [{ product: bumpA, price: 49.99 }], coupon: { discount_type: 'percentage', discount_value: 33, code: 'R' } },
+  { name: 'coupon excludes order bumps', productPrice: 100, bumps: [{ product: bumpA, price: 50 }], coupon: { discount_type: 'percentage', discount_value: 20, code: 'NOBUMP', exclude_order_bumps: true } },
+  { name: 'coupon scoped to main (allowed_product_ids)', productPrice: 100, bumps: [{ product: bumpA, price: 50 }], coupon: { discount_type: 'percentage', discount_value: 30, code: 'MAINONLY', allowed_product_ids: ['main'] } },
+  { name: 'minimum floor (90% off a small price)', productPrice: 3, bumps: [], coupon: { discount_type: 'percentage', discount_value: 90, code: 'BIG' } },
+  { name: 'fixed coupon larger than subtotal (clamped)', productPrice: 40, bumps: [], coupon: { discount_type: 'fixed', discount_value: 999, code: 'HUGE' } },
 ];
 
 function expectedTotalCents(s: Scenario): number {
@@ -168,5 +172,36 @@ describe('buildStripeLineItems', () => {
     const m = items[0] as unknown as StripeLineItemShape;
     expect(m.price_data.tax_behavior).toBe('inclusive');
     expect(m.tax_rates).toEqual(['txr_23_inc']);
+  });
+});
+
+describe('buildCheckoutLineSpecs — coupon scoping per line', () => {
+  it('exclude_order_bumps → only main discounted, bump at full price', () => {
+    const { specs } = buildCheckoutLineSpecs({
+      main, mainPrice: 100, bumps: [{ product: bumpA, price: 50 }],
+      coupon: { discount_type: 'percentage', discount_value: 20, code: 'NOBUMP', exclude_order_bumps: true },
+      taxMode: 'local',
+    });
+    expect(specs[0].unitAmountMinor).toBe(8000); // 100 − 20%
+    expect(specs[1].unitAmountMinor).toBe(5000); // bump untouched
+  });
+  it('allowed_product_ids scoped to main → bump at full price', () => {
+    const { specs } = buildCheckoutLineSpecs({
+      main, mainPrice: 100, bumps: [{ product: bumpA, price: 50 }],
+      coupon: { discount_type: 'percentage', discount_value: 30, code: 'MAINONLY', allowed_product_ids: ['main'] },
+      taxMode: 'local',
+    });
+    expect(specs[0].unitAmountMinor).toBe(7000); // 100 − 30%
+    expect(specs[1].unitAmountMinor).toBe(5000); // bump excluded (not in allowed list)
+  });
+  it('100% coupon → isFree, both lines reduce to zero', () => {
+    const { specs, isFree, totalMinor } = buildCheckoutLineSpecs({
+      main, mainPrice: 100, bumps: [{ product: bumpA, price: 50 }],
+      coupon: { discount_type: 'percentage', discount_value: 100, code: 'ALLFREE' },
+      taxMode: 'local',
+    });
+    expect(isFree).toBe(true);
+    expect(totalMinor).toBe(0);
+    expect(specs.every((s) => s.unitAmountMinor === 0)).toBe(true);
   });
 });
