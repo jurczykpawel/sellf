@@ -13,7 +13,7 @@ import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
-import { allocateCouponDiscount, toMinorUnits } from '@/lib/pricing/coupon-allocation';
+import { buildCheckoutLineSpecs, buildStripeLineItems } from '@/lib/services/checkout-line-items';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { normalizeBumpIds } from '@/lib/validations/product';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
@@ -188,60 +188,46 @@ export class CheckoutService {
       // Resolve checkout config: DB > env var > default
       const checkoutConfig = await getCheckoutConfig();
 
-      // --- Tax mode: resolve tax_behavior and tax_rates per line item ---
-      const isLocalTax = checkoutConfig.tax_mode === 'local';
-
-      // Resolve tax rates for local mode (per-product vat_rate)
-      let mainTaxRates: string[] | undefined;
-
-      if (isLocalTax) {
-        if (options.product.vat_rate && options.product.vat_rate > 0) {
-          const txrId = await getOrCreateStripeTaxRate({
-            percentage: options.product.vat_rate,
-            inclusive: options.product.price_includes_vat,
-          });
-          mainTaxRates = [txrId];
-        }
-        // Bump tax rates are resolved per-bump in the loop below
-      }
-
-      // tax_behavior: tells Stripe how to interpret the price amount
-      // In stripe_tax mode: required for automatic tax calculation
-      // In local mode with vat_rate: tells Stripe the price is inclusive/exclusive of the attached tax rate
-      const mainTaxBehavior = (isLocalTax && mainTaxRates) || !isLocalTax
-        ? (options.product.price_includes_vat ? 'inclusive' : 'exclusive')
-        : undefined;
-
-      // Build line items array (main product + optional bump)
-      // Note: Record<string, unknown>[] used due to conditional spreads; Stripe SDK validates at runtime
-      const lineItems: Record<string, unknown>[] = [
-        {
-          price_data: {
-            currency: pricedMainProduct.currency.toLowerCase(),
-            product_data: {
-              name: pricedMainProduct.name,
-              description: pricedMainProduct.description || undefined,
-            },
-            unit_amount: 0,
-            ...(mainTaxBehavior && { tax_behavior: mainTaxBehavior }),
-          },
-          ...(mainTaxRates && { tax_rates: mainTaxRates }),
-          quantity: 1,
+      // --- Build line items (main + bumps) via the shared builder (identical to Elements) ---
+      // Same allocateCouponDiscount math as before, now centralized so embedded and
+      // Elements emit identical per-line items (DRY). Main line now carries
+      // metadata.product_id so the tax snapshot can match it back to its row.
+      const { specs, isFree } = buildCheckoutLineSpecs({
+        main: {
+          id: options.product.id,
+          name: pricedMainProduct.name,
+          description: pricedMainProduct.description,
+          currency: pricedMainProduct.currency,
+          vatRate: options.product.vat_rate,
+          priceIncludesVat: options.product.price_includes_vat,
+          vatExempt: options.product.vat_exempt,
         },
-      ];
-
-      const allocation = allocateCouponDiscount({
-        items: [
-          { kind: 'base', id: pricedMainProduct.id, price: pricedMainProduct.price },
-          ...bumpList.map((bp) => ({ kind: 'bump' as const, id: bp.id, price: bp.price })),
-        ],
-        baseProductId: pricedMainProduct.id,
-        coupon,
-        applyMinimumFloor: true,
-        minimumAmount: STRIPE_MINIMUM_AMOUNT,
+        mainPrice: pricedMainProduct.price,
+        bumps: bumpList.map((bp) => ({
+          product: {
+            id: bp.id,
+            name: bp.name,
+            description: bp.description,
+            currency: bp.currency,
+            vatRate: bp.vat_rate,
+            priceIncludesVat: bp.price_includes_vat,
+            vatExempt: bp.vat_exempt,
+          },
+          price: bp.price,
+        })),
+        coupon: coupon
+          ? {
+              discount_type: coupon.discount_type,
+              discount_value: coupon.discount_value,
+              code: coupon.code,
+              exclude_order_bumps: coupon.exclude_order_bumps,
+              allowed_product_ids: coupon.allowed_product_ids,
+            }
+          : null,
+        taxMode: checkoutConfig.tax_mode,
       });
 
-      if (coupon && allocation.isFree) {
+      if (coupon && isFree) {
         throw new CheckoutError(
           CheckoutErrorType.VALIDATION_ERROR,
           'This coupon covers the full price. Please use the standard checkout for free access.',
@@ -249,43 +235,9 @@ export class CheckoutService {
         );
       }
 
-      lineItems[0].price_data = {
-        ...(lineItems[0].price_data as Record<string, unknown>),
-        unit_amount: toMinorUnits(allocation.items[0].finalPrice),
-      };
-
-      for (const [index, bp] of bumpList.entries()) {
-        const discountedBump = allocation.items[index + 1];
-
-        // Resolve tax for each bump individually
-        let bpTaxRates: string[] | undefined;
-        if (isLocalTax && bp.vat_rate && bp.vat_rate > 0) {
-          const txrId = await getOrCreateStripeTaxRate({
-            percentage: bp.vat_rate,
-            inclusive: bp.price_includes_vat,
-          });
-          bpTaxRates = [txrId];
-        }
-
-        const bpTaxBehavior = (isLocalTax && bpTaxRates) || !isLocalTax
-          ? (bp.price_includes_vat ? 'inclusive' : 'exclusive')
-          : undefined;
-
-        lineItems.push({
-          price_data: {
-            currency: bp.currency.toLowerCase(),
-            product_data: {
-              name: bp.name,
-              description: bp.description || undefined,
-              metadata: { product_id: bp.id, is_bump: 'true' },
-            },
-            unit_amount: toMinorUnits(discountedBump.finalPrice),
-            ...(bpTaxBehavior && { tax_behavior: bpTaxBehavior }),
-          },
-          ...(bpTaxRates && { tax_rates: bpTaxRates }),
-          quantity: 1,
-        });
-      }
+      const lineItems = await buildStripeLineItems(specs, {
+        resolveTaxRate: getOrCreateStripeTaxRate,
+      });
 
       // Prepare session configuration
       const sessionConfig: Record<string, unknown> = {
