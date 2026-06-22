@@ -101,9 +101,13 @@ test.describe('Storefront & Checkout Flows', () => {
     const userEmail = `lead-${Date.now()}@example.com`;
     await page.locator('input[type="email"]').fill(userEmail);
     
-    // Accept Terms
+    // Accept Terms — only if shown. The terms checkbox is per-seller
+    // (shouldShowTosCheckbox = collect_terms_of_service + guest) and defaults OFF,
+    // so it may be absent; clicking a missing label would hang to test timeout.
     const termsLabel = page.locator('label').filter({ hasText: /I agree|Akceptuję|regulamin/i });
-    await termsLabel.click();
+    if ((await termsLabel.count()) > 0) {
+      await termsLabel.click();
+    }
     
     // Wait for captcha to auto-verify (Turnstile dummy key or ALTCHA PoW)
     console.log('Waiting for captcha auto-verify...');
