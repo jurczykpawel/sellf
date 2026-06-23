@@ -120,6 +120,14 @@ COMMENT ON COLUMN public.payment_line_items.tax_amount IS 'MINOR units (cents). 
 COMMENT ON COLUMN public.payment_line_items.net_amount IS 'MINOR units (cents). Unlike unit_price/total_price which are MAJOR units.';
 COMMENT ON COLUMN public.payment_line_items.tax_breakdown IS 'Array of Stripe tax components: {amount,taxableAmount,rate,effectiveRate,inclusive,taxType,jurisdiction,country,state,taxabilityReason}. amount/taxableAmount in MINOR units.';
 
+-- tax_behavior is OUR derived value (from the component's `inclusive` flag), never Stripe's
+-- raw 'unspecified' — so it's only ever 'inclusive' | 'exclusive' | NULL. Guard it.
+-- (taxability_reason deliberately has NO check: it comes verbatim from Stripe, which may add
+-- new reason codes — a snapshot must not reject those.)
+ALTER TABLE public.payment_line_items
+  ADD CONSTRAINT payment_line_items_tax_behavior_chk
+  CHECK (tax_behavior IN ('inclusive', 'exclusive'));
+
 -- payment_transactions: order-level totals + honesty flag
 ALTER TABLE public.payment_transactions
   ADD COLUMN net_total integer,  -- minor units; session.amount_subtotal

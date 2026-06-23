@@ -134,4 +134,20 @@ describe('persistTaxSnapshot (integration — real DB)', () => {
       .single();
     expect(tx!.tax_snapshot_status).toBe('partial');
   });
+
+  it('rejects an out-of-domain tax_behavior at the DB (CHECK constraint guards our derived value)', async () => {
+    // tax_behavior is OUR derived enum ('inclusive'|'exclusive'|null), never Stripe's raw
+    // 'unspecified'. The CHECK must reject anything else so a future code/migration drift
+    // that writes garbage fails loudly instead of silently corrupting the snapshot.
+    // 'unspecified' is type-valid (column is text) but out of our domain — only the DB
+    // CHECK stops it. That's exactly the safety net under test.
+    const { error } = await supabase
+      .from('payment_line_items')
+      .update({ tax_behavior: 'unspecified' })
+      .eq('transaction_id', txId)
+      .eq('product_id', mainId);
+
+    expect(error).not.toBeNull();
+    expect(error!.message).toMatch(/payment_line_items_tax_behavior_chk|check constraint/i);
+  });
 });
