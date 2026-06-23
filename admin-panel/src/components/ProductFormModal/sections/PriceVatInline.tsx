@@ -278,6 +278,10 @@ export function PriceVatInline({
           className="w-full max-w-md px-2 py-1.5 border-2 border-sf-border-medium text-sm bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
         />
       )}
+
+      <p className="text-xs text-sf-muted max-w-md">
+        {t('vatRowHelp', { defaultValue: "Netto = VAT doliczany do ceny; Brutto = cena już zawiera VAT. 'Zwolniony z VAT (zw.)' = brak VAT w ogóle — nie to samo co stawka 0%." })}
+      </p>
     </div>
   );
 
