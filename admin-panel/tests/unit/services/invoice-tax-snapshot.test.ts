@@ -103,4 +103,34 @@ describe('captureAndPersistInvoiceTax — fail-safe (never blocks billing)', () 
       { table: 'payment_transactions', values: { net_total: 10000, tax_total: 2300, tax_snapshot_status: 'captured' } },
     ]);
   });
+
+  it('FAIL-SAFE: a DB error on the persist marks status unavailable and never throws', async () => {
+    // First update (the net/tax write) throws; the catch must record tax_snapshot_status:'unavailable'
+    // and resolve undefined — billing must never be blocked by a snapshot failure.
+    const recorded: Array<Record<string, unknown>> = [];
+    let calls = 0;
+    const client = {
+      from() {
+        return {
+          update(values: Record<string, unknown>) {
+            return {
+              eq: async () => {
+                calls += 1;
+                if (calls === 1) throw new Error('db down');
+                recorded.push(values);
+                return { data: null, error: null };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as SupabaseClient<Database>;
+
+    let threw = false;
+    const res = await captureAndPersistInvoiceTax({ supabase: client, invoice: fakeInvoice({}), transactionId: 'tx_1' })
+      .catch(() => { threw = true; return undefined; });
+    expect(threw).toBe(false);
+    expect(res).toBeUndefined();
+    expect(recorded).toEqual([{ tax_snapshot_status: 'unavailable' }]);
+  });
 });

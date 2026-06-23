@@ -377,6 +377,45 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     if (typeof userId === 'string') createdAuthUserIds.push(userId);
   });
 
+  it('handleInvoicePaid captures the invoice tax snapshot onto the transaction (net_total/tax_total/status)', async () => {
+    // LUKA 1 closure: asserts the capture WIRING in the subscription entry point — a paid invoice
+    // with Stripe-computed tax must land net_total/tax_total/tax_snapshot_status on the booked tx.
+    const email = `inv-tax-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await stripe!.customers.create({ email });
+    createdStripeCustomerIds.push(customer.id);
+    const subStripe = makeFakeSubscription(customer.id, product.id);
+    const stripeShim = {
+      ...stripe!,
+      subscriptions: { ...stripe!.subscriptions, retrieve: async () => subStripe },
+      customers: stripe!.customers,
+    } as unknown as Stripe;
+
+    await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
+
+    const invoice = makeFakeInvoice(subStripe.id, customer.id, email, {
+      total_excluding_tax: 4000,
+      total: 4900,
+      total_taxes: [{ amount: 900, taxable_amount: 4000, tax_behavior: 'exclusive', taxability_reason: 'standard_rated' }],
+      automatic_tax: { enabled: false },
+    } as unknown as Partial<Stripe.Invoice>);
+
+    const r = await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim);
+    expect(r.processed).toBe(true);
+
+    const { data: tx } = await supabaseSeller!
+      .from('payment_transactions')
+      .select('net_total, tax_total, tax_snapshot_status')
+      .eq('stripe_invoice_id', invoice.id!)
+      .single();
+    expect(tx?.net_total).toBe(4000);
+    expect(tx?.tax_total).toBe(900);
+    expect(tx?.tax_snapshot_status).toBe('captured');
+
+    const { data: userId } = await platformClient!.rpc('find_user_id_by_email', { p_email: email.toLowerCase() });
+    if (typeof userId === 'string') createdAuthUserIds.push(userId);
+  });
+
   it('handleInvoicePaid books a separate row for each renewal invoice', async () => {
     const email = `renew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
     const product = await createSubscriptionProduct();

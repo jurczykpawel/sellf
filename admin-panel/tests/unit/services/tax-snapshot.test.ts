@@ -163,6 +163,21 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
     expect(snap.lines[0].isBump).toBe(false);
   });
 
+  it('unexpanded price.product (string id, not an object) → productId null, tax still mapped', () => {
+    // When Stripe does not expand price.product the line carries only the product id string,
+    // so productMetadata returns {} → productId null → the matcher falls back to positional.
+    const line = {
+      id: 'li_x', amount_subtotal: 10000, amount_tax: 2300, amount_total: 12300, currency: 'pln',
+      price: { product: 'prod_unexpanded' },
+      taxes: [{ amount: 2300, taxable_amount: 10000, rate: { percentage: 23, effective_percentage: 23, inclusive: false } }],
+    } as unknown as import('stripe').Stripe.LineItem;
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: 2300, currency: 'pln' });
+    expect(snap.lines[0].productId).toBeNull();
+    expect(snap.lines[0].taxAmount).toBe(2300);
+    expect(snap.lines[0].netAmount).toBe(10000);
+    expect(snap.lines[0].vatRate).toBe(23);
+  });
+
   it('uncomputed tax (amountTax null) → status unavailable', () => {
     const line = makeLine({ productId: 'p1', netAmount: 10000, taxAmount: null, taxes: [] });
     const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: null, currency: 'pln' });
