@@ -622,6 +622,8 @@ export async function verifyPaymentSession(
               productId,
               bumpProductIds,
               metadata: session.metadata as Record<string, string | undefined> | null,
+              // Embed collects NIP/address via Stripe → carry them to the invoice section.
+              stripeCustomerDetails: session.customer_details,
               amount: session.amount_total,
               currency: session.currency,
               sessionId: session.id,

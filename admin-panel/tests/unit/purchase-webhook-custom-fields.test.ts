@@ -254,3 +254,53 @@ describe('buildPurchaseWebhookPayload — tax snapshot', () => {
     expect(payload.order.netTotal).toBeUndefined();
   });
 });
+
+describe('buildPurchaseWebhookPayload — invoice from Stripe customer_details (embed)', () => {
+  const productRow = { id: 'prod_1', name: 'Course', slug: 'course', price: 100, currency: 'PLN', icon: null, custom_checkout_fields: null, vat_exempt: false };
+
+  it('embed B2B: builds invoice from customer_details.tax_ids + address when metadata has none', async () => {
+    const supabase = mockSupabase({ productRow });
+    const payload = await buildPurchaseWebhookPayload({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabaseClient: supabase as any,
+      customerEmail: 'b@e.com', userId: null, productId: 'prod_1', bumpProductIds: [],
+      metadata: null, // embed: Sellf wrote no invoice metadata
+      stripeCustomerDetails: {
+        name: 'Firma Sp. z o.o.',
+        tax_ids: [{ value: 'PL1181697228' }],
+        address: { line1: 'ul. Przykładowa 123', city: 'Warszawa', postal_code: '00-000', country: 'PL' },
+      },
+      amount: 5900, currency: 'PLN', paymentIntentId: 'pi_x', couponId: null, isGuest: true,
+    });
+    expect(payload.invoice).toEqual({
+      needsInvoice: true, nip: 'PL1181697228', companyName: 'Firma Sp. z o.o.',
+      address: 'ul. Przykładowa 123', city: 'Warszawa', postalCode: '00-000', country: 'PL',
+    });
+  });
+
+  it('embed B2C: no tax id → no invoice section', async () => {
+    const supabase = mockSupabase({ productRow });
+    const payload = await buildPurchaseWebhookPayload({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabaseClient: supabase as any,
+      customerEmail: 'b@e.com', userId: null, productId: 'prod_1', bumpProductIds: [],
+      metadata: null,
+      stripeCustomerDetails: { name: 'John', tax_ids: [], address: { line1: 'x', city: 'y', postal_code: 'z', country: 'PL' } },
+      amount: 5900, currency: 'PLN', paymentIntentId: 'pi_x', couponId: null, isGuest: true,
+    });
+    expect(payload.invoice).toBeUndefined();
+  });
+
+  it('on-site metadata takes precedence over customer_details', async () => {
+    const supabase = mockSupabase({ productRow });
+    const payload = await buildPurchaseWebhookPayload({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabaseClient: supabase as any,
+      customerEmail: 'b@e.com', userId: null, productId: 'prod_1', bumpProductIds: [],
+      metadata: { needs_invoice: 'true', nip: 'METADATA_NIP', company_name: 'Meta Co', address: 'Meta St', city: 'Meta City', postal_code: '11-111', country: 'PL' },
+      stripeCustomerDetails: { name: 'Stripe Co', tax_ids: [{ value: 'STRIPE_NIP' }], address: { line1: 'Stripe St' } },
+      amount: 5900, currency: 'PLN', paymentIntentId: 'pi_x', couponId: null, isGuest: true,
+    });
+    expect(payload.invoice?.nip).toBe('METADATA_NIP');
+  });
+});

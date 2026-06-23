@@ -100,6 +100,17 @@ export interface BuildWebhookPayloadParams {
   customFieldValues?: Record<string, unknown> | null;
   /** Per-line tax snapshot captured from Stripe (added per product/bump + order totals). */
   taxSnapshot?: OrderTaxSnapshot;
+  /**
+   * Stripe Checkout `customer_details`. In the EMBED flow the buyer's NIP + billing address
+   * are collected by Stripe (tax_id_collection / billing_address_collection), not by Sellf's
+   * own InvoiceFields — so they live here, not in `metadata`. Used as the invoice source
+   * when `metadata.needs_invoice` is absent, so embed B2B purchases carry faktura data too.
+   */
+  stripeCustomerDetails?: {
+    name?: string | null;
+    tax_ids?: Array<{ value?: string | null }> | null;
+    address?: { line1?: string | null; city?: string | null; postal_code?: string | null; country?: string | null } | null;
+  } | null;
 }
 
 /**
@@ -139,7 +150,7 @@ export async function buildPurchaseWebhookPayload(
   const {
     supabaseClient, customerEmail, userId, productId, bumpProductIds,
     metadata, amount, currency, sessionId, paymentIntentId,
-    couponId, isGuest, source, customFieldValues, taxSnapshot,
+    couponId, isGuest, source, customFieldValues, taxSnapshot, stripeCustomerDetails,
   } = params;
 
   // Fetch main product details (incl. vat_exempt for the tax-snapshot label)
@@ -206,7 +217,10 @@ export async function buildPurchaseWebhookPayload(
     ...(source && { source }),
   };
 
-  // Add invoice data if requested
+  // Add invoice data if requested. On-site (Sellf's InvoiceFields) writes it to metadata;
+  // embed collects NIP + address via Stripe → read from customer_details as the fallback,
+  // treating a provided tax id as a faktura request (B2B). Without this, embed purchases
+  // would emit no invoice data and integrations would issue incomplete fakturas.
   if (metadata?.needs_invoice === 'true') {
     webhookData.invoice = {
       needsInvoice: true,
@@ -217,6 +231,20 @@ export async function buildPurchaseWebhookPayload(
       postalCode: metadata.postal_code || null,
       country: metadata.country || null,
     };
+  } else {
+    const taxId = stripeCustomerDetails?.tax_ids?.find((t) => t.value)?.value ?? null;
+    if (taxId) {
+      const a = stripeCustomerDetails?.address;
+      webhookData.invoice = {
+        needsInvoice: true,
+        nip: taxId,
+        companyName: stripeCustomerDetails?.name || null,
+        address: a?.line1 || null,
+        city: a?.city || null,
+        postalCode: a?.postal_code || null,
+        country: a?.country || null,
+      };
+    }
   }
 
   // Attach resolved custom-checkout-field answers if the seller had any defined
