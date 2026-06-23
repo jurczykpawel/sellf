@@ -7,6 +7,22 @@ interface InvoiceFieldsProps {
   invoice: InvoiceFieldsData;
 }
 
+// The BUYER's country (not the shop's). Stripe Tax derives the jurisdiction from it, and EU
+// B2B reverse charge needs the buyer's EU country + VAT-ID. EU-27 only — a non-EU buyer simply
+// won't trigger reverse charge (correct). PL is the default for the primary market.
+const EU_COUNTRY_OPTIONS = [
+  { code: 'PL', name: 'Polska' },
+  { code: 'AT', name: 'Austria' }, { code: 'BE', name: 'Belgia' }, { code: 'BG', name: 'Bułgaria' },
+  { code: 'HR', name: 'Chorwacja' }, { code: 'CY', name: 'Cypr' }, { code: 'CZ', name: 'Czechy' },
+  { code: 'DK', name: 'Dania' }, { code: 'EE', name: 'Estonia' }, { code: 'FI', name: 'Finlandia' },
+  { code: 'FR', name: 'Francja' }, { code: 'GR', name: 'Grecja' }, { code: 'ES', name: 'Hiszpania' },
+  { code: 'NL', name: 'Holandia' }, { code: 'IE', name: 'Irlandia' }, { code: 'LT', name: 'Litwa' },
+  { code: 'LU', name: 'Luksemburg' }, { code: 'LV', name: 'Łotwa' }, { code: 'MT', name: 'Malta' },
+  { code: 'DE', name: 'Niemcy' }, { code: 'PT', name: 'Portugalia' }, { code: 'RO', name: 'Rumunia' },
+  { code: 'SK', name: 'Słowacja' }, { code: 'SI', name: 'Słowenia' }, { code: 'SE', name: 'Szwecja' },
+  { code: 'HU', name: 'Węgry' }, { code: 'IT', name: 'Włochy' },
+] as const;
+
 export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
   const t = useTranslations('checkout');
 
@@ -120,6 +136,23 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
                 className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
               />
             </div>
+          </div>
+          {/* Buyer's country — drives Stripe Tax jurisdiction + EU B2B reverse charge. */}
+          <div>
+            <label htmlFor="country" className="block text-sm font-medium text-sf-body mb-2">
+              {t('countryLabel', { defaultValue: 'Country' })}
+            </label>
+            <select
+              id="country"
+              value={invoice.country}
+              onChange={(e) => invoice.setCountry(e.target.value)}
+              disabled={invoice.isLoadingGUS}
+              className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
+            >
+              {EU_COUNTRY_OPTIONS.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
           </div>
         </div>
       )}

@@ -101,6 +101,7 @@
     "postalCodeLabel": "Postal Code",
     "postalCodePlaceholder": "00-000",
     "cityLabel": "City",
+    "countryLabel": "Country",
     "cityPlaceholder": "Warsaw",
     "securePayment": "🔒 Secure payment powered by Stripe",
     "fullNamePlaceholder": "Jan Kowalski",
