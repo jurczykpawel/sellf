@@ -30,6 +30,12 @@ describe('toEuVatValue', () => {
     expect(toEuVatValue('PL', 'pl1181697228')).toBe('PL1181697228');
     expect(toEuVatValue('DE', 'DE123456789')).toBe('DE123456789');
   });
+  it('Greece uses the EL VAT prefix, not its ISO code GR', () => {
+    expect(toEuVatValue('GR', '123456789')).toBe('EL123456789');
+    expect(toEuVatValue('gr', '123456789')).toBe('EL123456789');
+    // already EL-prefixed stays as-is
+    expect(toEuVatValue('GR', 'EL123456789')).toBe('EL123456789');
+  });
 });
 
 describe('applyBuyerTaxIdentityToCustomer', () => {

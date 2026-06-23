@@ -26,8 +26,10 @@ const EU_COUNTRIES = new Set([
  */
 export function toEuVatValue(country: string, rawTaxId: string): string {
   const cc = country.trim().toUpperCase();
+  // Greece is the one EU country whose VAT prefix (EL) differs from its ISO-3166 code (GR).
+  const prefix = cc === 'GR' ? 'EL' : cc;
   const v = rawTaxId.replace(/\s+/g, '').toUpperCase();
-  return /^[A-Z]{2}/.test(v) ? v : `${cc}${v}`;
+  return /^[A-Z]{2}/.test(v) ? v : `${prefix}${v}`;
 }
 
 /**
