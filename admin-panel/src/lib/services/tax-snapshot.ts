@@ -415,7 +415,12 @@ export async function persistTaxSnapshot(
   const { data: rows } = await supabase
     .from('payment_line_items')
     .select('id, product_id, item_type')
-    .eq('transaction_id', transactionId);
+    .eq('transaction_id', transactionId)
+    // Deterministic order so the POSITIONAL fallback in matchSnapshotLinesToRows (used only
+    // when Stripe lines lack product_id) is stable rather than DB-arbitrary: insert order =
+    // main first, then bumps, matching how the Stripe line items are built.
+    .order('created_at', { ascending: true })
+    .order('item_type', { ascending: true });
 
   const { pairs, complete } = matchSnapshotLinesToRows(snapshot.lines, (rows ?? []) as LineRow[]);
 

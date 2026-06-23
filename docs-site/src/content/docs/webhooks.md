@@ -50,6 +50,33 @@ snapshot captured from Stripe at purchase. **All amounts are in minor units**
   `tax_snapshot_status` (on `/api/v1/payments`: `none` / `captured` / `partial` /
   `unavailable`) distinguishes "no VAT line" from "not computed".
 
+### `invoice.paid` — subscription VAT snapshot
+
+Recurring subscription charges emit `invoice.paid` (not `purchase.completed`). It carries
+an **order-level** VAT snapshot plus the buyer's faktura details, snapshotted by Stripe onto
+each invoice at purchase (so they don't change if the buyer later edits their profile):
+
+```json
+{
+  "event": "invoice.paid",
+  "invoice": {
+    "stripeInvoiceId": "in_…", "amountPaid": 123.00, "currency": "PLN",
+    "net": 100.00, "tax": 23.00, "vatRate": 23,
+    "taxBehavior": "exclusive", "taxabilityReason": "standard_rated",
+    "taxSnapshotStatus": "captured",
+    "nip": "PL1181697228", "companyName": "Firma Sp. z o.o.",
+    "address": "ul. Przykładowa 123", "city": "Warszawa", "postalCode": "00-000", "country": "PL"
+  }
+}
+```
+
+- **⚠️ Units differ from `purchase.completed`.** `invoice.paid` amounts (`amountPaid`, `net`,
+  `tax`) are in **MAJOR units** (whole currency, e.g. `123.00`) to match `amountPaid`, whereas
+  `purchase.completed` uses **minor units** (cents). An integration consuming both events must
+  scale accordingly.
+- `nip` / address fields appear only for B2B (a tax id on the invoice); `net`/`tax`/`vatRate`
+  only when tax was captured (`taxSnapshotStatus: captured`).
+
 ### Headers
 
 | Header | Notes |
