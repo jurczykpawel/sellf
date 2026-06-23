@@ -24,6 +24,7 @@ import type {
   CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
+import { shouldRequestInvoice, shouldCollectBuyerCountry } from '@/lib/checkout/invoice-form-logic';
 
 interface CustomPaymentFormProps {
   product: Product;
@@ -192,7 +193,6 @@ export default function CustomPaymentForm({
       }
 
       if (clientSecret) {
-        const hasValidTaxId = invoice.nip && invoice.nip.trim().length > 0 && validateTaxId(invoice.nip, false).isValid;
         const updateResponse = await fetch('/api/update-payment-metadata', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -202,7 +202,7 @@ export default function CustomPaymentForm({
             productId: product.id,
             fullName: invoice.fullName,
             termsAccepted: showTos ? termsAccepted : undefined,
-            needsInvoice: hasValidTaxId ? true : false,
+            needsInvoice: shouldRequestInvoice(invoice.nip),
             nip: invoice.nip || undefined,
             companyName: invoice.companyName || undefined,
             address: invoice.address || undefined,
@@ -403,7 +403,7 @@ export default function CustomPaymentForm({
 
       {/* Invoice Fields (NIP + company). Country selector only in Stripe Tax mode (drives
           jurisdiction + reverse charge); in Fixed-Rate mode the rate is flat. */}
-      <InvoiceFields invoice={invoice} showCountry={taxMode === 'stripe_tax'} />
+      <InvoiceFields invoice={invoice} showCountry={shouldCollectBuyerCountry(taxMode)} />
 
       {/* Product-defined custom checkout fields (e.g. message, domain). */}
       {customFieldDefs.length > 0 && onCustomFieldValuesChange && (

@@ -22,7 +22,6 @@ import {
 import type { PaymentMethodConfig } from '@/types/payment-config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
-import { applyBuyerTaxIdentityToCustomer } from '@/lib/stripe/buyer-tax-identity';
 import { getOrCreateStripeTaxRate, resolveLocalSubscriptionTaxRateId } from '@/lib/stripe/tax-rate-manager';
 import { buildCheckoutLineSpecs, buildStripeLineItems } from '@/lib/services/checkout-line-items';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
@@ -320,16 +319,6 @@ export async function POST(request: NextRequest) {
             { error: 'Email is required for recurring support' },
             { status: 400 },
           );
-        }
-        // stripe_tax: PWYW subscriptions go straight to subscriptions.create with no Stripe
-        // tax-id collection, so push the buyer's country + EU VAT-ID onto the Customer here so
-        // automatic_tax gets the right jurisdiction + B2B reverse charge. Gated on stripe_tax;
-        // local is untouched. Fail-safe (never blocks the purchase). NEEDS sandbox verification.
-        if (checkoutConfig.tax_mode === 'stripe_tax') {
-          await applyBuyerTaxIdentityToCustomer({
-            stripe, customerId,
-            identity: { country, taxId: nip, address, city, postalCode },
-          });
         }
         const stripeProductId = await ensureStripeProduct({
           stripe,
@@ -816,16 +805,12 @@ export async function POST(request: NextRequest) {
     }
 
     // stripe_tax + on-site (Elements): the session is otherwise a guest-by-email checkout with
-    // no Customer, so automatic_tax has no buyer address/VAT-ID to work from (B2B reverse charge
-    // never applies, jurisdiction is guessed). Attach a Customer carrying the buyer's country +
-    // EU VAT-ID so Stripe Tax computes correctly. Gated on stripe_tax → the local guest path is
-    // byte-identical. Fail-safe. NEEDS Stripe Tax sandbox verification (see priv/tasks/…).
+    // no Customer. Attach a Customer NOW so that update-payment-metadata can later set the
+    // buyer's country + EU VAT-ID on it (the buyer hasn't typed them yet at this point — they
+    // arrive on submit). A Checkout Session's customer can't be set after creation, so it must
+    // be attached here. Gated on stripe_tax → the local guest path is byte-identical.
     if (checkoutConfig.tax_mode === 'stripe_tax' && finalEmail) {
       const taxCustomerId = await getOrCreateStripeCustomer({ email: finalEmail, userId: user?.id });
-      await applyBuyerTaxIdentityToCustomer({
-        stripe, customerId: taxCustomerId,
-        identity: { country, taxId: nip, address, city, postalCode },
-      });
       checkoutSessionParams.customer = taxCustomerId;
       delete checkoutSessionParams.customer_email; // Stripe rejects customer + customer_email together
     }

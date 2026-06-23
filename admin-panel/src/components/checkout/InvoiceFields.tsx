@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { InvoiceFieldsData } from '@/hooks/useInvoiceData';
+import { shouldShowCompanyFields } from '@/lib/checkout/invoice-form-logic';
 
 interface InvoiceFieldsProps {
   invoice: InvoiceFieldsData;
@@ -84,7 +85,7 @@ export default function InvoiceFields({ invoice, showCountry = false }: InvoiceF
       </div>
 
       {/* Company fields — shown when NIP is long enough or GUS data loaded */}
-      {(invoice.nip.length === 10 || invoice.gusData || invoice.companyName) && (
+      {shouldShowCompanyFields({ nip: invoice.nip, hasGusData: !!invoice.gusData, companyName: invoice.companyName }) && (
         <div className={`space-y-3 animate-in slide-in-from-top-2 duration-300 ${invoice.isLoadingGUS ? 'opacity-60 pointer-events-none' : ''}`}>
           <div>
             <label htmlFor="companyName" className="block text-sm font-medium text-sf-body mb-2">
