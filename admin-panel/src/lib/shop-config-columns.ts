@@ -2,7 +2,7 @@
  * Public-safe columns of `shop_config` that anon (the public storefront) may read.
  *
  * MUST stay in sync with the column-level anon GRANT in
- * `supabase/migrations/20260621000000_legal_document_generation.sql`.
+ * `supabase/migrations/20260621000000_legal_docs_vat_tax_and_payment_rpc.sql`.
  *
  * Excluded (anon must NOT read them):
  *  - Seller PII: legal_form, company_legal_name, nip, regon, krs, company_street,

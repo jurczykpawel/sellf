@@ -1,5 +1,14 @@
--- Legal document generation feature (Sellf x legal-engine).
--- Single migration for the whole feature: (1) seller company fields on shop_config,
+-- Consolidated pre-release migration (project rule: until a migration reaches prod, ALL
+-- changes since the last release stay in ONE file). THREE concerns live here:
+--   1) Legal document generation (Sellf x legal-engine) — seller company fields, anon
+--      column-grants, public `legal` Storage bucket. (Sections 1–3 below.)
+--   2) VAT tax snapshot — per-line tax columns + CHECKs + products.vat_exempt.
+--   3) Payment-completion RPC net/gross fix — process_stripe_payment_completion_with_bump
+--      gains amount_subtotal_param; validates NET for net-priced products (GROSS for brutto).
+-- (Was 20260621000000_legal_document_generation.sql before (2)/(3) were folded in.)
+--
+-- ===== Concern 1: Legal document generation =====
+-- (1) seller company fields on shop_config,
 -- (2) column-level anon SELECT so the new seller-PII fields are admin-only,
 -- (3) the public `legal` Storage bucket for generated Terms/Privacy HTML.
 
