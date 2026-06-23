@@ -22,7 +22,7 @@ import {
 import type { PaymentMethodConfig } from '@/types/payment-config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
-import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
+import { getOrCreateStripeTaxRate, resolveLocalSubscriptionTaxRateId } from '@/lib/stripe/tax-rate-manager';
 import { buildCheckoutLineSpecs, buildStripeLineItems } from '@/lib/services/checkout-line-items';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
@@ -301,13 +301,13 @@ export async function POST(request: NextRequest) {
           })
         : undefined;
 
-      let taxRateId: string | undefined;
-      if (checkoutConfig.tax_mode === 'local' && subscriptionProduct.vat_rate && subscriptionProduct.vat_rate > 0) {
-        taxRateId = await getOrCreateStripeTaxRate({
-          percentage: subscriptionProduct.vat_rate,
-          inclusive: subscriptionProduct.price_includes_vat,
-        });
-      }
+      // Manual VAT rate for local mode only; skipped for stripe_tax and VAT-exempt products.
+      const taxRateId = await resolveLocalSubscriptionTaxRateId({
+        taxMode: checkoutConfig.tax_mode,
+        vatRate: subscriptionProduct.vat_rate,
+        priceIncludesVat: subscriptionProduct.price_includes_vat,
+        vatExempt: subscriptionProduct.vat_exempt,
+      });
 
       if (isPwywSubscription) {
         const v = validateCustomAmount(customAmount, product);

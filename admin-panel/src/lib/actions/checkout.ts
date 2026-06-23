@@ -8,7 +8,7 @@ import { ProductValidationService } from '@/lib/services/product-validation';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
-import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
+import { resolveLocalSubscriptionTaxRateId } from '@/lib/stripe/tax-rate-manager';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 
 interface CreateEmbeddedCheckoutOptions {
@@ -78,13 +78,13 @@ export async function fetchClientSecret(options: CreateEmbeddedCheckoutOptions):
         userId: user?.id,
       });
 
-      let taxRateId: string | undefined;
-      if (checkoutConfig.tax_mode === 'local' && product.vat_rate && product.vat_rate > 0) {
-        taxRateId = await getOrCreateStripeTaxRate({
-          percentage: product.vat_rate,
-          inclusive: product.price_includes_vat,
-        });
-      }
+      // Manual VAT rate for local mode only; skipped for stripe_tax and VAT-exempt products.
+      const taxRateId = await resolveLocalSubscriptionTaxRateId({
+        taxMode: checkoutConfig.tax_mode,
+        vatRate: product.vat_rate,
+        priceIncludesVat: product.price_includes_vat,
+        vatExempt: product.vat_exempt,
+      });
 
       // ensure durable Stripe Price binding before checkout.
       const stripePriceId = await getOrCreateStripePriceForProduct(stripe, product);

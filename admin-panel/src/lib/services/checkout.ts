@@ -12,7 +12,7 @@ import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { STRIPE_CONFIG, CHECKOUT_ERRORS, HTTP_STATUS } from '@/lib/stripe/config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
-import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
+import { getOrCreateStripeTaxRate, resolveLocalSubscriptionTaxRateId } from '@/lib/stripe/tax-rate-manager';
 import { buildCheckoutLineSpecs, buildStripeLineItems } from '@/lib/services/checkout-line-items';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { normalizeBumpIds } from '@/lib/validations/product';
@@ -356,13 +356,13 @@ export class CheckoutService {
 
     const customerId = await getOrCreateStripeCustomer({ email: customerEmail, userId });
 
-    let taxRateId: string | undefined;
-    if (checkoutConfig.tax_mode === 'local' && product.vat_rate && product.vat_rate > 0) {
-      taxRateId = await getOrCreateStripeTaxRate({
-        percentage: product.vat_rate,
-        inclusive: product.price_includes_vat,
-      });
-    }
+    // Manual VAT rate for local mode only; skipped for stripe_tax and VAT-exempt products.
+    const taxRateId = await resolveLocalSubscriptionTaxRateId({
+      taxMode: checkoutConfig.tax_mode,
+      vatRate: product.vat_rate,
+      priceIncludesVat: product.price_includes_vat,
+      vatExempt: product.vat_exempt,
+    });
 
     // durable Stripe Price binding (created lazily, persisted on
     // products.stripe_price_id). Webhook handlers verify sub.items.data[0].price.id
