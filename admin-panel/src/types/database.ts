@@ -2883,6 +2883,7 @@ export type Database = {
     Functions: {
       _process_stripe_payment_completion_with_bump_impl: {
         Args: {
+          amount_subtotal_param?: number
           amount_total: number
           bump_product_ids_param?: string[]
           coupon_id_param?: string
@@ -3311,6 +3312,7 @@ export type Database = {
       }
       process_stripe_payment_completion_with_bump: {
         Args: {
+          amount_subtotal_param?: number
           amount_total: number
           bump_product_ids_param?: string[]
           coupon_id_param?: string

@@ -184,6 +184,8 @@ async function handleCheckoutSessionCompleted(
     user_id_param: userId && userId !== '' ? userId : undefined,
     bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
     coupon_id_param: hasCoupon && couponId ? couponId : undefined,
+    // Net subtotal: net-priced products validate the NET amount, not the gross.
+    amount_subtotal_param: session.amount_subtotal ?? undefined,
   });
   const result = rawResult as Record<string, unknown> | null;
 
@@ -378,6 +380,19 @@ async function handlePaymentIntentSucceeded(
     }
   }
 
+  // Net subtotal for the completion validator: net-priced products validate the NET amount,
+  // not the gross (Stripe adds VAT on top of exclusive prices, and the gross varies by
+  // jurisdiction under Stripe Tax). Resolve the owning Checkout Session for amount_subtotal;
+  // fail-safe → null falls back to the legacy gross check. (stripe is reused by capture below.)
+  const stripe = await getStripeServer();
+  let piAmountSubtotal: number | undefined;
+  try {
+    const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+    piAmountSubtotal = ownerSessions.data[0]?.amount_subtotal ?? undefined;
+  } catch {
+    /* leave undefined — validator falls back to gross */
+  }
+
   // Process payment using database function (multi-bump aware)
   const { data: rawResult2, error } = await supabase.rpc('process_stripe_payment_completion_with_bump', {
     session_id_param: paymentIntent.id,
@@ -389,6 +404,7 @@ async function handlePaymentIntentSucceeded(
     user_id_param: userId && userId !== '' ? userId : undefined,
     bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
     coupon_id_param: couponId || undefined,
+    amount_subtotal_param: piAmountSubtotal,
   });
   const result = rawResult2 as Record<string, unknown> | null;
 
@@ -434,7 +450,7 @@ async function handlePaymentIntentSucceeded(
     // VAT tax snapshot — the stored session_id may be this PI's id (if this handler won
     // the race over checkout.session.completed), so also pass the PI id: capture resolves
     // the real Checkout Session from it and stays independent of Stripe event ordering.
-    const stripe = await getStripeServer();
+    // (stripe was created above for the subtotal lookup; reuse it.)
     const taxSnapshot = await captureAndPersistOrderTax({
       stripe,
       supabase,

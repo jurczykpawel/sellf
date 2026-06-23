@@ -562,7 +562,9 @@ export async function verifyPaymentSession(
             stripe_payment_intent_id: stripePaymentIntentId || undefined,
             user_id_param: user?.id || undefined,
             bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
-            coupon_id_param: hasCoupon && couponId ? couponId : undefined
+            coupon_id_param: hasCoupon && couponId ? couponId : undefined,
+            // Net subtotal: net-priced products validate the NET amount, not the gross.
+            amount_subtotal_param: session.amount_subtotal ?? undefined
           };
           
           const { data: paymentResultRaw, error: paymentError } = await serviceClient
@@ -835,6 +837,16 @@ export async function verifyPaymentIntent(
             }
           }
 
+          // Net subtotal: net-priced products validate the NET amount, not the gross. Resolve
+          // the owning Checkout Session for amount_subtotal; fail-safe → null falls back to gross.
+          let piAmountSubtotal: number | undefined;
+          try {
+            const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+            piAmountSubtotal = ownerSessions.data[0]?.amount_subtotal ?? undefined;
+          } catch {
+            /* leave undefined — validator falls back to gross */
+          }
+
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {
             session_id_param: paymentIntent.id,
@@ -845,7 +857,8 @@ export async function verifyPaymentIntent(
             stripe_payment_intent_id: paymentIntent.id,
             user_id_param: user?.id || undefined,
             bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
-            coupon_id_param: couponId || undefined
+            coupon_id_param: couponId || undefined,
+            amount_subtotal_param: piAmountSubtotal
           };
 
           const { data: paymentResultRaw2, error: paymentError } = await serviceClient
