@@ -98,12 +98,19 @@ function mapLine(line: Stripe.LineItem): LineTaxSnapshot {
   const vatRate = breakdown.length === 1 ? breakdown[0].effectiveRate : null;
   const taxBehavior: LineTaxSnapshot['taxBehavior'] =
     breakdown.length === 0 ? null : breakdown[0].inclusive ? 'inclusive' : 'exclusive';
+  // True net = gross - tax. Stripe's amount_subtotal is GROSS for INCLUSIVE (brutto) lines
+  // ("total before EXCLUSIVE taxes are applied"), so it must never be stored as net.
+  // amount_total - amount_tax is the true net for both inclusive and exclusive behaviors.
+  const taxAmount = line.amount_tax ?? null;
+  const grossAmount = line.amount_total ?? null;
+  const netAmount =
+    grossAmount !== null && taxAmount !== null ? grossAmount - taxAmount : (line.amount_subtotal ?? null);
   return {
     productId: meta.product_id ?? null,
     isBump: meta.is_bump === 'true',
-    netAmount: line.amount_subtotal ?? null,
-    taxAmount: line.amount_tax ?? null,
-    grossAmount: line.amount_total ?? null,
+    netAmount,
+    taxAmount,
+    grossAmount,
     vatRate,
     taxBehavior,
     taxabilityReason: breakdown[0]?.taxabilityReason ?? null,
@@ -119,7 +126,8 @@ function mapLine(line: Stripe.LineItem): LineTaxSnapshot {
 export function buildTaxSnapshotFromCheckoutLines(
   lines: Stripe.LineItem[],
   totals: {
-    amountSubtotal: number | null;
+    /** TRUE net (gross - tax). NOT Stripe's amount_subtotal, which is GROSS for inclusive. */
+    netTotal: number | null;
     amountTax: number | null;
     currency: string;
     /** session.automatic_tax.enabled — whether Stripe Tax computed this order. */
@@ -138,7 +146,7 @@ export function buildTaxSnapshotFromCheckoutLines(
   }
 
   return {
-    netTotal: totals.amountSubtotal ?? null,
+    netTotal: totals.netTotal ?? null,
     taxTotal: totals.amountTax ?? null,
     currency: totals.currency,
     status,
@@ -164,9 +172,13 @@ export async function captureCheckoutSessionTax(
     stripe.checkout.sessions.retrieve(sessionId, { expand: ['total_details.breakdown'] }),
   ]);
 
+  const amountTax = session.total_details?.amount_tax ?? null;
+  const grossTotal = session.amount_total ?? null;
   return buildTaxSnapshotFromCheckoutLines(lineItems.data, {
-    amountSubtotal: session.amount_subtotal,
-    amountTax: session.total_details?.amount_tax ?? null,
+    // True net = gross - tax. session.amount_subtotal is GROSS for inclusive (brutto) tax,
+    // so derive net from amount_total - amount_tax (correct for both behaviors).
+    netTotal: grossTotal !== null && amountTax !== null ? grossTotal - amountTax : (session.amount_subtotal ?? null),
+    amountTax,
     currency: session.currency ?? 'usd',
     automaticTaxEnabled: session.automatic_tax?.enabled ?? false,
   });
@@ -256,11 +268,13 @@ export function buildTaxSnapshotFromInvoice(invoice: Stripe.Invoice): OrderTaxSn
         ? invoice.total - net
         : null;
 
-  // Single applied component → effective rate from amount/taxable_amount; else null.
+  // Single applied component → effective rate. Derive from the TRUE net (total_excluding_tax),
+  // NOT taxable_amount: for inclusive (brutto) tax Stripe sets taxable_amount to the GROSS, so
+  // amount/taxable_amount would understate the rate (e.g. 18.7% instead of 23%).
   const single = taxes.length === 1 ? taxes[0] : null;
   const vatRate =
-    single && single.taxable_amount && single.taxable_amount > 0
-      ? Math.round((single.amount / single.taxable_amount) * 10000) / 100
+    single && net !== null && net > 0
+      ? Math.round((single.amount / net) * 10000) / 100
       : null;
   const taxBehavior: LineTaxSnapshot['taxBehavior'] = single
     ? single.tax_behavior === 'inclusive'

@@ -31,12 +31,15 @@ describe('buildTaxSnapshotFromInvoice', () => {
     expect(snap.lines[0].taxabilityReason).toBe('standard_rated');
   });
 
-  it('brutto (inclusive) → behavior inclusive', () => {
+  it('brutto (inclusive) → rate from TRUE net, not taxable_amount (which Stripe sets to gross)', () => {
+    // Real Stripe inclusive: taxable_amount = GROSS (12300). amount/taxable_amount would give
+    // 18.7%; correct is amount/total_excluding_tax = 2300/10000 = 23%.
     const snap = buildTaxSnapshotFromInvoice(fakeInvoice({
-      total_taxes: [{ amount: 2300, tax_behavior: 'inclusive', taxability_reason: 'standard_rated', taxable_amount: 10000 }],
+      total_taxes: [{ amount: 2300, tax_behavior: 'inclusive', taxability_reason: 'standard_rated', taxable_amount: 12300 }],
     }));
     expect(snap.lines[0].taxBehavior).toBe('inclusive');
-    expect(snap.lines[0].vatRate).toBe(23);
+    expect(snap.lines[0].vatRate).toBe(23); // not 18.7
+    expect(snap.netTotal).toBe(10000);
   });
 
   it('no tax → status none, taxTotal 0 (from total - net)', () => {

@@ -64,6 +64,15 @@ describe('computeRefundTax', () => {
     expect(r1.net + r2.net).toBe(15000);
   });
 
+  it('brutto order whose net_total column holds GROSS → vatRate still correct (derived from amount-taxTotal)', () => {
+    // Inclusive/legacy: net_total may store the gross (12300). vatRate must derive from the
+    // true net (amount - taxTotal = 10000), giving 23% — NOT 2300/12300 = 18.7%.
+    const r = computeRefundTax({ refundAmount: 12300, previousRefundedAmount: 0, totalRefunded: 12300, amount: 12300, netTotal: 12300, taxTotal: 2300 })!;
+    expect(r.vatRate).toBe(23);
+    expect(r.tax).toBe(2300);
+    expect(r.net).toBe(10000);
+  });
+
   it('non-positive amount → null (guard)', () => {
     expect(computeRefundTax({ refundAmount: 5000, previousRefundedAmount: 0, totalRefunded: 5000, amount: 0, netTotal: 10000, taxTotal: 2300 })).toBeNull();
   });

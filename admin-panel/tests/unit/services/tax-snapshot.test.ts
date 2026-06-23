@@ -65,7 +65,7 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
       grossAmount: 12300,
       taxes: [{ amount: 2300, taxable_amount: 10000, percentage: 23, taxability_reason: 'standard_rated', jurisdiction: 'PL', country: 'PL' }],
     });
-    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 2300, currency: 'pln' });
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: 2300, currency: 'pln' });
     expect(snap.status).toBe('captured');
     expect(snap.taxTotal).toBe(2300);
     expect(snap.netTotal).toBe(10000);
@@ -84,8 +84,8 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
 
   it('stripeTaxApplied reflects automaticTaxEnabled (default false)', () => {
     const line = makeLine({ productId: 'p1', netAmount: 10000, taxAmount: 2300, grossAmount: 12300, taxes: [{ amount: 2300, taxable_amount: 10000, percentage: 23 }] });
-    expect(buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 2300, currency: 'pln' }).stripeTaxApplied).toBe(false);
-    expect(buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 2300, currency: 'pln', automaticTaxEnabled: true }).stripeTaxApplied).toBe(true);
+    expect(buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: 2300, currency: 'pln' }).stripeTaxApplied).toBe(false);
+    expect(buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: 2300, currency: 'pln', automaticTaxEnabled: true }).stripeTaxApplied).toBe(true);
   });
 
   it('stripe_tax reverse-charge (0% with a reason) → captured with taxTotal 0, reason preserved, stripeTaxApplied', () => {
@@ -95,7 +95,7 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
       productId: 'p1', netAmount: 10000, taxAmount: 0, grossAmount: 10000,
       taxes: [{ amount: 0, taxable_amount: 10000, percentage: 0, taxability_reason: 'reverse_charge', country: 'DE' }],
     });
-    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 0, currency: 'eur', automaticTaxEnabled: true });
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: 0, currency: 'eur', automaticTaxEnabled: true });
     expect(snap.status).toBe('captured');
     expect(snap.taxTotal).toBe(0);
     expect(snap.stripeTaxApplied).toBe(true);
@@ -107,7 +107,7 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
 
   it('single line, zero components, zero tax → vatRate null, status none', () => {
     const line = makeLine({ productId: 'p1', netAmount: 5000, taxAmount: 0, grossAmount: 5000, taxes: [] });
-    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 5000, amountTax: 0, currency: 'pln' });
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 5000, amountTax: 0, currency: 'pln' });
     expect(snap.status).toBe('none');
     expect(snap.lines[0].vatRate).toBeNull();
     expect(snap.lines[0].taxBehavior).toBeNull();
@@ -125,30 +125,39 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
         { amount: 300, taxable_amount: 10000, percentage: 3, tax_type: 'sales_tax', jurisdiction: 'TX', country: 'US', state: 'TX' },
       ],
     });
-    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 925, currency: 'usd' });
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: 925, currency: 'usd' });
     expect(snap.lines[0].vatRate).toBeNull(); // never sum percentages
     expect(snap.lines[0].breakdown).toHaveLength(2);
     expect(snap.lines[0].taxAmount).toBe(925);
     expect(snap.status).toBe('captured');
   });
 
-  it('inclusive line → taxBehavior inclusive, vatRate from effective_percentage', () => {
+  it('inclusive (brutto) line → net is gross-tax, NOT Stripe amount_subtotal (which is gross)', () => {
+    // Real Stripe inclusive data: amount_subtotal == amount_total == GROSS (10000); the tax
+    // (1870) is extracted, and taxable_amount is also GROSS. Storing amount_subtotal as net
+    // would record 10000 (gross) — the bug. True net = 10000 - 1870 = 8130.
     const line = makeLine({
       productId: 'p1',
-      netAmount: 8130,
+      netAmount: 10000,    // Stripe amount_subtotal = GROSS for inclusive
       taxAmount: 1870,
-      grossAmount: 10000,
-      taxes: [{ amount: 1870, taxable_amount: 8130, percentage: 23, effective_percentage: 23, inclusive: true }],
+      grossAmount: 10000,  // amount_total = GROSS
+      taxes: [{ amount: 1870, taxable_amount: 10000, percentage: 23, effective_percentage: 23, inclusive: true }],
     });
-    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 8130, amountTax: 1870, currency: 'pln' });
+    // captureCheckoutSessionTax passes true net (amount_total - amount_tax = 8130) as netTotal.
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 8130, amountTax: 1870, currency: 'pln' });
     expect(snap.lines[0].taxBehavior).toBe('inclusive');
     expect(snap.lines[0].vatRate).toBe(23);
+    expect(snap.lines[0].netAmount).toBe(8130);   // true net, not 10000 (gross)
+    expect(snap.lines[0].grossAmount).toBe(10000);
+    expect(snap.lines[0].taxAmount).toBe(1870);
+    expect(snap.netTotal).toBe(8130);
+    expect(snap.netTotal! + snap.taxTotal!).toBe(10000); // net + tax == gross invariant
   });
 
   it('bump line → isBump true, productId from metadata', () => {
-    const main = makeLine({ productId: 'main', netAmount: 10000, taxAmount: 2300, taxes: [{ amount: 2300, taxable_amount: 10000, percentage: 23 }] });
-    const bump = makeLine({ productId: 'bump', isBump: true, netAmount: 5000, taxAmount: 0, taxes: [] });
-    const snap = buildTaxSnapshotFromCheckoutLines([main, bump], { amountSubtotal: 15000, amountTax: 2300, currency: 'pln' });
+    const main = makeLine({ productId: 'main', netAmount: 10000, taxAmount: 2300, grossAmount: 12300, taxes: [{ amount: 2300, taxable_amount: 10000, percentage: 23 }] });
+    const bump = makeLine({ productId: 'bump', isBump: true, netAmount: 5000, taxAmount: 0, grossAmount: 5000, taxes: [] });
+    const snap = buildTaxSnapshotFromCheckoutLines([main, bump], { netTotal: 15000, amountTax: 2300, currency: 'pln' });
     expect(snap.lines[1].isBump).toBe(true);
     expect(snap.lines[1].productId).toBe('bump');
     expect(snap.lines[0].isBump).toBe(false);
@@ -156,7 +165,7 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
 
   it('uncomputed tax (amountTax null) → status unavailable', () => {
     const line = makeLine({ productId: 'p1', netAmount: 10000, taxAmount: null, taxes: [] });
-    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: null, currency: 'pln' });
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { netTotal: 10000, amountTax: null, currency: 'pln' });
     expect(snap.status).toBe('unavailable');
   });
 });

@@ -210,7 +210,8 @@ describe('persistTaxSnapshot (integration — real DB)', () => {
             ],
           }),
           retrieve: async () => ({
-            amount_subtotal: 15000,
+            amount_subtotal: 15000,   // (gross would differ for inclusive; net derived from total - tax)
+            amount_total: 17300,
             total_details: { amount_tax: 2300 },
             currency: 'pln',
             automatic_tax: { enabled: false },

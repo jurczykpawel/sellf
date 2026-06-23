@@ -108,8 +108,12 @@ export function computeRefundTax(params: {
   const priorTax = Math.round((previousRefundedAmount * taxTotal) / amount);
   const tax = cumulativeTax - priorTax;
   const net = refundAmount - tax;
+  // Effective rate from the TRUE net = gross(amount) - taxTotal. NOT netTotal: the stored
+  // net_total is GROSS for legacy brutto orders captured before the inclusive-net fix, so
+  // deriving from amount - taxTotal is robust (e.g. 2300/(12300-2300) = 23%, not 18.7%).
+  const trueNet = amount - taxTotal;
   const vatRate =
-    taxTotal === 0 ? 0 : netTotal > 0 ? Math.round((taxTotal / netTotal) * 10000) / 100 : null;
+    taxTotal === 0 ? 0 : trueNet > 0 ? Math.round((taxTotal / trueNet) * 10000) / 100 : null;
   return { net, tax, vatRate };
 }
 
