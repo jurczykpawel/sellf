@@ -154,6 +154,12 @@ export function buildInvoicePaidPayload(input: BaseInput & {
   const inv = input.invoice;
   const snap = input.taxSnapshot;
   const taxLine = snap?.lines[0];
+  // Invoice billing snapshot for credit-note/faktura: NIP + address are snapshotted by
+  // Stripe ONTO EACH INVOICE (invoice.customer_*) from the Customer captured at subscription
+  // purchase — they do NOT follow later Sellf-profile edits, which is exactly what a faktura
+  // korygująca needs. Present only when a tax id is on the invoice (B2B).
+  const invTaxId = inv.customer_tax_ids?.find((t) => t.value)?.value ?? null;
+  const invAddr = inv.customer_address;
   return {
     customer: input.customer,
     product: input.product,
@@ -175,6 +181,15 @@ export function buildInvoicePaidPayload(input: BaseInput & {
         taxBehavior: taxLine?.taxBehavior ?? null,
         taxabilityReason: taxLine?.taxabilityReason ?? null,
         taxSnapshotStatus: snap.status,
+      }),
+      // Buyer faktura details, snapshotted on the invoice at purchase (B2B only).
+      ...(invTaxId && {
+        nip: invTaxId,
+        companyName: inv.customer_name ?? null,
+        address: invAddr?.line1 ?? null,
+        city: invAddr?.city ?? null,
+        postalCode: invAddr?.postal_code ?? null,
+        country: invAddr?.country ?? null,
       }),
     },
   };
