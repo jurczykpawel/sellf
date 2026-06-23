@@ -50,6 +50,15 @@ export interface RefundIssuedPayload {
     net?: number;
     tax?: number;
     vatRate?: number | null;
+    /**
+     * Exemption status of the ORIGINAL order, for the credit note (faktura korygująca):
+     * `vatExempt: true` marks a "zwolniony / zw." sale — distinct from a 0% rate, so the
+     * credit note can show "zw." rather than 0% VAT. `taxabilityReason` carries Stripe's reason
+     * under stripe_tax (`reverse_charge`, `customer_exempt`, …). Sourced from the order's main
+     * line; omitted when not exempt / no reason recorded.
+     */
+    vatExempt?: boolean;
+    taxabilityReason?: string | null;
   };
 }
 
@@ -185,6 +194,15 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
     taxTotal: txTax?.tax_total ?? null,
   });
 
+  // Exemption status from the order's main line, so a credit note distinguishes "zw."
+  // (legal exemption) from a 0% rate. One small fetch; omitted from the payload when absent.
+  const { data: mainLine } = await input.supabaseClient
+    .from('payment_line_items')
+    .select('vat_exempt, taxability_reason')
+    .eq('transaction_id', input.transaction.id)
+    .eq('item_type', 'main_product')
+    .maybeSingle();
+
   return buildRefundIssuedPayload({
     customer: {
       email: input.transaction.customer_email || '',
@@ -213,6 +231,8 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
       ...(input.refundRequestId !== undefined && { refundRequestId: input.refundRequestId }),
       source: input.source,
       ...(refundTax && { net: refundTax.net, tax: refundTax.tax, vatRate: refundTax.vatRate }),
+      ...(mainLine?.vat_exempt ? { vatExempt: true } : {}),
+      ...(mainLine?.taxability_reason ? { taxabilityReason: mainLine.taxability_reason } : {}),
     },
   });
 }

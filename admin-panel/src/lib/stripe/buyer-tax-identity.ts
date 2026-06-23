@@ -1,4 +1,5 @@
 import type Stripe from 'stripe';
+import { EU_COUNTRY_CODES } from '@/lib/checkout/eu-countries';
 
 /**
  * The BUYER's tax identity, collected by Sellf's own InvoiceFields (the on-site checkout
@@ -13,12 +14,6 @@ export interface BuyerTaxIdentity {
   city?: string | null;
   postalCode?: string | null;
 }
-
-// EU member states (ISO-3166-1 alpha-2). Only these get an `eu_vat` tax id → reverse charge.
-const EU_COUNTRIES = new Set([
-  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE',
-  'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
-]);
 
 /**
  * Normalize a raw VAT number to Stripe's `eu_vat` format (country-prefixed, no spaces).
@@ -68,7 +63,7 @@ export async function applyBuyerTaxIdentityToCustomer(params: {
 
   // 2) EU VAT-ID → reverse charge. EU countries only; idempotent; never throws.
   const rawTaxId = identity.taxId?.trim();
-  if (!rawTaxId || !EU_COUNTRIES.has(country)) return;
+  if (!rawTaxId || !EU_COUNTRY_CODES.has(country)) return;
 
   const value = toEuVatValue(country, rawTaxId);
   try {

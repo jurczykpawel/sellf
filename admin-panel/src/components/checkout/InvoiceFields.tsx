@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type { InvoiceFieldsData } from '@/hooks/useInvoiceData';
 import { shouldShowCompanyFields } from '@/lib/checkout/invoice-form-logic';
+import { EU_COUNTRIES } from '@/lib/checkout/eu-countries';
 
 interface InvoiceFieldsProps {
   invoice: InvoiceFieldsData;
@@ -15,21 +16,6 @@ interface InvoiceFieldsProps {
   showCountry?: boolean;
 }
 
-// The BUYER's country (not the shop's). Stripe Tax derives the jurisdiction from it, and EU
-// B2B reverse charge needs the buyer's EU country + VAT-ID. EU-27 only — a non-EU buyer simply
-// won't trigger reverse charge (correct). PL is the default for the primary market.
-const EU_COUNTRY_OPTIONS = [
-  { code: 'PL', name: 'Polska' },
-  { code: 'AT', name: 'Austria' }, { code: 'BE', name: 'Belgia' }, { code: 'BG', name: 'Bułgaria' },
-  { code: 'HR', name: 'Chorwacja' }, { code: 'CY', name: 'Cypr' }, { code: 'CZ', name: 'Czechy' },
-  { code: 'DK', name: 'Dania' }, { code: 'EE', name: 'Estonia' }, { code: 'FI', name: 'Finlandia' },
-  { code: 'FR', name: 'Francja' }, { code: 'GR', name: 'Grecja' }, { code: 'ES', name: 'Hiszpania' },
-  { code: 'NL', name: 'Holandia' }, { code: 'IE', name: 'Irlandia' }, { code: 'LT', name: 'Litwa' },
-  { code: 'LU', name: 'Luksemburg' }, { code: 'LV', name: 'Łotwa' }, { code: 'MT', name: 'Malta' },
-  { code: 'DE', name: 'Niemcy' }, { code: 'PT', name: 'Portugalia' }, { code: 'RO', name: 'Rumunia' },
-  { code: 'SK', name: 'Słowacja' }, { code: 'SI', name: 'Słowenia' }, { code: 'SE', name: 'Szwecja' },
-  { code: 'HU', name: 'Węgry' }, { code: 'IT', name: 'Włochy' },
-] as const;
 
 export default function InvoiceFields({ invoice, showCountry = false }: InvoiceFieldsProps) {
   const t = useTranslations('checkout');
@@ -159,7 +145,7 @@ export default function InvoiceFields({ invoice, showCountry = false }: InvoiceF
                 disabled={invoice.isLoadingGUS}
                 className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
               >
-                {EU_COUNTRY_OPTIONS.map((c) => (
+                {EU_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </select>

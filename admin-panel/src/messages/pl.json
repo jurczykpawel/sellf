@@ -2584,6 +2584,7 @@
         "localDescription": "Sam ustawiasz stawkę VAT per produkt, a Stripe ją tylko wyświetla. Najlepsze, gdy sprzedajesz w jednym kraju (np. tylko w Polsce). Ustawienia VAT produktu — stawka, netto/brutto, zwolnienie — działają.",
         "stripeTax": "Stripe Tax",
         "stripeTaxDescription": "Stripe sam oblicza VAT na podstawie kraju kupującego i Twoich rejestracji podatkowych w Stripe (sprzedaż zagraniczna / OSS w UE, odwrotne obciążenie dla B2B z numerem VAT). Stawka VAT i zwolnienie ustawione przy produkcie są pomijane — autorytetem jest Stripe. Wymaga włączonego Stripe Tax w panelu Stripe. Uwaga: kraj Twojej firmy i rejestracje podatkowe pochodzą z konta Stripe, nie z Sellf — ustawienie Kraj w Sellf służy wyłącznie do generowania dokumentów prawnych, nigdy do podatku.",
+        "exemptIgnoredWarning": "Twój sklep jest oznaczony jako zwolniony z VAT, ale w trybie Stripe Tax to ustawienie jest pomijane — to Stripe decyduje o opodatkowaniu i może naliczyć VAT (np. transgranicznie). Zwolnieniami zarządzaj przez rejestracje podatkowe w Stripe.",
         "vatRateLabel": "Domyślna stawka VAT",
         "vatRateHelp": "Ta stawka jest przypisywana do nowo tworzonych produktów jako domyślna. Każdy produkt przechowuje własną stawkę VAT, którą można zmienić indywidualnie. Stawka wysyłana do Stripe przy checkout to zawsze stawka danego produktu. Używane tylko w trybie Stała stawka.",
         "vatRatePlaceholder": "23",
