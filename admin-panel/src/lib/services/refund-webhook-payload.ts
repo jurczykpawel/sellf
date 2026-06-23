@@ -80,29 +80,33 @@ export function shouldEmitRefundWebhook(input: {
 }
 
 /**
- * PURE: VAT breakdown of a refunded amount for a credit note. Full refund = exact
- * order net_total/tax_total; partial = proportional to the gross charge. Returns null
- * when the order has no tax snapshot (net/tax null) — never fabricate a number. All
- * MINOR units. NOTE: for a partial refund of a MIXED-RATE order the split is an
- * approximation (proportional); it is exact for full refunds and single-rate orders.
+ * PURE: VAT breakdown of a refund delta for a credit note (faktura korygująca).
+ *
+ * Tax for THIS refund = cumulative tax up to totalRefunded minus the tax already credited
+ * up to previousRefundedAmount — i.e. the incremental VAT of this delta, proportional to
+ * the gross charge. This stays correct across a SEQUENCE of partial refunds: the credited
+ * tax across all credit notes sums to round(totalRefunded × taxTotal/amount), which equals
+ * taxTotal exactly once the order is fully refunded (totalRefunded == amount). A single
+ * full or single partial refund is therefore also exact.
+ *
+ * Returns null when the order has no tax snapshot (net/tax null) — never fabricate. All
+ * MINOR units; net + tax == refundAmount. For a MIXED-RATE order the proportional split
+ * is a (blended-rate) approximation — exact for single-rate orders and full refunds.
  */
 export function computeRefundTax(params: {
   refundAmount: number;
-  isFullRefund: boolean;
+  previousRefundedAmount: number;
+  totalRefunded: number;
   amount: number | null;
   netTotal: number | null;
   taxTotal: number | null;
 }): { net: number; tax: number; vatRate: number | null } | null {
-  const { refundAmount, isFullRefund, amount, netTotal, taxTotal } = params;
+  const { refundAmount, previousRefundedAmount, totalRefunded, amount, netTotal, taxTotal } = params;
   if (netTotal === null || taxTotal === null) return null;
-  let tax: number;
-  if (isFullRefund) {
-    tax = taxTotal;
-  } else if (amount && amount > 0) {
-    tax = Math.round((refundAmount * taxTotal) / amount);
-  } else {
-    return null;
-  }
+  if (!amount || amount <= 0) return null;
+  const cumulativeTax = Math.round((totalRefunded * taxTotal) / amount);
+  const priorTax = Math.round((previousRefundedAmount * taxTotal) / amount);
+  const tax = cumulativeTax - priorTax;
   const net = refundAmount - tax;
   const vatRate =
     taxTotal === 0 ? 0 : netTotal > 0 ? Math.round((taxTotal / netTotal) * 10000) / 100 : null;
@@ -170,7 +174,8 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
     .maybeSingle();
   const refundTax = computeRefundTax({
     refundAmount: input.refundAmount,
-    isFullRefund: input.isFullRefund,
+    previousRefundedAmount: input.previousRefundedAmount,
+    totalRefunded: input.totalRefunded,
     amount: input.transaction.amount,
     netTotal: txTax?.net_total ?? null,
     taxTotal: txTax?.tax_total ?? null,
