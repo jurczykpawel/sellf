@@ -82,6 +82,12 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
     expect(l.breakdown).toHaveLength(1);
   });
 
+  it('stripeTaxApplied reflects automaticTaxEnabled (default false)', () => {
+    const line = makeLine({ productId: 'p1', netAmount: 10000, taxAmount: 2300, grossAmount: 12300, taxes: [{ amount: 2300, taxable_amount: 10000, percentage: 23 }] });
+    expect(buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 2300, currency: 'pln' }).stripeTaxApplied).toBe(false);
+    expect(buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 2300, currency: 'pln', automaticTaxEnabled: true }).stripeTaxApplied).toBe(true);
+  });
+
   it('single line, zero components, zero tax → vatRate null, status none', () => {
     const line = makeLine({ productId: 'p1', netAmount: 5000, taxAmount: 0, grossAmount: 5000, taxes: [] });
     const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 5000, amountTax: 0, currency: 'pln' });

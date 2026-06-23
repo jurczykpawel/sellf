@@ -39,7 +39,11 @@ snapshot captured from Stripe at purchase. **All amounts are in minor units**
 - `vatRate` is the single applied rate, or `null` when a line has **0 or multiple**
   tax components (Stripe Tax can split jurisdictions — the full breakdown is on
   `/api/v1/payments` `line_items[].tax_breakdown`).
-- `vatExempt: true` marks a **"zwolniony / zw."** line — distinct from a 0% rate.
+- `vatExempt: true` marks a **"zwolniony / zw."** line — distinct from a 0% rate. It
+  reflects the seller's per-product exemption **only in `local` tax mode**. Under Stripe
+  Tax (`stripe_tax`) Stripe is the sole authority on taxability, so `vatExempt` is always
+  `false` and the real reason lives in `taxabilityReason` (a domestic "zw." status never
+  suppresses VAT Stripe legitimately charges in another jurisdiction).
 - `taxBehavior` is `inclusive` / `exclusive`; `taxabilityReason` carries Stripe's
   reason in `stripe_tax` mode (`reverse_charge`, `customer_exempt`, `zero_rated`, …).
 - The tax fields are present only when tax was captured. The order's

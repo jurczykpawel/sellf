@@ -148,6 +148,7 @@ describe('buildPurchaseWebhookPayload — tax snapshot', () => {
       taxTotal: 2300,
       currency: 'pln',
       status: 'captured',
+      stripeTaxApplied: false,
       lines: [
         { productId: 'prod_1', isBump: false, netAmount: 10000, taxAmount: 2300, grossAmount: 12300, vatRate: 23, taxBehavior: 'exclusive', taxabilityReason: 'standard_rated', breakdown: [] },
         { productId: 'bump_1', isBump: true, netAmount: 5000, taxAmount: 0, grossAmount: 5000, vatRate: null, taxBehavior: null, taxabilityReason: null, breakdown: [] },
@@ -179,6 +180,51 @@ describe('buildPurchaseWebhookPayload — tax snapshot', () => {
     });
     expect(payload.order.netTotal).toBe(15000);
     expect(payload.order.taxTotal).toBe(2300);
+  });
+
+  it('Stripe Tax mode → webhook vatExempt is false even when the product flag is true', async () => {
+    // bump_1 has vat_exempt: true, but stripeTaxApplied means Stripe decided taxability —
+    // the payload must not advertise a PL "zw." exemption; taxabilityReason carries the truth.
+    const supabase = mockSupabase({
+      productRow: {
+        id: 'prod_1', name: 'Course', slug: 'course', price: 100, currency: 'PLN', icon: null,
+        custom_checkout_fields: null, vat_exempt: true,
+      },
+      bumpRows: [
+        { id: 'bump_1', name: 'Toolkit', slug: 'toolkit', price: 50, currency: 'PLN', icon: null, vat_exempt: true },
+      ],
+    });
+
+    const taxSnapshot: OrderTaxSnapshot = {
+      netTotal: 15000,
+      taxTotal: 2300,
+      currency: 'pln',
+      status: 'captured',
+      stripeTaxApplied: true,
+      lines: [
+        { productId: 'prod_1', isBump: false, netAmount: 10000, taxAmount: 2300, grossAmount: 12300, vatRate: 23, taxBehavior: 'exclusive', taxabilityReason: 'standard_rated', breakdown: [] },
+        { productId: 'bump_1', isBump: true, netAmount: 5000, taxAmount: 0, grossAmount: 5000, vatRate: null, taxBehavior: null, taxabilityReason: 'customer_exempt', breakdown: [] },
+      ],
+    };
+
+    const payload = await buildPurchaseWebhookPayload({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabaseClient: supabase as any,
+      customerEmail: 'b@e.com',
+      userId: null,
+      productId: 'prod_1',
+      bumpProductIds: ['bump_1'],
+      metadata: null,
+      amount: 17300,
+      currency: 'PLN',
+      paymentIntentId: 'pi_x',
+      couponId: null,
+      isGuest: true,
+      taxSnapshot,
+    });
+
+    expect(payload.product).toMatchObject({ id: 'prod_1', vatExempt: false, taxabilityReason: 'standard_rated' });
+    expect(payload.bumpProducts[0]).toMatchObject({ id: 'bump_1', vatExempt: false, taxabilityReason: 'customer_exempt' });
   });
 
   it('omits tax fields when no snapshot provided (backward-compatible)', async () => {

@@ -126,6 +126,7 @@ type StripeLineItemShape = {
     currency: string;
     unit_amount: number;
     tax_behavior?: string;
+    tax_code?: string;
     product_data: { name: string; description?: string; metadata: Record<string, string> };
   };
   tax_rates?: string[];
@@ -163,6 +164,19 @@ describe('buildStripeLineItems', () => {
     const m = items[0] as unknown as StripeLineItemShape;
     expect(m.tax_rates).toBeUndefined();
     expect(m.price_data.tax_behavior).toBeUndefined();
+  });
+
+  it('exempt product in stripe_tax mode → Stripe decides (no manual rate, NO forced tax_code)', async () => {
+    // We must NOT force txcd_00000000 (Nontaxable) from a PL "zw." flag — Nontaxable applies
+    // globally and would suppress VAT Stripe legitimately charges abroad (e.g. OSS B2C).
+    // Stripe Tax + the seller's registrations decide; the seller's exemption lives there.
+    const ex = { ...main, vatExempt: true };
+    const { specs } = buildCheckoutLineSpecs({ main: ex, mainPrice: 100, bumps: [], coupon: null, taxMode: 'stripe_tax' });
+    const items = await buildStripeLineItems(specs, { resolveTaxRate: resolve });
+    const m = items[0] as unknown as StripeLineItemShape;
+    expect(m.tax_rates).toBeUndefined();            // no manual VAT rate attached
+    expect(m.price_data.tax_code).toBeUndefined();  // never forced — Stripe determines exemption
+    expect(m.price_data.tax_behavior).toBe('exclusive'); // pricing (net) still conveyed to Stripe
   });
 
   it('inclusive line → tax_behavior inclusive, resolver gets inclusive=true', async () => {

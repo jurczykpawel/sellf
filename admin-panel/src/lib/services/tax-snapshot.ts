@@ -53,6 +53,14 @@ export interface OrderTaxSnapshot {
   taxTotal: number | null;
   currency: string;
   status: TaxSnapshotStatus;
+  /**
+   * True when Stripe Tax (automatic_tax) computed this order. In that mode Stripe is
+   * the SOLE authority on taxability — the seller's local vat_exempt / vat_rate are NOT
+   * applied — so consumers MUST NOT label a line exempt from the product flag (a PL "zw."
+   * status must not claim exemption where Stripe legitimately charged foreign VAT). The
+   * truth lives in taxAmount + taxabilityReason. False = local mode (product flag rules).
+   */
+  stripeTaxApplied: boolean;
   lines: LineTaxSnapshot[];
 }
 
@@ -110,7 +118,13 @@ function mapLine(line: Stripe.LineItem): LineTaxSnapshot {
  */
 export function buildTaxSnapshotFromCheckoutLines(
   lines: Stripe.LineItem[],
-  totals: { amountSubtotal: number | null; amountTax: number | null; currency: string },
+  totals: {
+    amountSubtotal: number | null;
+    amountTax: number | null;
+    currency: string;
+    /** session.automatic_tax.enabled — whether Stripe Tax computed this order. */
+    automaticTaxEnabled?: boolean;
+  },
 ): OrderTaxSnapshot {
   const snapshotLines = lines.map(mapLine);
 
@@ -128,6 +142,7 @@ export function buildTaxSnapshotFromCheckoutLines(
     taxTotal: totals.amountTax ?? null,
     currency: totals.currency,
     status,
+    stripeTaxApplied: totals.automaticTaxEnabled ?? false,
     lines: snapshotLines,
   };
 }
@@ -153,6 +168,7 @@ export async function captureCheckoutSessionTax(
     amountSubtotal: session.amount_subtotal,
     amountTax: session.total_details?.amount_tax ?? null,
     currency: session.currency ?? 'usd',
+    automaticTaxEnabled: session.automatic_tax?.enabled ?? false,
   });
 }
 
@@ -254,8 +270,13 @@ export function matchSnapshotLinesToRows(
 /**
  * Persist a captured snapshot: UPDATE the payment_line_items rows (only when the
  * match is complete — never write partial/guessed per-line numbers) and the
- * payment_transactions totals + status. Per-line `vat_exempt` is the product's
- * vat_exempt snapshot at purchase (label authority in local tax mode).
+ * payment_transactions totals + status.
+ *
+ * Per-line `vat_exempt` is the product's vat_exempt snapshot ONLY in local tax mode.
+ * When Stripe Tax computed the order (`snapshot.stripeTaxApplied`), Stripe is the sole
+ * authority on taxability, so vat_exempt is forced false and the truth lives in
+ * `taxability_reason` + `tax_amount` — a PL "zw." flag must not claim exemption where
+ * Stripe legitimately charged VAT (e.g. cross-border OSS).
  */
 export async function persistTaxSnapshot(
   supabase: SupabaseClient<Database>,
@@ -271,16 +292,20 @@ export async function persistTaxSnapshot(
 
   let matched = 0;
   if (complete) {
-    const productIds = [
-      ...new Set(pairs.map((p) => p.row.product_id).filter((id): id is string => !!id)),
-    ];
+    // Local mode only: the seller's per-product vat_exempt is the label authority.
+    // In Stripe Tax mode we never read it (empty map → vat_exempt false for every line).
     const exemptById = new Map<string, boolean>();
-    if (productIds.length > 0) {
-      const { data: products } = await supabase
-        .from('products')
-        .select('id, vat_exempt')
-        .in('id', productIds);
-      for (const p of products ?? []) exemptById.set(p.id, p.vat_exempt ?? false);
+    if (!snapshot.stripeTaxApplied) {
+      const productIds = [
+        ...new Set(pairs.map((p) => p.row.product_id).filter((id): id is string => !!id)),
+      ];
+      if (productIds.length > 0) {
+        const { data: products } = await supabase
+          .from('products')
+          .select('id, vat_exempt')
+          .in('id', productIds);
+        for (const p of products ?? []) exemptById.set(p.id, p.vat_exempt ?? false);
+      }
     }
     for (const { row, line } of pairs) {
       await supabase

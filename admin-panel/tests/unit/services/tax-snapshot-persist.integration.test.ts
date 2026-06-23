@@ -72,6 +72,7 @@ describe('persistTaxSnapshot (integration — real DB)', () => {
       taxTotal: 2300,
       currency: 'pln',
       status: 'captured',
+      stripeTaxApplied: false,
       lines: [
         { productId: mainId, isBump: false, netAmount: 10000, taxAmount: 2300, grossAmount: 12300, vatRate: 23, taxBehavior: 'exclusive', taxabilityReason: 'standard_rated', breakdown: [{ amount: 2300, taxableAmount: 10000, rate: 23, effectiveRate: 23, inclusive: false, taxType: 'vat', jurisdiction: 'PL', country: 'PL', state: null, taxabilityReason: 'standard_rated' }] },
         { productId: bumpId, isBump: true, netAmount: 5000, taxAmount: 0, grossAmount: 5000, vatRate: null, taxBehavior: null, taxabilityReason: null, breakdown: [] },
@@ -111,6 +112,37 @@ describe('persistTaxSnapshot (integration — real DB)', () => {
     expect(tx!.tax_snapshot_status).toBe('captured');
   });
 
+  it('Stripe Tax mode → vat_exempt forced false (Stripe authoritative, NOT the product flag)', async () => {
+    // bumpId has products.vat_exempt = true, but this order was computed by Stripe Tax,
+    // so the line must NOT inherit the PL "zw." flag — taxability is Stripe's call and the
+    // truth lives in taxability_reason. (Prevents claiming exemption where Stripe charged VAT.)
+    const snapshot: OrderTaxSnapshot = {
+      netTotal: 15000,
+      taxTotal: 2300,
+      currency: 'pln',
+      status: 'captured',
+      stripeTaxApplied: true,
+      lines: [
+        { productId: mainId, isBump: false, netAmount: 10000, taxAmount: 2300, grossAmount: 12300, vatRate: 23, taxBehavior: 'exclusive', taxabilityReason: 'standard_rated', breakdown: [] },
+        { productId: bumpId, isBump: true, netAmount: 5000, taxAmount: 0, grossAmount: 5000, vatRate: null, taxBehavior: null, taxabilityReason: 'customer_exempt', breakdown: [] },
+      ],
+    };
+
+    const result = await persistTaxSnapshot(supabase, txId, snapshot);
+    expect(result.status).toBe('captured');
+    expect(result.matched).toBe(2);
+
+    const { data: lines } = await supabase
+      .from('payment_line_items')
+      .select('product_id, vat_exempt, taxability_reason')
+      .eq('transaction_id', txId);
+
+    // products.vat_exempt(bumpId) = true, but Stripe Tax mode forces every line false.
+    for (const l of lines!) expect(l.vat_exempt).toBe(false);
+    const bumpLine = lines!.find((l) => l.product_id === bumpId)!;
+    expect(bumpLine.taxability_reason).toBe('customer_exempt');
+  });
+
   it('marks the transaction partial without writing per-line tax when lines cannot match', async () => {
     // A snapshot whose single line references an unknown product → cannot match the 2 rows.
     const snapshot: OrderTaxSnapshot = {
@@ -118,6 +150,7 @@ describe('persistTaxSnapshot (integration — real DB)', () => {
       taxTotal: 0,
       currency: 'pln',
       status: 'captured',
+      stripeTaxApplied: false,
       lines: [
         { productId: 'unknown-product', isBump: false, netAmount: 9999, taxAmount: 0, grossAmount: 9999, vatRate: null, taxBehavior: null, taxabilityReason: null, breakdown: [] },
       ],

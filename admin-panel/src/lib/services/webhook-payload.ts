@@ -119,7 +119,9 @@ function applyLineTax(
     tax: line.taxAmount,
     gross: line.grossAmount,
     vatRate: line.vatRate,
-    vatExempt: vatExemptById.get(detail.id) ?? false,
+    // Product vat_exempt is the label only in local mode. Under Stripe Tax, Stripe decides
+    // taxability (taxabilityReason) — never claim exemption from the seller's PL flag.
+    vatExempt: taxSnapshot?.stripeTaxApplied ? false : (vatExemptById.get(detail.id) ?? false),
     taxBehavior: line.taxBehavior,
     taxabilityReason: line.taxabilityReason,
   };
