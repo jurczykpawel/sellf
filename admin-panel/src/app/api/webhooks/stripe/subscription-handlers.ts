@@ -15,6 +15,7 @@ import type Stripe from 'stripe';
 import type { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
 import {
   buildSubscriptionCreatedPayload,
   buildSubscriptionUpdatedPayload,
@@ -865,7 +866,7 @@ export async function handleInvoicePaid(
       ? ((invoice as unknown as { payment_intent: string }).payment_intent)
       : ((invoice as unknown as { payment_intent?: { id: string } }).payment_intent?.id ?? null);
 
-  const { error: txError } = await supabase.from('payment_transactions').insert({
+  const { data: insertedTx, error: txError } = await supabase.from('payment_transactions').insert({
     user_id: ctx.userId,
     product_id: ctx.productId,
     subscription_id: subscriptionRowId,
@@ -880,7 +881,7 @@ export async function handleInvoicePaid(
     currency: (invoice.currency ?? 'usd').toUpperCase(),
     status: 'completed',
     customer_email: ctx.email,
-  });
+  }).select('id').single();
   // payment_transactions.stripe_invoice_id has a partial UNIQUE index.
   // If we lost the race to the primary processor, exit BEFORE access mutation
   // and BEFORE outbound dispatch — the winner has already done both.
@@ -918,11 +919,20 @@ export async function handleInvoicePaid(
     await issueRenewalLicense();
   }
 
+  // VAT order-level snapshot for this renewal invoice: net/tax/status on the tx row +
+  // the invoice.paid webhook payload. Fail-safe — never blocks billing or access.
+  const taxSnapshot = await captureAndPersistInvoiceTax({
+    supabase,
+    invoice,
+    transactionId: insertedTx?.id,
+  });
+
   const payload = buildInvoicePaidPayload({
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
     subscriptionId: sub.id,
     invoice,
+    taxSnapshot,
   });
   await WebhookService.trigger('invoice.paid', payload, supabase, payload.product.id);
 

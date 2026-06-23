@@ -18,6 +18,7 @@
  */
 
 import type Stripe from 'stripe';
+import type { OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 
 export interface SubProductSummary {
   id: string;
@@ -147,8 +148,12 @@ export function buildSubscriptionRenewalUpcomingPayload(input: BaseInput & {
 export function buildInvoicePaidPayload(input: BaseInput & {
   invoice: Stripe.Invoice;
   subscriptionId: string;
+  /** Order-level VAT snapshot for this invoice (net/tax in MAJOR units, matching amountPaid). */
+  taxSnapshot?: OrderTaxSnapshot;
 }) {
   const inv = input.invoice;
+  const snap = input.taxSnapshot;
+  const taxLine = snap?.lines[0];
   return {
     customer: input.customer,
     product: input.product,
@@ -161,6 +166,16 @@ export function buildInvoicePaidPayload(input: BaseInput & {
       invoicePdfUrl: inv.invoice_pdf ?? null,
       paidAt: toIso(inv.status_transitions?.paid_at ?? null),
       billingReason: inv.billing_reason,
+      // VAT (present only when captured). net/tax in MAJOR units (like amountPaid);
+      // vatRate is the single applied rate or null; taxSnapshotStatus mirrors the tx row.
+      ...(snap && {
+        net: fromMinor(snap.netTotal),
+        tax: fromMinor(snap.taxTotal),
+        vatRate: taxLine?.vatRate ?? null,
+        taxBehavior: taxLine?.taxBehavior ?? null,
+        taxabilityReason: taxLine?.taxabilityReason ?? null,
+        taxSnapshotStatus: snap.status,
+      }),
     },
   };
 }

@@ -240,11 +240,104 @@ export async function captureAndPersistOrderTax(params: {
 }
 
 /**
- * Phase 2 seam: subscription invoices carry tax differently (invoice.lines.data[].
- * tax_amounts[] with tax_rate ids). Not wired in Phase 1.
+ * PURE: normalize a paid subscription Invoice into an ORDER-LEVEL OrderTaxSnapshot.
+ * Subscriptions have no payment_line_items rows, so this records order totals only
+ * (net = total_excluding_tax, tax = sum of total_taxes[].amount, fallback total - net).
+ * A single synthetic line carries the applied rate/behavior/reason for the webhook —
+ * it is never matched to DB rows. Numbers come from Stripe; all MINOR units.
  */
-export function buildTaxSnapshotFromInvoice(_invoice: Stripe.Invoice): OrderTaxSnapshot {
-  throw new Error('buildTaxSnapshotFromInvoice: subscriptions are Phase 2');
+export function buildTaxSnapshotFromInvoice(invoice: Stripe.Invoice): OrderTaxSnapshot {
+  const net = invoice.total_excluding_tax ?? null;
+  const taxes = invoice.total_taxes ?? [];
+  const taxTotal =
+    taxes.length > 0
+      ? taxes.reduce((sum, t) => sum + (t.amount ?? 0), 0)
+      : net !== null && typeof invoice.total === 'number'
+        ? invoice.total - net
+        : null;
+
+  // Single applied component → effective rate from amount/taxable_amount; else null.
+  const single = taxes.length === 1 ? taxes[0] : null;
+  const vatRate =
+    single && single.taxable_amount && single.taxable_amount > 0
+      ? Math.round((single.amount / single.taxable_amount) * 10000) / 100
+      : null;
+  const taxBehavior: LineTaxSnapshot['taxBehavior'] = single
+    ? single.tax_behavior === 'inclusive'
+      ? 'inclusive'
+      : 'exclusive'
+    : null;
+  const taxabilityReason = single?.taxability_reason ?? null;
+
+  let status: TaxSnapshotStatus;
+  if (net === null || taxTotal === null) status = 'unavailable';
+  else if (taxTotal === 0) status = 'none';
+  else status = 'captured';
+
+  return {
+    netTotal: net,
+    taxTotal,
+    currency: invoice.currency ?? 'usd',
+    status,
+    stripeTaxApplied: invoice.automatic_tax?.enabled ?? false,
+    // Order-level only (subscriptions have no payment_line_items). The single synthetic
+    // line is informational for the invoice.paid webhook; never matched to DB rows.
+    lines:
+      net !== null && taxTotal !== null
+        ? [
+            {
+              productId: null,
+              isBump: false,
+              netAmount: net,
+              taxAmount: taxTotal,
+              grossAmount: net + taxTotal,
+              vatRate,
+              taxBehavior,
+              taxabilityReason,
+              breakdown: [],
+            },
+          ]
+        : [],
+  };
+}
+
+/**
+ * Capture a paid subscription Invoice's tax and persist ORDER-LEVEL totals onto the
+ * subscription's payment_transactions row (net_total / tax_total / tax_snapshot_status).
+ * FAIL-SAFE: never throws — a snapshot error must not break subscription billing. Returns
+ * the snapshot (for the invoice.paid webhook payload). No per-line rows are written
+ * (subscriptions don't have payment_line_items).
+ */
+export async function captureAndPersistInvoiceTax(params: {
+  supabase: SupabaseClient<Database>;
+  invoice: Stripe.Invoice;
+  transactionId: string | null | undefined;
+}): Promise<OrderTaxSnapshot | undefined> {
+  const { supabase, invoice, transactionId } = params;
+  if (!transactionId) return undefined;
+  try {
+    const snapshot = buildTaxSnapshotFromInvoice(invoice);
+    await supabase
+      .from('payment_transactions')
+      .update({
+        net_total: snapshot.netTotal,
+        tax_total: snapshot.taxTotal,
+        tax_snapshot_status: snapshot.status,
+      })
+      .eq('id', transactionId);
+    return snapshot;
+  } catch (e) {
+    console.error('[tax-snapshot] invoice capture failed (non-fatal):', e instanceof Error ? e.message : e);
+    try {
+      await supabase
+        .from('payment_transactions')
+        .update({ tax_snapshot_status: 'unavailable' })
+        .eq('id', transactionId);
+    } catch {
+      /* swallow — never throw out of the billing path */
+    }
+    return undefined;
+  }
 }
 
 /** A payment_line_items row, subset needed to match a snapshot line to it. */
