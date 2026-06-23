@@ -9,6 +9,8 @@
  *    company_building_no, company_flat_no, company_city, company_postal, company_phone,
  *    complaints_email, is_vat_exempt, is_micro_enterprise, has_dpo, dpo_contact
  *  - `country`: admin-only (PL legal-doc gate); read via getMyShopConfig (select '*').
+ *  - `custom_settings`: free-form jsonb, admin-only. Never anon-exposed so a future write
+ *    (e.g. an integration secret) can't silently leak via the public storefront read.
  *
  * `contact_email` IS included — the shop's intentionally-public contact, already
  * shown to anonymous visitors on the "Coming Soon" page.
@@ -35,7 +37,6 @@ export const SHOP_CONFIG_PUBLIC_COLUMNS = [
   'terms_of_service_url',
   'privacy_policy_url',
   'omnibus_enabled',
-  'custom_settings',
   'created_at',
   'updated_at',
   'contact_email',

@@ -76,7 +76,8 @@ GRANT SELECT (
   terms_of_service_url,
   privacy_policy_url,
   omnibus_enabled,
-  custom_settings,
+  -- custom_settings deliberately NOT anon-readable: free-form jsonb, admin-only, so a
+  -- future write (e.g. an integration secret) can't leak via the public storefront read.
   created_at,
   updated_at,
   contact_email
