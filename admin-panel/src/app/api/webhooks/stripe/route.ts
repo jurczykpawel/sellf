@@ -628,7 +628,10 @@ async function processRefundForTransaction(
     supabaseClient: supabase,
     transaction,
     stripeRefundId: latestRefund?.id || null,
-    refundAmount: latestRefund?.amount ?? Math.max(charge.amount_refunded - previousRefundedAmount, 0),
+    // Delta since last recorded — NOT latestRefund.amount, which is only the single newest
+    // refund. If Stripe coalesces multiple refunds into one delivery (or a dashboard refund
+    // races), the delta = total - prev keeps refund.net/amount consistent with totalRefunded.
+    refundAmount: Math.max(charge.amount_refunded - previousRefundedAmount, 0),
     refundCurrency: latestRefund?.currency || charge.currency,
     refundReason: latestRefund?.reason || null,
     refundStatus: latestRefund?.status || null,

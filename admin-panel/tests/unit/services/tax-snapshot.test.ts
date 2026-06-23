@@ -88,6 +88,23 @@ describe('buildTaxSnapshotFromCheckoutLines', () => {
     expect(buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 2300, currency: 'pln', automaticTaxEnabled: true }).stripeTaxApplied).toBe(true);
   });
 
+  it('stripe_tax reverse-charge (0% with a reason) → captured with taxTotal 0, reason preserved, stripeTaxApplied', () => {
+    // EU B2B reverse charge: Stripe emits a 0% line carrying taxability_reason — distinct
+    // from "no tax info". Must be captured (NOT 'none'), rate 0, reason kept, Stripe-authoritative.
+    const line = makeLine({
+      productId: 'p1', netAmount: 10000, taxAmount: 0, grossAmount: 10000,
+      taxes: [{ amount: 0, taxable_amount: 10000, percentage: 0, taxability_reason: 'reverse_charge', country: 'DE' }],
+    });
+    const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 10000, amountTax: 0, currency: 'eur', automaticTaxEnabled: true });
+    expect(snap.status).toBe('captured');
+    expect(snap.taxTotal).toBe(0);
+    expect(snap.stripeTaxApplied).toBe(true);
+    const l = snap.lines[0];
+    expect(l.taxAmount).toBe(0);
+    expect(l.vatRate).toBe(0);
+    expect(l.taxabilityReason).toBe('reverse_charge');
+  });
+
   it('single line, zero components, zero tax → vatRate null, status none', () => {
     const line = makeLine({ productId: 'p1', netAmount: 5000, taxAmount: 0, grossAmount: 5000, taxes: [] });
     const snap = buildTaxSnapshotFromCheckoutLines([line], { amountSubtotal: 5000, amountTax: 0, currency: 'pln' });

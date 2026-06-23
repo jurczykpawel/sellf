@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
-import { persistTaxSnapshot, type OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
+import { persistTaxSnapshot, captureAndPersistOrderTax, type OrderTaxSnapshot } from '@/lib/services/tax-snapshot';
 import type { Database } from '@/types/database';
+import type Stripe from 'stripe';
 
 /**
  * Integration test: persistTaxSnapshot against the REAL local Supabase schema.
@@ -182,5 +183,73 @@ describe('persistTaxSnapshot (integration — real DB)', () => {
 
     expect(error).not.toBeNull();
     expect(error!.message).toMatch(/payment_line_items_tax_behavior_chk|check constraint/i);
+  });
+
+  it('captureAndPersistOrderTax (happy path): fetches Stripe lines → builds → persists a captured snapshot to the real DB', async () => {
+    // Every other DB-touching capture test exercises a fail-safe/error branch; this is the
+    // SUCCESS orchestration: a realistic Stripe Checkout Session (23% exclusive main + exempt
+    // bump) → captureCheckoutSessionTax → persistTaxSnapshot writes the real rows.
+    const fakeStripe = {
+      checkout: {
+        sessions: {
+          listLineItems: async () => ({
+            data: [
+              {
+                id: 'li_main', amount_subtotal: 10000, amount_tax: 2300, amount_total: 12300, currency: 'pln',
+                price: { product: { metadata: { product_id: mainId } } },
+                taxes: [{
+                  amount: 2300, taxable_amount: 10000, taxability_reason: 'standard_rated',
+                  rate: { percentage: 23, effective_percentage: 23, inclusive: false, tax_type: 'vat', jurisdiction: 'PL', country: 'PL', state: null },
+                }],
+              },
+              {
+                id: 'li_bump', amount_subtotal: 5000, amount_tax: 0, amount_total: 5000, currency: 'pln',
+                price: { product: { metadata: { product_id: bumpId, is_bump: 'true' } } },
+                taxes: [],
+              },
+            ],
+          }),
+          retrieve: async () => ({
+            amount_subtotal: 15000,
+            total_details: { amount_tax: 2300 },
+            currency: 'pln',
+            automatic_tax: { enabled: false },
+          }),
+        },
+      },
+    } as unknown as Stripe;
+
+    const snapshot = await captureAndPersistOrderTax({
+      stripe: fakeStripe,
+      supabase,
+      transactionId: txId,
+      sessionId: `cs_taxsnap_${suffix}`,
+    });
+
+    expect(snapshot?.status).toBe('captured');
+    expect(snapshot?.netTotal).toBe(15000);
+    expect(snapshot?.taxTotal).toBe(2300);
+
+    const { data: lines } = await supabase
+      .from('payment_line_items')
+      .select('product_id, tax_amount, net_amount, vat_rate, tax_behavior, taxability_reason')
+      .eq('transaction_id', txId);
+    const mainLine = lines!.find((l) => l.product_id === mainId)!;
+    expect(mainLine.tax_amount).toBe(2300);
+    expect(mainLine.net_amount).toBe(10000);
+    expect(Number(mainLine.vat_rate)).toBe(23);
+    expect(mainLine.tax_behavior).toBe('exclusive');
+    expect(mainLine.taxability_reason).toBe('standard_rated');
+    const bumpLine = lines!.find((l) => l.product_id === bumpId)!;
+    expect(bumpLine.tax_amount).toBe(0);
+
+    const { data: tx } = await supabase
+      .from('payment_transactions')
+      .select('net_total, tax_total, tax_snapshot_status')
+      .eq('id', txId)
+      .single();
+    expect(tx!.net_total).toBe(15000);
+    expect(tx!.tax_total).toBe(2300);
+    expect(tx!.tax_snapshot_status).toBe('captured');
   });
 });

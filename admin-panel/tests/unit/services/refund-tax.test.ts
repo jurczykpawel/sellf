@@ -52,6 +52,18 @@ describe('computeRefundTax', () => {
     });
   });
 
+  it('mixed-rate order → blended effective rate; deltas still sum to taxTotal at full (documented approximation)', () => {
+    // 10000 net @23% (2300) + 5000 net @8% (400) → net 15000, tax 2700, gross 17700.
+    const mixed = { amount: 17700, netTotal: 15000, taxTotal: 2700 };
+    const full = computeRefundTax({ refundAmount: 17700, previousRefundedAmount: 0, totalRefunded: 17700, ...mixed })!;
+    expect(full).toEqual({ net: 15000, tax: 2700, vatRate: 18 }); // blended 2700/15000 = 18%
+    // a partial then completing still credits exactly taxTotal — no over/under-credit
+    const r1 = computeRefundTax({ refundAmount: 8850, previousRefundedAmount: 0, totalRefunded: 8850, ...mixed })!;
+    const r2 = computeRefundTax({ refundAmount: 8850, previousRefundedAmount: 8850, totalRefunded: 17700, ...mixed })!;
+    expect(r1.tax + r2.tax).toBe(2700);
+    expect(r1.net + r2.net).toBe(15000);
+  });
+
   it('non-positive amount → null (guard)', () => {
     expect(computeRefundTax({ refundAmount: 5000, previousRefundedAmount: 0, totalRefunded: 5000, amount: 0, netTotal: 10000, taxTotal: 2300 })).toBeNull();
   });
