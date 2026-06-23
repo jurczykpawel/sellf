@@ -2494,7 +2494,7 @@
       "defaultCurrencyHelp": "Ta waluta będzie używana do celów przychodów i jako domyślna waluta wyświetlania dla wszystkich adminów.",
       "country": "Kraj sklepu",
       "countryPlaceholder": "Wybierz kraj",
-      "countryHelp": "Ustawia jurysdykcję prawną. Niektóre funkcje (np. generowanie dokumentów prawnych) są dostępne tylko dla instalacji w Polsce."
+      "countryHelp": "Służy wyłącznie do dokumentów prawnych (np. które szablony Regulaminu/Polityki generować) — NIE wpływa na podatek. Podatek wynika z ustawień VAT produktu (tryb Stała stawka) lub z konta Stripe (tryb Stripe Tax). Niektóre funkcje (generowanie dokumentów prawnych) są dostępne tylko dla Polski."
     },
     "omnibus": {
       "title": "Dyrektywa Omnibus EU",
@@ -2583,7 +2583,7 @@
         "local": "Stała stawka",
         "localDescription": "Sam ustawiasz stawkę VAT per produkt, a Stripe ją tylko wyświetla. Najlepsze, gdy sprzedajesz w jednym kraju (np. tylko w Polsce). Ustawienia VAT produktu — stawka, netto/brutto, zwolnienie — działają.",
         "stripeTax": "Stripe Tax",
-        "stripeTaxDescription": "Stripe sam oblicza VAT na podstawie kraju kupującego i Twoich rejestracji podatkowych w Stripe (sprzedaż zagraniczna / OSS w UE, odwrotne obciążenie dla B2B z numerem VAT). Stawka VAT i zwolnienie ustawione przy produkcie są pomijane — autorytetem jest Stripe. Wymaga włączonego Stripe Tax w panelu Stripe.",
+        "stripeTaxDescription": "Stripe sam oblicza VAT na podstawie kraju kupującego i Twoich rejestracji podatkowych w Stripe (sprzedaż zagraniczna / OSS w UE, odwrotne obciążenie dla B2B z numerem VAT). Stawka VAT i zwolnienie ustawione przy produkcie są pomijane — autorytetem jest Stripe. Wymaga włączonego Stripe Tax w panelu Stripe. Uwaga: kraj Twojej firmy i rejestracje podatkowe pochodzą z konta Stripe, nie z Sellf — ustawienie Kraj w Sellf służy wyłącznie do generowania dokumentów prawnych, nigdy do podatku.",
         "vatRateLabel": "Domyślna stawka VAT",
         "vatRateHelp": "Ta stawka jest przypisywana do nowo tworzonych produktów jako domyślna. Każdy produkt przechowuje własną stawkę VAT, którą można zmienić indywidualnie. Stawka wysyłana do Stripe przy checkout to zawsze stawka danego produktu. Używane tylko w trybie Stała stawka.",
         "vatRatePlaceholder": "23",

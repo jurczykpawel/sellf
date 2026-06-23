@@ -401,8 +401,9 @@ export default function CustomPaymentForm({
         </div>
       )}
 
-      {/* Invoice Fields (NIP + company) */}
-      <InvoiceFields invoice={invoice} />
+      {/* Invoice Fields (NIP + company). Country selector only in Stripe Tax mode (drives
+          jurisdiction + reverse charge); in Fixed-Rate mode the rate is flat. */}
+      <InvoiceFields invoice={invoice} showCountry={taxMode === 'stripe_tax'} />
 
       {/* Product-defined custom checkout fields (e.g. message, domain). */}
       {customFieldDefs.length > 0 && onCustomFieldValuesChange && (

@@ -2479,7 +2479,7 @@
       "defaultCurrencyHelp": "This currency will be used for revenue goals and as the default display currency for all admins.",
       "country": "Shop Country",
       "countryPlaceholder": "Select country",
-      "countryHelp": "Sets the legal jurisdiction. Some features (e.g. legal document generation) are only available for Polish installations."
+      "countryHelp": "Used only for legal documents (e.g. which Terms/Privacy templates to generate) — it does NOT affect tax. Tax comes from your product VAT settings (Fixed Rate mode) or your Stripe account (Stripe Tax mode). Some features (legal document generation) are Poland-only."
     },
     "omnibus": {
       "title": "EU Omnibus Directive",
@@ -2568,7 +2568,7 @@
         "local": "Fixed Rate",
         "localDescription": "You set the VAT rate per product and Stripe just displays it. Best when you sell in one country (e.g. only Poland). Your product VAT settings — rate, net/gross, VAT-exempt — all apply.",
         "stripeTax": "Stripe Tax",
-        "stripeTaxDescription": "Stripe calculates VAT automatically from the buyer's country and your Stripe tax registrations (cross-border / EU OSS, reverse charge for B2B with a VAT ID). Per-product VAT rate and VAT-exempt are ignored — Stripe is the source of truth. Requires Stripe Tax enabled in your Stripe Dashboard.",
+        "stripeTaxDescription": "Stripe calculates VAT automatically from the buyer's country and your Stripe tax registrations (cross-border / EU OSS, reverse charge for B2B with a VAT ID). Per-product VAT rate and VAT-exempt are ignored — Stripe is the source of truth. Requires Stripe Tax enabled in your Stripe Dashboard. Note: your business country and tax registrations come from your Stripe account, not from Sellf — the Country setting in Sellf is used only to generate legal documents, never for tax.",
         "vatRateLabel": "Default VAT Rate",
         "vatRateHelp": "This rate is assigned to newly created products as their default. Each product stores its own VAT rate which can be changed individually. The rate sent to Stripe at checkout is always the product's own rate. Used only in Fixed Rate mode.",
         "vatRatePlaceholder": "23",
