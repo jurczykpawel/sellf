@@ -184,10 +184,18 @@ export async function captureAndPersistOrderTax(params: {
   stripe: Stripe;
   supabase: SupabaseClient<Database>;
   transactionId: string | null | undefined;
-  /** Checkout Session id. For the PI flow, resolve it from payment_transactions.session_id first. */
+  /** Checkout Session id. May be missing — or the PI id — in the PI webhook flow. */
   sessionId: string | null | undefined;
+  /**
+   * PaymentIntent id. When set and `sessionId` is not a usable Checkout Session id
+   * (`cs_…`), the owning session is resolved from the API. This makes tax capture in
+   * the `payment_intent.succeeded` webhook independent of which Stripe event (session
+   * vs PI) won the race to create the transaction row — a PI flow that stored its own
+   * id as session_id still captures the real session's per-line tax.
+   */
+  paymentIntentId?: string | null;
 }): Promise<OrderTaxSnapshot | undefined> {
-  const { stripe, supabase, transactionId, sessionId } = params;
+  const { stripe, supabase, transactionId, paymentIntentId } = params;
   if (!transactionId) return undefined;
 
   const markUnavailable = async () => {
@@ -201,7 +209,21 @@ export async function captureAndPersistOrderTax(params: {
     }
   };
 
-  if (!sessionId) {
+  // Tax lives on the Checkout Session, not the PaymentIntent. The PI handler may have
+  // stored the PI id as session_id, so resolve the real cs_ id from the PI when needed.
+  let sessionId = params.sessionId ?? null;
+  if ((!sessionId || !sessionId.startsWith('cs_')) && paymentIntentId) {
+    try {
+      const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
+      if (sessions.data[0]?.id) sessionId = sessions.data[0].id;
+    } catch {
+      /* fall through to the cs_ guard below — capture stays fail-safe */
+    }
+  }
+
+  // No usable session (missing, or a true direct PaymentIntent with no Checkout Session and
+  // therefore no per-line tax to read) → record honestly as unavailable, never throw.
+  if (!sessionId || !sessionId.startsWith('cs_')) {
     await markUnavailable();
     return undefined;
   }

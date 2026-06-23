@@ -264,4 +264,51 @@ describe('captureAndPersistOrderTax — fail-safe (never blocks payment)', () =>
     expect(res).toBeUndefined();
     expect(updates).toEqual([{ table: 'payment_transactions', values: { tax_snapshot_status: 'unavailable' } }]);
   });
+
+  it('PI flow: resolves the owning Checkout Session from the PI when session_id is a PI id', async () => {
+    // Simulates payment_intent.succeeded winning the race: the stored session_id is pi_x,
+    // but capture must read tax off the real cs_ session, not the PI id.
+    const { client } = fakeSupabase();
+    let listLineItemsArg: string | null = null;
+    const stripe = {
+      checkout: {
+        sessions: {
+          list: async (args: { payment_intent: string }) => {
+            expect(args.payment_intent).toBe('pi_x');
+            return { data: [{ id: 'cs_resolved' }] };
+          },
+          listLineItems: async (id: string) => {
+            listLineItemsArg = id;
+            throw new Error('stop after recording the resolved id');
+          },
+          retrieve: async () => ({}),
+        },
+      },
+    } as unknown as Stripe;
+    const res = await captureAndPersistOrderTax({
+      stripe, supabase: client, transactionId: 'tx_1', sessionId: 'pi_x', paymentIntentId: 'pi_x',
+    });
+    expect(listLineItemsArg).toBe('cs_resolved'); // used the resolved session, NOT pi_x
+    expect(res).toBeUndefined(); // listLineItems threw → fail-safe path
+  });
+
+  it('PI flow: no owning session found → marks unavailable WITHOUT hitting listLineItems', async () => {
+    const { client, updates } = fakeSupabase();
+    let lineItemsCalled = false;
+    const stripe = {
+      checkout: {
+        sessions: {
+          list: async () => ({ data: [] }),
+          listLineItems: async () => { lineItemsCalled = true; return { data: [] }; },
+          retrieve: async () => ({}),
+        },
+      },
+    } as unknown as Stripe;
+    const res = await captureAndPersistOrderTax({
+      stripe, supabase: client, transactionId: 'tx_1', sessionId: 'pi_x', paymentIntentId: 'pi_x',
+    });
+    expect(lineItemsCalled).toBe(false);
+    expect(res).toBeUndefined();
+    expect(updates).toEqual([{ table: 'payment_transactions', values: { tax_snapshot_status: 'unavailable' } }]);
+  });
 });

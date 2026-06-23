@@ -431,13 +431,16 @@ async function handlePaymentIntentSucceeded(
 
   // Trigger internal webhook for purchase.completed
   if (!result.already_had_access || isExplicitRepurchase) {
-    // VAT tax snapshot — resolve the PI's owning session from session_id. Fail-safe.
+    // VAT tax snapshot — the stored session_id may be this PI's id (if this handler won
+    // the race over checkout.session.completed), so also pass the PI id: capture resolves
+    // the real Checkout Session from it and stays independent of Stripe event ordering.
     const stripe = await getStripeServer();
     const taxSnapshot = await captureAndPersistOrderTax({
       stripe,
       supabase,
       transactionId: txCustomFields?.id,
       sessionId: txCustomFields?.session_id,
+      paymentIntentId: paymentIntent.id,
     });
 
     const webhookData = await buildPurchaseWebhookPayload({
