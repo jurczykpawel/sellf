@@ -41,6 +41,15 @@ export interface RefundIssuedPayload {
     initiatedByAdminId?: string | null;
     refundRequestId?: string | null;
     source: 'admin' | 'api' | 'refund_request' | 'stripe_webhook';
+    /**
+     * VAT breakdown of the refunded amount, for issuing a credit note (faktura
+     * korygująca). MINOR units; net + tax sum to `amount`. vatRate is the order's
+     * effective rate (blended for mixed-rate orders). Present only when the original
+     * order has a tax snapshot (omitted for pre-feature / unavailable orders).
+     */
+    net?: number;
+    tax?: number;
+    vatRate?: number | null;
   };
 }
 
@@ -68,6 +77,36 @@ export function shouldEmitRefundWebhook(input: {
   nextRefundedAmount: number | null | undefined;
 }): boolean {
   return (input.nextRefundedAmount ?? 0) > (input.previousRefundedAmount ?? 0);
+}
+
+/**
+ * PURE: VAT breakdown of a refunded amount for a credit note. Full refund = exact
+ * order net_total/tax_total; partial = proportional to the gross charge. Returns null
+ * when the order has no tax snapshot (net/tax null) — never fabricate a number. All
+ * MINOR units. NOTE: for a partial refund of a MIXED-RATE order the split is an
+ * approximation (proportional); it is exact for full refunds and single-rate orders.
+ */
+export function computeRefundTax(params: {
+  refundAmount: number;
+  isFullRefund: boolean;
+  amount: number | null;
+  netTotal: number | null;
+  taxTotal: number | null;
+}): { net: number; tax: number; vatRate: number | null } | null {
+  const { refundAmount, isFullRefund, amount, netTotal, taxTotal } = params;
+  if (netTotal === null || taxTotal === null) return null;
+  let tax: number;
+  if (isFullRefund) {
+    tax = taxTotal;
+  } else if (amount && amount > 0) {
+    tax = Math.round((refundAmount * taxTotal) / amount);
+  } else {
+    return null;
+  }
+  const net = refundAmount - tax;
+  const vatRate =
+    taxTotal === 0 ? 0 : netTotal > 0 ? Math.round((taxTotal / netTotal) * 10000) / 100 : null;
+  return { net, tax, vatRate };
 }
 
 export function buildRefundIssuedPayload(input: BuildRefundIssuedPayloadInput): RefundIssuedPayload {
@@ -122,6 +161,21 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
   const product = await fetchProductSummary(input.supabaseClient, input.transaction.product_id);
   const currency = (input.refundCurrency || input.transaction.currency || '').toUpperCase();
 
+  // VAT breakdown of the refund for credit notes — derived from the order's tax snapshot
+  // (recorded at purchase). One fetch here keeps all 4 refund callers unchanged.
+  const { data: txTax } = await input.supabaseClient
+    .from('payment_transactions')
+    .select('net_total, tax_total')
+    .eq('id', input.transaction.id)
+    .maybeSingle();
+  const refundTax = computeRefundTax({
+    refundAmount: input.refundAmount,
+    isFullRefund: input.isFullRefund,
+    amount: input.transaction.amount,
+    netTotal: txTax?.net_total ?? null,
+    taxTotal: txTax?.tax_total ?? null,
+  });
+
   return buildRefundIssuedPayload({
     customer: {
       email: input.transaction.customer_email || '',
@@ -149,6 +203,7 @@ export async function buildRefundIssuedPayloadFromTransaction(input: {
       ...(input.initiatedByAdminId !== undefined && { initiatedByAdminId: input.initiatedByAdminId }),
       ...(input.refundRequestId !== undefined && { refundRequestId: input.refundRequestId }),
       source: input.source,
+      ...(refundTax && { net: refundTax.net, tax: refundTax.tax, vatRate: refundTax.vatRate }),
     },
   });
 }
