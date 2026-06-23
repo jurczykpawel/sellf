@@ -887,13 +887,15 @@ export async function verifyPaymentIntent(
               .eq('stripe_payment_intent_id', paymentIntent.id)
               .maybeSingle();
 
-            // VAT tax snapshot — the PI's tax lives on its owning Checkout Session;
-            // resolve it from the transaction's session_id. Fail-safe.
+            // VAT tax snapshot — tax lives on the owning Checkout Session, not the PI.
+            // The stored session_id may be this PI's id, so pass paymentIntentId too:
+            // capture resolves the real cs_ session from it (same as the PI webhook handler).
             const taxSnapshot = await captureAndPersistOrderTax({
               stripe,
               supabase: serviceClient,
               transactionId: txCustomFields?.id,
               sessionId: txCustomFields?.session_id,
+              paymentIntentId: paymentIntent.id,
             });
 
             const webhookData = await buildPurchaseWebhookPayload({
