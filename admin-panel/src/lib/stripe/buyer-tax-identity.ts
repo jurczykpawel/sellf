@@ -20,11 +20,15 @@ export interface BuyerTaxIdentity {
  * Buyers often type just the digits (e.g. a PL NIP "1181697228"); Stripe expects "PL1181697228".
  */
 export function toEuVatValue(country: string, rawTaxId: string): string {
-  const cc = country.trim().toUpperCase();
-  // Greece is the one EU country whose VAT prefix (EL) differs from its ISO-3166 code (GR).
-  const prefix = cc === 'GR' ? 'EL' : cc;
   const v = rawTaxId.replace(/\s+/g, '').toUpperCase();
-  return /^[A-Z]{2}/.test(v) ? v : `${prefix}${v}`;
+  // Already carries a 2-letter prefix → the VAT id is self-describing (its own country is what
+  // matters for reverse charge), so trust it even if it differs from the selected address
+  // country — but still normalize Greece's GR→EL (ISO code vs VAT prefix).
+  if (/^[A-Z]{2}/.test(v)) return v.startsWith('GR') ? `EL${v.slice(2)}` : v;
+  // Bare number → prepend the selected country's VAT prefix. Greece is the one EU country whose
+  // VAT prefix (EL) differs from its ISO-3166 code (GR).
+  const cc = country.trim().toUpperCase();
+  return `${cc === 'GR' ? 'EL' : cc}${v}`;
 }
 
 /**

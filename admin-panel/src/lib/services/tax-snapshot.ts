@@ -416,11 +416,13 @@ export async function persistTaxSnapshot(
     .from('payment_line_items')
     .select('id, product_id, item_type')
     .eq('transaction_id', transactionId)
-    // Deterministic order so the POSITIONAL fallback in matchSnapshotLinesToRows (used only
-    // when Stripe lines lack product_id) is stable rather than DB-arbitrary: insert order =
-    // main first, then bumps, matching how the Stripe line items are built.
+    // FULLY deterministic order so the POSITIONAL fallback in matchSnapshotLinesToRows (used
+    // only when Stripe lines lack product_id) is stable, never DB-arbitrary: main before bumps,
+    // then a hard `id` tiebreaker (created_at can tie for batch-inserted rows; item_type only
+    // separates main vs bump, not bump-vs-bump).
     .order('created_at', { ascending: true })
-    .order('item_type', { ascending: true });
+    .order('item_type', { ascending: true })
+    .order('id', { ascending: true });
 
   const { pairs, complete } = matchSnapshotLinesToRows(snapshot.lines, (rows ?? []) as LineRow[]);
 

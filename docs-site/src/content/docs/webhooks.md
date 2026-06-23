@@ -77,6 +77,36 @@ each invoice at purchase (so they don't change if the buyer later edits their pr
 - `nip` / address fields appear only for B2B (a tax id on the invoice); `net`/`tax`/`vatRate`
   only when tax was captured (`taxSnapshotStatus: captured`).
 
+### `refund.issued` — refund + credit-note VAT
+
+Fired on every refund (full or partial, from any path). Carries the VAT breakdown of the
+refunded amount so you can issue a credit note (faktura korygująca):
+
+```json
+{
+  "event": "refund.issued",
+  "payment": { "id": "…", "amount": 12300, "currency": "PLN", "statusBefore": "completed", "statusAfter": "refunded" },
+  "refund": {
+    "stripeRefundId": "re_…", "amount": 6150, "currency": "PLN",
+    "reason": "requested_by_customer", "status": "succeeded",
+    "isFullRefund": false, "totalRefunded": 6150, "refundedAt": "…",
+    "source": "stripe_webhook",
+    "net": 5000, "tax": 1150, "vatRate": 23,
+    "vatExempt": false, "taxabilityReason": "standard_rated"
+  }
+}
+```
+
+- All amounts are in **minor units** (cents/grosze), matching `payment.amount` — like
+  `purchase.completed`, unlike `invoice.paid`.
+- `amount` is the amount refunded in **this** event; `totalRefunded` is the cumulative total.
+- `net` / `tax` / `vatRate` are the refund's VAT split — present only when the original order
+  had a tax snapshot. Across a sequence of partial refunds the credited `tax` sums exactly to
+  the order's VAT. `vatRate` is the order's effective (blended) rate.
+- `vatExempt: true` marks a **"zw."** order (legal exemption) — distinct from a 0% rate — and
+  `taxabilityReason` carries Stripe's reason under Stripe Tax (`reverse_charge`, `customer_exempt`,
+  …). Both are omitted when not applicable. Use them to label the credit note correctly.
+
 ### Headers
 
 | Header | Notes |

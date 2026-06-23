@@ -36,6 +36,13 @@ describe('toEuVatValue', () => {
     // already EL-prefixed stays as-is
     expect(toEuVatValue('GR', 'EL123456789')).toBe('EL123456789');
   });
+  it('normalizes a typed GR prefix to EL too (buyer pasted ISO code instead of VAT prefix)', () => {
+    expect(toEuVatValue('GR', 'GR123456789')).toBe('EL123456789');
+    expect(toEuVatValue('PL', 'gr123456789')).toBe('EL123456789'); // even if selector says PL
+  });
+  it('a typed prefix that differs from the selected country is trusted (VAT id is self-describing)', () => {
+    expect(toEuVatValue('PL', 'DE123456789')).toBe('DE123456789');
+  });
 });
 
 describe('applyBuyerTaxIdentityToCustomer', () => {
