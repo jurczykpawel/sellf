@@ -340,6 +340,8 @@ export async function POST(request: NextRequest) {
           interval: (subscriptionProduct.billing_interval ?? 'month') as 'day' | 'week' | 'month' | 'year',
           intervalCount: subscriptionProduct.billing_interval_count ?? 1,
           taxRateId,
+          automaticTax: checkoutConfig.automatic_tax,
+          priceIncludesVat: subscriptionProduct.price_includes_vat,
         });
         const stripeObjectId = extractStripeObjectId(clientSecret);
         const bindingToken = stripeObjectId
