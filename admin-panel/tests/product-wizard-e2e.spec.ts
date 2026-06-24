@@ -328,12 +328,8 @@ test.describe('Product Creation Wizard', () => {
     const vatInput = page.locator('input#vat_rate');
     await expect(vatInput).not.toBeVisible();
 
-    // Restore local mode
-    const { error: localErr2 } = await supabaseAdmin
-      .from('shop_config')
-      .update({ tax_mode: 'local' })
-      .not('id', 'is', null);
-    if (localErr2) throw localErr2;
+    // (tax_mode is restored to 'local' by the guaranteed afterEach — no in-body cleanup that
+    //  would be skipped if an assertion above throws.)
 
     // Close without saving
     await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
