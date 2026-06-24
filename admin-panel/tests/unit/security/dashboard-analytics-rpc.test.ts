@@ -343,7 +343,10 @@ describe('get_dashboard_stats', () => {
       (sum: number, v) => sum + Number(v),
       0,
     );
-    expect(data.totalRevenue).toBe(detailedTotal);
+    // Compare to cent precision: both sides sum the same per-currency amounts but in different
+    // order (server vs JS reduce), so binary-float drift (…9199999999) makes exact toBe brittle
+    // as DB revenue accumulates. The invariant is "totals agree", not bit-identical floats.
+    expect(data.totalRevenue).toBeCloseTo(detailedTotal, 2);
   });
 
   it('returns correct stats via admin authenticated client', async () => {
@@ -1077,7 +1080,8 @@ describe('aggregation correctness', () => {
       0,
     );
 
-    expect(dashboard.totalRevenue).toBe(detailedTotal);
+    // Cent precision, not exact float — see the note in get_dashboard_stats above.
+    expect(dashboard.totalRevenue).toBeCloseTo(detailedTotal, 2);
   });
 
   it('hourly orders sum matches sales chart orders for same day', async () => {
