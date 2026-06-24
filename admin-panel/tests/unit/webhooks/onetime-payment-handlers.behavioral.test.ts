@@ -1044,3 +1044,62 @@ describe.skipIf(!hasSupabase)('license issuance wiring → purchase.completed pa
     assertVerifiableLicense(calls[0]?.[1] as never, kp);
   });
 });
+
+// ==============================================================================================
+// Explicit-repurchase override (route.ts gate `!result.already_had_access || isExplicitRepurchase`,
+// lines 231 + 451). already_had_access=true only arises when the session is already completed; the
+// sequential early-return catches that first, so the override is reachable only under CONCURRENT
+// double-delivery of the same pending session (registered buyer) — serialized by the RPC advisory
+// lock (same proven pattern as payment-completion-single-writer). Without repurchase the gate
+// suppresses the duplicate (1 webhook); with repurchase=true it re-fires (2 webhooks).
+describe.skipIf(!hasSupabase)('explicit repurchase override (concurrent already_had_access)', () => {
+  async function registeredPending(extraMeta: Record<string, string> = {}) {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('reg') + '@example.com';
+    createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId });
+    return { product, cs, pi, email, userId, extraMeta };
+  }
+  const purchaseCount = () => triggerSpy.mock.calls.filter(([e]) => e === 'purchase.completed').length;
+
+  it('checkout: concurrent delivery WITHOUT repurchase → exactly one purchase.completed', async () => {
+    const { product, cs, pi, email, userId } = await registeredPending();
+    const ev = checkoutEvent({
+      id: cs, mode: 'payment', payment_status: 'paid',
+      metadata: { product_id: product.id, user_id: userId }, customer_details: { email },
+      payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+    });
+    await Promise.all([post(ev), post(ev)]);
+    expect(purchaseCount()).toBe(1);
+  });
+
+  it('checkout: concurrent delivery WITH repurchase=true → fires twice (override beats already_had_access)', async () => {
+    const { product, cs, pi, email, userId } = await registeredPending();
+    const ev = checkoutEvent({
+      id: cs, mode: 'payment', payment_status: 'paid',
+      metadata: { product_id: product.id, user_id: userId, repurchase: 'true' }, customer_details: { email },
+      payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+    });
+    await Promise.all([post(ev), post(ev)]);
+    expect(purchaseCount()).toBe(2);
+  });
+
+  it('PI: concurrent delivery WITHOUT repurchase → exactly one purchase.completed', async () => {
+    const { product, cs, pi, email, userId } = await registeredPending();
+    h.stripe = makeStripeShim({ sessionsByPI: [{ id: cs, amount_subtotal: 1000 }] });
+    const ev = piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id, user_id: userId } });
+    await Promise.all([post(ev), post(ev)]);
+    expect(purchaseCount()).toBe(1);
+  });
+
+  it('PI: concurrent delivery WITH repurchase=true → fires twice (override)', async () => {
+    const { product, cs, pi, email, userId } = await registeredPending();
+    h.stripe = makeStripeShim({ sessionsByPI: [{ id: cs, amount_subtotal: 1000 }] });
+    const ev = piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id, user_id: userId, repurchase: 'true' } });
+    await Promise.all([post(ev), post(ev)]);
+    expect(purchaseCount()).toBe(2);
+  });
+});
