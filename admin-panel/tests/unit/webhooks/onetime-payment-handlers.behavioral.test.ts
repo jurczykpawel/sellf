@@ -63,10 +63,20 @@ vi.mock('@/lib/tracking', async (orig) => {
   return { ...actual, trackServerSideConversion: vi.fn(async () => {}) };
 });
 
+// Enable the Pro license-issuance feature only (its own gate is tested in license-keys/issue-pro-gate).
+// Everything else stays at the real (free) tier, so non-licensed products behave exactly as before:
+// issueLicense still returns null at the product check unless issue_license_on_purchase is set.
+vi.mock('@/lib/license/resolve', async (orig) => {
+  const actual = await orig<typeof import('@/lib/license/resolve')>();
+  return { ...actual, checkFeature: vi.fn(async (feature: string) => feature === 'license-key-issuance') };
+});
+
 import { POST } from '@/app/api/webhooks/stripe/route';
 import { verifyWebhookSignature } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { trackServerSideConversion } from '@/lib/tracking';
+import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
+import { verifySellfLicense } from '@/lib/license-keys/sdk';
 
 // ----- env / DB -------------------------------------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -78,6 +88,7 @@ const db = hasSupabase ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 const createdProductIds: string[] = [];
 const createdEmails: string[] = [];
 const createdAuthUserIds: string[] = [];
+const createdSellerIds: string[] = [];
 
 beforeAll(() => {
   if (!hasSupabase) {
@@ -91,11 +102,15 @@ afterAll(async () => {
     await db.from('guest_purchases').delete().in('customer_email', createdEmails);
   }
   if (createdProductIds.length > 0) {
+    await db.from('issued_licenses').delete().in('product_id', createdProductIds);
     await db.from('payment_line_items').delete().in('product_id', createdProductIds);
     await db.from('user_product_access').delete().in('product_id', createdProductIds);
     await db.from('payment_transactions').delete().in('product_id', createdProductIds);
     await db.from('order_bumps').delete().in('main_product_id', createdProductIds);
     await db.from('products').delete().in('id', createdProductIds);
+  }
+  if (createdSellerIds.length > 0) {
+    await db.from('seller_license_keys').delete().in('seller_id', createdSellerIds);
   }
   for (const id of createdAuthUserIds) {
     await db.auth.admin.deleteUser(id).catch(() => {});
@@ -961,4 +976,71 @@ describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage'
     expect((await fetchTx(cs))?.status).toBe('completed');
   });
 
+});
+
+// ==============================================================================================
+// License-issuance WIRING (route.ts 264-267 checkout + 481-484 PI): when a product issues a
+// license on purchase, the handler must sign it and thread {token,kid,jwksUrl} into the outbound
+// purchase.completed payload. The license LOGIC (sign/verify/keys/revoke/gate) is covered in
+// tests/unit/license-keys/*; here we prove the one-time handlers actually emit a verifiable token.
+describe.skipIf(!hasSupabase)('license issuance wiring → purchase.completed payload', () => {
+  async function licensedProduct() {
+    // seller_license_keys.seller_id FKs auth.users, so the seller must be a real user.
+    const sellerId = await createAuthUser(uniq('seller') + '@example.com');
+    const kp = generateSellerKeypair();
+    await storeSellerKey(db!, { sellerId, publicKeyPem: kp.publicKeyPem, privateKeyPem: kp.privateKeyPem, custody: 'managed' });
+    createdSellerIds.push(sellerId);
+    const product = await createProduct({ seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'pro' });
+    return { sellerId, kp, product };
+  }
+
+  function assertVerifiableLicense(
+    payload: { license?: { token?: string; kid?: string; jwksUrl?: string } },
+    kp: { kid: string; publicKeyPem: string },
+  ) {
+    expect(payload.license?.token).toBeTruthy();
+    expect(payload.license?.kid).toBe(kp.kid);
+    expect(payload.license?.jwksUrl).toContain('seller=');
+    const res = verifySellfLicense(payload.license!.token!, { keys: [{ kid: kp.kid, pem: kp.publicKeyPem }] });
+    expect(res.valid).toBe(true);
+  }
+
+  it('checkout.session.completed: signs + threads a verifiable license token', async () => {
+    const { kp, product } = await licensedProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id }, customer_details: { email },
+        payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+    const calls = triggerSpy.mock.calls.filter(([e]) => e === 'purchase.completed');
+    expect(calls).toHaveLength(1);
+    assertVerifiableLicense(calls[0]?.[1] as never, kp);
+  });
+
+  it('payment_intent.succeeded: signs + threads a verifiable license token', async () => {
+    const { kp, product } = await licensedProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+    h.stripe = makeStripeShim({ sessionsByPI: [{ id: cs, amount_subtotal: 1000 }] });
+
+    const { status } = await post(
+      piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }),
+    );
+    expect(status).toBe(200);
+    const calls = triggerSpy.mock.calls.filter(([e]) => e === 'purchase.completed');
+    expect(calls).toHaveLength(1);
+    assertVerifiableLicense(calls[0]?.[1] as never, kp);
+  });
 });
