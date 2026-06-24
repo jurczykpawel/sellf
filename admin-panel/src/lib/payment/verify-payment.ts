@@ -13,6 +13,7 @@ import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
+import { redactEmail } from '@/lib/logger';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -575,7 +576,7 @@ export async function verifyPaymentSession(
           if (paymentError) {
             console.error(
               '[verify-payment] PAYMENT_DB_FAILURE | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
-              session.id, productId, customerEmail, couponId ?? 'none',
+              session.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               session.amount_total, paymentError.message, paymentError.code
             );
             return {
@@ -588,7 +589,7 @@ export async function verifyPaymentSession(
           if (!paymentResult?.success) {
             console.error(
               '[verify-payment] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
-              session.id, productId, customerEmail, couponId ?? 'none',
+              session.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               session.amount_total, paymentResult?.error ?? 'unknown'
             );
             return {
@@ -871,7 +872,7 @@ export async function verifyPaymentIntent(
           if (paymentError) {
             console.error(
               '[verify-payment] PAYMENT_DB_FAILURE | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
-              paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+              paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               paymentIntent.amount, paymentError.message, paymentError.code
             );
             return {
@@ -884,7 +885,7 @@ export async function verifyPaymentIntent(
           if (!paymentResult?.success) {
             console.error(
               '[verify-payment] PAYMENT_DB_REJECTED | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
-              paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+              paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               paymentIntent.amount, paymentResult?.error ?? 'unknown'
             );
             return {

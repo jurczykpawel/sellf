@@ -19,6 +19,7 @@ import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { redactEmail } from '@/lib/logger';
 
 function revalidatePurchaseTags(productSlug: unknown): void {
   if (typeof productSlug !== 'string' || productSlug.length === 0) return;
@@ -169,7 +170,7 @@ export async function handleCheckoutSessionCompleted(
   if (error) {
     console.error(
       '[stripe-webhook] PAYMENT_DB_FAILURE | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
-      sessionId, productId, customerEmail, couponId ?? 'none',
+      sessionId, productId, redactEmail(customerEmail), couponId ?? 'none',
       session.amount_total, error.message, error.code
     );
     return { processed: false, message: 'Payment processing failed' };
@@ -178,7 +179,7 @@ export async function handleCheckoutSessionCompleted(
   if (!result?.success) {
     console.error(
       '[stripe-webhook] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
-      sessionId, productId, customerEmail, couponId ?? 'none',
+      sessionId, productId, redactEmail(customerEmail), couponId ?? 'none',
       session.amount_total, result?.error ?? 'unknown'
     );
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
@@ -390,7 +391,7 @@ export async function handlePaymentIntentSucceeded(
   if (error) {
     console.error(
       '[stripe-webhook] PAYMENT_DB_FAILURE | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
-      paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+      paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
       paymentIntent.amount, error.message, error.code
     );
     return { processed: false, message: 'Payment processing failed' };
@@ -399,7 +400,7 @@ export async function handlePaymentIntentSucceeded(
   if (!result?.success) {
     console.error(
       '[stripe-webhook] PAYMENT_DB_REJECTED | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
-      paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+      paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
       paymentIntent.amount, result?.error ?? 'unknown'
     );
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };

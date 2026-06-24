@@ -6,6 +6,20 @@ export function sanitizeForLog(value: string): string {
   return value.replace(/[\x00-\x1f\x7f]/g, '');
 }
 
+/**
+ * Redact a buyer email for logs: keep the first local-part character + the domain, mask the
+ * rest. Reduces PII exposure in retained/shipped logs (OWASP A09) while keeping enough for
+ * support correlation — the session / payment-intent id is logged alongside and joins back to
+ * the full email in the DB. Output is also control-char stripped (log-injection safe).
+ * `john@example.com` → `j***@example.com`; empty / non-email → `***`.
+ */
+export function redactEmail(email: string | null | undefined): string {
+  if (!email) return '***';
+  const at = email.indexOf('@');
+  if (at <= 0) return '***';
+  return sanitizeForLog(`${email[0]}***${email.slice(at)}`);
+}
+
 // Type for log data
 type LogData = Record<string, unknown> | string | number | boolean | null | undefined;
 
