@@ -13,6 +13,10 @@
  * - refund.created / refund.updated: Revoke access when dashboard refunds
  *   are created or changed externally
  * - charge.dispute.created: Revoke access when chargeback is initiated
+ *
+ * NOTE: the one-time payment handlers (checkout.session.completed,
+ * payment_intent.succeeded) live in ./onetime-handlers.ts; POST dispatches to them.
+ * Refund, dispute and subscription handling stay in this file.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
