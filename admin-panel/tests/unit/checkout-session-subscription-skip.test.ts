@@ -8,7 +8,8 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, it, expect } from 'vitest';
 
-const ROUTE_FILE = join(__dirname, '../../src/app/api/webhooks/stripe/route.ts');
+// handleCheckoutSessionCompleted was extracted from route.ts to onetime-handlers.ts (Option A).
+const ROUTE_FILE = join(__dirname, '../../src/app/api/webhooks/stripe/onetime-handlers.ts');
 
 describe('checkout.session.completed — subscription-mode early-exit', () => {
   const source = readFileSync(ROUTE_FILE, 'utf-8');

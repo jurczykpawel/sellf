@@ -14,7 +14,9 @@ import { join } from 'path';
  * Matches the repo's existing source-level handler tests (checkout-session-subscription-skip).
  */
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
-const route = read('src/app/api/webhooks/stripe/route.ts');
+// The one-time webhook handlers were extracted from route.ts to onetime-handlers.ts (Option A);
+// the capture wiring asserted here lives with them. Variable name kept for minimal churn.
+const route = read('src/app/api/webhooks/stripe/onetime-handlers.ts');
 const verify = read('src/lib/payment/verify-payment.ts');
 const updateMeta = read('src/app/api/update-payment-metadata/route.ts');
 
