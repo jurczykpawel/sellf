@@ -37,6 +37,14 @@ test.afterAll(async () => {
   await adminCleanup();
 });
 
+// shop_config is a GLOBAL singleton. The stripe_tax badge test flips tax_mode='stripe_tax';
+// if its assertion fails the in-body restore never runs, leaking stripe_tax into every later
+// checkout test (which then 500s on Stripe automatic_tax). Guarantee the baseline is restored
+// after EVERY test in this file so no test depends on or leaks global tax state.
+test.afterEach(async () => {
+  await supabaseAdmin.from('shop_config').update({ tax_mode: 'local' }).not('id', 'is', null);
+});
+
 async function goToProducts(page: Page) {
   await loginAsAdmin(page, adminEmail, adminPassword);
   await page.goto('/pl/dashboard/products');
@@ -313,19 +321,15 @@ test.describe('Product Creation Wizard', () => {
     // Enter price so the tax info block reveals
     await page.fill('input#price', '10');
 
-    // Should show "Tax calculated by Stripe" info instead of VAT fields
-    await expect(page.getByText(/Tax calculated by Stripe|Podatek naliczany przez Stripe/i)).toBeVisible({ timeout: 10000 });
+    // Should show the "handled by Stripe Tax" info (key: vatStripeTaxInfo) instead of VAT fields.
+    await expect(page.getByText(/handled by Stripe Tax|obsługiwany przez Stripe Tax/i)).toBeVisible({ timeout: 10000 });
 
     // VAT rate input should NOT be visible
     const vatInput = page.locator('input#vat_rate');
     await expect(vatInput).not.toBeVisible();
 
-    // Restore local mode
-    const { error: localErr2 } = await supabaseAdmin
-      .from('shop_config')
-      .update({ tax_mode: 'local' })
-      .not('id', 'is', null);
-    if (localErr2) throw localErr2;
+    // (tax_mode is restored to 'local' by the guaranteed afterEach — no in-body cleanup that
+    //  would be skipped if an assertion above throws.)
 
     // Close without saving
     await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();

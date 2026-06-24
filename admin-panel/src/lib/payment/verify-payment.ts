@@ -12,6 +12,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
+import { redactEmail } from '@/lib/logger';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -561,7 +563,9 @@ export async function verifyPaymentSession(
             stripe_payment_intent_id: stripePaymentIntentId || undefined,
             user_id_param: user?.id || undefined,
             bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
-            coupon_id_param: hasCoupon && couponId ? couponId : undefined
+            coupon_id_param: hasCoupon && couponId ? couponId : undefined,
+            // Net subtotal: net-priced products validate the NET amount, not the gross.
+            amount_subtotal_param: session.amount_subtotal ?? undefined
           };
           
           const { data: paymentResultRaw, error: paymentError } = await serviceClient
@@ -572,7 +576,7 @@ export async function verifyPaymentSession(
           if (paymentError) {
             console.error(
               '[verify-payment] PAYMENT_DB_FAILURE | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
-              session.id, productId, customerEmail, couponId ?? 'none',
+              session.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               session.amount_total, paymentError.message, paymentError.code
             );
             return {
@@ -585,7 +589,7 @@ export async function verifyPaymentSession(
           if (!paymentResult?.success) {
             console.error(
               '[verify-payment] PAYMENT_DB_REJECTED | session=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
-              session.id, productId, customerEmail, couponId ?? 'none',
+              session.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               session.amount_total, paymentResult?.error ?? 'unknown'
             );
             return {
@@ -599,9 +603,18 @@ export async function verifyPaymentSession(
           if (!paymentResult.already_had_access) {
             const { data: txCustomFields } = await serviceClient
               .from('payment_transactions')
-              .select('custom_field_values')
+              .select('id, custom_field_values')
               .eq('session_id', session.id)
               .maybeSingle();
+
+            // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe:
+            // never blocks access granting or the purchase webhook.
+            const taxSnapshot = await captureAndPersistOrderTax({
+              stripe,
+              supabase: serviceClient,
+              transactionId: txCustomFields?.id,
+              sessionId: session.id,
+            });
 
             const webhookData = await buildPurchaseWebhookPayload({
               supabaseClient: serviceClient,
@@ -610,9 +623,12 @@ export async function verifyPaymentSession(
               productId,
               bumpProductIds,
               metadata: session.metadata as Record<string, string | undefined> | null,
+              // Embed collects NIP/address via Stripe → carry them to the invoice section.
+              stripeCustomerDetails: session.customer_details,
               amount: session.amount_total,
               currency: session.currency,
               sessionId: session.id,
+              taxSnapshot,
               paymentIntentId: stripePaymentIntentId,
               couponId: hasCoupon && couponId ? couponId : null,
               isGuest: paymentResult?.is_guest_purchase,
@@ -824,6 +840,16 @@ export async function verifyPaymentIntent(
             }
           }
 
+          // Net subtotal: net-priced products validate the NET amount, not the gross. Resolve
+          // the owning Checkout Session for amount_subtotal; fail-safe → null falls back to gross.
+          let piAmountSubtotal: number | undefined;
+          try {
+            const ownerSessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+            piAmountSubtotal = ownerSessions.data[0]?.amount_subtotal ?? undefined;
+          } catch {
+            /* leave undefined — validator falls back to gross */
+          }
+
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {
             session_id_param: paymentIntent.id,
@@ -834,7 +860,8 @@ export async function verifyPaymentIntent(
             stripe_payment_intent_id: paymentIntent.id,
             user_id_param: user?.id || undefined,
             bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
-            coupon_id_param: couponId || undefined
+            coupon_id_param: couponId || undefined,
+            amount_subtotal_param: piAmountSubtotal
           };
 
           const { data: paymentResultRaw2, error: paymentError } = await serviceClient
@@ -845,7 +872,7 @@ export async function verifyPaymentIntent(
           if (paymentError) {
             console.error(
               '[verify-payment] PAYMENT_DB_FAILURE | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | error=%s (code=%s)',
-              paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+              paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               paymentIntent.amount, paymentError.message, paymentError.code
             );
             return {
@@ -858,7 +885,7 @@ export async function verifyPaymentIntent(
           if (!paymentResult?.success) {
             console.error(
               '[verify-payment] PAYMENT_DB_REJECTED | pi=%s | product=%s | email=%s | coupon_id=%s | amount=%d cents | reason=%s',
-              paymentIntent.id, productId, customerEmail, couponId ?? 'none',
+              paymentIntent.id, productId, redactEmail(customerEmail), couponId ?? 'none',
               paymentIntent.amount, paymentResult?.error ?? 'unknown'
             );
             return {
@@ -872,9 +899,20 @@ export async function verifyPaymentIntent(
           if (!paymentResult.already_had_access) {
             const { data: txCustomFields } = await serviceClient
               .from('payment_transactions')
-              .select('custom_field_values')
+              .select('id, session_id, custom_field_values')
               .eq('stripe_payment_intent_id', paymentIntent.id)
               .maybeSingle();
+
+            // VAT tax snapshot — tax lives on the owning Checkout Session, not the PI.
+            // The stored session_id may be this PI's id, so pass paymentIntentId too:
+            // capture resolves the real cs_ session from it (same as the PI webhook handler).
+            const taxSnapshot = await captureAndPersistOrderTax({
+              stripe,
+              supabase: serviceClient,
+              transactionId: txCustomFields?.id,
+              sessionId: txCustomFields?.session_id,
+              paymentIntentId: paymentIntent.id,
+            });
 
             const webhookData = await buildPurchaseWebhookPayload({
               supabaseClient: serviceClient,
@@ -886,6 +924,7 @@ export async function verifyPaymentIntent(
               amount: paymentIntent.amount,
               currency: paymentIntent.currency,
               paymentIntentId: paymentIntent.id,
+              taxSnapshot,
               couponId: couponId || null,
               isGuest: paymentResult?.is_guest_purchase,
               customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,

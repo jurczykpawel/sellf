@@ -306,6 +306,78 @@ describe('Payments API v1', () => {
     });
   });
 
+  describe('VAT tax snapshot surfacing (round-trip through the API)', () => {
+    it('returns order totals + per-line tax fields on the payments list', async () => {
+      const r = Math.random().toString(36).substring(7);
+      const email = `tax-${r}@example.com`;
+      const { data: tx, error: txErr } = await supabase
+        .from('payment_transactions')
+        .insert({
+          customer_email: email, amount: 12300, currency: 'PLN', status: 'completed',
+          stripe_payment_intent_id: `pi_tax_${r}`, product_id: testProductId, session_id: `cs_tax_${r}`,
+          net_total: 10000, tax_total: 2300, tax_snapshot_status: 'captured',
+        })
+        .select('id').single();
+      if (txErr) throw txErr;
+
+      const { error: liErr } = await supabase.from('payment_line_items').insert({
+        transaction_id: tx.id, product_id: testProductId, item_type: 'main_product',
+        product_name: 'Tax LM', quantity: 1, unit_price: 123, total_price: 123, currency: 'PLN',
+        net_amount: 10000, tax_amount: 2300, vat_rate: 23, tax_behavior: 'exclusive',
+        taxability_reason: 'standard_rated', vat_exempt: false,
+        tax_breakdown: [{ amount: 2300, taxableAmount: 10000, rate: 23 }],
+      });
+      if (liErr) throw liErr;
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { status, data } = await get<ApiResponse<any[]>>(`/api/v1/payments?email=${encodeURIComponent(email)}`);
+        expect(status).toBe(200);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p = (data.data as any[]).find((x) => x.id === tx.id);
+        expect(p).toBeTruthy();
+        expect(p.net_total).toBe(10000);
+        expect(p.tax_total).toBe(2300);
+        expect(p.tax_snapshot_status).toBe('captured');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const line = (p.line_items as any[]).find((l) => l.product_id === testProductId);
+        expect(line).toBeTruthy();
+        expect(line.net_amount).toBe(10000);
+        expect(line.tax_amount).toBe(2300);
+        expect(Number(line.vat_rate)).toBe(23);
+        expect(line.tax_behavior).toBe('exclusive');
+        expect(line.taxability_reason).toBe('standard_rated');
+        expect(Array.isArray(line.tax_breakdown)).toBe(true);
+      } finally {
+        await supabase.from('payment_line_items').delete().eq('transaction_id', tx.id);
+        await supabase.from('payment_transactions').delete().eq('id', tx.id);
+      }
+    });
+
+    it('returns order-level tax fields on a single payment', async () => {
+      const r = Math.random().toString(36).substring(7);
+      const { data: tx, error: txErr } = await supabase
+        .from('payment_transactions')
+        .insert({
+          customer_email: `tax1-${r}@example.com`, amount: 12300, currency: 'PLN', status: 'completed',
+          stripe_payment_intent_id: `pi_tax1_${r}`, product_id: testProductId, session_id: `cs_tax1_${r}`,
+          net_total: 10000, tax_total: 2300, tax_snapshot_status: 'captured',
+        })
+        .select('id').single();
+      if (txErr) throw txErr;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { status, data } = await get<ApiResponse<any>>(`/api/v1/payments/${tx.id}`);
+        expect(status).toBe(200);
+        expect(data.data.net_total).toBe(10000);
+        expect(data.data.tax_total).toBe(2300);
+        expect(data.data.tax_snapshot_status).toBe('captured');
+      } finally {
+        await supabase.from('payment_transactions').delete().eq('id', tx.id);
+      }
+    });
+  });
+
   describe('Custom checkout fields surfacing', () => {
     let cfProductId: string;
     let cfTransactionId: string;

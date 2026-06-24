@@ -256,8 +256,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           },
         });
 
-        // Update the transaction status
-        const totalRefunded = (transaction.refunded_amount || 0) + refundRequest.requested_amount;
+        // Update the transaction status. Base totals on the actual Stripe refund amount
+        // (not requested_amount) so the delta passed to computeRefundTax stays consistent
+        // with totalRefunded — matches the other refund paths.
+        const refundDelta = stripeRefund.amount ?? Math.round(refundRequest.requested_amount);
+        const totalRefunded = (transaction.refunded_amount || 0) + refundDelta;
         const isFullRefund = totalRefunded >= transaction.amount;
         const nextStatus = isFullRefund ? 'refunded' : 'completed';
         const refundedAt = new Date().toISOString();
@@ -310,7 +313,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           supabaseClient: adminClient,
           transaction,
           stripeRefundId: stripeRefund.id,
-          refundAmount: stripeRefund.amount ?? Math.round(refundRequest.requested_amount),
+          refundAmount: refundDelta,
           refundCurrency: stripeRefund.currency,
           refundReason: stripeRefund.reason || 'requested_by_customer',
           refundStatus: stripeRefund.status,

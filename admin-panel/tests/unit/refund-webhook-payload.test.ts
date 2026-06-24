@@ -1,8 +1,40 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRefundIssuedPayload,
+  buildRefundIssuedPayloadFromTransaction,
   shouldEmitRefundWebhook,
 } from '@/lib/services/refund-webhook-payload';
+
+/** Mock supabase: products + payment_transactions(net_total,tax_total) + payment_line_items(main). */
+function mockSupabaseFor(opts: {
+  product?: Record<string, unknown> | null;
+  tx?: { net_total: number | null; tax_total: number | null } | null;
+  mainLine?: { vat_exempt?: boolean | null; taxability_reason?: string | null } | null;
+}) {
+  const dataFor = (table: string) =>
+    table === 'products' ? (opts.product ?? null)
+    : table === 'payment_transactions' ? (opts.tx ?? null)
+    : table === 'payment_line_items' ? (opts.mainLine ?? null)
+    : null;
+  return {
+    from(table: string) {
+      // chainable so .select().eq().eq()….maybeSingle() works for any number of eq()
+      const chain = {
+        eq: () => chain,
+        maybeSingle: async () => ({ data: dataFor(table), error: null }),
+      };
+      return { select: () => chain };
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+const txRow = {
+  id: 'pay_1', user_id: null, product_id: 'prod_1', session_id: 'cs_1',
+  stripe_payment_intent_id: 'pi_1', amount: 12300, currency: 'PLN',
+  status: 'completed', customer_email: 'b@e.com',
+};
+const productRow = { id: 'prod_1', name: 'C', slug: 'c', price: 100, currency: 'PLN', icon: null };
 
 const product = {
   id: 'prod_123',
@@ -74,6 +106,66 @@ describe('refund webhook payload', () => {
         source: 'api',
       },
     });
+  });
+
+  it('buildRefundIssuedPayloadFromTransaction: refund.refund carries net/tax/vatRate from the order snapshot (partial)', async () => {
+    const payload = await buildRefundIssuedPayloadFromTransaction({
+      supabaseClient: mockSupabaseFor({ product: productRow, tx: { net_total: 10000, tax_total: 2300 } }),
+      transaction: txRow,
+      stripeRefundId: 're_1', refundAmount: 6150,
+      previousRefundedAmount: 0, totalRefunded: 6150, isFullRefund: false,
+      statusBefore: 'completed', statusAfter: 'completed', refundedAt: '2026-06-23T00:00:00.000Z',
+      source: 'admin',
+    });
+    // partial half-refund of a 100+23 order → net 5000, tax 1150, rate 23 (MINOR units)
+    expect(payload.refund).toMatchObject({ amount: 6150, net: 5000, tax: 1150, vatRate: 23 });
+  });
+
+  it('buildRefundIssuedPayloadFromTransaction: omits net/tax when the order has no tax snapshot', async () => {
+    const payload = await buildRefundIssuedPayloadFromTransaction({
+      supabaseClient: mockSupabaseFor({ product: productRow, tx: { net_total: null, tax_total: null } }),
+      transaction: txRow,
+      stripeRefundId: 're_1', refundAmount: 6150,
+      previousRefundedAmount: 0, totalRefunded: 6150, isFullRefund: false,
+      statusBefore: 'completed', statusAfter: 'completed', refundedAt: '2026-06-23T00:00:00.000Z',
+      source: 'admin',
+    });
+    expect((payload.refund as { net?: number }).net).toBeUndefined();
+    expect((payload.refund as { tax?: number }).tax).toBeUndefined();
+  });
+
+  it('carries vatExempt + taxabilityReason for an exempt order (so the credit note shows "zw.", not 0%)', async () => {
+    const payload = await buildRefundIssuedPayloadFromTransaction({
+      supabaseClient: mockSupabaseFor({
+        product: productRow,
+        tx: { net_total: 10000, tax_total: 0 },
+        mainLine: { vat_exempt: true, taxability_reason: 'customer_exempt' },
+      }),
+      transaction: txRow,
+      stripeRefundId: 're_1', refundAmount: 10000,
+      previousRefundedAmount: 0, totalRefunded: 10000, isFullRefund: true,
+      statusBefore: 'completed', statusAfter: 'refunded', refundedAt: '2026-06-23T00:00:00.000Z',
+      source: 'admin',
+    });
+    expect((payload.refund as { vatExempt?: boolean }).vatExempt).toBe(true);
+    expect((payload.refund as { taxabilityReason?: string }).taxabilityReason).toBe('customer_exempt');
+  });
+
+  it('omits vatExempt/taxabilityReason for a non-exempt order', async () => {
+    const payload = await buildRefundIssuedPayloadFromTransaction({
+      supabaseClient: mockSupabaseFor({
+        product: productRow,
+        tx: { net_total: 10000, tax_total: 2300 },
+        mainLine: { vat_exempt: false, taxability_reason: null },
+      }),
+      transaction: txRow,
+      stripeRefundId: 're_1', refundAmount: 6150,
+      previousRefundedAmount: 0, totalRefunded: 6150, isFullRefund: false,
+      statusBefore: 'completed', statusAfter: 'completed', refundedAt: '2026-06-23T00:00:00.000Z',
+      source: 'admin',
+    });
+    expect((payload.refund as { vatExempt?: boolean }).vatExempt).toBeUndefined();
+    expect((payload.refund as { taxabilityReason?: string }).taxabilityReason).toBeUndefined();
   });
 
   it('emits only when a new refund increases total refunded amount', () => {

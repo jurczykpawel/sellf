@@ -81,6 +81,9 @@ export async function GET(request: NextRequest) {
         refunded_at,
         refund_reason,
         refunded_by,
+        net_total,
+        tax_total,
+        tax_snapshot_status,
         created_at,
         updated_at
       `);
@@ -169,7 +172,14 @@ export async function GET(request: NextRequest) {
           unit_price,
           total_price,
           currency,
-          metadata
+          metadata,
+          net_amount,
+          tax_amount,
+          vat_rate,
+          tax_behavior,
+          vat_exempt,
+          taxability_reason,
+          tax_breakdown
         `)
         .in('transaction_id', transactionIds)
         .order('created_at', { ascending: true });
@@ -195,6 +205,14 @@ export async function GET(request: NextRequest) {
           total_price: item.total_price ?? 0,
           currency: item.currency ?? 'usd',
           metadata: item.metadata,
+          // VAT snapshot (minor units; null on legacy/uncaptured rows)
+          net_amount: item.net_amount,
+          tax_amount: item.tax_amount,
+          vat_rate: item.vat_rate,
+          tax_behavior: item.tax_behavior as PaymentTransactionLineItem['tax_behavior'],
+          vat_exempt: item.vat_exempt ?? undefined,
+          taxability_reason: item.taxability_reason,
+          tax_breakdown: item.tax_breakdown as unknown as PaymentTransactionLineItem['tax_breakdown'],
         };
 
         const existingItems = lineItemsByTransactionId.get(item.transaction_id) ?? [];
@@ -226,6 +244,9 @@ export async function GET(request: NextRequest) {
             : null,
         },
         line_items: lineItemsByTransactionId.get(p.id) ?? [],
+        net_total: p.net_total,
+        tax_total: p.tax_total,
+        tax_snapshot_status: p.tax_snapshot_status,
         user_id: p.user_id,
         session_id: p.session_id,
         metadata: p.metadata ?? {},

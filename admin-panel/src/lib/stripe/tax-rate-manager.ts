@@ -98,3 +98,32 @@ async function _resolveStripeTaxRate(
 
   return taxRate.id;
 }
+
+// ===== SUBSCRIPTION LINE TAX RATE =====
+
+/**
+ * Resolve the manual Stripe TaxRate id for a SUBSCRIPTION line in `local` tax mode.
+ *
+ * Mirrors the one-time line builder (checkout-line-items.ts) so both flows treat tax the
+ * same way: a manual rate is attached ONLY for a real (>0) rate on a NON-exempt product.
+ * Returns `undefined` — so no `tax_rates` are sent — for:
+ *   - `stripe_tax` mode (Stripe Tax computes per the buyer's jurisdiction),
+ *   - VAT-exempt ("zw.") products (no VAT at all — distinct from a 0% rate),
+ *   - a 0 / unset rate.
+ * `inclusive` comes from `price_includes_vat` (brutto = inclusive, netto = exclusive).
+ * `resolveTaxRate` is injected for testability; defaults to getOrCreateStripeTaxRate.
+ */
+export async function resolveLocalSubscriptionTaxRateId(
+  params: {
+    taxMode: 'local' | 'stripe_tax';
+    vatRate: number | null | undefined;
+    priceIncludesVat: boolean;
+    vatExempt: boolean | null | undefined;
+  },
+  resolveTaxRate: (p: { percentage: number; inclusive: boolean }) => Promise<string> = getOrCreateStripeTaxRate,
+): Promise<string | undefined> {
+  if (params.taxMode !== 'local') return undefined;
+  if (params.vatExempt) return undefined;
+  if (!params.vatRate || params.vatRate <= 0) return undefined;
+  return resolveTaxRate({ percentage: params.vatRate, inclusive: params.priceIncludesVat });
+}

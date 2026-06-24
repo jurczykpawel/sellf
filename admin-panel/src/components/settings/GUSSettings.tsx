@@ -170,14 +170,17 @@ export default function GUSSettings() {
  <label htmlFor="gus-api-key" className="block text-sm font-medium text-sf-body mb-2">
  {t('apiKeyLabel')}
  </label>
+ <form onSubmit={(e) => e.preventDefault()} className="contents">
  <input
  type="password"
  id="gus-api-key"
  value={apiKey}
  onChange={(e) => setApiKey(e.target.value)}
  placeholder={hasKey ? '••••••••••••••••' : t('apiKeyPlaceholder')}
+ autoComplete="off"
  className="w-full px-4 py-2.5 bg-sf-input border-2 border-sf-border-medium text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent"
  />
+ </form>
  <p className="mt-2 text-xs text-sf-muted">
  {t('apiKeyHelp')}{' '}
  <a

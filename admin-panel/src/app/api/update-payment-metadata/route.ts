@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/server';
 import { isAllowedOrigin } from '@/lib/security/origin-match';
 import { assertStripeObjectOwnership } from '@/lib/api/ownership';
 import { verifyCheckoutBinding } from '@/lib/security/checkout-binding';
+import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
+import { applyBuyerTaxIdentityToCustomer } from '@/lib/stripe/buyer-tax-identity';
+import { shouldForwardTaxIdentityToStripe } from '@/lib/checkout/invoice-form-logic';
 import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
@@ -169,6 +172,7 @@ export async function POST(request: NextRequest) {
     };
 
     let productIdFromStripe: string | null = null;
+    let stripeTaxCustomerId: string | null = null;
 
     const tooManyRequests = () =>
       NextResponse.json(
@@ -206,6 +210,7 @@ export async function POST(request: NextRequest) {
       if (limited) return limited;
 
       await stripe.checkout.sessions.update(stripeObjectId, { metadata });
+      stripeTaxCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
     } else {
       const pi = await stripe.paymentIntents.retrieve(stripeObjectId);
       if (!pi || !['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
@@ -223,6 +228,23 @@ export async function POST(request: NextRequest) {
       if (limited) return limited;
 
       await stripe.paymentIntents.update(stripeObjectId, { metadata });
+      stripeTaxCustomerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id ?? null;
+    }
+
+    // stripe_tax: set the buyer's country + EU VAT-ID on the Stripe Customer so automatic_tax
+    // computes the right jurisdiction and applies EU B2B reverse charge. This runs HERE — not at
+    // session creation — because this is where the buyer's NIP/country actually arrive (on submit).
+    // The Customer was attached at create-payment-intent (a session's customer can't be set later).
+    // Gated on stripe_tax; fail-safe (never blocks the metadata update or the payment).
+    if (stripeTaxCustomerId) {
+      const checkoutConfig = await getCheckoutConfig();
+      if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
+        await applyBuyerTaxIdentityToCustomer({
+          stripe,
+          customerId: stripeTaxCustomerId,
+          identity: { country, taxId: nip, address, city, postalCode },
+        });
+      }
     }
 
     // Phase 3a: validate + persist custom_field_values on the pending row.

@@ -467,7 +467,7 @@ export default function WebhookFormModal({
                       <input value={row.key} placeholder={t('customization.headerNamePlaceholder')}
                         onChange={(e) => setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, key: e.target.value } : r) }))}
                         className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm" />
-                      <input type="password" value={row.value} placeholder={t('customization.headerValuePlaceholder')}
+                      <input type="password" autoComplete="off" value={row.value} placeholder={t('customization.headerValuePlaceholder')}
                         onChange={(e) => setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, value: e.target.value } : r) }))}
                         className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm font-mono" />
                       <button type="button" onClick={() => setCustomState((s) => ({ ...s, headerRows: s.headerRows.filter((_, j) => j !== i) }))}

@@ -202,7 +202,12 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
       isFullRefund: true,
       totalRefunded: 4999,
       refundedAt: new Date().toISOString(),
-      source: 'admin'
+      source: 'admin',
+      // VAT breakdown of the refund (MINOR units) for credit notes — present when the
+      // order has a tax snapshot. net + tax = amount; vatRate = order effective rate.
+      net: 4064,
+      tax: 935,
+      vatRate: 23
     }
   },
   'license.revoked': {

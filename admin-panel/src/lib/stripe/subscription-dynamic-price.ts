@@ -19,6 +19,10 @@ export interface CreateDynamicSubscriptionInput {
   interval: 'day' | 'week' | 'month' | 'year';
   intervalCount: number;
   taxRateId?: string;
+  /** Stripe Tax (automatic_tax) settings — enabled in stripe_tax mode so VAT is computed. */
+  automaticTax?: { enabled: boolean };
+  /** brutto (true) → inclusive, netto (false) → exclusive tax_behavior on the recurring price. */
+  priceIncludesVat: boolean;
 }
 
 export interface CreateDynamicSubscriptionResult {
@@ -54,6 +58,9 @@ export async function createSubscriptionWithDynamicPrice(
         price_data: {
           currency: input.currency.toLowerCase(),
           unit_amount: unitAmount,
+          // inclusive/exclusive so Stripe Tax treats the PWYW recurring amount as
+          // brutto/netto (and consistent with any manual default_tax_rate in local mode).
+          tax_behavior: input.priceIncludesVat ? 'inclusive' : 'exclusive',
           recurring: {
             interval: input.interval,
             interval_count: input.intervalCount,
@@ -72,6 +79,8 @@ export async function createSubscriptionWithDynamicPrice(
     },
     expand: ['latest_invoice.confirmation_secret', 'latest_invoice.payments.data.payment'],
     ...(input.taxRateId ? { default_tax_rates: [input.taxRateId] } : {}),
+    // Stripe Tax computes VAT per jurisdiction in stripe_tax mode (no manual rate then).
+    ...(input.automaticTax ? { automatic_tax: input.automaticTax } : {}),
   } as unknown as Parameters<Stripe['subscriptions']['create']>[0])) as unknown as {
     id: string;
     latest_invoice: {

@@ -32,6 +32,8 @@ export interface ValidatedProduct {
   // VAT/Tax fields
   vat_rate: number | null;
   price_includes_vat: boolean;
+  vat_exempt: boolean;
+  vat_exempt_note: string | null;
   // Subscription fields (Phase 2 — Subscriptions MVP)
   product_type: ProductType;
   billing_interval: BillingInterval | null;
@@ -65,7 +67,7 @@ export class ProductValidationService {
 
     const { data: product, error } = await this.supabase
       .from('products')
-      .select('id, slug, name, description, price, currency, is_active, available_from, available_until, auto_grant_duration_days, allow_custom_price, custom_price_min, sale_price, sale_price_until, sale_quantity_limit, sale_quantity_sold, vat_rate, price_includes_vat, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, stripe_price_id')
+      .select('id, slug, name, description, price, currency, is_active, available_from, available_until, auto_grant_duration_days, allow_custom_price, custom_price_min, sale_price, sale_price_until, sale_quantity_limit, sale_quantity_sold, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, stripe_price_id')
       .eq('id', productId)
       .eq('is_active', true)
       .single();

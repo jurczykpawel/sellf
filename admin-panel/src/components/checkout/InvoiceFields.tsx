@@ -2,12 +2,22 @@
 
 import { useTranslations } from 'next-intl';
 import type { InvoiceFieldsData } from '@/hooks/useInvoiceData';
+import { shouldShowCompanyFields } from '@/lib/checkout/invoice-form-logic';
+import { EU_COUNTRIES } from '@/lib/checkout/eu-countries';
 
 interface InvoiceFieldsProps {
   invoice: InvoiceFieldsData;
+  /**
+   * Show the buyer-country selector. Only meaningful in Stripe Tax mode, where the buyer's
+   * country drives the jurisdiction + EU B2B reverse charge. In Fixed-Rate (local) mode the
+   * tax is a flat rate independent of the buyer's country, so the selector is hidden to keep
+   * the form minimal.
+   */
+  showCountry?: boolean;
 }
 
-export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
+
+export default function InvoiceFields({ invoice, showCountry = false }: InvoiceFieldsProps) {
   const t = useTranslations('checkout');
 
   return (
@@ -61,7 +71,7 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
       </div>
 
       {/* Company fields — shown when NIP is long enough or GUS data loaded */}
-      {(invoice.nip.length === 10 || invoice.gusData || invoice.companyName) && (
+      {shouldShowCompanyFields({ nip: invoice.nip, hasGusData: !!invoice.gusData, companyName: invoice.companyName }) && (
         <div className={`space-y-3 animate-in slide-in-from-top-2 duration-300 ${invoice.isLoadingGUS ? 'opacity-60 pointer-events-none' : ''}`}>
           <div>
             <label htmlFor="companyName" className="block text-sm font-medium text-sf-body mb-2">
@@ -121,6 +131,26 @@ export default function InvoiceFields({ invoice }: InvoiceFieldsProps) {
               />
             </div>
           </div>
+          {/* Buyer's country — drives Stripe Tax jurisdiction + EU B2B reverse charge. Shown
+              only in Stripe Tax mode; in Fixed-Rate mode the rate is flat (country irrelevant). */}
+          {showCountry && (
+            <div>
+              <label htmlFor="country" className="block text-sm font-medium text-sf-body mb-2">
+                {t('countryLabel', { defaultValue: 'Country' })}
+              </label>
+              <select
+                id="country"
+                value={invoice.country}
+                onChange={(e) => invoice.setCountry(e.target.value)}
+                disabled={invoice.isLoadingGUS}
+                className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:cursor-not-allowed"
+              >
+                {EU_COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
     </div>

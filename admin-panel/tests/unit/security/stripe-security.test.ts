@@ -32,6 +32,13 @@ const WEBHOOK_ROUTE_SOURCE = readFileSync(
   'utf-8'
 );
 
+// One-time payment handlers were extracted from route.ts to onetime-handlers.ts (Option A);
+// the idempotency early-return ("Already processed") lives there now.
+const ONETIME_HANDLERS_SOURCE = readFileSync(
+  resolve(__dirname, '../../../src/app/api/webhooks/stripe/onetime-handlers.ts'),
+  'utf-8'
+);
+
 const REFUND_ROUTE_SOURCE = readFileSync(
   resolve(__dirname, '../../../src/app/api/admin/payments/refund/route.ts'),
   'utf-8'
@@ -299,7 +306,7 @@ describe('Stripe Integration Security', () => {
 
     it('should verify production webhook skips already-processed events', () => {
       // After finding an existing transaction, the handler returns early
-      expect(WEBHOOK_ROUTE_SOURCE).toContain('Already processed');
+      expect(ONETIME_HANDLERS_SOURCE).toContain('Already processed');
     });
 
     it('should verify production webhook verifies signature before processing', () => {

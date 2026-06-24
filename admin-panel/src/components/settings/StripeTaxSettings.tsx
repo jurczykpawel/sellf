@@ -12,6 +12,7 @@ import { getStripeTaxStatus, getCheckoutConfigAction } from '@/lib/actions/strip
 import type { StripeTaxStatus } from '@/lib/actions/stripe-tax'
 import type { ConfigSource } from '@/lib/stripe/checkout-config'
 import { getMyShopConfig, updateShopConfig } from '@/lib/actions/shop-config'
+import { shouldWarnExemptIgnoredUnderStripeTax } from '@/lib/settings/tax-mode-warnings'
 import type { TaxMode } from '@/lib/actions/shop-config'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
@@ -89,6 +90,7 @@ export default function StripeTaxSettings() {
  const [taxMode, setTaxMode] = useState<TaxMode>('stripe_tax')
  const [defaultVatRate, setDefaultVatRate] = useState('')
  const [vatRateIsNull, setVatRateIsNull] = useState(false)
+ const [isVatExempt, setIsVatExempt] = useState(false)
 
  // Toggle state
  const [taxIdCollection, setTaxIdCollection] = useState(true)
@@ -159,6 +161,7 @@ export default function StripeTaxSettings() {
  ? Math.round(shopConfig.tax_rate * 100).toString()
  : ''
  )
+ setIsVatExempt(!!shopConfig.is_vat_exempt)
  }
  } catch {
  if (cancelled) return
@@ -336,6 +339,9 @@ export default function StripeTaxSettings() {
  <p className="text-xs text-sf-muted mt-2">
  {isLocalMode ? t('taxMode.localDescription') : t('taxMode.stripeTaxDescription')}
  </p>
+ {shouldWarnExemptIgnoredUnderStripeTax({ isVatExempt, taxMode }) && (
+ <p className="text-xs text-sf-warning mt-2">⚠️ {t('taxMode.exemptIgnoredWarning')}</p>
+ )}
  </div>
 
  {/* Local mode: Default VAT Rate input + warnings */}

@@ -64,6 +64,8 @@ export interface ProductForCheckout {
   // VAT/Tax fields
   vat_rate: number | null;
   price_includes_vat: boolean;
+  vat_exempt: boolean;
+  vat_exempt_note: string | null;
   // Subscription fields (Phase 2 — Subscriptions MVP)
   product_type: 'one_time' | 'subscription';
   billing_interval: 'day' | 'week' | 'month' | 'year' | null;

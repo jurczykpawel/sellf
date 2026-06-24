@@ -6,6 +6,7 @@
 import { revalidatePath } from 'next/cache';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import type {
   RefundRequest,
@@ -62,13 +63,14 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
     // Update transaction in database
     const totalRefunded = alreadyRefunded + (refund.amount ?? refundAmount);
     const isFullRefund = totalRefunded >= transaction.amount;
+    const refundedAt = new Date().toISOString();
 
     const { data: updatedRows, error: updateError } = await dataClient
       .from('payment_transactions')
       .update({
         refunded_amount: totalRefunded,
         status: isFullRefund ? 'refunded' : 'completed',
-        refunded_at: new Date().toISOString(),
+        refunded_at: refundedAt,
         refunded_by: user.id,
         refund_id: refund.id,
         refund_reason: data.reason,
@@ -111,6 +113,27 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
         },
       };
     }
+
+    // Notify integrations (refund.issued + VAT breakdown for credit notes) — same as the
+    // other refund paths. Only when OUR DB update won (updatedRows present), so the later
+    // charge.refunded webhook sees no delta and won't double-emit. emit is fire-and-forget.
+    await emitRefundIssuedWebhook({
+      supabaseClient: dataClient,
+      transaction,
+      stripeRefundId: refund.id,
+      refundAmount: refund.amount ?? refundAmount,
+      refundCurrency: refund.currency,
+      refundReason: refund.reason || data.reason || null,
+      refundStatus: refund.status,
+      previousRefundedAmount: alreadyRefunded,
+      totalRefunded,
+      isFullRefund,
+      statusBefore: transaction.status,
+      statusAfter: isFullRefund ? 'refunded' : 'completed',
+      refundedAt,
+      initiatedByAdminId: user.id,
+      source: 'admin',
+    });
 
     // Revalidate admin pages
     revalidatePath('/dashboard/payments');

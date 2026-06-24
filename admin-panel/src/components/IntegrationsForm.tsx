@@ -437,7 +437,7 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-sf-body mb-1">{t('facebook.capiToken')}</label>
-                        <input type="password" value={formData.facebook_capi_token || ''} onChange={(e) => handleChange('facebook_capi_token', e.target.value)} className="w-full border-2 border-sf-border-medium px-3 py-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent outline-none" />
+                        <input type="password" autoComplete="off" value={formData.facebook_capi_token || ''} onChange={(e) => handleChange('facebook_capi_token', e.target.value)} className="w-full border-2 border-sf-border-medium px-3 py-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent outline-none" />
                         <p className="mt-1 text-xs text-sf-muted">{t('facebook.capiTokenHelp')}</p>
                     </div>
                     <div className="md:col-span-2">

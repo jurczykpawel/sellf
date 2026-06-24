@@ -205,47 +205,83 @@ export function PriceVatInline({
       </span>
     </div>
   ) : (
-    <div className="flex items-center gap-3">
-      <label htmlFor="price_includes_vat" className="flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          id="price_includes_vat"
-          checked={formData.price_includes_vat}
-          onChange={(e) => setFormData(prev => ({ ...prev, price_includes_vat: e.target.checked }))}
-          className="h-4 w-4 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
-        />
-        <span className="text-sm text-sf-body whitespace-nowrap">
-          {formData.price_includes_vat ? t('vatIncluded') : t('vatExcluded')}
-        </span>
-      </label>
-
-      {formData.price_includes_vat && (
-        <div className="flex items-center gap-1">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* VAT-exempt ("zwolniony / zw.") — distinct from a 0% rate */}
+        <label htmlFor="vat_exempt" className="flex items-center gap-2 cursor-pointer select-none">
           <input
-            type="number"
-            id="vat_rate"
-            value={formData.vat_rate ?? ''}
-            onChange={(e) => {
-              if (fieldErrors.vat_rate && setFieldErrors) {
-                setFieldErrors(prev => { const next = { ...prev }; delete next.vat_rate; return next; });
-              }
-              setFormData(prev => ({
-                ...prev,
-                vat_rate: e.target.value === '' ? null : parseFloat(e.target.value)
-              }));
-            }}
-            min="0"
-            max="100"
-            step="1"
-            placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : ''}
-            required={shopDefaultVatRate == null}
-            className={`w-14 px-2 py-2 border-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm text-center ${
-              fieldErrors.vat_rate ? 'border-red-500' : 'border-sf-border-medium'
-            }`}
+            type="checkbox"
+            id="vat_exempt"
+            checked={!!formData.vat_exempt}
+            onChange={(e) => setFormData(prev => ({ ...prev, vat_exempt: e.target.checked }))}
+            className="h-4 w-4 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
           />
-          <span className="text-sm text-sf-muted">%</span>
-        </div>
+          <span className="text-sm text-sf-body whitespace-nowrap">
+            {t('vatExempt', { defaultValue: 'Zwolniony z VAT (zw.)' })}
+          </span>
+        </label>
+
+        {!formData.vat_exempt && (
+          <>
+            <label htmlFor="price_includes_vat" className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                id="price_includes_vat"
+                checked={formData.price_includes_vat}
+                onChange={(e) => setFormData(prev => ({ ...prev, price_includes_vat: e.target.checked }))}
+                className="h-4 w-4 text-sf-accent focus:ring-sf-accent border-sf-border rounded"
+              />
+              <span className="text-sm text-sf-body whitespace-nowrap">
+                {formData.price_includes_vat ? t('vatIncluded') : t('vatExcluded')}
+              </span>
+            </label>
+
+            {formData.price_includes_vat && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  id="vat_rate"
+                  value={formData.vat_rate ?? ''}
+                  onChange={(e) => {
+                    if (fieldErrors.vat_rate && setFieldErrors) {
+                      setFieldErrors(prev => { const next = { ...prev }; delete next.vat_rate; return next; });
+                    }
+                    setFormData(prev => ({
+                      ...prev,
+                      vat_rate: e.target.value === '' ? null : parseFloat(e.target.value)
+                    }));
+                  }}
+                  min="0"
+                  max="100"
+                  step="1"
+                  placeholder={shopDefaultVatRate != null ? `${Math.round(shopDefaultVatRate * 100)}` : ''}
+                  required={shopDefaultVatRate == null}
+                  className={`w-14 px-2 py-2 border-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent text-sm text-center ${
+                    fieldErrors.vat_rate ? 'border-red-500' : 'border-sf-border-medium'
+                  }`}
+                />
+                <span className="text-sm text-sf-muted">%</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {formData.vat_exempt && (
+        <input
+          type="text"
+          id="vat_exempt_note"
+          value={formData.vat_exempt_note ?? ''}
+          onChange={(e) => setFormData(prev => ({ ...prev, vat_exempt_note: e.target.value || null }))}
+          maxLength={500}
+          placeholder={t('vatExemptNotePlaceholder', { defaultValue: 'Podstawa zwolnienia (np. art. 113 ust. 1) — opcjonalnie' })}
+          className="w-full max-w-md px-2 py-1.5 border-2 border-sf-border-medium text-sm bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent"
+        />
       )}
+
+      <p className="text-xs text-sf-muted max-w-md">
+        {t('vatRowHelp', { defaultValue: "Netto = VAT doliczany do ceny; Brutto = cena już zawiera VAT. 'Zwolniony z VAT (zw.)' = brak VAT w ogóle — nie to samo co stawka 0%." })}
+      </p>
     </div>
   );
 

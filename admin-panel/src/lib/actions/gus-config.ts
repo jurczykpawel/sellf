@@ -19,7 +19,9 @@ export interface SaveGUSKeyInput {
 }
 
 /**
- * Saves/updates GUS API key in shop_config.custom_settings
+ * Saves/updates the GUS BIR API key — encrypted at rest in `integrations_config`
+ * (gus_api_key_encrypted/iv/tag), which is anon-REVOKED. NEVER store it (or any secret)
+ * in shop_config.custom_settings, which is not anon-readable but is a free-form column.
  */
 export async function saveGUSAPIKey(input: SaveGUSKeyInput): Promise<ActionResponse<void>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }

@@ -155,6 +155,28 @@ describe('subscription-webhook-payload', () => {
       expect(payload.invoice.hostedInvoiceUrl).toBe('https://invoice.stripe.com/i/abc');
       expect(payload.invoice.billingReason).toBe('subscription_cycle');
     });
+
+    it('includes buyer faktura details snapshotted on the invoice (B2B) — from invoice, not profile', () => {
+      const payload = buildInvoicePaidPayload({
+        customer,
+        product,
+        subscriptionId: 'sub_123',
+        invoice: makeInvoice({
+          customer_name: 'Firma Sp. z o.o.',
+          customer_tax_ids: [{ type: 'eu_vat', value: 'PL1181697228' }],
+          customer_address: { line1: 'ul. Przykładowa 123', city: 'Warszawa', postal_code: '00-000', country: 'PL' },
+        } as unknown as Partial<Stripe.Invoice>),
+      });
+      expect(payload.invoice).toMatchObject({
+        nip: 'PL1181697228', companyName: 'Firma Sp. z o.o.',
+        address: 'ul. Przykładowa 123', city: 'Warszawa', postalCode: '00-000', country: 'PL',
+      });
+    });
+
+    it('omits faktura details for B2C (no tax id on the invoice)', () => {
+      const payload = buildInvoicePaidPayload({ customer, product, subscriptionId: 'sub_123', invoice: makeInvoice() });
+      expect((payload.invoice as { nip?: string }).nip).toBeUndefined();
+    });
   });
 
   describe('buildInvoicePaymentFailedPayload', () => {

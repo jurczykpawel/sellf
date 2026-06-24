@@ -7,6 +7,7 @@ import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
+import { isStripeTaxNotConfiguredError } from '@/lib/stripe/tax-errors';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
@@ -22,7 +23,8 @@ import {
 import type { PaymentMethodConfig } from '@/types/payment-config';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
-import { getOrCreateStripeTaxRate } from '@/lib/stripe/tax-rate-manager';
+import { getOrCreateStripeTaxRate, resolveLocalSubscriptionTaxRateId } from '@/lib/stripe/tax-rate-manager';
+import { buildCheckoutLineSpecs, buildStripeLineItems } from '@/lib/services/checkout-line-items';
 import { getOrCreateStripePriceForProduct } from '@/lib/stripe/product-price';
 import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checkout';
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
@@ -259,6 +261,8 @@ export async function POST(request: NextRequest) {
         custom_price_min: product.custom_price_min ?? undefined,
         vat_rate: product.vat_rate,
         price_includes_vat: product.price_includes_vat,
+        vat_exempt: product.vat_exempt,
+        vat_exempt_note: product.vat_exempt_note,
         product_type: 'subscription',
         billing_interval: product.billing_interval as BillingInterval | null,
         billing_interval_count: product.billing_interval_count,
@@ -298,13 +302,13 @@ export async function POST(request: NextRequest) {
           })
         : undefined;
 
-      let taxRateId: string | undefined;
-      if (checkoutConfig.tax_mode === 'local' && subscriptionProduct.vat_rate && subscriptionProduct.vat_rate > 0) {
-        taxRateId = await getOrCreateStripeTaxRate({
-          percentage: subscriptionProduct.vat_rate,
-          inclusive: subscriptionProduct.price_includes_vat,
-        });
-      }
+      // Manual VAT rate for local mode only; skipped for stripe_tax and VAT-exempt products.
+      const taxRateId = await resolveLocalSubscriptionTaxRateId({
+        taxMode: checkoutConfig.tax_mode,
+        vatRate: subscriptionProduct.vat_rate,
+        priceIncludesVat: subscriptionProduct.price_includes_vat,
+        vatExempt: subscriptionProduct.vat_exempt,
+      });
 
       if (isPwywSubscription) {
         const v = validateCustomAmount(customAmount, product);
@@ -337,6 +341,8 @@ export async function POST(request: NextRequest) {
           interval: (subscriptionProduct.billing_interval ?? 'month') as 'day' | 'week' | 'month' | 'year',
           intervalCount: subscriptionProduct.billing_interval_count ?? 1,
           taxRateId,
+          automaticTax: checkoutConfig.automatic_tax,
+          priceIncludesVat: subscriptionProduct.price_includes_vat,
         });
         const stripeObjectId = extractStripeObjectId(clientSecret);
         const bindingToken = stripeObjectId
@@ -621,29 +627,71 @@ export async function POST(request: NextRequest) {
     };
 
     const returnUrl = `${getCanonicalOrigin(request)}/payment/success?session_id={CHECKOUT_SESSION_ID}&product_id=${encodeURIComponent(product.id)}&product=${encodeURIComponent(product.slug)}${successUrl ? `&success_url=${encodeURIComponent(successUrl)}` : ''}`;
+    // Build one Stripe line item per product (main + each bump) via the shared builder
+    // — identical to the embedded flow (DRY) — so per-line tax can be captured. The
+    // guard below asserts the split preserves the exact total that was charged before.
+    const checkoutConfig = await getCheckoutConfig();
+    const { specs } = buildCheckoutLineSpecs({
+      main: {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        currency: product.currency,
+        vatRate: product.vat_rate,
+        priceIncludesVat: product.price_includes_vat,
+        vatExempt: product.vat_exempt,
+      },
+      mainPrice: pricing.basePrice,
+      bumps: validatedBumps.map((vb) => ({
+        product: {
+          id: vb.product.id,
+          name: vb.product.name,
+          description: vb.product.description,
+          currency: vb.product.currency,
+          vatRate: vb.product.vat_rate,
+          priceIncludesVat: vb.product.price_includes_vat,
+          vatExempt: vb.product.vat_exempt,
+        },
+        price: vb.bumpPrice,
+      })),
+      coupon: appliedCoupon
+        ? {
+            discount_type: appliedCoupon.discount_type,
+            discount_value: appliedCoupon.discount_value,
+            code: appliedCoupon.code,
+            exclude_order_bumps: appliedCoupon.exclude_order_bumps,
+            allowed_product_ids: appliedCoupon.allowed_product_ids,
+          }
+        : null,
+      taxMode: checkoutConfig.tax_mode,
+    });
+
+    // SAFETY: per-line split must never change the charged total. Both totalAmount and
+    // these specs derive from the same allocateCouponDiscount, so equality holds by
+    // construction — log loudly if it ever diverges (would signal a pricing-logic drift).
+    const lineItemsTotalMinor = specs.reduce((sum, s) => sum + s.unitAmountMinor, 0);
+    if (lineItemsTotalMinor !== totalAmount) {
+      console.error(
+        `[create-payment-intent] Tax-split total mismatch: lines=${lineItemsTotalMinor} expected=${totalAmount} product=${product.id}`
+      );
+    }
+
+    const lineItems = await buildStripeLineItems(specs, {
+      resolveTaxRate: getOrCreateStripeTaxRate,
+    });
+
     const checkoutSessionParams: CheckoutSessionCreateParams = {
       mode: 'payment',
       ui_mode: 'elements',
-      line_items: [{
-        quantity: 1,
-        price_data: {
-          currency: product.currency.toLowerCase(),
-          unit_amount: totalAmount,
-          product_data: {
-            name: product.name,
-            description: validatedBumps.length > 0
-              ? `Includes: ${validatedBumps.map(vb => vb.product.name).join(', ')}`
-              : undefined,
-            metadata: {
-              product_id: product.id,
-            },
-          },
-        },
-      }],
+      line_items: lineItems as CheckoutSessionCreateParams['line_items'],
       return_url: returnUrl,
       customer_email: finalEmail || undefined,
       client_reference_id: user?.id || finalEmail || undefined,
       metadata: checkoutMetadata,
+      // Tax: mirror embedded so on-site captures VAT consistently. In local mode (default)
+      // automatic_tax is disabled and per-line tax_rates carry the tax; in stripe_tax mode
+      // Stripe computes it. (tax_id_collection/billing_address parity deferred — UX change.)
+      automatic_tax: checkoutConfig.automatic_tax,
       payment_intent_data: {
         metadata: checkoutMetadata,
         receipt_email: finalEmail || undefined,
@@ -757,6 +805,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // stripe_tax + on-site (Elements): the session is otherwise a guest-by-email checkout with
+    // no Customer. Attach a Customer NOW so that update-payment-metadata can later set the
+    // buyer's country + EU VAT-ID on it (the buyer hasn't typed them yet at this point — they
+    // arrive on submit). A Checkout Session's customer can't be set after creation, so it must
+    // be attached here. Gated on stripe_tax → the local guest path is byte-identical.
+    if (checkoutConfig.tax_mode === 'stripe_tax' && finalEmail) {
+      const taxCustomerId = await getOrCreateStripeCustomer({ email: finalEmail, userId: user?.id });
+      checkoutSessionParams.customer = taxCustomerId;
+      delete checkoutSessionParams.customer_email; // Stripe rejects customer + customer_email together
+    }
+
     const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams);
 
     if (!checkoutSession.client_secret) {
@@ -809,6 +868,20 @@ export async function POST(request: NextRequest) {
       }),
     });
   } catch (error) {
+    // stripe_tax is enabled but the seller's Stripe account has no Tax origin/head-office address.
+    // Surface a clear, diagnosable error instead of a generic 500. Actionable detail goes to the
+    // log (for the seller); the buyer-facing message stays generic.
+    if (isStripeTaxNotConfiguredError(error)) {
+      console.error(
+        '[create-payment-intent] STRIPE_TAX_NOT_CONFIGURED — stripe_tax is on but the Stripe account has no Tax address. ' +
+        'Configure it at Stripe Dashboard → Tax settings, or switch tax mode to "local". Stripe said:',
+        error instanceof Error ? error.message : error
+      );
+      return NextResponse.json(
+        { error: 'Checkout is temporarily unavailable due to a tax configuration issue. Please try again later.', code: 'STRIPE_TAX_NOT_CONFIGURED' },
+        { status: 503 }
+      );
+    }
     console.error('Error creating payment intent:', error);
     return NextResponse.json(
       { error: 'Failed to create payment intent' },

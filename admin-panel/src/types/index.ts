@@ -26,6 +26,8 @@ export interface Product {
   // VAT/Tax configuration
   vat_rate?: number | null
   price_includes_vat: boolean
+  vat_exempt: boolean
+  vat_exempt_note?: string | null
   // Structured features for product presentation
   features?: ProductFeature[] | null
   layout_template: string

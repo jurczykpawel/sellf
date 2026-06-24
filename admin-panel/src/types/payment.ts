@@ -2,6 +2,7 @@
 // Type definitions for payment-related operations
 
 import type { Json } from './database';
+import type { TaxComponent } from '@/lib/services/tax-snapshot';
 
 export interface PaymentSession {
   id: string;
@@ -60,6 +61,15 @@ export interface PaymentTransactionLineItem {
   total_price: number;
   currency: string;
   metadata?: Json | null;
+  // VAT/tax snapshot, frozen at purchase. Amounts in MINOR units (unlike
+  // unit_price/total_price which are major units). Null on legacy/uncaptured rows.
+  net_amount?: number | null;
+  tax_amount?: number | null;
+  vat_rate?: number | null;
+  tax_behavior?: 'inclusive' | 'exclusive' | null;
+  vat_exempt?: boolean;
+  taxability_reason?: string | null;
+  tax_breakdown?: TaxComponent[];
 }
 
 export interface CreateCheckoutSessionRequest {

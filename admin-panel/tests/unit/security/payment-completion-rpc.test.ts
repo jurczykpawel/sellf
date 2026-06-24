@@ -54,9 +54,10 @@ async function callRpc(
     user_id_param?: string | null;
     bump_product_ids_param?: string[] | null;
     coupon_id_param?: string | null;
+    amount_subtotal_param?: number | null;
   },
 ) {
-  return client.rpc('process_stripe_payment_completion_with_bump', {
+  const rpcArgs: Record<string, unknown> = {
     session_id_param: params.session_id_param,
     product_id_param: params.product_id_param,
     customer_email_param: params.customer_email_param,
@@ -66,7 +67,13 @@ async function callRpc(
     user_id_param: params.user_id_param ?? null,
     bump_product_ids_param: params.bump_product_ids_param ?? null,
     coupon_id_param: params.coupon_id_param ?? null,
-  });
+  };
+  // Only forward amount_subtotal_param when a test provides it, so existing tests
+  // call exactly as before (and pre-migration, where the param is absent, they pass).
+  if (params.amount_subtotal_param !== undefined) {
+    rpcArgs.amount_subtotal_param = params.amount_subtotal_param;
+  }
+  return client.rpc('process_stripe_payment_completion_with_bump', rpcArgs);
 }
 
 // ============================================================================
@@ -2801,5 +2808,135 @@ describe('Pending → completed conversion (regression: self-qualifier 42P01)', 
       .eq('stripe_payment_intent_id', piId);
     expect(rows?.length).toBe(1);
     expect(rows?.[0].status).toBe('completed');
+  });
+});
+
+// ============================================================================
+// VAT net/gross amount validation (netto vs brutto)
+//
+// The completion validator bounds the charge by the product price. For NETTO
+// (price_includes_vat=false) the price is NET but Stripe charges NET+VAT (gross),
+// so validating the gross amount_total against the net price wrongly rejected the
+// order. Fix: validate amount_subtotal_param (NET) when the product is net-priced,
+// amount_total (GROSS) when brutto. This holds for local AND stripe_tax (where the
+// jurisdiction rate/reverse-charge varies) because net is invariant for exclusive
+// pricing and gross is invariant for inclusive.
+// ============================================================================
+describe('VAT net/gross amount validation', () => {
+  let nettoProduct: { id: string };
+  let bruttoProduct: { id: string };
+
+  beforeAll(async () => {
+    const { data: np, error: npErr } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `RPC Netto ${TS}`, slug: `rpc-netto-${TS}`, price: 100, currency: 'PLN',
+        is_active: true, vat_rate: 23, price_includes_vat: false,
+      })
+      .select()
+      .single();
+    if (npErr) throw npErr;
+    nettoProduct = { id: np!.id };
+    createdProductIds.push(np!.id);
+
+    const { data: bp, error: bpErr } = await supabaseAdmin
+      .from('products')
+      .insert({
+        name: `RPC Brutto ${TS}`, slug: `rpc-brutto-${TS}`, price: 123, currency: 'PLN',
+        is_active: true, vat_rate: 23, price_includes_vat: true,
+      })
+      .select()
+      .single();
+    if (bpErr) throw bpErr;
+    bruttoProduct = { id: bp!.id };
+    createdProductIds.push(bp!.id);
+  });
+
+  it('netto local: accepts net subtotal even though gross exceeds the net price; line price is net', async () => {
+    // price=100 net, 23% VAT → Stripe charges gross 12300, net 10000.
+    const sid = `cs_test_netto_ok_${TS}`;
+    createdSessionIds.push(sid);
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid, product_id_param: nettoProduct.id,
+      customer_email_param: `netto-ok-${TS}@example.com`,
+      amount_total: 12300, amount_subtotal_param: 10000, currency_param: 'PLN',
+    });
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions').select('id, amount, status').eq('session_id', sid).single();
+    expect(tx!.status).toBe('completed');
+    expect(Number(tx!.amount)).toBe(12300); // recorded charge = actual gross
+    const { data: li } = await supabaseAdmin
+      .from('payment_line_items').select('unit_price').eq('transaction_id', tx!.id).eq('item_type', 'main_product').single();
+    expect(Number(li!.unit_price)).toBe(100); // NET line price (matches the exclusive Stripe line)
+  });
+
+  it('netto WITHOUT amount_subtotal → gross fallback → rejected (callers must pass net)', async () => {
+    const sid = `cs_test_netto_nosub_${TS}`;
+    createdSessionIds.push(sid);
+    const { data } = await callRpc(supabaseAdmin, {
+      session_id_param: sid, product_id_param: nettoProduct.id,
+      customer_email_param: `netto-nosub-${TS}@example.com`,
+      amount_total: 12300, currency_param: 'PLN', // no amount_subtotal_param
+    });
+    // gross 12300 > expected net 10000 → amount-mismatch RAISE propagates as a DB error
+    // (data null), which callers treat as failure. Either way the payment is rejected.
+    expect(data?.success ?? false).toBe(false);
+  });
+
+  it('stripe_tax netto (foreign 19% VAT): accepts because NET matches, regardless of gross', async () => {
+    // DE B2C 19%: gross 11900, net 10000. Our vat_rate(23) is irrelevant — we validate net.
+    const sid = `cs_test_netto_de_${TS}`;
+    createdSessionIds.push(sid);
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid, product_id_param: nettoProduct.id,
+      customer_email_param: `netto-de-${TS}@example.com`,
+      amount_total: 11900, amount_subtotal_param: 10000, currency_param: 'PLN',
+    });
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+  });
+
+  it('reverse charge netto (0 VAT): net == gross == net price → accepted', async () => {
+    const sid = `cs_test_netto_rc_${TS}`;
+    createdSessionIds.push(sid);
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid, product_id_param: nettoProduct.id,
+      customer_email_param: `netto-rc-${TS}@example.com`,
+      amount_total: 10000, amount_subtotal_param: 10000, currency_param: 'PLN',
+    });
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+  });
+
+  it('netto anti-tamper: rejects when NET subtotal is below the net price', async () => {
+    const sid = `cs_test_netto_low_${TS}`;
+    createdSessionIds.push(sid);
+    const { data } = await callRpc(supabaseAdmin, {
+      session_id_param: sid, product_id_param: nettoProduct.id,
+      customer_email_param: `netto-low-${TS}@example.com`,
+      amount_total: 6150, amount_subtotal_param: 5000, currency_param: 'PLN', // net 5000 < 10000
+    });
+    // net below the net price → amount-mismatch RAISE → DB error (data null) = rejection.
+    expect(data?.success ?? false).toBe(false);
+  });
+
+  it('brutto: amount_subtotal is ignored; gross validated as before; line price is gross', async () => {
+    const sid = `cs_test_brutto_ok_${TS}`;
+    createdSessionIds.push(sid);
+    const { data, error } = await callRpc(supabaseAdmin, {
+      session_id_param: sid, product_id_param: bruttoProduct.id,
+      customer_email_param: `brutto-ok-${TS}@example.com`,
+      amount_total: 12300, amount_subtotal_param: 10000, currency_param: 'PLN', // gross 12300 == price 123
+    });
+    expect(error).toBeNull();
+    expect(data?.success).toBe(true);
+    const { data: tx } = await supabaseAdmin
+      .from('payment_transactions').select('id').eq('session_id', sid).single();
+    const { data: li } = await supabaseAdmin
+      .from('payment_line_items').select('unit_price').eq('transaction_id', tx!.id).eq('item_type', 'main_product').single();
+    expect(Number(li!.unit_price)).toBe(123); // GROSS line price (brutto)
   });
 });
