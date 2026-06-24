@@ -7,6 +7,7 @@ import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
+import { isStripeTaxNotConfiguredError } from '@/lib/stripe/tax-errors';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { normalizeBumpIds, validateUUID } from '@/lib/validations/product';
@@ -867,6 +868,20 @@ export async function POST(request: NextRequest) {
       }),
     });
   } catch (error) {
+    // stripe_tax is enabled but the seller's Stripe account has no Tax origin/head-office address.
+    // Surface a clear, diagnosable error instead of a generic 500. Actionable detail goes to the
+    // log (for the seller); the buyer-facing message stays generic.
+    if (isStripeTaxNotConfiguredError(error)) {
+      console.error(
+        '[create-payment-intent] STRIPE_TAX_NOT_CONFIGURED — stripe_tax is on but the Stripe account has no Tax address. ' +
+        'Configure it at Stripe Dashboard → Tax settings, or switch tax mode to "local". Stripe said:',
+        error instanceof Error ? error.message : error
+      );
+      return NextResponse.json(
+        { error: 'Checkout is temporarily unavailable due to a tax configuration issue. Please try again later.', code: 'STRIPE_TAX_NOT_CONFIGURED' },
+        { status: 503 }
+      );
+    }
     console.error('Error creating payment intent:', error);
     return NextResponse.json(
       { error: 'Failed to create payment intent' },
