@@ -66,6 +66,7 @@ vi.mock('@/lib/tracking', async (orig) => {
 import { POST } from '@/app/api/webhooks/stripe/route';
 import { verifyWebhookSignature } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { trackServerSideConversion } from '@/lib/tracking';
 
 // ----- env / DB -------------------------------------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -102,13 +103,18 @@ afterAll(async () => {
 });
 
 let triggerSpy: ReturnType<typeof vi.spyOn>;
-beforeEach(() => {
+beforeEach(async () => {
   h.signature = 'test_sig';
   h.rateLimitAllowed = true;
   h.stripe = makeStripeShim();
   vi.mocked(verifyWebhookSignature).mockImplementation(async (body: string) => JSON.parse(body));
   // Spy outbound dispatch: assert purchase.completed wiring without real delivery.
   triggerSpy = vi.spyOn(WebhookService, 'trigger').mockImplementation(async () => {});
+  // The completion RPC rate-limits to 100/hour — including a shared GLOBAL anti-spoof bucket
+  // (`global_process_stripe_payment_completion`) that aggregates every anonymous completion. This
+  // suite drives many completions, so reset BOTH buckets each test for deterministic isolation
+  // (test infra, not behavior under test) — otherwise the 1-hour window trips across runs.
+  if (db) await db.from('rate_limits').delete().like('function_name', '%process_stripe_payment_completion');
 });
 afterEach(() => {
   triggerSpy.mockRestore();
@@ -132,6 +138,8 @@ function makeStripeShim(opts: {
   sessionsByPI?: Array<Record<string, unknown>>;
   /** Make checkout.sessions.list reject — exercises the PI amount_subtotal fail-safe. */
   listThrows?: boolean;
+  /** Make checkout.sessions.listLineItems reject — exercises the bump-recovery catch. */
+  lineItemsThrows?: boolean;
 } = {}): Stripe {
   const session =
     opts.session ?? {
@@ -145,7 +153,10 @@ function makeStripeShim(opts: {
   return {
     checkout: {
       sessions: {
-        listLineItems: vi.fn(async () => ({ data: opts.lineItems ?? [] })),
+        listLineItems: vi.fn(async () => {
+          if (opts.lineItemsThrows) throw new Error('stripe listLineItems failed');
+          return { data: opts.lineItems ?? [] };
+        }),
         retrieve: vi.fn(async () => session),
         list: vi.fn(async () => {
           if (opts.listThrows) throw new Error('stripe sessions.list failed');
@@ -769,4 +780,185 @@ describe.skipIf(!hasSupabase)('checkout.session.completed — order-bump metadat
     expect(await hasAccess(c.userId, c.b1.id)).toBe(true);
     expect(await hasAccess(c.userId, c.b2.id)).toBe(true);
   });
+});
+
+// ==============================================================================================
+// Additional branch coverage for the one-time handlers (the exact code Option A would extract):
+// thrown-RPC DB-failure path, idempotent-replay payment_intent shapes, capture's stripePaymentIntentId
+// object/absent shapes, bump-recovery error/empty fallbacks, fire-and-forget rejection arms,
+// and the PI handler's existingTransaction (session_id) recovery branch.
+describe.skipIf(!hasSupabase)('one-time handlers — additional branch coverage', () => {
+  it('checkout: thrown RPC error (non-uuid product) → DB-failure branch → 500', async () => {
+    const email = uniq('guest') + '@example.com';
+    const { status } = await post(
+      checkoutEvent({
+        id: uniq('cs'), mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: 'not-a-uuid' }, customer_details: { email },
+        payment_intent: uniq('pi'), amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(500);
+  });
+
+  it('PI: thrown RPC error (non-uuid product) → DB-failure branch → 500', async () => {
+    const email = uniq('guest') + '@example.com';
+    const { status } = await post(
+      piEvent({ id: uniq('pi'), amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: 'not-a-uuid' } }),
+    );
+    expect(status).toBe(500);
+  });
+
+  it('checkout idempotent replay with payment_intent as OBJECT {id} → 200, no webhook', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, status: 'completed' });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id }, customer_details: { email },
+        payment_intent: { id: pi }, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+    expect(triggerSpy.mock.calls.filter(([e]) => e === 'purchase.completed')).toHaveLength(0);
+  });
+
+  it('checkout idempotent replay with NO payment_intent (orderId falls back to session id) → 200', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi: null, status: 'completed' });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id }, customer_details: { email },
+        amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+  });
+
+  it('checkout HAPPY with payment_intent as OBJECT {id} → completed + PI attached', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi: null });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id }, customer_details: { email },
+        payment_intent: { id: pi }, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+    const tx = await fetchTx(cs);
+    expect(tx?.status).toBe('completed');
+    expect(tx?.stripe_payment_intent_id).toBe(pi);
+  });
+
+  it('checkout bump recovery: listLineItems THROWS → catch → falls back to pending-tx metadata', async () => {
+    const product = await createProduct();
+    const b1 = await createBump(product.id);
+    const b2 = await createBump(product.id);
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('reg') + '@example.com';
+    createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    const txId = await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId });
+    await db!.from('payment_transactions')
+      .update({ metadata: { bump_product_ids_full: [b1.id, b2.id] } })
+      .eq('id', txId);
+    h.stripe = makeStripeShim({ lineItemsThrows: true });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id, user_id: userId, bump_count: '2' },
+        customer_details: { email }, payment_intent: pi,
+        amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+    expect(await hasAccess(userId, b1.id)).toBe(true);
+    expect(await hasAccess(userId, b2.id)).toBe(true);
+  });
+
+  it('checkout bump recovery: Stripe line items carry no usable bump metadata → pending-tx fallback', async () => {
+    const product = await createProduct();
+    const b1 = await createBump(product.id);
+    const b2 = await createBump(product.id);
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('reg') + '@example.com';
+    createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    const txId = await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId });
+    await db!.from('payment_transactions')
+      .update({ metadata: { bump_product_ids_full: [b1.id, b2.id] } })
+      .eq('id', txId);
+    // product as string (unexpanded) + product with empty metadata → neither recovers.
+    h.stripe = makeStripeShim({ lineItems: [{ price: { product: 'prod_str' } }, { price: { product: { metadata: {} } } }] });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id, user_id: userId, bump_count: '2' },
+        customer_details: { email }, payment_intent: pi,
+        amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+    expect(await hasAccess(userId, b1.id)).toBe(true);
+    expect(await hasAccess(userId, b2.id)).toBe(true);
+  });
+
+  it('checkout fire-and-forget: tracking + outbound webhook reject → completion still 200', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+    vi.mocked(trackServerSideConversion).mockRejectedValueOnce(new Error('capi down'));
+    triggerSpy.mockRejectedValueOnce(new Error('webhook down'));
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: product.id }, customer_details: { email },
+        payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+    expect((await fetchTx(cs))?.status).toBe('completed');
+  });
+
+  it('PI fire-and-forget: tracking + outbound webhook reject → completion still 200', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com';
+    createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+    h.stripe = makeStripeShim({ sessionsByPI: [{ id: cs, amount_subtotal: 1000 }] });
+    vi.mocked(trackServerSideConversion).mockRejectedValueOnce(new Error('capi down'));
+    triggerSpy.mockRejectedValueOnce(new Error('webhook down'));
+
+    const { status } = await post(
+      piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }),
+    );
+    expect(status).toBe(200);
+    expect((await fetchTx(cs))?.status).toBe('completed');
+  });
+
 });
