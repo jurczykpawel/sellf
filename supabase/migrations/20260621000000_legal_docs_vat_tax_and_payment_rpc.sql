@@ -89,18 +89,41 @@ GRANT SELECT (
 -- Path layout (enforced by lib/legal/storage.ts):
 --   {shopId}/terms.html, {shopId}/privacy.html  (current, stable public URLs)
 --   {shopId}/terms/archive/..., {shopId}/privacy/archive/...  (frozen previous versions)
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('legal', 'legal', true, 5242880, array['text/html', 'text/plain'])
-on conflict (id) do nothing;
+-- CREATE POLICY on storage.objects requires ownership of storage.objects (supabase_storage_admin),
+-- which the service-role migration runner (apply_migration RPC) lacks on managed Supabase → 42501
+-- "must be owner of table objects", which would roll back this whole migration. Run the bucket +
+-- policies BEST-EFFORT so the rest of the migration always applies: under `db reset` (superuser)
+-- they apply fully; on managed instances service_role bypasses RLS for writes and a public bucket is
+-- world-readable, so these are belt-and-suspenders and can be (re)created via the Dashboard/Storage
+-- API if ever needed.
+do $legal_bucket$
+begin
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('legal', 'legal', true, 5242880, array['text/html', 'text/plain'])
+  on conflict (id) do nothing;
+exception when insufficient_privilege then
+  raise warning 'legal storage bucket not created (insufficient privilege) — create a public "legal" bucket via Dashboard/Storage API';
+end
+$legal_bucket$;
 
 -- service_role (admin client) may upload/overwrite/delete; anyone may read (public bucket).
-create policy "legal_bucket_service_role_all"
-  on storage.objects for all to service_role
-  using (bucket_id = 'legal') with check (bucket_id = 'legal');
+do $legal_pol_rw$
+begin
+  execute $p$create policy "legal_bucket_service_role_all" on storage.objects for all to service_role using (bucket_id = 'legal') with check (bucket_id = 'legal')$p$;
+exception
+  when insufficient_privilege then raise warning 'storage policy legal_bucket_service_role_all skipped (needs storage admin)';
+  when duplicate_object then null;
+end
+$legal_pol_rw$;
 
-create policy "legal_bucket_public_read"
-  on storage.objects for select to anon, authenticated
-  using (bucket_id = 'legal');
+do $legal_pol_read$
+begin
+  execute $p$create policy "legal_bucket_public_read" on storage.objects for select to anon, authenticated using (bucket_id = 'legal')$p$;
+exception
+  when insufficient_privilege then raise warning 'storage policy legal_bucket_public_read skipped (needs storage admin)';
+  when duplicate_object then null;
+end
+$legal_pol_read$;
 
 -- ============================================================================
 -- VAT TAX SNAPSHOT
