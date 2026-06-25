@@ -29,6 +29,8 @@ import { calculatePricing } from '@/hooks/usePricing';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
+import FunnelTestBanner from './FunnelTestBanner';
+import AccessGrantedCard from './AccessGrantedCard';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import OrderBumpList from './OrderBumpList';
 import CouponField from './CouponField';
@@ -386,19 +388,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const renderCheckoutForm = () => (
     <div className={checkoutFormClassName}>
       {/* Funnel Test Banner */}
-      {isFunnelTest && (
-        <div className="mb-6 p-4 bg-sf-warning-soft border border-sf-warning/30 rounded-xl">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-sf-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M5 14.5l-1.43 5.725a1.125 1.125 0 001.09 1.4h14.68a1.125 1.125 0 001.09-1.4L19 14.5" />
-            </svg>
-            <div>
-              <p className="text-sm font-bold text-sf-warning">{t('funnelTest.banner')}</p>
-              <p className="text-xs text-sf-warning/80">{t('funnelTest.description')}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {isFunnelTest && <FunnelTestBanner />}
 
       {/* OTO Countdown Banner */}
       {oto.isOtoMode && oto.otoInfo?.valid && oto.otoInfo.expires_at && !oto.otoExpired && (
@@ -531,33 +521,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {hasAccess && (
-            <div className="mb-4 p-6 bg-sf-success-soft border border-sf-success/20 rounded-xl backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 w-10 h-10 bg-sf-success-soft rounded-full flex items-center justify-center mr-4">
-                    <svg className="w-5 h-5 text-sf-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-sf-success mb-1">{t('accessGranted')}</h3>
-                    <p className="text-sf-success text-sm">{t('alreadyHasAccess')}</p>
-                    <p className="text-sf-success/70 text-xs mt-1 flex items-center">
-                      <svg className="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      {t('autoRedirect', { seconds: countdown })}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleRedirectToProduct}
-                  className="bg-sf-success hover:bg-sf-success/90 text-sf-inverse px-6 py-3 rounded-full transition-all duration-200 font-medium text-sm active:scale-[0.98]"
-                >
-                  {t('goToProduct')}
-                </button>
-              </div>
-            </div>
+            <AccessGrantedCard countdown={countdown} onGoToProduct={handleRedirectToProduct} />
           )}
 
           {/* Funnel test: Complete Test button instead of Stripe */}

@@ -23,9 +23,17 @@ import { createClient } from '@/lib/supabase/client';
 import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
+import { useOto } from '@/hooks/useOto';
+import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import ProductShowcase from './ProductShowcase';
+import FunnelTestBanner from './FunnelTestBanner';
+import AccessGrantedCard from './AccessGrantedCard';
+
+/** Stable no-op: free checkout never enters URL-coupon OTO mode, so useOto's
+ *  coupon-ready callback is never invoked here. */
+const noop = () => {};
 
 interface FreeProductFormProps {
   product: Product;
@@ -34,16 +42,38 @@ interface FreeProductFormProps {
 
 export default function FreeProductForm({ product, collectTermsOfService }: FreeProductFormProps) {
   const t = useTranslations('productView');
+  const tCheckout = useTranslations('checkout');
   const tSecurity = useTranslations('security');
   const tCompliance = useTranslations('compliance');
   const locale = useLocale();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { oauthProviders } = useConfig();
   const router = useRouter();
   const searchParams = useSearchParams();
   const successUrl = searchParams.get('success_url');
   const { track } = useTracking();
   const trackingFired = useRef(false);
+
+  // Funnel test mode: admin-only preview of the free → OTO funnel. Reuses the
+  // same OTO lookup + redirect-priority logic as the paid checkout, so no real
+  // access is granted — clicking the simulation button just walks the funnel.
+  const isFunnelTest = searchParams.get('funnel_test') === '1' && isAdmin;
+  const oto = useOto({
+    urlCoupon: null,
+    urlEmail: null,
+    otoParam: null,
+    productId: product.id,
+    isFunnelTest,
+    onCouponReady: noop,
+  });
+  const { hasAccess, grantAccess, countdown, handleRedirectToProduct } = useCheckoutRedirect({
+    product,
+    bumpSelected: false,
+    isFunnelTest,
+    funnelTestOtoSlug: oto.funnelTestOtoSlug,
+    getFunnelTestOtoReady: oto.getFunnelTestOtoReady,
+    getFunnelTestOtoSlug: oto.getFunnelTestOtoSlug,
+  });
   
   const showTos = shouldShowTosCheckbox(collectTermsOfService, !user);
   const [email, setEmail] = useState('');
@@ -258,6 +288,27 @@ export default function FreeProductForm({ product, collectTermsOfService }: Free
     <ProductShowcase product={product} />
   );
 
+  // Admin-only funnel preview: banner + simulation button → walks the free → OTO
+  // funnel via the shared redirect hook, without granting real access.
+  const renderFunnelTestPanel = () => (
+    <div className="w-full lg:w-1/2 lg:pl-8">
+      <FunnelTestBanner />
+      <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border">
+        {hasAccess ? (
+          <AccessGrantedCard countdown={countdown} onGoToProduct={handleRedirectToProduct} />
+        ) : (
+          <button
+            type="button"
+            onClick={grantAccess}
+            className="w-full py-4 px-6 bg-sf-warning hover:bg-sf-warning/90 text-sf-inverse font-bold rounded-xl transition-all active:scale-[0.98] text-lg"
+          >
+            {tCheckout('funnelTest.completeButtonFree')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   const renderForm = () => (
     <div className="w-full lg:w-1/2 lg:pl-8">
       <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border">
@@ -387,7 +438,7 @@ export default function FreeProductForm({ product, collectTermsOfService }: Free
         <DemoCheckoutNotice />
         <div className="flex flex-col lg:flex-row">
           {renderProductInfo()}
-          {renderForm()}
+          {isFunnelTest ? renderFunnelTestPanel() : renderForm()}
         </div>
       </div>
     </div>
