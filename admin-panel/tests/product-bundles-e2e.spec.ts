@@ -290,7 +290,32 @@ test.describe('Product Bundles E2E', () => {
 
     // Advance to step 2 (where the bundle component picker lives). Scope to the
     // dialog — a pagination control on the products page also has a "Dalej" button.
-    await dialog.getByRole('button', { name: 'Dalej' }).click();
+    //
+    // The "Dalej" handler re-validates step 1 (name + price) against React state
+    // and only advances when valid. The price input's onChange commits
+    // `formData.price`/`priceDisplayValue` asynchronously, so a click that lands
+    // before that state (and the re-rendered handler closure) settles silently
+    // no-ops — the wizard stays on step 1 and `#bundle-search` never mounts. Gate
+    // the click on a deterministic signal that the price state has committed: the
+    // publish checklist's `price` item turns OK on exactly the same condition the
+    // step-1 validator checks (priceDisplayValue !== '' && price > 0).
+    await expect(
+      dialog.locator('[data-checklist-key="price"]'),
+    ).toHaveAttribute('data-checklist-ok', 'true', { timeout: 5000 });
+
+    const dalej = dialog.getByRole('button', { name: 'Dalej' });
+    // Step-2 marker: the bundle section heading ("Składniki zestawu") that only
+    // renders once the wizard is on step 2 with is_bundle gating satisfied.
+    const step2Heading = dialog.getByRole('heading', { name: 'Składniki zestawu' });
+    // Click "Dalej" and confirm step 2 actually rendered. The advance is a single
+    // synchronous setState, but guard against a lost click (rare focus/animation
+    // edge) by retrying the advance if step 2 didn't appear within a short window.
+    await expect(async () => {
+      if (!(await step2Heading.isVisible())) {
+        await dalej.click();
+        await expect(step2Heading).toBeVisible({ timeout: 2000 });
+      }
+    }).toPass({ timeout: 10000 });
     await expect(dialog.locator('input#bundle-search')).toBeVisible({ timeout: 10000 });
 
     // --- Step 2: add both seeded components via the picker. ---
