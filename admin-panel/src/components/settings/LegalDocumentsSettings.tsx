@@ -16,6 +16,8 @@ import { useState, useEffect } from 'react';
 import { getMyShopConfig, getMyLegalDocsSource, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
 import SourceBadge from '@/components/ui/SourceBadge';
 import type { LegalDocsSource } from '@/lib/legal/legal-docs-source';
+import { lookupCompanyByNip } from '@/lib/gus/lookup';
+import { validateTaxId } from '@/lib/validation/nip';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -60,6 +62,11 @@ export default function LegalDocumentsSettings() {
   const [saving, setSaving] = useState(false);
   const [savingCompany, setSavingCompany] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // ---- GUS NIP autofill state ----
+  const [isLoadingGus, setIsLoadingGus] = useState(false);
+  const [gusError, setGusError] = useState<string | null>(null);
+  const [gusSuccess, setGusSuccess] = useState(false);
 
   // Highlight missing fields after a failed generate attempt
   const [highlightMissing, setHighlightMissing] = useState<string[]>([]);
@@ -218,6 +225,50 @@ export default function LegalDocumentsSettings() {
     }
   };
 
+  // ---- Handler: fetch company data from GUS by NIP ----
+  const handleGusFetch = async () => {
+    setGusError(null);
+    setGusSuccess(false);
+
+    const validation = validateTaxId(companyForm.nip, true);
+    if (!validation.isValid || !validation.isPolish || !validation.normalized) {
+      setGusError(t('gusInvalidNip'));
+      return;
+    }
+
+    setIsLoadingGus(true);
+    try {
+      const result = await lookupCompanyByNip(validation.normalized);
+      if (result.ok) {
+        const data = result.data;
+        setCompanyForm((prev) => ({
+          ...prev,
+          company_legal_name: data.nazwa || prev.company_legal_name,
+          company_street: data.ulica || prev.company_street,
+          company_building_no: data.nrNieruchomosci || prev.company_building_no,
+          company_flat_no: data.nrLokalu || prev.company_flat_no,
+          company_city: data.miejscowosc || prev.company_city,
+          company_postal: data.kodPocztowy || prev.company_postal,
+          regon: data.regon || prev.regon,
+        }));
+        setGusSuccess(true);
+      } else if (result.code === 'rate_limit') {
+        setGusError(t('gusRateLimitError'));
+      } else if (result.code === 'not_found') {
+        setGusError(t('gusNotFound'));
+      } else if (result.code === 'not_configured') {
+        // Silent fail - GUS not configured, user can enter data manually.
+        setGusError(null);
+      } else if (result.code === 'security') {
+        setGusError(t('gusSecurityError'));
+      } else {
+        setGusError(t('gusFetchError'));
+      }
+    } finally {
+      setIsLoadingGus(false);
+    }
+  };
+
   // ---- Handler: generate & publish ----
   const handleGenerate = async () => {
     setGenerating(true);
@@ -358,15 +409,35 @@ export default function LegalDocumentsSettings() {
               <label htmlFor="nip" className="block text-sm font-medium text-sf-body mb-2">
                 {t('nipLabel')}
               </label>
-              <input
-                id="nip"
-                type="text"
-                value={companyForm.nip}
-                onChange={(e) => setCompanyForm({ ...companyForm, nip: e.target.value })}
-                className={inputClass()}
-                placeholder={t('nipPlaceholder')}
-                maxLength={10}
-              />
+              <div className="flex gap-2">
+                <input
+                  id="nip"
+                  type="text"
+                  value={companyForm.nip}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, nip: e.target.value });
+                    setGusError(null);
+                    setGusSuccess(false);
+                  }}
+                  className={inputClass()}
+                  placeholder={t('nipPlaceholder')}
+                  maxLength={10}
+                />
+                <button
+                  type="button"
+                  onClick={handleGusFetch}
+                  disabled={isLoadingGus || !companyForm.nip}
+                  className="shrink-0 px-3 py-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isLoadingGus ? t('gusFetching') : t('gusFetchButton')}
+                </button>
+              </div>
+              {gusSuccess && (
+                <p className="mt-1 text-xs text-sf-success">{t('gusDataLoaded')}</p>
+              )}
+              {gusError && (
+                <p className="mt-1 text-xs text-sf-warning">⚠️ {gusError}</p>
+              )}
             </div>
             <div>
               <label htmlFor="regon" className="block text-sm font-medium text-sf-body mb-2">

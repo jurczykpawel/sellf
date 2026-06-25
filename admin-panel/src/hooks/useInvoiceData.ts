@@ -3,15 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { validateTaxId } from '@/lib/validation/nip';
-
-interface GUSCompanyData {
-  nazwa: string;
-  ulica: string;
-  nrNieruchomosci: string;
-  nrLokalu?: string;
-  miejscowosc: string;
-  kodPocztowy: string;
-}
+import { lookupCompanyByNip } from '@/lib/gus/lookup';
+import type { GusCompanyData } from '@/lib/gus/lookup';
 
 /** Narrow interface for InvoiceFields component — only what it needs */
 export interface InvoiceFieldsData {
@@ -21,7 +14,7 @@ export interface InvoiceFieldsData {
   isLoadingGUS: boolean;
   gusError: string | null;
   gusSuccess: boolean;
-  gusData: GUSCompanyData | null;
+  gusData: GusCompanyData | null;
   companyName: string;
   setCompanyName: (v: string) => void;
   address: string;
@@ -69,7 +62,7 @@ export function useInvoiceData(
   const [isLoadingGUS, setIsLoadingGUS] = useState(false);
   const [gusError, setGusError] = useState<string | null>(null);
   const [gusSuccess, setGusSuccess] = useState(false);
-  const [gusData, setGusData] = useState<GUSCompanyData | null>(null);
+  const [gusData, setGusData] = useState<GusCompanyData | null>(null);
 
   // Auto-load profile for logged-in users
   useEffect(() => {
@@ -146,38 +139,26 @@ export function useInvoiceData(
       setGusError(null);
       setGusSuccess(false);
 
-      try {
-        const response = await fetch('/api/gus/fetch-company-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nip: validation.normalized }),
-        });
+      const result = await lookupCompanyByNip(validation.normalized);
 
-        const result = await response.json();
+      if (result.ok) {
+        const data = result.data;
+        setGusData(data);
+        setCompanyName(data.nazwa);
+        let addressStr = `${data.ulica} ${data.nrNieruchomosci}`;
+        if (data.nrLokalu) addressStr += `/${data.nrLokalu}`;
+        setAddress(addressStr.trim());
+        setCity(data.miejscowosc);
+        setPostalCode(data.kodPocztowy);
+        setCountry('PL');
+        setGusSuccess(true);
+      } else if (result.code === 'rate_limit') setGusError(t('gusRateLimitExceeded'));
+      else if (result.code === 'not_found') setGusError(t('gusNotFound'));
+      else if (result.code === 'not_configured') setGusError(null);
+      else if (result.code === 'security') setGusError(t('gusSecurityError'));
+      else setGusError(t('gusFetchError'));
 
-        if (result.success && result.data) {
-          setGusData(result.data);
-          setCompanyName(result.data.nazwa);
-          let addressStr = `${result.data.ulica} ${result.data.nrNieruchomosci}`;
-          if (result.data.nrLokalu) addressStr += `/${result.data.nrLokalu}`;
-          setAddress(addressStr.trim());
-          setCity(result.data.miejscowosc);
-          setPostalCode(result.data.kodPocztowy);
-          setCountry('PL');
-          setGusSuccess(true);
-        } else {
-          if (result.code === 'RATE_LIMIT_EXCEEDED') setGusError(t('gusRateLimitExceeded'));
-          else if (result.code === 'NOT_FOUND') setGusError(t('gusNotFound'));
-          else if (result.code === 'NOT_CONFIGURED') setGusError(null);
-          else if (result.code === 'INVALID_ORIGIN') setGusError(t('gusSecurityError'));
-          else setGusError(t('gusFetchError'));
-        }
-      } catch (error) {
-        console.error('[useInvoiceData] GUS fetch error:', error);
-        setGusError(t('gusFetchError'));
-      } finally {
-        setIsLoadingGUS(false);
-      }
+      setIsLoadingGUS(false);
     } else if (!validation.isPolish) {
       setGusError(null);
       setGusSuccess(false);
