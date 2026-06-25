@@ -111,4 +111,59 @@ describe.skipIf(!db)('bundle completion + guest claim', () => {
     expect(owned.has(bundle)).toBe(true);
     expect(owned.has(a)).toBe(true); // <-- fails before the fix
   });
+
+  it('logged-in user claiming a guest bundle (re-entry) gets bundle AND components', async () => {
+    // A guest completes a bundle purchase (user_id_param: null), then a logged-in user
+    // whose email matches calls the completion RPC AGAIN with the SAME session/PI. That
+    // hits the `idempotent_claimed_for_logged_in_user` branch, which stamps
+    // guest_purchases.claimed_by_user_id and returns — permanently skipping the later
+    // claim_guest_purchases_for_user. So this branch alone must grant every component,
+    // not just the bundle. (RED before the line-335 grant_product_access_service_role ->
+    // grant_product_and_bundle_components swap.)
+    const bundle = await mkProduct({ is_bundle: true, price: 75 });
+    const a = await mkProduct(); const b = await mkProduct();
+    await db!.from('bundle_items').insert([
+      { bundle_product_id: bundle, component_product_id: a },
+      { bundle_product_id: bundle, component_product_id: b },
+    ]);
+    const email = `claim-${crypto.randomUUID().slice(0, 8)}@t.dev`; emails.push(email);
+    // Session id must match the RPC's format contract ^(cs_|pi_)[a-zA-Z0-9_]+$ — strip uuid hyphens.
+    const session = `cs_${crypto.randomUUID().replace(/-/g, '')}`;
+    const pi = `pi_${crypto.randomUUID().replace(/-/g, '')}`;
+
+    // 1) Guest completes the bundle purchase.
+    const { data: guestRes } = await db!.rpc('process_stripe_payment_completion_with_bump', {
+      session_id_param: session, product_id_param: bundle, customer_email_param: email,
+      amount_total: 7500, currency_param: 'pln', stripe_payment_intent_id: pi,
+      user_id_param: null, bump_product_ids_param: null, coupon_id_param: null, amount_subtotal_param: 7500,
+    });
+    expect((guestRes as { is_guest_purchase?: boolean }).is_guest_purchase).toBe(true);
+
+    // 2) A user with the matching email registers, then re-hits the completion RPC with the
+    //    SAME session/PI and user_id_param set (mirrors verify-payment for a logged-in buyer).
+    const { data: user } = await db!.auth.admin.createUser({ email, email_confirm: true });
+    users.push(user!.user!.id);
+    // Drop the just-created claim so this drives the RE-ENTRY branch (not the trigger's claim).
+    await db!.from('guest_purchases')
+      .update({ claimed_by_user_id: null, claimed_at: null })
+      .eq('session_id', session);
+    await db!.from('user_product_access').delete().eq('user_id', user!.user!.id);
+    // Reset rate-limit again (createUser's claim consumed buckets).
+    await db!.from('rate_limits').delete().like('function_name', '%process_stripe_payment_completion');
+    await db!.from('rate_limits').delete().like('function_name', '%claim_guest_purchases_for_user');
+
+    const { data: reRes, error: reErr } = await db!.rpc('process_stripe_payment_completion_with_bump', {
+      session_id_param: session, product_id_param: bundle, customer_email_param: email,
+      amount_total: 7500, currency_param: 'pln', stripe_payment_intent_id: pi,
+      user_id_param: user!.user!.id, bump_product_ids_param: null, coupon_id_param: null, amount_subtotal_param: 7500,
+    });
+    expect(reErr).toBeNull();
+    expect((reRes as { scenario?: string }).scenario).toBe('idempotent_claimed_for_logged_in_user');
+
+    const { data: access } = await db!.from('user_product_access').select('product_id').eq('user_id', user!.user!.id);
+    const owned = new Set((access ?? []).map((r) => r.product_id));
+    expect(owned.has(bundle)).toBe(true);
+    expect(owned.has(a)).toBe(true); // <-- fails before the line-335 swap
+    expect(owned.has(b)).toBe(true); // <-- fails before the line-335 swap
+  });
 });

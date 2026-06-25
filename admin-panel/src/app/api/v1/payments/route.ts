@@ -16,6 +16,7 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
+import { firstRelated } from '@/lib/supabase/relations';
 import type { PaymentTransactionLineItem } from '@/types/payment';
 
 export async function OPTIONS(request: NextRequest) {
@@ -244,8 +245,7 @@ export async function GET(request: NextRequest) {
       } else {
         for (const item of bundleItems ?? []) {
           if (!item.bundle_product_id) continue;
-          const c = item.component as unknown;
-          const component = (Array.isArray(c) ? c[0] : c) as { name: string; slug: string } | null;
+          const component = firstRelated<{ name: string; slug: string }>(item.component);
           if (!component) continue;
           const existing = bundleComponentsByProductId.get(item.bundle_product_id) ?? [];
           existing.push({ name: component.name, slug: component.slug });

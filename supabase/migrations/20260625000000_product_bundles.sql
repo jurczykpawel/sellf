@@ -332,7 +332,11 @@ BEGIN
           SELECT 1 FROM public.guest_purchases
           WHERE session_id = session_id_param AND claimed_by_user_id IS NULL
         ) THEN
-          PERFORM public.grant_product_access_service_role(current_user_id, product_id_param);
+          -- Bundle-aware grant: this branch stamps guest_purchases.claimed_by_user_id and
+          -- returns, so the later claim_guest_purchases_for_user (filters claimed_by_user_id
+          -- IS NULL) is permanently skipped. Use the primitive so a logged-in user claiming a
+          -- guest BUNDLE purchase here receives every component, not just the bundle product.
+          PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param);
 
           FOR bump_rec IN
             SELECT pli.product_id, pli.access_duration_override

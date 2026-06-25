@@ -261,6 +261,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Server-side empty-bundle guard (mirrors the client PublishChecklist): a bundle
+    // that is published (active) must have at least one component, otherwise it just
+    // grants itself. On create the only source of components is bundleItemIds.
+    if (sanitizedData.is_bundle === true && sanitizedData.is_active === true) {
+      if (!bundleItemIds || bundleItemIds.length < 1) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: ['An active bundle must have at least one component (bundleItemIds)'],
+        });
+      }
+    }
+
     // Check slug uniqueness
     const { data: existingProduct, error: slugCheckError } = await supabase
       .from('products')

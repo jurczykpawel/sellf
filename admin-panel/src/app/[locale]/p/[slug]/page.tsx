@@ -14,6 +14,7 @@ import {
 } from '@/lib/payment/product-access-decision';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
+import { firstRelated } from '@/lib/supabase/relations';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -215,10 +216,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         console.error('[ProductPage] Failed to load bundle components:', bundleError);
       } else {
         bundleComponents = (items ?? [])
-          .map((i) => {
-            const c = i.component as unknown;
-            return (Array.isArray(c) ? c[0] : c) as { name: string; icon: string; slug: string } | null;
-          })
+          .map((i) => firstRelated<{ name: string; icon: string; slug: string }>(i.component))
           .filter((c): c is { name: string; icon: string; slug: string } => c != null);
       }
     }

@@ -10,6 +10,7 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { getTemplate } from '@/lib/checkout-templates/registry';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
+import { firstRelated } from '@/lib/supabase/relations';
 import type { BundleComponentSummary } from './components/BundleContentsPreview';
 
 interface PageProps {
@@ -54,10 +55,7 @@ const getBundleComponents = cache(async (bundleProductId: string): Promise<Bundl
   // `component` is a to-one relationship; Supabase's generated types infer it as
   // an array, but a single FK match yields one object at runtime. Normalize both.
   return (items ?? [])
-    .map((i) => {
-      const c = i.component as unknown;
-      return (Array.isArray(c) ? c[0] : c) as BundleComponentSummary | null;
-    })
+    .map((i) => firstRelated<BundleComponentSummary>(i.component))
     .filter((c): c is BundleComponentSummary => c != null);
 });
 

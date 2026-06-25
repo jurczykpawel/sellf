@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
+import { firstRelated } from '@/lib/supabase/relations';
 
 export async function GET(
   request: NextRequest,
@@ -111,10 +112,7 @@ export async function GET(
         console.error('[product-content] Failed to load bundle components:', bundleError);
       } else {
         bundleComponents = (items ?? [])
-          .map((i) => {
-            const c = i.component as unknown;
-            return (Array.isArray(c) ? c[0] : c) as { name: string; icon: string; slug: string } | null;
-          })
+          .map((i) => firstRelated<{ name: string; icon: string; slug: string }>(i.component))
           .filter((c): c is { name: string; icon: string; slug: string } => c != null);
       }
     }

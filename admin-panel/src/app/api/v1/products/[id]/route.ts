@@ -177,12 +177,49 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id, product_type, is_bundle')
+      .select('id, product_type, is_bundle, is_active')
       .eq('id', id)
       .single();
 
     if (existsError || !existingCheck) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
+    }
+
+    // Server-side empty-bundle guard (mirrors the client PublishChecklist): if the
+    // effective post-update state is an ACTIVE bundle, it must have >= 1 component.
+    // Effective is_bundle/is_active fall back to the existing row when not in the patch;
+    // the component count is the incoming bundleItemIds when provided, else the current
+    // number of bundle_items rows.
+    {
+      const effIsBundle =
+        typeof sanitizedData.is_bundle === 'boolean'
+          ? sanitizedData.is_bundle
+          : existingCheck.is_bundle === true;
+      const effIsActive =
+        typeof sanitizedData.is_active === 'boolean'
+          ? sanitizedData.is_active
+          : existingCheck.is_active === true;
+      if (effIsBundle && effIsActive) {
+        let componentCount: number;
+        if (bundleItemIds !== undefined) {
+          componentCount = bundleItemIds.length;
+        } else {
+          const { count, error: countError } = await supabase
+            .from('bundle_items')
+            .select('id', { count: 'exact', head: true })
+            .eq('bundle_product_id', id);
+          if (countError) {
+            console.error('[products.PATCH bundle guard]', countError);
+            return apiError(request, 'INTERNAL_ERROR', 'Failed to validate bundle components');
+          }
+          componentCount = count ?? 0;
+        }
+        if (componentCount < 1) {
+          throw new ApiValidationError('Validation failed', {
+            _errors: ['An active bundle must have at least one component (bundleItemIds)'],
+          });
+        }
+      }
     }
 
     // forbid product_type changes once a product has any sale, access

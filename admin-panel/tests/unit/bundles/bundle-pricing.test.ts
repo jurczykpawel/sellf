@@ -32,4 +32,14 @@ describe('computeBundleAnchor', () => {
     expect(r.componentsSum).toBe(20);
     expect(r.mode).toBe('savings'); // 10 < 20
   });
+
+  it('handles an empty components array (no NaN, no crash)', () => {
+    const r = computeBundleAnchor(99, []);
+    expect(r).toEqual({ componentsSum: 0, savings: 0, savingsPct: 0, mode: 'included' });
+  });
+
+  it('handles all-free / zero-sum components (no division by zero)', () => {
+    const r = computeBundleAnchor(0, [{ price: 0 }, { price: 0 }]);
+    expect(r).toEqual({ componentsSum: 0, savings: 0, savingsPct: 0, mode: 'included' });
+  });
 });
