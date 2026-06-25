@@ -16,7 +16,7 @@
  * Run: bunx vitest run tests/unit/bundles/bundle-completion.behavioral.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -32,6 +32,20 @@ async function mkProduct(over: Record<string, unknown> = {}) {
 }
 
 beforeAll(() => { if (!db) console.warn('[bundle-completion] skip — needs Supabase env'); });
+// Two completion-driving RPCs in this suite are rate-limited and share GLOBAL anti-spoof buckets
+// that aggregate across the WHOLE suite, so the 1-hour window trips when many behavioral tests run
+// together (passes in isolation, fails in the full `tt`). Reset both per test for deterministic
+// isolation (test infra, not behavior under test):
+//   - process_stripe_payment_completion (100/hour) — drives the bundle completion test.
+//   - claim_guest_purchases_for_user    (10/hour)  — drives the guest-claim test; far lower cap,
+//     so it exhausts first and the registration trigger silently grants nothing.
+// Same pattern as the onetime-handlers / verify-payment behavioral harnesses.
+beforeEach(async () => {
+  if (db) {
+    await db.from('rate_limits').delete().like('function_name', '%process_stripe_payment_completion');
+    await db.from('rate_limits').delete().like('function_name', '%claim_guest_purchases_for_user');
+  }
+});
 afterAll(async () => {
   if (!db) return;
   await db.from('guest_purchases').delete().in('customer_email', emails);

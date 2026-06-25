@@ -13,6 +13,7 @@ import type { User } from '@supabase/supabase-js';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
+import { resolveComponentProductIds, issueLicensesForOrder } from '@/lib/services/bundle-order';
 import { redactEmail } from '@/lib/logger';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -606,6 +607,23 @@ export async function verifyPaymentSession(
               .select('id, custom_field_values')
               .eq('session_id', session.id)
               .maybeSingle();
+            const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
+
+            // Resolve bundle components (ordered) — [] for a non-bundle product. A bundle grants
+            // the bundle + every component (DB); we issue a license per licensable product below.
+            // Identical shape to the Stripe-webhook emitter so the winning path is irrelevant.
+            const componentProductIds = await resolveComponentProductIds(serviceClient, productId);
+
+            // Issue licenses — one per licensable product in [productId, ...componentProductIds].
+            // issueLicense is idempotent by (order_id, product_id); prefer the payment-intent id so
+            // the same key backs idempotency across both completion paths.
+            const licenses = await issueLicensesForOrder(serviceClient, {
+              productIds: [productId, ...componentProductIds],
+              email: customerEmail,
+              userId: user?.id || null,
+              orderId: stripePaymentIntentId || session.id,
+              customFieldValues,
+            });
 
             // VAT tax snapshot — capture Stripe's computed tax per line. Fail-safe:
             // never blocks access granting or the purchase webhook.
@@ -622,6 +640,7 @@ export async function verifyPaymentSession(
               userId: user?.id || null,
               productId,
               bumpProductIds,
+              componentProductIds,
               metadata: session.metadata as Record<string, string | undefined> | null,
               // Embed collects NIP/address via Stripe → carry them to the invoice section.
               stripeCustomerDetails: session.customer_details,
@@ -632,10 +651,12 @@ export async function verifyPaymentSession(
               paymentIntentId: stripePaymentIntentId,
               couponId: hasCoupon && couponId ? couponId : null,
               isGuest: paymentResult?.is_guest_purchase,
-              customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
+              customFieldValues: customFieldValues ?? null,
             });
 
-            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...bumpProductIds])
+            if (licenses.length) webhookData.licenses = licenses;
+
+            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...componentProductIds, ...bumpProductIds])
               .catch(err => console.error('Webhook trigger error:', err));
 
             // NOTE: Server-side CAPI tracking for Purchase is handled in the
@@ -902,6 +923,22 @@ export async function verifyPaymentIntent(
               .select('id, session_id, custom_field_values')
               .eq('stripe_payment_intent_id', paymentIntent.id)
               .maybeSingle();
+            const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
+
+            // Resolve bundle components (ordered) — [] for a non-bundle product. Identical shape
+            // to the Stripe-webhook PI emitter so the winning completion path is irrelevant.
+            const componentProductIds = await resolveComponentProductIds(serviceClient, productId);
+
+            // Issue licenses — one per licensable product in [productId, ...componentProductIds].
+            // issueLicense is idempotent by (order_id, product_id); orderId = the PI id (same key
+            // the PI webhook handler uses).
+            const licenses = await issueLicensesForOrder(serviceClient, {
+              productIds: [productId, ...componentProductIds],
+              email: customerEmail,
+              userId: user?.id || null,
+              orderId: paymentIntent.id,
+              customFieldValues,
+            });
 
             // VAT tax snapshot — tax lives on the owning Checkout Session, not the PI.
             // The stored session_id may be this PI's id, so pass paymentIntentId too:
@@ -920,6 +957,7 @@ export async function verifyPaymentIntent(
               userId: user?.id || null,
               productId,
               bumpProductIds,
+              componentProductIds,
               metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
               amount: paymentIntent.amount,
               currency: paymentIntent.currency,
@@ -927,10 +965,12 @@ export async function verifyPaymentIntent(
               taxSnapshot,
               couponId: couponId || null,
               isGuest: paymentResult?.is_guest_purchase,
-              customFieldValues: (txCustomFields?.custom_field_values as Record<string, unknown> | null) ?? null,
+              customFieldValues: customFieldValues ?? null,
             });
 
-            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...bumpProductIds])
+            if (licenses.length) webhookData.licenses = licenses;
+
+            WebhookService.trigger('purchase.completed', webhookData, serviceClient, [productId, ...componentProductIds, ...bumpProductIds])
               .catch(err => console.error('Webhook trigger error:', err));
 
             // NOTE: Server-side CAPI tracking for Purchase is handled in the

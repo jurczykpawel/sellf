@@ -14,9 +14,10 @@ import { revalidateTag } from 'next/cache';
 import type Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
-import { buildPurchaseWebhookPayload, type PurchaseWebhookData } from '@/lib/services/webhook-payload';
+import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
 import { issueLicense } from '@/lib/license-keys/issue';
+import { resolveComponentProductIds, issueLicensesForOrder } from '@/lib/services/bundle-order';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
@@ -25,64 +26,6 @@ function revalidatePurchaseTags(productSlug: unknown): void {
   if (typeof productSlug !== 'string' || productSlug.length === 0) return;
   revalidateTag('recent-supporters', { expire: 0 });
   revalidateTag(`product:${productSlug}`, { expire: 0 });
-}
-
-/**
- * Resolve a bundle's component product ids (ordered by display_order). Returns [] for a
- * non-bundle product (no rows) or on a query error — a bundle purchase still grants the
- * bundle itself, so this is fail-safe and never blocks the webhook.
- */
-async function resolveComponentProductIds(
-  supabase: ReturnType<typeof createAdminClient>,
-  productId: string,
-): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('bundle_items')
-    .select('component_product_id')
-    .eq('bundle_product_id', productId)
-    .order('display_order', { ascending: true });
-  if (error) {
-    console.error('[stripe-webhook] Failed to resolve bundle component ids:', error);
-    return [];
-  }
-  return (data ?? []).map((r) => r.component_product_id as string);
-}
-
-/**
- * Issue a license for every licensable product in the order (`[productId, ...componentIds]`)
- * and return the collected `licenses[]`. Idempotent per (order_id, product_id) via issueLicense;
- * products without issuance enabled simply yield no entry.
- */
-async function issueLicensesForOrder(
-  supabase: ReturnType<typeof createAdminClient>,
-  args: {
-    productIds: string[];
-    email: string;
-    userId: string | null;
-    orderId: string;
-    customFieldValues?: Record<string, string>;
-  },
-): Promise<NonNullable<PurchaseWebhookData['licenses']>> {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-  const licenses: NonNullable<PurchaseWebhookData['licenses']> = [];
-  for (const pid of args.productIds) {
-    const res = await issueLicense(supabase, {
-      productId: pid,
-      email: args.email,
-      userId: args.userId,
-      orderId: args.orderId,
-      customFieldValues: args.customFieldValues,
-    });
-    if (res) {
-      licenses.push({
-        productId: pid,
-        token: res.token,
-        kid: res.kid,
-        jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${res.sellerId}`,
-      });
-    }
-  }
-  return licenses;
 }
 
 /**
