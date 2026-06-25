@@ -55,9 +55,32 @@ ALTER TABLE public.bundle_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "bundle_items service role" ON public.bundle_items;
 CREATE POLICY "bundle_items service role" ON public.bundle_items
   FOR ALL TO service_role USING (true) WITH CHECK (true);
+-- A01 (defense-in-depth): scope the public read to EXACTLY when anon can read the bundle product
+-- itself. USING (true) leaked every bundle->component mapping, including for DRAFT/inactive bundles
+-- (pre-announcement BI: a hidden bundle grouped with existing products reveals an unlaunched bundle).
+-- The EXISTS predicate mirrors, verbatim, the public branch of the products anon SELECT policy
+-- ("SELECT policy for products" in 20260521000000_products_temporal_rls_and_config_grants.sql:
+-- is_active=true within the availability window, OR a waitlist-enabled inactive product) so a row is
+-- visible iff its bundle product is — no edge where one is readable but not the other. Admins keep
+-- full visibility for draft-editing in the admin panel (authenticated browser client).
 DROP POLICY IF EXISTS "bundle_items public read" ON public.bundle_items;
 CREATE POLICY "bundle_items public read" ON public.bundle_items
-  FOR SELECT TO anon, authenticated USING (true);
+  FOR SELECT TO anon, authenticated
+  USING (
+    (select public.is_admin())
+    OR EXISTS (
+      SELECT 1 FROM public.products p
+      WHERE p.id = bundle_product_id
+        AND (
+          (
+            p.is_active = true
+            AND (p.available_from IS NULL OR p.available_from <= now())
+            AND (p.available_until IS NULL OR p.available_until >= now())
+          )
+          OR (p.is_active = false AND p.enable_waitlist = true)
+        )
+    )
+  );
 REVOKE ALL ON public.bundle_items FROM anon, authenticated;
 GRANT SELECT ON public.bundle_items TO anon, authenticated;
 GRANT ALL ON public.bundle_items TO service_role;

@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 const db = URL && KEY ? createClient(URL, KEY) : null;
+// Anon (RLS-enforced) client — mirrors the public checkout's createPublicClient().
+const anon = URL && ANON_KEY ? createClient(URL, ANON_KEY) : null;
 const ids: string[] = [];
 const users: string[] = [];
 
@@ -139,5 +142,48 @@ describe.skipIf(!db)('bundle_items schema + guards', () => {
     await db!.rpc('grant_product_and_bundle_components', { user_id_param: user!.user!.id, product_id_param: plain });
     const { data: access } = await db!.from('user_product_access').select('product_id').eq('user_id', user!.user!.id);
     expect((access ?? []).length).toBe(1);
+  });
+});
+
+// A01 (defense-in-depth): the "bundle_items public read" RLS policy must scope anon reads to
+// EXACTLY when the bundle product itself is publicly visible (mirroring the products anon SELECT
+// policy: is_active=true AND within availability window, or waitlist-enabled). Anon must NOT be able
+// to enumerate component mappings of DRAFT/inactive bundles (pre-announcement BI leak). Uses the
+// ANON key (RLS-enforced), NOT the service-role client, to assert the policy from the outside.
+describe.skipIf(!db || !anon)('bundle_items anon read RLS (A01)', () => {
+  it('anon sees components of an ACTIVE bundle, but ZERO for a DRAFT bundle; service-role sees both', async () => {
+    // Active (publicly visible) bundle with one component.
+    const activeBundle = await mkProduct({ is_bundle: true, is_active: true });
+    const activeComp = await mkProduct({ is_bundle: false });
+    await db!.from('bundle_items').insert({
+      bundle_product_id: activeBundle, component_product_id: activeComp, display_order: 0,
+    });
+
+    // Draft (is_active=false, no waitlist) bundle with one component — must be hidden from anon.
+    const draftBundle = await mkProduct({ is_bundle: true, is_active: false });
+    const draftComp = await mkProduct({ is_bundle: false });
+    await db!.from('bundle_items').insert({
+      bundle_product_id: draftBundle, component_product_id: draftComp, display_order: 0,
+    });
+
+    // ANON: active bundle's components are readable.
+    const { data: anonActive, error: anonActiveErr } = await anon!
+      .from('bundle_items').select('component_product_id').eq('bundle_product_id', activeBundle);
+    expect(anonActiveErr).toBeNull();
+    expect((anonActive ?? []).map((r) => r.component_product_id)).toContain(activeComp);
+
+    // ANON: draft bundle's components are HIDDEN (zero rows).
+    const { data: anonDraft, error: anonDraftErr } = await anon!
+      .from('bundle_items').select('component_product_id').eq('bundle_product_id', draftBundle);
+    expect(anonDraftErr).toBeNull();
+    expect((anonDraft ?? []).length).toBe(0);
+
+    // SANITY: service-role bypasses RLS and sees both mappings.
+    const { data: svcActive } = await db!
+      .from('bundle_items').select('component_product_id').eq('bundle_product_id', activeBundle);
+    expect((svcActive ?? []).length).toBe(1);
+    const { data: svcDraft } = await db!
+      .from('bundle_items').select('component_product_id').eq('bundle_product_id', draftBundle);
+    expect((svcDraft ?? []).length).toBe(1);
   });
 });
