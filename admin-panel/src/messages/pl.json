@@ -24,6 +24,8 @@
     "alreadyHasAccess": "Masz już dostęp do tego produktu.",
     "autoRedirect": "Przekierowanie za {seconds} s...",
     "goToProduct": "Przejdź do Produktu",
+    "bundleIncludes": "Ten zestaw zawiera:",
+    "bundleSavings": "Oszczędzasz {amount} ({pct}% taniej)",
     "funnelTest": {
       "banner": "TEST LEJKA",
       "description": "Podgląd checkoutu jako administrator. Żadna płatność nie zostanie przetworzona.",
@@ -841,6 +843,7 @@
       "free": "DARMOWE",
       "subscription": "Subskrypcja",
       "subscribe": "Subskrybuj",
+      "bundle": "Zestaw",
       "featured": "Polecane",
       "premium": "Premium",
       "limited": "Ograniczone",
@@ -1013,7 +1016,10 @@
     "supportAgainMessage": "Masz już dostęp do tej strony. Nadal możesz przekazać kolejne wsparcie, kiedy chcesz.",
     "supportAgain": "Wesprzyj ponownie",
     "licenseCopy": "Kopiuj",
-    "licenseCopied": "Skopiowano!"
+    "licenseCopied": "Skopiowano!",
+    "bundle": {
+      "includesHeading": "Ten zestaw zawiera"
+    }
   },
   "myProducts": {
     "title": "Moje produkty",
@@ -1236,6 +1242,7 @@
       "exportConfirmMessage": "Czy na pewno chcesz wyeksportować bieżącą listę {count} produktów do pliku CSV?",
       "refresh": "Odśwież",
       "add": "Dodaj produkt",
+      "addBundle": "Nowy zestaw",
       "searchPlaceholder": "Wyszukaj produkty...",
       "noProducts": "Nie znaleziono produktów",
       "filterAll": "Wszystkie",
@@ -1325,6 +1332,26 @@
           "price": "Cena",
           "recurringPrice": "Cena cykliczna",
           "leadMagnetFile": "Plik (krok 2)"
+        },
+        "checklist": {
+          "bundleComponents": "Składniki zestawu (≥1)"
+        },
+        "bundle": {
+          "title": "Składniki zestawu",
+          "help": "Wybierz produkty wchodzące w skład zestawu. Kupujący otrzymują dostęp do wszystkich w jednym zakupie.",
+          "addLabel": "Dodaj składnik",
+          "searchPlaceholder": "Szukaj produktów do dodania...",
+          "noMatches": "Brak pasujących produktów.",
+          "noMoreProducts": "Brak kolejnych produktów do dodania.",
+          "selectedLabel": "Wybrane składniki ({count})",
+          "emptyHint": "Brak składników. Dodaj co najmniej jeden produkt powyżej.",
+          "moveUp": "Przesuń w górę",
+          "moveDown": "Przesuń w dół",
+          "remove": "Usuń",
+          "inactiveBadge": "Nieaktywny",
+          "inactiveWarning": "Ten składnik jest nieaktywny, ale kupujący zestaw i tak otrzyma do niego dostęp.",
+          "savings": "oszczędzasz {savings} ({pct}%)",
+          "includedInfo": "Składniki pokazywane są jako wliczone/bonus (cena zestawu nie jest niższa niż zakup osobno)."
         },
         "basicInformation": "Podstawowe informacje",
         "productName": "Nazwa produktu",
@@ -4319,8 +4346,8 @@
         "label": "Typ pola",
         "text": "Tekst",
         "textarea": "Wieloliniowy",
-        "email": "Email"
-        ,"domain": "Domena licencji"
+        "email": "Email",
+        "domain": "Domena licencji"
       }
     },
     "badgeGenerator": {

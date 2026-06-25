@@ -24,6 +24,8 @@
     "alreadyHasAccess": "You already have access to this product.",
     "autoRedirect": "Auto-redirecting in {seconds} seconds...",
     "goToProduct": "Go to Product",
+    "bundleIncludes": "This bundle includes:",
+    "bundleSavings": "Save {amount} ({pct}% off)",
     "funnelTest": {
       "banner": "FUNNEL TEST",
       "description": "You are previewing this checkout as admin. No payment will be processed.",
@@ -826,6 +828,7 @@
       "free": "FREE",
       "subscription": "Subscription",
       "subscribe": "Subscribe",
+      "bundle": "Bundle",
       "featured": "Featured",
       "premium": "Premium",
       "limited": "Limited",
@@ -998,7 +1001,10 @@
     "supportAgainMessage": "You already have access to this page. You can still make another contribution whenever you want.",
     "supportAgain": "Support again",
     "licenseCopy": "Copy",
-    "licenseCopied": "Copied!"
+    "licenseCopied": "Copied!",
+    "bundle": {
+      "includesHeading": "This bundle includes"
+    }
   },
   "myProducts": {
     "title": "My Products",
@@ -1221,6 +1227,7 @@
       "exportConfirmMessage": "Are you sure you want to export the current list of {count} products to a CSV file?",
       "refresh": "Refresh",
       "add": "Add Product",
+      "addBundle": "New bundle",
       "searchPlaceholder": "Search products...",
       "noProducts": "No products found",
       "filterAll": "All",
@@ -1310,6 +1317,26 @@
           "price": "Price",
           "recurringPrice": "Recurring price",
           "leadMagnetFile": "File (step 2)"
+        },
+        "checklist": {
+          "bundleComponents": "Bundle components (≥1)"
+        },
+        "bundle": {
+          "title": "Bundle components",
+          "help": "Pick the products included in this bundle. Buyers get access to all of them in one purchase.",
+          "addLabel": "Add a component",
+          "searchPlaceholder": "Search products to add...",
+          "noMatches": "No matching products.",
+          "noMoreProducts": "No more eligible products to add.",
+          "selectedLabel": "Selected components ({count})",
+          "emptyHint": "No components yet. Add at least one product above.",
+          "moveUp": "Move up",
+          "moveDown": "Move down",
+          "remove": "Remove",
+          "inactiveBadge": "Inactive",
+          "inactiveWarning": "This component is inactive, but buyers of the bundle still get access to it.",
+          "savings": "save {savings} ({pct}%)",
+          "includedInfo": "Components are shown as included/bonus (the bundle price is not lower than buying them separately)."
         },
         "basicInformation": "Basic Information",
         "productName": "Product Name",

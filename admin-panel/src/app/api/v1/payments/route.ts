@@ -16,6 +16,7 @@ import {
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
+import { firstRelated } from '@/lib/supabase/relations';
 import type { PaymentTransactionLineItem } from '@/types/payment';
 
 export async function OPTIONS(request: NextRequest) {
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
         status,
         stripe_payment_intent_id,
         product_id,
-        products!inner(name, slug, custom_checkout_fields),
+        products!inner(name, slug, custom_checkout_fields, is_bundle),
         user_id,
         session_id,
         metadata,
@@ -221,12 +222,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Derive bundle components for bundle transactions (light: one batch query,
+    // name/slug only). Non-bundle transactions get no bundle_components field.
+    const bundleProductIds = Array.from(
+      new Set(
+        paymentRows
+          .filter(p => (p.products as unknown as { is_bundle?: boolean } | null)?.is_bundle && p.product_id)
+          .map(p => p.product_id as string),
+      ),
+    );
+    const bundleComponentsByProductId = new Map<string, Array<{ name: string; slug: string }>>();
+
+    if (bundleProductIds.length > 0) {
+      const { data: bundleItems, error: bundleError } = await adminClient
+        .from('bundle_items')
+        .select('bundle_product_id, display_order, component:products!bundle_items_component_product_id_fkey(name, slug)')
+        .in('bundle_product_id', bundleProductIds)
+        .order('display_order', { ascending: true });
+
+      if (bundleError) {
+        console.error('Error fetching bundle components:', bundleError);
+      } else {
+        for (const item of bundleItems ?? []) {
+          if (!item.bundle_product_id) continue;
+          const component = firstRelated<{ name: string; slug: string }>(item.component);
+          if (!component) continue;
+          const existing = bundleComponentsByProductId.get(item.bundle_product_id) ?? [];
+          existing.push({ name: component.name, slug: component.slug });
+          bundleComponentsByProductId.set(item.bundle_product_id, existing);
+        }
+      }
+    }
+
     // Transform response
     const transformedItems = paymentRows.map(p => {
       const productRel = p.products as unknown as {
         name: string;
         slug: string;
         custom_checkout_fields: unknown;
+        is_bundle?: boolean;
       } | null;
       return {
         id: p.id,
@@ -242,6 +276,11 @@ export async function GET(request: NextRequest) {
           custom_checkout_fields: Array.isArray(productRel?.custom_checkout_fields)
             ? productRel.custom_checkout_fields
             : null,
+          is_bundle: productRel?.is_bundle ?? false,
+          // Derived component list (name/slug) for bundle transactions; omitted for non-bundles.
+          ...(productRel?.is_bundle && p.product_id
+            ? { bundle_components: bundleComponentsByProductId.get(p.product_id) ?? [] }
+            : {}),
         },
         line_items: lineItemsByTransactionId.get(p.id) ?? [],
         net_total: p.net_total,

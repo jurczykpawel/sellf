@@ -35,9 +35,19 @@ vi.mock('@/lib/services/product-validation', () => ({
   },
 }));
 
+// Enable the Pro license-issuance feature only (its own gate is tested in license-keys/issue-pro-gate).
+// Everything else stays at the real (free) tier — non-licensed products behave exactly as before:
+// issueLicense still returns null at the product check unless issue_license_on_purchase is set.
+// Mirrors the webhook twin suite so the bundle-license assertion is meaningful.
+vi.mock('@/lib/license/resolve', async (orig) => {
+  const actual = await orig<typeof import('@/lib/license/resolve')>();
+  return { ...actual, checkFeature: vi.fn(async (feature: string) => feature === 'license-key-issuance') };
+});
+
 import { verifyPaymentSession, verifyPaymentIntent } from '@/lib/payment/verify-payment';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { ProductValidationService } from '@/lib/services/product-validation';
+import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -47,6 +57,7 @@ const db = hasSupabase ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY) : null;
 const createdProductIds: string[] = [];
 const createdEmails: string[] = [];
 const createdAuthUserIds: string[] = [];
+const createdSellerIds: string[] = [];
 
 beforeAll(() => {
   if (!hasSupabase) console.warn('[verify-payment-onetime.behavioral] Skipping — requires Supabase env');
@@ -56,11 +67,16 @@ afterAll(async () => {
   if (!db) return;
   if (createdEmails.length > 0) await db.from('guest_purchases').delete().in('customer_email', createdEmails);
   if (createdProductIds.length > 0) {
+    await db.from('issued_licenses').delete().in('product_id', createdProductIds);
+    await db.from('bundle_items').delete().in('bundle_product_id', createdProductIds);
     await db.from('payment_line_items').delete().in('product_id', createdProductIds);
     await db.from('user_product_access').delete().in('product_id', createdProductIds);
     await db.from('payment_transactions').delete().in('product_id', createdProductIds);
     await db.from('order_bumps').delete().in('main_product_id', createdProductIds);
     await db.from('products').delete().in('id', createdProductIds);
+  }
+  if (createdSellerIds.length > 0) {
+    await db.from('seller_license_keys').delete().in('seller_id', createdSellerIds);
   }
   for (const id of createdAuthUserIds) await db.auth.admin.deleteUser(id).catch(() => {});
 });
@@ -788,5 +804,86 @@ describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', (
     expect(profile?.tax_id).toBe(nip);
     expect(profile?.company_name).toBe('ACME');
     expect(profile?.first_name).toBe('Jan');
+  });
+});
+
+// ==============================================================================================
+// Bundle purchase wiring via the SUCCESS-REDIRECT path (verifyPaymentSession). This path is the
+// SECOND emitter of purchase.completed (the Stripe-webhook handler is the first); both are gated
+// on the same idempotent completion RPC + !already_had_access guard, so whichever wins the race
+// emits the event — they MUST therefore produce an identical bundle payload. This is the twin of
+// the "bundle purchase wiring" block in onetime-payment-handlers.behavioral.test.ts: a completed
+// bundle purchase confirmed here must emit bundleComponents[], a non-empty licenses[] for a
+// licensable component, NO singular `license`, and scoping widened to the component ids.
+describe.skipIf(!hasSupabase)('bundle purchase wiring → purchase.completed payload (verify-payment path)', () => {
+  /** Create a seller + managed key, returning the sellerId (FKs auth.users). */
+  async function createSellerWithKey(): Promise<string> {
+    const sellerId = await createAuthUser(uniq('seller') + '@example.com');
+    const kp = generateSellerKeypair();
+    await storeSellerKey(db!, { sellerId, publicKeyPem: kp.publicKeyPem, privateKeyPem: kp.privateKeyPem, custody: 'managed' });
+    createdSellerIds.push(sellerId);
+    return sellerId;
+  }
+
+  /** Link a component product into a bundle via bundle_items. */
+  async function linkComponent(bundleId: string, componentId: string, order: number): Promise<void> {
+    const { error } = await db!.from('bundle_items').insert({
+      bundle_product_id: bundleId,
+      component_product_id: componentId,
+      display_order: order,
+    });
+    if (error) throw new Error(`linkComponent failed: ${error.message}`);
+  }
+
+  it('bundle purchase via verify-payment: payload has bundleComponents[] + licenses[], no singular license, scoping incl. components', async () => {
+    // Seller key shared by the licensable component (license-issuance reads product.seller_id).
+    const sellerId = await createSellerWithKey();
+    // The bundle itself is a product flagged is_bundle. compA issues a license; compB does not.
+    const bundle = await createProduct({ is_bundle: true });
+    const compA = await createProduct({ seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'pro' });
+    const compB = await createProduct();
+    await linkComponent(bundle.id, compA.id, 0);
+    await linkComponent(bundle.id, compB.id, 1);
+
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('reg') + '@example.com';
+    createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: bundle.id, email, pi, userId });
+
+    h.stripe = makeStripeShim({
+      session: {
+        id: cs, status: 'complete', payment_status: 'paid', mode: 'payment', currency: 'usd',
+        amount_total: 1000, amount_subtotal: 1000, total_details: { amount_tax: 0 },
+        automatic_tax: { enabled: false }, payment_intent: pi,
+        customer_details: { email }, customer_email: email,
+        metadata: { product_id: bundle.id, user_id: userId }, created: 1, expires_at: 2,
+      },
+    });
+
+    const r = await verifyPaymentSession(cs, asUser(userId, email));
+    expect(r.error).toBeUndefined();
+
+    const calls = purchaseCalls();
+    expect(calls).toHaveLength(1);
+
+    const payload = calls.at(-1)![1] as Record<string, unknown>;
+    // BREAKING: singular `license` is gone.
+    expect(payload).not.toHaveProperty('license');
+    // bundleComponents reflects the two linked components.
+    expect(Array.isArray(payload.bundleComponents)).toBe(true);
+    expect((payload.bundleComponents as unknown[]).length).toBe(2);
+    const componentIds = (payload.bundleComponents as Array<{ id: string }>).map((c) => c.id).sort();
+    expect(componentIds).toEqual([compA.id, compB.id].sort());
+    // licenses[] carries one entry for the licensable component (compA).
+    expect(Array.isArray(payload.licenses)).toBe(true);
+    expect((payload.licenses as unknown[]).length).toBeGreaterThanOrEqual(1);
+    const licensedIds = (payload.licenses as Array<{ productId: string }>).map((l) => l.productId);
+    expect(licensedIds).toContain(compA.id);
+
+    // Scoping arg (4th) includes the bundle AND both component ids (for product-scoped webhooks).
+    const scope = calls.at(-1)![3] as string[];
+    expect(scope).toEqual(expect.arrayContaining([bundle.id, compA.id, compB.id]));
   });
 });

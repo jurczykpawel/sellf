@@ -995,13 +995,16 @@ describe.skipIf(!hasSupabase)('license issuance wiring → purchase.completed pa
   }
 
   function assertVerifiableLicense(
-    payload: { license?: { token?: string; kid?: string; jwksUrl?: string } },
+    payload: { license?: unknown; licenses?: Array<{ productId?: string; token?: string; kid?: string; jwksUrl?: string }> },
     kp: { kid: string; publicKeyPem: string },
   ) {
-    expect(payload.license?.token).toBeTruthy();
-    expect(payload.license?.kid).toBe(kp.kid);
-    expect(payload.license?.jwksUrl).toContain('seller=');
-    const res = verifySellfLicense(payload.license!.token!, { keys: [{ kid: kp.kid, pem: kp.publicKeyPem }] });
+    // BREAKING: the singular `license` field was removed in favour of `licenses[]`.
+    expect(payload).not.toHaveProperty('license');
+    const lic = payload.licenses?.[0];
+    expect(lic?.token).toBeTruthy();
+    expect(lic?.kid).toBe(kp.kid);
+    expect(lic?.jwksUrl).toContain('seller=');
+    const res = verifySellfLicense(lic!.token!, { keys: [{ kid: kp.kid, pem: kp.publicKeyPem }] });
     expect(res.valid).toBe(true);
   }
 
@@ -1101,5 +1104,82 @@ describe.skipIf(!hasSupabase)('explicit repurchase override (concurrent already_
     const ev = piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id, user_id: userId, repurchase: 'true' } });
     await Promise.all([post(ev), post(ev)]);
     expect(purchaseCount()).toBe(2);
+  });
+});
+
+// ==============================================================================================
+// Bundle purchase wiring → purchase.completed payload (Task 3). A bundle (is_bundle=true) whose
+// components are linked via bundle_items must, on a completed purchase, emit:
+//   - bundleComponents[]: a basic ProductDetail per component (mode 1a: no per-line tax snapshot)
+//   - licenses[]: one entry per licensable product in the order ([productId, ...componentIds])
+//   - NO singular `license` field (breaking)
+//   - webhook scoping (4th trigger arg) widened to include the component ids
+// The bundle's DB grant is covered in Tasks 1-2; here we prove the TS completion handler reflects it.
+describe.skipIf(!hasSupabase)('bundle purchase wiring → purchase.completed payload', () => {
+  /** Create a seller + managed key, returning the sellerId (FKs auth.users). */
+  async function createSellerWithKey(): Promise<string> {
+    const sellerId = await createAuthUser(uniq('seller') + '@example.com');
+    const kp = generateSellerKeypair();
+    await storeSellerKey(db!, { sellerId, publicKeyPem: kp.publicKeyPem, privateKeyPem: kp.privateKeyPem, custody: 'managed' });
+    createdSellerIds.push(sellerId);
+    return sellerId;
+  }
+
+  /** Link a component product into a bundle via bundle_items (validation trigger enforces shapes). */
+  async function linkComponent(bundleId: string, componentId: string, order: number): Promise<void> {
+    const { error } = await db!.from('bundle_items').insert({
+      bundle_product_id: bundleId,
+      component_product_id: componentId,
+      display_order: order,
+    });
+    if (error) throw new Error(`linkComponent failed: ${error.message}`);
+  }
+
+  it('bundle purchase: payload has bundleComponents[] and licenses[], no singular license', async () => {
+    // Seller key shared by bundle + licensable component (license-issuance reads product.seller_id).
+    const sellerId = await createSellerWithKey();
+    // The bundle itself is a product flagged is_bundle. compA issues a license; compB does not.
+    const bundle = await createProduct({ is_bundle: true });
+    const compA = await createProduct({ seller_id: sellerId, issue_license_on_purchase: true, license_tier: 'pro' });
+    const compB = await createProduct();
+    await linkComponent(bundle.id, compA.id, 0);
+    await linkComponent(bundle.id, compB.id, 1);
+
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const email = uniq('reg') + '@example.com';
+    createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: bundle.id, email, pi, userId });
+
+    const { status } = await post(
+      checkoutEvent({
+        id: cs, mode: 'payment', payment_status: 'paid',
+        metadata: { product_id: bundle.id, user_id: userId }, customer_details: { email },
+        payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd',
+      }),
+    );
+    expect(status).toBe(200);
+
+    const calls = triggerSpy.mock.calls.filter(([evt]) => evt === 'purchase.completed');
+    expect(calls).toHaveLength(1);
+
+    const payload = calls.at(-1)![1] as Record<string, unknown>;
+    // BREAKING: singular `license` is gone.
+    expect(payload).not.toHaveProperty('license');
+    // bundleComponents reflects the two linked components.
+    expect(Array.isArray(payload.bundleComponents)).toBe(true);
+    expect((payload.bundleComponents as unknown[]).length).toBe(2);
+    const componentIds = (payload.bundleComponents as Array<{ id: string }>).map((c) => c.id).sort();
+    expect(componentIds).toEqual([compA.id, compB.id].sort());
+    // licenses[] carries one entry for the licensable component (compA).
+    expect(Array.isArray(payload.licenses)).toBe(true);
+    expect((payload.licenses as unknown[]).length).toBeGreaterThanOrEqual(1);
+    const licensedIds = (payload.licenses as Array<{ productId: string }>).map((l) => l.productId);
+    expect(licensedIds).toContain(compA.id);
+
+    // Scoping arg (4th) includes the bundle AND both component ids (for product-scoped webhooks).
+    const scope = calls.at(-1)![3] as string[];
+    expect(scope).toEqual(expect.arrayContaining([bundle.id, compA.id, compB.id]));
   });
 });

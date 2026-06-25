@@ -32,6 +32,28 @@ export function buildProductSelect(baseFields: string, embed: ReadonlySet<EmbedK
   return parts.join(', ');
 }
 
+/**
+ * PostgREST aggregate select for a bundle's component count. The FK hint is
+ * required because bundle_items references products twice (bundle + component);
+ * this counts rows where the product is the bundle parent.
+ */
+export const BUNDLE_ITEM_COUNT_SELECT =
+  'bundle_items!bundle_items_bundle_product_id_fkey(count)';
+
+type BundleCountRow = { bundle_items?: Array<{ count: number }> | null };
+
+/**
+ * Flatten PostgREST's `bundle_items: [{ count: N }]` aggregate shape into a
+ * plain `bundle_item_count` number, dropping the raw relation from the row.
+ */
+export function flattenBundleItemCount<T extends BundleCountRow>(
+  row: T,
+): Omit<T, 'bundle_items'> & { bundle_item_count: number } {
+  const { bundle_items, ...rest } = row;
+  const bundle_item_count = Array.isArray(bundle_items) ? bundle_items[0]?.count ?? 0 : 0;
+  return { ...(rest as Omit<T, 'bundle_items'>), bundle_item_count };
+}
+
 export interface EmbeddedTaxonomy { id: string; name: string; slug: string; }
 export type EmbeddedCategory = EmbeddedTaxonomy;
 export type EmbeddedTag = EmbeddedTaxonomy;

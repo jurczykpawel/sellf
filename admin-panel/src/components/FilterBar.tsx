@@ -14,6 +14,7 @@ interface FilterBarProps {
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
   onAddProduct: () => void;
+  onAddBundle?: () => void;
   onExport: () => void;
   onRefresh: () => void;
   addButtonRef: React.RefObject<HTMLButtonElement | null>;
@@ -25,6 +26,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   statusFilter,
   onStatusFilterChange,
   onAddProduct,
+  onAddBundle,
   onExport,
   onRefresh,
   addButtonRef,
@@ -101,6 +103,20 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </svg>
           <span className="hidden sm:inline">{t('export')}</span>
         </button>
+
+        {/* Add Bundle Button */}
+        {onAddBundle && (
+          <button
+            onClick={onAddBundle}
+            className="inline-flex items-center px-4 py-2 border-2 border-sf-accent/40 text-sm font-medium text-sf-accent bg-sf-accent-soft hover:bg-sf-accent-soft hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sf-accent transition-all duration-200"
+            title={t('addBundle')}
+          >
+            <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span className="hidden sm:inline">{t('addBundle')}</span>
+          </button>
+        )}
 
         {/* Add Product Button */}
         <button

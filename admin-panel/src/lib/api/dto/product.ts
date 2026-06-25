@@ -36,6 +36,7 @@ const baseShape = {
   is_active: z.boolean().optional(),
   is_featured: z.boolean().optional(),
   is_listed: z.boolean().optional(),
+  is_bundle: z.boolean().optional(),
   icon: z.string().max(8).optional(),
   image_url: z.string().max(2048).nullable().optional(),
   thumbnail_url: z.string().max(2048).nullable().optional(),
@@ -96,6 +97,7 @@ export type ProductUpdateInput = z.infer<typeof ProductUpdateDTO>;
 
 export const ProductCategoriesSchema = z.array(z.string().uuid()).max(50).optional();
 export const ProductTagsSchema = z.array(z.string().uuid()).max(50).optional();
+export const BundleItemIdsSchema = z.array(z.string().uuid()).max(100).optional();
 
 const DATE_FIELDS = ['available_from', 'available_until', 'sale_price_until'] as const;
 

@@ -72,7 +72,10 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
         fieldErrors={fieldErrors}
       />
 
-      <SubscriptionSection formData={formData} setFormData={setFormData} t={t} />
+      {/* A bundle cannot itself be a subscription — hide the subscription config. */}
+      {!formData.is_bundle && (
+        <SubscriptionSection formData={formData} setFormData={setFormData} t={t} />
+      )}
 
       {showPaidPriceInput && (
         <PriceVatInline

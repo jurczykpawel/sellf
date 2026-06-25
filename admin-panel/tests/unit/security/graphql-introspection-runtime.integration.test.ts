@@ -134,6 +134,11 @@ describe('GraphQL introspection runtime exposure', () => {
    * intended to be public.
    */
   const STOREFRONT_TABLES_ALLOWLIST = new Set([
+    // bundle_items: a bundle's component list, intentionally public-read for the offer
+    // page (see 20260625000000_product_bundles.sql). RLS = public SELECT, service-role
+    // writes only; every column is non-sensitive offer metadata (which products belong to
+    // which bundle + display order), matching order_bumps/oto_offers/product_variant_groups.
+    'bundle_items',
     'categories',
     'order_bumps',
     'oto_offers',

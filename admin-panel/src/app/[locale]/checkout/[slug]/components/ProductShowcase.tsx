@@ -16,13 +16,17 @@ import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
 import { isPlayerstackPlatform } from '@/lib/playerstack';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import { isSalePriceActive, getEffectiveUnitPrice } from '@/lib/services/omnibus';
+import BundleContentsPreview from './BundleContentsPreview';
+import type { BundleComponentSummary } from './BundleContentsPreview';
 
 interface ProductShowcaseProps {
   product: Product;
   taxMode?: TaxMode;
+  /** Bundle components when product.is_bundle; renders the "includes" block. */
+  bundleComponents?: BundleComponentSummary[];
 }
 
-export default function ProductShowcase({ product, taxMode }: ProductShowcaseProps) {
+export default function ProductShowcase({ product, taxMode, bundleComponents }: ProductShowcaseProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
@@ -288,6 +292,17 @@ export default function ProductShowcase({ product, taxMode }: ProductShowcasePro
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Bundle contents + adaptive savings (only for bundles with components) */}
+      {bundleComponents && bundleComponents.length > 0 && (
+        <div className="mt-8">
+          <BundleContentsPreview
+            bundlePrice={getEffectiveUnitPrice(product)}
+            currency={product.currency}
+            components={bundleComponents}
+          />
         </div>
       )}
     </div>

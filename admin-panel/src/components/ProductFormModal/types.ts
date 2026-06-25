@@ -20,6 +20,10 @@ export interface ProductFormData {
   is_active: boolean;
   is_featured: boolean;
   is_listed: boolean;
+  // Bundle: groups other products as components
+  is_bundle?: boolean;
+  // Ordered component product IDs (only meaningful when is_bundle)
+  bundleItemIds: string[];
   icon: string;
   image_url?: string | null;
   preview_video_url?: string | null;
@@ -180,6 +184,13 @@ export interface CategoriesSectionProps extends SectionProps {
   loadingCategories: boolean;
 }
 
+export interface BundleItemsSectionProps extends SectionProps {
+  /** Full product list to pick components from (eligible ones are filtered inside). */
+  products: Product[];
+  /** Id of the product being edited — excluded from the eligible list to prevent self-reference. */
+  currentProductId?: string;
+}
+
 export type RefundSectionProps = SectionProps;
 
 export interface AdvancedSectionProps extends SectionProps {
@@ -205,6 +216,8 @@ export const initialFormData: ProductFormData = {
   is_active: true,
   is_featured: false,
   is_listed: true,
+  is_bundle: false,
+  bundleItemIds: [],
   icon: '🚀',
   image_url: null,
   preview_video_url: null,

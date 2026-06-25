@@ -324,6 +324,7 @@ function ProductRow({
 }) {
   const locale = useLocale();
   const isSubscription = product.product_type === 'subscription';
+  const isBundle = product.is_bundle === true;
   // Subscription products store price in recurring_price; product.price is 0.
   // Without isSubscription, the storefront would label them as "free".
   const isFree = !isSubscription && product.price === 0;
@@ -380,6 +381,11 @@ function ProductRow({
             {isSubscription && (
               <span className="px-2 py-0.5 rounded-full text-[0.58rem] font-semibold uppercase tracking-wide bg-sf-accent-soft text-sf-accent shrink-0">
                 {t('product.subscription', { defaultValue: 'Subscription' })}
+              </span>
+            )}
+            {isBundle && (
+              <span className="px-2 py-0.5 rounded-full text-[0.58rem] font-semibold uppercase tracking-wide bg-sf-accent-soft text-sf-accent shrink-0">
+                {t('product.bundle', { defaultValue: 'Zestaw' })}
               </span>
             )}
             {hasAccessDuration && (

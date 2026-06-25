@@ -880,4 +880,97 @@ describe('Products API v1', () => {
       expect(typeof data.pagination!.limit).toBe('number');
     });
   });
+
+  // M-1: server-side empty-bundle guard. The "bundle needs >= 1 component" rule used to
+  // be client-only (PublishChecklist); the v1 API could still publish an empty active
+  // bundle. These assert the route now rejects an empty ACTIVE bundle and accepts one
+  // with a component, on both create and update.
+  describe('Empty active bundle guard', () => {
+    async function mkComponent(): Promise<string> {
+      const slug = uniqueSlug();
+      const { data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'Comp', slug, description: 'd', price: 5,
+      });
+      const id = data.data!.id;
+      createdProductIds.push(id);
+      return id;
+    }
+
+    it('POST rejects an active bundle with no components', async () => {
+      const slug = uniqueSlug();
+      const { status, data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'EmptyBundle', slug, description: 'd', price: 99,
+        is_bundle: true, is_active: true,
+      });
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      // and it must not orphan a product row
+      const { count } = await supabaseAdmin()
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('slug', slug);
+      expect(count).toBe(0);
+    });
+
+    it('POST allows an INACTIVE bundle with no components (draft)', async () => {
+      const slug = uniqueSlug();
+      const { status, data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'DraftBundle', slug, description: 'd', price: 99,
+        is_bundle: true, is_active: false,
+      });
+      expect(status).toBe(201);
+      createdProductIds.push(data.data!.id);
+    });
+
+    it('POST allows an active bundle with >= 1 component', async () => {
+      const comp = await mkComponent();
+      const slug = uniqueSlug();
+      const { status, data } = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'GoodBundle', slug, description: 'd', price: 99,
+        is_bundle: true, is_active: true, bundleItemIds: [comp],
+      });
+      expect(status).toBe(201);
+      createdProductIds.push(data.data!.id);
+    });
+
+    it('PATCH rejects emptying the components of an active bundle', async () => {
+      const comp = await mkComponent();
+      const slug = uniqueSlug();
+      const created = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'PatchBundle', slug, description: 'd', price: 99,
+        is_bundle: true, is_active: true, bundleItemIds: [comp],
+      });
+      const pid = created.data.data!.id;
+      createdProductIds.push(pid);
+
+      const { status, data } = await patch<ApiResponse<{ id: string }>>(`/api/v1/products/${pid}`, {
+        bundleItemIds: [],
+      });
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+
+      // existing components are untouched (guard rejected before upsert)
+      const { count } = await supabaseAdmin()
+        .from('bundle_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('bundle_product_id', pid);
+      expect(count).toBe(1);
+    });
+
+    it('PATCH rejects activating a bundle that has no components', async () => {
+      const slug = uniqueSlug();
+      const created = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'DraftToActive', slug, description: 'd', price: 99,
+        is_bundle: true, is_active: false,
+      });
+      const pid = created.data.data!.id;
+      createdProductIds.push(pid);
+
+      const { status, data } = await patch<ApiResponse<{ id: string }>>(`/api/v1/products/${pid}`, {
+        is_active: true,
+      });
+      expect(status).toBe(400);
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+    });
+  });
 });

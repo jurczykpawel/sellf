@@ -4,9 +4,18 @@ import React from 'react';
 import type { ProductFormData, TranslationFunction } from '../types';
 
 interface ChecklistItem {
-  key: 'name' | 'price' | 'recurring_price' | 'content';
+  key: 'name' | 'price' | 'recurring_price' | 'content' | 'bundle-components';
+  /** Stable id alias of `key` — used by tests/integrations that key off `id`. */
+  id: ChecklistItem['key'];
   label: string;
   ok: boolean;
+  /** `done` alias of `ok` — mirrors the id/key naming so consumers can use either. */
+  done: boolean;
+}
+
+/** Build a checklist item, keeping the key/id and ok/done aliases in sync. */
+function item(key: ChecklistItem['key'], label: string, ok: boolean): ChecklistItem {
+  return { key, id: key, label, ok, done: ok };
 }
 
 export function getPublishChecklist(
@@ -15,32 +24,29 @@ export function getPublishChecklist(
   t: TranslationFunction,
 ): ChecklistItem[] {
   const items: ChecklistItem[] = [
-    { key: 'name', label: t('publish.name'), ok: !!formData.name.trim() },
+    item('name', t('publish.name'), !!formData.name.trim()),
   ];
 
   const uxType = formData.ux_product_type;
 
   if (uxType === 'subscription') {
-    items.push({
-      key: 'recurring_price',
-      label: t('publish.recurringPrice'),
-      ok: (formData.recurring_price ?? 0) > 0,
-    });
+    items.push(item('recurring_price', t('publish.recurringPrice'), (formData.recurring_price ?? 0) > 0));
   } else if (uxType === 'lead-magnet') {
     const hasContent = (formData.content_config?.content_items?.length ?? 0) > 0;
-    items.push({
-      key: 'content',
-      label: t('publish.leadMagnetFile'),
-      ok: hasContent,
-    });
+    items.push(item('content', t('publish.leadMagnetFile'), hasContent));
   } else if (uxType === 'standard') {
-    items.push({
-      key: 'price',
-      label: t('publish.price'),
-      ok: priceDisplayValue !== '' && formData.price > 0,
-    });
+    items.push(item('price', t('publish.price'), priceDisplayValue !== '' && formData.price > 0));
   }
   // tip-jar: only name required at publish (suggested amounts in step 1 PriceVatInline)
+
+  // A bundle must group at least one component product before it can be published.
+  if (formData.is_bundle) {
+    items.push(item(
+      'bundle-components',
+      t('checklist.bundleComponents'),
+      (formData.bundleItemIds?.length ?? 0) >= 1,
+    ));
+  }
 
   return items;
 }

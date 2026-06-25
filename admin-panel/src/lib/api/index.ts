@@ -62,6 +62,8 @@ export {
   parseEmbed,
   buildProductSelect,
   transformEmbeddedRelations,
+  BUNDLE_ITEM_COUNT_SELECT,
+  flattenBundleItemCount,
 } from './embed';
 
 // Filter helpers

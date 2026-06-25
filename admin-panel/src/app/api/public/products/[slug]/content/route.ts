@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
+import { firstRelated } from '@/lib/supabase/relations';
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +43,7 @@ export async function GET(
         currency,
         is_active,
         is_featured,
+        is_bundle,
         available_from,
         available_until,
         content_config,
@@ -94,6 +96,27 @@ export async function GET(
     const admin = createAdminClient();
     const license = toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user));
 
+    // For bundles, resolve the component products so the access view can link to
+    // each owned component (the buyer has access to all of them). Non-bundles
+    // return [] so the access view renders unchanged. Uses the FK-hinted
+    // relationship name because bundle_items references products twice.
+    let bundleComponents: Array<{ name: string; icon: string; slug: string }> = [];
+    if (productWithAccess.is_bundle) {
+      const { data: items, error: bundleError } = await admin
+        .from('bundle_items')
+        .select('display_order, component:products!bundle_items_component_product_id_fkey(name,icon,slug)')
+        .eq('bundle_product_id', productWithAccess.id)
+        .order('display_order');
+
+      if (bundleError) {
+        console.error('[product-content] Failed to load bundle components:', bundleError);
+      } else {
+        bundleComponents = (items ?? [])
+          .map((i) => firstRelated<{ name: string; icon: string; slug: string }>(i.component))
+          .filter((c): c is { name: string; icon: string; slug: string } => c != null);
+      }
+    }
+
     // Return secure product data with computed access status
     return NextResponse.json({
       product: {
@@ -115,6 +138,7 @@ export async function GET(
         shop_name: shopName,
       },
       license,
+      bundleComponents,
       userAccess: {
         access_expires_at: userAccess.access_expires_at,
         access_duration_days: userAccess.access_duration_days,

@@ -43,6 +43,13 @@ export interface PurchaseWebhookData {
   product: ProductDetail | { id: string };
   bumpProduct: ProductDetail | null;
   bumpProducts: ProductDetail[];
+  /**
+   * Components of a purchased bundle (`is_bundle=true`), resolved from `bundle_items`.
+   * Empty for non-bundle purchases (mirrors the `bumpProducts[]` pattern). Mode 1a:
+   * components are NOT separate taxed lines, so these carry basic product detail only
+   * (no per-line tax snapshot, unlike bumps).
+   */
+  bundleComponents: ProductDetail[];
   order: {
     amount: number | null;
     currency: string | null;
@@ -70,12 +77,12 @@ export interface PurchaseWebhookData {
    */
   customFields?: DisplayCustomField[];
   source?: string;
-  /** License issued on purchase. Present only when the product has license issuance enabled. */
-  license?: {
-    token: string;
-    kid: string;
-    jwksUrl: string;
-  };
+  /**
+   * Licenses issued for this order — one entry per licensable product in
+   * `[productId, ...bundleComponentIds]`. Present only when at least one issued.
+   * Replaces the former singular `license` field (breaking).
+   */
+  licenses?: Array<{ productId: string; token: string; kid: string; jwksUrl: string }>;
 }
 
 export interface BuildWebhookPayloadParams {
@@ -84,6 +91,12 @@ export interface BuildWebhookPayloadParams {
   userId: string | null;
   productId: string;
   bumpProductIds: string[];
+  /**
+   * Component product ids of a purchased bundle (from `bundle_items`, ordered by
+   * `display_order`). `[]` for a non-bundle product. Fetched as basic ProductDetail
+   * into `bundleComponents` — mode 1a, so NO per-line tax snapshot is applied.
+   */
+  componentProductIds?: string[];
   metadata: Record<string, string | undefined> | null;
   amount: number | null;
   currency: string | null;
@@ -149,6 +162,7 @@ export async function buildPurchaseWebhookPayload(
 ): Promise<PurchaseWebhookData> {
   const {
     supabaseClient, customerEmail, userId, productId, bumpProductIds,
+    componentProductIds = [],
     metadata, amount, currency, sessionId, paymentIntentId,
     couponId, isGuest, source, customFieldValues, taxSnapshot, stripeCustomerDetails,
   } = params;
@@ -179,6 +193,28 @@ export async function buildPurchaseWebhookPayload(
     }
   }
 
+  // Fetch bundle component details (batch). Mode 1a: components are not separate taxed lines,
+  // so we carry basic product detail only — NO applyLineTax (unlike bumps). Preserve the
+  // bundle_items display_order resolved by the caller.
+  let bundleComponentDetails: ProductDetail[] = [];
+  if (componentProductIds.length > 0) {
+    const { data: components } = await supabaseClient
+      .from('products')
+      .select('id, name, slug, price, currency, icon')
+      .in('id', componentProductIds);
+    if (components) {
+      const byId = new Map<string, ProductDetail>(
+        components.map((c) => [
+          c.id,
+          { id: c.id, name: c.name, slug: c.slug, price: c.price, currency: c.currency, icon: c.icon },
+        ]),
+      );
+      bundleComponentDetails = componentProductIds
+        .map((id) => byId.get(id))
+        .filter((c): c is ProductDetail => c !== undefined);
+    }
+  }
+
   const webhookData: PurchaseWebhookData = {
     customer: {
       email: customerEmail,
@@ -205,6 +241,7 @@ export async function buildPurchaseWebhookPayload(
       ? applyLineTax(bumpProductDetailsList[0], taxSnapshot, vatExemptById)
       : null,
     bumpProducts: bumpProductDetailsList.map((b) => applyLineTax(b, taxSnapshot, vatExemptById)),
+    bundleComponents: bundleComponentDetails,
     order: {
       amount,
       currency,

@@ -1142,3 +1142,13 @@ UPDATE products
    SET vat_exempt = true,
        vat_exempt_note = 'zw. z VAT — art. 113 ust. 1 ustawy o VAT'
  WHERE slug = 'vip-masterclass';
+
+-- Bundle sample (2026-06-25 product_bundles): a bundle product (is_bundle=true) whose
+-- purchase grants its component products via grant_product_and_bundle_components.
+-- Components are existing one_time products, linked by slug (mirrors the oto_offers pattern).
+INSERT INTO products (name, slug, description, long_description, icon, price, currency, is_active, is_featured, is_listed, is_bundle) VALUES
+  ('Starter Bundle', 'starter-bundle', 'Premium Course + Pro Toolkit at one price.', E'## Starter Bundle\n\nGet both the **Premium Course** and the **Pro Toolkit** in a single purchase — access to every component is granted automatically on checkout.', '📦', 119.99, 'USD', true, true, true, true);
+
+INSERT INTO bundle_items (bundle_product_id, component_product_id, display_order) VALUES
+  ((SELECT id FROM products WHERE slug = 'starter-bundle'), (SELECT id FROM products WHERE slug = 'premium-course'), 0),
+  ((SELECT id FROM products WHERE slug = 'starter-bundle'), (SELECT id FROM products WHERE slug = 'pro-toolkit'), 1);

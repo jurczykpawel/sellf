@@ -23,6 +23,8 @@ import {
   parseEmbed,
   buildProductSelect,
   transformEmbeddedRelations,
+  BUNDLE_ITEM_COUNT_SELECT,
+  flattenBundleItemCount,
 } from '@/lib/api';
 import { parseCsvFilter, resolveFilterIds, intersectProductIdsByMembership, quoteForPostgrestOr } from '@/lib/api/filters';
 import { z } from 'zod';
@@ -32,7 +34,8 @@ import {
   validateProductSortColumn,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
-import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema } from '@/lib/api/dto/product';
+import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
+import { upsertBundleItems } from '@/lib/services/bundle-items';
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -132,10 +135,11 @@ export async function GET(request: NextRequest) {
     if (filteredIds) countQuery = countQuery.in('id', filteredIds);
     const { count } = await countQuery;
 
-    // Build main query - fetch limit + 1 to detect next page
+    // Build main query - fetch limit + 1 to detect next page.
+    // List rows carry a bundle_item_count (component count for bundles, 0 otherwise).
     let query = supabase
       .from('products')
-      .select(buildProductSelect(PRODUCT_API_FIELDS, embed));
+      .select(`${buildProductSelect(PRODUCT_API_FIELDS, embed)}, ${BUNDLE_ITEM_COUNT_SELECT}`);
 
     // Apply search filter
     if (searchPattern) {
@@ -178,9 +182,12 @@ export async function GET(request: NextRequest) {
       cursor
     );
 
+    const withCount = (items as unknown[]).map((row) =>
+      flattenBundleItemCount(row as Record<string, unknown> & { bundle_items?: Array<{ count: number }> | null }),
+    );
     const transformed = embed.size > 0
-      ? (items as unknown[]).map((row) => transformEmbeddedRelations(row as unknown as Record<string, unknown>))
-      : items;
+      ? withCount.map((row) => transformEmbeddedRelations(row as unknown as Record<string, unknown>))
+      : withCount;
     return jsonResponse(successResponse(transformed, { ...pagination, total: count ?? undefined }), request);
   } catch (error) {
     return handleApiError(error, request);
@@ -216,14 +223,16 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories and tags separately
-    const { categories: categoriesRaw, tags: tagsRaw, ...productDataRaw } = body;
+    // Extract categories, tags, and bundle components separately
+    const { categories: categoriesRaw, tags: tagsRaw, bundleItemIds: bundleItemIdsRaw, ...productDataRaw } = body;
 
     let categories: string[] | undefined;
     let tags: string[] | undefined;
+    let bundleItemIds: string[] | undefined;
     try {
       categories = ProductCategoriesSchema.parse(categoriesRaw);
       tags = ProductTagsSchema.parse(tagsRaw);
+      bundleItemIds = BundleItemIdsSchema.parse(bundleItemIdsRaw);
     } catch (err) {
       if (err instanceof z.ZodError) {
         throw new ApiValidationError('Validation failed', {
@@ -250,6 +259,17 @@ export async function POST(request: NextRequest) {
       throw new ApiValidationError('Validation failed', {
         _errors: validation.errors,
       });
+    }
+
+    // Server-side empty-bundle guard (mirrors the client PublishChecklist): a bundle
+    // that is published (active) must have at least one component, otherwise it just
+    // grants itself. On create the only source of components is bundleItemIds.
+    if (sanitizedData.is_bundle === true && sanitizedData.is_active === true) {
+      if (!bundleItemIds || bundleItemIds.length < 1) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: ['An active bundle must have at least one component (bundleItemIds)'],
+        });
+      }
     }
 
     // Check slug uniqueness
@@ -295,6 +315,19 @@ export async function POST(request: NextRequest) {
         .from('product_tags')
         .insert(tags.map((tag_id) => ({ product_id: product.id, tag_id })));
       if (tagLinkErr) console.error('[products.POST tags]', tagLinkErr);
+    }
+
+    // Persist bundle components when this product is a bundle. The bundle_items
+    // trigger validates each component; an invalid one throws and surfaces as a
+    // clean validation error (not a 500).
+    if (product && sanitizedData.is_bundle === true && bundleItemIds !== undefined) {
+      try {
+        await upsertBundleItems(supabase, product.id, bundleItemIds);
+      } catch (bundleErr) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: [bundleErr instanceof Error ? bundleErr.message : 'Failed to persist bundle components'],
+        });
+      }
     }
 
     const embed = parseEmbed('categories,tags');

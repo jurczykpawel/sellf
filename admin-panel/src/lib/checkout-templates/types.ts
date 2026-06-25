@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { Product } from '@/types';
 import type { ExpressCheckoutConfig } from '@/types/payment-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
+import type { BundleComponentSummary } from '@/app/[locale]/checkout/[slug]/components/BundleContentsPreview';
 
 // Canonical list of checkout templates. Mirrored in:
 //   - supabase/migrations/<ts>_add_checkout_template_to_products.sql (CHECK)
@@ -22,6 +23,11 @@ export interface CheckoutTemplateProps {
   taxMode: TaxMode;
   /** Single ToS setting (collect_terms_of_service), resolved server-side. */
   collectTermsOfService: boolean;
+  /**
+   * Resolved bundle components when `product.is_bundle`; empty/absent otherwise.
+   * Threaded down to ProductShowcase to render the "This bundle includes:" block.
+   */
+  bundleComponents?: BundleComponentSummary[];
 }
 
 export interface CheckoutTemplate {

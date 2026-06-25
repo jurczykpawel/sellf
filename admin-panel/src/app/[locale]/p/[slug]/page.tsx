@@ -14,6 +14,7 @@ import {
 } from '@/lib/payment/product-access-decision';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
+import { firstRelated } from '@/lib/supabase/relations';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -201,10 +202,30 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const now = new Date();
     const msPerDay = 1000 * 60 * 60 * 24;
 
+    // For bundles, resolve component products so the access view can link to each
+    // owned component. Empty for non-bundles. Uses the FK-hinted relationship name
+    // (bundle_items references products twice). Mirrors the content API's logic.
+    let bundleComponents: SecureProductResponse['bundleComponents'] = [];
+    if (product.is_bundle) {
+      const { data: items, error: bundleError } = await createAdminClient()
+        .from('bundle_items')
+        .select('display_order, component:products!bundle_items_component_product_id_fkey(name,icon,slug)')
+        .eq('bundle_product_id', product.id)
+        .order('display_order');
+      if (bundleError) {
+        console.error('[ProductPage] Failed to load bundle components:', bundleError);
+      } else {
+        bundleComponents = (items ?? [])
+          .map((i) => firstRelated<{ name: string; icon: string; slug: string }>(i.component))
+          .filter((c): c is { name: string; icon: string; slug: string } => c != null);
+      }
+    }
+
     initialSecureData = {
       product,
       branding: { shop_name: shopConfig?.shop_name ?? null },
       license: existingLicense,
+      bundleComponents,
       userAccess: {
         access_expires_at: expiresAtIso,
         access_duration_days: resolvedAccess.access_duration_days ?? null,
