@@ -295,6 +295,45 @@ export type Database = {
           },
         ]
       }
+      bundle_items: {
+        Row: {
+          bundle_product_id: string
+          component_product_id: string
+          created_at: string
+          display_order: number
+          id: string
+        }
+        Insert: {
+          bundle_product_id: string
+          component_product_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+        }
+        Update: {
+          bundle_product_id?: string
+          component_product_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_items_bundle_product_id_fkey"
+            columns: ["bundle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_items_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -1545,6 +1584,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          is_bundle: boolean
           is_featured: boolean
           is_listed: boolean
           is_refundable: boolean
@@ -1603,6 +1643,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_bundle?: boolean
           is_featured?: boolean
           is_listed?: boolean
           is_refundable?: boolean
@@ -1661,6 +1702,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_bundle?: boolean
           is_featured?: boolean
           is_listed?: boolean
           is_refundable?: boolean
@@ -3209,6 +3251,14 @@ export type Database = {
       grant_product_access_service_role: {
         Args: {
           max_retries?: number
+          override_duration_days_param?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
+      grant_product_and_bundle_components: {
+        Args: {
           override_duration_days_param?: number
           product_id_param: string
           user_id_param: string
