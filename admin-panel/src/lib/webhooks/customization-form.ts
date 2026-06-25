@@ -5,7 +5,7 @@
 
 /** Selectable top-level keys of the purchase.completed payload (PurchaseWebhookData). */
 export const PAYLOAD_TOP_LEVEL_KEYS = [
-  'customer', 'product', 'order', 'customFields', 'bumpProduct', 'bumpProducts', 'invoice', 'license', 'source',
+  'customer', 'product', 'order', 'customFields', 'bumpProduct', 'bumpProducts', 'bundleComponents', 'invoice', 'licenses', 'source',
 ] as const;
 
 /** Placeholder tokens available in extra fields (display hint only). */

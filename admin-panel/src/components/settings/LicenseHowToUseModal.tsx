@@ -13,31 +13,36 @@ interface Props {
 
 const WEBHOOK_PAYLOAD_EXAMPLE = `{
   "event": "purchase.completed",
-  "license": {
-    "token": "eyJ2IjoxLCJraWQiOiJhYmNkZWYxMjM0NTY3ODkwIn0.abc...",
-    "kid": "abcdef0123456789",
-    "jwksUrl": "https://yourdomain.com/api/licenses/jwks?seller=uuid"
-  },
+  "licenses": [
+    {
+      "productId": "...",
+      "token": "eyJ2IjoxLCJraWQiOiJhYmNkZWYxMjM0NTY3ODkwIn0.abc...",
+      "kid": "abcdef0123456789",
+      "jwksUrl": "https://yourdomain.com/api/licenses/jwks?seller=uuid"
+    }
+  ],
   "product": { "id": "...", "slug": "my-product" },
   "customer": { "email": "customer@example.com" }
 }`;
 
 const JWKS_EXAMPLE = (jwksUrl: string) =>
-  `// event.license.jwksUrl comes straight from the webhook payload.
+  `// event.licenses[0].jwksUrl comes straight from the webhook payload.
+// A bundle purchase issues one license per licensable product — iterate event.licenses.
 // Cache the response — the endpoint sets max-age=300.
 const res = await fetch('${jwksUrl}');
 const { keys } = await res.json();
 // keys = [{ kid, alg, pem }, ...]`;
 
-const JWKS_PLACEHOLDER = `// event.license.jwksUrl comes straight from the webhook payload.
+const JWKS_PLACEHOLDER = `// event.licenses[0].jwksUrl comes straight from the webhook payload.
+// A bundle purchase issues one license per licensable product — iterate event.licenses.
 // Cache the response — the endpoint sets max-age=300.
-const res = await fetch(event.license.jwksUrl);
+const res = await fetch(event.licenses[0].jwksUrl);
 const { keys } = await res.json();
 // keys = [{ kid, alg, pem }, ...]`;
 
 const VERIFY_CODE = `import { createVerify } from 'node:crypto';
 
-// token = event.license.token from the purchase.completed webhook
+// token = event.licenses[i].token from the purchase.completed webhook
 function verifyLicense(token, publicKeyPem) {
   const dot = token.indexOf('.');
   const payload = token.slice(0, dot);

@@ -14,7 +14,7 @@ import { revalidateTag } from 'next/cache';
 import type Stripe from 'stripe';
 import { getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
-import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
+import { buildPurchaseWebhookPayload, type PurchaseWebhookData } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { trackServerSideConversion, generatePurchaseEventId } from '@/lib/tracking';
@@ -25,6 +25,64 @@ function revalidatePurchaseTags(productSlug: unknown): void {
   if (typeof productSlug !== 'string' || productSlug.length === 0) return;
   revalidateTag('recent-supporters', { expire: 0 });
   revalidateTag(`product:${productSlug}`, { expire: 0 });
+}
+
+/**
+ * Resolve a bundle's component product ids (ordered by display_order). Returns [] for a
+ * non-bundle product (no rows) or on a query error — a bundle purchase still grants the
+ * bundle itself, so this is fail-safe and never blocks the webhook.
+ */
+async function resolveComponentProductIds(
+  supabase: ReturnType<typeof createAdminClient>,
+  productId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('bundle_items')
+    .select('component_product_id')
+    .eq('bundle_product_id', productId)
+    .order('display_order', { ascending: true });
+  if (error) {
+    console.error('[stripe-webhook] Failed to resolve bundle component ids:', error);
+    return [];
+  }
+  return (data ?? []).map((r) => r.component_product_id as string);
+}
+
+/**
+ * Issue a license for every licensable product in the order (`[productId, ...componentIds]`)
+ * and return the collected `licenses[]`. Idempotent per (order_id, product_id) via issueLicense;
+ * products without issuance enabled simply yield no entry.
+ */
+async function issueLicensesForOrder(
+  supabase: ReturnType<typeof createAdminClient>,
+  args: {
+    productIds: string[];
+    email: string;
+    userId: string | null;
+    orderId: string;
+    customFieldValues?: Record<string, string>;
+  },
+): Promise<NonNullable<PurchaseWebhookData['licenses']>> {
+  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+  const licenses: NonNullable<PurchaseWebhookData['licenses']> = [];
+  for (const pid of args.productIds) {
+    const res = await issueLicense(supabase, {
+      productId: pid,
+      email: args.email,
+      userId: args.userId,
+      orderId: args.orderId,
+      customFieldValues: args.customFieldValues,
+    });
+    if (res) {
+      licenses.push({
+        productId: pid,
+        token: res.token,
+        kid: res.kid,
+        jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${res.sellerId}`,
+      });
+    }
+  }
+  return licenses;
 }
 
 /**
@@ -185,9 +243,14 @@ export async function handleCheckoutSessionCompleted(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
-  // Issue license — always, regardless of already_had_access.
-  // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
-  // Prefer payment-intent id: both webhook paths use it so the unique constraint backs idempotency.
+  // Resolve bundle components (ordered) — [] for a non-bundle product. A bundle grants
+  // the bundle + every component (DB), and we issue a license per licensable product below.
+  const componentProductIds = await resolveComponentProductIds(supabase, productId);
+
+  // Issue licenses — always, regardless of already_had_access. One per licensable product in
+  // [productId, ...componentProductIds]. issueLicense is idempotent by (order_id, product_id);
+  // replays return the existing token. Prefer payment-intent id: both webhook paths use it so the
+  // unique constraint backs idempotency.
   const { data: txCustomFields } = await supabase
     .from('payment_transactions')
     .select('id, custom_field_values')
@@ -195,8 +258,8 @@ export async function handleCheckoutSessionCompleted(
     .maybeSingle();
   const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
 
-  const licenseResult = await issueLicense(supabase, {
-    productId,
+  const licenses = await issueLicensesForOrder(supabase, {
+    productIds: [productId, ...componentProductIds],
     email: customerEmail,
     userId,
     orderId: stripePaymentIntentId || sessionId,
@@ -225,6 +288,7 @@ export async function handleCheckoutSessionCompleted(
       userId,
       productId,
       bumpProductIds,
+      componentProductIds,
       metadata: session.metadata as Record<string, string | undefined> | null,
       // Embed collects NIP/address via Stripe → carry them to the invoice section.
       stripeCustomerDetails: session.customer_details,
@@ -239,10 +303,7 @@ export async function handleCheckoutSessionCompleted(
       customFieldValues: customFieldValues ?? null,
     });
 
-    if (licenseResult) {
-      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-      webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
-    }
+    if (licenses.length) webhookData.licenses = licenses;
 
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
@@ -266,7 +327,7 @@ export async function handleCheckoutSessionCompleted(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...bumpProductIds])
+    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...componentProductIds, ...bumpProductIds])
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
@@ -406,8 +467,12 @@ export async function handlePaymentIntentSucceeded(
     return { processed: false, message: (result?.error as string) || 'Payment processing failed' };
   }
 
-  // Issue license — always, regardless of already_had_access.
-  // issueLicense is idempotent by (order_id, product_id); replays return the existing token.
+  // Resolve bundle components (ordered) — [] for a non-bundle product.
+  const componentProductIds = await resolveComponentProductIds(supabase, productId);
+
+  // Issue licenses — always, regardless of already_had_access. One per licensable product in
+  // [productId, ...componentProductIds]. issueLicense is idempotent by (order_id, product_id);
+  // replays return the existing token.
   const { data: txCustomFields } = await supabase
     .from('payment_transactions')
     .select('id, session_id, custom_field_values')
@@ -415,8 +480,8 @@ export async function handlePaymentIntentSucceeded(
     .maybeSingle();
   const customFieldValues = (txCustomFields?.custom_field_values as Record<string, string> | null) ?? undefined;
 
-  const licenseResult = await issueLicense(supabase, {
-    productId,
+  const licenses = await issueLicensesForOrder(supabase, {
+    productIds: [productId, ...componentProductIds],
     email: customerEmail,
     userId,
     orderId: paymentIntent.id,
@@ -445,6 +510,7 @@ export async function handlePaymentIntentSucceeded(
       userId,
       productId,
       bumpProductIds,
+      componentProductIds,
       metadata: paymentIntent.metadata as Record<string, string | undefined> | null,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
@@ -456,10 +522,7 @@ export async function handlePaymentIntentSucceeded(
       customFieldValues: customFieldValues ?? null,
     });
 
-    if (licenseResult) {
-      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
-      webhookData.license = { token: licenseResult.token, kid: licenseResult.kid, jwksUrl: `${siteUrl}/api/licenses/jwks?seller=${licenseResult.sellerId}` };
-    }
+    if (licenses.length) webhookData.licenses = licenses;
 
     // Server-side Purchase tracking via Facebook CAPI
     const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
@@ -482,7 +545,7 @@ export async function handlePaymentIntentSucceeded(
       userEmail: customerEmail,
     }).catch(err => console.error('[Stripe Webhook] FB CAPI Purchase tracking error:', err));
 
-    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...bumpProductIds])
+    WebhookService.trigger('purchase.completed', webhookData, supabase, [productId, ...componentProductIds, ...bumpProductIds])
       .catch(err => console.error('[Stripe Webhook] Internal webhook error:', err));
   }
 
