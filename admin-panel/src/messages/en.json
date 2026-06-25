@@ -28,6 +28,7 @@
       "banner": "FUNNEL TEST",
       "description": "You are previewing this checkout as admin. No payment will be processed.",
       "completeButton": "Pay (simulation)",
+      "completeButtonFree": "Get it (simulation)",
       "endToast": "End of funnel - no further steps"
     },
     "loadError": "Failed to load checkout. Please try again later.",

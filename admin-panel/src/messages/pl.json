@@ -28,6 +28,7 @@
       "banner": "TEST LEJKA",
       "description": "Podgląd checkoutu jako administrator. Żadna płatność nie zostanie przetworzona.",
       "completeButton": "Zapłać (symulacja)",
+      "completeButtonFree": "Odbierz (symulacja)",
       "endToast": "Koniec lejka - brak dalszych kroków"
     },
     "loadError": "Nie udało się załadować płatności. Spróbuj ponownie później.",
