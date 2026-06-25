@@ -108,6 +108,30 @@ describe.skipIf(!db)('bundle_items schema + guards', () => {
     expect(owned.has(b)).toBe(true);
   });
 
+  it('grants an inactive component (is_active governs standalone sale, not bundle membership)', async () => {
+    const bundle = await mkProduct({ is_bundle: true });
+    const active = await mkProduct({ is_bundle: false, is_active: true });
+    const inactive = await mkProduct({ is_bundle: false, is_active: false });
+    await db!.from('bundle_items').insert([
+      { bundle_product_id: bundle, component_product_id: active, display_order: 0 },
+      { bundle_product_id: bundle, component_product_id: inactive, display_order: 1 },
+    ]);
+    const { data: user } = await db!.auth.admin.createUser({ email: `i-${crypto.randomUUID().slice(0,8)}@t.dev`, email_confirm: true });
+    users.push(user!.user!.id);
+
+    const { error } = await db!.rpc('grant_product_and_bundle_components', {
+      user_id_param: user!.user!.id, product_id_param: bundle,
+    });
+    expect(error).toBeNull();
+
+    const { data: access } = await db!.from('user_product_access')
+      .select('product_id').eq('user_id', user!.user!.id);
+    const owned = new Set((access ?? []).map((r) => r.product_id));
+    expect(owned.has(bundle)).toBe(true);
+    expect(owned.has(active)).toBe(true);
+    expect(owned.has(inactive)).toBe(true); // inactive component MUST still be granted
+  });
+
   it('grants only the product for a non-bundle', async () => {
     const plain = await mkProduct({ is_bundle: false });
     const { data: user } = await db!.auth.admin.createUser({ email: `p-${crypto.randomUUID().slice(0,8)}@t.dev`, email_confirm: true });

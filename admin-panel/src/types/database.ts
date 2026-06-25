@@ -3240,6 +3240,14 @@ export type Database = {
           variant_name: string
         }[]
       }
+      grant_bundle_component_access: {
+        Args: {
+          max_retries?: number
+          product_id_param: string
+          user_id_param: string
+        }
+        Returns: Json
+      }
       grant_free_product_access: {
         Args: {
           access_duration_days_param?: number
