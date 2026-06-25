@@ -2605,6 +2605,10 @@
     "stripeTax": {
       "title": "Podatki i Checkout",
       "subtitle": "Tryb naliczania podatków i ustawienia sesji checkout",
+      "vatExempt": {
+        "label": "Sklep zwolniony z VAT (zw.)",
+        "help": "Nowe produkty będą domyślnie zwolnione z VAT — przy checkout nie zostanie naliczony podatek. To jedyne miejsce edycji; w zakładce Dokumenty prawne wartość jest tylko do odczytu."
+      },
       "taxMode": {
         "label": "Tryb naliczania podatków",
         "description": "Wybierz sposób naliczania podatków w sesjach checkout.",
@@ -2764,6 +2768,9 @@
       "complaintsEmailLabel": "E-mail do reklamacji (opcjonalnie)",
       "complaintsEmailPlaceholder": "reklamacje@example.com",
       "isVatExemptLabel": "Sprzedawca zwolniony z VAT",
+      "isVatExemptYes": "Tak",
+      "isVatExemptNo": "Nie",
+      "isVatExemptManagedIn": "Zmienisz w Płatności → Podatki",
       "isMicroEnterpriseLabel": "Mikroprzedsiębiorstwo (< 10 pracowników, < 2 mln EUR przychodu)",
       "hasDpoLabel": "Powołano Inspektora Ochrony Danych (IOD/DPO)",
       "dpoContactLabel": "Kontakt do IOD (e-mail lub adres pocztowy)",

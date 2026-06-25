@@ -209,6 +209,23 @@ export default function StripeTaxSettings() {
  }
  }
 
+ const handleVatExempt = async (value: boolean) => {
+ setSaving(true)
+ try {
+ const success = await updateShopConfig({ is_vat_exempt: value })
+ if (success) {
+ setIsVatExempt(value)
+ toast.success(t('saveSuccess'))
+ } else {
+ toast.error(t('saveError'))
+ }
+ } catch {
+ toast.error(t('saveError'))
+ } finally {
+ setSaving(false)
+ }
+ }
+
  const handleToggle = async (
  field: 'tax_id_collection_enabled' | 'checkout_collect_terms',
  value: boolean,
@@ -342,6 +359,22 @@ export default function StripeTaxSettings() {
  {shouldWarnExemptIgnoredUnderStripeTax({ isVatExempt, taxMode }) && (
  <p className="text-xs text-sf-warning mt-2">⚠️ {t('taxMode.exemptIgnoredWarning')}</p>
  )}
+ </div>
+
+ {/* Shop VAT exemption (zw.) — single source of truth; read-only mirror in Legal docs */}
+ <div className="mb-6 p-4 bg-sf-raised border border-sf-border">
+ <label htmlFor="shop-vat-exempt" className="flex items-center gap-3 cursor-pointer select-none">
+ <input
+ id="shop-vat-exempt"
+ type="checkbox"
+ checked={isVatExempt}
+ onChange={(e) => handleVatExempt(e.target.checked)}
+ disabled={saving}
+ className="h-4 w-4 accent-sf-accent"
+ />
+ <span className="text-sm font-medium text-sf-heading">{t('vatExempt.label')}</span>
+ </label>
+ <p className="text-xs text-sf-muted mt-2">{t('vatExempt.help')}</p>
  </div>
 
  {/* Local mode: Default VAT Rate input + warnings */}

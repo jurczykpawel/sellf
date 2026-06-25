@@ -2590,6 +2590,10 @@
     "stripeTax": {
       "title": "Tax & Checkout",
       "subtitle": "Tax calculation mode and checkout session settings",
+      "vatExempt": {
+        "label": "Shop is VAT-exempt (zw.)",
+        "help": "New products are marked VAT-exempt by default — no VAT is added at checkout. This is the single place to set it; the Legal Documents tab shows it read-only."
+      },
       "taxMode": {
         "label": "Tax Calculation Mode",
         "description": "Choose how taxes are calculated for checkout sessions.",
@@ -2749,6 +2753,9 @@
       "complaintsEmailLabel": "Complaints e-mail (optional)",
       "complaintsEmailPlaceholder": "complaints@example.com",
       "isVatExemptLabel": "VAT-exempt seller",
+      "isVatExemptYes": "Yes",
+      "isVatExemptNo": "No",
+      "isVatExemptManagedIn": "Change it in Payments → Taxes",
       "isMicroEnterpriseLabel": "Micro-enterprise (< 10 employees, < €2 M revenue)",
       "hasDpoLabel": "Has Data Protection Officer (DPO)",
       "dpoContactLabel": "DPO contact (e-mail or postal address)",

@@ -197,7 +197,7 @@ export default function LegalDocumentsSettings() {
         company_postal: companyForm.company_postal || null,
         company_phone: companyForm.company_phone || null,
         complaints_email: companyForm.complaints_email || null,
-        is_vat_exempt: companyForm.is_vat_exempt,
+        // is_vat_exempt is edited in Payments → Taxes (single source of truth); shown read-only here.
         is_micro_enterprise: companyForm.is_micro_enterprise,
         has_dpo: companyForm.has_dpo,
         dpo_contact: companyForm.has_dpo ? (companyForm.dpo_contact || null) : null,
@@ -501,22 +501,16 @@ export default function LegalDocumentsSettings() {
             </div>
           </div>
 
-          {/* Toggles: VAT exempt / micro enterprise */}
+          {/* Toggles: micro enterprise / DPO. VAT exemption is edited in
+              Payments → Taxes (single source of truth) and mirrored read-only here. */}
           <div className="space-y-4">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={companyForm.is_vat_exempt}
-                onClick={() => setCompanyForm({ ...companyForm, is_vat_exempt: !companyForm.is_vat_exempt })}
-                className={`${toggleClass} ${companyForm.is_vat_exempt ? 'bg-sf-accent-bg' : 'bg-sf-border-medium'}`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${companyForm.is_vat_exempt ? 'translate-x-6' : 'translate-x-1'}`}
-                />
-              </button>
-              <span className="text-sm text-sf-body">{t('isVatExemptLabel')}</span>
-            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-sf-body">{t('isVatExemptLabel')}:</span>
+              <span className="text-sm font-medium text-sf-heading">
+                {companyForm.is_vat_exempt ? t('isVatExemptYes') : t('isVatExemptNo')}
+              </span>
+              <span className="text-xs text-sf-muted">{t('isVatExemptManagedIn')}</span>
+            </div>
 
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <button
