@@ -21,6 +21,7 @@ interface FormDataForValidation {
   description: string;
   price: number;
   vat_rate?: number | null;
+  vat_exempt?: boolean;
   price_includes_vat: boolean;
   allow_custom_price: boolean;
   product_type?: 'one_time' | 'subscription';
@@ -61,7 +62,8 @@ function collectVatErrors(formData: FormDataForValidation, taxMode: TaxMode | un
     ? (formData.recurring_price ?? 0) > 0
     : formData.price > 0 || formData.allow_custom_price;
 
-  if (taxMode === 'local' && isPaid && formData.price_includes_vat && formData.vat_rate == null) {
+  // "Zwolniony z VAT (zw.)" means no VAT at all — a rate is not applicable, so don't require one.
+  if (taxMode === 'local' && isPaid && !formData.vat_exempt && formData.price_includes_vat && formData.vat_rate == null) {
     errors.vat_rate = 'required';
   }
   return errors;

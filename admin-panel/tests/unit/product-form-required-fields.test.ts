@@ -199,3 +199,36 @@ describe('collectStep1FieldErrors', () => {
     expect(errors).toEqual({});
   });
 });
+
+describe('collectStep1FieldErrors — VAT exempt (zw.)', () => {
+  const paidNoRate = {
+    name: 'Foo',
+    slug: 'foo',
+    description: '',
+    price: 49,
+    vat_rate: null as number | null,
+    price_includes_vat: true,
+    allow_custom_price: false,
+    product_type: 'one_time' as const,
+    billing_interval: null,
+    billing_interval_count: null,
+    recurring_price: null,
+    trial_days: null,
+    ux_product_type: 'standard' as const,
+  };
+
+  it('baseline: requires vat_rate for a paid local product when NOT exempt', () => {
+    const errors = collectStep1FieldErrors(paidNoRate, '49,00', 'local');
+    expect(errors.vat_rate).toBe('required');
+  });
+
+  it('does NOT require vat_rate when the product is VAT-exempt (zw.)', () => {
+    // "Zwolniony z VAT (zw.)" = no VAT at all → a rate is not applicable.
+    const errors = collectStep1FieldErrors(
+      { ...paidNoRate, vat_exempt: true },
+      '49,00',
+      'local',
+    );
+    expect(errors.vat_rate).toBeUndefined();
+  });
+});
