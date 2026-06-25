@@ -200,7 +200,7 @@
   "navigation": {
     "dashboard": "Pulpit",
     "products": "Produkty",
-    "categories": "Kategorie",
+    "categories": "Kategorie i tagi",
     "orderBumps": "Order Bumps",
     "variants": "Warianty",
     "coupons": "Kupony",
@@ -1626,7 +1626,8 @@
           "durationHint": "Jak długo licencja jest ważna. Puste oznacza brak wygaśnięcia.",
           "proRequired": "Wystawianie licencji wymaga licencji Pro.",
           "proRequiredHint": "Przejdź na Pro, żeby wystawiać podpisane tokeny licencji kupującym."
-        }
+        },
+        "tags": "Tagi"
       }
     },
     "categories": {
@@ -2399,6 +2400,26 @@
       "groupDeactivated": "Grupa wariantów dezaktywowana",
       "toggleActiveError": "Nie udało się zmienić statusu grupy",
       "inactiveGroup": "Nieaktywna"
+    },
+    "tags": {
+      "title": "Tagi",
+      "createTag": "Utwórz tag",
+      "editTag": "Edytuj tag",
+      "deleteTag": "Usuń tag",
+      "deleteMessage": "Czy na pewno chcesz usunąć tag \"{name}\"? Tej operacji nie można cofnąć.",
+      "noTags": "Brak tagów. Utwórz pierwszy!",
+      "name": "Nazwa",
+      "slug": "Slug",
+      "actions": "Akcje",
+      "createSuccess": "Tag utworzony pomyślnie",
+      "updateSuccess": "Tag zaktualizowany pomyślnie",
+      "deleteSuccess": "Tag usunięty pomyślnie",
+      "error": "Błąd operacji"
+    },
+    "categoriesTags": {
+      "title": "Kategorie i tagi",
+      "categoriesTab": "Kategorie",
+      "tagsTab": "Tagi"
     }
   },
   "config": {

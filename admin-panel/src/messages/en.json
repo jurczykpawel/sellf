@@ -194,7 +194,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "products": "Products",
-    "categories": "Categories",
+    "categories": "Categories & Tags",
     "orderBumps": "Order Bumps",
     "variants": "Variants",
     "coupons": "Coupons",
@@ -1611,7 +1611,8 @@
           "durationHint": "How long the license stays valid. Empty means it never expires.",
           "proRequired": "License key issuance requires a Pro license.",
           "proRequiredHint": "Upgrade to Pro to issue signed license tokens to buyers on purchase."
-        }
+        },
+        "tags": "Tags"
       }
     },
     "categories": {
@@ -2384,6 +2385,26 @@
       "groupDeactivated": "Variant group deactivated",
       "toggleActiveError": "Failed to update group status",
       "inactiveGroup": "Inactive"
+    },
+    "tags": {
+      "title": "Tags",
+      "createTag": "Create Tag",
+      "editTag": "Edit Tag",
+      "deleteTag": "Delete Tag",
+      "deleteMessage": "Are you sure you want to delete the tag \"{name}\"? This action cannot be undone.",
+      "noTags": "No tags found. Create your first one!",
+      "name": "Name",
+      "slug": "Slug",
+      "actions": "Actions",
+      "createSuccess": "Tag created successfully",
+      "updateSuccess": "Tag updated successfully",
+      "deleteSuccess": "Tag deleted successfully",
+      "error": "Operation failed"
+    },
+    "categoriesTags": {
+      "title": "Categories & Tags",
+      "categoriesTab": "Categories",
+      "tagsTab": "Tags"
     }
   },
   "config": {

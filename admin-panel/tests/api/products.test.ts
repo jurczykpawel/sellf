@@ -702,6 +702,24 @@ describe('Products API v1', () => {
       expect(after.data.data!.tags).toEqual([]);
     });
 
+    // Mirrors the admin product wizard edit flow: it loads existing tags via the
+    // junction read (getProductTags), then re-submits them on save. PATCH with the
+    // same tag set must PRESERVE the tags, not wipe them. Guards the embed-tags gotcha.
+    it('PATCH with the same tags preserves them (edit flow)', async () => {
+      const slug = uniqueSlug();
+      const r = await post<ApiResponse<{ id: string }>>('/api/v1/products', {
+        name: 'EditPreserve', slug, description: 'd', price: 1, tags: [tagId],
+      });
+      const pid = r.data.data!.id;
+      createdProductIds.push(pid);
+
+      // Edit something unrelated while re-sending the existing tag set.
+      await patch<ApiResponse<unknown>>(`/api/v1/products/${pid}`, { name: 'EditPreserved', tags: [tagId] });
+      const after = await get<ApiResponse<{ name: string; tags: Array<{ id: string }> }>>(`/api/v1/products/${pid}`);
+      expect(after.data.data!.name).toBe('EditPreserved');
+      expect(after.data.data!.tags.map((t) => t.id)).toContain(tagId);
+    });
+
     it('POST rejects >50 tags', async () => {
       const slug = uniqueSlug();
       const bogus = Array.from({ length: 51 }, () => crypto.randomUUID());

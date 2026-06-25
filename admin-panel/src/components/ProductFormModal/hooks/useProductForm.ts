@@ -5,6 +5,7 @@ import { Product } from '@/types';
 import { ProductContentConfig } from '@/types';
 import { getIconEmoji } from '@/utils/themeUtils';
 import { getCategories, getProductCategories, Category } from '@/lib/actions/categories';
+import { getTags, getProductTags, Tag } from '@/lib/actions/tags';
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
@@ -56,6 +57,10 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
+  // Tags management
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+
   // Default currency from shop config
   const [defaultCurrency, setDefaultCurrency] = useState<string>('USD');
 
@@ -99,6 +104,22 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         }
       };
       fetchCats();
+
+      // Fetch all tags
+      const fetchTags = async () => {
+        setLoadingTags(true);
+        try {
+          const result = await getTags();
+          if (result.success && result.data) {
+            setAllTags(result.data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch tags', err);
+        } finally {
+          setLoadingTags(false);
+        }
+      };
+      fetchTags();
 
       // Fetch shop config from caller's own schema (seller sees their own, not platform's)
       getMyShopConfig().then(config => {
@@ -184,6 +205,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         success_redirect_url: product.success_redirect_url || '',
         pass_params_to_redirect: product.pass_params_to_redirect || false,
         categories: [],
+        tags: [],
         omnibus_exempt: product.omnibus_exempt || false,
         sale_price: product.sale_price || null,
         sale_price_until: product.sale_price_until || null,
@@ -227,6 +249,15 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       getProductCategories(product.id).then(result => {
         if (result.success && result.data) {
           setFormData(prev => ({ ...prev, categories: result.data! }));
+        }
+      }).catch(err => console.error(err));
+
+      // Fetch assigned tags. Reads the product_tags junction (getProductTags),
+      // never the single-GET embed, so saving an edited product preserves its
+      // existing tags instead of wiping them via PATCH replace-semantics.
+      getProductTags(product.id).then(result => {
+        if (result.success && result.data) {
+          setFormData(prev => ({ ...prev, tags: result.data! }));
         }
       }).catch(err => console.error(err));
 
@@ -697,6 +728,10 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // Categories
     allCategories,
     loadingCategories,
+
+    // Tags
+    allTags,
+    loadingTags,
 
     // Settings
     defaultCurrency,

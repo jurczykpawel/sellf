@@ -63,6 +63,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     loadingProducts,
     allCategories,
     loadingCategories,
+    allTags,
+    loadingTags,
     omnibusEnabled,
     shopDefaultVatRate,
     taxMode,
@@ -241,6 +243,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 validateContentItemUrl={validateContentItemUrl}
                 allCategories={allCategories}
                 loadingCategories={loadingCategories}
+                allTags={allTags}
+                loadingTags={loadingTags}
                 fieldErrors={fieldErrors}
                 setFieldErrors={setFieldErrors}
                 products={products}
