@@ -50,6 +50,35 @@ snapshot captured from Stripe at purchase. **All amounts are in minor units**
   `tax_snapshot_status` (on `/api/v1/payments`: `none` / `captured` / `partial` /
   `unavailable`) distinguishes "no VAT line" from "not computed".
 
+#### Bundles & licenses
+
+When the purchased `product` is a **bundle** (a product that grants access to several component
+products), `purchase.completed` also carries the granted components and any issued license keys:
+
+```json
+{
+  "product": { "id": "…", "name": "Bundle: …", "slug": "…", "net": 19900, "tax": 0, "…": "…" },
+  "bundleComponents": [
+    { "id": "…", "name": "Course …", "slug": "course-…", "price": 149, "currency": "PLN", "icon": "🤖" }
+  ],
+  "licenses": [
+    { "productId": "…", "token": "<signed-license>", "kid": "…", "jwksUrl": "https://…/api/licenses/jwks?seller=…" }
+  ]
+}
+```
+
+- `bundleComponents[]` lists the component products the buyer gained access to through the bundle.
+  In tax mode 1a the bundle is a **single** line item carrying its own VAT — components are **not**
+  separately taxed lines, so they carry basic product detail without a per-line tax snapshot. The
+  field is `[]` for non-bundle purchases.
+- `licenses[]` carries one entry per product in the order that has license issuance enabled — the
+  purchased product itself **and/or** any bundle components. It is omitted when no product in the
+  order issues a license.
+- **⚠️ Breaking change:** `licenses[]` **replaces** the previous single `license` object. A consumer
+  that read `data.license` must switch to `data.licenses[]` (e.g. `data.licenses[0]`).
+- **Per-product webhook scoping:** a bundle purchase fires for the bundle **and** every component
+  product id, so an endpoint scoped to a component still receives the event.
+
 ### `invoice.paid` — subscription VAT snapshot
 
 Recurring subscription charges emit `invoice.paid` (not `purchase.completed`). It carries
