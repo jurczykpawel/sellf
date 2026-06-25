@@ -3,13 +3,13 @@
 import { useTranslations } from 'next-intl';
 
 interface SellfBrandingProps {
-  /** 'checkout' (default) shows "Ten koszyk jest open-source", 'product' shows "Zabezpieczone przez" */
+  /** 'checkout' (default) shows "Ten koszyk działa na Sellf", 'product' shows "Zabezpieczone przez" */
   variant?: 'checkout' | 'product';
 }
 
 /**
  * Sellf branding watermark shown when no valid license is active.
- * - checkout variant: "Ten koszyk jest open-source → Sellf"
+ * - checkout variant: "Ten koszyk działa na → Sellf"
  * - product variant:  "Zabezpieczone przez → Sellf"
  */
 export default function SellfBranding({ variant = 'checkout' }: SellfBrandingProps) {

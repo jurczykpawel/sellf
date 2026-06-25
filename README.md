@@ -9,10 +9,10 @@
 ![Version](https://img.shields.io/badge/version-2026.6.17-blue)
 ![Tests](https://img.shields.io/badge/unit%20tests-3,787%20passing-brightgreen)
 ![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
-![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
+![Source Available](https://img.shields.io/badge/Source%20Available-100%25-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
+![License](https://img.shields.io/badge/License-Elastic%202.0-blue)
 
 [🚀 Live Demo](https://demo.sellf.app) · [Documentation](https://docs.sellf.app) · [Quick-Start Guide](https://docs.sellf.app/quick-start/) · [Contributing](./CONTRIBUTING.md) · [Issues](https://github.com/jurczykpawel/sellf/issues)
 
@@ -383,11 +383,11 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 
 ## Support This Project
 
-Sellf is free and open source. If it saves you money on platform fees, consider supporting development by buying Sellf Pro — it removes the "Powered by Sellf" watermark and unlocks the Theme Editor.
+Sellf is free and source-available. If it saves you money on platform fees, consider supporting development by buying Sellf Pro — it removes the "Powered by Sellf" watermark and unlocks the Theme Editor.
 
 | Tier | Price | What it unlocks |
 |------|-------|-----------------|
-| **Free** | $0 | Everything core — unlimited products, sales, buyers (AGPL-3.0) |
+| **Free** | $0 | Everything core — unlimited products, sales, buyers (Elastic License 2.0) |
 | **Registered** | $0 | + payment CSV export (free key from sellf.app) |
 | **Pro** | $59 one-time | + remove "Powered by Sellf" branding, Theme Editor, granular API-key scopes |
 | **Business** | Talk to us | Custom / enterprise — [hello@sellf.app](mailto:hello@sellf.app) |
@@ -434,7 +434,7 @@ Built with [Next.js](https://nextjs.org/), [Supabase](https://supabase.com/), [S
 
 ## License
 
-AGPL-3.0. See [LICENSE](./LICENSE) for details.
+Elastic License 2.0 (source-available, not OSI open source). See [LICENSE](./LICENSE) for details.
 
 ---
 

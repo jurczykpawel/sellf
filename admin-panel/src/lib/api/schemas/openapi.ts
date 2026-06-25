@@ -1176,8 +1176,8 @@ Response includes:
         url: 'https://github.com/sellf/sellf',
       },
       license: {
-        name: 'AGPL-3.0',
-        url: 'https://www.gnu.org/licenses/agpl-3.0.html',
+        name: 'Elastic License 2.0',
+        url: 'https://www.elastic.co/licensing/elastic-license',
       },
     },
     servers: [

@@ -288,9 +288,11 @@ test.describe('Smart Landing Page', () => {
     const githubLink = page.locator('a[href*="github.com/jurczykpawel/sellf"]');
     await expect(githubLink.first()).toBeVisible();
 
-    // "Open source" badge in trust strip
-    const openSourceBadge = page.getByText(/Open[\s ]+source/i).first();
-    await expect(openSourceBadge).toBeVisible();
+    // "Source available" badge in trust strip
+    const sourceAvailableBadge = page
+      .getByText(/Source[\s ]+available|Dost[ęe]pny[\s ]+kod/i)
+      .first();
+    await expect(sourceAvailableBadge).toBeVisible();
 
     // Sellf branding in navigation
     const sellfBrand = page.locator('text=Sellf').first();

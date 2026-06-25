@@ -91,7 +91,7 @@
       "required": "NIP jest wymagany",
       "invalidFormat": "Nieprawidłowy format numeru NIP"
     },
-    "checkoutBranding": "Ten koszyk jest open-source →",
+    "checkoutBranding": "Ten koszyk działa na Sellf →",
     "productBranding": "Zabezpieczone przez →",
     "failedToGetAccess": "Nie udało się uzyskać dostępu",
     "unexpectedError": "Wystąpił nieoczekiwany błąd",
@@ -3393,7 +3393,7 @@
       "toggleMenu": "Przełącz menu"
     },
     "hero": {
-      "badge": "Open source · Self-hosted · Bez prowizji",
+      "badge": "Dostępny kod źródłowy · Self-hosted · Bez prowizji",
       "headlineTop": "Sprzedawaj kursy, e-booki, subskrypcje",
       "headlineBottom": "bez prowizji platformy.",
       "metaDescription": "Self-hosted alternatywa dla Gumroad i LemonSqueezy. Stawiasz na własnym VPS w 10 minut. Bez prowizji, bez abonamentu, Twoje dane zostają u Ciebie.",
@@ -3416,12 +3416,12 @@
       "tenMinDisclaimer": "Vercel + Supabase za darmo. Stripe — darmowe konto, zakładasz w 2 minuty."
     },
     "socialProof": {
-      "openSource": "Open source",
+      "openSource": "Dostępny kod",
       "monthlyFees": "Opłaty miesięczne",
       "products": "Produkty",
       "license": "Licencja",
       "headline": "Realne fundamenty, nie marketing",
-      "githubLine": "Open source na GitHubie — AGPL-3.0 + licencja komercyjna",
+      "githubLine": "Dostępny kod źródłowy na GitHubie — Elastic License 2.0 + licencja komercyjna",
       "testsLine": "3 500+ testów automatycznych — checkout, płatności, bezpieczeństwo",
       "founderLine": "Zbudowany przez Pawła — 17 lat IT, ex-Roche / IBM / Asseco",
       "stripeLine": "Działa na Stripe — ten sam stack płatności co Gumroad i LemonSqueezy"
@@ -3888,7 +3888,7 @@
       "categoryLabel": "ZASTOSOWANIA"
     },
     "donate": {
-      "title": "Wesprzyj Open Source",
+      "title": "Wesprzyj Sellf",
       "subtitle": "Sellf jest darmowy i zawsze będzie. Jeśli oszczędza Ci pieniądze, rozważ wsparcie rozwoju.",
       "cta": "Postaw nam kawę",
       "note": "Każdy wkład pomaga nam szybciej dostarczać nowe funkcje."
@@ -3930,10 +3930,10 @@
       "ctaGithub": "Zobacz na GitHub",
       "trust10min": "Setup w 10 min",
       "trustSourceCode": "Pełny kod źródłowy",
-      "trustMIT": "Licencja MIT"
+      "trustMIT": "Elastic License 2.0"
     },
     "footer": {
-      "description": "Platforma open source do sprzedaży produktów cyfrowych. Self-hosted, bezpieczna i w pełni konfigurowalna.",
+      "description": "Platforma z dostępnym kodem źródłowym do sprzedaży produktów cyfrowych. Self-hosted, bezpieczna i w pełni konfigurowalna.",
       "product": "Produkt",
       "features": "Funkcje",
       "documentation": "Dokumentacja",
@@ -3943,12 +3943,12 @@
       "deployGuide": "Przewodnik wdrażania",
       "support": "Wsparcie",
       "legal": "Prawne",
-      "licenseMIT": "Licencja (MIT)",
-      "licenseAGPL": "Licencja (AGPL-3.0)",
+      "licenseMIT": "Licencja (Elastic 2.0)",
+      "licenseAGPL": "Licencja (Elastic 2.0)",
       "privacy": "Prywatność",
       "terms": "Warunki",
       "cookiePreferences": "Preferencje ciasteczek",
-      "copyright": "© {year} Sellf. Open source i self-hosted",
+      "copyright": "© {year} Sellf. Dostępny kod źródłowy, self-hosted",
       "sellfPro": "Sellf Pro",
       "llmsTxt": "llms.txt (dla agentów AI)"
     },
@@ -3958,7 +3958,7 @@
       "categoryLabel": "Licencja",
       "free": {
         "name": "Free",
-        "tagline": "AGPL-3.0 open source. Bez limitów na produkty, sprzedaż, kupujących. Na zawsze.",
+        "tagline": "Elastic License 2.0 (dostępny kod źródłowy). Bez limitów na produkty, sprzedaż, kupujących. Na zawsze.",
         "cta": "Postaw u siebie",
         "price": "$0",
         "priceNote": "nigdy żadnej opłaty"
