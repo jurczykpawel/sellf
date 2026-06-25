@@ -137,9 +137,21 @@ Allow users to permanently delete their account with Stripe subscription cancell
 **Status**: 💭 Idea
 Group multiple products into a single bundle at a discounted price.
 
+### Multi-Product Cart
+**Status**: 💭 Idea
+True shopping cart — add more than one different product and pay for all in a single checkout (one charge, access to every line item). Distinct from Product Bundles (fixed bundle) and multi-quantity (same product). Reuses the bundle access-explosion primitive; needs design for how order bumps / OTO / variants / coupons apply per-line vs per-cart.
+
+### Buyer-Facing Multi-Currency (Presentment + Currency Choice)
+**Status**: 💭 Idea
+Buyer always sees the price in their own (geo/locale) currency, with the option to pay either in their currency or in the product's original currency. Needs research on what Stripe provides out-of-the-box (Adaptive Pricing vs multi-currency `currency_options`) before building custom FX. Note: the shipped "Multi-Currency Conversion (2025-12-30)" is display/analytics only, not buyer-facing payment currency.
+
+### Cart / Checkout UX Redesign
+**Status**: 💭 Idea
+Redesign the cart & checkout view for best-in-class UX, with focus on order bumps, variants, promotions (compare-at / Omnibus) and discount codes working together coherently — especially once the multi-product cart lands. Mobile-first, EasyCart-style.
+
 ### Related Products / Cross-selling
 **Status**: 💭 Idea
-"Customers also bought" sections on product pages.
+"Customers also bought" / related-products sections on product pages and in-cart, adding to cart in one click. Must be designed carefully so it raises cart value WITHOUT distracting from checkout completion (distinct from post-purchase OTO/downsell). Manual seller-curated relations first; data-driven "also bought" as phase 2.
 
 ### Video Course Structure
 **Status**: 💭 Idea
