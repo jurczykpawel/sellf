@@ -134,8 +134,15 @@ Custom player UI (colors, logo overlay), overlays & CTAs at timestamps, playback
 Allow users to permanently delete their account with Stripe subscription cancellation, data cleanup, and double confirmation.
 
 ### Product Bundles
-**Status**: 💭 Idea
-Group multiple products into a single bundle at a discounted price.
+**Status**: ✅ Done — merged to `main` (not yet released / deployed)
+A bundle is a product (`is_bundle`) that grants access to several component products via the
+`bundle_items` join table — no product/file duplication. Fixed price with adaptive savings/included
+display, optional bonus content, its own order bumps + OTO, mode-1a single-line VAT, per-component
+access + licenses; components are one-time/free/PWYW (no subscriptions, no nesting). Shared
+`grant_product_and_bundle_components` primitive backs completion RPC + guest-claim (and is cart-ready).
+**⚠️ BREAKING (webhook):** the `purchase.completed` payload's singular `license` field is REMOVED and
+replaced by `licenses[]` (one entry per licensable product, incl. bundle components); adds
+`bundleComponents[]`; widens product-scoping to include component ids. **Flag this in the next release notes.**
 
 ### Multi-Product Cart
 **Status**: 💭 Idea
