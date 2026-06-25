@@ -24,6 +24,8 @@
     "alreadyHasAccess": "You already have access to this product.",
     "autoRedirect": "Auto-redirecting in {seconds} seconds...",
     "goToProduct": "Go to Product",
+    "bundleIncludes": "This bundle includes:",
+    "bundleSavings": "Save {amount} ({pct}% off)",
     "funnelTest": {
       "banner": "FUNNEL TEST",
       "description": "You are previewing this checkout as admin. No payment will be processed.",

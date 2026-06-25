@@ -24,6 +24,8 @@
     "alreadyHasAccess": "Masz już dostęp do tego produktu.",
     "autoRedirect": "Przekierowanie za {seconds} s...",
     "goToProduct": "Przejdź do Produktu",
+    "bundleIncludes": "Ten zestaw zawiera:",
+    "bundleSavings": "Oszczędzasz {amount} ({pct}% taniej)",
     "funnelTest": {
       "banner": "TEST LEJKA",
       "description": "Podgląd checkoutu jako administrator. Żadna płatność nie zostanie przetworzona.",

@@ -28,6 +28,7 @@ import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import DemoCheckoutNotice from '@/components/DemoCheckoutNotice';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import ProductShowcase from './ProductShowcase';
+import type { BundleComponentSummary } from './BundleContentsPreview';
 import FunnelTestBanner from './FunnelTestBanner';
 import AccessGrantedCard from './AccessGrantedCard';
 
@@ -38,9 +39,10 @@ const noop = () => {};
 interface FreeProductFormProps {
   product: Product;
   collectTermsOfService: boolean;
+  bundleComponents?: BundleComponentSummary[];
 }
 
-export default function FreeProductForm({ product, collectTermsOfService }: FreeProductFormProps) {
+export default function FreeProductForm({ product, collectTermsOfService, bundleComponents }: FreeProductFormProps) {
   const t = useTranslations('productView');
   const tCheckout = useTranslations('checkout');
   const tSecurity = useTranslations('security');
@@ -285,7 +287,7 @@ export default function FreeProductForm({ product, collectTermsOfService }: Free
   };
 
   const renderProductInfo = () => (
-    <ProductShowcase product={product} />
+    <ProductShowcase product={product} bundleComponents={bundleComponents} />
   );
 
   // Admin-only funnel preview: banner + simulation button → walks the free → OTO

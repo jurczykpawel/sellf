@@ -28,6 +28,7 @@ import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import ProductShowcase from './ProductShowcase';
+import type { BundleComponentSummary } from './BundleContentsPreview';
 import CustomPaymentForm from './CustomPaymentForm';
 import FunnelTestBanner from './FunnelTestBanner';
 import AccessGrantedCard from './AccessGrantedCard';
@@ -43,6 +44,7 @@ interface PaidProductFormProps {
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
   collectTermsOfService: boolean;
+  bundleComponents?: BundleComponentSummary[];
   /**
    * `standalone` (default): full page shell + ProductShowcase + form.
    * `embedded`: form column only (host template provides product info / chrome).
@@ -51,7 +53,7 @@ interface PaidProductFormProps {
   afterCheckoutSlot?: React.ReactNode;
 }
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const isSubscription = product.product_type === 'subscription';
   // PWYW subscriptions allow buyers to choose their recurring amount. The
@@ -601,7 +603,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
       <div className="w-full max-w-7xl mx-auto p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         <div className="flex flex-col lg:flex-row">
-          <ProductShowcase product={product} taxMode={taxMode} />
+          <ProductShowcase product={product} taxMode={taxMode} bundleComponents={bundleComponents} />
           {renderCheckoutForm()}
         </div>
       </div>
