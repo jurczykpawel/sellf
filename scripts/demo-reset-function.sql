@@ -763,10 +763,24 @@ We offer this bundle to subscribers as a thank-you for being part of our communi
   WHERE slug IN ('vip-coaching', 'creator-certification');
 
   -- =========================================================
+  -- STEP 4c: SEED — PRODUCT BUNDLE (new bundles feature)
+  -- =========================================================
+  -- Turn "Content Creator Bundle" into a REAL bundle: is_bundle + bundle_items
+  -- linking component products. Buying it grants access to every component, no
+  -- product/file duplication. Priced below the components' sum ($49 + $79 = $128)
+  -- to showcase the savings anchor ("save $49 / 38%").
+  UPDATE products SET is_bundle = true, price = 79.00, is_featured = true
+  WHERE slug = 'content-creator-bundle';
+
+  INSERT INTO bundle_items (bundle_product_id, component_product_id, display_order) VALUES
+    (bundle_id, fundamentals_id, 0),  -- Email Marketing 101 ($49)
+    (bundle_id, toolkit_id,      1);  -- Social Media Content Toolkit ($79)
+
+  -- =========================================================
   -- STEP 5: SEED — ORDER BUMPS
   -- =========================================================
 
-  -- Email Marketing 101 → 3 bumps (multi-bump showcase)
+  -- Email Marketing 101 → 2 bumps (multi-bump showcase)
   INSERT INTO order_bumps (main_product_id, bump_product_id, bump_price, bump_title, bump_description, is_active, display_order)
   VALUES (
     fundamentals_id, toolkit_id,
@@ -785,14 +799,8 @@ We offer this bundle to subscribers as a thank-you for being part of our communi
     true, 2
   );
 
-  INSERT INTO order_bumps (main_product_id, bump_product_id, bump_price, bump_title, bump_description, is_active, display_order, access_duration_days)
-  VALUES (
-    fundamentals_id, bundle_id,
-    99.00,
-    '🎁 Upgrade to Creator Bundle — everything in one package',
-    'Email Marketing 101 + Social Media Toolkit + Notion workspace. Worth $179 — save $80! (90-day access)',
-    true, 3, 90
-  );
+  -- (Content Creator Bundle is now a real bundle — not offered as a bump, because
+  -- v1 bumps don't explode to a bundle's components. Buy it directly instead.)
 
   -- Sales Funnel Blueprint → 2 bumps (multi-bump showcase)
   INSERT INTO order_bumps (main_product_id, bump_product_id, bump_price, bump_title, bump_description, is_active, display_order)
