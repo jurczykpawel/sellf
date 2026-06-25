@@ -108,7 +108,7 @@ export const PRODUCT_PAGE_FIELDS = [
   'icon', 'image_url', 'thumbnail_url', 'preview_video_url', 'preview_video_config',
   'price', 'currency', 'vat_rate', 'price_includes_vat',
   'features', 'layout_template',
-  'is_active', 'is_featured', 'is_listed',
+  'is_active', 'is_featured', 'is_listed', 'is_bundle',
   'omnibus_exempt',
   'sale_price', 'sale_price_until', 'sale_quantity_limit', 'sale_quantity_sold',
   'available_from', 'available_until', 'auto_grant_duration_days',

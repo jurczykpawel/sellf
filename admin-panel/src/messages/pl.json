@@ -1016,7 +1016,10 @@
     "supportAgainMessage": "Masz już dostęp do tej strony. Nadal możesz przekazać kolejne wsparcie, kiedy chcesz.",
     "supportAgain": "Wesprzyj ponownie",
     "licenseCopy": "Kopiuj",
-    "licenseCopied": "Skopiowano!"
+    "licenseCopied": "Skopiowano!",
+    "bundle": {
+      "includesHeading": "Ten zestaw zawiera"
+    }
   },
   "myProducts": {
     "title": "Moje produkty",
@@ -4343,8 +4346,8 @@
         "label": "Typ pola",
         "text": "Tekst",
         "textarea": "Wieloliniowy",
-        "email": "Email"
-        ,"domain": "Domena licencji"
+        "email": "Email",
+        "domain": "Domena licencji"
       }
     },
     "badgeGenerator": {

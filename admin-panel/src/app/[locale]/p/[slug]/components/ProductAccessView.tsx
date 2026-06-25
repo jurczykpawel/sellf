@@ -31,6 +31,9 @@ export interface SecureProductResponse {
     issuedAt: string;
     expiresAt: string | null;
   } | null;
+  /** Component products of a bundle (empty for non-bundles). The buyer owns each
+   * one independently, so the access view links to each component's product page. */
+  bundleComponents?: Array<{ name: string; icon: string; slug: string }>;
 }
 
 interface ProductAccessViewProps {
@@ -84,6 +87,7 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
             ...product,
           },
           branding: { shop_name: null },
+          bundleComponents: [],
           userAccess: {
             access_expires_at: null,
             access_duration_days: null,
@@ -478,6 +482,31 @@ export default function ProductAccessView({ product, licenseValid, previewMode =
               {t('supportAgain')}
             </Link>
           </div>
+        )}
+
+        {/* Bundle components — the buyer owns each one; link to each product page. */}
+        {secureData.bundleComponents && secureData.bundleComponents.length > 0 && (
+          <section className="mb-8 rounded-xl border border-sf-border bg-sf-raised p-4" data-testid="bundle-includes">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-sf-body mb-3">
+              {t('bundle.includesHeading')}
+            </h3>
+            <ul className="divide-y divide-sf-border">
+              {secureData.bundleComponents.map((component) => (
+                <li key={component.slug}>
+                  <Link
+                    href={`/${locale}/p/${component.slug}`}
+                    className="flex items-center gap-3 py-2.5 text-sf-heading transition-colors hover:text-sf-accent"
+                  >
+                    <span className="text-xl leading-none shrink-0" aria-hidden="true">{component.icon}</span>
+                    <span className="font-medium truncate">{component.name}</span>
+                    <svg className="w-4 h-4 ml-auto shrink-0 text-sf-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* Content section label */}

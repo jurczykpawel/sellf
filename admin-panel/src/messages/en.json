@@ -1001,7 +1001,10 @@
     "supportAgainMessage": "You already have access to this page. You can still make another contribution whenever you want.",
     "supportAgain": "Support again",
     "licenseCopy": "Copy",
-    "licenseCopied": "Copied!"
+    "licenseCopied": "Copied!",
+    "bundle": {
+      "includesHeading": "This bundle includes"
+    }
   },
   "myProducts": {
     "title": "My Products",
