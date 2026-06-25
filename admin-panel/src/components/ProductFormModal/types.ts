@@ -184,6 +184,13 @@ export interface CategoriesSectionProps extends SectionProps {
   loadingCategories: boolean;
 }
 
+export interface BundleItemsSectionProps extends SectionProps {
+  /** Full product list to pick components from (eligible ones are filtered inside). */
+  products: Product[];
+  /** Id of the product being edited — excluded from the eligible list to prevent self-reference. */
+  currentProductId?: string;
+}
+
 export type RefundSectionProps = SectionProps;
 
 export interface AdvancedSectionProps extends SectionProps {

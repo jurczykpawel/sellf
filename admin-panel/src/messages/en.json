@@ -826,6 +826,7 @@
       "free": "FREE",
       "subscription": "Subscription",
       "subscribe": "Subscribe",
+      "bundle": "Bundle",
       "featured": "Featured",
       "premium": "Premium",
       "limited": "Limited",
@@ -1221,6 +1222,7 @@
       "exportConfirmMessage": "Are you sure you want to export the current list of {count} products to a CSV file?",
       "refresh": "Refresh",
       "add": "Add Product",
+      "addBundle": "New bundle",
       "searchPlaceholder": "Search products...",
       "noProducts": "No products found",
       "filterAll": "All",
@@ -1310,6 +1312,26 @@
           "price": "Price",
           "recurringPrice": "Recurring price",
           "leadMagnetFile": "File (step 2)"
+        },
+        "checklist": {
+          "bundleComponents": "Bundle components (≥1)"
+        },
+        "bundle": {
+          "title": "Bundle components",
+          "help": "Pick the products included in this bundle. Buyers get access to all of them in one purchase.",
+          "addLabel": "Add a component",
+          "searchPlaceholder": "Search products to add...",
+          "noMatches": "No matching products.",
+          "noMoreProducts": "No more eligible products to add.",
+          "selectedLabel": "Selected components ({count})",
+          "emptyHint": "No components yet. Add at least one product above.",
+          "moveUp": "Move up",
+          "moveDown": "Move down",
+          "remove": "Remove",
+          "inactiveBadge": "Inactive",
+          "inactiveWarning": "This component is inactive, but buyers of the bundle still get access to it.",
+          "savings": "save {savings} ({pct}%)",
+          "includedInfo": "Components are shown as included/bonus (the bundle price is not lower than buying them separately)."
         },
         "basicInformation": "Basic Information",
         "productName": "Product Name",

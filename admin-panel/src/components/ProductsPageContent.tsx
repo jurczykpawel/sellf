@@ -32,6 +32,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   const [showExportConfirmation, setShowExportConfirmation] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  // True when the wizard was opened via the "New bundle" entry (new products only).
+  const [newAsBundle, setNewAsBundle] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
   const [showLoginwallSnippet, setShowLoginwallSnippet] = useState(false);
@@ -177,6 +179,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   // UI Handlers
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
+    setNewAsBundle(false);
     setShowProductForm(true);
   };
 
@@ -192,6 +195,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       updated_at: '' as any,
     };
     setEditingProduct(duplicatedProduct);
+    setNewAsBundle(false);
     setShowProductForm(true);
   };
 
@@ -266,6 +270,13 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
 
   const handleAddNewProduct = () => {
     setEditingProduct(null);
+    setNewAsBundle(false);
+    setShowProductForm(true);
+  };
+
+  const handleAddNewBundle = () => {
+    setEditingProduct(null);
+    setNewAsBundle(true);
     setShowProductForm(true);
   };
 
@@ -307,6 +318,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusFilterChange}
         onAddProduct={handleAddNewProduct}
+        onAddBundle={handleAddNewBundle}
         onExport={handleExportCsv}
         onRefresh={fetchProducts}
         addButtonRef={addButtonRef}
@@ -344,6 +356,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           onClose={() => {
             setShowProductForm(false);
             setEditingProduct(null);
+            setNewAsBundle(false);
             if (searchParams.get('open')) {
               router.replace('/dashboard/products');
             }
@@ -353,6 +366,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           isSubmitting={submitting}
           error={null}
           hasLicenseIssuance={hasLicenseIssuance}
+          defaultIsBundle={newAsBundle}
         />
       )}
 

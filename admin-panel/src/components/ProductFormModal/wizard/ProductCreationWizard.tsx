@@ -25,6 +25,8 @@ export interface ProductCreationWizardProps {
   error: string | null;
   product?: Product | null; // for edit or duplicate mode
   hasLicenseIssuance?: boolean;
+  /** Seed a brand-new product as a bundle (new-product mode only). */
+  defaultIsBundle?: boolean;
 }
 
 const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
@@ -35,6 +37,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   error,
   product,
   hasLicenseIssuance,
+  defaultIsBundle,
 }) => {
   const t = useTranslations('admin.products.form');
   const router = useRouter();
@@ -79,7 +82,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     proceedWithSubmit,
     dismissWaitlistWarning,
     hasWaitlistWebhook,
-  } = useProductForm({ product, isOpen, onSubmit });
+  } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle });
 
   // Check if form has been touched (for exit confirmation)
   const isFormDirty = useCallback(() => {
@@ -240,6 +243,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 loadingCategories={loadingCategories}
                 fieldErrors={fieldErrors}
                 setFieldErrors={setFieldErrors}
+                products={products}
+                currentProductId={product?.id}
               />
             )}
 

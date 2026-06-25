@@ -6,9 +6,11 @@ import {
   PricingSection,
   CategoriesSection,
   DescriptionSection,
+  BundleItemsSection,
 } from '../../sections';
 import type { ProductFormData, TranslationFunction, UrlValidation } from '../../types';
 import type { Category } from '@/lib/actions/categories';
+import type { Product } from '@/types';
 
 interface StepContentDetailsProps {
   formData: ProductFormData;
@@ -22,6 +24,10 @@ interface StepContentDetailsProps {
   loadingCategories: boolean;
   fieldErrors?: Record<string, string>;
   setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  /** Product list used by the bundle component picker (bundle mode only). */
+  products: Product[];
+  /** Id of the product being edited — excluded from the bundle picker. */
+  currentProductId?: string;
 }
 
 export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
@@ -36,6 +42,8 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
   loadingCategories,
   fieldErrors,
   setFieldErrors,
+  products,
+  currentProductId,
 }) => {
   const isTipJar = formData.checkout_template === 'tip-jar';
   return (
@@ -47,6 +55,18 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
         fieldErrors={fieldErrors}
         setFieldErrors={setFieldErrors}
       />
+
+      {/* Bundle components — only when this product is a bundle. The bundle may
+          still carry its own bonus content via the ContentDelivery section below. */}
+      {formData.is_bundle && (
+        <BundleItemsSection
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          products={products}
+          currentProductId={currentProductId}
+        />
+      )}
 
       {!isTipJar && (
         <ContentDeliverySection

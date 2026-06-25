@@ -9,6 +9,7 @@ export { LicenseSection } from './LicenseSection';
 export { ContentDeliverySection } from './ContentDeliverySection';
 export { PostPurchaseSection } from './PostPurchaseSection';
 export { CategoriesSection } from './CategoriesSection';
+export { BundleItemsSection } from './BundleItemsSection';
 export { RefundSection } from './RefundSection';
 export { AdvancedSection } from './AdvancedSection';
 export { SubscriptionSection } from './SubscriptionSection';

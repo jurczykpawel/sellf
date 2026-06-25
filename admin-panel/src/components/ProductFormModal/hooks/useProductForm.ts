@@ -32,9 +32,11 @@ interface UseProductFormProps {
   product?: Product | null;
   isOpen: boolean;
   onSubmit: (formData: ProductFormData) => Promise<void>;
+  /** Seed a brand-new product as a bundle (ignored when editing an existing product). */
+  defaultIsBundle?: boolean;
 }
 
-export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProps) {
+export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: UseProductFormProps) {
   const { trustedDownloadDomains } = useConfig();
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [priceDisplayValue, setPriceDisplayValue] = useState<string>('');
@@ -295,6 +297,8 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         ...initialFormData,
         icon: getIconEmoji('rocket'),
         vat_rate: shopDefaultVatRate != null ? Math.round(shopDefaultVatRate * 100) : null,
+        // Seed bundle mode when the seller opened the "new bundle" entry point.
+        is_bundle: defaultIsBundle ?? false,
       });
       setPriceDisplayValue('');
       setSalePriceDisplayValue('');
