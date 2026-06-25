@@ -20,6 +20,10 @@ export interface ProductFormData {
   is_active: boolean;
   is_featured: boolean;
   is_listed: boolean;
+  // Bundle: groups other products as components
+  is_bundle?: boolean;
+  // Ordered component product IDs (only meaningful when is_bundle)
+  bundleItemIds: string[];
   icon: string;
   image_url?: string | null;
   preview_video_url?: string | null;
@@ -205,6 +209,8 @@ export const initialFormData: ProductFormData = {
   is_active: true,
   is_featured: false,
   is_listed: true,
+  is_bundle: false,
+  bundleItemIds: [],
   icon: '🚀',
   image_url: null,
   preview_video_url: null,

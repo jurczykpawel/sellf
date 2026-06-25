@@ -29,7 +29,8 @@ import {
   validateUpdateProduct,
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
-import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema } from '@/lib/api/dto/product';
+import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
+import { upsertBundleItems } from '@/lib/services/bundle-items';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
 interface RouteParams {
@@ -116,14 +117,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Parse request body
     const body = await parseJsonBody<Record<string, unknown>>(request);
 
-    // Extract categories and tags separately
-    const { categories: categoriesRaw, tags: tagsRaw, ...productDataRaw } = body;
+    // Extract categories, tags, and bundle components separately
+    const { categories: categoriesRaw, tags: tagsRaw, bundleItemIds: bundleItemIdsRaw, ...productDataRaw } = body;
 
     let categories: string[] | undefined;
     let tags: string[] | undefined;
+    let bundleItemIds: string[] | undefined;
     try {
       categories = ProductCategoriesSchema.parse(categoriesRaw);
       tags = ProductTagsSchema.parse(tagsRaw);
+      bundleItemIds = BundleItemIdsSchema.parse(bundleItemIdsRaw);
     } catch (err) {
       if (err instanceof z.ZodError) {
         throw new ApiValidationError('Validation failed', {
@@ -174,7 +177,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id, product_type')
+      .select('id, product_type, is_bundle')
       .eq('id', id)
       .single();
 
@@ -273,6 +276,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           console.error('[products.PATCH tags]', linkErr);
           warnings.push('failed to attach one or more tags');
         }
+      }
+    }
+
+    // Persist bundle components when the product is (or is being set to) a bundle.
+    // The bundle_items trigger validates each component; an invalid one throws and
+    // surfaces as a clean validation error (not a 500).
+    const effectiveIsBundle =
+      typeof sanitizedData.is_bundle === 'boolean'
+        ? sanitizedData.is_bundle
+        : existingCheck.is_bundle === true;
+    if (effectiveIsBundle && bundleItemIds !== undefined) {
+      try {
+        await upsertBundleItems(supabase, id, bundleItemIds);
+      } catch (bundleErr) {
+        throw new ApiValidationError('Validation failed', {
+          _errors: [bundleErr instanceof Error ? bundleErr.message : 'Failed to persist bundle components'],
+        });
       }
     }
 

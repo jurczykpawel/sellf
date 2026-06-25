@@ -167,6 +167,9 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
         is_active: product.is_active,
         is_featured: product.is_featured || false,
         is_listed: product.is_listed !== false,
+        is_bundle: product.is_bundle ?? false,
+        // Loaded asynchronously below for existing bundles
+        bundleItemIds: [],
         icon: product.icon || getIconEmoji('rocket'),
         image_url: product.image_url || null,
         preview_video_url: product.preview_video_url || null,
@@ -224,6 +227,28 @@ export function useProductForm({ product, isOpen, onSubmit }: UseProductFormProp
           setFormData(prev => ({ ...prev, categories: result.data! }));
         }
       }).catch(err => console.error(err));
+
+      // Fetch existing bundle components (ordered) when editing a bundle
+      if (product.is_bundle) {
+        (async () => {
+          try {
+            const supabase = await createClient();
+            const { data, error } = await supabase
+              .from('bundle_items')
+              .select('component_product_id, display_order')
+              .eq('bundle_product_id', product.id)
+              .order('display_order');
+            if (!error && data) {
+              setFormData(prev => ({
+                ...prev,
+                bundleItemIds: data.map((r: { component_product_id: string }) => r.component_product_id),
+              }));
+            }
+          } catch (err) {
+            console.error('Failed to fetch bundle components', err);
+          }
+        })();
+      }
 
       // Fetch OTO configuration for this product using v1 API
       api.getCustom<{

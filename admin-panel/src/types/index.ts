@@ -34,6 +34,10 @@ export interface Product {
   is_active: boolean
   is_featured: boolean
   is_listed: boolean
+  // Bundle: when true this product groups other products as components
+  is_bundle: boolean
+  // Component count for a bundle (populated by the list API only)
+  bundle_item_count?: number
   // EU Omnibus Directive (2019/2161)
   omnibus_exempt: boolean
   // Sale price (promotional pricing)
