@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
       : 'Sell digital products without platform fees';
   const subhead =
     locale === 'pl'
-      ? 'Self-hosted. AGPL. 0 PLN miesięcznie.'
-      : 'Self-hosted. AGPL. $0 per month.';
+      ? 'Self-hosted. Source-available. 0 PLN miesięcznie.'
+      : 'Self-hosted. Source-available. $0 per month.';
 
   return new ImageResponse(
     (
