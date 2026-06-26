@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
+import { TagCreateDTO, TagUpdateDTO } from '@/lib/api/dto/tag'
 
 export interface Tag {
   id: string
@@ -28,10 +29,17 @@ export async function getTags(): Promise<{ success: boolean; data?: Tag[]; error
 
 export async function createTag(data: { name: string; slug: string }) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
+  // Validate with the same Zod DTO as the public v1 /api/v1/tags route (slug regex,
+  // trim, max length, .strict() rejects extra keys) and persist the PARSED object —
+  // never spread the raw argument into .insert() (column-injection defense).
+  const parsed = TagCreateDTO.safeParse(data)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid tag data' }
+  }
   return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('tags')
-      .insert(data)
+      .insert(parsed.data)
 
     if (error) {
       console.error('[createTag] Error:', error)
@@ -44,10 +52,14 @@ export async function createTag(data: { name: string; slug: string }) {
 
 export async function updateTag(id: string, data: { name: string; slug: string }) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
+  const parsed = TagUpdateDTO.safeParse(data)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid tag data' }
+  }
   return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('tags')
-      .update(data)
+      .update(parsed.data)
       .eq('id', id)
 
     if (error) {
