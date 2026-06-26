@@ -3271,7 +3271,8 @@
     "errorOccurred": "An error occurred",
     "payWhatYouWant": "Pay What You Want",
     "suggestedPrice": "suggested",
-    "minimumFrom": "min. {price}"
+    "minimumFrom": "min. {price}",
+    "saleEndsAt": "Sale ends {date}"
   },
   "myPurchases": {
     "title": "My Purchases",

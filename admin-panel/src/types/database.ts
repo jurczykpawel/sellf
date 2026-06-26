@@ -3217,6 +3217,10 @@ export type Database = {
           is_featured: boolean
           name: string
           price: number
+          sale_price: number
+          sale_price_until: string
+          sale_quantity_limit: number
+          sale_quantity_sold: number
           slug: string
           variant_name: string
         }[]
@@ -3236,6 +3240,10 @@ export type Database = {
           is_featured: boolean
           name: string
           price: number
+          sale_price: number
+          sale_price_until: string
+          sale_quantity_limit: number
+          sale_quantity_sold: number
           slug: string
           variant_name: string
         }[]
