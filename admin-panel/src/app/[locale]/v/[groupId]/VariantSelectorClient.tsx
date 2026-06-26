@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { isSalePriceActive, getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { useConfig } from '@/components/providers/config-provider';
 import SellfBranding from '@/components/SellfBranding';
 import FloatingToolbar from '@/components/FloatingToolbar';
@@ -24,6 +25,36 @@ interface Variant {
   is_active: boolean;
   allow_custom_price: boolean;
   custom_price_min: number | null;
+  sale_price: number | null;
+  sale_price_until: string | null;
+  sale_quantity_limit: number | null;
+  sale_quantity_sold: number | null;
+}
+
+/**
+ * Resolve a variant's display pricing using the same shared helpers as the
+ * single-product checkout page, so the variant list, the checkout page and the
+ * charge layer can never disagree about whether a promo is live.
+ */
+function getVariantPricing(variant: Variant): {
+  isSaleActive: boolean;
+  effectivePrice: number;
+  saleQuantityRemaining: number | null;
+} {
+  const isSaleActive = isSalePriceActive(
+    variant.sale_price,
+    variant.sale_price_until,
+    variant.sale_quantity_limit,
+    variant.sale_quantity_sold,
+  );
+  const saleQuantityRemaining = variant.sale_quantity_limit !== null
+    ? variant.sale_quantity_limit - (variant.sale_quantity_sold ?? 0)
+    : null;
+  return {
+    isSaleActive,
+    effectivePrice: isSaleActive ? getEffectiveUnitPrice(variant) : variant.price,
+    saleQuantityRemaining,
+  };
 }
 
 // Check if string is a valid UUID
@@ -138,7 +169,9 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
 
         {/* Variants Grid */}
         <div className="space-y-4">
-          {variants.map((variant) => (
+          {variants.map((variant) => {
+            const { isSaleActive, effectivePrice, saleQuantityRemaining } = getVariantPricing(variant);
+            return (
             <div
               key={variant.id}
               onClick={() => handleSelectVariant(variant.slug)}
@@ -217,9 +250,41 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
                       )}
                     </div>
                   ) : (
-                    /* Fixed pricing */
-                    <div className="text-2xl md:text-3xl font-bold text-sf-heading text-center sm:text-right">
-                      {formatPrice(variant.price, variant.currency)}
+                    /* Fixed pricing — shows the promo price (with the regular
+                       price struck through) whenever a sale is active. */
+                    <div className="text-center sm:text-right">
+                      {isSaleActive && (
+                        <div className="text-base font-medium text-sf-muted line-through leading-none">
+                          {formatPrice(variant.price, variant.currency)}
+                        </div>
+                      )}
+                      <div className="text-2xl md:text-3xl font-bold text-sf-heading">
+                        {formatPrice(effectivePrice, variant.currency)}
+                      </div>
+                      {isSaleActive && variant.sale_price_until && (
+                        <div className="text-xs text-sf-warning mt-1 flex items-center gap-1 justify-center sm:justify-end">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {t('saleEndsAt', {
+                            date: new Date(variant.sale_price_until).toLocaleString(locale === 'pl' ? 'pl-PL' : 'en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }),
+                          })}
+                        </div>
+                      )}
+                      {isSaleActive && saleQuantityRemaining !== null && saleQuantityRemaining > 0 && (
+                        <div className="text-xs text-sf-warning mt-1 flex items-center gap-1 justify-center sm:justify-end">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          {t('saleQuantityRemaining', { count: saleQuantityRemaining })}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -237,7 +302,8 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer note */}

@@ -127,6 +127,38 @@ test.describe('Variant Selector Page', () => {
     await expect(page.getByText(/zł299[.,]00/)).toBeVisible();
   });
 
+  test('should display the promotional price (with regular price struck through) when a variant is on sale', async ({ page }) => {
+    // Put the "Pro Plan" (regular 99) on an active time-limited sale at 79.
+    const proPlan = testProducts.find((p) => p.name === 'Pro Plan');
+    const saleUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabaseAdmin
+      .from('products')
+      .update({ sale_price: 79, sale_price_until: saleUntil, sale_quantity_limit: 10, sale_quantity_sold: 7 })
+      .eq('id', proPlan.id);
+    expect(error).toBeNull();
+
+    try {
+      await page.goto(`/pl/v/${variantGroup.id}`);
+      await page.waitForLoadState('domcontentloaded');
+
+      // The promo price is shown...
+      await expect(page.getByText(/zł79[.,]00/)).toBeVisible();
+      // ...and the regular price is struck through.
+      const struck = page.locator('.line-through').filter({ hasText: /zł99[.,]00/ });
+      await expect(struck).toBeVisible();
+      // ...and the sale-ends hint is shown.
+      await expect(page.getByText(/Promocja kończy się|Sale ends/i)).toBeVisible();
+      // ...and the quantity-remaining hint is shown (10 - 7 = 3 left).
+      await expect(page.getByText(/Tylko 3 szt\. w tej cenie|Only 3 left/i)).toBeVisible();
+    } finally {
+      // Restore so later tests see the regular price.
+      await supabaseAdmin
+        .from('products')
+        .update({ sale_price: null, sale_price_until: null, sale_quantity_limit: null, sale_quantity_sold: 0 })
+        .eq('id', proPlan.id);
+    }
+  });
+
   test('should display descriptions', async ({ page }) => {
     await page.goto(`/pl/v/${variantGroup.id}`);
     await page.waitForLoadState('domcontentloaded');
