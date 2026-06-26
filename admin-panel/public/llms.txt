@@ -1,12 +1,12 @@
 # Sellf
 
-> Self-hosted digital product monetization platform. Open-source alternative to Gumroad / LemonSqueezy / Paddle. Zero platform fees, full data ownership, EU-compliant.
+> Self-hosted digital product monetization platform. Source-available alternative to Gumroad / LemonSqueezy / Paddle. Zero platform fees, full data ownership, EU-compliant.
 
 Built by Paweł Jurczyk (github.com/jurczykpawel). 17 years IT background. Open-source advocate.
 
 ## Products
 
-- **Sellf** — Next.js + Supabase + Stripe, AGPL-3.0 + commercial white-label license. https://github.com/jurczykpawel/sellf
+- **Sellf** — Next.js + Supabase + Stripe, Elastic License 2.0 (source-available) + commercial white-label license. https://github.com/jurczykpawel/sellf
 
 ## Key features
 

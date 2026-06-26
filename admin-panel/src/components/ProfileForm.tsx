@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { updateProfile } from '@/lib/actions/profile'
 import { ProfileInput } from '@/lib/validations/profile'
-import { validateTaxId, isPolishNIP, normalizeNIP } from '@/lib/validation/nip'
+import { validateTaxId } from '@/lib/validation/nip'
+import { lookupCompanyByNip } from '@/lib/gus/lookup'
 
 interface ProfileFormProps {
   initialData: ProfileInput
@@ -99,50 +100,34 @@ export default function ProfileForm({ initialData, userEmail }: ProfileFormProps
       setGusError(null)
       setGusSuccess(false)
 
-      try {
-        const response = await fetch('/api/gus/fetch-company-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nip: validation.normalized }),
-          signal: controller.signal,
-        })
+      const result = await lookupCompanyByNip(validation.normalized, controller.signal)
+      if (controller.signal.aborted) return
 
-        if (controller.signal.aborted) return
-        const result = await response.json()
-
-        if (result.success && result.data) {
-          // Autofill company data
-          setFormData(prev => ({
-            ...prev,
-            company_name: result.data.nazwa || prev.company_name,
-            address_line1: `${result.data.ulica} ${result.data.nrNieruchomosci}${result.data.nrLokalu ? `/${result.data.nrLokalu}` : ''}`.trim() || prev.address_line1,
-            city: result.data.miejscowosc || prev.city,
-            zip_code: result.data.kodPocztowy || prev.zip_code,
-            country: 'Poland',
-          }))
-          setGusSuccess(true)
-        } else {
-          // GUS API returned error
-          if (result.code === 'RATE_LIMIT_EXCEEDED') {
-            setGusError(t('gus.rateLimitError'))
-          } else if (result.code === 'NOT_FOUND') {
-            setGusError(t('gus.notFound'))
-          } else if (result.code === 'NOT_CONFIGURED') {
-            // Silent fail - GUS not configured, user can enter manually
-            setGusError(null)
-          } else if (result.code === 'INVALID_ORIGIN') {
-            setGusError(t('gus.securityError'))
-          } else {
-            setGusError(t('gus.fetchError'))
-          }
-        }
-      } catch (error) {
-        if (controller.signal.aborted) return
-        console.error('GUS fetch error:', error)
+      if (result.ok) {
+        const data = result.data
+        // Autofill company data
+        setFormData(prev => ({
+          ...prev,
+          company_name: data.nazwa || prev.company_name,
+          address_line1: `${data.ulica} ${data.nrNieruchomosci}${data.nrLokalu ? `/${data.nrLokalu}` : ''}`.trim() || prev.address_line1,
+          city: data.miejscowosc || prev.city,
+          zip_code: data.kodPocztowy || prev.zip_code,
+          country: 'Poland',
+        }))
+        setGusSuccess(true)
+      } else if (result.code === 'rate_limit') {
+        setGusError(t('gus.rateLimitError'))
+      } else if (result.code === 'not_found') {
+        setGusError(t('gus.notFound'))
+      } else if (result.code === 'not_configured') {
+        // Silent fail - GUS not configured, user can enter manually
+        setGusError(null)
+      } else if (result.code === 'security') {
+        setGusError(t('gus.securityError'))
+      } else {
         setGusError(t('gus.fetchError'))
-      } finally {
-        if (!controller.signal.aborted) setIsLoadingGUS(false)
       }
+      setIsLoadingGUS(false)
     }
   }
 

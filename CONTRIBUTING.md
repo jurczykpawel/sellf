@@ -158,6 +158,8 @@ Use [GitHub Issues](https://github.com/jurczykpawel/sellf/issues) to report bugs
 
 For security vulnerabilities, please use [GitHub Security Advisories](https://github.com/jurczykpawel/sellf/security/advisories/new) instead of public issues. See [SECURITY.md](./SECURITY.md) for details.
 
-## License
+## License & Contributor Agreement
 
-By contributing, you agree that your contributions will be licensed under the [AGPL-3.0 License](./LICENSE).
+Sellf is released under the [Elastic License 2.0](./LICENSE) (source-available, not OSI open source).
+
+By submitting a contribution you agree to license your contribution under the project's license **and** grant the maintainer the right to relicense it in the future (so the project can, for example, move to a more permissive license later). You retain copyright to your contribution.

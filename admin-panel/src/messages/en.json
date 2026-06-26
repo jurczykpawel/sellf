@@ -85,7 +85,7 @@
     "confirmEmailLabel": "I confirm the product will be linked to my account ({accountEmail}). Receipt will be sent to {purchaseEmail}.",
     "confirmEmailRequired": "Please confirm the product assignment to your account",
     "emailMismatchWarning": "You are purchasing with {purchaseEmail}, but you are logged in as {accountEmail}. The product will be linked to your account.",
-    "checkoutBranding": "This checkout is open-source →",
+    "checkoutBranding": "This checkout runs on Sellf →",
     "productBranding": "Secured by →",
     "failedToGetAccess": "Failed to get access",
     "unexpectedError": "An unexpected error occurred",
@@ -194,7 +194,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "products": "Products",
-    "categories": "Categories",
+    "categories": "Categories & Tags",
     "orderBumps": "Order Bumps",
     "variants": "Variants",
     "coupons": "Coupons",
@@ -1611,7 +1611,8 @@
           "durationHint": "How long the license stays valid. Empty means it never expires.",
           "proRequired": "License key issuance requires a Pro license.",
           "proRequiredHint": "Upgrade to Pro to issue signed license tokens to buyers on purchase."
-        }
+        },
+        "tags": "Tags"
       }
     },
     "categories": {
@@ -2384,6 +2385,26 @@
       "groupDeactivated": "Variant group deactivated",
       "toggleActiveError": "Failed to update group status",
       "inactiveGroup": "Inactive"
+    },
+    "tags": {
+      "title": "Tags",
+      "createTag": "Create Tag",
+      "editTag": "Edit Tag",
+      "deleteTag": "Delete Tag",
+      "deleteMessage": "Are you sure you want to delete the tag \"{name}\"? This action cannot be undone.",
+      "noTags": "No tags found. Create your first one!",
+      "name": "Name",
+      "slug": "Slug",
+      "actions": "Actions",
+      "createSuccess": "Tag created successfully",
+      "updateSuccess": "Tag updated successfully",
+      "deleteSuccess": "Tag deleted successfully",
+      "error": "Operation failed"
+    },
+    "categoriesTags": {
+      "title": "Categories & Tags",
+      "categoriesTab": "Categories",
+      "tagsTab": "Tags"
     }
   },
   "config": {
@@ -2590,6 +2611,10 @@
     "stripeTax": {
       "title": "Tax & Checkout",
       "subtitle": "Tax calculation mode and checkout session settings",
+      "vatExempt": {
+        "label": "Shop is VAT-exempt (zw.)",
+        "help": "New products are marked VAT-exempt by default — no VAT is added at checkout. This is the single place to set it; the Legal Documents tab shows it read-only."
+      },
       "taxMode": {
         "label": "Tax Calculation Mode",
         "description": "Choose how taxes are calculated for checkout sessions.",
@@ -2732,6 +2757,14 @@
       "nipPlaceholder": "0000000000",
       "regonLabel": "REGON",
       "regonPlaceholder": "000000000",
+      "gusFetchButton": "Fetch from GUS",
+      "gusFetching": "Fetching…",
+      "gusInvalidNip": "Enter a valid 10-digit NIP first.",
+      "gusRateLimitError": "Too many requests. Please wait and try again.",
+      "gusNotFound": "Company not found in GUS database",
+      "gusSecurityError": "Security error. Please refresh and try again.",
+      "gusFetchError": "Failed to fetch data from GUS. Enter data manually.",
+      "gusDataLoaded": "✓ Company data loaded from GUS database",
       "krsLabel": "KRS",
       "krsPlaceholder": "0000000000",
       "companyStreetLabel": "Street",
@@ -2749,6 +2782,9 @@
       "complaintsEmailLabel": "Complaints e-mail (optional)",
       "complaintsEmailPlaceholder": "complaints@example.com",
       "isVatExemptLabel": "VAT-exempt seller",
+      "isVatExemptYes": "Yes",
+      "isVatExemptNo": "No",
+      "isVatExemptManagedIn": "Change it in Payments → Taxes",
       "isMicroEnterpriseLabel": "Micro-enterprise (< 10 employees, < €2 M revenue)",
       "hasDpoLabel": "Has Data Protection Officer (DPO)",
       "dpoContactLabel": "DPO contact (e-mail or postal address)",
@@ -3378,7 +3414,7 @@
       "toggleMenu": "Toggle menu"
     },
     "hero": {
-      "badge": "Open source · Self-hosted · Zero platform fees",
+      "badge": "Source available · Self-hosted · Zero platform fees",
       "headlineTop": "Sell courses, ebooks, subscriptions",
       "headlineBottom": "without platform fees.",
       "metaDescription": "Self-hosted alternative to Gumroad and LemonSqueezy. Set up on your VPS in 10 minutes. No platform fees, no subscriptions, your data stays yours.",
@@ -3401,12 +3437,12 @@
       "tenMinDisclaimer": "Free tier on Vercel + Supabase. Stripe account required (also free to create)."
     },
     "socialProof": {
-      "openSource": "Open source",
+      "openSource": "Source available",
       "monthlyFees": "Monthly fees",
       "products": "Products",
       "license": "License",
       "headline": "Real backing, not marketing fluff",
-      "githubLine": "Open source on GitHub — AGPL-3.0 + commercial license",
+      "githubLine": "Source-available on GitHub — Elastic License 2.0 + commercial license",
       "testsLine": "3,500+ automated tests covering checkout, payments, security",
       "founderLine": "Built by Paweł — 17 years in IT, ex-Roche / IBM / Asseco",
       "stripeLine": "Powered by Stripe — same payments stack as Gumroad, LemonSqueezy"
@@ -3873,7 +3909,7 @@
       "categoryLabel": "USE CASES"
     },
     "donate": {
-      "title": "Support Open Source",
+      "title": "Support Sellf",
       "subtitle": "Sellf is free and always will be. If it saves you money, consider supporting development.",
       "cta": "Buy Us a Coffee",
       "note": "Every contribution helps us ship new features faster."
@@ -3915,10 +3951,10 @@
       "ctaGithub": "View on GitHub",
       "trust10min": "10-minute setup",
       "trustSourceCode": "Full source code",
-      "trustMIT": "MIT License"
+      "trustMIT": "Elastic License 2.0"
     },
     "footer": {
-      "description": "Open source platform for digital product sales. Self-hosted, secure, and fully customizable.",
+      "description": "Source-available platform for digital product sales. Self-hosted, secure, and fully customizable.",
       "product": "Product",
       "features": "Features",
       "documentation": "Documentation",
@@ -3928,12 +3964,12 @@
       "deployGuide": "Deploy Guide",
       "support": "Support",
       "legal": "Legal",
-      "licenseMIT": "License (MIT)",
-      "licenseAGPL": "License (AGPL-3.0)",
+      "licenseMIT": "License (Elastic 2.0)",
+      "licenseAGPL": "License (Elastic 2.0)",
       "privacy": "Privacy",
       "terms": "Terms",
       "cookiePreferences": "Cookie preferences",
-      "copyright": "© {year} Sellf. Open source and self-hosted",
+      "copyright": "© {year} Sellf. Source-available and self-hosted",
       "sellfPro": "Sellf Pro",
       "llmsTxt": "llms.txt (for AI agents)"
     },
@@ -3943,7 +3979,7 @@
       "categoryLabel": "License",
       "free": {
         "name": "Free",
-        "tagline": "AGPL-3.0 open source. No limits on products, sales, or buyers. Forever.",
+        "tagline": "Elastic License 2.0 (source-available). No limits on products, sales, or buyers. Forever.",
         "cta": "Self-host now",
         "price": "$0",
         "priceNote": "no payment, ever"

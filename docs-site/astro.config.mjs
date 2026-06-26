@@ -9,7 +9,7 @@ export default defineConfig({
 		starlight({
 			title: 'Sellf Docs',
 			description:
-				'Documentation for Sellf — the open-source, self-hostable monetization platform built on Next.js, Supabase, and Stripe.',
+				'Documentation for Sellf — the source-available, self-hostable monetization platform built on Next.js, Supabase, and Stripe.',
 			expressiveCode: {
 				shiki: {
 					// Alias code-fence languages Shiki doesn't ship a grammar for.

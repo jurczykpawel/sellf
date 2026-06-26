@@ -1,5 +1,6 @@
 import { Product, ContentItem } from '@/types';
 import { Category } from '@/lib/actions/categories';
+import { Tag } from '@/lib/actions/tags';
 
 export interface ProductFormModalProps {
   product?: Product | null;
@@ -44,6 +45,8 @@ export interface ProductFormData {
   pass_params_to_redirect: boolean;
   // Categories
   categories: string[];
+  // Tags
+  tags: string[];
   // EU Omnibus Directive
   omnibus_exempt: boolean;
   // Sale price (promotional pricing)
@@ -129,6 +132,8 @@ export interface ProductFormState {
   loadingProducts: boolean;
   allCategories: Category[];
   loadingCategories: boolean;
+  allTags: Tag[];
+  loadingTags: boolean;
   defaultCurrency: string;
   omnibusEnabled: boolean;
   oto: OtoState;
@@ -184,6 +189,11 @@ export interface CategoriesSectionProps extends SectionProps {
   loadingCategories: boolean;
 }
 
+export interface TagsSectionProps extends SectionProps {
+  allTags: Tag[];
+  loadingTags: boolean;
+}
+
 export interface BundleItemsSectionProps extends SectionProps {
   /** Full product list to pick components from (eligible ones are filtered inside). */
   products: Product[];
@@ -232,6 +242,7 @@ export const initialFormData: ProductFormData = {
   success_redirect_url: '',
   pass_params_to_redirect: false,
   categories: [],
+  tags: [],
   omnibus_exempt: false,
   sale_price: null,
   sale_price_until: null,

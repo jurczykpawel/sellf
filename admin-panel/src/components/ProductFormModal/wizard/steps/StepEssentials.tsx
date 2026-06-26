@@ -54,11 +54,14 @@ export const StepEssentials: React.FC<StepEssentialsProps> = ({
 
   return (
     <div className="space-y-6">
-      <ProductTypeRadio
-        formData={formData}
-        setFormData={setFormData}
-        isEditing={isEditing}
-      />
+      {/* A bundle is implicitly a one-time product — the type picker doesn't apply. */}
+      {!formData.is_bundle && (
+        <ProductTypeRadio
+          formData={formData}
+          setFormData={setFormData}
+          isEditing={isEditing}
+        />
+      )}
 
       <BasicInfoSection
         formData={formData}

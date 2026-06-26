@@ -244,6 +244,26 @@ describe('Server action demo guards', () => {
     });
   });
 
+  describe('tags (result pattern)', () => {
+    it('createTag returns error in demo mode', async () => {
+      const { createTag } = await import('@/lib/actions/tags');
+      const result = await createTag({ name: 'Test', slug: 'test' });
+      expect(result).toEqual({ success: false, error: 'This action is disabled in demo mode' });
+    });
+
+    it('updateTag returns error in demo mode', async () => {
+      const { updateTag } = await import('@/lib/actions/tags');
+      const result = await updateTag('123', { name: 'Test', slug: 'test' });
+      expect(result).toEqual({ success: false, error: 'This action is disabled in demo mode' });
+    });
+
+    it('deleteTag returns error in demo mode', async () => {
+      const { deleteTag } = await import('@/lib/actions/tags');
+      const result = await deleteTag('123');
+      expect(result).toEqual({ success: false, error: 'This action is disabled in demo mode' });
+    });
+  });
+
   describe('preferences', () => {
     it('updateUserPreferences silently succeeds in demo mode', async () => {
       const { updateUserPreferences } = await import('@/lib/actions/preferences');

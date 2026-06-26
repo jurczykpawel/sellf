@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
+import { CategoryCreateDTO, CategoryUpdateDTO } from '@/lib/api/dto/category'
 
 export interface Category {
   id: string
@@ -30,10 +31,17 @@ export async function getCategories(): Promise<{ success: boolean; data?: Catego
 
 export async function createCategory(data: { name: string; slug: string; description?: string }) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
+  // Validate with a Zod DTO (slug regex, trim, max lengths, .strict() rejects extra
+  // keys) and persist the PARSED object — never spread the raw argument into
+  // .insert() (column-injection defense). Parity with the tag actions.
+  const parsed = CategoryCreateDTO.safeParse(data)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid category data' }
+  }
   return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('categories')
-      .insert(data)
+      .insert(parsed.data)
 
     if (error) {
       console.error('[createCategory] Error:', error)
@@ -46,10 +54,14 @@ export async function createCategory(data: { name: string; slug: string; descrip
 
 export async function updateCategory(id: string, data: { name: string; slug: string; description?: string }) {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR }
+  const parsed = CategoryUpdateDTO.safeParse(data)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid category data' }
+  }
   return withAdminClient(async ({ dataClient }) => {
     const { error } = await dataClient
       .from('categories')
-      .update(data)
+      .update(parsed.data)
       .eq('id', id)
 
     if (error) {

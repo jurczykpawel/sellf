@@ -16,6 +16,8 @@ import { useState, useEffect } from 'react';
 import { getMyShopConfig, getMyLegalDocsSource, updateShopConfig, type ShopConfig } from '@/lib/actions/shop-config';
 import SourceBadge from '@/components/ui/SourceBadge';
 import type { LegalDocsSource } from '@/lib/legal/legal-docs-source';
+import { lookupCompanyByNip } from '@/lib/gus/lookup';
+import { validateTaxId } from '@/lib/validation/nip';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -60,6 +62,11 @@ export default function LegalDocumentsSettings() {
   const [saving, setSaving] = useState(false);
   const [savingCompany, setSavingCompany] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // ---- GUS NIP autofill state ----
+  const [isLoadingGus, setIsLoadingGus] = useState(false);
+  const [gusError, setGusError] = useState<string | null>(null);
+  const [gusSuccess, setGusSuccess] = useState(false);
 
   // Highlight missing fields after a failed generate attempt
   const [highlightMissing, setHighlightMissing] = useState<string[]>([]);
@@ -197,7 +204,7 @@ export default function LegalDocumentsSettings() {
         company_postal: companyForm.company_postal || null,
         company_phone: companyForm.company_phone || null,
         complaints_email: companyForm.complaints_email || null,
-        is_vat_exempt: companyForm.is_vat_exempt,
+        // is_vat_exempt is edited in Payments → Taxes (single source of truth); shown read-only here.
         is_micro_enterprise: companyForm.is_micro_enterprise,
         has_dpo: companyForm.has_dpo,
         dpo_contact: companyForm.has_dpo ? (companyForm.dpo_contact || null) : null,
@@ -215,6 +222,50 @@ export default function LegalDocumentsSettings() {
       toast.error(t('saveCompanyError'));
     } finally {
       setSavingCompany(false);
+    }
+  };
+
+  // ---- Handler: fetch company data from GUS by NIP ----
+  const handleGusFetch = async () => {
+    setGusError(null);
+    setGusSuccess(false);
+
+    const validation = validateTaxId(companyForm.nip, true);
+    if (!validation.isValid || !validation.isPolish || !validation.normalized) {
+      setGusError(t('gusInvalidNip'));
+      return;
+    }
+
+    setIsLoadingGus(true);
+    try {
+      const result = await lookupCompanyByNip(validation.normalized);
+      if (result.ok) {
+        const data = result.data;
+        setCompanyForm((prev) => ({
+          ...prev,
+          company_legal_name: data.nazwa || prev.company_legal_name,
+          company_street: data.ulica || prev.company_street,
+          company_building_no: data.nrNieruchomosci || prev.company_building_no,
+          company_flat_no: data.nrLokalu || prev.company_flat_no,
+          company_city: data.miejscowosc || prev.company_city,
+          company_postal: data.kodPocztowy || prev.company_postal,
+          regon: data.regon || prev.regon,
+        }));
+        setGusSuccess(true);
+      } else if (result.code === 'rate_limit') {
+        setGusError(t('gusRateLimitError'));
+      } else if (result.code === 'not_found') {
+        setGusError(t('gusNotFound'));
+      } else if (result.code === 'not_configured') {
+        // Silent fail - GUS not configured, user can enter data manually.
+        setGusError(null);
+      } else if (result.code === 'security') {
+        setGusError(t('gusSecurityError'));
+      } else {
+        setGusError(t('gusFetchError'));
+      }
+    } finally {
+      setIsLoadingGus(false);
     }
   };
 
@@ -358,15 +409,35 @@ export default function LegalDocumentsSettings() {
               <label htmlFor="nip" className="block text-sm font-medium text-sf-body mb-2">
                 {t('nipLabel')}
               </label>
-              <input
-                id="nip"
-                type="text"
-                value={companyForm.nip}
-                onChange={(e) => setCompanyForm({ ...companyForm, nip: e.target.value })}
-                className={inputClass()}
-                placeholder={t('nipPlaceholder')}
-                maxLength={10}
-              />
+              <div className="flex gap-2">
+                <input
+                  id="nip"
+                  type="text"
+                  value={companyForm.nip}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, nip: e.target.value });
+                    setGusError(null);
+                    setGusSuccess(false);
+                  }}
+                  className={inputClass()}
+                  placeholder={t('nipPlaceholder')}
+                  maxLength={10}
+                />
+                <button
+                  type="button"
+                  onClick={handleGusFetch}
+                  disabled={isLoadingGus || !companyForm.nip}
+                  className="shrink-0 px-3 py-2 bg-sf-accent-bg hover:bg-sf-accent-hover text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isLoadingGus ? t('gusFetching') : t('gusFetchButton')}
+                </button>
+              </div>
+              {gusSuccess && (
+                <p className="mt-1 text-xs text-sf-success">{t('gusDataLoaded')}</p>
+              )}
+              {gusError && (
+                <p className="mt-1 text-xs text-sf-warning">⚠️ {gusError}</p>
+              )}
             </div>
             <div>
               <label htmlFor="regon" className="block text-sm font-medium text-sf-body mb-2">
@@ -501,22 +572,16 @@ export default function LegalDocumentsSettings() {
             </div>
           </div>
 
-          {/* Toggles: VAT exempt / micro enterprise */}
+          {/* Toggles: micro enterprise / DPO. VAT exemption is edited in
+              Payments → Taxes (single source of truth) and mirrored read-only here. */}
           <div className="space-y-4">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={companyForm.is_vat_exempt}
-                onClick={() => setCompanyForm({ ...companyForm, is_vat_exempt: !companyForm.is_vat_exempt })}
-                className={`${toggleClass} ${companyForm.is_vat_exempt ? 'bg-sf-accent-bg' : 'bg-sf-border-medium'}`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${companyForm.is_vat_exempt ? 'translate-x-6' : 'translate-x-1'}`}
-                />
-              </button>
-              <span className="text-sm text-sf-body">{t('isVatExemptLabel')}</span>
-            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-sf-body">{t('isVatExemptLabel')}:</span>
+              <span className="text-sm font-medium text-sf-heading">
+                {companyForm.is_vat_exempt ? t('isVatExemptYes') : t('isVatExemptNo')}
+              </span>
+              <span className="text-xs text-sf-muted">{t('isVatExemptManagedIn')}</span>
+            </div>
 
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <button

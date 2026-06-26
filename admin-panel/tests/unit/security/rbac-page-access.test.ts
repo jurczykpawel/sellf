@@ -192,6 +192,22 @@ describe('Server actions: correct auth wrapper per scope', () => {
       ).toBe(false);
     });
 
+    it('tags.ts uses withAdminClient', () => {
+      const source = readSource('lib/actions/tags.ts');
+      expect(
+        /withAdminClient/.test(source),
+        'tags.ts must use withAdminClient'
+      ).toBe(true);
+    });
+
+    it('tags.ts does NOT import withAdminAuth (non-Or variant)', () => {
+      const source = readSource('lib/actions/tags.ts');
+      expect(
+        /import.*withAdminAuth[^O]/.test(source),
+        'tags.ts must NOT import withAdminAuth (use withAdminClient instead)'
+      ).toBe(false);
+    });
+
     it('theme.ts uses withAdminClient', () => {
       const source = readSource('lib/actions/theme.ts');
       expect(
@@ -513,6 +529,7 @@ describe('All server action files have auth wrappers', () => {
       'shop-config.ts',
       'stripe-config.ts',
       'stripe-tax.ts',
+      'tags.ts',
       'theme.ts',
       'validate-email.ts',
     ]);

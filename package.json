@@ -1,7 +1,7 @@
 {
   "name": "sellf",
-  "version": "2026.6.17",
-  "description": "Open-source platform for selling digital products and recurring subscriptions, with content protection. Built on Next.js, Supabase, and Stripe.",
+  "version": "2026.6.18",
+  "description": "Source-available platform for selling digital products and recurring subscriptions, with content protection. Built on Next.js, Supabase, and Stripe.",
   "main": "sellf.js",
   "scripts": {
     "setup": "bun run scripts/setup-supabase.ts",
@@ -20,10 +20,10 @@
     "content-protection",
     "payment-gateway",
     "self-hosted",
-    "open-source"
+    "source-available"
   ],
   "author": "jurczykpawel",
-  "license": "AGPL-3.0-only",
+  "license": "Elastic-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jurczykpawel/sellf.git"

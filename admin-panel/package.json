@@ -1,7 +1,8 @@
 {
   "name": "admin-panel",
-  "version": "2026.6.17",
+  "version": "2026.6.18",
   "private": true,
+  "license": "Elastic-2.0",
   "scripts": {
     "dev": "next dev --turbopack",
     "prebuild": "chflags -R nouchg,nohidden .next 2>/dev/null; rm -rf .next 2>/dev/null; true",

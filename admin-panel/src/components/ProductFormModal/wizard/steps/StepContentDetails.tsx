@@ -5,11 +5,13 @@ import {
   ContentDeliverySection,
   PricingSection,
   CategoriesSection,
+  TagsSection,
   DescriptionSection,
   BundleItemsSection,
 } from '../../sections';
 import type { ProductFormData, TranslationFunction, UrlValidation } from '../../types';
 import type { Category } from '@/lib/actions/categories';
+import type { Tag } from '@/lib/actions/tags';
 import type { Product } from '@/types';
 
 interface StepContentDetailsProps {
@@ -22,6 +24,8 @@ interface StepContentDetailsProps {
   validateContentItemUrl: (url: string, type: 'video_embed' | 'download_link') => UrlValidation;
   allCategories: Category[];
   loadingCategories: boolean;
+  allTags: Tag[];
+  loadingTags: boolean;
   fieldErrors?: Record<string, string>;
   setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   /** Product list used by the bundle component picker (bundle mode only). */
@@ -40,6 +44,8 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
   validateContentItemUrl,
   allCategories,
   loadingCategories,
+  allTags,
+  loadingTags,
   fieldErrors,
   setFieldErrors,
   products,
@@ -92,6 +98,14 @@ export const StepContentDetails: React.FC<StepContentDetailsProps> = ({
         t={t}
         allCategories={allCategories}
         loadingCategories={loadingCategories}
+      />
+
+      <TagsSection
+        formData={formData}
+        setFormData={setFormData}
+        t={t}
+        allTags={allTags}
+        loadingTags={loadingTags}
       />
     </div>
   );
