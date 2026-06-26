@@ -39,6 +39,7 @@ interface Variant {
 function getVariantPricing(variant: Variant): {
   isSaleActive: boolean;
   effectivePrice: number;
+  saleQuantityRemaining: number | null;
 } {
   const isSaleActive = isSalePriceActive(
     variant.sale_price,
@@ -46,9 +47,13 @@ function getVariantPricing(variant: Variant): {
     variant.sale_quantity_limit,
     variant.sale_quantity_sold,
   );
+  const saleQuantityRemaining = variant.sale_quantity_limit !== null
+    ? variant.sale_quantity_limit - (variant.sale_quantity_sold ?? 0)
+    : null;
   return {
     isSaleActive,
     effectivePrice: isSaleActive ? getEffectiveUnitPrice(variant) : variant.price,
+    saleQuantityRemaining,
   };
 }
 
@@ -165,7 +170,7 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
         {/* Variants Grid */}
         <div className="space-y-4">
           {variants.map((variant) => {
-            const { isSaleActive, effectivePrice } = getVariantPricing(variant);
+            const { isSaleActive, effectivePrice, saleQuantityRemaining } = getVariantPricing(variant);
             return (
             <div
               key={variant.id}
@@ -270,6 +275,14 @@ export default function VariantSelectorClient({ groupId, licenseValid }: Variant
                               minute: '2-digit',
                             }),
                           })}
+                        </div>
+                      )}
+                      {isSaleActive && saleQuantityRemaining !== null && saleQuantityRemaining > 0 && (
+                        <div className="text-xs text-sf-warning mt-1 flex items-center gap-1 justify-center sm:justify-end">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          {t('saleQuantityRemaining', { count: saleQuantityRemaining })}
                         </div>
                       )}
                     </div>

@@ -133,7 +133,7 @@ test.describe('Variant Selector Page', () => {
     const saleUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await supabaseAdmin
       .from('products')
-      .update({ sale_price: 79, sale_price_until: saleUntil })
+      .update({ sale_price: 79, sale_price_until: saleUntil, sale_quantity_limit: 10, sale_quantity_sold: 7 })
       .eq('id', proPlan.id);
     expect(error).toBeNull();
 
@@ -148,11 +148,13 @@ test.describe('Variant Selector Page', () => {
       await expect(struck).toBeVisible();
       // ...and the sale-ends hint is shown.
       await expect(page.getByText(/Promocja kończy się|Sale ends/i)).toBeVisible();
+      // ...and the quantity-remaining hint is shown (10 - 7 = 3 left).
+      await expect(page.getByText(/Tylko 3 szt\. w tej cenie|Only 3 left/i)).toBeVisible();
     } finally {
       // Restore so later tests see the regular price.
       await supabaseAdmin
         .from('products')
-        .update({ sale_price: null, sale_price_until: null })
+        .update({ sale_price: null, sale_price_until: null, sale_quantity_limit: null, sale_quantity_sold: 0 })
         .eq('id', proPlan.id);
     }
   });

@@ -3272,7 +3272,8 @@
     "payWhatYouWant": "Pay What You Want",
     "suggestedPrice": "suggested",
     "minimumFrom": "min. {price}",
-    "saleEndsAt": "Sale ends {date}"
+    "saleEndsAt": "Sale ends {date}",
+    "saleQuantityRemaining": "Only {count} left at this price!"
   },
   "myPurchases": {
     "title": "My Purchases",

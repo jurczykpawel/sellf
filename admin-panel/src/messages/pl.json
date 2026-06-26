@@ -3287,7 +3287,8 @@
     "payWhatYouWant": "Zapłac ile chcesz",
     "suggestedPrice": "sugerowana",
     "minimumFrom": "min. {price}",
-    "saleEndsAt": "Promocja kończy się {date}"
+    "saleEndsAt": "Promocja kończy się {date}",
+    "saleQuantityRemaining": "Tylko {count} szt. w tej cenie!"
   },
   "myPurchases": {
     "title": "Moje Zakupy",
