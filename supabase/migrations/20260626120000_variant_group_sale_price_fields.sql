@@ -66,6 +66,9 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.get_variant_group(UUID) IS 'Get all active variants in an active group by UUID (M:N schema), incl. Omnibus sale pricing';
+-- Reset the implicit PUBLIC grant a fresh CREATE FUNCTION carries, then grant
+-- explicitly. This is a public storefront RPC, so anon must keep access.
+REVOKE EXECUTE ON FUNCTION public.get_variant_group(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_variant_group(UUID) TO anon, authenticated, service_role;
 
 -- get_variant_group_by_slug(TEXT)
@@ -126,4 +129,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.get_variant_group_by_slug(TEXT) IS 'Get all active variants in an active group by slug (M:N schema), incl. Omnibus sale pricing';
+-- Reset the implicit PUBLIC grant a fresh CREATE FUNCTION carries, then grant
+-- explicitly. This is a public storefront RPC, so anon must keep access.
+REVOKE EXECUTE ON FUNCTION public.get_variant_group_by_slug(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_variant_group_by_slug(TEXT) TO anon, authenticated, service_role;
