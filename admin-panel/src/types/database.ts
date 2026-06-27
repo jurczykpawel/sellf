@@ -2410,6 +2410,33 @@ export type Database = {
         }
         Relationships: []
       }
+      telemetry_state: {
+        Row: {
+          created_at: string
+          id: string
+          instance_id: string
+          last_attempt_at: string | null
+          last_sent_at: string | null
+          report_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instance_id?: string
+          last_attempt_at?: string | null
+          last_sent_at?: string | null
+          report_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instance_id?: string
+          last_attempt_at?: string | null
+          last_sent_at?: string | null
+          report_id?: string | null
+        }
+        Relationships: []
+      }
       tracking_logs: {
         Row: {
           created_at: string
@@ -3167,6 +3194,7 @@ export type Database = {
           orders: number
         }[]
       }
+      get_telemetry_metrics: { Args: never; Returns: Json }
       get_user_payment_history: {
         Args: { user_id_param: string }
         Returns: {
