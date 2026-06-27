@@ -608,7 +608,7 @@ Sellf phones home with **anonymous, opt-out** usage telemetry (model: n8n's
 `N8N_DIAGNOSTICS_ENABLED`). It exists so the project can see feature adoption and
 runtime mix. **Disclosure-only, never PII.**
 
-**Trigger:** the Next.js `instrumentation.ts` `register()` hook calls
+**Trigger:** the Next.js `src/instrumentation.ts` `register()` hook calls
 `startTelemetry()` on boot (which prints the one-line console notice), then an
 hourly in-process `setInterval` (`scheduler.ts`, mirrors `supabase/keep-alive.ts`)
 wakes the cycle. The real cadence gate is the DB, not the timer: `runTelemetryCycle`
@@ -653,7 +653,7 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 - `contract.ts` — strict zod envelope + `buildEnvelope`.
 - `send.ts` — `postTelemetry` (transport) + `runTelemetryCycle` (orchestration).
 - `scheduler.ts` — idempotent `startTelemetry`/`stopTelemetry` timers.
-- Wired in `admin-panel/instrumentation.ts`; DB in `supabase/migrations/20260627120000_telemetry.sql`.
+- Wired in `admin-panel/src/instrumentation.ts` (MUST live under `src/` — with a `src` directory Next.js only loads instrumentation from there, never from the project root; at the root it is silently never compiled/run); DB in `supabase/migrations/20260627120000_telemetry.sql`.
 - User-facing disclosure: `README.md` (Telemetry section), `admin-panel/.env.example` (§12), `docs-site/.../telemetry.md`.
 
 ### Stable Versions & Known Issues
