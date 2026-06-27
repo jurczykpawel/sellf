@@ -416,13 +416,35 @@ Sellf handles sensitive data (Stripe API keys, payment transactions, user accoun
 
 - **Regular penetration testing** — automated and manual security audits covering OWASP Top 10, with 280+ test cases across authentication, authorization, input validation, CORS, CSRF, injection vectors, business logic, and infrastructure
 - **Row Level Security (RLS)** on every database table — enforced at the PostgreSQL level, not just the application layer
-- **Zero platform access to your keys** — Stripe credentials are stored in your `.env.local` on your server. Sellf never phones home, has no telemetry, and no external API calls except to Supabase and Stripe
+- **Zero platform access to your keys** — Stripe credentials are stored in your `.env.local` on your server. The only outbound calls Sellf makes are to Supabase, Stripe, and an anonymous, opt-out [telemetry](#telemetry) ping (no PII, no revenue, no domain) you can switch off with one env var
 - **Built-in Security Audit panel** — Settings > System runs 11 automated checks against your Supabase and app configuration, with actionable fix instructions for each issue found
 - **Secure defaults** — CORS locked to your domain only, `HttpOnly` + `Secure` cookies, Content-Type validation, rate limiting on all public endpoints, webhook signature verification
 
 **Your Stripe keys stay on your server.** Sellf is fully self-hosted — there is no SaaS component, no cloud dependency, and no way for anyone (including us) to access your credentials.
 
 See [SECURITY.md](./SECURITY.md) for reporting vulnerabilities.
+
+---
+
+## Telemetry
+
+Sellf sends **anonymous, opt-out usage telemetry** about once a day so we can see which features get used and on what runtimes — the same model as n8n's diagnostics. It runs only in production on a public host (never on localhost or private/dev hosts) and prints a one-line notice on boot.
+
+**What we collect:** software and runtime versions, coarse host buckets (CPU/RAM band, OS, arch), feature flags (which integrations are enabled), and coarse **capped** counts of products, users, and transactions — plus a random per-instance id and your license tier.
+
+**What we never collect:** no emails or customer rows, no revenue or amounts, no raw domain, no license key, no IP address — **no PII of any kind**. The wire payload is validated before every send: the top level and the identity block are strict (no extra or PII fields can ride there), while the deployment and metrics sections are curated coarse maps — deployment is a fixed set of coarsened keys plus a curated flags object, and metrics holds numeric counts only, so no string can sneak in. Reports are retained for **120 days**, then deleted.
+
+Because the data is anonymous and contains no personal data, **no DPA is required** for Sellf telemetry.
+
+**Opting out (env-only — there is no in-app toggle):** set either of these in `.env.local` and restart:
+
+```env
+SELLF_TELEMETRY_DISABLED=true
+# or
+SELLF_TELEMETRY_ENABLED=false
+```
+
+You can also point telemetry at your own receiver with `TELEMETRY_URL=https://your-receiver/v1/ingest` (must be https). Full details: **[Telemetry & Privacy](https://docs.sellf.app/telemetry/)**.
 
 ---
 

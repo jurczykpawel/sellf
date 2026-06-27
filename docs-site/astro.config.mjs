@@ -66,6 +66,7 @@ export default defineConfig({
 					label: 'Security & Reference',
 					translations: { pl: 'Bezpieczeństwo i referencje' },
 					items: [
+						{ slug: 'telemetry' },
 						{ slug: 'security-rfc-checkout-binding' },
 						{ slug: 'stripe-testing-guide' },
 					],

@@ -602,6 +602,60 @@ Python (Flask + Django), and cURL.
 - Admin UI: `GateSnippetModal` + the "Generate gating snippet" product action.
 - Examples: `public/gate-examples/index.html` (self-contained interactive demo of all states/features) and `public/gate-examples/live-integration.html` (deploy-ready snippet + markup reference).
 
+### Telemetry (anonymous usage stats)
+
+Sellf phones home with **anonymous, opt-out** usage telemetry (model: n8n's
+`N8N_DIAGNOSTICS_ENABLED`). It exists so the project can see feature adoption and
+runtime mix. **Disclosure-only, never PII.**
+
+**Trigger:** the Next.js `instrumentation.ts` `register()` hook calls
+`startTelemetry()` on boot (which prints the one-line console notice), then an
+hourly in-process `setInterval` (`scheduler.ts`, mirrors `supabase/keep-alive.ts`)
+wakes the cycle. The real cadence gate is the DB, not the timer: `runTelemetryCycle`
+(`send.ts`) does an atomic **claim → collect → post → confirm**. `telemetry_claim_send`
+(a single `UPDATE … RETURNING` on the `telemetry_state` singleton) returns a row only
+when the ~20h send window has elapsed AND the 1h retry lease is free, so concurrent
+ticks/restarts can never double-send; `telemetry_confirm_send` stamps `last_sent_at`
+on success. Only arms when `NODE_ENV=production`, telemetry is enabled, and the
+deployment host is public (skips localhost / private / dotless hosts).
+
+**Metrics RPC:** `get_telemetry_metrics()` — one round-trip, `SECURITY DEFINER`,
+`service_role`-only, `count(*)` aggregates only (products/users/transactions/etc.).
+It **never** sums amounts and never selects emails or customer rows. Counts are
+clamped client-side and capped at the receiver.
+
+**Opt-out: ENV-ONLY — there is NO UI toggle and NO banner.** Set
+`SELLF_TELEMETRY_DISABLED=true` or `SELLF_TELEMETRY_ENABLED=false`
+(`config.ts → isTelemetryEnabled`).
+
+**Anonymity guarantees:** a random per-instance id from `telemetry_state`
+(`gen_random_uuid()`, NOT derived from domain/license), license_tier only, coarsened
+host facts (CPU/RAM bands, OS, arch, runtime major — `coarsen.ts`). NEVER sends:
+emails, customer rows, revenue/amounts, raw domain, license key, or IP. The wire
+envelope is validated via `telemetryEnvelopeSchema` (`contract.ts`) and
+**self-validated before every send**: the top level and `identity` are `.strict()`, so
+no extra/PII top-level or identity field is possible; `deployment` and `metrics` are
+curated coarse maps (`deployment` = fixed coarsened keys + a curated `flags` object;
+`metrics` = numeric counts only — `z.number()` values, so no string can ride in
+metrics). Outbound is SSRF-guarded (https-only host guard + `redirect: 'error'`, 10s
+timeout, one retry; never throws).
+
+**Receiver:** `https://telemetry.techskills.academy/v1/ingest` (default), overridable
+with `TELEMETRY_URL` (must be https; private/loopback rejected). Reports retained 120
+days. Because it is anonymous with no personal data, **no DPA is required**.
+
+**Module layout** (`src/lib/telemetry/`):
+- `constants.ts` — project/schema version, default URL, window/lease/poll/boot timings.
+- `config.ts` — `isTelemetryEnabled`, `isNonDeploymentHost`, `resolveTelemetryUrl`, `assertSafeOutboundUrl` (SSRF guard).
+- `identity.ts` — `readInstanceId`, `claimSend`/`confirmSend` (atomic claim-then-confirm RPC wrappers).
+- `coarsen.ts` — pure bucketing of CPU/RAM/version (no I/O).
+- `collect.ts` — `collectMetrics` (RPC), `collectDeployment` (coarsened host + DB/env feature flags), `collectLicenseTier`; each fail-safe.
+- `contract.ts` — strict zod envelope + `buildEnvelope`.
+- `send.ts` — `postTelemetry` (transport) + `runTelemetryCycle` (orchestration).
+- `scheduler.ts` — idempotent `startTelemetry`/`stopTelemetry` timers.
+- Wired in `admin-panel/instrumentation.ts`; DB in `supabase/migrations/20260627120000_telemetry.sql`.
+- User-facing disclosure: `README.md` (Telemetry section), `admin-panel/.env.example` (§12), `docs-site/.../telemetry.md`.
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

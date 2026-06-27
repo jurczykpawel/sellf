@@ -3554,7 +3554,7 @@
       },
       "security": {
         "title": "Twoje klucze nie opuszczają serwera",
-        "desc": "Dane Stripe zostają w pliku .env. Brak telemetrii, brak zewnętrznych wywołań. RLS na każdej tabeli, testy penetracyjne, wbudowany panel audytu bezpieczeństwa."
+        "desc": "Dane Stripe zostają w pliku .env. Tylko anonimowa telemetria z opcją wyłączenia (opt-out) — bez danych osobowych, bez przychodów, bez wycieku domeny. RLS na każdej tabeli, testy penetracyjne, wbudowany panel audytu bezpieczeństwa."
       },
       "gus": {
         "title": "Auto-uzupełnianie danych firmy",
