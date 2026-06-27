@@ -1,9 +1,13 @@
 /**
  * Telemetry wire-envelope contract: the single source of truth for what leaves the
- * deployment. The top-level `.strict()` (and the `.strict()` on `identity`) is the
- * anti-PII / anti-drift guard — any field not declared here (an email, a domain hash,
- * a raw host fact) fails the parse instead of silently shipping. Build the envelope
- * with `buildEnvelope`, then `telemetryEnvelopeSchema.parse(...)` before sending.
+ * deployment. The anti-PII / anti-drift guard works at two levels. The top level and
+ * `identity` are `.strict()`, so no extra (or PII) field can ride at the top level or
+ * inside `identity` — anything undeclared there fails the parse instead of shipping.
+ * `deployment` and `metrics` are open maps by type, but curated coarse maps in practice:
+ * `collect.ts` fills `deployment` with a fixed set of coarsened keys plus a curated
+ * `flags` object, and `metrics` is `z.record(z.string(), z.number())` — numeric counts
+ * only, so no string (email, domain, host fact) can ride inside metrics. Build the
+ * envelope with `buildEnvelope`, then `telemetryEnvelopeSchema.parse(...)` before sending.
  *
  * Zod v4 notes: ids use `z.uuid()` (strict RFC-4122; real ids come from Postgres
  * `gen_random_uuid()`), timestamps use `z.iso.datetime()`, and `z.record(k, v)` takes

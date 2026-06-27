@@ -632,10 +632,13 @@ clamped client-side and capped at the receiver.
 (`gen_random_uuid()`, NOT derived from domain/license), license_tier only, coarsened
 host facts (CPU/RAM bands, OS, arch, runtime major — `coarsen.ts`). NEVER sends:
 emails, customer rows, revenue/amounts, raw domain, license key, or IP. The wire
-envelope is schema-locked via `telemetryEnvelopeSchema` (`contract.ts`, top-level
-`.strict()`) and **self-validated before every send** — an undeclared field fails the
-parse instead of leaking. Outbound is SSRF-guarded (https-only host guard +
-`redirect: 'error'`, 10s timeout, one retry; never throws).
+envelope is validated via `telemetryEnvelopeSchema` (`contract.ts`) and
+**self-validated before every send**: the top level and `identity` are `.strict()`, so
+no extra/PII top-level or identity field is possible; `deployment` and `metrics` are
+curated coarse maps (`deployment` = fixed coarsened keys + a curated `flags` object;
+`metrics` = numeric counts only — `z.number()` values, so no string can ride in
+metrics). Outbound is SSRF-guarded (https-only host guard + `redirect: 'error'`, 10s
+timeout, one retry; never throws).
 
 **Receiver:** `https://telemetry.techskills.academy/v1/ingest` (default), overridable
 with `TELEMETRY_URL` (must be https; private/loopback rejected). Reports retained 120
@@ -644,7 +647,7 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 **Module layout** (`src/lib/telemetry/`):
 - `constants.ts` — project/schema version, default URL, window/lease/poll/boot timings.
 - `config.ts` — `isTelemetryEnabled`, `isNonDeploymentHost`, `resolveTelemetryUrl`, `assertSafeOutboundUrl` (SSRF guard).
-- `identity.ts` — `getOrCreateInstanceId`, `claimSend`/`confirmSend` (atomic claim-then-confirm RPC wrappers).
+- `identity.ts` — `readInstanceId`, `claimSend`/`confirmSend` (atomic claim-then-confirm RPC wrappers).
 - `coarsen.ts` — pure bucketing of CPU/RAM/version (no I/O).
 - `collect.ts` — `collectMetrics` (RPC), `collectDeployment` (coarsened host + DB/env feature flags), `collectLicenseTier`; each fail-safe.
 - `contract.ts` — strict zod envelope + `buildEnvelope`.

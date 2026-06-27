@@ -432,7 +432,7 @@ Sellf sends **anonymous, opt-out usage telemetry** about once a day so we can se
 
 **What we collect:** software and runtime versions, coarse host buckets (CPU/RAM band, OS, arch), feature flags (which integrations are enabled), and coarse **capped** counts of products, users, and transactions — plus a random per-instance id and your license tier.
 
-**What we never collect:** no emails or customer rows, no revenue or amounts, no raw domain, no license key, no IP address — **no PII of any kind**. The wire payload is schema-locked, so any undeclared field fails to send rather than leaking. Reports are retained for **120 days**, then deleted.
+**What we never collect:** no emails or customer rows, no revenue or amounts, no raw domain, no license key, no IP address — **no PII of any kind**. The wire payload is validated before every send: the top level and the identity block are strict (no extra or PII fields can ride there), while the deployment and metrics sections are curated coarse maps — deployment is a fixed set of coarsened keys plus a curated flags object, and metrics holds numeric counts only, so no string can sneak in. Reports are retained for **120 days**, then deleted.
 
 Because the data is anonymous and contains no personal data, **no DPA is required** for Sellf telemetry.
 

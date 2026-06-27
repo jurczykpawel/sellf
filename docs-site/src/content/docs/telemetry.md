@@ -33,7 +33,7 @@ It is driven by the Next.js instrumentation `register()` hook on boot plus an ho
 - ❌ IP addresses
 - ❌ Any other personally identifiable information
 
-The outgoing payload is validated against a **schema-locked** contract (`.strict()`): any field not explicitly declared in the envelope fails the check and the report is dropped rather than sent. This is an anti-leak guard, not just a convention — it is impossible to silently ship a new field (an email, a domain hash, a raw host fact) without it being declared and reviewed.
+The outgoing payload is validated before every send, and the validation is tight where it matters most. The top level of the envelope and the identity block are **strict**: any undeclared field there (an email, a license key, a raw host fact) fails the check and the report is dropped rather than sent — it is impossible to silently ship a new top-level or identity field without declaring and reviewing it. The deployment and metrics sections are open maps by type but **curated** in practice: deployment carries a fixed set of coarsened keys plus a curated flags object, and metrics holds numeric counts only (numbers, never strings), so no free-form string can ride along inside them.
 
 ## Retention
 

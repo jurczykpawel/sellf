@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
-/** Random instance id from the singleton; created by the migration seed. */
-export async function getOrCreateInstanceId(): Promise<string> {
+/** Reads the seeded singleton instance id (created by the migration seed); throws if missing. */
+export async function readInstanceId(): Promise<string> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('telemetry_state').select('instance_id').eq('id', 'singleton').single();

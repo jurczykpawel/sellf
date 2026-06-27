@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
-import { claimSend, confirmSend, getOrCreateInstanceId } from '@/lib/telemetry/identity';
+import { claimSend, confirmSend, readInstanceId } from '@/lib/telemetry/identity';
 
 const admin = createClient(process.env.SUPABASE_URL || 'http://127.0.0.1:54321',
   process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz');
@@ -12,8 +12,8 @@ describe('telemetry identity', () => {
   beforeEach(async () => { await reset(); });
 
   it('returns a stable instance id', async () => {
-    const a = await getOrCreateInstanceId();
-    const b = await getOrCreateInstanceId();
+    const a = await readInstanceId();
+    const b = await readInstanceId();
     expect(a).toBe(b);
     expect(a).toMatch(/^[0-9a-f-]{36}$/);
   });

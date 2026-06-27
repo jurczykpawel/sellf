@@ -66,8 +66,14 @@ export async function runTelemetryCycle(): Promise<'sent' | 'skipped' | 'failed'
       metrics,
     });
 
-    // Self-validate: refuse to send anything that drifts from the strict contract.
-    if (!telemetryEnvelopeSchema.safeParse(envelope).success) return 'failed';
+    // Self-validate: refuse to send anything that drifts from the contract.
+    const validation = telemetryEnvelopeSchema.safeParse(envelope);
+    if (!validation.success) {
+      // Log only the offending field paths — never any values/payload.
+      const keys = validation.error.issues.map((i) => i.path.join('.') || '(root)').join(', ');
+      console.warn(`[telemetry] envelope failed self-validation: ${keys}`);
+      return 'failed';
+    }
 
     const ok = await postTelemetry(envelope, resolveTelemetryUrl());
     if (!ok) return 'failed';
