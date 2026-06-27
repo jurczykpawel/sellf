@@ -47,3 +47,31 @@ AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.get_telemetry_metrics() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_telemetry_metrics() TO service_role;
+
+-- Atomic claim-then-confirm send gate. The single UPDATE ... RETURNING is the sole
+-- gate: a row comes back only when the window has elapsed AND the retry lease is free,
+-- so concurrent callers can never both win. report_id is minted once and reused across
+-- retry attempts until a confirm clears it.
+CREATE OR REPLACE FUNCTION public.telemetry_claim_send(p_window_ms bigint, p_lease_ms bigint)
+RETURNS TABLE(instance_id uuid, report_id uuid)
+LANGUAGE sql SECURITY DEFINER SET search_path = ''
+AS $$
+  UPDATE public.telemetry_state
+     SET last_attempt_at = now(),
+         report_id = COALESCE(report_id, gen_random_uuid())
+   WHERE id = 'singleton'
+     AND (last_sent_at IS NULL OR last_sent_at < now() - make_interval(secs => p_window_ms / 1000.0))
+     AND (last_attempt_at IS NULL OR last_attempt_at < now() - make_interval(secs => p_lease_ms / 1000.0))
+   RETURNING instance_id, report_id;
+$$;
+REVOKE EXECUTE ON FUNCTION public.telemetry_claim_send(bigint, bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.telemetry_claim_send(bigint, bigint) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.telemetry_confirm_send()
+RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = ''
+AS $$
+  UPDATE public.telemetry_state SET last_sent_at = now(), report_id = NULL WHERE id = 'singleton';
+$$;
+REVOKE EXECUTE ON FUNCTION public.telemetry_confirm_send() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.telemetry_confirm_send() TO service_role;

@@ -3449,6 +3449,14 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      telemetry_claim_send: {
+        Args: { p_lease_ms: number; p_window_ms: number }
+        Returns: {
+          instance_id: string
+          report_id: string
+        }[]
+      }
+      telemetry_confirm_send: { Args: never; Returns: undefined }
       update_video_progress: {
         Args: {
           completed_param?: boolean
