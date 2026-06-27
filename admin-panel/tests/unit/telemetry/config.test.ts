@@ -20,6 +20,16 @@ describe('telemetry config', () => {
   it('treats 172.32.0.1 as a deployment host (above private range)', () => expect(isNonDeploymentHost('172.32.0.1')).toBe(false));
   it('treats 172.31.255.255 as non-deployment (top of private range)', () => expect(isNonDeploymentHost('172.31.255.255')).toBe(true));
 
+  // Defense-in-depth (SSRF Low finding): IPv4 link-local, CGNAT, IPv4-mapped IPv6, bracketed IPv6 literals.
+  it.each(['169.254.1.1','100.64.0.1','100.127.255.255','::ffff:192.168.1.1','[fc00::1]','[fe80::1]','[::1]'])
+    ('suppresses reserved/private host %s', (h) => expect(isNonDeploymentHost(h)).toBe(true));
+  // CGNAT boundary: 100.64.0.0/10 = 100.64–100.127; 100.63 and 100.128 are public.
+  it('treats 100.63.0.1 as a deployment host (below CGNAT)', () => expect(isNonDeploymentHost('100.63.0.1')).toBe(false));
+  it('treats 100.128.0.1 as a deployment host (above CGNAT)', () => expect(isNonDeploymentHost('100.128.0.1')).toBe(false));
+  // Must NOT false-positive on real domains starting with fc/fd/fe80 (the unguarded prefix-match trap).
+  it.each(['fc-barcelona.com','fdn.example.com','fe80-myhost.io'])
+    ('allows real domain %s (not an IPv6 literal)', (h) => expect(isNonDeploymentHost(h)).toBe(false));
+
   it('resolveTelemetryUrl returns the TELEMETRY_URL override when set', () => {
     process.env.TELEMETRY_URL = 'https://custom.example.com/v1/ingest';
     expect(resolveTelemetryUrl()).toBe('https://custom.example.com/v1/ingest');
