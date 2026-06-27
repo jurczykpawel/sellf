@@ -3539,7 +3539,7 @@
       },
       "security": {
         "title": "Your keys never leave your server",
-        "desc": "Stripe credentials stay in your .env file. No telemetry, no external calls. RLS on every table, penetration-tested, with a built-in security audit panel."
+        "desc": "Stripe credentials stay in your .env file. Anonymous, opt-out telemetry only — no PII, no revenue, no domain leak. RLS on every table, penetration-tested, with a built-in security audit panel."
       },
       "gus": {
         "title": "Auto-fill company data",
