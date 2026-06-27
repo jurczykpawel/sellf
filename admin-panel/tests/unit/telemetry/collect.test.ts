@@ -23,4 +23,15 @@ describe('collect', () => {
     const t = await collectLicenseTier();
     expect(['free','registered','pro','business']).toContain(t);
   });
+  it('oauth_providers_count counts only allow-listed providers (mirrors runtime-config)', async () => {
+    const save = process.env.OAUTH_PROVIDERS;
+    process.env.OAUTH_PROVIDERS = 'Google, github, bogus, , twitter, notaprovider';
+    try {
+      const d = await collectDeployment();
+      expect(d.oauth_providers_count).toBe(3); // google, github, twitter — case-insensitive, junk dropped
+    } finally {
+      if (save === undefined) delete process.env.OAUTH_PROVIDERS;
+      else process.env.OAUTH_PROVIDERS = save;
+    }
+  });
 });

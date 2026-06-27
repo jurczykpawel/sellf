@@ -93,10 +93,14 @@ async function collectFlags(): Promise<Record<string, unknown>> {
     .select('id', { head: true, count: 'exact' })
     .eq('is_active', true);
 
+  // Mirror runtime-config.ts: lowercase + filter to the supported provider allow-list
+  // so the count reflects actual active OAuth providers, not arbitrary env noise.
   const oauthProviders = (process.env.OAUTH_PROVIDERS ?? '')
     .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean);
+    .map((p) => p.trim().toLowerCase())
+    .filter((p) =>
+      ['google', 'github', 'discord', 'twitter', 'azure', 'facebook', 'apple'].includes(p),
+    );
 
   return {
     stripe_mode: stripe?.mode ?? 'off',

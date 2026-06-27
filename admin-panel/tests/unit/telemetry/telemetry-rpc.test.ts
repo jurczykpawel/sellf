@@ -19,11 +19,17 @@ describe('get_telemetry_metrics RPC', () => {
     }
   });
 
-  it('is not executable by anon', async () => {
+  it('is not executable by anon (permission denied, not merely an error)', async () => {
     const anon = createClient(SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       || 'sb_publishable_anon_local');
     const { error } = await anon.rpc('get_telemetry_metrics');
     expect(error).not.toBeNull();
+    // Postgres "permission denied for function" is SQLSTATE 42501; PostgREST forwards
+    // both the code and the message. Assert the failure is specifically authorization,
+    // not some unrelated error (e.g. missing function / bad request).
+    const code = error!.code;
+    const message = (error!.message || '').toLowerCase();
+    expect(code === '42501' || /permission denied|not authorized|not allowed/.test(message)).toBe(true);
   });
 
   it('telemetry_state seeds exactly one singleton row with an instance_id', async () => {

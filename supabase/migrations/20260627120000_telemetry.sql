@@ -17,7 +17,7 @@ REVOKE ALL ON public.telemetry_state FROM anon, authenticated;
 GRANT ALL ON public.telemetry_state TO service_role;
 INSERT INTO public.telemetry_state (id) VALUES ('singleton') ON CONFLICT (id) DO NOTHING;
 
--- One round-trip, all counts. Exact (capped at the receiver). plpgsql counts only —
+-- One round-trip, all counts. Exact (capped at the receiver). SQL counts only —
 -- never sums amounts, never selects emails/customer rows.
 CREATE OR REPLACE FUNCTION public.get_telemetry_metrics()
 RETURNS jsonb
