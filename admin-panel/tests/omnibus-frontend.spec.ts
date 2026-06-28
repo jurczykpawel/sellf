@@ -135,9 +135,10 @@ test.describe('Omnibus Frontend - Client Side', () => {
 
     // Verify it shows the correct lowest price text
     const priceText = await omnibusPrice.textContent();
-    // Should show the lowest historical price from the price_history table
-    // Since we set sale_price=60 which creates a new history entry with effective price 60
-    expect(priceText).toContain('60'); // Lowest price in history is now 60
+    // Omnibus shows the lowest price in the 30 days BEFORE the current reduction:
+    // the current sale (60) is excluded, so the pre-sale regular price (100) is the
+    // reference. (Asserting 60 here would encode the very bug the fix removes.)
+    expect(priceText).toContain('100'); // pre-sale regular price, NOT the current 60 sale
     expect(priceText).toMatch(/najniższa cena|lowest price/i); // Polish or English text
   });
 
