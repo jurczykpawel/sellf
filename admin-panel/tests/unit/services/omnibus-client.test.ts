@@ -120,7 +120,9 @@ describe('Omnibus service — client parameter', () => {
     const result = await getLowestPriceInLast30Days('prod-1', client as any);
 
     expect(result).not.toBeNull();
-    expect(result!.lowestPrice).toBe(79);
+    // Single row = the current price period; its announced sale (79) is excluded
+    // from the Omnibus prior-price reference, so the regular price (100) is reported.
+    expect(result!.lowestPrice).toBe(100);
     expect(result!.currency).toBe('PLN');
     expect(client.from).toHaveBeenCalledWith('omnibus_price_history');
   });

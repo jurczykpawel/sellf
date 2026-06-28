@@ -14,6 +14,73 @@ type PriceEntry = {
   effective_from: string;
 };
 
+// ===== PURE LOGIC =====
+
+/**
+ * Select the Omnibus "prior price" reference from a product's 30-day price
+ * history: the lowest price applied in the 30 days BEFORE the current reduction.
+ *
+ * The current reduction is the most recent price period (max `effective_from`).
+ * Its `sale_price` is the discount being announced now and is EXCLUDED — only
+ * its regular `price` counts as a reference. Without this exclusion the "lowest
+ * price" always collapses to the current sale price (by definition the lowest),
+ * which is meaningless and breaches the directive.
+ *
+ * Past periods contribute the price that genuinely applied (the lower of their
+ * regular and sale price). Keying the current period by `effective_from === max`
+ * (rather than by array position) means rows sharing the current timestamp — e.g.
+ * an initial insert and a sale applied in the same DB transaction — all have
+ * their sale excluded, so the edge can't reintroduce the bug. Input ordering is
+ * irrelevant; the function derives the current period itself.
+ *
+ * The history passed in is already constrained to the last 30 days by the caller.
+ * Pure function — no DB access needed.
+ */
+export function selectLowestPriorPrice(
+  history: PriceEntry[],
+): { lowestPrice: number; currency: string; effectiveFrom: Date } | null {
+  if (!history || history.length === 0) {
+    return null;
+  }
+
+  // The current reduction = the most recent price period.
+  const currentFrom = history.reduce(
+    (max, entry) =>
+      new Date(entry.effective_from).getTime() > new Date(max).getTime()
+        ? entry.effective_from
+        : max,
+    history[0].effective_from,
+  );
+
+  const effectivePriceOf = (entry: PriceEntry): number => {
+    const regular = parseFloat(entry.price);
+    // Current period: exclude the announced sale, reference only the regular price.
+    if (entry.effective_from === currentFrom) {
+      return regular;
+    }
+    // Past periods: the price that genuinely applied (incl. any past sale).
+    return entry.sale_price
+      ? Math.min(regular, parseFloat(entry.sale_price))
+      : regular;
+  };
+
+  let bestEntry = history[0];
+  let bestPrice = effectivePriceOf(history[0]);
+  for (const entry of history) {
+    const price = effectivePriceOf(entry);
+    if (price < bestPrice) {
+      bestPrice = price;
+      bestEntry = entry;
+    }
+  }
+
+  return {
+    lowestPrice: bestPrice,
+    currency: bestEntry.currency,
+    effectiveFrom: new Date(bestEntry.effective_from),
+  };
+}
+
 // ===== INTERNAL HELPERS =====
 
 /**
@@ -89,28 +156,9 @@ export async function getLowestPriceInLast30Days(
     return null;
   }
 
-  // Find entry with lowest effective price (min of price and sale_price if set)
-  const lowestEntry = history.reduce((lowest: PriceEntry, entry: PriceEntry) => {
-    const effectivePrice = entry.sale_price
-      ? Math.min(parseFloat(entry.price), parseFloat(entry.sale_price))
-      : parseFloat(entry.price);
-
-    const lowestEffectivePrice = lowest.sale_price
-      ? Math.min(parseFloat(lowest.price), parseFloat(lowest.sale_price))
-      : parseFloat(lowest.price);
-
-    return effectivePrice < lowestEffectivePrice ? entry : lowest;
-  });
-
-  const lowestPrice = lowestEntry.sale_price
-    ? Math.min(parseFloat(lowestEntry.price), parseFloat(lowestEntry.sale_price))
-    : parseFloat(lowestEntry.price);
-
-  return {
-    lowestPrice,
-    currency: lowestEntry.currency,
-    effectiveFrom: new Date(lowestEntry.effective_from),
-  };
+  // The lowest price in the 30 days BEFORE the current reduction (Omnibus): the
+  // currently-announced sale is excluded so it can't become its own reference.
+  return selectLowestPriorPrice(history);
 }
 
 /**
