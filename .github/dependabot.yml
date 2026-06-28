@@ -1,7 +1,13 @@
 version: 2
 
 updates:
-  - package-ecosystem: "npm"
+  # admin-panel is built with Bun (CI: `bun install --frozen-lockfile`), so
+  # Dependabot must track bun.lock — the lockfile that actually ships. Tracking
+  # the npm ecosystem here updated a package-lock.json the build never used, so
+  # fixes never reached the artifact and alerts lingered. NOTE: Dependabot does
+  # not raise *security* PRs for Bun, only version PRs; the weekly minor+patch
+  # group carries most security patches, the rest via manual `bun update`.
+  - package-ecosystem: "bun"
     directory: "/admin-panel"
     schedule:
       interval: "weekly"

@@ -84,7 +84,9 @@
     "vitest": "^4.1.6"
   },
   "overrides": {
-    "undici": "^6.25.0",
+    "undici": "^6.27.0",
+    "js-yaml": "^4.2.0",
+    "@babel/core": "^7.29.6",
     "yaml": "^2.8.3",
     "minimatch": "^3.1.5",
     "minimatch@^3": "^3.1.5",

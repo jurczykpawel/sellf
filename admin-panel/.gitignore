@@ -64,3 +64,7 @@ next-env.d.ts
 /screenshots-before/
 /screenshots-after/
 *.bak
+
+# Bun is the source of truth (bun.lock). npm package-lock.json is only a
+# throwaway generated in CI for `npm audit` — never commit it.
+package-lock.json
