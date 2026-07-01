@@ -80,6 +80,8 @@ const baseShape = {
   vat_rate: z.number().nonnegative().nullable().optional(),
   price_includes_vat: z.boolean().optional(),
   omnibus_exempt: z.boolean().optional(),
+  vat_exempt: z.boolean().optional(),
+  vat_exempt_note: z.string().max(500).nullable().optional(),
   // Post-purchase redirect (success page)
   success_redirect_url: z.string().max(2048).nullable().optional(),
   pass_params_to_redirect: z.boolean().optional(),

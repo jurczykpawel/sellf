@@ -95,6 +95,32 @@ describe('mapApiInputToProductRow', () => {
     ).toThrowError();
   });
 
+  it('preserves vat_exempt and vat_exempt_note on create', () => {
+    const result = mapApiInputToProductRow(
+      { ...validBase, vat_exempt: true, vat_exempt_note: 'art. 113(1)' },
+      'create',
+    );
+    expect(result.vat_exempt).toBe(true);
+    expect(result.vat_exempt_note).toBe('art. 113(1)');
+  });
+
+  it('preserves vat_exempt on update (regression: was silently stripped by the DTO)', () => {
+    // Reproduces the reported bug: checking "VAT-exempt" and saving showed a
+    // success toast, but reopening the product had it unchecked again — the
+    // field was missing from baseShape, so z.object(...).strip() dropped it
+    // before the value ever reached the Supabase .update() call.
+    const result = mapApiInputToProductRow({ vat_exempt: true }, 'update');
+    expect(result).toEqual({ vat_exempt: true });
+  });
+
+  it('preserves vat_exempt_note on update', () => {
+    const result = mapApiInputToProductRow(
+      { vat_exempt_note: 'zw. art. 113(1)' },
+      'update',
+    );
+    expect(result).toEqual({ vat_exempt_note: 'zw. art. 113(1)' });
+  });
+
   it('exports DTO schemas', () => {
     expect(ProductCreateDTO).toBeDefined();
     expect(ProductUpdateDTO).toBeDefined();

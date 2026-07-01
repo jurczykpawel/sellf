@@ -390,6 +390,34 @@ describe('Products API v1', () => {
       expect(data2.data!.is_active).toBe(true);
     });
 
+    it('should persist vat_exempt and vat_exempt_note across a PATCH + reopen (regression)', async () => {
+      // Reproduces the reported bug: checking "VAT-exempt" in the edit form and
+      // saving showed a success toast, but reopening the product had it unchecked
+      // again. Root cause: vat_exempt/vat_exempt_note were missing from the DTO's
+      // baseShape, so the zod .strip() silently dropped them before the Supabase
+      // update. A fresh GET (not just the PATCH response) proves the DB actually
+      // persisted it, simulating "reopen the edit form".
+      const { status, data } = await patch<ApiResponse<Product>>(`/api/v1/products/${testProductId}`, {
+        vat_exempt: true,
+        vat_exempt_note: 'art. 113(1)',
+      });
+      expect(status).toBe(200);
+      expect((data.data as unknown as Record<string, unknown>).vat_exempt).toBe(true);
+
+      const reopened = await get<ApiResponse<Product>>(`/api/v1/products/${testProductId}`);
+      expect((reopened.data.data as unknown as Record<string, unknown>).vat_exempt).toBe(true);
+      expect((reopened.data.data as unknown as Record<string, unknown>).vat_exempt_note).toBe('art. 113(1)');
+
+      // Toggle back off — must also persist
+      const { data: data2 } = await patch<ApiResponse<Product>>(`/api/v1/products/${testProductId}`, {
+        vat_exempt: false,
+      });
+      expect((data2.data as unknown as Record<string, unknown>).vat_exempt).toBe(false);
+
+      const reopenedAgain = await get<ApiResponse<Product>>(`/api/v1/products/${testProductId}`);
+      expect((reopenedAgain.data.data as unknown as Record<string, unknown>).vat_exempt).toBe(false);
+    });
+
     it('should return 404 for non-existent product', async () => {
       const fakeId = '11111111-1111-4111-a111-111111111111';
       const { status } = await patch<ApiResponse<Product>>(`/api/v1/products/${fakeId}`, {
