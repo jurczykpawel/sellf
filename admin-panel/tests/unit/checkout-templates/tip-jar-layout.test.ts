@@ -15,6 +15,12 @@ describe('tip-jar checkout layout', () => {
     expect(src).toMatch(/layoutMode\s*===\s*['"]embedded['"]/);
     expect(src).toMatch(/checkoutFormClassName/);
     expect(src).toMatch(/layoutMode\s*===\s*['"]embedded['"]\s*\?\s*['"]w-full['"]/);
-    expect(src).toMatch(/:\s*['"]w-full lg:w-1\/2 lg:pl-8['"]/);
+    expect(src).toMatch(/:\s*PANEL_END_CLASSNAME/);
+
+    // Standalone (non-embedded) checkout resolves PANEL_END_CLASSNAME to the
+    // responsive half-column layout, shared with the other checkout/product
+    // pages — so it still stacks full-width on mobile like this test expects.
+    const layoutSrc = read('src/lib/two-column-layout.ts');
+    expect(layoutSrc).toMatch(/PANEL_END_CLASSNAME\s*=\s*['"]w-full lg:w-1\/2 lg:pl-8['"]/);
   });
 });

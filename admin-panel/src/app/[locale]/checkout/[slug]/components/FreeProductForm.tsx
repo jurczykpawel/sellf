@@ -31,6 +31,7 @@ import ProductShowcase from './ProductShowcase';
 import type { BundleComponentSummary } from './BundleContentsPreview';
 import FunnelTestBanner from './FunnelTestBanner';
 import AccessGrantedCard from './AccessGrantedCard';
+import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
 
 /** Stable no-op: free checkout never enters URL-coupon OTO mode, so useOto's
  *  coupon-ready callback is never invoked here. */
@@ -293,7 +294,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
   // Admin-only funnel preview: banner + simulation button → walks the free → OTO
   // funnel via the shared redirect hook, without granting real access.
   const renderFunnelTestPanel = () => (
-    <div className="w-full lg:w-1/2 lg:pl-8">
+    <div className={PANEL_END_CLASSNAME}>
       <FunnelTestBanner />
       <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border">
         {hasAccess ? (
@@ -312,7 +313,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
   );
 
   const renderForm = () => (
-    <div className="w-full lg:w-1/2 lg:pl-8">
+    <div className={PANEL_END_CLASSNAME}>
       <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border">
         <h2 className="text-xl font-semibold text-sf-heading mb-4">
           {user ? t('getYourFreeProduct') : t('getInstantAccess')}
@@ -438,7 +439,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
       <div className="w-full max-w-4xl mx-auto p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
         <DemoCheckoutNotice />
-        <div className="flex flex-col lg:flex-row">
+        <div className={TWO_COLUMN_ROW_CLASSNAME}>
           {renderProductInfo()}
           {isFunnelTest ? renderFunnelTestPanel() : renderForm()}
         </div>

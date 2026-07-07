@@ -37,6 +37,7 @@ import OrderBumpList from './OrderBumpList';
 import CouponField from './CouponField';
 import PwywSection from './PwywSection';
 import { getStripeClient } from '@/lib/stripe/client';
+import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
 
 interface PaidProductFormProps {
   product: Product;
@@ -385,7 +386,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   const checkoutFormClassName = layoutMode === 'embedded'
     ? 'w-full'
-    : 'w-full lg:w-1/2 lg:pl-8';
+    : PANEL_END_CLASSNAME;
 
   const renderCheckoutForm = () => (
     <div className={checkoutFormClassName}>
@@ -602,7 +603,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-sf-deep to-sf-raised p-4 lg:p-8">
       <div className="w-full max-w-7xl mx-auto p-6 lg:p-8 bg-sf-base border border-sf-border shadow-[var(--sf-shadow-accent)] backdrop-blur-md rounded-2xl">
-        <div className="flex flex-col lg:flex-row">
+        <div className={TWO_COLUMN_ROW_CLASSNAME}>
           <ProductShowcase product={product} taxMode={taxMode} bundleComponents={bundleComponents} />
           {renderCheckoutForm()}
         </div>

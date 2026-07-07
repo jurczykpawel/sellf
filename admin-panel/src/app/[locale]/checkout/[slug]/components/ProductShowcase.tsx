@@ -18,6 +18,7 @@ import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import { isSalePriceActive, getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import BundleContentsPreview from './BundleContentsPreview';
 import type { BundleComponentSummary } from './BundleContentsPreview';
+import { PANEL_START_CLASSNAME } from '@/lib/two-column-layout';
 
 interface ProductShowcaseProps {
   product: Product;
@@ -69,7 +70,7 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
   );
 
   return (
-    <div className="w-full lg:w-1/2 lg:pr-8 lg:border-r border-sf-border mb-8 lg:mb-0">
+    <div className={PANEL_START_CLASSNAME}>
       {/* Product Video / Image */}
       {canRenderPreviewVideo && product.preview_video_url ? (
         <div className="relative w-full aspect-video mb-6 rounded-2xl overflow-hidden bg-black">

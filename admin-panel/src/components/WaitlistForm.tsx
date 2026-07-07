@@ -8,6 +8,7 @@ import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
 import { createClient as createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { TWO_COLUMN_ROW_CLASSNAME, PANEL_START_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
 
 interface WaitlistFormProps {
   product: Product;
@@ -150,9 +151,9 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
   return (
     <div className="flex justify-center items-center min-h-screen bg-sf-deep">
       <div className="max-w-4xl mx-auto p-8 bg-sf-raised/80 backdrop-blur-md border border-sf-border rounded-2xl">
-        <div className="flex">
+        <div className={TWO_COLUMN_ROW_CLASSNAME}>
           {/* Product Info */}
-          <div className="w-1/2 pr-8 border-r border-sf-border">
+          <div className={PANEL_START_CLASSNAME} data-testid="waitlist-product-info">
             <div className="flex items-center mb-6">
               <div className="text-5xl mr-6">{product.icon}</div>
               <div>
@@ -175,7 +176,7 @@ export default function WaitlistForm({ product, unavailableReason }: WaitlistFor
           </div>
 
           {/* Waitlist Form */}
-          <div className="w-1/2 pl-8">
+          <div className={PANEL_END_CLASSNAME} data-testid="waitlist-form-panel">
             <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-6 border border-sf-border">
               <h2 className="text-xl font-semibold text-sf-heading mb-2">
                 {t('joinWaitlist')}

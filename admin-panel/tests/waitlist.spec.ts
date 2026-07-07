@@ -302,6 +302,35 @@ test.describe('Waitlist Feature', () => {
       const submitButton = page.locator('button').filter({ hasText: /Notify Me|Powiadom mnie/i });
       await expect(submitButton).toBeVisible();
     });
+
+    test('should stack product info above the form on mobile viewport', async ({ page }) => {
+      // Regression test: the two panels used to be hardcoded `w-1/2` with no
+      // responsive breakpoint, so on a phone-width viewport they stayed
+      // side-by-side and squeezed both columns into unreadably narrow text.
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto(`/pl/checkout/${testProductWithWaitlistSlug}`);
+
+      const waitlistTitle = page.locator('h2').filter({ hasText: /Join the Waitlist|Dołącz do listy oczekujących/i });
+      await expect(waitlistTitle).toBeVisible({ timeout: 15000 });
+
+      const productInfoPanel = page.locator('[data-testid="waitlist-product-info"]');
+      const formPanel = page.locator('[data-testid="waitlist-form-panel"]');
+      await expect(productInfoPanel).toBeVisible();
+      await expect(formPanel).toBeVisible();
+
+      const productInfoBox = await productInfoPanel.boundingBox();
+      const formBox = await formPanel.boundingBox();
+      if (!productInfoBox || !formBox) throw new Error('Expected both panels to have a bounding box');
+
+      // Each panel should span (close to) the full mobile viewport width,
+      // not be squeezed to half of it.
+      expect(productInfoBox.width).toBeGreaterThan(300);
+      expect(formBox.width).toBeGreaterThan(300);
+
+      // The form panel should start below the product info panel (stacked),
+      // not alongside it (side-by-side).
+      expect(formBox.y).toBeGreaterThanOrEqual(productInfoBox.y + productInfoBox.height);
+    });
   });
 
   test.describe('API - Waitlist Signup', () => {
