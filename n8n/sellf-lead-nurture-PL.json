@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Lead Nurture (Listmonk + Follow-up)",
+  "name": "Sellf: Lead nurture (Listmonk + follow-up)",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 440,
-        "content": "## Nurture Sellf free-product leads with Listmonk and a follow-up email\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - emits a signed `lead.captured` webhook whenever someone grabs a free product (a lead magnet). This workflow verifies the `X-Sellf-Signature` HMAC header, acknowledges immediately, subscribes the lead to a [Listmonk](https://listmonk.app) list (with the product stored as attributes), waits three days and sends a personal follow-up email over your own SMTP - the moment they've had time to consume the freebie.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL and copy the signing secret.\n2. In Listmonk create an API user and note the target list's id.\n3. Fill in **Configuration (EDIT ME)**: webhook secret, Listmonk URL/user/token/list id and your sender address.\n4. Connect SMTP credentials on **Send Follow-up Email** and edit its subject/body.\n5. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n\n### Customization tips\nChange the wait (3 days by default) on **Wait 3 Days**. Build the whole sequence in Listmonk instead? Drop the wait + email nodes and let a Listmonk campaign series take over. Swap Listmonk for MailerLite/Mailchimp by replacing one node."
+        "content": "## Zaopiekuj leady z darmowych produktów Sellfa: Listmonk + follow-up\n\n### Jak to działa\n[Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych - emituje podpisany webhook `lead.captured`, gdy ktoś bierze darmowy produkt (lead magnet). Ten workflow weryfikuje nagłówek HMAC `X-Sellf-Signature`, odpowiada od razu, zapisuje lead na listę [Listmonka](https://listmonk.app) (z produktem w atrybutach), czeka trzy dni i wysyła osobisty follow-up przez Twój SMTP - dokładnie wtedy, gdy lead zdążył skonsumować prezent.\n\n### Konfiguracja\n1. W adminie Sellfa otwórz **Settings → Webhooks**, dodaj endpoint z adresem Production URL tego workflowa i skopiuj signing secret.\n2. W Listmonku utwórz użytkownika API i zanotuj id listy.\n3. Uzupełnij **Configuration (EDIT ME)**: sekret webhooka, dane Listmonka i adres nadawcy.\n4. Podłącz SMTP w **Send Follow-up Email** i przepisz temat/treść po swojemu.\n5. Czerwona notka przy **Verify Signature** opisuje jedno wymagane ustawienie n8n, potem aktywuj.\n\n### Możliwości modyfikacji\nZmień odstęp (domyślnie 3 dni) w **Wait 3 Days**. Chcesz całą sekwencję w Listmonku? Usuń wait + email i oddaj robotę serii kampanii. Swap Listmonka na MailerLite/Mailchimpa = jedna podmiana node'a."
       }
     },
     {
@@ -30,7 +30,7 @@
         "color": 7,
         "width": 1120,
         "height": 380,
-        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellfa i sprawdza podpis HMAC, zanim zaufa danym."
       }
     },
     {
@@ -46,7 +46,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Acknowledge & Filter\nResponds immediately, keeps only `lead.captured` and shapes the lead."
+        "content": "## Potwierdzenie i filtr\nOdpowiada od razu, przepuszcza tylko `lead.captured` i układa lead."
       }
     },
     {
@@ -62,7 +62,7 @@
         "color": 7,
         "width": 1120,
         "height": 220,
-        "content": "## Subscribe & Nurture\nLead lands on your Listmonk list, then gets a personal follow-up three days later."
+        "content": "## Zapis i nurture\nLead ląduje na liście Listmonka, a trzy dni później dostaje osobisty follow-up."
       }
     },
     {
@@ -78,7 +78,7 @@
         "color": 3,
         "width": 260,
         "height": 160,
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+        "content": "## Wymagane ustawienie\nTen node Code potrzebuje `require('crypto')`. Self-hosted n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj."
       }
     },
     {

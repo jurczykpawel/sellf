@@ -1,54 +1,202 @@
 {
-  "name": "Sellf Webhooks Handler",
+  "name": "Sellf: Webhook Starter (Verify + Route)",
   "nodes": [
     {
-      "parameters": {
-        "content": "## Sellf: Webhooks Handler — Konfiguracja\n\nTo jest **szkielet** — punkt startowy do budowania własnych\nautomatyzacji. Sam w sobie nic nie robi poza routingiem.\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. Podłącz własną logikę**\nKażdy noOp node to placeholder — zastąp go\nlub podepnij kolejne node'y za nim:\n- `Purchase Completed` → faktura, email, sheets\n- `Lead Captured` → email provider, nurture\n- `Waitlist Signup` → lista oczekujących\n- `Access Expired` → win-back\n- `Test Event` → debug / logi\n\nGotowe workflowy dla każdego zdarzenia znajdziesz\nw pozostałych plikach `sellf-*.json`.",
-        "height": 360,
-        "width": 380,
-        "color": 4
-      },
-      "id": "note-1",
-      "name": "Konfiguracja",
+      "id": "sticky-overview",
+      "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -420,
-        100
-      ]
+        -760,
+        -400
+      ],
+      "parameters": {
+        "color": 1,
+        "width": 700,
+        "height": 420,
+        "content": "## Route all Sellf webhooks to your own automations (starter)\n\n### How it works\nThe one workflow to start from: [Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - signs every webhook delivery with an `X-Sellf-Signature` HMAC header. This starter verifies the signature (Stripe-style, replay-protected, rotation-aware), acknowledges immediately, and routes each event type - `purchase.completed`, `lead.captured`, `waitlist.signup`, `access.expired`, `refund.issued`, plus an `other` lane for everything else - to its own placeholder branch. Replace the placeholders with your logic and you have a verified, future-proof Sellf integration hub.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL (the **Sellf Webhook** node) and copy the signing secret.\n2. Paste the secret into **Configuration (EDIT ME)**.\n3. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n4. Use Sellf's **Send test** button on the endpoint - the delivery lands on the `other` branch, proving the pipeline end to end.\n\n### Customization tips\nReplace each placeholder with real nodes, or delete lanes you don't need. Subscription events (`subscription.*`, `invoice.*`) arrive on `other` - add Switch rules when you start selling subscriptions."
+      }
     },
     {
+      "id": "sticky-receive",
+      "name": "Section: Receive & Verify",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        340
+      ],
       "parameters": {
-        "path": "sellf",
-        "httpMethod": "POST",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "wh-1",
+        "color": 7,
+        "width": 1120,
+        "height": 380,
+        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+      }
+    },
+    {
+      "id": "sticky-route",
+      "name": "Section: Route to Your Logic",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        20
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 820,
+        "height": 1060,
+        "content": "## Route to Your Logic\nOne lane per event type - replace the placeholders with your own automations."
+      }
+    },
+    {
+      "id": "sticky-crypto",
+      "name": "Warning: crypto module",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -130,
+        370
+      ],
+      "parameters": {
+        "color": 3,
+        "width": 260,
+        "height": 160,
+        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+      }
+    },
+    {
+      "id": "webhook-1",
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        0,
-        300
+        -700,
+        400
       ],
-      "webhookId": "sellf-webhook"
+      "parameters": {
+        "path": "sellf-events",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "notes": "Paste this node's Production URL into Sellf admin -> Settings -> Webhooks -> Add endpoint.",
+      "onError": "continueRegularOutput"
     },
     {
+      "id": "config-1",
+      "name": "Configuration (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "webhookSecret",
+              "value": "paste-the-endpoint-signing-secret",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "stripBinary": false
+        }
+      },
+      "notes": "webhookSecret comes from Sellf admin -> Settings -> Webhooks."
+    },
+    {
+      "id": "verify-1",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst config = $('Configuration (EDIT ME)').first().json;\nconst item = $input.first();\n\nconst header = (item.json.headers && item.json.headers['x-sellf-signature']) || '';\nconst rawBody = item.binary && item.binary.data\n  ? Buffer.from(item.binary.data.data, 'base64').toString('utf8')\n  : JSON.stringify(item.json.body || {});\n\n// Header format (Stripe/Svix style): t=<unix>,v1=<hex>[,v1=<hex2 during secret rotation>]\nlet t = null;\nconst sigs = [];\nfor (const part of header.split(',')) {\n  const eq = part.indexOf('=');\n  if (eq === -1) continue;\n  const key = part.slice(0, eq).trim();\n  const value = part.slice(eq + 1).trim();\n  if (key === 't') t = value;\n  else if (key === 'v1') sigs.push(value);\n}\n\nlet valid = false;\nif (t && sigs.length && config.webhookSecret) {\n  const expected = crypto.createHmac('sha256', config.webhookSecret).update(`${t}.${rawBody}`).digest('hex');\n  const withinTolerance = Math.abs(Math.floor(Date.now() / 1000) - Number(t)) <= 300;\n  valid = withinTolerance && sigs.some((v1) =>\n    v1.length === expected.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1)));\n}\n\nreturn [{ json: { valid, body: JSON.parse(rawBody) } }];"
+      }
+    },
+    {
+      "id": "if-valid",
+      "name": "Signature Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        560
+      ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ status: 'ok', event: $json.body?.event }) }}"
-      },
-      "id": "res-1",
+        "responseBody": "{\"success\":false,\"error\":\"invalid signature\"}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "respond-ok",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
-      ]
+        500,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "notes": "Acknowledge before processing - Sellf retries deliveries that don't get a 2xx."
     },
     {
+      "id": "switch-1",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        800,
+        400
+      ],
       "parameters": {
         "rules": {
           "values": [
@@ -151,7 +299,7 @@
                 "conditions": [
                   {
                     "leftValue": "={{ $json.body.event }}",
-                    "rightValue": "test.event",
+                    "rightValue": "refund.issued",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -160,95 +308,88 @@
                 ]
               },
               "renameOutput": true,
-              "outputKey": "test.event"
+              "outputKey": "refund.issued"
             }
           ]
         },
         "options": {
           "fallbackOutput": "extra",
-          "renameFallbackOutput": "unknown"
+          "renameFallbackOutput": "other"
         }
       },
-      "id": "sw-1",
-      "name": "Route by Event",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
-      "position": [
-        480,
-        300
-      ]
+      "notes": "Subscription events (subscription.*, invoice.*) land on the `other` output - add rules as you need them."
     },
     {
-      "parameters": {},
-      "id": "pc-1",
-      "name": "Purchase Completed",
+      "id": "noop-0",
+      "name": "purchase.completed",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        780,
-        -100
+        1100,
+        80
       ],
-      "notes": "customer: { email, firstName, lastName, userId }\nproduct: { id, name, slug, price, currency, icon }\nbumpProduct: { id, name, slug, price, currency, icon } | null\norder: { amount, currency, sessionId, paymentIntentId, couponId, isGuest }\ninvoice?: { needsInvoice, nip, companyName, address, city, postalCode, country }"
+      "parameters": {},
+      "notes": "Replace this placeholder with your own logic for this event."
     },
     {
-      "parameters": {},
-      "id": "lc-1",
-      "name": "Lead Captured",
+      "id": "noop-1",
+      "name": "lead.captured",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        780,
-        60
+        1100,
+        240
       ],
-      "notes": "Free product claimed.\ncustomer: { email, userId }\nproduct: { id, name, slug, price (0), currency, icon }"
+      "parameters": {},
+      "notes": "Replace this placeholder with your own logic for this event."
     },
     {
-      "parameters": {},
-      "id": "ws-1",
-      "name": "Waitlist Signup",
+      "id": "noop-2",
+      "name": "waitlist.signup",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        780,
-        220
+        1100,
+        400
       ],
-      "notes": "Visitor signed up for waitlist.\ncustomer: { email }\nproduct: { id, name, slug, price, currency, icon }"
+      "parameters": {},
+      "notes": "Replace this placeholder with your own logic for this event."
     },
     {
-      "parameters": {},
-      "id": "ae-1",
-      "name": "Access Expired",
+      "id": "noop-3",
+      "name": "access.expired",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        780,
-        380
+        1100,
+        560
       ],
-      "notes": "Time-limited access expired (cron job).\ncustomer: { email (nullable), userId }\nproduct: { id, name, slug, price, currency, icon (some nullable) }\naccess: { grantedAt, expiredAt }"
+      "parameters": {},
+      "notes": "Replace this placeholder with your own logic for this event."
     },
     {
-      "parameters": {},
-      "id": "te-1",
-      "name": "Test Event",
+      "id": "noop-4",
+      "name": "refund.issued",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        780,
-        540
+        1100,
+        720
       ],
-      "notes": "Admin panel webhook test.\ndata: { message, system: { version, environment } }"
+      "parameters": {},
+      "notes": "Replace this placeholder with your own logic for this event."
     },
     {
-      "parameters": {},
-      "id": "ue-1",
-      "name": "Unknown Event",
+      "id": "noop-5",
+      "name": "Other / Unknown",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        780,
-        700
+        1100,
+        880
       ],
-      "notes": "Fallback for unrecognized events.\nFuture: payment.refunded, user.access_granted, user.access_revoked, product.created/updated/deleted"
+      "parameters": {},
+      "notes": "Replace this placeholder with your own logic for this event."
     }
   ],
   "connections": {
@@ -256,10 +397,56 @@
       "main": [
         [
           {
+            "node": "Configuration (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "Verify Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Signature": {
+      "main": [
+        [
+          {
+            "node": "Signature Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Valid?": {
+      "main": [
+        [
+          {
             "node": "Respond OK",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond OK": {
+      "main": [
+        [
           {
             "node": "Route by Event",
             "type": "main",
@@ -272,42 +459,42 @@
       "main": [
         [
           {
-            "node": "Purchase Completed",
+            "node": "purchase.completed",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Lead Captured",
+            "node": "lead.captured",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Waitlist Signup",
+            "node": "waitlist.signup",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Access Expired",
+            "node": "access.expired",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Test Event",
+            "node": "refund.issued",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Unknown Event",
+            "node": "Other / Unknown",
             "type": "main",
             "index": 0
           }
@@ -322,6 +509,5 @@
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "sellf"
-  },
-  "id": "9jPIlWQxNeg8q3tS"
+  }
 }

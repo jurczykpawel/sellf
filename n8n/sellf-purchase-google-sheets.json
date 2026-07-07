@@ -2,93 +2,307 @@
   "name": "Sellf: Purchase → Google Sheets Sales Log",
   "nodes": [
     {
-      "parameters": {
-        "content": "## Sellf: Google Sheets Log — Konfiguracja\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. Google Sheets — credentials**\nn8n → Credentials → Google Sheets OAuth2 → autoryzuj konto.\nW node \"Append to Google Sheets\" wybierz\nspreadsheeta i zakładkę (sheet).\n\n**3. Nagłówki w arkuszu**\nUtwórz w pierwszym wierszu kolumny:\n`date | time | email | name | product | product_id\n| amount | currency | bump | coupon | guest\n| stripe_session | payment_intent`\n\nDane są dopisywane do nowego wiersza po każdym zakupie.",
-        "height": 320,
-        "width": 380,
-        "color": 4
-      },
-      "id": "note-1",
-      "name": "Konfiguracja",
+      "id": "sticky-overview",
+      "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -420,
-        100
-      ]
+        -760,
+        -380
+      ],
+      "parameters": {
+        "color": 1,
+        "width": 700,
+        "height": 420,
+        "content": "## Log every Sellf sale to a Google Sheets ledger\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - sends a signed `purchase.completed` webhook for every paid order. This workflow verifies the `X-Sellf-Signature` HMAC header (Stripe-style, replay-protected), acknowledges immediately, and appends one tidy row per sale to your Google Sheet: date, customer, product, amount, bump, coupon, Stripe ids. Rows are matched on the Stripe session id, so a retried delivery updates instead of duplicating.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL (the **Sellf Webhook** node) and copy the signing secret.\n2. Fill in **Configuration (EDIT ME)**: the webhook secret, your Google Sheet URL and tab name.\n3. Create a header row in the tab: `date | time | email | name | product | product_id | amount | currency | bump | coupon | guest | stripe_session | payment_intent`.\n4. Connect your Google account on **Append Sale Row**.\n5. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n\n### Customization tips\nAdd columns in **Format Row Data** (the full webhook payload also carries invoice data and custom fields). Swap Google Sheets for Airtable, Baserow or a database node - everything up to that node stays the same."
+      }
     },
     {
+      "id": "sticky-receive",
+      "name": "Section: Receive & Verify",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        340
+      ],
       "parameters": {
-        "path": "sellf-sheets",
-        "httpMethod": "POST",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "wh-1",
+        "color": 7,
+        "width": 1120,
+        "height": 380,
+        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+      }
+    },
+    {
+      "id": "sticky-filter",
+      "name": "Section: Acknowledge & Filter",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        340
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 820,
+        "height": 220,
+        "content": "## Acknowledge & Filter\nResponds immediately, keeps only `purchase.completed` and shapes the sheet row."
+      }
+    },
+    {
+      "id": "sticky-log",
+      "name": "Section: Log the Sale",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        340
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 520,
+        "height": 220,
+        "content": "## Log the Sale\nOne row per sale, matched on the Stripe session id - retried deliveries never duplicate."
+      }
+    },
+    {
+      "id": "sticky-crypto",
+      "name": "Warning: crypto module",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -130,
+        370
+      ],
+      "parameters": {
+        "color": 3,
+        "width": 260,
+        "height": 160,
+        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+      }
+    },
+    {
+      "id": "webhook-1",
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        0,
-        300
+        -700,
+        400
       ],
-      "webhookId": "sellf-sheets"
+      "parameters": {
+        "path": "sellf-sales-log",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "notes": "Paste this node's Production URL into Sellf admin -> Settings -> Webhooks -> Add endpoint.",
+      "onError": "continueRegularOutput"
     },
     {
+      "id": "config-1",
+      "name": "Configuration (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "webhookSecret",
+              "value": "paste-the-endpoint-signing-secret",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "googleSheetUrl",
+              "value": "https://docs.google.com/spreadsheets/d/your-sheet-id/edit",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "sheetTabName",
+              "value": "Sales",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "stripBinary": false
+        }
+      },
+      "notes": "webhookSecret comes from Sellf admin -> Settings -> Webhooks."
+    },
+    {
+      "id": "verify-1",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst config = $('Configuration (EDIT ME)').first().json;\nconst item = $input.first();\n\nconst header = (item.json.headers && item.json.headers['x-sellf-signature']) || '';\nconst rawBody = item.binary && item.binary.data\n  ? Buffer.from(item.binary.data.data, 'base64').toString('utf8')\n  : JSON.stringify(item.json.body || {});\n\n// Header format (Stripe/Svix style): t=<unix>,v1=<hex>[,v1=<hex2 during secret rotation>]\nlet t = null;\nconst sigs = [];\nfor (const part of header.split(',')) {\n  const eq = part.indexOf('=');\n  if (eq === -1) continue;\n  const key = part.slice(0, eq).trim();\n  const value = part.slice(eq + 1).trim();\n  if (key === 't') t = value;\n  else if (key === 'v1') sigs.push(value);\n}\n\nlet valid = false;\nif (t && sigs.length && config.webhookSecret) {\n  const expected = crypto.createHmac('sha256', config.webhookSecret).update(`${t}.${rawBody}`).digest('hex');\n  const withinTolerance = Math.abs(Math.floor(Date.now() / 1000) - Number(t)) <= 300;\n  valid = withinTolerance && sigs.some((v1) =>\n    v1.length === expected.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1)));\n}\n\nreturn [{ json: { valid, body: JSON.parse(rawBody) } }];"
+      }
+    },
+    {
+      "id": "if-valid",
+      "name": "Signature Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        560
+      ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "{\"status\":\"ok\"}"
-      },
-      "id": "res-1",
+        "responseBody": "{\"success\":false,\"error\":\"invalid signature\"}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "respond-ok",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        220,
-        300
-      ]
+        500,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "notes": "Acknowledge before processing - Sellf retries deliveries that don't get a 2xx."
     },
     {
+      "id": "switch-1",
+      "name": "Is Purchase?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        800,
+        400
+      ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nif (body.event !== 'purchase.completed') return [];\n\nconst d = body.data;\nreturn [{\n  json: {\n    date: new Date(body.timestamp).toISOString().split('T')[0],\n    time: new Date(body.timestamp).toISOString().split('T')[1].split('.')[0],\n    email: d.customer.email,\n    name: [d.customer.firstName, d.customer.lastName].filter(Boolean).join(' ') || '-',\n    product: d.product.name,\n    product_id: d.product.id,\n    amount: d.order.amount / 100,\n    currency: d.order.currency.toUpperCase(),\n    bump: d.bumpProduct?.name || '-',\n    coupon: d.order.couponId || '-',\n    guest: d.order.isGuest ? 'Yes' : 'No',\n    stripe_session: d.order.sessionId,\n    payment_intent: d.order.paymentIntentId\n  }\n}];"
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "purchase.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "purchase.completed"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
       },
+      "notes": "Only purchase.completed flows through - other events (and Sellf's test deliveries) are dropped."
+    },
+    {
       "id": "code-1",
       "name": "Format Row Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        300
-      ]
+        1100,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst d = body.data;\nconst ts = new Date(body.timestamp || Date.now()).toISOString();\n\nreturn [{\n  json: {\n    date: ts.split('T')[0],\n    time: ts.split('T')[1].split('.')[0],\n    email: d.customer.email,\n    name: [d.customer.firstName, d.customer.lastName].filter(Boolean).join(' ') || '-',\n    product: d.product.name,\n    product_id: d.product.id,\n    amount: d.order.amount / 100,\n    currency: String(d.order.currency || '').toUpperCase(),\n    bump: (d.bumpProduct && d.bumpProduct.name) || '-',\n    coupon: d.order.couponId || '-',\n    guest: d.order.isGuest ? 'Yes' : 'No',\n    stripe_session: d.order.sessionId,\n    payment_intent: d.order.paymentIntentId\n  }\n}];"
+      }
     },
     {
+      "id": "gs-1",
+      "name": "Append Sale Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1400,
+        400
+      ],
       "parameters": {
         "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
-          "mode": "list",
-          "value": ""
+          "mode": "url",
+          "value": "={{ $('Configuration (EDIT ME)').item.json.googleSheetUrl }}"
         },
         "sheetName": {
           "__rl": true,
-          "mode": "list",
-          "value": ""
+          "mode": "name",
+          "value": "={{ $('Configuration (EDIT ME)').item.json.sheetTabName }}"
         },
         "columns": {
           "mappingMode": "autoMapInputData",
-          "value": {}
+          "value": {},
+          "matchingColumns": [
+            "stripe_session"
+          ],
+          "schema": []
         },
         "options": {}
       },
-      "id": "gs-1",
-      "name": "Append to Google Sheets",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        680,
-        300
-      ],
-      "notes": "TODO: Configure Google Sheets credentials, select spreadsheet and sheet. Columns: date, time, email, name, product, product_id, amount, currency, bump, coupon, guest, stripe_session, payment_intent"
+      "notes": "Upserts by stripe_session so a retried webhook delivery updates the row instead of duplicating it."
     }
   ],
   "connections": {
@@ -96,10 +310,67 @@
       "main": [
         [
           {
+            "node": "Configuration (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "Verify Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Signature": {
+      "main": [
+        [
+          {
+            "node": "Signature Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Valid?": {
+      "main": [
+        [
+          {
             "node": "Respond OK",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond OK": {
+      "main": [
+        [
+          {
+            "node": "Is Purchase?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Purchase?": {
+      "main": [
+        [
           {
             "node": "Format Row Data",
             "type": "main",
@@ -112,7 +383,7 @@
       "main": [
         [
           {
-            "node": "Append to Google Sheets",
+            "node": "Append Sale Row",
             "type": "main",
             "index": 0
           }
@@ -127,6 +398,5 @@
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "sellf"
-  },
-  "id": "UNAeWBnYcFQQiRKt"
+  }
 }

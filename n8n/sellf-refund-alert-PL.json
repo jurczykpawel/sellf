@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Refund Request Alert → Telegram",
+  "name": "Sellf: Alert o zwrotach → Telegram",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 400,
-        "content": "## Get a Telegram alert about pending Sellf refund requests\n\n### How it works\nEvery 15 minutes this workflow asks the [Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products REST API for refund requests with status `pending`. If there are any, you get one Telegram message listing each request - customer, product, amount - with a nudge to handle them in the admin panel. No pending refunds, no message: silence means all clear. Refund response time is a trust signal (and in the EU a legal clock) - this keeps it short.\n\n### Setup\n1. In Sellf admin create an API key (**Settings → API keys**).\n2. Fill in **Configuration (EDIT ME)**: your Sellf URL, the API key and your Telegram chat id.\n3. Connect your Telegram bot credentials on **Send to Telegram**.\n4. Activate.\n\n### Customization tips\nChange the polling interval on **Every 15 Minutes** (hourly is plenty for small shops). Add a filter in **Format Alert** to only alert above a certain amount, or swap Telegram for Slack/Discord via an incoming-webhook HTTP node."
+        "content": "## Alert na Telegramie o oczekujących zwrotach w Sellfie\n\n### Jak to działa\nCo 15 minut ten workflow pyta REST API [Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych o wnioski o zwrot ze statusem `pending`. Jeśli jakieś są, dostajesz jedną wiadomość z listą - klient, produkt, kwota - i przypomnieniem, żeby obsłużyć je w panelu. Brak oczekujących = brak wiadomości: cisza znaczy czysto. Czas reakcji na zwrot to sygnał zaufania (a w UE także zegar prawny) - to trzyma go krótko.\n\n### Konfiguracja\n1. W adminie Sellfa utwórz klucz API (**Settings → API keys**).\n2. Uzupełnij **Configuration (EDIT ME)**: adres Sellfa, klucz API i id czatu Telegrama.\n3. Podłącz credentials bota Telegrama w **Send to Telegram**.\n4. Aktywuj.\n\n### Możliwości modyfikacji\nZmień interwał w **Every 15 Minutes** (dla małych sklepów co godzinę wystarczy). Dołóż filtr kwoty w **Format Alert** albo podmień Telegrama na Slacka/Discorda przez HTTP z incoming webhookiem."
       }
     },
     {
@@ -30,7 +30,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Check for Refunds\nPolls the Sellf API for pending refund requests."
+        "content": "## Sprawdzenie zwrotów\nOdpytuje API Sellfa o oczekujące wnioski o zwrot."
       }
     },
     {
@@ -46,7 +46,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Alert\nOne message listing every pending request - nothing pending, nothing sent."
+        "content": "## Alert\nJedna wiadomość z każdym oczekującym wnioskiem - nic nie czeka, nic nie wychodzi."
       }
     },
     {

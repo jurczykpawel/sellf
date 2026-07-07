@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Lead Nurture (Listmonk + Follow-up)",
+  "name": "Sellf: Zakup → faktura + mail z podziękowaniem",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -13,8 +13,8 @@
       "parameters": {
         "color": 1,
         "width": 700,
-        "height": 440,
-        "content": "## Nurture Sellf free-product leads with Listmonk and a follow-up email\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - emits a signed `lead.captured` webhook whenever someone grabs a free product (a lead magnet). This workflow verifies the `X-Sellf-Signature` HMAC header, acknowledges immediately, subscribes the lead to a [Listmonk](https://listmonk.app) list (with the product stored as attributes), waits three days and sends a personal follow-up email over your own SMTP - the moment they've had time to consume the freebie.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL and copy the signing secret.\n2. In Listmonk create an API user and note the target list's id.\n3. Fill in **Configuration (EDIT ME)**: webhook secret, Listmonk URL/user/token/list id and your sender address.\n4. Connect SMTP credentials on **Send Follow-up Email** and edit its subject/body.\n5. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n\n### Customization tips\nChange the wait (3 days by default) on **Wait 3 Days**. Build the whole sequence in Listmonk instead? Drop the wait + email nodes and let a Listmonk campaign series take over. Swap Listmonk for MailerLite/Mailchimp by replacing one node."
+        "height": 460,
+        "content": "## Wysyłaj mail z podziękowaniem i fakturą za każdy zakup w Sellfie\n\n### Jak to działa\n[Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych - wysyła podpisany webhook `purchase.completed` dla każdego opłaconego zamówienia. Ten workflow weryfikuje nagłówek HMAC `X-Sellf-Signature` i dzieli kupujących na dwie ścieżki: B2B (żądanie faktury + NIP) najpierw dostaje fakturę VAT w Fakturowni, potem mail z podziękowaniem; konsument dostaje mail od razu. Jeden workflow domyka cały moment po zakupie: potwierdzenie, podsumowanie i papierologię.\n\n### Konfiguracja\n1. W adminie Sellfa otwórz **Settings → Webhooks**, dodaj endpoint z adresem Production URL tego workflowa i skopiuj signing secret.\n2. W Fakturowni weź nazwę konta (subdomenę) i token API.\n3. Uzupełnij **Configuration (EDIT ME)**: sekret webhooka, konto + token Fakturowni, VAT i adres nadawcy.\n4. Podłącz SMTP w **Send Thank-you Email** i przepisz treść po swojemu.\n5. Czerwona notka przy **Verify Signature** opisuje jedno wymagane ustawienie n8n, potem aktywuj.\n\n### Możliwości modyfikacji\nUżywasz iFirmy albo wFirmy? Weź odpowiedni szablon Sellfa i wstaw jego parę build/send zamiast node'a Fakturowni. Sellf sam dostarcza produkt - ten mail to Twoje osobiste podziękowanie, nie delivery."
       }
     },
     {
@@ -30,12 +30,12 @@
         "color": 7,
         "width": 1120,
         "height": 380,
-        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellfa i sprawdza podpis HMAC, zanim zaufa danym."
       }
     },
     {
-      "id": "sticky-filter",
-      "name": "Section: Acknowledge & Filter",
+      "id": "sticky-extract",
+      "name": "Section: Acknowledge & Extract",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -46,23 +46,23 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Acknowledge & Filter\nResponds immediately, keeps only `lead.captured` and shapes the lead."
+        "content": "## Potwierdzenie i ekstrakcja\nOdpowiada od razu, potem filtruje opłacone zakupy z żądaniem faktury i NIP-em."
       }
     },
     {
-      "id": "sticky-nurture",
-      "name": "Section: Subscribe & Nurture",
+      "id": "sticky-invoice",
+      "name": "Section: Invoice & Thank-you",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         1340,
-        340
+        180
       ],
       "parameters": {
         "color": 7,
         "width": 1120,
-        "height": 220,
-        "content": "## Subscribe & Nurture\nLead lands on your Listmonk list, then gets a personal follow-up three days later."
+        "height": 540,
+        "content": "## Faktura i podziękowanie\nB2B najpierw dostaje fakturę; każdy dostaje mail z podziękowaniem."
       }
     },
     {
@@ -78,7 +78,7 @@
         "color": 3,
         "width": 260,
         "height": 160,
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+        "content": "## Wymagane ustawienie\nTen node Code potrzebuje `require('crypto')`. Self-hosted n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj."
       }
     },
     {
@@ -91,7 +91,7 @@
         400
       ],
       "parameters": {
-        "path": "sellf-lead-nurture",
+        "path": "sellf-purchase-thanks",
         "httpMethod": "POST",
         "responseMode": "responseNode",
         "options": {
@@ -121,30 +121,24 @@
             },
             {
               "id": "a2",
-              "name": "listmonkUrl",
-              "value": "https://your-listmonk.example.com",
+              "name": "fakturowniaAccount",
+              "value": "your-account-subdomain",
               "type": "string"
             },
             {
               "id": "a3",
-              "name": "listmonkUser",
-              "value": "api-user-name",
+              "name": "fakturowniaApiToken",
+              "value": "paste-your-fakturownia-api-token",
               "type": "string"
             },
             {
               "id": "a4",
-              "name": "listmonkToken",
-              "value": "paste-the-api-user-token",
-              "type": "string"
-            },
-            {
-              "id": "a5",
-              "name": "listmonkListId",
-              "value": 1,
+              "name": "vatRate",
+              "value": 23,
               "type": "number"
             },
             {
-              "id": "a6",
+              "id": "a5",
               "name": "fromEmail",
               "value": "you@your-brand.example.com",
               "type": "string"
@@ -156,7 +150,7 @@
           "stripBinary": false
         }
       },
-      "notes": "webhookSecret from Sellf admin -> Settings -> Webhooks. listmonk* = an API user + list id from your Listmonk."
+      "notes": "webhookSecret from Sellf admin -> Settings -> Webhooks. fakturowniaAccount = your panel subdomain."
     },
     {
       "id": "verify-1",
@@ -236,7 +230,7 @@
     },
     {
       "id": "switch-1",
-      "name": "Is Lead Captured?",
+      "name": "Is Purchase?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
@@ -257,7 +251,7 @@
                 "conditions": [
                   {
                     "leftValue": "={{ $json.body.event }}",
-                    "rightValue": "lead.captured",
+                    "rightValue": "purchase.completed",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -266,7 +260,7 @@
                 ]
               },
               "renameOutput": true,
-              "outputKey": "lead.captured"
+              "outputKey": "purchase.completed"
             }
           ]
         },
@@ -274,11 +268,11 @@
           "fallbackOutput": "none"
         }
       },
-      "notes": "Only lead.captured flows through - other events (and Sellf's test deliveries) are dropped."
+      "notes": "Only purchase.completed flows through - other events (and Sellf's test deliveries) are dropped."
     },
     {
-      "id": "code-1",
-      "name": "Extract Lead",
+      "id": "extract-1",
+      "name": "Extract Purchase Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -286,28 +280,80 @@
         400
       ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst d = body.data;\n\nconst email = (d.customer && d.customer.email) || d.email;\nif (!email) throw new Error('lead.captured payload has no email');\nconst firstName = (d.customer && d.customer.firstName) || '';\n\nreturn [{ json: {\n  email,\n  firstName,\n  name: d.customer ? [d.customer.firstName, d.customer.lastName].filter(Boolean).join(' ') : '',\n  productName: (d.product && d.product.name) || '',\n  productId: (d.product && d.product.id) || '',\n} }];"
+        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    lastName: data.customer.lastName || '',\n    productName: data.product.name,\n    amount: data.order.amount / 100,\n    currency: (data.order.currency || 'PLN').toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    needsInvoice: (data.invoice && data.invoice.needsInvoice) || false,\n    invoiceNip: (data.invoice && data.invoice.nip) || null,\n    invoiceCompany: (data.invoice && data.invoice.companyName) || null,\n    invoiceAddress: (data.invoice && data.invoice.address) || null,\n    invoiceCity: (data.invoice && data.invoice.city) || null,\n    invoicePostalCode: (data.invoice && data.invoice.postalCode) || null,\n    invoiceCountry: (data.invoice && data.invoice.country) || 'PL'\n  }\n}];"
       }
     },
     {
-      "id": "listmonk-1",
-      "name": "Add to Listmonk",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "switch-2",
+      "name": "Needs Invoice?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
       "position": [
         1400,
         400
       ],
       "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.needsInvoice === true && !!$json.invoiceNip }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "invoice requested"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "consumer"
+        }
+      },
+      "notes": "B2B buyers (invoice + NIP) go through invoicing first; consumers skip straight to the email."
+    },
+    {
+      "id": "build-1",
+      "name": "Build Fakturownia Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const config = $('Configuration (EDIT ME)').first().json;\nconst d = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\nconst buyerName = d.invoiceCompany\n  || ((d.firstName || '') + ' ' + (d.lastName || '')).trim()\n  || d.email;\n\nconst invoice = {\n  api_token: config.fakturowniaApiToken,\n  invoice: {\n    kind: 'vat',\n    number: null,\n    sell_date: today,\n    issue_date: today,\n    payment_to: today,\n    payment_type: 'card',\n    status: 'paid',\n    currency: d.currency || 'PLN',\n    buyer_name: buyerName,\n    buyer_tax_no: d.invoiceNip,\n    buyer_street: d.invoiceAddress || '',\n    buyer_city: d.invoiceCity || '',\n    buyer_post_code: d.invoicePostalCode || '',\n    buyer_country: d.invoiceCountry || 'PL',\n    buyer_email: d.email,\n    positions: [{\n      name: d.productName,\n      quantity: 1,\n      total_price_gross: d.amount,\n      tax: Number(config.vatRate)\n    }]\n  }\n};\n\nreturn [{ json: {\n  _url: `https://${config.fakturowniaAccount}.fakturownia.pl/invoices.json`,\n  _body: JSON.stringify(invoice),\n} }];"
+      }
+    },
+    {
+      "id": "send-1",
+      "name": "Create Fakturownia Invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        240
+      ],
+      "parameters": {
         "method": "POST",
-        "url": "={{ $('Configuration (EDIT ME)').item.json.listmonkUrl }}/api/subscribers",
+        "url": "={{ $json._url }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "={{ 'token ' + $('Configuration (EDIT ME)').item.json.listmonkUser + ':' + $('Configuration (EDIT ME)').item.json.listmonkToken }}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -315,52 +361,38 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ email: $json.email, name: $json.name || '', status: 'enabled', lists: [Number($('Configuration (EDIT ME)').item.json.listmonkListId)], preconfirm_subscriptions: false, attribs: { source: 'sellf-lead', product: $json.productName, product_id: $json.productId } }) }}",
+        "specifyBody": "string",
+        "body": "={{ $json._body }}",
         "options": {
           "response": {
             "response": {
-              "fullResponse": true,
+              "fullResponse": false,
               "neverError": true
             }
           },
           "timeout": 30000
         }
       },
-      "notes": "statusCode 200 = subscribed, 409 = already on the list (safe to ignore)."
-    },
-    {
-      "id": "wait-1",
-      "name": "Wait 3 Days",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        1700,
-        400
-      ],
-      "parameters": {
-        "amount": 3,
-        "unit": "days"
-      },
-      "notes": "n8n parks the execution - it survives restarts. Adjust to your nurture rhythm."
+      "notes": "The api_token travels in the body - Fakturownia's scheme. neverError: failures land in Log Error instead of killing the run."
     },
     {
       "id": "email-1",
-      "name": "Send Follow-up Email",
+      "name": "Send Thank-you Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2000,
+        2300,
         400
       ],
       "parameters": {
         "fromEmail": "={{ $('Configuration (EDIT ME)').item.json.fromEmail }}",
-        "toEmail": "={{ $('Extract Lead').item.json.email }}",
-        "subject": "={{ 'How is ' + ($('Extract Lead').item.json.productName || 'the freebie') + ' working for you?' }}",
-        "text": "={{ 'Hi ' + ($('Extract Lead').item.json.firstName || 'there') + ',\\n\\nA few days ago you grabbed ' + ($('Extract Lead').item.json.productName || 'one of my free resources') + ' - I hope it is already useful.\\n\\nIf anything is unclear, just hit reply. And if you want to go deeper, check what else I have for you.\\n\\nTalk soon!' }}",
+        "toEmail": "={{ $('Extract Purchase Data').item.json.email }}",
+        "subject": "={{ 'Thank you for your purchase: ' + $('Extract Purchase Data').item.json.productName }}",
+        "emailType": "html",
+        "html": "={{ '<h2>Thank you for your purchase!</h2><p>Hi' + ($('Extract Purchase Data').item.json.firstName ? ' ' + $('Extract Purchase Data').item.json.firstName : '') + ',</p><p>Your purchase of <strong>' + $('Extract Purchase Data').item.json.productName + '</strong> is confirmed (' + $('Extract Purchase Data').item.json.amount + ' ' + $('Extract Purchase Data').item.json.currency + ').</p><p>You will find the product in your Sellf account. If you requested an invoice, it is on its way separately.</p><p>Enjoy!</p>' }}",
         "options": {}
       },
-      "notes": "Connect SMTP credentials and make this email yours - the default copy is a starting point."
+      "notes": "Connect SMTP credentials and rewrite the copy in your voice. Sellf handles product delivery - this is the personal touch."
     }
   ],
   "connections": {
@@ -419,51 +451,69 @@
       "main": [
         [
           {
-            "node": "Is Lead Captured?",
+            "node": "Is Purchase?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Lead Captured?": {
+    "Is Purchase?": {
       "main": [
         [
           {
-            "node": "Extract Lead",
+            "node": "Extract Purchase Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Lead": {
+    "Extract Purchase Data": {
       "main": [
         [
           {
-            "node": "Add to Listmonk",
+            "node": "Needs Invoice?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add to Listmonk": {
+    "Needs Invoice?": {
       "main": [
         [
           {
-            "node": "Wait 3 Days",
+            "node": "Build Fakturownia Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Thank-you Email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait 3 Days": {
+    "Build Fakturownia Payload": {
       "main": [
         [
           {
-            "node": "Send Follow-up Email",
+            "node": "Create Fakturownia Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Fakturownia Invoice": {
+      "main": [
+        [
+          {
+            "node": "Send Thank-you Email",
             "type": "main",
             "index": 0
           }

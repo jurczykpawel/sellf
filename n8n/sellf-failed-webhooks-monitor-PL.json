@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Failed Webhook Monitor + Auto-Retry",
+  "name": "Sellf: Monitor nieudanych webhooków + auto-retry",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 440,
-        "content": "## Monitor failed Sellf webhook deliveries and auto-retry them\n\n### How it works\nWebhooks fail quietly - a receiver was down for a minute and your invoice/CRM automation silently missed a sale. Every hour this workflow lists your [Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products webhook endpoints, pulls each one's failed delivery logs, alerts you on Telegram with the endpoint and the failed events, and immediately queues a retry for up to five failed deliveries per endpoint through the Sellf API. Self-healing plumbing for everything else you've built on Sellf webhooks.\n\n### Setup\n1. In Sellf admin create an API key (**Settings → API keys**) with the webhooks scopes.\n2. Fill in **Configuration (EDIT ME)**: your Sellf URL, the API key and your Telegram chat id.\n3. Connect your Telegram bot credentials on **Alert on Telegram**.\n4. Activate.\n\n### Customization tips\nRaise the retry cap in **Split Log IDs** (5 per endpoint per run by default). Don't want auto-retries? Delete the retry branch and keep the alerts. Swap Telegram for Slack/Discord via an incoming-webhook HTTP node."
+        "content": "## Monitoruj nieudane dostawy webhooków Sellfa i ponawiaj je automatycznie\n\n### Jak to działa\nWebhooki padają po cichu - odbiorca leżał minutę i Twoja automatyzacja faktur/CRM bezgłośnie przegapiła sprzedaż. Co godzinę ten workflow listuje endpointy webhooków [Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych, ściąga logi nieudanych dostaw każdego z nich, alarmuje Cię na Telegramie (endpoint + nieudane eventy) i od razu kolejkuje retry do pięciu dostaw na endpoint przez API Sellfa. Samonaprawiająca się hydraulika dla wszystkiego, co zbudowałeś na webhookach.\n\n### Konfiguracja\n1. W adminie Sellfa utwórz klucz API (**Settings → API keys**).\n2. Uzupełnij **Configuration (EDIT ME)**: adres Sellfa, klucz API i id czatu Telegrama.\n3. Podłącz credentials bota Telegrama w **Alert on Telegram**.\n4. Aktywuj.\n\n### Możliwości modyfikacji\nPodnieś limit ponowień w **Split Log IDs** (domyślnie 5 na endpoint na przebieg). Nie chcesz auto-retry? Skasuj gałąź retry i zostaw same alerty. Telegram → Slack/Discord przez HTTP z incoming webhookiem."
       }
     },
     {
@@ -30,7 +30,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Scan Deliveries\nHourly: one API call lists every failed webhook delivery across all endpoints."
+        "content": "## Skan dostaw\nCo godzinę: jedno wywołanie API listuje wszystkie nieudane dostawy webhooków."
       }
     },
     {
@@ -46,7 +46,7 @@
         "color": 7,
         "width": 820,
         "height": 540,
-        "content": "## Alert & Retry\nYou get the failure summary on Telegram while the workflow queues retries for up to 5 deliveries per endpoint."
+        "content": "## Alert i retry\nTy dostajesz podsumowanie na Telegramie, a workflow kolejkuje ponowienia (do 5 na endpoint)."
       }
     },
     {

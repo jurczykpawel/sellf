@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Purchase → Fakturownia Invoice",
+  "name": "Sellf: Zakup → faktura iFirma",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 440,
-        "content": "## Create a Fakturownia VAT invoice for every B2B Sellf purchase\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - sends a signed `purchase.completed` webhook for every paid order. This workflow verifies the `X-Sellf-Signature` HMAC header, keeps only purchases where the buyer requested an invoice and provided a NIP (Polish tax id), maps the order to a Fakturownia VAT invoice marked as paid by card, and creates it via the Fakturownia API. Success and failure both land in dedicated end nodes, so a failed invoice never goes unnoticed.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL and copy the signing secret.\n2. In Fakturownia grab your account name (the subdomain) and API token (Settings → API).\n3. Fill in **Configuration (EDIT ME)**: webhook secret, Fakturownia account + token, VAT rate.\n4. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n\n### Customization tips\nFakturownia can auto-email the invoice to the buyer - enable it in your account settings, or add an HTTP node calling the send endpoint after **Extract Invoice Result**. Wire **Log Error** to Slack or email."
+        "content": "## Wystawiaj fakturę VAT w iFirmie za każdy zakup B2B w Sellfie\n\n### Jak to działa\n[Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych - wysyła podpisany webhook `purchase.completed` dla każdego opłaconego zamówienia. Ten workflow weryfikuje nagłówek HMAC `X-Sellf-Signature`, przepuszcza tylko zakupy z żądaniem faktury i NIP-em, buduje payload `fakturavat` iFirmy oznaczony jako opłacony, podpisuje żądanie schematem HMAC-SHA1 iFirmy i wystawia fakturę. Sukces i błąd lądują w osobnych nodach końcowych - nieudana faktura nigdy nie przechodzi niezauważona.\n\n### Konfiguracja\n1. W adminie Sellfa otwórz **Settings → Webhooks**, dodaj endpoint z adresem Production URL tego workflowa i skopiuj signing secret.\n2. W iFirmie weź login i **klucz API faktura** (hex) z Ustawienia → API.\n3. Uzupełnij **Configuration (EDIT ME)**: sekret webhooka, login + klucz iFirmy, stawkę VAT.\n4. Czerwona notka przy **Verify Signature** opisuje jedno wymagane ustawienie n8n, potem aktywuj.\n\n### Możliwości modyfikacji\nStawka VAT i termin płatności w **Configuration** / **Build iFirma Payload**. Podepnij **Log Error** do Slacka albo maila. Sprzedajesz też na WooCommerce? Ten sam szkielet zadziała - podmień krok ekstrakcji."
       }
     },
     {
@@ -30,7 +30,7 @@
         "color": 7,
         "width": 1120,
         "height": 380,
-        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellfa i sprawdza podpis HMAC, zanim zaufa danym."
       }
     },
     {
@@ -46,7 +46,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Acknowledge & Extract\nResponds immediately, then filters for completed purchases that requested an invoice with a NIP."
+        "content": "## Potwierdzenie i ekstrakcja\nOdpowiada od razu, potem filtruje opłacone zakupy z żądaniem faktury i NIP-em."
       }
     },
     {
@@ -62,7 +62,7 @@
         "color": 7,
         "width": 520,
         "height": 220,
-        "content": "## Build the Invoice\nMaps the purchase to a Fakturownia VAT invoice payload, marked as paid by card."
+        "content": "## Budowa faktury\nMapuje zakup na payload fakturavat iFirmy i podpisuje żądanie (HMAC-SHA1)."
       }
     },
     {
@@ -78,7 +78,7 @@
         "color": 7,
         "width": 820,
         "height": 540,
-        "content": "## Send & Log Result\nCreates the invoice and records the result - or the error, so nothing fails silently."
+        "content": "## Wysyłka i log wyniku\nTworzy fakturę i zapisuje wynik - albo błąd, żeby nic nie padło po cichu."
       }
     },
     {
@@ -94,7 +94,7 @@
         "color": 3,
         "width": 260,
         "height": 160,
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+        "content": "## Wymagane ustawienie\nTen node Code potrzebuje `require('crypto')`. Self-hosted n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj."
       }
     },
     {
@@ -107,7 +107,7 @@
         400
       ],
       "parameters": {
-        "path": "sellf-purchase-fakturownia",
+        "path": "sellf-purchase-ifirma",
         "httpMethod": "POST",
         "responseMode": "responseNode",
         "options": {
@@ -137,18 +137,24 @@
             },
             {
               "id": "a2",
-              "name": "fakturowniaAccount",
-              "value": "your-account-subdomain",
+              "name": "ifirmaLogin",
+              "value": "your-ifirma-login",
               "type": "string"
             },
             {
               "id": "a3",
-              "name": "fakturowniaApiToken",
-              "value": "paste-your-fakturownia-api-token",
+              "name": "ifirmaApiKey",
+              "value": "hex-invoice-api-key-from-ifirma",
               "type": "string"
             },
             {
               "id": "a4",
+              "name": "ifirmaApiUrl",
+              "value": "https://panel.ifirma.pl/iapi/fakturavat.json",
+              "type": "string"
+            },
+            {
+              "id": "a5",
               "name": "vatRate",
               "value": 23,
               "type": "number"
@@ -160,7 +166,7 @@
           "stripBinary": false
         }
       },
-      "notes": "fakturowniaAccount = the subdomain of your Fakturownia panel (ACCOUNT.fakturownia.pl). webhookSecret from Sellf admin -> Settings -> Webhooks."
+      "notes": "ifirmaApiKey = the 'faktura' API key (hex) from iFirma -> Settings -> API. webhookSecret from Sellf admin -> Settings -> Webhooks."
     },
     {
       "id": "verify-1",
@@ -337,7 +343,7 @@
     },
     {
       "id": "build-1",
-      "name": "Build Fakturownia Payload",
+      "name": "Build iFirma Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -345,12 +351,12 @@
         400
       ],
       "parameters": {
-        "jsCode": "const config = $('Configuration (EDIT ME)').first().json;\nconst d = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\nconst buyerName = d.invoiceCompany\n  || ((d.firstName || '') + ' ' + (d.lastName || '')).trim()\n  || d.email;\n\nconst invoice = {\n  api_token: config.fakturowniaApiToken,\n  invoice: {\n    kind: 'vat',\n    number: null,\n    sell_date: today,\n    issue_date: today,\n    payment_to: today,\n    payment_type: 'card',\n    status: 'paid',\n    currency: d.currency || 'PLN',\n    buyer_name: buyerName,\n    buyer_tax_no: d.invoiceNip,\n    buyer_street: d.invoiceAddress || '',\n    buyer_city: d.invoiceCity || '',\n    buyer_post_code: d.invoicePostalCode || '',\n    buyer_country: d.invoiceCountry || 'PL',\n    buyer_email: d.email,\n    positions: [{\n      name: d.productName,\n      quantity: 1,\n      total_price_gross: d.amount,\n      tax: Number(config.vatRate)\n    }]\n  }\n};\n\nreturn [{ json: {\n  _url: `https://${config.fakturowniaAccount}.fakturownia.pl/invoices.json`,\n  _body: JSON.stringify(invoice),\n} }];"
+        "jsCode": "const crypto = require('crypto');\nconst config = $('Configuration (EDIT ME)').first().json;\nconst d = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\nconst due = new Date();\ndue.setDate(due.getDate() + 7);\nconst dueDate = due.toISOString().split('T')[0];\n\nconst payload = {\n  Zaplacono: 1,\n  ZaplaconoNaDokumencie: d.amount,\n  LiczOd: 'BRT',\n  DataWystawienia: today,\n  DataSprzedazy: today,\n  TerminPlatnosci: dueDate,\n  SposobZaplaty: 'PRZ',\n  RodzajPodpisuOdbiorcy: 'OUP',\n  Kontrahent: {\n    Nazwa: d.invoiceCompany || d.email,\n    NIP: d.invoiceNip,\n    Ulica: d.invoiceAddress || '-',\n    KodPocztowy: d.invoicePostalCode || '00-000',\n    Miejscowosc: d.invoiceCity || '-',\n    KodKraju: d.invoiceCountry || 'PL',\n    Email: d.email\n  },\n  Pozycje: [{\n    NazwaPelna: d.productName,\n    Jednostka: 'szt.',\n    Ilosc: 1,\n    CenaBrutto: d.amount,\n    StawkaVat: Number(config.vatRate) / 100\n  }]\n};\n\n// iFirma request auth: HMAC-SHA1 over url + body, keyed with the hex invoice key\nconst url = String(config.ifirmaApiUrl || 'https://panel.ifirma.pl/iapi/fakturavat.json');\nconst apiKey = Buffer.from(config.ifirmaApiKey, 'hex');\nconst body = JSON.stringify(payload);\nconst hmac = crypto.createHmac('sha1', apiKey).update(url + body).digest('hex');\n\nreturn [{ json: {\n  _url: url,\n  _body: body,\n  _authHeader: `IAPIS user=${config.ifirmaLogin},hmac-sha1=${hmac}`,\n} }];"
       }
     },
     {
       "id": "send-1",
-      "name": "Create Fakturownia Invoice",
+      "name": "Send to iFirma",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -365,7 +371,11 @@
           "parameters": [
             {
               "name": "Content-Type",
-              "value": "application/json"
+              "value": "application/json; charset=UTF-8"
+            },
+            {
+              "name": "Authentication",
+              "value": "={{ $json._authHeader }}"
             }
           ]
         },
@@ -381,8 +391,7 @@
           },
           "timeout": 30000
         }
-      },
-      "notes": "The api_token travels in the body - Fakturownia's scheme. neverError: failures land in Log Error instead of killing the run."
+      }
     },
     {
       "id": "if-success",
@@ -403,7 +412,7 @@
           "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ !!$json.id }}",
+              "leftValue": "={{ $json.response && $json.response.Kod === 0 }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -430,26 +439,26 @@
             {
               "id": "r1",
               "name": "invoiceId",
-              "value": "={{ $json.id }}",
+              "value": "={{ $json.response && $json.response.Identyfikator }}",
               "type": "string"
             },
             {
               "id": "r2",
-              "name": "invoiceNumber",
-              "value": "={{ $json.number }}",
+              "name": "buyerEmail",
+              "value": "={{ $('Extract Purchase Data').item.json.email }}",
               "type": "string"
             },
             {
               "id": "r3",
-              "name": "buyerEmail",
-              "value": "={{ $('Extract Purchase Data').item.json.email }}",
+              "name": "sessionId",
+              "value": "={{ $('Extract Purchase Data').item.json.sessionId }}",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "notes": "The created Fakturownia invoice - wire this to your DB, a sheet or a notification."
+      "notes": "The created iFirma invoice - wire this to your DB, a sheet or a notification."
     },
     {
       "id": "set-err",
@@ -577,25 +586,25 @@
       "main": [
         [
           {
-            "node": "Build Fakturownia Payload",
+            "node": "Build iFirma Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Fakturownia Payload": {
+    "Build iFirma Payload": {
       "main": [
         [
           {
-            "node": "Create Fakturownia Invoice",
+            "node": "Send to iFirma",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Fakturownia Invoice": {
+    "Send to iFirma": {
       "main": [
         [
           {

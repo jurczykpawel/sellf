@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Daily Sales Report → Telegram",
+  "name": "Sellf: Dzienny raport sprzedaży → Telegram",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 400,
-        "content": "## Get a daily Sellf sales report on Telegram\n\n### How it works\nEvery morning at 9:00 this workflow pulls your shop's numbers from the [Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products REST API - today's revenue and orders, active users and products, plus the top five products by revenue - formats them into one tidy Telegram message and sends it to your chat. Your daily pulse without opening the admin panel.\n\n### Setup\n1. In Sellf admin create an API key (**Settings → API keys**) with the analytics read scope.\n2. Fill in **Configuration (EDIT ME)**: your Sellf URL, the API key and your Telegram chat id.\n3. Connect your Telegram bot credentials on **Send to Telegram** (create a bot with @BotFather, add it to your chat).\n4. Adjust the hour on **Every Day at 9:00** and activate.\n\n### Customization tips\nEdit **Format Report** to add refund counts, conversion rates or week-over-week deltas - everything the analytics endpoints return is available. Prefer Slack or Discord? Swap the Telegram node for an HTTP node posting to an incoming webhook."
+        "content": "## Dzienny raport sprzedaży Sellfa na Telegramie\n\n### Jak to działa\nCodziennie o 9:00 ten workflow ściąga liczby Twojego sklepu z REST API [Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych: dzisiejszy przychód i zamówienia, aktywni użytkownicy i produkty, plus top 5 produktów po przychodzie - skleja to w jedną czytelną wiadomość i wysyła na Twój czat Telegrama. Codzienny puls sklepu bez otwierania panelu.\n\n### Konfiguracja\n1. W adminie Sellfa utwórz klucz API (**Settings → API keys**).\n2. Uzupełnij **Configuration (EDIT ME)**: adres Sellfa, klucz API i id czatu Telegrama.\n3. Podłącz credentials bota Telegrama w **Send to Telegram** (bot przez @BotFather, dodaj go do czatu).\n4. Dostosuj godzinę w **Every Day at 9:00** i aktywuj.\n\n### Możliwości modyfikacji\nRozbuduj **Format Report** o zwroty, konwersje albo delty tydzień-do-tygodnia - masz do dyspozycji wszystko, co zwracają endpointy analytics. Wolisz Slacka albo Discorda? Podmień node Telegrama na HTTP z incoming webhookiem."
       }
     },
     {
@@ -30,7 +30,7 @@
         "color": 7,
         "width": 1120,
         "height": 220,
-        "content": "## Pull the Numbers\nRuns every morning and reads today's stats and top products from the Sellf API."
+        "content": "## Pobranie liczb\nOdpala się co rano i czyta dzisiejsze statystyki oraz top produkty z API Sellfa."
       }
     },
     {
@@ -46,7 +46,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Report\nOne readable Telegram message: revenue, orders, users, products, top sellers."
+        "content": "## Raport\nJedna czytelna wiadomość: przychód, zamówienia, użytkownicy, produkty, bestsellery."
       }
     },
     {

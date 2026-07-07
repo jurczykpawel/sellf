@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Purchase → Fakturownia Invoice",
+  "name": "Sellf: Zakup → faktura Fakturownia",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 440,
-        "content": "## Create a Fakturownia VAT invoice for every B2B Sellf purchase\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - sends a signed `purchase.completed` webhook for every paid order. This workflow verifies the `X-Sellf-Signature` HMAC header, keeps only purchases where the buyer requested an invoice and provided a NIP (Polish tax id), maps the order to a Fakturownia VAT invoice marked as paid by card, and creates it via the Fakturownia API. Success and failure both land in dedicated end nodes, so a failed invoice never goes unnoticed.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL and copy the signing secret.\n2. In Fakturownia grab your account name (the subdomain) and API token (Settings → API).\n3. Fill in **Configuration (EDIT ME)**: webhook secret, Fakturownia account + token, VAT rate.\n4. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n\n### Customization tips\nFakturownia can auto-email the invoice to the buyer - enable it in your account settings, or add an HTTP node calling the send endpoint after **Extract Invoice Result**. Wire **Log Error** to Slack or email."
+        "content": "## Wystawiaj fakturę VAT w Fakturowni za każdy zakup B2B w Sellfie\n\n### Jak to działa\n[Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych - wysyła podpisany webhook `purchase.completed` dla każdego opłaconego zamówienia. Ten workflow weryfikuje nagłówek HMAC `X-Sellf-Signature`, przepuszcza tylko zakupy z żądaniem faktury i NIP-em, mapuje zamówienie na fakturę VAT Fakturowni oznaczoną jako opłaconą kartą i wystawia ją przez API. Sukces i błąd lądują w osobnych nodach końcowych - nieudana faktura nigdy nie przechodzi niezauważona.\n\n### Konfiguracja\n1. W adminie Sellfa otwórz **Settings → Webhooks**, dodaj endpoint z adresem Production URL tego workflowa i skopiuj signing secret.\n2. W Fakturowni weź nazwę konta (subdomenę) i token API (Ustawienia → API).\n3. Uzupełnij **Configuration (EDIT ME)**: sekret webhooka, konto + token Fakturowni, stawkę VAT.\n4. Czerwona notka przy **Verify Signature** opisuje jedno wymagane ustawienie n8n, potem aktywuj.\n\n### Możliwości modyfikacji\nFakturownia umie sama wysłać fakturę mailem do kupującego - włącz w ustawieniach konta albo dołóż HTTP node z endpointem wysyłki za **Extract Invoice Result**. Podepnij **Log Error** do Slacka albo maila."
       }
     },
     {
@@ -30,7 +30,7 @@
         "color": 7,
         "width": 1120,
         "height": 380,
-        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellfa i sprawdza podpis HMAC, zanim zaufa danym."
       }
     },
     {
@@ -46,7 +46,7 @@
         "color": 7,
         "width": 820,
         "height": 220,
-        "content": "## Acknowledge & Extract\nResponds immediately, then filters for completed purchases that requested an invoice with a NIP."
+        "content": "## Potwierdzenie i ekstrakcja\nOdpowiada od razu, potem filtruje opłacone zakupy z żądaniem faktury i NIP-em."
       }
     },
     {
@@ -62,7 +62,7 @@
         "color": 7,
         "width": 520,
         "height": 220,
-        "content": "## Build the Invoice\nMaps the purchase to a Fakturownia VAT invoice payload, marked as paid by card."
+        "content": "## Budowa faktury\nMapuje zakup na payload faktury VAT Fakturowni, oznaczonej jako opłacona kartą."
       }
     },
     {
@@ -78,7 +78,7 @@
         "color": 7,
         "width": 820,
         "height": 540,
-        "content": "## Send & Log Result\nCreates the invoice and records the result - or the error, so nothing fails silently."
+        "content": "## Wysyłka i log wyniku\nTworzy fakturę i zapisuje wynik - albo błąd, żeby nic nie padło po cichu."
       }
     },
     {
@@ -94,7 +94,7 @@
         "color": 3,
         "width": 260,
         "height": 160,
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+        "content": "## Wymagane ustawienie\nTen node Code potrzebuje `require('crypto')`. Self-hosted n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj."
       }
     },
     {

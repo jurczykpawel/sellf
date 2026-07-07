@@ -1,5 +1,5 @@
 {
-  "name": "Sellf: Lead Nurture (Listmonk + Follow-up)",
+  "name": "Sellf: Wygasły dostęp → kupon win-back",
   "nodes": [
     {
       "id": "sticky-overview",
@@ -14,7 +14,7 @@
         "color": 1,
         "width": 700,
         "height": 440,
-        "content": "## Nurture Sellf free-product leads with Listmonk and a follow-up email\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - emits a signed `lead.captured` webhook whenever someone grabs a free product (a lead magnet). This workflow verifies the `X-Sellf-Signature` HMAC header, acknowledges immediately, subscribes the lead to a [Listmonk](https://listmonk.app) list (with the product stored as attributes), waits three days and sends a personal follow-up email over your own SMTP - the moment they've had time to consume the freebie.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL and copy the signing secret.\n2. In Listmonk create an API user and note the target list's id.\n3. Fill in **Configuration (EDIT ME)**: webhook secret, Listmonk URL/user/token/list id and your sender address.\n4. Connect SMTP credentials on **Send Follow-up Email** and edit its subject/body.\n5. See the red note on **Verify Signature** for one required n8n environment setting, then activate.\n\n### Customization tips\nChange the wait (3 days by default) on **Wait 3 Days**. Build the whole sequence in Listmonk instead? Drop the wait + email nodes and let a Listmonk campaign series take over. Swap Listmonk for MailerLite/Mailchimp by replacing one node."
+        "content": "## Odzyskuj klientów Sellfa, gdy wygasa im dostęp do produktu\n\n### Jak to działa\n[Sellf](https://github.com/jurczykpawel/sellf) - self-hostowana platforma checkout dla produktów cyfrowych - emituje podpisany webhook `access.expired`, gdy kończy się czasowy dostęp klienta do produktu. Ten workflow weryfikuje nagłówek HMAC `X-Sellf-Signature`, wysyła życzliwe powiadomienie mailem, czeka dwa dni, po czym tworzy osobisty kupon win-back 20% przez API Sellfa i wysyła go mailem - zamieniając wygaśnięcia w odnowienia zamiast cichego churnu.\n\n### Konfiguracja\n1. W adminie Sellfa otwórz **Settings → Webhooks**, dodaj endpoint z adresem Production URL tego workflowa i skopiuj signing secret.\n2. Utwórz klucz API (**Settings → API keys**) ze scope zapisu kuponów.\n3. Uzupełnij **Configuration (EDIT ME)**: sekret webhooka, adres Sellfa, klucz API, procent rabatu i adres nadawcy.\n4. Podłącz SMTP w obu node'ach mailowych i przepisz treści po swojemu.\n5. Czerwona notka przy **Verify Signature** opisuje jedno wymagane ustawienie n8n, potem aktywuj. Działa z produktami używającymi `auto_grant_duration_days`.\n\n### Możliwości modyfikacji\nOdstęp i rabat w **Configuration**. Personalizuj maile - payload niesie klienta i produkt. Dołóż datę ważności kuponu w **Create Win-back Coupon** dla większej pilności."
       }
     },
     {
@@ -30,12 +30,12 @@
         "color": 7,
         "width": 1120,
         "height": 380,
-        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellfa i sprawdza podpis HMAC, zanim zaufa danym."
       }
     },
     {
-      "id": "sticky-filter",
-      "name": "Section: Acknowledge & Filter",
+      "id": "sticky-notify",
+      "name": "Section: Acknowledge & Notify",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -44,25 +44,25 @@
       ],
       "parameters": {
         "color": 7,
-        "width": 820,
+        "width": 1120,
         "height": 220,
-        "content": "## Acknowledge & Filter\nResponds immediately, keeps only `lead.captured` and shapes the lead."
+        "content": "## Potwierdzenie i powiadomienie\nPrzepuszcza tylko `access.expired` i od razu wysyła powiadomienie o wygaśnięciu."
       }
     },
     {
-      "id": "sticky-nurture",
-      "name": "Section: Subscribe & Nurture",
+      "id": "sticky-winback",
+      "name": "Section: Wait & Win Back",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1340,
+        1640,
         340
       ],
       "parameters": {
         "color": 7,
         "width": 1120,
         "height": 220,
-        "content": "## Subscribe & Nurture\nLead lands on your Listmonk list, then gets a personal follow-up three days later."
+        "content": "## Czekaj i odzyskuj\nDwa dni później: osobisty kupon wybity przez API Sellfa ląduje w skrzynce."
       }
     },
     {
@@ -78,7 +78,7 @@
         "color": 3,
         "width": 260,
         "height": 160,
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+        "content": "## Wymagane ustawienie\nTen node Code potrzebuje `require('crypto')`. Self-hosted n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj."
       }
     },
     {
@@ -91,7 +91,7 @@
         400
       ],
       "parameters": {
-        "path": "sellf-lead-nurture",
+        "path": "sellf-access-expired",
         "httpMethod": "POST",
         "responseMode": "responseNode",
         "options": {
@@ -121,30 +121,24 @@
             },
             {
               "id": "a2",
-              "name": "listmonkUrl",
-              "value": "https://your-listmonk.example.com",
+              "name": "sellfUrl",
+              "value": "https://your-sellf.example.com",
               "type": "string"
             },
             {
               "id": "a3",
-              "name": "listmonkUser",
-              "value": "api-user-name",
+              "name": "apiKey",
+              "value": "paste-your-sellf-api-key",
               "type": "string"
             },
             {
               "id": "a4",
-              "name": "listmonkToken",
-              "value": "paste-the-api-user-token",
-              "type": "string"
-            },
-            {
-              "id": "a5",
-              "name": "listmonkListId",
-              "value": 1,
+              "name": "discountPercent",
+              "value": 20,
               "type": "number"
             },
             {
-              "id": "a6",
+              "id": "a5",
               "name": "fromEmail",
               "value": "you@your-brand.example.com",
               "type": "string"
@@ -156,7 +150,7 @@
           "stripBinary": false
         }
       },
-      "notes": "webhookSecret from Sellf admin -> Settings -> Webhooks. listmonk* = an API user + list id from your Listmonk."
+      "notes": "apiKey needs the coupons write scope (Sellf admin -> Settings -> API keys)."
     },
     {
       "id": "verify-1",
@@ -236,7 +230,7 @@
     },
     {
       "id": "switch-1",
-      "name": "Is Lead Captured?",
+      "name": "Is Access Expired?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
@@ -257,7 +251,7 @@
                 "conditions": [
                   {
                     "leftValue": "={{ $json.body.event }}",
-                    "rightValue": "lead.captured",
+                    "rightValue": "access.expired",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
@@ -266,7 +260,7 @@
                 ]
               },
               "renameOutput": true,
-              "outputKey": "lead.captured"
+              "outputKey": "access.expired"
             }
           ]
         },
@@ -274,11 +268,11 @@
           "fallbackOutput": "none"
         }
       },
-      "notes": "Only lead.captured flows through - other events (and Sellf's test deliveries) are dropped."
+      "notes": "Only access.expired flows through - other events (and Sellf's test deliveries) are dropped."
     },
     {
-      "id": "code-1",
-      "name": "Extract Lead",
+      "id": "extract-1",
+      "name": "Extract Expiry Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -286,27 +280,60 @@
         400
       ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst d = body.data;\n\nconst email = (d.customer && d.customer.email) || d.email;\nif (!email) throw new Error('lead.captured payload has no email');\nconst firstName = (d.customer && d.customer.firstName) || '';\n\nreturn [{ json: {\n  email,\n  firstName,\n  name: d.customer ? [d.customer.firstName, d.customer.lastName].filter(Boolean).join(' ') : '',\n  productName: (d.product && d.product.name) || '',\n  productId: (d.product && d.product.id) || '',\n} }];"
+        "jsCode": "const body = $input.first().json.body;\nconst d = body.data;\n\nconst email = (d.customer && d.customer.email) || d.email;\nif (!email) throw new Error('access.expired payload has no email');\n\nreturn [{ json: {\n  email,\n  firstName: (d.customer && d.customer.firstName) || '',\n  productName: (d.product && d.product.name) || 'your product',\n  productId: (d.product && d.product.id) || null,\n} }];"
       }
     },
     {
-      "id": "listmonk-1",
-      "name": "Add to Listmonk",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "email-1",
+      "name": "Send Expiry Notice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         1400,
         400
       ],
       "parameters": {
+        "fromEmail": "={{ $('Configuration (EDIT ME)').item.json.fromEmail }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ 'Your access to ' + $json.productName + ' has expired' }}",
+        "text": "={{ 'Hi ' + ($json.firstName || 'there') + ',\\n\\nYour access to ' + $json.productName + ' just expired. If you were in the middle of something - no worries, your progress is safe.\\n\\nKeep an eye on your inbox, something nice is coming your way.\\n' }}",
+        "options": {}
+      },
+      "notes": "Connect SMTP credentials. Keep it friendly - the coupon comes in the next email."
+    },
+    {
+      "id": "wait-1",
+      "name": "Wait 2 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        400
+      ],
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "notes": "n8n parks the execution durably. Tune the gap to your product's rhythm."
+    },
+    {
+      "id": "coupon-1",
+      "name": "Create Win-back Coupon",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        400
+      ],
+      "parameters": {
         "method": "POST",
-        "url": "={{ $('Configuration (EDIT ME)').item.json.listmonkUrl }}/api/subscribers",
+        "url": "={{ $('Configuration (EDIT ME)').item.json.sellfUrl }}/api/v1/coupons",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Authorization",
-              "value": "={{ 'token ' + $('Configuration (EDIT ME)').item.json.listmonkUser + ':' + $('Configuration (EDIT ME)').item.json.listmonkToken }}"
+              "value": "={{ 'Bearer ' + $('Configuration (EDIT ME)').item.json.apiKey }}"
             },
             {
               "name": "Content-Type",
@@ -316,51 +343,30 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ email: $json.email, name: $json.name || '', status: 'enabled', lists: [Number($('Configuration (EDIT ME)').item.json.listmonkListId)], preconfirm_subscriptions: false, attribs: { source: 'sellf-lead', product: $json.productName, product_id: $json.productId } }) }}",
+        "jsonBody": "={{ (() => { const code = 'BACK-' + Math.random().toString(36).slice(2, 8).toUpperCase(); const pid = $('Extract Expiry Data').item.json.productId; const isUuid = typeof pid === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pid); return JSON.stringify({ code, name: 'Win-back ' + code, discount_type: 'percentage', discount_value: Number($('Configuration (EDIT ME)').item.json.discountPercent), ...(isUuid ? { allowed_product_ids: [pid] } : {}) }); })() }}",
         "options": {
-          "response": {
-            "response": {
-              "fullResponse": true,
-              "neverError": true
-            }
-          },
           "timeout": 30000
         }
       },
-      "notes": "statusCode 200 = subscribed, 409 = already on the list (safe to ignore)."
+      "notes": "Mints a one-off percentage coupon via the Sellf API, scoped to the expired product when its id is a real product UUID."
     },
     {
-      "id": "wait-1",
-      "name": "Wait 3 Days",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        1700,
-        400
-      ],
-      "parameters": {
-        "amount": 3,
-        "unit": "days"
-      },
-      "notes": "n8n parks the execution - it survives restarts. Adjust to your nurture rhythm."
-    },
-    {
-      "id": "email-1",
-      "name": "Send Follow-up Email",
+      "id": "email-2",
+      "name": "Send Win-back Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2000,
+        2300,
         400
       ],
       "parameters": {
         "fromEmail": "={{ $('Configuration (EDIT ME)').item.json.fromEmail }}",
-        "toEmail": "={{ $('Extract Lead').item.json.email }}",
-        "subject": "={{ 'How is ' + ($('Extract Lead').item.json.productName || 'the freebie') + ' working for you?' }}",
-        "text": "={{ 'Hi ' + ($('Extract Lead').item.json.firstName || 'there') + ',\\n\\nA few days ago you grabbed ' + ($('Extract Lead').item.json.productName || 'one of my free resources') + ' - I hope it is already useful.\\n\\nIf anything is unclear, just hit reply. And if you want to go deeper, check what else I have for you.\\n\\nTalk soon!' }}",
+        "toEmail": "={{ $('Extract Expiry Data').item.json.email }}",
+        "subject": "={{ 'A little something to come back to ' + $('Extract Expiry Data').item.json.productName }}",
+        "text": "={{ 'Hi ' + ($('Extract Expiry Data').item.json.firstName || 'there') + ',\\n\\nHere is a personal ' + $('Configuration (EDIT ME)').item.json.discountPercent + '% discount to renew your access to ' + $('Extract Expiry Data').item.json.productName + ':\\n\\n    ' + ($json.data ? $json.data.code : $json.code) + '\\n\\nUse it at checkout whenever you are ready.\\n' }}",
         "options": {}
       },
-      "notes": "Connect SMTP credentials and make this email yours - the default copy is a starting point."
+      "notes": "Connect SMTP credentials. The coupon code comes straight from the previous node's response."
     }
   ],
   "connections": {
@@ -419,51 +425,62 @@
       "main": [
         [
           {
-            "node": "Is Lead Captured?",
+            "node": "Is Access Expired?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Lead Captured?": {
+    "Is Access Expired?": {
       "main": [
         [
           {
-            "node": "Extract Lead",
+            "node": "Extract Expiry Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Lead": {
+    "Extract Expiry Data": {
       "main": [
         [
           {
-            "node": "Add to Listmonk",
+            "node": "Send Expiry Notice",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Add to Listmonk": {
+    "Send Expiry Notice": {
       "main": [
         [
           {
-            "node": "Wait 3 Days",
+            "node": "Wait 2 Days",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait 3 Days": {
+    "Wait 2 Days": {
       "main": [
         [
           {
-            "node": "Send Follow-up Email",
+            "node": "Create Win-back Coupon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Win-back Coupon": {
+      "main": [
+        [
+          {
+            "node": "Send Win-back Email",
             "type": "main",
             "index": 0
           }

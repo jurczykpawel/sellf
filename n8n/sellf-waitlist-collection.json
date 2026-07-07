@@ -1,102 +1,327 @@
 {
-  "name": "Sellf: Waitlist Signup → Email Collection",
+  "name": "Sellf: Waitlist → Listmonk",
   "nodes": [
     {
-      "parameters": {
-        "content": "## Sellf: Waitlist Collection — Konfiguracja\n\n**1. Webhook URL**\nSkopiuj URL z node'a \"Sellf Webhook\" (Production URL)\ni wklej w Sellf admin → Settings → Webhooks.\n\n**2. MailerLite — credentials**\nn8n → Credentials → MailerLite API → wpisz API key.\nW node \"Add to MailerLite\" możesz przypisać\nsubskrybenta do grupy `waitlist:{product-slug}`\n(utwórz grupę wcześniej w MailerLite).\n\n**3. SMTP — credentials + nadawca**\nn8n → Credentials → SMTP → skonfiguruj serwer.\nW node \"Send Confirmation Email\" zmień `fromEmail`\nna swój adres i dostosuj treść wiadomości.",
-        "height": 300,
-        "width": 380,
-        "color": 4
-      },
-      "id": "note-1",
-      "name": "Konfiguracja",
+      "id": "sticky-overview",
+      "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -420,
-        100
-      ]
+        -760,
+        -380
+      ],
+      "parameters": {
+        "color": 1,
+        "width": 700,
+        "height": 420,
+        "content": "## Collect Sellf waitlist signups into a Listmonk list\n\n### How it works\n[Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - can show a waitlist form on a product page before launch. Every signup emits a signed `waitlist.signup` webhook; this workflow verifies the `X-Sellf-Signature` HMAC header, acknowledges immediately and subscribes the person to a [Listmonk](https://listmonk.app) list, with the product name and id stored as queryable attributes - so at launch you can email exactly the people who asked for that product. Fully self-hosted end to end.\n\n### Setup\n1. In Sellf admin open **Settings → Webhooks**, add an endpoint with this workflow's Production URL and copy the signing secret.\n2. In Listmonk create an API user (**Admin → Settings → Users**) and note the target list's id.\n3. Fill in **Configuration (EDIT ME)**: the webhook secret, Listmonk URL, API user, token and list id.\n4. See the red note on **Verify Signature** for one required n8n environment setting, then activate and enable the waitlist on a Sellf product.\n\n### Customization tips\nListmonk's double opt-in confirmation replaces a custom \"thanks for joining\" email - flip `preconfirm_subscriptions` to `true` in **Add to Listmonk** if you don't want it. Prefer MailerLite or Mailchimp? Swap the last node; everything else stays."
+      }
     },
     {
+      "id": "sticky-receive",
+      "name": "Section: Receive & Verify",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        340
+      ],
       "parameters": {
-        "path": "sellf-waitlist",
-        "httpMethod": "POST",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "wh-1",
+        "color": 7,
+        "width": 1120,
+        "height": 380,
+        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload."
+      }
+    },
+    {
+      "id": "sticky-filter",
+      "name": "Section: Acknowledge & Filter",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        340
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 820,
+        "height": 220,
+        "content": "## Acknowledge & Filter\nResponds immediately, keeps only `waitlist.signup` and shapes the subscriber."
+      }
+    },
+    {
+      "id": "sticky-sub",
+      "name": "Section: Subscribe",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        340
+      ],
+      "parameters": {
+        "color": 7,
+        "width": 520,
+        "height": 220,
+        "content": "## Subscribe\nAdds the signup to your Listmonk list with the product stored as attributes; 409 means already subscribed."
+      }
+    },
+    {
+      "id": "sticky-crypto",
+      "name": "Warning: crypto module",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -130,
+        370
+      ],
+      "parameters": {
+        "color": 3,
+        "width": 260,
+        "height": 160,
+        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart."
+      }
+    },
+    {
+      "id": "webhook-1",
       "name": "Sellf Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        0,
-        300
+        -700,
+        400
       ],
-      "webhookId": "sellf-waitlist"
+      "parameters": {
+        "path": "sellf-waitlist",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "notes": "Paste this node's Production URL into Sellf admin -> Settings -> Webhooks -> Add endpoint.",
+      "onError": "continueRegularOutput"
     },
     {
+      "id": "config-1",
+      "name": "Configuration (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        400
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "webhookSecret",
+              "value": "paste-the-endpoint-signing-secret",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "listmonkUrl",
+              "value": "https://your-listmonk.example.com",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "listmonkUser",
+              "value": "api-user-name",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "listmonkToken",
+              "value": "paste-the-api-user-token",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "listmonkListId",
+              "value": 1,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "stripBinary": false
+        }
+      },
+      "notes": "webhookSecret from Sellf admin -> Settings -> Webhooks. listmonkUser/listmonkToken = an API user from Listmonk -> Admin -> Settings -> Users."
+    },
+    {
+      "id": "verify-1",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst config = $('Configuration (EDIT ME)').first().json;\nconst item = $input.first();\n\nconst header = (item.json.headers && item.json.headers['x-sellf-signature']) || '';\nconst rawBody = item.binary && item.binary.data\n  ? Buffer.from(item.binary.data.data, 'base64').toString('utf8')\n  : JSON.stringify(item.json.body || {});\n\n// Header format (Stripe/Svix style): t=<unix>,v1=<hex>[,v1=<hex2 during secret rotation>]\nlet t = null;\nconst sigs = [];\nfor (const part of header.split(',')) {\n  const eq = part.indexOf('=');\n  if (eq === -1) continue;\n  const key = part.slice(0, eq).trim();\n  const value = part.slice(eq + 1).trim();\n  if (key === 't') t = value;\n  else if (key === 'v1') sigs.push(value);\n}\n\nlet valid = false;\nif (t && sigs.length && config.webhookSecret) {\n  const expected = crypto.createHmac('sha256', config.webhookSecret).update(`${t}.${rawBody}`).digest('hex');\n  const withinTolerance = Math.abs(Math.floor(Date.now() / 1000) - Number(t)) <= 300;\n  valid = withinTolerance && sigs.some((v1) =>\n    v1.length === expected.length && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1)));\n}\n\nreturn [{ json: { valid, body: JSON.parse(rawBody) } }];"
+      }
+    },
+    {
+      "id": "if-valid",
+      "name": "Signature Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        560
+      ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "{\"status\":\"ok\"}"
-      },
-      "id": "res-1",
+        "responseBody": "{\"success\":false,\"error\":\"invalid signature\"}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "respond-ok",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        220,
-        300
-      ]
+        500,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}"
+      },
+      "notes": "Acknowledge before processing - Sellf retries deliveries that don't get a 2xx."
     },
     {
+      "id": "switch-1",
+      "name": "Is Waitlist Signup?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        800,
+        400
+      ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nif (body.event !== 'waitlist.signup') return [];\n\nconst d = body.data;\nreturn [{\n  json: {\n    email: d.customer.email,\n    productName: d.product.name,\n    productSlug: d.product.slug,\n    productId: d.product.id,\n    tag: `waitlist:${d.product.slug}`,\n    timestamp: body.timestamp\n  }\n}];"
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "waitlist.signup",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "waitlist.signup"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
       },
+      "notes": "Only waitlist.signup flows through - other events (and Sellf's test deliveries) are dropped."
+    },
+    {
       "id": "code-1",
-      "name": "Extract Waitlist Data",
+      "name": "Extract Signup",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        300
-      ]
+        1100,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst d = body.data;\n\nconst email = (d.customer && d.customer.email) || d.email;\nif (!email) throw new Error('waitlist.signup payload has no email');\nconst name = d.customer ? [d.customer.firstName, d.customer.lastName].filter(Boolean).join(' ') : (d.name || '');\n\nreturn [{ json: {\n  email,\n  name,\n  productName: (d.product && d.product.name) || '',\n  productId: (d.product && d.product.id) || '',\n} }];"
+      }
     },
     {
+      "id": "listmonk-1",
+      "name": "Add to Listmonk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        400
+      ],
       "parameters": {
-        "resource": "subscriber",
-        "email": "={{ $json.email }}",
-        "additionalFields": {
-          "status": "active"
+        "method": "POST",
+        "url": "={{ $('Configuration (EDIT ME)').item.json.listmonkUrl }}/api/subscribers",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'token ' + $('Configuration (EDIT ME)').item.json.listmonkUser + ':' + $('Configuration (EDIT ME)').item.json.listmonkToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email: $json.email, name: $json.name || '', status: 'enabled', lists: [Number($('Configuration (EDIT ME)').item.json.listmonkListId)], preconfirm_subscriptions: false, attribs: { source: 'sellf-waitlist', product: $json.productName, product_id: $json.productId } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
         }
       },
-      "id": "ml-1",
-      "name": "Add to MailerLite",
-      "type": "n8n-nodes-base.mailerLite",
-      "typeVersion": 1,
-      "position": [
-        700,
-        200
-      ],
-      "notes": "TODO: Configure MailerLite credentials. Create a group 'waitlist:{product-slug}' and assign subscriber to it."
-    },
-    {
-      "parameters": {
-        "fromEmail": "noreply@yourdomain.com",
-        "toEmail": "={{ $json.email }}",
-        "subject": "=Jesteś na liście oczekujących: {{ $json.productName }}",
-        "emailType": "html",
-        "html": "=<h2>Dziękujemy za zapisanie się!</h2>\n<p>Trafiłeś/aś na listę oczekujących na <strong>{{ $json.productName }}</strong>.</p>\n<p>Powiadomimy Cię jak tylko produkt będzie dostępny.</p>\n<p style=\"color:#888;font-size:12px\">Zapisano: {{ $json.email }}</p>",
-        "options": {}
-      },
-      "id": "email-1",
-      "name": "Send Confirmation Email",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [
-        700,
-        440
-      ],
-      "notes": "TODO: Configure SMTP credentials and customize."
+      "notes": "statusCode 200 = subscribed, 409 = already on the list (safe). Double opt-in stays on - Listmonk sends the confirmation email."
     }
   ],
   "connections": {
@@ -104,28 +329,80 @@
       "main": [
         [
           {
-            "node": "Respond OK",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Extract Waitlist Data",
+            "node": "Configuration (EDIT ME)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Waitlist Data": {
+    "Configuration (EDIT ME)": {
       "main": [
         [
           {
-            "node": "Add to MailerLite",
+            "node": "Verify Signature",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Verify Signature": {
+      "main": [
+        [
           {
-            "node": "Send Confirmation Email",
+            "node": "Signature Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond OK": {
+      "main": [
+        [
+          {
+            "node": "Is Waitlist Signup?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Waitlist Signup?": {
+      "main": [
+        [
+          {
+            "node": "Extract Signup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Signup": {
+      "main": [
+        [
+          {
+            "node": "Add to Listmonk",
             "type": "main",
             "index": 0
           }
@@ -140,6 +417,5 @@
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "sellf"
-  },
-  "id": "8quR_7J534sgUQTb"
+  }
 }
