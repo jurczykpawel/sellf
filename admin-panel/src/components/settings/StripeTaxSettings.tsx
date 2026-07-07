@@ -91,6 +91,7 @@ export default function StripeTaxSettings() {
  const [defaultVatRate, setDefaultVatRate] = useState('')
  const [vatRateIsNull, setVatRateIsNull] = useState(false)
  const [isVatExempt, setIsVatExempt] = useState(false)
+ const [vatExemptNote, setVatExemptNote] = useState('')
 
  // Toggle state
  const [taxIdCollection, setTaxIdCollection] = useState(true)
@@ -162,6 +163,7 @@ export default function StripeTaxSettings() {
  : ''
  )
  setIsVatExempt(!!shopConfig.is_vat_exempt)
+ setVatExemptNote(shopConfig.vat_exempt_note ?? '')
  }
  } catch {
  if (cancelled) return
@@ -215,6 +217,22 @@ export default function StripeTaxSettings() {
  const success = await updateShopConfig({ is_vat_exempt: value })
  if (success) {
  setIsVatExempt(value)
+ toast.success(t('saveSuccess'))
+ } else {
+ toast.error(t('saveError'))
+ }
+ } catch {
+ toast.error(t('saveError'))
+ } finally {
+ setSaving(false)
+ }
+ }
+
+ const handleVatExemptNote = async () => {
+ setSaving(true)
+ try {
+ const success = await updateShopConfig({ vat_exempt_note: vatExemptNote || null })
+ if (success) {
  toast.success(t('saveSuccess'))
  } else {
  toast.error(t('saveError'))
@@ -375,10 +393,33 @@ export default function StripeTaxSettings() {
  <span className="text-sm font-medium text-sf-heading">{t('vatExempt.label')}</span>
  </label>
  <p className="text-xs text-sf-muted mt-2">{t('vatExempt.help')}</p>
+
+ {isVatExempt && (
+ <div className="mt-3">
+ <label htmlFor="vat-exempt-note" className="block text-xs font-medium text-sf-heading mb-1">
+ {t('vatExempt.noteLabel')}
+ </label>
+ <input
+ id="vat-exempt-note"
+ type="text"
+ value={vatExemptNote}
+ onChange={(e) => setVatExemptNote(e.target.value)}
+ onBlur={handleVatExemptNote}
+ maxLength={500}
+ disabled={saving}
+ placeholder={t('vatExempt.notePlaceholder')}
+ className={`w-full max-w-md px-2 py-1.5 text-sm border-2 border-sf-border-medium bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent ${
+ saving ? 'opacity-50 cursor-not-allowed' : ''
+ }`}
+ />
+ <p className="text-xs text-sf-muted mt-1">{t('vatExempt.noteHelp')}</p>
+ </div>
+ )}
  </div>
 
- {/* Local mode: Default VAT Rate input + warnings */}
- {isLocalMode && (
+ {/* Local mode: Default VAT Rate input + warnings — hidden when the shop
+ itself is VAT-exempt, since no rate applies to an exempt shop. */}
+ {isLocalMode && !isVatExempt && (
  <div className="mb-6 p-4 bg-sf-raised border border-sf-border">
  <label htmlFor="default-vat-rate" className="block text-sm font-medium text-sf-heading mb-1">
  {t('taxMode.vatRateLabel')}

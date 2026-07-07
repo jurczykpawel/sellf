@@ -127,9 +127,14 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           // Default currency for new products
           if (!product) {
             setDefaultCurrency(config.default_currency || 'USD');
-            // New products inherit the shop's VAT-exempt status as the default.
+            // New products inherit the shop's VAT-exempt status (and its default
+            // exemption note, if set) as the default.
             if (config.is_vat_exempt) {
-              setFormData(prev => ({ ...prev, vat_exempt: true }));
+              setFormData(prev => ({
+                ...prev,
+                vat_exempt: true,
+                vat_exempt_note: config.vat_exempt_note ?? prev.vat_exempt_note,
+              }));
             }
           }
           setOmnibusEnabled(config.omnibus_enabled);

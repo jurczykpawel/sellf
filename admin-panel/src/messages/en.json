@@ -2613,7 +2613,10 @@
       "subtitle": "Tax calculation mode and checkout session settings",
       "vatExempt": {
         "label": "Shop is VAT-exempt (zw.)",
-        "help": "New products are marked VAT-exempt by default — no VAT is added at checkout. This is the single place to set it; the Legal Documents tab shows it read-only."
+        "help": "New products are marked VAT-exempt by default — no VAT is added at checkout. This is the single place to set it; the Legal Documents tab shows it read-only.",
+        "noteLabel": "Default exemption basis",
+        "notePlaceholder": "e.g. art. 113(1)",
+        "noteHelp": "Applied to newly created products by default. Each product can still override it individually."
       },
       "taxMode": {
         "label": "Tax Calculation Mode",

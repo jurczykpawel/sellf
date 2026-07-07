@@ -2628,7 +2628,10 @@
       "subtitle": "Tryb naliczania podatków i ustawienia sesji checkout",
       "vatExempt": {
         "label": "Sklep zwolniony z VAT (zw.)",
-        "help": "Nowe produkty będą domyślnie zwolnione z VAT — przy checkout nie zostanie naliczony podatek. To jedyne miejsce edycji; w zakładce Dokumenty prawne wartość jest tylko do odczytu."
+        "help": "Nowe produkty będą domyślnie zwolnione z VAT — przy checkout nie zostanie naliczony podatek. To jedyne miejsce edycji; w zakładce Dokumenty prawne wartość jest tylko do odczytu.",
+        "noteLabel": "Domyślna podstawa zwolnienia",
+        "notePlaceholder": "np. art. 113 ust. 1",
+        "noteHelp": "Stosowana domyślnie dla nowo tworzonych produktów. Każdy produkt może to nadal ustawić indywidualnie."
       },
       "taxMode": {
         "label": "Tryb naliczania podatków",

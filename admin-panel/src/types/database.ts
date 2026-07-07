@@ -2122,6 +2122,7 @@ export type Database = {
           tax_rate: number | null
           terms_of_service_url: string | null
           updated_at: string
+          vat_exempt_note: string | null
         }
         Insert: {
           automatic_tax_enabled?: boolean | null
@@ -2162,6 +2163,7 @@ export type Database = {
           tax_rate?: number | null
           terms_of_service_url?: string | null
           updated_at?: string
+          vat_exempt_note?: string | null
         }
         Update: {
           automatic_tax_enabled?: boolean | null
@@ -2202,6 +2204,7 @@ export type Database = {
           tax_rate?: number | null
           terms_of_service_url?: string | null
           updated_at?: string
+          vat_exempt_note?: string | null
         }
         Relationships: []
       }

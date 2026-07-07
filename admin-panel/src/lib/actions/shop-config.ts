@@ -60,6 +60,7 @@ export interface ShopConfig {
   company_phone?: string | null
   complaints_email?: string | null
   is_vat_exempt?: boolean
+  vat_exempt_note?: string | null
   is_micro_enterprise?: boolean
   has_dpo?: boolean
   dpo_contact?: string | null

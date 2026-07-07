@@ -30,13 +30,13 @@ async function insertProduct(extra: Record<string, unknown> = {}) {
   return admin
     .from('products')
     .insert(newProduct(extra))
-    .select('id, vat_rate, vat_exempt')
+    .select('id, vat_rate, vat_exempt, vat_exempt_note')
     .single();
 }
 
 describe('new products inherit shop VAT defaults (UI + API parity)', () => {
   let shopId: string;
-  let original: { tax_rate: number | null; is_vat_exempt: boolean };
+  let original: { tax_rate: number | null; is_vat_exempt: boolean; vat_exempt_note: string | null };
   const created: string[] = [];
 
   async function setShop(patch: Record<string, unknown>) {
@@ -47,12 +47,12 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
   beforeAll(async () => {
     const { data } = await admin
       .from('shop_config')
-      .select('id, tax_rate, is_vat_exempt')
+      .select('id, tax_rate, is_vat_exempt, vat_exempt_note')
       .order('created_at')
       .limit(1)
       .single();
     shopId = data!.id;
-    original = { tax_rate: data!.tax_rate, is_vat_exempt: data!.is_vat_exempt };
+    original = { tax_rate: data!.tax_rate, is_vat_exempt: data!.is_vat_exempt, vat_exempt_note: data!.vat_exempt_note };
   });
 
   afterAll(async () => {
@@ -97,5 +97,42 @@ describe('new products inherit shop VAT defaults (UI + API parity)', () => {
     created.push(data!.id);
     expect(Number(data!.vat_rate)).toBe(0);
     expect(data!.vat_exempt).toBe(false);
+  });
+
+  it('inherits the shop default vat_exempt_note when shop is exempt and none is provided', async () => {
+    await setShop({ tax_rate: 23, is_vat_exempt: true, vat_exempt_note: 'art. 113 ust. 1' });
+    const { data, error } = await insertProduct();
+    expect(error).toBeNull();
+    created.push(data!.id);
+    expect(data!.vat_exempt).toBe(true);
+    expect(data!.vat_exempt_note).toBe('art. 113 ust. 1');
+  });
+
+  it('does NOT set vat_exempt_note when the shop has no default note configured', async () => {
+    await setShop({ tax_rate: 23, is_vat_exempt: true, vat_exempt_note: null });
+    const { data, error } = await insertProduct();
+    expect(error).toBeNull();
+    created.push(data!.id);
+    expect(data!.vat_exempt).toBe(true);
+    expect(data!.vat_exempt_note).toBeNull();
+  });
+
+  it('does NOT override an explicitly provided vat_exempt_note', async () => {
+    await setShop({ tax_rate: 23, is_vat_exempt: true, vat_exempt_note: 'art. 113 ust. 1' });
+    const { data, error } = await insertProduct({ vat_exempt: true, vat_exempt_note: 'custom basis' });
+    expect(error).toBeNull();
+    created.push(data!.id);
+    expect(data!.vat_exempt_note).toBe('custom basis');
+  });
+
+  it('does NOT set vat_exempt_note on a non-exempt product even if the shop has a default note', async () => {
+    // Shop currently non-exempt but has a leftover default note configured — must
+    // not leak onto products that aren't exempt.
+    await setShop({ tax_rate: 23, is_vat_exempt: false, vat_exempt_note: 'art. 113 ust. 1' });
+    const { data, error } = await insertProduct();
+    expect(error).toBeNull();
+    created.push(data!.id);
+    expect(data!.vat_exempt).toBe(false);
+    expect(data!.vat_exempt_note).toBeNull();
   });
 });

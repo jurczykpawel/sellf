@@ -7,7 +7,7 @@
  * Excluded (anon must NOT read them):
  *  - Seller PII: legal_form, company_legal_name, nip, regon, krs, company_street,
  *    company_building_no, company_flat_no, company_city, company_postal, company_phone,
- *    complaints_email, is_vat_exempt, is_micro_enterprise, has_dpo, dpo_contact
+ *    complaints_email, is_vat_exempt, vat_exempt_note, is_micro_enterprise, has_dpo, dpo_contact
  *  - `country`: admin-only (PL legal-doc gate); read via getMyShopConfig (select '*').
  *  - `custom_settings`: free-form jsonb, admin-only. Never anon-exposed so a future write
  *    (e.g. an integration secret) can't silently leak via the public storefront read.

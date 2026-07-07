@@ -98,7 +98,7 @@ test.describe('Stripe Tax Settings Admin UI', () => {
     // Save original fields
     const { data: config } = await supabaseAdmin
       .from('shop_config')
-      .select('id, tax_mode, tax_rate, tax_id_collection_enabled, checkout_billing_address, checkout_expires_hours, checkout_collect_terms')
+      .select('id, tax_mode, tax_rate, tax_id_collection_enabled, checkout_billing_address, checkout_expires_hours, checkout_collect_terms, is_vat_exempt, vat_exempt_note')
       .single();
 
     if (config) {
@@ -110,6 +110,8 @@ test.describe('Stripe Tax Settings Admin UI', () => {
         checkout_billing_address: config.checkout_billing_address,
         checkout_expires_hours: config.checkout_expires_hours,
         checkout_collect_terms: config.checkout_collect_terms,
+        is_vat_exempt: config.is_vat_exempt,
+        vat_exempt_note: config.vat_exempt_note,
       };
     }
   });
@@ -124,6 +126,8 @@ test.describe('Stripe Tax Settings Admin UI', () => {
         checkout_billing_address: null,
         checkout_expires_hours: null,
         checkout_collect_terms: null,
+        is_vat_exempt: false,
+        vat_exempt_note: null,
       })
       .eq('id', shopConfigId);
   });
@@ -247,6 +251,70 @@ test.describe('Stripe Tax Settings Admin UI', () => {
     // VAT rate input should NOT be visible in stripe_tax mode
     const vatInput = section.locator('input#default-vat-rate');
     await expect(vatInput).not.toBeVisible();
+  });
+
+  test('should hide default VAT rate input when shop is VAT-exempt', async ({ page }) => {
+    await supabaseAdmin
+      .from('shop_config')
+      .update({ tax_mode: 'local', tax_rate: 0.23, is_vat_exempt: true })
+      .eq('id', shopConfigId);
+
+    await loginAsAdmin(page);
+    const section = await goToStripeTaxSection(page);
+
+    // A shop that's fully VAT-exempt has no applicable rate — the input must not show.
+    const vatInput = section.locator('input#default-vat-rate');
+    await expect(vatInput).not.toBeVisible();
+  });
+
+  test('should show default exemption note input only when shop is VAT-exempt', async ({ page }) => {
+    await supabaseAdmin
+      .from('shop_config')
+      .update({ tax_mode: 'local', is_vat_exempt: false })
+      .eq('id', shopConfigId);
+
+    await loginAsAdmin(page);
+    const section = await goToStripeTaxSection(page);
+
+    const noteInput = section.locator('input#vat-exempt-note');
+    await expect(noteInput).not.toBeVisible();
+
+    // Check the exemption checkbox — the note input should appear.
+    // (.click(), not .check(): the checkbox's `checked` state only flips after
+    // the async updateShopConfig() round-trip resolves, and it's briefly
+    // `disabled` while saving — .check()'s built-in post-click verification
+    // races that and throws. This file's other boolean toggles use the same
+    // click-then-wait pattern for the same reason, e.g. "should toggle tax ID
+    // collection and persist in DB" above.)
+    const exemptCheckbox = section.locator('input#shop-vat-exempt');
+    await exemptCheckbox.click();
+    await page.waitForTimeout(2000);
+
+    await expect(noteInput).toBeVisible();
+  });
+
+  test('should update default exemption note on blur and persist in DB', async ({ page }) => {
+    await supabaseAdmin
+      .from('shop_config')
+      .update({ tax_mode: 'local', is_vat_exempt: true, vat_exempt_note: null })
+      .eq('id', shopConfigId);
+
+    await loginAsAdmin(page);
+    const section = await goToStripeTaxSection(page);
+
+    const noteInput = section.locator('input#vat-exempt-note');
+    await expect(noteInput).toBeVisible();
+    await noteInput.fill('art. 113 ust. 1');
+    await noteInput.blur();
+    await page.waitForTimeout(2000);
+
+    const { data: config } = await supabaseAdmin
+      .from('shop_config')
+      .select('vat_exempt_note')
+      .eq('id', shopConfigId)
+      .single();
+
+    expect(config!.vat_exempt_note).toBe('art. 113 ust. 1');
   });
 
   test('should update default VAT rate on blur and persist in DB', async ({ page }) => {
