@@ -8,14 +8,16 @@
  * RPCs ARE revoked; it doesn't catch the reverse — revoking something the
  * storefront needs.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createClient } from '@supabase/supabase-js';
 
 import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!SUPABASE_URL || !ANON_KEY) {
+if (!SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY) {
   throw new Error('Missing Supabase env variables for testing');
 }
 
@@ -90,6 +92,67 @@ describe('Storefront anon read access', () => {
       res.status,
       `anon should be DENIED the PII column "nip" on shop_config, but got HTTP ${res.status}. ` +
         `If this is 2xx, seller PII (NIP/REGON/address/DPO) is world-readable via PostgREST.`,
+    ).toBeGreaterThanOrEqual(400);
+  });
+});
+
+// A logged-in user holds the Postgres `authenticated` role. Column-level grants
+// are enforced regardless of admin status (the admin panel reads the full row
+// via service_role), so `authenticated` gets the same public subset as anon.
+describe('Storefront authenticated read access to shop_config', () => {
+  const email = `shopcfg-authz-${Date.now()}@example.com`;
+  const password = 'test-password-12345';
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  let userId: string | undefined;
+  let userToken: string;
+
+  beforeAll(async () => {
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (createErr) throw createErr;
+    userId = created.user?.id;
+
+    const signInClient = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: signIn, error: signInErr } = await signInClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signInErr || !signIn.session) throw signInErr ?? new Error('No session for test user');
+    userToken = signIn.session.access_token;
+  });
+
+  afterAll(async () => {
+    if (userId) await admin.auth.admin.deleteUser(userId);
+  });
+
+  const authedHeaders = () => ({ apikey: ANON_KEY, Authorization: `Bearer ${userToken}` });
+
+  it('authenticated CAN read shop_config public columns (no 42501)', async () => {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/shop_config?select=${SHOP_CONFIG_PUBLIC_COLUMNS_CSV}&limit=1`,
+      { headers: authedHeaders() },
+    );
+    const body = res.ok ? null : await res.text();
+    expect(
+      res.status,
+      `authenticated SELECT of public columns on shop_config failed with HTTP ${res.status}. Body: ${body ?? '<ok>'}`,
+    ).toBeLessThan(300);
+  });
+
+  it('authenticated CANNOT read shop_config admin-only columns (column-level grant)', async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/shop_config?select=nip&limit=1`, {
+      headers: authedHeaders(),
+    });
+    expect(
+      res.status,
+      `authenticated should be DENIED the admin-only column "nip" on shop_config, but got HTTP ${res.status}.`,
     ).toBeGreaterThanOrEqual(400);
   });
 });

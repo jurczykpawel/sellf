@@ -1,10 +1,13 @@
 /**
  * Public-safe columns of `shop_config` that anon (the public storefront) may read.
  *
- * MUST stay in sync with the column-level anon GRANT in
- * `supabase/migrations/20260621000000_legal_docs_vat_tax_and_payment_rpc.sql`.
+ * MUST stay in sync with the column-level GRANTs in
+ * `supabase/migrations/20260621000000_legal_docs_vat_tax_and_payment_rpc.sql`
+ * (anon) and `20260701120000_shop_vat_exempt_note_default.sql` (authenticated).
+ * Both roles get this same public subset; the admin panel reads the full row
+ * via service_role.
  *
- * Excluded (anon must NOT read them):
+ * Excluded (admin-only — read via getMyShopConfig / service_role):
  *  - Seller PII: legal_form, company_legal_name, nip, regon, krs, company_street,
  *    company_building_no, company_flat_no, company_city, company_postal, company_phone,
  *    complaints_email, is_vat_exempt, vat_exempt_note, is_micro_enterprise, has_dpo, dpo_contact

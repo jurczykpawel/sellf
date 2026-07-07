@@ -56,3 +56,32 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION public.apply_shop_vat_defaults() FROM anon, authenticated, PUBLIC;
+
+-- Scope `authenticated` SELECT on shop_config to the same public column subset
+-- as anon (20260621000000). The blanket grant from 20250103000000 was broader
+-- than the app needs: public reads use the anon client + explicit column list,
+-- admin reads go through service_role. Keep this list in sync with
+-- SHOP_CONFIG_PUBLIC_COLUMNS (admin-panel/src/lib/shop-config-columns.ts).
+REVOKE SELECT ON public.shop_config FROM authenticated;
+GRANT SELECT (
+  id,
+  shop_name,
+  default_currency,
+  tax_rate,
+  tax_mode,
+  stripe_tax_rate_cache,
+  logo_url,
+  font_family,
+  checkout_theme,
+  automatic_tax_enabled,
+  tax_id_collection_enabled,
+  checkout_billing_address,
+  checkout_expires_hours,
+  checkout_collect_terms,
+  terms_of_service_url,
+  privacy_policy_url,
+  omnibus_enabled,
+  created_at,
+  updated_at,
+  contact_email
+) ON public.shop_config TO authenticated;
