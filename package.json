@@ -1,6 +1,6 @@
 {
   "name": "sellf",
-  "version": "2026.6.21",
+  "version": "2026.7.0",
   "description": "Source-available platform for selling digital products and recurring subscriptions, with content protection. Built on Next.js, Supabase, and Stripe.",
   "main": "sellf.js",
   "scripts": {
