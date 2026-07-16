@@ -454,6 +454,13 @@ Built with [Next.js](https://nextjs.org/), [Supabase](https://supabase.com/), [S
 
 ---
 
+## Support
+
+Sellf takes 0% commission, so there's no platform fee funding development. If it's
+making you money, you can pour me a glass:
+
+[![🍷 Pour me a glass](https://img.shields.io/badge/🍷_Pour_me_a_glass-FFDD00)](https://sellf.techskills.academy/checkout/tip-sellf?utm_source=github&utm_medium=readme&utm_campaign=tip-jar)
+
 ## License
 
 Elastic License 2.0 (source-available, not OSI open source). See [LICENSE](./LICENSE) for details.
