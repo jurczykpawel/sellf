@@ -4,7 +4,7 @@
     {
       "parameters": {
         "content": "## Create a KSeF invoice when a Sellf purchase completes\n\n### How it works\nThis workflow reacts to [Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - which sends a signed `purchase.completed` webhook for every paid order. It verifies the `X-Sellf-Signature` header, checks that the customer asked for an invoice and supplied a NIP, builds a KSeF-ready payload, and sends it to your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - a small HTTP wrapper around Poland's official e-invoice API. On success the returned `ksefNumber` is captured; on failure the error is captured so you can alert on it.\n\n### Setup\n1. Deploy a KSeF Gateway instance (Docker, Render, or StackPilot - see the project README) and note its URL. New to KSeF, or need a certificate (KSeF tokens are being phased out)? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, gateway API key, seller details, and the webhook signing secret from Sellf → Settings → Webhooks.\n3. Copy the **Sellf Webhook** node's Production URL into that same Sellf settings page.\n4. See the red note on **Verify Signature** for one required n8n environment setting.\n\n### Customization tips\nConnect **Log Error** to Slack, email, or a database to get alerted on failed KSeF submissions.",
-        "height": 420,
+        "height": 720,
         "width": 700,
         "color": 1
       },
@@ -14,13 +14,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        -380
+        -220
       ]
     },
     {
       "parameters": {
         "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload.",
-        "height": 380,
+        "height": 510,
         "width": 1120,
         "color": 7
       },
@@ -30,13 +30,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        340
+        520
       ]
     },
     {
       "parameters": {
         "content": "## Acknowledge & Extract\nResponds immediately, then filters for completed purchases that requested an invoice with a NIP.",
-        "height": 220,
+        "height": 350,
         "width": 820,
         "color": 7
       },
@@ -46,13 +46,13 @@
       "typeVersion": 1,
       "position": [
         440,
-        340
+        520
       ]
     },
     {
       "parameters": {
         "content": "## Build the Invoice\nAssembles a KSeF-ready invoice payload from your seller details and the order.",
-        "height": 220,
+        "height": 350,
         "width": 520,
         "color": 7
       },
@@ -62,13 +62,13 @@
       "typeVersion": 1,
       "position": [
         1340,
-        340
+        520
       ]
     },
     {
       "parameters": {
         "content": "## Send & Log Result\nSends the invoice to your KSeF Gateway and records the resulting KSeF number, or the error if it fails.",
-        "height": 540,
+        "height": 670,
         "width": 820,
         "color": 7
       },
@@ -78,14 +78,14 @@
       "typeVersion": 1,
       "position": [
         1940,
-        180
+        360
       ]
     },
     {
       "parameters": {
         "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart.",
-        "height": 160,
-        "width": 260,
+        "height": 220,
+        "width": 300,
         "color": 3
       },
       "id": "sticky-warning",
@@ -94,7 +94,7 @@
       "typeVersion": 1,
       "position": [
         -130,
-        370
+        870
       ]
     },
     {
@@ -112,7 +112,7 @@
       "typeVersion": 2,
       "position": [
         -700,
-        400
+        710
       ],
       "notes": "Configure this webhook URL in Sellf admin panel → Settings → Webhooks. Raw Body is required so the signature check below sees the exact bytes Sellf signed.",
       "webhookId": "sellf-purchase-ksef",
@@ -183,7 +183,7 @@
       "typeVersion": 3.4,
       "position": [
         -400,
-        400
+        710
       ],
       "notes": "Fill in your KSeF Gateway URL, seller details, and webhook signing secret before activating this workflow."
     },
@@ -197,7 +197,7 @@
       "typeVersion": 2,
       "position": [
         -100,
-        400
+        710
       ],
       "notes": "Verifies Sellf's t=...,v1=... HMAC-SHA256 header (see Sellf docs: webhook-queue/signature.ts) and re-parses the raw body for downstream nodes."
     },
@@ -229,7 +229,7 @@
       "typeVersion": 2.2,
       "position": [
         200,
-        400
+        710
       ]
     },
     {
@@ -246,7 +246,7 @@
       "typeVersion": 1.1,
       "position": [
         200,
-        560
+        870
       ],
       "notes": "Dead end: bad or missing signature. Nothing downstream trusts this payload."
     },
@@ -261,7 +261,7 @@
       "typeVersion": 1.1,
       "position": [
         500,
-        400
+        710
       ],
       "notes": "Responds immediately; the rest of the workflow keeps running afterwards to build and send the invoice."
     },
@@ -303,7 +303,7 @@
       "typeVersion": 3.2,
       "position": [
         800,
-        400
+        710
       ]
     },
     {
@@ -316,7 +316,7 @@
       "typeVersion": 2,
       "position": [
         1100,
-        400
+        710
       ]
     },
     {
@@ -365,7 +365,7 @@
       "typeVersion": 3.2,
       "position": [
         1400,
-        400
+        710
       ],
       "notes": "Proceeds only when customer requested an invoice AND provided NIP. Both conditions required."
     },
@@ -379,7 +379,7 @@
       "typeVersion": 2,
       "position": [
         1700,
-        400
+        710
       ]
     },
     {
@@ -412,7 +412,7 @@
       "typeVersion": 4.2,
       "position": [
         2000,
-        400
+        710
       ],
       "notes": "The gateway authenticates with KSeF internally - no auth headers needed here."
     },
@@ -444,7 +444,7 @@
       "typeVersion": 2.2,
       "position": [
         2300,
-        400
+        710
       ]
     },
     {
@@ -485,7 +485,7 @@
       "typeVersion": 3.4,
       "position": [
         2600,
-        240
+        550
       ],
       "notes": "ksefNumber - save this to your DB (Supabase payment_transactions) for audit trail.\nOptionally chain a Supabase node here to persist it."
     },
@@ -521,7 +521,7 @@
       "typeVersion": 3.4,
       "position": [
         2600,
-        560
+        870
       ],
       "notes": "TODO: Connect to Slack / email / Supabase audit_log to alert on failed KSeF submissions."
     }
