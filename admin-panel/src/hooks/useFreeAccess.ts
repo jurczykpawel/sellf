@@ -8,8 +8,7 @@ import type { Product } from '@/types';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { useTracking } from '@/hooks/useTracking';
 import { validateEmailAction } from '@/lib/actions/validate-email';
-import { createClient } from '@/lib/supabase/client';
-import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client';
 
 /**
  * Hook for the "get product for free" flow used by checkout pages.
@@ -138,25 +137,16 @@ export function useFreeAccess({
     setPwywFreeLoading(true);
     setPwywFreeMessage({ type: 'info', text: t('sendingMagicLink') });
     try {
-      const supabase = await createClient();
       const successUrl = searchParams.get('success_url');
-      const redirectUrl = buildFreeProductMagicLinkRedirect({
-        origin: window.location.origin,
+      const result = await sendMagicLinkRequest({
+        email: pwywFreeEmail,
+        captchaToken: captcha.token,
+        flow: 'free_product',
         productSlug: product.slug,
         couponCode,
         successUrl,
       });
-
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email: pwywFreeEmail,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: redirectUrl,
-          captchaToken: captcha.token || undefined,
-        },
-      });
-      if (authError) {
-        console.error('[useFreeAccess] Magic link error:', authError.message);
+      if (!result.ok) {
         setPwywFreeMessage({ type: 'error', text: t('unexpectedError') });
         captcha.reset();
         return;

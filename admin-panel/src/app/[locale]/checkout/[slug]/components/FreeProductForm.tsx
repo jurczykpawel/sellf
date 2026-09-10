@@ -19,8 +19,7 @@ import {
   type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
-import { createClient } from '@/lib/supabase/client';
-import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
 import { useOto } from '@/hooks/useOto';
@@ -222,25 +221,15 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
     setMessage({ type: 'info', text: t('sendingMagicLink') });
     
     try {
-      const supabase = await createClient();
-
-      const redirectUrl = buildFreeProductMagicLinkRedirect({
-        origin: window.location.origin,
+      const result = await sendMagicLinkRequest({
+        email,
+        captchaToken: captcha.token,
+        flow: 'free_product',
         productSlug: product.slug,
         successUrl,
       });
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: redirectUrl,
-          captchaToken: captcha.token || undefined,
-        },
-      });
-
-      if (error) {
-        console.error('[FreeProductForm] Auth error:', error.message);
+      if (!result.ok) {
         setMessage({ type: 'error', text: t('unexpectedError') });
 
         // Reset captcha after ANY error (it was consumed in the failed request)

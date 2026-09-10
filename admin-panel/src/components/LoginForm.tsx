@@ -1,9 +1,10 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { validateEmailAction } from '@/lib/actions/validate-email'
+import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
 import TermsCheckbox from './TermsCheckbox'
@@ -21,15 +22,9 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [sentEmail, setSentEmail] = useState(false)
-  const [siteUrl, setSiteUrl] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const captcha = useCaptcha()
   const t = useTranslations()
-
-  // Get current site URL for redirects (works in any environment)
-  useEffect(() => {
-    setSiteUrl(window.location.origin)
-  }, [])
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     if (!termsAccepted) {
@@ -98,20 +93,13 @@ export default function LoginForm() {
         return;
       }
 
-      // Dynamic redirect URL for Supabase auth
-      const redirectUrl = `${siteUrl}/auth/callback`
-
-      const supabase = await createClient()
-      const { error } = await supabase.auth.signInWithOtp({
+      const result = await sendMagicLinkRequest({
         email,
-        options: {
-          emailRedirectTo: redirectUrl,
-          captchaToken: captcha.token || undefined,
-        },
+        captchaToken: captcha.token,
+        flow: 'login',
       })
 
-      if (error) {
-        console.error('[LoginForm] OTP error:', error.message)
+      if (!result.ok) {
         setMessage(t('auth.loginFailed'))
         setSentEmail(false)
 

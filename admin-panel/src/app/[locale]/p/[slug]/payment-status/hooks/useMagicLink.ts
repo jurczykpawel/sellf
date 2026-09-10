@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { createClient } from '@/lib/supabase/client';
-import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client';
 import { MagicLinkState, PaymentStatus, Product } from '../types';
 import { SPINNER_MIN_TIME } from '../utils/helpers';
 
@@ -45,39 +44,26 @@ export function useMagicLink({
     setError(null); // Clear previous errors
 
     try {
-      // Builds /auth/product-access?product=<slug>. By the time this fires,
-      // the Stripe webhook has already granted access — payment identifiers
-      // are not part of the post-login URL.
-      const redirectUrl = buildPostCheckoutMagicLinkRedirect({
-        origin: window.location.origin,
-        productSlug: product.slug,
-        sessionId,
-        paymentIntentId,
-      });
-      const supabase = await createClient();
-      const { error: authError } = await supabase.auth.signInWithOtp({
+      const result = await sendMagicLinkRequest({
         email: customerEmail,
-        options: {
-          emailRedirectTo: redirectUrl,
-          shouldCreateUser: true,
-          captchaToken: captchaToken || undefined,
-        }
+        captchaToken,
+        flow: 'post_checkout',
+        productSlug: product.slug,
       });
-      
-      if (!authError) {
+
+      if (result.ok) {
         setMagicLinkSent(true);
         setTimeout(() => setShowSpinnerForMinTime(false), 100);
       } else {
-        console.error('Error sending magic link:', authError);
         // Set user-friendly error message based on error code
-        if (authError.message.includes('email_address_invalid')) {
+        if (result.code === 'invalid_email') {
           setError(t('emailInvalidError'));
-        } else if (authError.message.includes('captcha_failed')) {
+        } else if (result.code === 'captcha_failed') {
           setError(t('captchaFailedError'));
-        } else if (authError.message.includes('over_request_rate_limit')) {
+        } else if (result.code === 'rate_limited') {
           setError(t('rateLimitError'));
         } else {
-          setError(t('genericError', { message: authError.message }));
+          setError(t('unexpectedError'));
         }
       }
     } catch (err) {
