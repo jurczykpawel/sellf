@@ -4,6 +4,7 @@ import type { Session, AuthError } from '@supabase/supabase-js'
 import { DisposableEmailService } from '@/lib/services/disposable-email'
 import { isSafeRedirectUrl } from '@/lib/validations/redirect'
 import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
+import { claimPendingFreeGrants, productSlugHandledByRedirect } from '@/lib/services/pending-free-grants'
 
 /**
  * Auth callback handler for Supabase magic links
@@ -137,9 +138,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Note: Guest purchases are now automatically claimed by database trigger
-  // when user registers/signs in for the first time
-  
+  // Paid guest purchases are claimed by the on_auth_user_created trigger.
+
   // Check for custom redirect URL (for product access etc.)
   let redirectPath = '/dashboard' // default to dashboard
   const redirectTo = requestUrl.searchParams.get('redirect_to')
@@ -194,6 +194,15 @@ export async function GET(request: NextRequest) {
       }
     }
   }
+
+  // Free products requested by e-mail reach the user on any sign-in, not only
+  // via the product-access link. The product that link grants is skipped so it
+  // keeps its own success page. Nothing pending = no query (read from session).
+  await claimPendingFreeGrants({
+    userClient: supabase,
+    user: session.user,
+    skipSlug: productSlugHandledByRedirect(redirectPath),
+  })
 
   // Use the correct origin for redirects
   const redirectUrl = new URL(redirectPath, origin)

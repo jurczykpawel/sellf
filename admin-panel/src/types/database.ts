@@ -3354,6 +3354,10 @@ export type Database = {
       }
       is_admin: { Args: { user_id_param?: string }; Returns: boolean }
       is_admin_cached: { Args: never; Returns: boolean }
+      is_free_claimable_product: {
+        Args: { p_product_id: string }
+        Returns: boolean
+      }
       is_sale_price_active: {
         Args: {
           p_sale_price: number
@@ -3394,6 +3398,13 @@ export type Database = {
       migrate_guest_purchases: {
         Args: { p_email: string; p_user_id: string }
         Returns: number
+      }
+      pending_free_grant_products: {
+        Args: never
+        Returns: {
+          product_id: string
+          slug: string
+        }[]
       }
       pick_due_webhook_deliveries: {
         Args: { p_limit: number }
@@ -3440,6 +3451,10 @@ export type Database = {
           user_id_param?: string
         }
         Returns: Json
+      }
+      queue_pending_free_grant: {
+        Args: { p_email: string; p_product_slug: string }
+        Returns: boolean
       }
       seller_license_public_keys: {
         Args: { seller: string }

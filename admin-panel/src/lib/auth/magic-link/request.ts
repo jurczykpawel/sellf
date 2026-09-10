@@ -9,6 +9,7 @@ import {
   buildPostCheckoutMagicLinkRedirect,
 } from '@/lib/auth/magic-link-redirect';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { queuePendingFreeGrant } from '@/lib/services/pending-free-grants';
 
 import { deliverMagicLink } from './deliver';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
@@ -76,7 +77,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   if (!input.productSlug) return { ok: false, code: 'invalid_request' };
 
   if (input.flow === 'free_product') {
-    return sendTrustedMagicLink({
+    const result = await sendTrustedMagicLink({
       email: input.email,
       redirectTo: buildFreeProductMagicLinkRedirect({
         origin,
@@ -86,6 +87,10 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
       }),
       data: { product_slug: input.productSlug },
     });
+    // Remember the request on the account so any later sign-in grants it,
+    // not only a click on this particular link.
+    if (result.ok) await queuePendingFreeGrant(input.email.trim().toLowerCase(), input.productSlug);
+    return result;
   }
 
   // flow === 'post_checkout'

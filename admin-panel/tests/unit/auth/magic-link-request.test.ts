@@ -5,8 +5,10 @@ const verifyCaptchaToken = vi.hoisted(() => vi.fn());
 const validateEmailAction = vi.hoisted(() => vi.fn());
 const checkRateLimit = vi.hoisted(() => vi.fn());
 const checkRateLimitForIdentifier = vi.hoisted(() => vi.fn());
+const queuePendingFreeGrant = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth/magic-link/deliver', () => ({ deliverMagicLink }));
+vi.mock('@/lib/services/pending-free-grants', () => ({ queuePendingFreeGrant }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken }));
 vi.mock('@/lib/actions/validate-email', () => ({ validateEmailAction }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit, checkRateLimitForIdentifier }));
@@ -30,6 +32,7 @@ describe('requestMagicLink', () => {
     validateEmailAction.mockReset();
     checkRateLimit.mockReset();
     checkRateLimitForIdentifier.mockReset();
+    queuePendingFreeGrant.mockReset();
 
     deliverMagicLink.mockResolvedValue({ ok: true });
     verifyCaptchaToken.mockResolvedValue({ success: true });
@@ -141,6 +144,27 @@ describe('requestMagicLink', () => {
 
     expect(result).toEqual({ ok: false, code: 'invalid_request' });
     expect(deliverMagicLink).not.toHaveBeenCalled();
+  });
+
+  it('remembers the requested free product after the link is sent, so any later sign-in grants it', async () => {
+    await requestMagicLink({ ...BASE_INPUT, flow: 'free_product', productSlug: 'widget' });
+
+    expect(queuePendingFreeGrant).toHaveBeenCalledWith('buyer@example.com', 'widget');
+  });
+
+  it('does not remember the free product when the link could not be sent', async () => {
+    deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'send_failed' });
+
+    await requestMagicLink({ ...BASE_INPUT, flow: 'free_product', productSlug: 'widget' });
+
+    expect(queuePendingFreeGrant).not.toHaveBeenCalled();
+  });
+
+  it('never queues a grant for login or post_checkout links', async () => {
+    await requestMagicLink({ ...BASE_INPUT, flow: 'login' });
+    await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'widget' });
+
+    expect(queuePendingFreeGrant).not.toHaveBeenCalled();
   });
 
   it('rejects post_checkout without a productSlug', async () => {
