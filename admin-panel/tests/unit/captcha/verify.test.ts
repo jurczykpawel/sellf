@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createChallenge } from 'altcha-lib/v1';
 
@@ -70,6 +71,33 @@ describe('verifyCaptchaToken — ALTCHA replay/expiry', () => {
 
     const second = await verifyCaptchaToken(payload, 'altcha');
     expect(second.success).toBe(false);
+  });
+
+  it('consumes the nonce keyed by sha256(signature), with the expiry taken from the salt', async () => {
+    process.env.ALTCHA_HMAC_KEY = 'test-altcha-key';
+    const expiresDate = new Date(Date.now() + 5 * 60_000);
+    const challenge = await createChallenge({
+      hmacKey: 'test-altcha-key',
+      number: 0,
+      expires: expiresDate,
+    });
+    const payload = Buffer.from(
+      JSON.stringify({
+        algorithm: challenge.algorithm,
+        challenge: challenge.challenge,
+        number: 0,
+        salt: challenge.salt,
+        signature: challenge.signature,
+      }),
+    ).toString('base64');
+
+    await verifyCaptchaToken(payload, 'altcha');
+
+    expect(consumeCaptchaNonceMock).toHaveBeenCalledTimes(1);
+    const [calledHash, calledExpiresAt] = consumeCaptchaNonceMock.mock.calls[0];
+    expect(calledHash).toBe(createHash('sha256').update(challenge.signature).digest('hex'));
+    expect(calledExpiresAt).toBeInstanceOf(Date);
+    expect(Math.abs((calledExpiresAt as Date).getTime() - expiresDate.getTime())).toBeLessThanOrEqual(1000);
   });
 });
 

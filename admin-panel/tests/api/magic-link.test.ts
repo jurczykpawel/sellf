@@ -105,4 +105,32 @@ describe('Magic-link gateway', () => {
     const redirectTo = decodeURIComponent(href!.split('redirect_to=')[1].split('&token_hash=')[0]);
     expect(redirectTo).toBe('/auth/product-access?product=free-tutorial');
   });
+
+  it('rejects a replayed solved captcha payload on a second request (no mocks: real challenge, real solve)', async () => {
+    const firstEmail = `gw-replay-a-${Date.now()}@example.com`;
+    const secondEmail = `gw-replay-b-${Date.now()}@example.com`;
+    const captchaToken = await getAltchaPayload();
+
+    const first = await fetch(`${API_URL}/api/auth/magic-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: firstEmail, captchaToken, flow: 'login' }),
+    });
+    expect(first.status).toBe(200);
+    await waitForEmail(firstEmail);
+
+    const second = await fetch(`${API_URL}/api/auth/magic-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: secondEmail, captchaToken, flow: 'login' }),
+    });
+    expect(second.status).toBe(400);
+    expect((await second.json()).code).toBe('captcha_failed');
+
+    const search = await fetch(
+      `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${secondEmail}`)}`,
+    );
+    const data = await search.json();
+    expect(data.messages || []).toHaveLength(0);
+  });
 });
