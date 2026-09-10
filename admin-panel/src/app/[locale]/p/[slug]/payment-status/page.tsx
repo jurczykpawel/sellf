@@ -5,6 +5,7 @@ import PaymentStatusView from './components/PaymentStatusView';
 import { verifyPaymentSession, verifyPaymentIntent, OtoInfo, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 import { buildOtoRedirectUrl, buildSuccessRedirectUrl, hasHideBumpParam } from '@/lib/payment/oto-redirect';
 import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
@@ -227,21 +228,22 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       }
 
       // Guest gets magic link sent server-side before we redirect into the funnel.
+      // Trusted path: paymentStatus === 'magic_link_sent' is only reached after
+      // verify-payment confirmed the Stripe session/intent, so no additional
+      // captcha check is needed here.
       if (paymentStatus === 'magic_link_sent' && customerEmail) {
-        const { error: magicErr } = await supabase.auth.signInWithOtp({
+        const magicResult = await deliverMagicLink({
           email: customerEmail,
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: buildPostCheckoutMagicLinkRedirect({
-              origin: getSellfBaseUrl(),
-              productSlug: product.slug,
-              sessionId: session_id,
-              paymentIntentId: payment_intent,
-            }),
-          },
+          redirectTo: buildPostCheckoutMagicLinkRedirect({
+            origin: getSellfBaseUrl(),
+            productSlug: product.slug,
+            sessionId: session_id,
+            paymentIntentId: payment_intent,
+          }),
+          shouldCreateUser: true,
         });
-        if (magicErr) {
-          console.error('[payment-status] Magic link send failed pre-OTO:', magicErr.message);
+        if (!magicResult.ok) {
+          console.error('[payment-status] Magic link send failed pre-OTO, code:', magicResult.code);
         }
       }
 

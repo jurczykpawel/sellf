@@ -9,9 +9,9 @@ import {
   requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
 import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 
 const PRODUCT_SELECT =
@@ -121,20 +121,17 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
   }
 
-  const supabase = await createClient();
   const redirectUrl = buildFreeProductMagicLinkRedirect({
     origin: getSellfBaseUrl(),
     productSlug: product.slug,
   });
 
-  const { error } = await supabase.auth.signInWithOtp({
+  const result = await deliverMagicLink({
     email: parsed.value.email,
-    options: {
-      shouldCreateUser: true,
-      emailRedirectTo: redirectUrl,
-      data: {
-        product_slug: product.slug,
-      },
+    redirectTo: redirectUrl,
+    shouldCreateUser: true,
+    data: {
+      product_slug: product.slug,
     },
   });
 
@@ -143,10 +140,13 @@ export async function POST(request: Request) {
     productSlug: product.slug,
     origin,
     email: parsed.value.email,
-    status: error ? 'failed' : 'magic_link_sent',
+    status: result.ok ? 'magic_link_sent' : 'failed',
   });
 
-  if (error) {
+  if (!result.ok) {
+    if (result.code === 'rate_limited') {
+      return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
+    }
     return embedJson({ error: 'Failed to send access link' }, 500, origin, allowedOrigins);
   }
 
