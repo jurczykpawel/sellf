@@ -56,6 +56,16 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
  * through; the product slug + coupon are non-secret values already available
  * to the client building this URL.
  */
+/**
+ * Magic-link callback URL for a plain login (no product context). Mirrors
+ * the callback's own default when `redirect_to` is absent (`/dashboard`),
+ * so the encoded param is always present in the URL — required because
+ * email templates append `&token_hash=...` after it.
+ */
+export function buildLoginMagicLinkRedirect(origin: string): string {
+  return buildAuthCallbackUrl(origin, '/dashboard');
+}
+
 export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): string {
   const redirectPath = buildProductAccessPath(input.productSlug, {
     coupon: input.couponCode ?? undefined,
