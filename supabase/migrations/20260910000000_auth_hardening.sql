@@ -61,7 +61,7 @@ SELECT cron.schedule(
 -- is at most 59), so every window collapsed to a fixed 1-hour bucket. Epoch
 -- alignment makes every window size behave the same way.
 
-CREATE OR REPLACE FUNCTION check_application_rate_limit(
+CREATE OR REPLACE FUNCTION public.check_application_rate_limit(
   identifier_param TEXT,
   action_type_param TEXT,
   max_requests INTEGER,
@@ -105,7 +105,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = '';
 
-COMMENT ON FUNCTION check_application_rate_limit IS
+COMMENT ON FUNCTION public.check_application_rate_limit IS
   'Application-level rate limiting for Next.js API routes. Use this from /lib/rate-limiting.ts. Windows are epoch-aligned so sizes > 60 minutes work correctly.';
 
 -- ===== Fresh-install grants must match production least privilege =====
