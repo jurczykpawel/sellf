@@ -8,7 +8,9 @@
 #   docker run -p 3000:3000 --env-file .env sellf
 # =============================================================================
 
-FROM oven/bun:1-alpine AS base
+# Pinned to the same Bun as CI (setup-bun in build-release.yml). The floating `1-alpine`
+# tag moved to 1.4.x, which rejects this bun.lock (--frozen-lockfile, overrides check).
+FROM oven/bun:1.3.14-alpine AS base
 
 # --- Dependencies ---
 FROM base AS deps
