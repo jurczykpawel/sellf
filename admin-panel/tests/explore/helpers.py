@@ -9,15 +9,25 @@ import time
 BASE = os.environ.get('SELLF_URL', 'https://sellf.tojest.dev')
 SCREENSHOT_DIR = os.environ.get('SCREENSHOT_DIR', '/tmp/sellf-explore')
 
-# Seed users (E2E_MODE=true)
+# Accounts for password login (target needs E2E_MODE=true). Defaults are the local
+# seed.sql users; remote instances (e.g. the public test server) use their own
+# credentials via env — never commit real passwords here.
+def _user(role, email, password):
+    key = role.upper()
+    return {
+        'email': os.environ.get(f'SELLF_{key}_EMAIL', email),
+        'password': os.environ.get(f'SELLF_{key}_PASSWORD', password),
+    }
+
+
 USERS = {
-    'admin': {'email': 'demo@sellf.app', 'password': 'demo123'},
-    'user_john': {'email': 'john.doe@example.com', 'password': 'password123'},
-    'user_maria': {'email': 'maria.schmidt@example.com', 'password': 'password123'},
-    'user_anna': {'email': 'anna.kowalska@example.com', 'password': 'password123'},
-    'seller_kowalski': {'email': 'kowalski@demo.sellf.app', 'password': 'demo1234'},
-    'seller_creative': {'email': 'creative@demo.sellf.app', 'password': 'demo1234'},
-    'buyer': {'email': 'buyer@demo.sellf.app', 'password': 'demo1234'},
+    'admin': _user('admin', 'demo@sellf.app', 'demo123'),
+    'user_john': _user('user_john', 'john.doe@example.com', 'password123'),
+    'user_maria': _user('user_maria', 'maria.schmidt@example.com', 'password123'),
+    'user_anna': _user('user_anna', 'anna.kowalska@example.com', 'password123'),
+    'seller_kowalski': _user('seller_kowalski', 'kowalski@demo.sellf.app', 'demo1234'),
+    'seller_creative': _user('seller_creative', 'creative@demo.sellf.app', 'demo1234'),
+    'buyer': _user('buyer', 'buyer@demo.sellf.app', 'demo1234'),
 }
 
 # Console noise to filter

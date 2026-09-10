@@ -20,10 +20,13 @@ export function assertTrustedProxyConfig(): void {
 export function assertNonProductionFlagsOff(): void {
   if (process.env.NODE_ENV !== 'production') return;
 
-  if (process.env.E2E_MODE === 'true') {
+  if (
+    process.env.E2E_MODE === 'true'
+    && process.env.ALLOW_PRODUCTION_E2E_MODE !== 'true'
+  ) {
     throw new Error(
       'Refusing to start: NODE_ENV=production but E2E_MODE="true". ' +
-        'Unset E2E_MODE before deploying to a production environment.',
+        'Unset E2E_MODE or explicitly set ALLOW_PRODUCTION_E2E_MODE="true" for a disposable test instance.',
     );
   }
   if (

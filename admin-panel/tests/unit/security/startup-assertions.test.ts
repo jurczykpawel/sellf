@@ -13,6 +13,7 @@ const SAVED_TRUSTED_PROXY = process.env.TRUSTED_PROXY;
 const SAVED_E2E_MODE = process.env.E2E_MODE;
 const SAVED_DEMO_MODE = process.env.DEMO_MODE;
 const SAVED_ALLOW_PRODUCTION_DEMO_MODE = process.env.ALLOW_PRODUCTION_DEMO_MODE;
+const SAVED_ALLOW_PRODUCTION_E2E_MODE = process.env.ALLOW_PRODUCTION_E2E_MODE;
 const SAVED_BINDING_SECRET = process.env.CHECKOUT_BINDING_SECRET;
 
 beforeEach(() => {
@@ -20,6 +21,7 @@ beforeEach(() => {
   delete process.env.E2E_MODE;
   delete process.env.DEMO_MODE;
   delete process.env.ALLOW_PRODUCTION_DEMO_MODE;
+  delete process.env.ALLOW_PRODUCTION_E2E_MODE;
   delete process.env.CHECKOUT_BINDING_SECRET;
 });
 
@@ -34,6 +36,8 @@ afterEach(() => {
   else process.env.DEMO_MODE = SAVED_DEMO_MODE;
   if (SAVED_ALLOW_PRODUCTION_DEMO_MODE === undefined) delete process.env.ALLOW_PRODUCTION_DEMO_MODE;
   else process.env.ALLOW_PRODUCTION_DEMO_MODE = SAVED_ALLOW_PRODUCTION_DEMO_MODE;
+  if (SAVED_ALLOW_PRODUCTION_E2E_MODE === undefined) delete process.env.ALLOW_PRODUCTION_E2E_MODE;
+  else process.env.ALLOW_PRODUCTION_E2E_MODE = SAVED_ALLOW_PRODUCTION_E2E_MODE;
   if (SAVED_BINDING_SECRET === undefined) delete process.env.CHECKOUT_BINDING_SECRET;
   else process.env.CHECKOUT_BINDING_SECRET = SAVED_BINDING_SECRET;
 });
@@ -81,6 +85,20 @@ describe('assertNonProductionFlagsOff', () => {
     process.env.NODE_ENV = 'production';
     process.env.E2E_MODE = 'true';
     expect(() => assertNonProductionFlagsOff()).toThrow(/E2E_MODE/);
+  });
+
+  it('allows production E2E mode only with an explicit acknowledgement', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.E2E_MODE = 'true';
+    process.env.ALLOW_PRODUCTION_E2E_MODE = 'true';
+    expect(() => assertNonProductionFlagsOff()).not.toThrow();
+  });
+
+  it('does not treat a non-"true" E2E acknowledgement as consent', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.E2E_MODE = 'true';
+    process.env.ALLOW_PRODUCTION_E2E_MODE = '1';
+    expect(() => assertNonProductionFlagsOff()).toThrow(/ALLOW_PRODUCTION_E2E_MODE/);
   });
 
   it('throws in production when DEMO_MODE=true', () => {
