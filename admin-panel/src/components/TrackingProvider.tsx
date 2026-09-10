@@ -202,7 +202,6 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
     // boundary). Tracking still runs on the public storefront where it
     // matters; admin panel skips it.
     if (typeof window !== 'undefined' && window.location.pathname.includes('/dashboard')) return
-    initialisedRef.current = true
 
     let cancelled = false
 
@@ -214,7 +213,10 @@ export default function TrackingProvider({ config, nonce }: TrackingProviderProp
         import('vanilla-cookieconsent/dist/cookieconsent.css'),
       ])
 
-      if (cancelled) return
+      // Mark initialised only once this run is still live: a cancelled run (React
+      // Strict Mode mounts effects twice in dev) must not block the run that follows.
+      if (cancelled || initialisedRef.current) return
+      initialisedRef.current = true
 
       // Root layout hardcodes `<html lang="en">`, so reading document.documentElement.lang
       // would always return 'en'. Locale lives in the URL prefix (/pl, /en).

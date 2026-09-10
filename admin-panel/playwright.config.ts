@@ -179,9 +179,11 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
+      // E2E specs assume captcha test mode; pin it so results don't depend on .env.local
+      // (API tests pin the opposite — real ALTCHA — in scripts/run-api-tests.sh).
       command: isRateLimitTestMode
-        ? 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
-        : 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true PORT=3777 bun run dev',
+        ? 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
+        : 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true PORT=3777 bun run dev',
       url: 'http://localhost:3777',
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
       reuseExistingServer: process.env.PW_REUSE_SERVER === '1',

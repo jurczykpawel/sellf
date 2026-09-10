@@ -24,7 +24,8 @@ trap cleanup EXIT INT TERM
 bash scripts/kill-dev-server.sh "$PORT" >/dev/null 2>&1 || true
 : > "$LOG"
 
-E2E_MODE=true PORT=$PORT bun run dev > "$LOG" 2>&1 &
+# Real ALTCHA verification (magic-link + captcha replay tests need it), regardless of .env.local.
+E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=false PORT=$PORT bun run dev > "$LOG" 2>&1 &
 SERVER_PID=$!
 
 echo "[run-api-tests] Waiting for fresh dev server on :$PORT (log: $LOG)..."
