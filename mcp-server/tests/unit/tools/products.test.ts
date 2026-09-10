@@ -266,13 +266,11 @@ describe('Products Tools', () => {
           data: { id: '123', name: 'Product', price: 1000, currency: 'USD', is_active: true },
         })
         .mockResolvedValueOnce({
-          data: {
-            items: [
-              { status: 'succeeded', amount_total: 1000 },
-              { status: 'succeeded', amount_total: 1000 },
-              { status: 'failed', amount_total: 1000 },
-            ],
-          },
+          data: [
+            { status: 'completed', amount: 1000 },
+            { status: 'completed', amount: 1000 },
+            { status: 'failed', amount: 1000 },
+          ],
         });
 
       const tool = registeredTools.get('get_product_stats')!;
