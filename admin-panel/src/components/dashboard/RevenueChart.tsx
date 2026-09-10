@@ -425,8 +425,9 @@ export default function RevenueChart() {
                   return [formatCurrency(numericValue, currencyName), currencyName];
                 }}
                 labelFormatter={(label) => {
-                  if (viewMode === 'hourly') return t('revenueChart.tooltipHourly', { hour: label, hourEnd: label });
-                  return new Date(label).toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                  const labelValue = typeof label === 'string' || typeof label === 'number' ? label : '';
+                  if (viewMode === 'hourly') return t('revenueChart.tooltipHourly', { hour: labelValue, hourEnd: labelValue });
+                  return new Date(labelValue).toLocaleDateString(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
                 }}
               />
               {/* Legend only in grouped mode with multiple currencies */}
