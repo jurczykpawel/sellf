@@ -1,9 +1,9 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { validateEmailAction } from '@/lib/actions/validate-email'
+import { submitMagicLink } from '@/lib/auth/magic-link/submit'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
 import TermsCheckbox from './TermsCheckbox'
@@ -21,15 +21,9 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [sentEmail, setSentEmail] = useState(false)
-  const [siteUrl, setSiteUrl] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const captcha = useCaptcha()
   const t = useTranslations()
-
-  // Get current site URL for redirects (works in any environment)
-  useEffect(() => {
-    setSiteUrl(window.location.origin)
-  }, [])
 
   const handleOAuthSignIn = async (provider: OAuthProvider) => {
     if (!termsAccepted) {
@@ -68,55 +62,17 @@ export default function LoginForm() {
         return
       }
 
-      // Check if captcha token is present
-      if (!captcha.token) {
-        setMessage(t('compliance.securityVerificationRequired'))
-        setIsLoading(false)
-        return
-      }
+      const result = await submitMagicLink({ email, captcha, flow: 'login' })
 
-      // Validate email against disposable email list
-      const emailValidation = await validateEmailAction(email);
-
-      if (emailValidation.isDisposable) {
-        setMessage(t('auth.disposableEmailBlocked'));
+      if (!result.ok) {
+        const message =
+          result.reason === 'captcha_missing'
+            ? t('compliance.securityVerificationRequired')
+            : result.reason === 'invalid_email'
+              ? t('auth.disposableEmailBlocked')
+              : t('auth.loginFailed')
+        setMessage(message)
         setSentEmail(false)
-        setIsLoading(false)
-
-        // Reset captcha after failed validation (token was consumed)
-        captcha.reset()
-        return;
-      }
-
-      if (!emailValidation.isValid && emailValidation.error) {
-        setMessage(t('auth.emailValidationFailed'));
-        setSentEmail(false)
-        setIsLoading(false)
-
-        // Reset captcha after failed validation (token was consumed)
-        captcha.reset()
-        return;
-      }
-
-      // Dynamic redirect URL for Supabase auth
-      const redirectUrl = `${siteUrl}/auth/callback`
-
-      const supabase = await createClient()
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: redirectUrl,
-          captchaToken: captcha.token || undefined,
-        },
-      })
-
-      if (error) {
-        console.error('[LoginForm] OTP error:', error.message)
-        setMessage(t('auth.loginFailed'))
-        setSentEmail(false)
-
-        // Reset captcha after ANY error (it was consumed in the failed request)
-        captcha.reset()
       } else {
         setSentEmail(true)
         setMessage(t('productView.checkEmailForMagicLink'))

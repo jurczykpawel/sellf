@@ -43,8 +43,8 @@ export async function getMessage(messageId: string): Promise<MailpitMessage> {
  * Extract magic link from email text
  */
 export function extractMagicLink(emailText: string): string | null {
-  // Supabase magic links contain /auth/v1/verify
-  const match = emailText.match(/(https?:\/\/[^\s)]+\/auth\/v1\/verify[^\s)]+)/);
+  // Sellf magic-link emails link to /auth/callback with a token_hash param
+  const match = emailText.match(/(https?:\/\/[^\s)]+\/auth\/callback\?[^\s)]+)/);
   return match ? match[1] : null;
 }
 

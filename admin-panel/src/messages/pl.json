@@ -1088,7 +1088,6 @@
     "captchaFailedError": "Weryfikacja captcha nie powiodła się. Captcha została odświeżona - spróbuj ponownie.",
     "rateLimitError": "Zbyt wiele prób. Poczekaj chwilę przed ponowną próbą.",
     "goToLoginPage": "Przejdź do strony logowania",
-    "genericError": "Nie udało się wysłać magicznego linku: {message}",
     "unexpectedError": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie.",
     "captchaRefreshed": "✅ Weryfikacja została odświeżona. Możesz teraz spróbować ponownie.",
     "captchaResetTryAgain": "Captcha została zresetowana. Uzupełnij weryfikację i spróbuj ponownie."

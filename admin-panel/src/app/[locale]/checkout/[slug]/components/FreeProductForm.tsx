@@ -8,7 +8,6 @@ import { paymentStatusUrl } from '@/lib/utils/product-urls';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { validateEmailAction } from '@/lib/actions/validate-email';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
@@ -19,8 +18,7 @@ import {
   type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
-import { createClient } from '@/lib/supabase/client';
-import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
 import { useOto } from '@/hooks/useOto';
@@ -198,53 +196,28 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
       return;
     }
 
-    // Check if captcha token is present for non-logged in users
-    if (!captcha.token) {
-      setMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
-      return;
-    }
-
-    // Enhanced email validation with disposable domain checking
-    try {
-      const emailValidation = await validateEmailAction(email);
-      if (!emailValidation.isValid) {
-        setMessage({ type: 'error', text: emailValidation.error || t('invalidEmailDisposable') });
-        captcha.reset();
-        return;
-      }
-    } catch {
-      setMessage({ type: 'error', text: t('validEmailRequired') });
-      captcha.reset();
-      return;
-    }
-
     setLoading(true);
     setMessage({ type: 'info', text: t('sendingMagicLink') });
-    
-    try {
-      const supabase = await createClient();
 
-      const redirectUrl = buildFreeProductMagicLinkRedirect({
-        origin: window.location.origin,
+    try {
+      const result = await submitMagicLink({
+        email,
+        captcha,
+        flow: 'free_product',
         productSlug: product.slug,
         successUrl,
       });
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: redirectUrl,
-          captchaToken: captcha.token || undefined,
-        },
-      });
-
-      if (error) {
-        console.error('[FreeProductForm] Auth error:', error.message);
-        setMessage({ type: 'error', text: t('unexpectedError') });
-
-        // Reset captcha after ANY error (it was consumed in the failed request)
-        captcha.reset();
+      if (!result.ok) {
+        const text =
+          result.reason === 'captcha_missing'
+            ? tCompliance('securityVerificationRequired')
+            : result.reason === 'invalid_email'
+              ? t('invalidEmailDisposable')
+              : result.reason === 'rate_limited'
+                ? t('rateLimitError')
+                : t('unexpectedError');
+        setMessage({ type: 'error', text });
         return;
       }
 

@@ -44,6 +44,7 @@ export function usePaymentStatus({
     product,
     termsAccepted: terms.accepted,
     captchaToken: turnstile.token,
+    captchaReset: turnstile.reset,
     showInteractiveWarning: turnstile.showInteractiveWarning,
   });
 

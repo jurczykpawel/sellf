@@ -334,6 +334,24 @@ export type Database = {
           },
         ]
       }
+      captcha_nonces: {
+        Row: {
+          created_at: string
+          expires_at: string
+          nonce_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          nonce_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          nonce_hash?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -3053,6 +3071,7 @@ export type Database = {
       }
       cleanup_application_rate_limits: { Args: never; Returns: number }
       cleanup_audit_logs: { Args: { retention_days?: number }; Returns: number }
+      cleanup_captcha_nonces: { Args: never; Returns: number }
       cleanup_expired_oto_coupons: { Args: never; Returns: number }
       cleanup_loginwall_tokens: { Args: never; Returns: number }
       cleanup_old_admin_actions: {

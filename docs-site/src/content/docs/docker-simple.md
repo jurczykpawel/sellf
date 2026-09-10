@@ -103,6 +103,8 @@ NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 ```
 
+**How captcha and magic links work:** the app verifies your captcha provider (ALTCHA or Turnstile) itself before sending any login email; Supabase's own captcha setting is a separate, independent lock on direct calls to its `/auth/v1` endpoints — enable it too when you have a Turnstile account, and verify it with `admin-panel/scripts/verify-auth-captcha.sh <supabase_url> <anon_key>`. A custom magic-link/confirmation email template must link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (or `type=signup`), not `{{ .ConfirmationURL }}`.
+
 ### 6. Create `.stripe` (Optional)
 
 ```bash
