@@ -4,7 +4,6 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { sanitizeForLog } from '@/lib/logger';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
-import { getCaptchaProvider } from '@/lib/captcha/config';
 
 export async function POST(request: Request) {
   try {
@@ -64,14 +63,12 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      if (getCaptchaProvider() !== 'none') {
-        const captchaResult = await verifyCaptchaToken(captchaToken);
-        if (!captchaResult.success) {
-          return NextResponse.json(
-            { error: captchaResult.error || 'Security verification failed' },
-            { status: 400 },
-          );
-        }
+      const captchaResult = await verifyCaptchaToken(captchaToken);
+      if (!captchaResult.success) {
+        return NextResponse.json(
+          { error: captchaResult.error || 'Security verification failed' },
+          { status: 400 },
+        );
       }
       email = bodyEmail;
     }
