@@ -221,14 +221,14 @@ test.describe('Currency Conversion Feature', () => {
 
     const eurOption = page.locator('button', { hasText: 'EUR' }).filter({ has: page.locator('span', { hasText: '€' }) }).first();
     await eurOption.click();
-    await page.waitForTimeout(1000);
 
-    // Reload page
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-
-    // Should still show "Convert to EUR"
-    await expect(page.locator('button', { hasText: /Convert to EUR/i }).first()).toBeVisible({ timeout: 10000 });
+    // The preference is saved by a server action after an optimistic UI update, so a
+    // fixed sleep before reload races under load. Reload until the saved value sticks.
+    await expect(async () => {
+      await page.reload();
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.locator('button', { hasText: /Convert to EUR/i }).first()).toBeVisible({ timeout: 3000 });
+    }).toPass({ timeout: 20_000 });
 
     // Revenue should still show €
     const revenueCard = page.getByTestId('stat-card-total-revenue');
