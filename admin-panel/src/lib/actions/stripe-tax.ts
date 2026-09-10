@@ -67,7 +67,7 @@ export async function getStripeTaxStatus(): Promise<StripeTaxStatusResponse> {
     return {
       success: true,
       data: {
-        status: taxSettings.status,
+        status: taxSettings.status as 'active' | 'pending',
         missingFields:
           taxSettings.status_details.pending?.missing_fields ?? undefined,
         registrations,
