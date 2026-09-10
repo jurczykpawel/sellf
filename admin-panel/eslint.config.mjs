@@ -39,6 +39,28 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/ban-ts-comment": "off",
     },
   },
+  {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/lib/auth/magic-link/deliver.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", {
+        selector: "CallExpression[callee.property.name='signInWithOtp']",
+        message: "Magic links are sent only by deliverMagicLink() (src/lib/auth/magic-link/deliver.ts). Browsers use sendMagicLinkRequest().",
+      }],
+    },
+  },
+  {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/lib/auth/magic-link/deliver.ts", "src/lib/auth/magic-link/request.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["**/magic-link/deliver", "@/lib/auth/magic-link/deliver"],
+          message: "deliverMagicLink() may only be called from src/lib/auth/magic-link/request.ts. Use requestMagicLink() or sendTrustedMagicLink() instead.",
+        }],
+      }],
+    },
+  },
 ]);
 
 export default eslintConfig;

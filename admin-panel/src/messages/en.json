@@ -1073,7 +1073,6 @@
     "captchaFailedError": "Security verification failed. The captcha has been refreshed - please try again.",
     "rateLimitError": "Too many requests. Please wait a moment and try logging in directly.",
     "goToLoginPage": "Go to Login Page",
-    "genericError": "Failed to send magic link: {message}",
     "unexpectedError": "An unexpected error occurred. Please try again.",
     "captchaRefreshed": "✅ Verification refreshed. You can now try again.",
     "captchaResetTryAgain": "Captcha has been reset. Complete the verification and try again."

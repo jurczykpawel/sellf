@@ -131,7 +131,7 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
   - Public: `/`, `/p/[slug]` (product pages), `/login`, `/terms`, `/privacy`
   - Protected: `/dashboard`, `/my-products`
   - Admin: `/admin/products`, `/admin/users`, `/admin/payments`, `/admin/analytics`
-- API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`
+- API endpoints: `/api/runtime-config`, `/api/create-embedded-checkout`, `/api/verify-payment`, `/api/webhooks/stripe`, `/api/embed/checkout-session`, `/api/embed/free-access`, `/embed/v1/checkout.js`, `/api/auth/magic-link`
 - Public v1 API (API key auth, `PRODUCTS_READ`/`PRODUCTS_WRITE` scopes):
   - `GET /api/v1/products` — cursor pagination, accepts `?search=`, `?status=`, `?sort_by=`, `?embed=categories,tags` (opt-in), `?category=<uuid-or-slug>` and `?tag=<uuid-or-slug>` (CSV, AND-intersection; auto-detect UUID vs slug)
   - `GET/POST /api/v1/products` and `GET/PATCH/DELETE /api/v1/products/:id` accept `categories: string[]` and `tags: string[]` (UUID arrays, max 50; PATCH uses replace semantics; partial junction failures surface as `_warnings` with HTTP 207)
@@ -158,14 +158,20 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 1. Seller pastes the `<script src=".../embed/v1/checkout.js" data-...>` snippet
 2. Loader fetches `/api/embed/checkout-session` for paid products (anonymous, captcha-gated)
 3. Stripe Embedded Checkout renders inline; payment hits the same webhook path
-4. Free products go through `/api/embed/free-access` (Turnstile + magic link)
+4. Free products go through `/api/embed/free-access` (captcha + magic link)
 
 **Magic Link Authentication:**
-1. User enters email → Supabase issues a magic link
-2. Locally captured by Inbucket; in production sent by the configured SMTP
-3. User clicks link → callback route exchanges the code
-4. `supabase.auth.setSession()` → session stored in cookies
-5. User redirected to the configured destination (`redirect_to` or `/dashboard`)
+1. Browser calls `sendMagicLinkRequest()` → `POST /api/auth/magic-link` with the captcha token. Browsers never call Supabase's OTP endpoint directly.
+2. The route calls `requestMagicLink()` (`src/lib/auth/magic-link/request.ts`), which checks an IP-scoped rate limit, verifies the captcha via `verifyCaptchaToken()` (ALTCHA payloads are single-use — see below), validates the email, and builds the redirect URL.
+3. `requestMagicLink()` calls `sendTrustedMagicLink()` (same module), which enforces a per-email rate limit and then calls `deliverMagicLink()` (`src/lib/auth/magic-link/deliver.ts`) — the only place in the codebase that calls `auth.signInWithOtp`, using the service-role client. Supabase Auth skips its own captcha check for service-role callers, so every caller of `deliverMagicLink()` must go through captcha verification (`requestMagicLink`) or an already-proven trust signal such as a completed Stripe payment (`sendTrustedMagicLink` called directly).
+4. Server-side callers that already trust their own gate (`/api/embed/free-access` uses `requestMagicLink()` since it is still a public, unauthenticated form; the post-checkout `payment-status` page uses `sendTrustedMagicLink()` directly, since access there is already proven by a verified Stripe session) never call `deliverMagicLink()` themselves — an ESLint rule restricts that import to `request.ts`.
+5. The email link carries `token_hash` (custom templates), not `{{ .ConfirmationURL }}` — it works from any device without a PKCE cookie. Locally captured by Mailpit; in production sent by the configured SMTP.
+6. User clicks the link → `/auth/callback` calls `verifyOtp({ token_hash, type })` → session stored in cookies.
+7. User redirected to the configured destination: an explicit `redirect_to` if the link carried one (product/checkout flows), otherwise the callback's own role-based default (admins → `/dashboard`, everyone else → `/my-products`) — a plain login link deliberately omits `redirect_to` so this applies.
+
+Supabase Auth's own captcha setting (`security_captcha_enabled` in the dashboard, or `GOTRUE_SECURITY_CAPTCHA_*` if self-hosting GoTrue) is independent of the above — it only affects direct calls to `/auth/v1`, which this app no longer makes from the browser. Keep it enabled where available as defense in depth; verify with `scripts/verify-auth-captcha.sh`.
+
+A solved ALTCHA payload is consumed exactly once: `verifyCaptchaToken()` records it in `public.captcha_nonces` (keyed by a hash of the payload's signature) and rejects a second use, so the payload can't be replayed for the rest of its validity window.
 
 ## Critical Security Patterns
 
@@ -179,6 +185,10 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 4. **Rate Limiting**: All public functions enforce rate limits via `check_rate_limit()`
 5. **Parameterized Queries**: Use prepared statements, never string concatenation
 6. **Idempotency**: Payment processing uses unique constraints on `session_id` + `stripe_payment_intent_id`
+
+### Magic-Link Delivery Gate
+
+`signInWithOtp` may only be called from `src/lib/auth/magic-link/deliver.ts` (`deliverMagicLink()`) — every other call site is a lint error (`eslint.config.mjs`, `no-restricted-syntax`). `deliverMagicLink()` itself may only be imported from `src/lib/auth/magic-link/request.ts` (`no-restricted-imports`) — every server call site goes through `requestMagicLink()` (captcha + IP/email rate limits) or `sendTrustedMagicLink()` (per-email rate limit only, for callers that already proved trust another way, e.g. a verified Stripe payment). Browsers request a magic link via `sendMagicLinkRequest()` → `POST /api/auth/magic-link` → `requestMagicLink()`. See "Magic Link Authentication" above.
 
 ### Rate Limiting Anti-Spoofing
 

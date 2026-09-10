@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api/client';
@@ -26,17 +26,24 @@ export function useWebhookDeliveries() {
   const [filter, setFilter] = useState<DeliveryFilter>('permanently_failed');
   const [replayingId, setReplayingId] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
+  const latestRequestRef = useRef(0);
 
   const fetchLogs = useCallback(async () => {
+    // Responses can arrive out of order (filter switch, remount, refresh after an
+    // action); only the newest request may write state, or a stale list replaces
+    // the current one and silently drops the user's selection.
+    const requestId = ++latestRequestRef.current;
     try {
       setLoading(true);
       const response = await api.list<WebhookLog>('webhooks/logs', { status: filter, limit: 50 });
+      if (requestId !== latestRequestRef.current) return;
       setLogs(response.data || []);
     } catch (err) {
+      if (requestId !== latestRequestRef.current) return;
       console.error('[useWebhookDeliveries] fetch failed', err);
       toast.error(t('loadError'));
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
   }, [filter, t]);
 

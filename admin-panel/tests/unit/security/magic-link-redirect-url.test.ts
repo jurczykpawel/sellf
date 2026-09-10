@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPostCheckoutMagicLinkRedirect,
   buildFreeProductMagicLinkRedirect,
+  buildLoginMagicLinkRedirect,
 } from '@/lib/auth/magic-link-redirect';
 
 describe('Magic-link redirect URL construction', () => {
@@ -85,6 +86,15 @@ describe('Magic-link redirect URL construction', () => {
       });
       const decoded = decodeURIComponent(url.split('redirect_to=')[1]);
       expect(decoded).toContain('success_url=https%3A%2F%2Fshop.example.com%2Fthank-you');
+    });
+  });
+
+  describe('buildLoginMagicLinkRedirect', () => {
+    it('routes through /auth/callback without redirect_to, so the callback applies role-based routing', () => {
+      const url = buildLoginMagicLinkRedirect('https://a.b');
+      expect(url).toContain('?');
+      expect(url).not.toContain('redirect_to');
+      expect(url).toBe('https://a.b/auth/callback?flow=login');
     });
   });
 });

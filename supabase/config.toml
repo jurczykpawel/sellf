@@ -72,9 +72,12 @@ site_url = "http://localhost:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # For production, add your domain here (e.g. https://example.com)
 additional_redirect_urls = [
-  "http://127.0.0.1:3000", 
+  "http://127.0.0.1:3000",
   "http://localhost:3000",
   "http://localhost:3000/auth/callback",
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
+  "http://localhost:3777/**",
   "https://your-domain.com",
   "https://your-domain.com/auth/callback"
 ]
@@ -98,6 +101,14 @@ enable_confirmations = false
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Twój link do logowania"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.confirmation]
+subject = "Potwierdź swój email"
+content_path = "./supabase/templates/confirmation.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.

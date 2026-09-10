@@ -311,16 +311,23 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
     await expect(modal).toBeVisible({ timeout: 5000 });
     await modal.getByRole('button', { name: /^Ponów teraz$|^Retry now$/i }).click();
 
-    // After batch, next_retry_at on OUR 2 rows moves to ~now (was +1h).
-    await page.waitForTimeout(1000);
-    const { data: rows } = await supabaseAdmin
-      .from('webhook_logs')
-      .select('id, next_retry_at')
-      .in('id', pendingIds);
-    expect(rows!.length).toBe(2);
-    for (const row of rows!) {
-      const delta = new Date(row.next_retry_at!).getTime() - Date.now();
-      expect(Math.abs(delta)).toBeLessThan(10_000);
-    }
+    // After batch, next_retry_at on OUR 2 rows moves to ~now (was +1h). The batch
+    // runs row by row and pollution rows from other specs can precede ours, so
+    // poll instead of sleeping a fixed amount.
+    await expect
+      .poll(
+        async () => {
+          const { data: rows } = await supabaseAdmin
+            .from('webhook_logs')
+            .select('id, next_retry_at')
+            .in('id', pendingIds);
+          if (!rows || rows.length !== 2) return false;
+          return rows.every(
+            (row) => Math.abs(new Date(row.next_retry_at!).getTime() - Date.now()) < 60_000,
+          );
+        },
+        { timeout: 20_000, intervals: [500, 1000, 2000] },
+      )
+      .toBe(true);
   });
 });

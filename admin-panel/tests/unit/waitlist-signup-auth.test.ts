@@ -21,6 +21,9 @@ vi.mock('@/lib/rate-limiting', () => ({
 vi.mock('@/lib/captcha/verify', () => ({
   verifyCaptchaToken: vi.fn(),
 }));
+vi.mock('@/lib/captcha/config', () => ({
+  getCaptchaProvider: vi.fn().mockReturnValue('none'),
+}));
 
 import { POST } from '@/app/api/waitlist/signup/route';
 import { createClient } from '@/lib/supabase/server';
@@ -154,6 +157,35 @@ describe('POST /api/waitlist/signup — authenticated user', () => {
     );
     expect(res.status).toBe(400);
     expect(verifyCaptchaToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/waitlist/signup — always verifies captcha, regardless of provider', () => {
+  it('still calls verifyCaptchaToken (and can be rejected by it) when the provider reports none', async () => {
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      buildSupabase({
+        userEmail: null,
+        product: { enable_waitlist: true },
+      }) as never,
+    );
+    // verifyCaptchaToken is mocked in this suite; here it stands in for the
+    // real fail-closed behavior it has when no provider is configured in
+    // production (covered directly in captcha/verify.test.ts).
+    (verifyCaptchaToken as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      error: 'Security verification unavailable',
+    });
+
+    const res = await POST(
+      buildRequest({
+        email: 'anon@example.com',
+        productId: VALID_PRODUCT_ID,
+        captchaToken: null,
+      }),
+    );
+
+    expect(verifyCaptchaToken).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(400);
   });
 });
 

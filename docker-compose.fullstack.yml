@@ -88,12 +88,21 @@ services:
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
-      # Captcha for GoTrue (only needed when using Turnstile — ALTCHA is verified app-side)
-      # If using Turnstile, set these so signInWithOtp() verifies captcha tokens:
+      # Optional GoTrue-level captcha, independent of the app's own check.
+      # The app always verifies its own captcha (ALTCHA or Turnstile) before
+      # it ever asks GoTrue to send a magic-link email — that happens
+      # regardless of these settings. This block is a second, separate lock
+      # on direct calls to GoTrue's own /auth/v1 endpoints; it never receives
+      # the app's captcha tokens (different providers, different widgets),
+      # so it only works with Turnstile (or another GoTrue-supported
+      # provider), not with ALTCHA. Enable it as defense in depth whenever
+      # you have a Turnstile account, then verify it's actually blocking
+      # direct calls with scripts/verify-auth-captcha.sh. Self-hosts running
+      # ALTCHA-only (no Turnstile account) rely on GoTrue's own rate limits
+      # for direct calls instead.
       #   GOTRUE_SECURITY_CAPTCHA_ENABLED: "true"
       #   GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
       #   GOTRUE_SECURITY_CAPTCHA_SECRET: ${CLOUDFLARE_TURNSTILE_SECRET_KEY}
-      # If using ALTCHA (default), leave these commented — ALTCHA is verified by the app, not GoTrue
     depends_on:
       db:
         condition: service_healthy

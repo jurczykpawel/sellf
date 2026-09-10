@@ -67,7 +67,8 @@ export async function getStripeTaxStatus(): Promise<StripeTaxStatusResponse> {
     return {
       success: true,
       data: {
-        status: taxSettings.status,
+        // Stripe may add statuses; anything not explicitly active must not look active.
+        status: taxSettings.status === 'active' ? 'active' : 'pending',
         missingFields:
           taxSettings.status_details.pending?.missing_fields ?? undefined,
         registrations,

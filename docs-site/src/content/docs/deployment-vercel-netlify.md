@@ -411,8 +411,18 @@ The first time I tried this end-to-end the deploy died at the homepage with `Mis
 
 | Variable | What it adds |
 |----------|--------------|
-| `ALTCHA_HMAC_KEY` | Self-hosted CAPTCHA on checkout (no Cloudflare needed) — `openssl rand -hex 32` |
+| `ALTCHA_HMAC_KEY` | Self-hosted CAPTCHA on checkout and magic-link requests (no Cloudflare needed) — `openssl rand -hex 32` |
 | `CLOUDFLARE_TURNSTILE_SITE_KEY` + `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile CAPTCHA instead of ALTCHA |
+
+### How captcha and magic links work
+
+Sellf verifies whichever captcha provider is configured above itself, server-side, before it ever sends a login email — this check is independent of Supabase Auth's own settings. Supabase Cloud projects also have their own captcha toggle (Authentication → Providers → Email); turn it on as a second, independent lock on direct calls to Supabase's own auth endpoints, and confirm it's actually enforced with:
+
+```bash
+admin-panel/scripts/verify-auth-captcha.sh https://your-project.supabase.co <anon-key>
+```
+
+If you use a custom email template for magic links or signup confirmation, it must build the link from `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (or `type=signup`), not `{{ .ConfirmationURL }}`.
 | `GUS_API_KEY` | Polish company auto-fill in checkout (PL market only) |
 | `OAUTH_PROVIDERS` | Add Google/GitHub/Discord login on top of magic links |
 | `SELLF_EMBED_ALLOWED_ORIGINS` | If you embed checkout on external sites, list those domains here |

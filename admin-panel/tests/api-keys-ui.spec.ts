@@ -207,8 +207,8 @@ test.describe('API Keys Management UI', () => {
 
     await expect(page.getByRole('heading', { name: /API Key Created/i })).toBeVisible({ timeout: 15000 });
 
-    // Click copy button (has Copy icon)
-    const copyButton = page.locator('button').filter({ has: page.locator('svg.lucide-copy') });
+    // Target buttons by their title, not lucide icon classes (lucide 1.41 renamed trash-2 → trash)
+    const copyButton = page.getByTitle(/^Copy$/i);
     await copyButton.click();
 
     // Should show copied confirmation (toast)
@@ -278,8 +278,7 @@ test.describe('API Keys Management UI', () => {
     const keyRow = page.locator('tr').filter({ hasText: 'Test Key Default' });
     await expect(keyRow).toBeVisible({ timeout: 10000 });
 
-    // Click rotate button (RotateCw icon)
-    const rotateButton = keyRow.locator('button').filter({ has: page.locator('svg.lucide-rotate-cw') });
+    const rotateButton = keyRow.getByTitle(/Rotate Key/i);
     await rotateButton.click();
 
     // Confirmation modal should appear
@@ -321,9 +320,8 @@ test.describe('API Keys Management UI', () => {
     // Wait for key to appear in list
     await expect(page.getByText('Key To Revoke')).toBeVisible({ timeout: 5000 });
 
-    // Find the key and click revoke button (Trash2 icon)
     const keyRow = page.locator('tr').filter({ hasText: 'Key To Revoke' });
-    const revokeButton = keyRow.locator('button').filter({ has: page.locator('svg.lucide-trash-2') });
+    const revokeButton = keyRow.getByTitle(/Revoke Key/i);
     await revokeButton.click();
 
     // Confirmation modal should appear
@@ -351,7 +349,7 @@ test.describe('API Keys Management UI', () => {
       .filter({ hasNotText: '(rotated)' });
     await expect(keyRow).toBeVisible({ timeout: 10000 });
 
-    const editButton = keyRow.locator('button').filter({ has: page.locator('svg.lucide-pencil') });
+    const editButton = keyRow.getByTitle(/Edit API Key/i);
     await editButton.click();
 
     // Edit modal should open with "Edit" title (not "Create")
@@ -382,7 +380,7 @@ test.describe('API Keys Management UI', () => {
 
     // Click edit on the newly created key
     const keyRow = page.locator('tr').filter({ hasText: 'Key To Edit' });
-    const editButton = keyRow.locator('button').filter({ has: page.locator('svg.lucide-pencil') });
+    const editButton = keyRow.getByTitle(/Edit API Key/i);
     await editButton.click();
 
     // Clear name and type new one

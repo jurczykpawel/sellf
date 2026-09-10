@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { createClient } from '@/lib/supabase/client';
-import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 import { MagicLinkState, PaymentStatus, Product } from '../types';
 import { SPINNER_MIN_TIME } from '../utils/helpers';
 
@@ -13,6 +12,7 @@ interface UseMagicLinkParams {
   product: Product;
   termsAccepted: boolean;
   captchaToken: string | null;
+  captchaReset: () => void;
   showInteractiveWarning: boolean;
 }
 
@@ -24,6 +24,7 @@ export function useMagicLink({
   product,
   termsAccepted,
   captchaToken,
+  captchaReset,
   showInteractiveWarning,
 }: UseMagicLinkParams): MagicLinkState & { sendMagicLink: () => Promise<void>; error: string | null } {
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -45,39 +46,26 @@ export function useMagicLink({
     setError(null); // Clear previous errors
 
     try {
-      // Builds /auth/product-access?product=<slug>. By the time this fires,
-      // the Stripe webhook has already granted access — payment identifiers
-      // are not part of the post-login URL.
-      const redirectUrl = buildPostCheckoutMagicLinkRedirect({
-        origin: window.location.origin,
-        productSlug: product.slug,
-        sessionId,
-        paymentIntentId,
-      });
-      const supabase = await createClient();
-      const { error: authError } = await supabase.auth.signInWithOtp({
+      const result = await submitMagicLink({
         email: customerEmail,
-        options: {
-          emailRedirectTo: redirectUrl,
-          shouldCreateUser: true,
-          captchaToken: captchaToken || undefined,
-        }
+        captcha: { token: captchaToken, reset: captchaReset },
+        flow: 'post_checkout',
+        productSlug: product.slug,
       });
-      
-      if (!authError) {
+
+      if (result.ok) {
         setMagicLinkSent(true);
         setTimeout(() => setShowSpinnerForMinTime(false), 100);
       } else {
-        console.error('Error sending magic link:', authError);
         // Set user-friendly error message based on error code
-        if (authError.message.includes('email_address_invalid')) {
+        if (result.reason === 'invalid_email') {
           setError(t('emailInvalidError'));
-        } else if (authError.message.includes('captcha_failed')) {
+        } else if (result.reason === 'captcha_failed' || result.reason === 'captcha_missing') {
           setError(t('captchaFailedError'));
-        } else if (authError.message.includes('over_request_rate_limit')) {
+        } else if (result.reason === 'rate_limited') {
           setError(t('rateLimitError'));
         } else {
-          setError(t('genericError', { message: authError.message }));
+          setError(t('unexpectedError'));
         }
       }
     } catch (err) {
@@ -86,21 +74,18 @@ export function useMagicLink({
     } finally {
       setSendingMagicLink(false);
     }
-  }, [customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, error, t]);
+  }, [customerEmail, sessionId, paymentIntentId, product.slug, captchaToken, captchaReset, error, t]);
 
-  // Auto-send magic link when conditions are met
+  // Auto-send magic link when conditions are met. Terms are always accepted
+  // in checkout before reaching this page, so no terms check is needed here.
   useEffect(() => {
-    // Terms are always accepted in checkout before reaching this page
-    const termsOk = true;
-    const turnstileOk = captchaToken;
     const paymentId = sessionId || paymentIntentId;
 
     if (paymentStatus === 'magic_link_sent' &&
         customerEmail &&
         paymentId &&
         !magicLinkSent &&
-        termsOk &&
-        turnstileOk &&
+        captchaToken &&
         !sendingMagicLink &&
         !error) { // Don't auto-send if there's an error
       sendMagicLinkInternal();
@@ -109,8 +94,6 @@ export function useMagicLink({
 
   // Show spinner for minimum time - different logic for invisible vs interactive
   useEffect(() => {
-    // Terms are always accepted in checkout before reaching this page
-    const termsOk = true;
     const paymentId = sessionId || paymentIntentId;
 
     // For invisible captcha: show spinner early (when terms OK)
@@ -118,7 +101,6 @@ export function useMagicLink({
     const shouldTriggerSpinner = paymentStatus === 'magic_link_sent' &&
                                 customerEmail &&
                                 paymentId &&
-                                termsOk &&
                                 (captchaToken || !showInteractiveWarning); // Show early for invisible, late for interactive
 
     if (shouldTriggerSpinner && !showSpinnerForMinTime && !magicLinkSent) {
