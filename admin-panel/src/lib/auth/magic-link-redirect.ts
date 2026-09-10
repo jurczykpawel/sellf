@@ -51,21 +51,22 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
 }
 
 /**
+ * Magic-link callback URL for a plain login (no product context). Deliberately
+ * omits `redirect_to` so `/auth/callback` falls through to its own role-based
+ * default (admins → /dashboard, everyone else → /my-products). `flow=login`
+ * keeps a `?` in the URL — required because email templates append
+ * `&token_hash=...` after it; the callback ignores unrecognized params.
+ */
+export function buildLoginMagicLinkRedirect(origin: string): string {
+  return `${origin}/auth/callback?flow=login`;
+}
+
+/**
  * Magic-link callback URL for the free-product flow (`useFreeAccess`,
  * `FreeProductForm`, embed free-access API). Coupon and success_url are passed
  * through; the product slug + coupon are non-secret values already available
  * to the client building this URL.
  */
-/**
- * Magic-link callback URL for a plain login (no product context). Mirrors
- * the callback's own default when `redirect_to` is absent (`/dashboard`),
- * so the encoded param is always present in the URL — required because
- * email templates append `&token_hash=...` after it.
- */
-export function buildLoginMagicLinkRedirect(origin: string): string {
-  return buildAuthCallbackUrl(origin, '/dashboard');
-}
-
 export function buildFreeProductMagicLinkRedirect(input: FreeProductInput): string {
   const redirectPath = buildProductAccessPath(input.productSlug, {
     coupon: input.couponCode ?? undefined,

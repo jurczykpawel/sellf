@@ -49,9 +49,10 @@ describe('Magic-link gateway', () => {
     const message = await waitForEmail(email);
     const href = extractHref(message.HTML || '');
     expect(href).toBeTruthy();
-    expect(href).toContain('/auth/callback?redirect_to=');
+    expect(href).toContain('/auth/callback?flow=login');
     expect(href).toContain('token_hash=');
     expect(href).not.toContain('/auth/v1/verify');
+    expect(href).not.toContain('redirect_to=');
 
     const linkUrl = new URL(href!);
     const rewritten = new URL(API_URL);
@@ -63,6 +64,9 @@ describe('Magic-link gateway', () => {
     expect(callbackResponse.status).toBeLessThan(400);
     const location = callbackResponse.headers.get('location') || '';
     expect(location).not.toContain('/login?error=');
+    // Fresh, non-admin signup: no redirect_to was requested, so the callback
+    // falls back to its own role-based default rather than always /dashboard.
+    expect(location).toContain('/my-products');
     expect(callbackResponse.headers.get('set-cookie')).toBeTruthy();
   });
 

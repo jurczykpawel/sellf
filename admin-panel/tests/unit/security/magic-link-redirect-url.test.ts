@@ -90,10 +90,11 @@ describe('Magic-link redirect URL construction', () => {
   });
 
   describe('buildLoginMagicLinkRedirect', () => {
-    it('routes through /auth/callback with the callback default redirect path', () => {
+    it('routes through /auth/callback without redirect_to, so the callback applies role-based routing', () => {
       const url = buildLoginMagicLinkRedirect('https://a.b');
       expect(url).toContain('?');
-      expect(url).toBe('https://a.b/auth/callback?redirect_to=%2Fdashboard');
+      expect(url).not.toContain('redirect_to');
+      expect(url).toBe('https://a.b/auth/callback?flow=login');
     });
   });
 });
