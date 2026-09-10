@@ -107,3 +107,37 @@ SET search_path = '';
 
 COMMENT ON FUNCTION check_application_rate_limit IS
   'Application-level rate limiting for Next.js API routes. Use this from /lib/rate-limiting.ts. Windows are epoch-aligned so sizes > 60 minutes work correctly.';
+
+-- ===== Fresh-install grants must match production least privilege =====
+--
+-- A database built purely from migrations inherits the platform's default
+-- privileges, which on some Supabase builds give anon/authenticated TRUNCATE,
+-- TRIGGER and REFERENCES on every table created by postgres (TRUNCATE is not
+-- subject to RLS). Production never had these. Revoke them on existing tables
+-- and stop them from being granted to future tables. No-op on production.
+
+DO $$
+DECLARE
+  t record;
+BEGIN
+  FOR t IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+  LOOP
+    EXECUTE format(
+      'REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLE public.%I FROM anon, authenticated',
+      t.relname
+    );
+  END LOOP;
+END;
+$$;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE TRUNCATE, TRIGGER, REFERENCES ON TABLES FROM anon, authenticated;
+
+-- The free-product claim RPC lost its authenticated grant on fresh installs:
+-- a later REVOKE ... FROM PUBLIC removed the only path authenticated had.
+-- Production still has it; make the intended grant explicit.
+GRANT EXECUTE ON FUNCTION public.grant_free_product_access(text, integer, text) TO authenticated;
