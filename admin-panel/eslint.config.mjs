@@ -39,6 +39,16 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/ban-ts-comment": "off",
     },
   },
+  {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/lib/auth/magic-link/deliver.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", {
+        selector: "CallExpression[callee.property.name='signInWithOtp']",
+        message: "Magic links are sent only by deliverMagicLink() (src/lib/auth/magic-link/deliver.ts). Browsers use sendMagicLinkRequest().",
+      }],
+    },
+  },
 ]);
 
 export default eslintConfig;
