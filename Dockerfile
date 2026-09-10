@@ -8,19 +8,21 @@
 #   docker run -p 3000:3000 --env-file .env sellf
 # =============================================================================
 
-# Pinned to the same Bun as CI (setup-bun in build-release.yml). The floating `1-alpine`
-# tag moved to 1.4.x, which rejects this bun.lock (--frozen-lockfile, overrides check).
-FROM oven/bun:1.3.14-alpine AS base
-
-# --- Dependencies ---
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Bun installs dependencies only (bun.lock). Pinned to the same Bun as CI (setup-bun in
+# build-release.yml): the floating tag moved to 1.4.x, which rejects this bun.lock under
+# --frozen-lockfile. Debian-based so native modules match the Node stages below.
+FROM oven/bun:1.3.14-slim AS deps
 WORKDIR /app/admin-panel
 COPY admin-panel/package.json admin-panel/bun.lock* ./
 RUN bun install --frozen-lockfile --ignore-scripts
 
+# Next.js builds and runs on Node, as in CI (build job) and on production (PM2 --interpreter
+# node). In oven/bun images `node` is a Bun shim, and Bun 1.3.14 segfaults at the end of
+# `next build` with Next 16.3.
+FROM node:22-slim AS node-base
+
 # --- Build ---
-FROM base AS builder
+FROM node-base AS builder
 WORKDIR /app
 # Copy root package.json (Next.js uses it for file tracing)
 COPY package.json ./
@@ -40,14 +42,14 @@ ENV NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
     NEXT_PUBLIC_BASE_URL=https://placeholder.example.com \
     NEXT_PUBLIC_APP_URL=https://placeholder.example.com
 
-RUN bun run build
+RUN node node_modules/next/dist/bin/next build
 
 # --- Production ---
-FROM base AS runner
+FROM node-base AS runner
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --no-create-home --shell /usr/sbin/nologin nextjs
 
 # Standalone output — server.js lands at /app/server.js
 COPY --from=builder --chown=nextjs:nodejs /app/admin-panel/.next/standalone ./
@@ -67,4 +69,4 @@ USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME="0.0.0.0"
 
-CMD ["bun", "server.js"]
+CMD ["node", "server.js"]
