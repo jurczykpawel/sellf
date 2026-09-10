@@ -7,8 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import type { Product } from '@/types';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { useTracking } from '@/hooks/useTracking';
-import { validateEmailAction } from '@/lib/actions/validate-email';
-import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client';
+import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 
 /**
  * Hook for the "get product for free" flow used by checkout pages.
@@ -116,39 +115,26 @@ export function useFreeAccess({
       return;
     }
 
-    if (!captcha.token) {
-      setPwywFreeMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
-      return;
-    }
-
-    try {
-      const emailValidation = await validateEmailAction(pwywFreeEmail);
-      if (!emailValidation.isValid) {
-        setPwywFreeMessage({ type: 'error', text: emailValidation.error || t('invalidEmail') });
-        captcha.reset();
-        return;
-      }
-    } catch {
-      setPwywFreeMessage({ type: 'error', text: t('invalidEmail') });
-      captcha.reset();
-      return;
-    }
-
     setPwywFreeLoading(true);
     setPwywFreeMessage({ type: 'info', text: t('sendingMagicLink') });
     try {
       const successUrl = searchParams.get('success_url');
-      const result = await sendMagicLinkRequest({
+      const result = await submitMagicLink({
         email: pwywFreeEmail,
-        captchaToken: captcha.token,
+        captcha,
         flow: 'free_product',
         productSlug: product.slug,
         couponCode,
         successUrl,
       });
       if (!result.ok) {
-        setPwywFreeMessage({ type: 'error', text: t('unexpectedError') });
-        captcha.reset();
+        const text =
+          result.reason === 'captcha_missing'
+            ? tCompliance('securityVerificationRequired')
+            : result.reason === 'invalid_email'
+              ? t('invalidEmail')
+              : t('unexpectedError');
+        setPwywFreeMessage({ type: 'error', text });
         return;
       }
       await track('generate_lead', {

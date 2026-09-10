@@ -3,8 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { validateEmailAction } from '@/lib/actions/validate-email'
-import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client'
+import { submitMagicLink } from '@/lib/auth/magic-link/submit'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
 import TermsCheckbox from './TermsCheckbox'
@@ -63,48 +62,17 @@ export default function LoginForm() {
         return
       }
 
-      // Check if captcha token is present
-      if (!captcha.token) {
-        setMessage(t('compliance.securityVerificationRequired'))
-        setIsLoading(false)
-        return
-      }
-
-      // Validate email against disposable email list
-      const emailValidation = await validateEmailAction(email);
-
-      if (emailValidation.isDisposable) {
-        setMessage(t('auth.disposableEmailBlocked'));
-        setSentEmail(false)
-        setIsLoading(false)
-
-        // Reset captcha after failed validation (token was consumed)
-        captcha.reset()
-        return;
-      }
-
-      if (!emailValidation.isValid && emailValidation.error) {
-        setMessage(t('auth.emailValidationFailed'));
-        setSentEmail(false)
-        setIsLoading(false)
-
-        // Reset captcha after failed validation (token was consumed)
-        captcha.reset()
-        return;
-      }
-
-      const result = await sendMagicLinkRequest({
-        email,
-        captchaToken: captcha.token,
-        flow: 'login',
-      })
+      const result = await submitMagicLink({ email, captcha, flow: 'login' })
 
       if (!result.ok) {
-        setMessage(t('auth.loginFailed'))
+        const message =
+          result.reason === 'captcha_missing'
+            ? t('compliance.securityVerificationRequired')
+            : result.reason === 'invalid_email'
+              ? t('auth.disposableEmailBlocked')
+              : t('auth.loginFailed')
+        setMessage(message)
         setSentEmail(false)
-
-        // Reset captcha after ANY error (it was consumed in the failed request)
-        captcha.reset()
       } else {
         setSentEmail(true)
         setMessage(t('productView.checkEmailForMagicLink'))

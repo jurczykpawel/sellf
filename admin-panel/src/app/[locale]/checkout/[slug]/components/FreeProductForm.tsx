@@ -8,7 +8,6 @@ import { paymentStatusUrl } from '@/lib/utils/product-urls';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { validateEmailAction } from '@/lib/actions/validate-email';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import TermsCheckbox from '@/components/TermsCheckbox';
@@ -19,7 +18,7 @@ import {
   type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
-import { sendMagicLinkRequest } from '@/lib/auth/magic-link/client';
+import { submitMagicLink } from '@/lib/auth/magic-link/submit';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
 import { useOto } from '@/hooks/useOto';
@@ -197,43 +196,28 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
       return;
     }
 
-    // Check if captcha token is present for non-logged in users
-    if (!captcha.token) {
-      setMessage({ type: 'error', text: tCompliance('securityVerificationRequired') });
-      return;
-    }
-
-    // Enhanced email validation with disposable domain checking
-    try {
-      const emailValidation = await validateEmailAction(email);
-      if (!emailValidation.isValid) {
-        setMessage({ type: 'error', text: emailValidation.error || t('invalidEmailDisposable') });
-        captcha.reset();
-        return;
-      }
-    } catch {
-      setMessage({ type: 'error', text: t('validEmailRequired') });
-      captcha.reset();
-      return;
-    }
-
     setLoading(true);
     setMessage({ type: 'info', text: t('sendingMagicLink') });
-    
+
     try {
-      const result = await sendMagicLinkRequest({
+      const result = await submitMagicLink({
         email,
-        captchaToken: captcha.token,
+        captcha,
         flow: 'free_product',
         productSlug: product.slug,
         successUrl,
       });
 
       if (!result.ok) {
-        setMessage({ type: 'error', text: t('unexpectedError') });
-
-        // Reset captcha after ANY error (it was consumed in the failed request)
-        captcha.reset();
+        const text =
+          result.reason === 'captcha_missing'
+            ? tCompliance('securityVerificationRequired')
+            : result.reason === 'invalid_email'
+              ? t('invalidEmailDisposable')
+              : result.reason === 'rate_limited'
+                ? t('rateLimitError')
+                : t('unexpectedError');
+        setMessage({ type: 'error', text });
         return;
       }
 
