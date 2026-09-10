@@ -1,4 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createChallenge } from 'altcha-lib/v1';
+
+const { consumeCaptchaNonceMock } = vi.hoisted(() => ({
+  consumeCaptchaNonceMock: vi.fn(),
+}));
+
+vi.mock('@/lib/captcha/nonce-store', () => ({
+  consumeCaptchaNonce: consumeCaptchaNonceMock,
+}));
 
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 
@@ -9,6 +18,8 @@ const SAVED_FETCH = global.fetch;
 
 beforeEach(() => {
   process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = 'test-turnstile-secret';
+  consumeCaptchaNonceMock.mockReset();
+  consumeCaptchaNonceMock.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -33,6 +44,32 @@ describe('verifyCaptchaToken — ALTCHA replay/expiry', () => {
 
     const result = await verifyCaptchaToken(payload, 'altcha');
     expect(result.success).toBe(false);
+  });
+
+  it('rejects a second use of an already-consumed ALTCHA payload', async () => {
+    process.env.ALTCHA_HMAC_KEY = 'test-altcha-key';
+    const challenge = await createChallenge({
+      hmacKey: 'test-altcha-key',
+      number: 0,
+      expires: new Date(Date.now() + 60_000),
+    });
+    const payload = Buffer.from(
+      JSON.stringify({
+        algorithm: challenge.algorithm,
+        challenge: challenge.challenge,
+        number: 0,
+        salt: challenge.salt,
+        signature: challenge.signature,
+      }),
+    ).toString('base64');
+
+    consumeCaptchaNonceMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    const first = await verifyCaptchaToken(payload, 'altcha');
+    expect(first.success).toBe(true);
+
+    const second = await verifyCaptchaToken(payload, 'altcha');
+    expect(second.success).toBe(false);
   });
 });
 

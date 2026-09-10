@@ -8,10 +8,12 @@
  * @see config.ts — getCaptchaProvider()
  */
 
-import { verifySolution } from 'altcha-lib/v1';
+import { createHash } from 'node:crypto';
+import { extractParams, verifySolution } from 'altcha-lib/v1';
 
 import type { CaptchaProvider, CaptchaVerifyResult } from './types';
 import { getCaptchaProvider } from './config';
+import { consumeCaptchaNonce } from './nonce-store';
 
 /**
  * Verify a captcha token server-side.
@@ -93,6 +95,32 @@ async function verifyAltchaPayload(payload: string): Promise<CaptchaVerifyResult
   try {
     const ok = await verifySolution(payload, hmacKey);
     if (!ok) {
+      return { success: false, error: 'Security verification failed' };
+    }
+
+    // A solved payload is valid for the whole challenge TTL — without a
+    // single-use check the same payload could be replayed any number of
+    // times within that window. The signature already uniquely identifies
+    // a solved challenge, so hash it into the nonce ledger key.
+    let parsed: { signature?: string };
+    try {
+      parsed = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
+    } catch {
+      return { success: false, error: 'Security verification failed' };
+    }
+    if (!parsed.signature) {
+      return { success: false, error: 'Security verification failed' };
+    }
+
+    const params = extractParams(payload);
+    const expiresEpoch = params.expires || params.expire;
+    const expiresAt = expiresEpoch
+      ? new Date(parseInt(expiresEpoch, 10) * 1000)
+      : new Date(Date.now() + 30 * 60 * 1000);
+
+    const nonceHash = createHash('sha256').update(parsed.signature).digest('hex');
+    const consumed = await consumeCaptchaNonce(nonceHash, expiresAt);
+    if (!consumed) {
       return { success: false, error: 'Security verification failed' };
     }
 
