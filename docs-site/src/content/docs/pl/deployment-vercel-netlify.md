@@ -308,8 +308,18 @@ Pełna sekwencja komend bash w wersji angielskiej tego dokumentu ([DEPLOYMENT-VE
 
 | Zmienna | Co dodaje |
 |----------|--------------|
-| `ALTCHA_HMAC_KEY` | Samodzielnie hostowana CAPTCHA na checkoucie (bez Cloudflare) — `openssl rand -hex 32` |
+| `ALTCHA_HMAC_KEY` | Samodzielnie hostowana CAPTCHA na checkoucie i przy logowaniu magic-linkiem (bez Cloudflare) — `openssl rand -hex 32` |
 | `CLOUDFLARE_TURNSTILE_SITE_KEY` + `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile CAPTCHA zamiast ALTCHA |
+
+### Jak działa captcha i magic linki
+
+Sellf sam weryfikuje skonfigurowanego wyżej dostawcę captchy, po stronie serwera, zanim wyśle jakikolwiek email logowania — ta weryfikacja jest niezależna od ustawień Supabase Auth. Projekty Supabase Cloud mają też własny przełącznik captchy (Authentication → Providers → Email); włącz go jako dodatkowe, niezależne zabezpieczenie bezpośrednich wywołań endpointów auth Supabase i sprawdź, czy faktycznie działa:
+
+```bash
+admin-panel/scripts/verify-auth-captcha.sh https://twoj-projekt.supabase.co <anon-key>
+```
+
+Jeśli używasz własnego szablonu emaila do magic-linka lub potwierdzenia rejestracji, link musi być budowany z `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (lub `type=signup`), nie z `{{ .ConfirmationURL }}`.
 | `GUS_API_KEY` | Auto-uzupełnianie danych firm GUS na checkoucie (rynek PL) |
 | `OAUTH_PROVIDERS` | Dodaj logowanie Google/GitHub/Discord obok magic linków |
 | `SELLF_EMBED_ALLOWED_ORIGINS` | Jeśli osadzasz checkout na zewnętrznych stronach, wypisz tu domeny |

@@ -269,6 +269,8 @@ NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 ```
 
+**How captcha and magic links work:** Sellf verifies whichever captcha provider you configure (ALTCHA or Turnstile) itself, server-side, before it ever sends a login email. Supabase's own captcha setting (Authentication → Providers → Email in the dashboard, or `GOTRUE_SECURITY_CAPTCHA_*` if you self-host GoTrue) is a separate, independent lock on direct calls to the `/auth/v1` endpoints — it never receives Sellf's captcha tokens, so enable it as defense in depth whenever you have a Turnstile account, and confirm it's enforced with `admin-panel/scripts/verify-auth-captcha.sh <supabase_url> <anon_key>`. A custom `magic-link.html` / `confirmation.html` email template must build its link from `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (or `type=signup`), not `{{ .ConfirmationURL }}`.
+
 ### 5. Stripe Configuration
 
 Sellf supports **two equivalent methods** for Stripe configuration. Choose the one that best fits your use case.
