@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const requestMagicLink = vi.hoisted(() => vi.fn());
-const getClientIp = vi.hoisted(() => vi.fn(() => '9.9.9.9'));
 
 vi.mock('@/lib/auth/magic-link/request', () => ({ requestMagicLink }));
-vi.mock('@/lib/security/client-ip', () => ({ getClientIp }));
 
 import { POST } from '@/app/api/auth/magic-link/route';
 
@@ -19,7 +17,6 @@ function jsonRequest(body: unknown, contentType = 'application/json') {
 describe('POST /api/auth/magic-link', () => {
   beforeEach(() => {
     requestMagicLink.mockReset();
-    getClientIp.mockClear();
   });
 
   it('rejects non-JSON content-type with 415', async () => {
@@ -101,11 +98,11 @@ describe('POST /api/auth/magic-link', () => {
     expect((await res.json()).code).toBe('invalid_request');
   });
 
-  it('passes the client IP from getClientIp to requestMagicLink', async () => {
+  it('does not pass any client-supplied IP field to requestMagicLink', async () => {
     requestMagicLink.mockResolvedValue({ ok: true });
     await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login' }));
-    expect(getClientIp).toHaveBeenCalled();
-    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ ip: '9.9.9.9' }));
+    const call = requestMagicLink.mock.calls[0][0];
+    expect(call).not.toHaveProperty('ip');
   });
 
   it('returns 200 ok:true on success', async () => {

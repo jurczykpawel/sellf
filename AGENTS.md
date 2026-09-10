@@ -162,14 +162,16 @@ bun run tttt       # = cd .. && npx supabase db reset && cd admin-panel && playw
 
 **Magic Link Authentication:**
 1. Browser calls `sendMagicLinkRequest()` → `POST /api/auth/magic-link` with the captcha token. Browsers never call Supabase's OTP endpoint directly.
-2. The route calls `requestMagicLink()` (`src/lib/auth/magic-link/request.ts`), which checks IP + email rate limits, verifies the captcha via `verifyCaptchaToken()`, validates the email, and builds the redirect URL.
-3. `requestMagicLink()` calls `deliverMagicLink()` (`src/lib/auth/magic-link/deliver.ts`) — the only place in the codebase that calls `auth.signInWithOtp` (enforced by an ESLint rule), using the service-role client. Supabase Auth skips its own captcha check for service-role callers, so every caller of `deliverMagicLink()` must have verified a captcha (or a paid Stripe session) first.
-4. Server-side callers that already trust their own gate (`/api/embed/free-access`, the post-checkout `payment-status` page) call `deliverMagicLink()` directly, skipping the HTTP round trip.
+2. The route calls `requestMagicLink()` (`src/lib/auth/magic-link/request.ts`), which checks an IP-scoped rate limit, verifies the captcha via `verifyCaptchaToken()` (ALTCHA payloads are single-use — see below), validates the email, and builds the redirect URL.
+3. `requestMagicLink()` calls `sendTrustedMagicLink()` (same module), which enforces a per-email rate limit and then calls `deliverMagicLink()` (`src/lib/auth/magic-link/deliver.ts`) — the only place in the codebase that calls `auth.signInWithOtp`, using the service-role client. Supabase Auth skips its own captcha check for service-role callers, so every caller of `deliverMagicLink()` must go through captcha verification (`requestMagicLink`) or an already-proven trust signal such as a completed Stripe payment (`sendTrustedMagicLink` called directly).
+4. Server-side callers that already trust their own gate (`/api/embed/free-access` uses `requestMagicLink()` since it is still a public, unauthenticated form; the post-checkout `payment-status` page uses `sendTrustedMagicLink()` directly, since access there is already proven by a verified Stripe session) never call `deliverMagicLink()` themselves — an ESLint rule restricts that import to `request.ts`.
 5. The email link carries `token_hash` (custom templates), not `{{ .ConfirmationURL }}` — it works from any device without a PKCE cookie. Locally captured by Mailpit; in production sent by the configured SMTP.
 6. User clicks the link → `/auth/callback` calls `verifyOtp({ token_hash, type })` → session stored in cookies.
-7. User redirected to the configured destination (`redirect_to` or `/dashboard`).
+7. User redirected to the configured destination: an explicit `redirect_to` if the link carried one (product/checkout flows), otherwise the callback's own role-based default (admins → `/dashboard`, everyone else → `/my-products`) — a plain login link deliberately omits `redirect_to` so this applies.
 
 Supabase Auth's own captcha setting (`security_captcha_enabled` in the dashboard, or `GOTRUE_SECURITY_CAPTCHA_*` if self-hosting GoTrue) is independent of the above — it only affects direct calls to `/auth/v1`, which this app no longer makes from the browser. Keep it enabled where available as defense in depth; verify with `scripts/verify-auth-captcha.sh`.
+
+A solved ALTCHA payload is consumed exactly once: `verifyCaptchaToken()` records it in `public.captcha_nonces` (keyed by a hash of the payload's signature) and rejects a second use, so the payload can't be replayed for the rest of its validity window.
 
 ## Critical Security Patterns
 
@@ -186,7 +188,7 @@ Supabase Auth's own captcha setting (`security_captcha_enabled` in the dashboard
 
 ### Magic-Link Delivery Gate
 
-`signInWithOtp` may only be called from `src/lib/auth/magic-link/deliver.ts` (`deliverMagicLink()`) — every other call site is a lint error (`eslint.config.mjs`, `no-restricted-syntax`). Browsers request a magic link via `sendMagicLinkRequest()` → `POST /api/auth/magic-link` → `requestMagicLink()`, which enforces captcha + rate limits before ever calling `deliverMagicLink()`. Server-side flows that already trust their own gate may call `deliverMagicLink()` directly. See "Magic Link Authentication" above.
+`signInWithOtp` may only be called from `src/lib/auth/magic-link/deliver.ts` (`deliverMagicLink()`) — every other call site is a lint error (`eslint.config.mjs`, `no-restricted-syntax`). `deliverMagicLink()` itself may only be imported from `src/lib/auth/magic-link/request.ts` (`no-restricted-imports`) — every server call site goes through `requestMagicLink()` (captcha + IP/email rate limits) or `sendTrustedMagicLink()` (per-email rate limit only, for callers that already proved trust another way, e.g. a verified Stripe payment). Browsers request a magic link via `sendMagicLinkRequest()` → `POST /api/auth/magic-link` → `requestMagicLink()`. See "Magic Link Authentication" above.
 
 ### Rate Limiting Anti-Spoofing
 

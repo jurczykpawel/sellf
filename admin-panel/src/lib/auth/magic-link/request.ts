@@ -8,7 +8,7 @@ import {
   buildLoginMagicLinkRedirect,
   buildPostCheckoutMagicLinkRedirect,
 } from '@/lib/auth/magic-link-redirect';
-import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 
 import { deliverMagicLink } from './deliver';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
@@ -20,25 +20,24 @@ export interface MagicLinkRequestInput {
   productSlug?: string;
   couponCode?: string;
   successUrl?: string;
-  ip: string;
 }
 
-export async function requestMagicLink(input: MagicLinkRequestInput): Promise<MagicLinkResult> {
-  const ipAllowed = await checkRateLimitForIdentifier(
-    'magic_link_ip',
-    5,
-    15,
-    `ip:${input.ip}`,
-  );
-  if (!ipAllowed) return { ok: false, code: 'rate_limited' };
+export interface SendTrustedMagicLinkInput {
+  email: string;
+  redirectTo: string;
+  data?: Record<string, string>;
+}
 
-  const captchaResult = await verifyCaptchaToken(input.captchaToken);
-  if (!captchaResult.success) return { ok: false, code: 'captcha_failed' };
-
-  const emailValidation = await validateEmailAction(input.email);
-  if (!emailValidation.isValid) return { ok: false, code: 'invalid_email' };
-
+/**
+ * Delivers a magic link for a caller that has already proven trust through
+ * another mechanism (a completed Stripe payment, an already-passed captcha
+ * check upstream). Still per-email rate limited — a URL carrying a trusted
+ * flag can be reloaded any number of times, and this is the only thing
+ * standing between that and inbox flooding.
+ */
+export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Promise<MagicLinkResult> {
   const normalizedEmail = input.email.trim().toLowerCase();
+
   const emailAllowed = await checkRateLimitForIdentifier(
     'magic_link_email',
     5,
@@ -47,20 +46,37 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   );
   if (!emailAllowed) return { ok: false, code: 'rate_limited' };
 
+  return deliverMagicLink({
+    email: normalizedEmail,
+    redirectTo: input.redirectTo,
+    shouldCreateUser: true,
+    data: input.data,
+  });
+}
+
+export async function requestMagicLink(input: MagicLinkRequestInput): Promise<MagicLinkResult> {
+  const ipAllowed = await checkRateLimit('magic_link_ip', 5, 15);
+  if (!ipAllowed) return { ok: false, code: 'rate_limited' };
+
+  const captchaResult = await verifyCaptchaToken(input.captchaToken);
+  if (!captchaResult.success) return { ok: false, code: 'captcha_failed' };
+
+  const emailValidation = await validateEmailAction(input.email);
+  if (!emailValidation.isValid) return { ok: false, code: 'invalid_email' };
+
   const origin = getSellfBaseUrl();
 
   if (input.flow === 'login') {
-    return deliverMagicLink({
+    return sendTrustedMagicLink({
       email: input.email,
       redirectTo: buildLoginMagicLinkRedirect(origin),
-      shouldCreateUser: true,
     });
   }
 
   if (!input.productSlug) return { ok: false, code: 'invalid_request' };
 
   if (input.flow === 'free_product') {
-    return deliverMagicLink({
+    return sendTrustedMagicLink({
       email: input.email,
       redirectTo: buildFreeProductMagicLinkRedirect({
         origin,
@@ -68,13 +84,12 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
         couponCode: input.couponCode,
         successUrl: input.successUrl,
       }),
-      shouldCreateUser: true,
       data: { product_slug: input.productSlug },
     });
   }
 
   // flow === 'post_checkout'
-  return deliverMagicLink({
+  return sendTrustedMagicLink({
     email: input.email,
     redirectTo: buildPostCheckoutMagicLinkRedirect({
       origin,
@@ -82,6 +97,5 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
       sessionId: undefined,
       paymentIntentId: undefined,
     }),
-    shouldCreateUser: true,
   });
 }

@@ -3,24 +3,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const deliverMagicLink = vi.hoisted(() => vi.fn());
 const verifyCaptchaToken = vi.hoisted(() => vi.fn());
 const validateEmailAction = vi.hoisted(() => vi.fn());
+const checkRateLimit = vi.hoisted(() => vi.fn());
 const checkRateLimitForIdentifier = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/auth/magic-link/deliver', () => ({ deliverMagicLink }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken }));
 vi.mock('@/lib/actions/validate-email', () => ({ validateEmailAction }));
-vi.mock('@/lib/rate-limiting', () => ({ checkRateLimitForIdentifier }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit, checkRateLimitForIdentifier }));
 vi.mock('@/lib/embed/checkout-embed', () => ({
   getSellfBaseUrl: () => 'https://shop.example.com',
 }));
 
-import { requestMagicLink } from '@/lib/auth/magic-link/request';
+import { requestMagicLink, sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { buildLoginMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 
 const BASE_INPUT = {
   email: 'Buyer@Example.com',
   captchaToken: 'good-token',
   flow: 'login' as const,
-  ip: '1.2.3.4',
 };
 
 describe('requestMagicLink', () => {
@@ -28,26 +28,23 @@ describe('requestMagicLink', () => {
     deliverMagicLink.mockReset();
     verifyCaptchaToken.mockReset();
     validateEmailAction.mockReset();
+    checkRateLimit.mockReset();
     checkRateLimitForIdentifier.mockReset();
 
     deliverMagicLink.mockResolvedValue({ ok: true });
     verifyCaptchaToken.mockResolvedValue({ success: true });
     validateEmailAction.mockResolvedValue({ isValid: true, isDisposable: false });
+    checkRateLimit.mockResolvedValue(true);
     checkRateLimitForIdentifier.mockResolvedValue(true);
   });
 
   it('checks the IP rate limit first, before captcha', async () => {
-    checkRateLimitForIdentifier.mockResolvedValueOnce(false);
+    checkRateLimit.mockResolvedValueOnce(false);
 
     const result = await requestMagicLink(BASE_INPUT);
 
     expect(result).toEqual({ ok: false, code: 'rate_limited' });
-    expect(checkRateLimitForIdentifier).toHaveBeenCalledWith(
-      'magic_link_ip',
-      5,
-      15,
-      'ip:1.2.3.4',
-    );
+    expect(checkRateLimit).toHaveBeenCalledWith('magic_link_ip', 5, 15);
     expect(verifyCaptchaToken).not.toHaveBeenCalled();
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
@@ -87,13 +84,13 @@ describe('requestMagicLink', () => {
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
 
-  it('delivers a login magic link with shouldCreateUser true and the login redirect', async () => {
+  it('delivers a login magic link with shouldCreateUser true, the login redirect, and a trimmed lowercased email', async () => {
     const result = await requestMagicLink({ ...BASE_INPUT, flow: 'login' });
 
     expect(result).toEqual({ ok: true });
     expect(deliverMagicLink).toHaveBeenCalledWith(
       expect.objectContaining({
-        email: 'Buyer@Example.com',
+        email: 'buyer@example.com',
         redirectTo: buildLoginMagicLinkRedirect('https://shop.example.com'),
         shouldCreateUser: true,
       }),
@@ -158,5 +155,51 @@ describe('requestMagicLink', () => {
 
     const call = deliverMagicLink.mock.calls[0][0];
     expect(call.redirectTo.startsWith('https://shop.example.com/')).toBe(true);
+  });
+});
+
+describe('sendTrustedMagicLink', () => {
+  beforeEach(() => {
+    deliverMagicLink.mockReset();
+    checkRateLimitForIdentifier.mockReset();
+    deliverMagicLink.mockResolvedValue({ ok: true });
+    checkRateLimitForIdentifier.mockResolvedValue(true);
+  });
+
+  it('rate limits per trimmed lowercased email before delivering', async () => {
+    checkRateLimitForIdentifier.mockResolvedValueOnce(false);
+
+    const result = await sendTrustedMagicLink({
+      email: ' Buyer@Example.com ',
+      redirectTo: 'https://shop.example.com/auth/callback?flow=login',
+    });
+
+    expect(result).toEqual({ ok: false, code: 'rate_limited' });
+    expect(checkRateLimitForIdentifier).toHaveBeenCalledWith(
+      'magic_link_email',
+      5,
+      1440,
+      'email:buyer@example.com',
+    );
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+  });
+
+  it('delivers with the trimmed lowercased email once the 6th call in the same window is blocked', async () => {
+    for (let i = 0; i < 5; i++) {
+      const result = await sendTrustedMagicLink({
+        email: 'buyer@example.com',
+        redirectTo: 'https://shop.example.com/auth/callback?flow=login',
+      });
+      expect(result).toEqual({ ok: true });
+    }
+
+    checkRateLimitForIdentifier.mockResolvedValueOnce(false);
+    const sixth = await sendTrustedMagicLink({
+      email: 'buyer@example.com',
+      redirectTo: 'https://shop.example.com/auth/callback?flow=login',
+    });
+
+    expect(sixth).toEqual({ ok: false, code: 'rate_limited' });
+    expect(deliverMagicLink).toHaveBeenCalledTimes(5);
   });
 });

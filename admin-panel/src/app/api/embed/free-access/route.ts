@@ -3,16 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   buildEmbedCorsHeaders,
   embedJson,
-  getSellfBaseUrl,
   loadAllowedOriginsForProduct,
   parseEmbedFreeAccessBody,
-  requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
-import { buildFreeProductMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
-import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
-import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { requestMagicLink } from '@/lib/auth/magic-link/request';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { validateEmailAction } from '@/lib/actions/validate-email';
 
 const PRODUCT_SELECT =
   'id, slug, name, price, is_active, available_from, available_until, embed_enabled, seller_id' as const;
@@ -99,40 +95,15 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
   }
 
-  const captchaFail = await requireEmbedCaptcha(parsed.value.turnstileToken, origin, allowedOrigins);
-  if (captchaFail) return captchaFail;
-
-  const emailValidation = await validateEmailAction(parsed.value.email);
-  if (!emailValidation.isValid) {
-    return embedJson({ error: emailValidation.error || 'Invalid request' }, 400, origin, allowedOrigins);
-  }
-
-  const emailRateLimitOk = await checkRateLimitForIdentifier(
-    'embed_free_access_email',
-    5,
-    1440,
-    `email:${parsed.value.email}`,
-  );
-  if (!emailRateLimitOk) {
-    return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
-  }
-
   if (!product || !isFreeEmbeddableProduct(product)) {
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
   }
 
-  const redirectUrl = buildFreeProductMagicLinkRedirect({
-    origin: getSellfBaseUrl(),
+  const result = await requestMagicLink({
+    flow: 'free_product',
     productSlug: product.slug,
-  });
-
-  const result = await deliverMagicLink({
     email: parsed.value.email,
-    redirectTo: redirectUrl,
-    shouldCreateUser: true,
-    data: {
-      product_slug: product.slug,
-    },
+    captchaToken: parsed.value.turnstileToken,
   });
 
   await logEmbedFreeAccessEvent(adminClient, {
@@ -144,6 +115,17 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
+    if (result.code === 'captcha_failed') {
+      return embedJson(
+        { error: 'Security verification failed. Please try again.' },
+        400,
+        origin,
+        allowedOrigins,
+      );
+    }
+    if (result.code === 'invalid_email') {
+      return embedJson({ error: 'Invalid request' }, 400, origin, allowedOrigins);
+    }
     if (result.code === 'rate_limited') {
       return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
     }

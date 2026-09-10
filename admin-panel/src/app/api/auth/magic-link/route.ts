@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
-import { getClientIp } from '@/lib/security/client-ip';
 
 const ALLOWED_KEYS = new Set([
   'email',
@@ -109,7 +108,6 @@ export async function POST(request: Request) {
     productSlug: parsed.productSlug,
     couponCode: parsed.couponCode,
     successUrl: parsed.successUrl,
-    ip: getClientIp(request),
   });
 
   if (result.ok) return NextResponse.json({ ok: true });
