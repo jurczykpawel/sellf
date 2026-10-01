@@ -72,6 +72,10 @@ describe('.env.docker.example', () => {
   const envExamplePath = path.join(REPO_ROOT, '.env.docker.example');
   const envExample = readFileSync(envExamplePath, 'utf8');
 
+  it('documents SELLF_VERSION as the version currently in admin-panel/package.json', () => {
+    expect(envExample).toContain(`SELLF_VERSION=${packageVersion}`);
+  });
+
   it('exists and documents every secret the compose file requires', () => {
     expect(existsSync(envExamplePath)).toBe(true);
     for (const name of [

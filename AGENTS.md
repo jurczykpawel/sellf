@@ -908,6 +908,8 @@ Releases are manual. CI builds the `sellf-build.tar.gz` artifact automatically.
 |------|-------|---------|
 | `package.json` (root) | `"version"` | `"2026.3.0"` |
 | `admin-panel/package.json` | `"version"` | `"2026.3.0"` |
+| `docker-compose.yml` | `image` default | `${SELLF_VERSION:-2026.3.0}` |
+| `.env.docker.example` | commented `SELLF_VERSION` | `2026.3.0` |
 | `README.md` | version badge URL | `version-2026.3.0-blue` |
 
 **Before creating a release, always run tests:**
