@@ -202,6 +202,83 @@ describe('SellfApiClient', () => {
   });
 });
 
+describe('SellfApiClient base URL safety', () => {
+  it('rejects a plain-http base URL against a non-loopback host', () => {
+    expect(() => new SellfApiClient({ baseUrl: 'http://api.example.com', apiKey: 'sf_test' })).toThrow(
+      /must be https/
+    );
+  });
+
+  it('accepts a plain-http base URL against loopback (local dev)', () => {
+    expect(() => new SellfApiClient({ baseUrl: 'http://127.0.0.1:3000', apiKey: 'sf_test' })).not.toThrow();
+    expect(() => new SellfApiClient({ baseUrl: 'http://localhost:3000', apiKey: 'sf_test' })).not.toThrow();
+  });
+
+  it('accepts an https base URL', () => {
+    expect(() => new SellfApiClient({ baseUrl: 'https://api.example.com', apiKey: 'sf_test' })).not.toThrow();
+  });
+
+  it('rejects an unparseable base URL', () => {
+    expect(() => new SellfApiClient({ baseUrl: 'not-a-url', apiKey: 'sf_test' })).toThrow(/Invalid Sellf API base URL/);
+  });
+});
+
+describe('SellfApiClient redirect and timeout handling', () => {
+  let client: SellfApiClient;
+
+  beforeEach(() => {
+    client = new SellfApiClient({ baseUrl: 'https://api.example.com', apiKey: 'sf_test_123456' });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('never follows redirects on API requests', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: {} }),
+    } as Response);
+
+    await client.get('/api/v1/products');
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ redirect: 'error' })
+    );
+  });
+
+  it('aborts and raises an ApiClientError when the request exceeds the timeout', async () => {
+    vi.useFakeTimers();
+    const timeoutClient = new SellfApiClient({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'sf_test',
+      timeoutMs: 50,
+    });
+
+    vi.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      return new Promise((_resolve, reject) => {
+        const signal = (init as RequestInit).signal;
+        signal?.addEventListener('abort', () => {
+          const err = new Error('The operation was aborted');
+          err.name = 'AbortError';
+          reject(err);
+        });
+      });
+    });
+
+    const pending = expect(timeoutClient.get('/api/v1/products')).rejects.toMatchObject({
+      name: 'ApiClientError',
+      code: 'TIMEOUT',
+      statusCode: 408,
+    });
+
+    await vi.advanceTimersByTimeAsync(50);
+    await pending;
+  });
+});
+
 describe('ApiClientError', () => {
   it('should create error with all properties', () => {
     const error = new ApiClientError(

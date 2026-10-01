@@ -7,6 +7,32 @@
 export interface ApiClientOptions {
   baseUrl: string;
   apiKey: string;
+  /** Request timeout in milliseconds. Defaults to 15s. */
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * The API key travels in every request as `X-API-Key`. Only allow an https
+ * base URL (or loopback, for local development against `bun run dev`) — an
+ * http base URL would send the key in the clear over the network.
+ */
+function assertSafeBaseUrl(rawUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error(`Invalid Sellf API base URL: ${rawUrl}`);
+  }
+
+  const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+  if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isLoopback)) {
+    throw new Error(
+      `Sellf API base URL must be https:// (got "${parsed.protocol}//${parsed.hostname}"). ` +
+        'Plain http is only allowed against localhost/127.0.0.1/::1 for local development.'
+    );
+  }
 }
 
 export interface ApiError {
@@ -24,10 +50,13 @@ export interface ApiResponse<T> {
 export class SellfApiClient {
   private baseUrl: string;
   private apiKey: string;
+  private timeoutMs: number;
 
   constructor(options: ApiClientOptions) {
+    assertSafeBaseUrl(options.baseUrl);
     this.baseUrl = options.baseUrl.replace(/\/$/, ''); // Remove trailing slash
     this.apiKey = options.apiKey;
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
   private async request<T>(
@@ -63,7 +92,28 @@ export class SellfApiClient {
       fetchOptions.body = JSON.stringify(options.body);
     }
 
-    const response = await fetch(url.toString(), fetchOptions);
+    // Never follow redirects: this client sends the API key in the
+    // `X-API-Key` header on every request, and fetch's default
+    // `redirect: 'follow'` does not distinguish same-origin from
+    // cross-origin redirects, so a redirect to another origin would carry
+    // the header there too.
+    fetchOptions.redirect = 'error';
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    fetchOptions.signal = controller.signal;
+
+    let response: Response;
+    try {
+      response = await fetch(url.toString(), fetchOptions);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new ApiClientError('TIMEOUT', `Request timed out after ${this.timeoutMs}ms`, 408);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
     const data = await response.json() as Record<string, unknown>;
 
     if (!response.ok) {

@@ -126,6 +126,26 @@ describe('MCP Server Protocol', () => {
   });
 
   describe('Tool Execution', () => {
+    it.each(['create_product', 'update_product'])('validates content configuration for %s', async (name) => {
+      const content_config = { sections: ['intro'], enabled: true, metadata: { title: 'Course' } };
+      const product = { name: 'Course', slug: 'course', description: 'Course content', price: 1000, content_config };
+      const id = '123e4567-e89b-42d3-a456-426614174000';
+      mockApiClient.post.mockResolvedValueOnce({ data: { id, ...product } });
+      mockApiClient.patch.mockResolvedValueOnce({ data: { id, ...product } });
+
+      const result = await client.callTool({
+        name,
+        arguments: name === 'create_product' ? product : { id, content_config },
+      });
+
+      expect(result.isError).not.toBe(true);
+      if (name === 'create_product') {
+        expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products', product);
+      } else {
+        expect(mockApiClient.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { content_config });
+      }
+    });
+
     it('should execute list_products tool', async () => {
       mockApiClient.get.mockResolvedValueOnce({
         data: {
