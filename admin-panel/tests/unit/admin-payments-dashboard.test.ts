@@ -47,6 +47,11 @@ const enMessagesSource = readFileSync(
   'utf-8'
 );
 
+const paymentFiltersSource = readFileSync(
+  resolve(__dirname, '../../src/components/admin/PaymentFilters.tsx'),
+  'utf-8'
+);
+
 describe('admin payments dashboard', () => {
   it('exposes the payments dashboard from the admin sidebar', () => {
     expect(sidebarSource).toContain("href: '/dashboard/payments'");
@@ -117,5 +122,68 @@ describe('admin payments dashboard', () => {
   it('stores subscription payment transaction amounts in minor units like one-time payments', () => {
     expect(subscriptionHandlersSource).toContain('amount: invoice.amount_paid ?? 0');
     expect(subscriptionHandlersSource).not.toContain('amount: (invoice.amount_paid ?? 0) / 100');
+  });
+
+  it('sends the status and search filters to the server instead of only filtering the loaded page', () => {
+    // The transactions list must be re-fetched with the filters applied server-side —
+    // not sliced client-side from whatever page happened to already be loaded.
+    expect(paymentsDashboardSource).toContain('fetchPaymentTransactionsPage(');
+    expect(paymentsDashboardSource).toMatch(/status:\s*filters\.status/);
+    expect(paymentsDashboardSource).toMatch(/search:\s*filters\.searchTerm/);
+    // A stale client-side status/search filter over `transactions` would silently
+    // hide server results outside whatever page happened to load first.
+    expect(paymentsDashboardSource).not.toMatch(/filters\.status !== 'all' && transaction\.status/);
+  });
+
+  it('sends the date range filter to the server on fetch and load-more instead of leaving it decorative', () => {
+    // The date-range dropdown had state, UI, and a chip, but nothing ever read it —
+    // sellers picking "last 7 days" still saw everything. It must now be forwarded
+    // on both the initial/refetch call and "Load more" so cursor pagination stays
+    // within the same filtered result set.
+    expect(paymentsDashboardSource).toMatch(/dateRange:\s*filters\.dateRange/);
+    const dateRangeUsages = paymentsDashboardSource.match(/dateRange:\s*filters\.dateRange/g) ?? [];
+    expect(dateRangeUsages.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('defaults the date range filter to "all" so opening the dashboard and searching still see every payment', () => {
+    // Before the date-range filter was wired to the server, it was decorative,
+    // so sellers effectively always saw ALL payments. A real 30-day default
+    // would be a silent behavior change (payments older than 30 days vanish
+    // on open, and server-side search — see da177bb9 — would stop finding an
+    // older payment unless the seller first switches the range to "all").
+    // Defaulting to "all" preserves prior behavior; a seller opts into a
+    // narrower window explicitly.
+    expect(paymentsDashboardSource).toMatch(/dateRange:\s*'all'/);
+    expect(paymentsDashboardSource).not.toMatch(/dateRange:\s*'30'/);
+    expect(paymentFiltersSource).toMatch(/dateRange:\s*'all'/);
+    expect(paymentFiltersSource).not.toMatch(/dateRange:\s*'30'/);
+  });
+
+  it('only offers payment status filter values that can actually exist in the database', () => {
+    // payment_transactions_status_check allows exactly these six values.
+    for (const value of ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned']) {
+      expect(paymentFiltersSource).toContain(`value="${value}"`);
+    }
+    // 'failed' and 'cancelled' can never occur on payment_transactions and
+    // previously caused a 400 once the dropdown value reached the server.
+    expect(paymentFiltersSource).not.toContain('value="failed"');
+    expect(paymentFiltersSource).not.toContain('value="cancelled"');
+  });
+
+  it('debounces the search input before it triggers a server request', () => {
+    expect(paymentFiltersSource).toMatch(/setTimeout/);
+    expect(paymentFiltersSource).toMatch(/clearTimeout/);
+  });
+
+  it('defines translated labels for every real payment status in both languages', () => {
+    for (const key of ['"partiallyRefunded"', '"abandoned"']) {
+      expect(plMessagesSource).toContain(key);
+      expect(enMessagesSource).toContain(key);
+    }
+    // Row-level status badges look up `statuses.<raw db value>` directly.
+    for (const key of ['"partially_refunded"', '"abandoned"']) {
+      expect(plMessagesSource).toContain(key);
+      expect(enMessagesSource).toContain(key);
+    }
   });
 });

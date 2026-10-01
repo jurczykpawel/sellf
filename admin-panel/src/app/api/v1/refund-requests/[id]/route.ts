@@ -20,7 +20,7 @@ import { validateUUID } from '@/lib/validations/product';
 import { getStripeServer } from '@/lib/stripe/server';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
-import { buildRefundApprovalLog, canProcessRefundRequest } from '@/lib/refunds/flow';
+import { buildRefundApprovalLog, canProcessRefundRequest, remainingRefundableAmount } from '@/lib/refunds/flow';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -221,6 +221,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Transaction not found');
     }
 
+    // The refund amount always comes from the transaction, never from the request row.
+    const refundAmount = remainingRefundableAmount(transaction);
+    if (action === 'approve' && refundAmount <= 0) {
+      return apiError(request, 'INVALID_INPUT', 'Transaction has no refundable amount left.');
+    }
+
     const adminUserId = authResult.admin.userId;
 
     // Update refund request status
@@ -248,7 +254,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
         const stripeRefund = await stripe.refunds.create({
           payment_intent: transaction.stripe_payment_intent_id,
-          amount: Math.round(refundRequest.requested_amount),
+          amount: refundAmount,
           reason: 'requested_by_customer',
           metadata: {
             refund_request_id: id,
@@ -259,7 +265,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Update the transaction status. Base totals on the actual Stripe refund amount
         // (not requested_amount) so the delta passed to computeRefundTax stays consistent
         // with totalRefunded — matches the other refund paths.
-        const refundDelta = stripeRefund.amount ?? Math.round(refundRequest.requested_amount);
+        const refundDelta = stripeRefund.amount ?? refundAmount;
         const totalRefunded = (transaction.refunded_amount || 0) + refundDelta;
         const isFullRefund = totalRefunded >= transaction.amount;
         const nextStatus = isFullRefund ? 'refunded' : 'completed';

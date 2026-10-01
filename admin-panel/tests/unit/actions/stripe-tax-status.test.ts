@@ -14,6 +14,22 @@ vi.mock('@/lib/stripe/server', () => ({
   })),
 }));
 
+// getStripeTaxStatus is an admin-only action — give it a signed-in admin.
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(async () => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'admin-1', email: 'admin@example.com' } }, error: null }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: { user_id: 'admin-1' }, error: null }),
+        }),
+      }),
+    }),
+  })),
+}));
+
 import { getStripeTaxStatus } from '@/lib/actions/stripe-tax';
 
 function taxSettings(status: string) {

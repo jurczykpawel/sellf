@@ -4,6 +4,7 @@ import {
   canProcessRefundRequest,
   getAdminRefundActions,
   getCustomerRefundAction,
+  remainingRefundableAmount,
 } from '@/lib/refunds/flow';
 
 describe('refund flow rules', () => {
@@ -86,5 +87,19 @@ describe('refund flow rules', () => {
         warnings: [],
       },
     });
+  });
+});
+
+describe('remainingRefundableAmount', () => {
+  it('is the charged amount minus what was already refunded', () => {
+    expect(remainingRefundableAmount({ amount: 10000, refunded_amount: 2500 })).toBe(7500);
+  });
+
+  it('treats a missing refunded amount as nothing refunded', () => {
+    expect(remainingRefundableAmount({ amount: 4999, refunded_amount: null })).toBe(4999);
+  });
+
+  it('never goes below zero', () => {
+    expect(remainingRefundableAmount({ amount: 1000, refunded_amount: 1500 })).toBe(0);
   });
 });

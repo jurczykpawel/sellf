@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient();
   const { data: product } = await supabase
     .from('products')
-    .select('*')
+    .select('name, description')
     .eq('slug', slug)
     .eq('is_active', true)
     .single();

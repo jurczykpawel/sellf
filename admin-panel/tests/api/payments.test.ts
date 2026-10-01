@@ -232,6 +232,292 @@ describe('Payments API v1', () => {
         expect(txDate >= today).toBe(true);
       }
     });
+
+    it('should include a payment exactly at date_from and exclude one just before it', async () => {
+      const r = Math.random().toString(36).substring(7);
+      const boundary = new Date();
+      // 1 second before the boundary — must be excluded by `gte`.
+      const beforeBoundary = new Date(boundary.getTime() - 1000);
+
+      const { data: rows, error } = await supabase
+        .from('payment_transactions')
+        .insert([
+          {
+            customer_email: `boundary-in-${r}@example.com`,
+            amount: 1000,
+            currency: 'USD',
+            status: 'completed',
+            stripe_payment_intent_id: `pi_boundary_in_${r}`,
+            product_id: testProductId,
+            session_id: `cs_boundary_in_${r}`,
+            created_at: boundary.toISOString(),
+          },
+          {
+            customer_email: `boundary-out-${r}@example.com`,
+            amount: 1000,
+            currency: 'USD',
+            status: 'completed',
+            stripe_payment_intent_id: `pi_boundary_out_${r}`,
+            product_id: testProductId,
+            session_id: `cs_boundary_out_${r}`,
+            created_at: beforeBoundary.toISOString(),
+          },
+        ])
+        .select('id, customer_email');
+      if (error) throw error;
+      const insideId = rows!.find((row) => row.customer_email.startsWith('boundary-in-'))!.id;
+      const outsideId = rows!.find((row) => row.customer_email.startsWith('boundary-out-'))!.id;
+
+      try {
+        const { status, data } = await get<ApiResponse<Payment[]>>(
+          `/api/v1/payments?date_from=${encodeURIComponent(boundary.toISOString())}&product_id=${testProductId}&limit=100`
+        );
+        expect(status).toBe(200);
+        const ids = data.data!.map((p) => p.id);
+        expect(ids).toContain(insideId);
+        expect(ids).not.toContain(outsideId);
+      } finally {
+        await supabase.from('payment_transactions').delete().in('id', [insideId, outsideId]);
+      }
+    });
+
+    it('should accept every status value the database can actually hold', async () => {
+      for (const value of ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned']) {
+        const { status } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?status=${value}`);
+        expect(status).toBe(200);
+      }
+    });
+
+    it('should reject a status value that can never exist in the database', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>('/api/v1/payments?status=failed');
+
+      expect(status).toBe(400);
+      expect(data.error!.code).toBe('INVALID_INPUT');
+    });
+  });
+
+  describe('GET /api/v1/payments search', () => {
+    let searchProductId: string;
+    const searchTxIds: string[] = [];
+    const r = Math.random().toString(36).substring(7);
+    const needleEmail = `search-needle-${r}@example.com`;
+    const needleSessionId = `cs_needle_${r}`;
+    const needlePaymentIntentId = `pi_needle_${r}`;
+    const searchProductName = `Search Needle Product ${r}`;
+
+    beforeAll(async () => {
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .insert({
+          name: searchProductName,
+          slug: `search-needle-product-${r}`,
+          description: 'Product for payments search testing',
+          price: 4900,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select('id')
+        .single();
+      if (productError) throw productError;
+      searchProductId = product.id;
+
+      const { data: tx, error: txError } = await supabase
+        .from('payment_transactions')
+        .insert({
+          customer_email: needleEmail,
+          amount: 4900,
+          currency: 'USD',
+          status: 'completed',
+          stripe_payment_intent_id: needlePaymentIntentId,
+          product_id: searchProductId,
+          session_id: needleSessionId,
+        })
+        .select('id')
+        .single();
+      if (txError) throw txError;
+      searchTxIds.push(tx.id);
+    });
+
+    afterAll(async () => {
+      if (searchTxIds.length) {
+        await supabase.from('payment_transactions').delete().in('id', searchTxIds);
+      }
+      if (searchProductId) {
+        await supabase.from('products').delete().eq('id', searchProductId);
+      }
+    });
+
+    it('finds a payment by customer email substring', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>(
+        `/api/v1/payments?search=${encodeURIComponent('search-needle-' + r)}`
+      );
+      expect(status).toBe(200);
+      expect(data.data!.some((p) => p.id === searchTxIds[0])).toBe(true);
+    });
+
+    it('finds a payment by Stripe session id', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>(
+        `/api/v1/payments?search=${encodeURIComponent(needleSessionId)}`
+      );
+      expect(status).toBe(200);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(searchTxIds[0]);
+    });
+
+    it('finds a payment by Stripe payment intent id', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>(
+        `/api/v1/payments?search=${encodeURIComponent(needlePaymentIntentId)}`
+      );
+      expect(status).toBe(200);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(searchTxIds[0]);
+    });
+
+    it('finds a payment by product name', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>(
+        `/api/v1/payments?search=${encodeURIComponent(searchProductName)}`
+      );
+      expect(status).toBe(200);
+      const ids = data.data!.map((p) => p.id);
+      expect(ids).toContain(searchTxIds[0]);
+    });
+
+    it('treats % as a literal character, not a wildcard', async () => {
+      // Stripe session/payment intent ids are constrained to [a-zA-Z0-9_] at
+      // the database level, so a literal `%` can only come through a
+      // realistic free-text field like the product name (e.g. "50% Off").
+      const literalR = Math.random().toString(36).substring(7);
+      const literalName = `Pct Deal 50%_${literalR}`;
+      const decoyName = `Pct Deal 50XXXXXXXXXX_${literalR}`; // would match `%` as a wildcard if unescaped
+
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .insert([
+          { name: literalName, slug: `pct-literal-${literalR}`, description: 'd', price: 1000, currency: 'USD', is_active: true },
+          { name: decoyName, slug: `pct-decoy-${literalR}`, description: 'd', price: 1000, currency: 'USD', is_active: true },
+        ])
+        .select('id, name');
+      if (productsError) throw productsError;
+      const literalProductId = products!.find((p) => p.name === literalName)!.id;
+      const decoyProductId = products!.find((p) => p.name === decoyName)!.id;
+
+      const { data: rows, error } = await supabase
+        .from('payment_transactions')
+        .insert([
+          { customer_email: `pct1-${literalR}@example.com`, amount: 1000, currency: 'USD', status: 'completed', stripe_payment_intent_id: `pi_pct1_${literalR}`, product_id: literalProductId, session_id: `cs_pct1_${literalR}` },
+          { customer_email: `pct2-${literalR}@example.com`, amount: 1000, currency: 'USD', status: 'completed', stripe_payment_intent_id: `pi_pct2_${literalR}`, product_id: decoyProductId, session_id: `cs_pct2_${literalR}` },
+        ])
+        .select('id, product_id');
+      if (error) throw error;
+      searchTxIds.push(...rows!.map((row) => row.id));
+      const literalTxId = rows!.find((row) => row.product_id === literalProductId)!.id;
+      const decoyTxId = rows!.find((row) => row.product_id === decoyProductId)!.id;
+
+      try {
+        const { status, data } = await get<ApiResponse<Payment[]>>(
+          `/api/v1/payments?search=${encodeURIComponent(literalName)}`
+        );
+        expect(status).toBe(200);
+        const foundIds = data.data!.map((p) => p.id);
+        expect(foundIds).toContain(literalTxId);
+        expect(foundIds).not.toContain(decoyTxId);
+      } finally {
+        await supabase.from('products').delete().in('id', [literalProductId, decoyProductId]);
+      }
+    });
+
+    it('treats _ as a literal character, not a single-character wildcard', async () => {
+      const underscoreR = Math.random().toString(36).substring(7);
+      const literalSessionId = `cs_us_${underscoreR}`;
+      const decoySessionId = `cs_usX${underscoreR}`; // would match `_` as a single-char wildcard if unescaped
+
+      const { data: rows, error } = await supabase
+        .from('payment_transactions')
+        .insert([
+          { customer_email: `us1-${underscoreR}@example.com`, amount: 1000, currency: 'USD', status: 'completed', stripe_payment_intent_id: `pi_us1_${underscoreR}`, product_id: searchProductId, session_id: literalSessionId },
+          { customer_email: `us2-${underscoreR}@example.com`, amount: 1000, currency: 'USD', status: 'completed', stripe_payment_intent_id: `pi_us2_${underscoreR}`, product_id: searchProductId, session_id: decoySessionId },
+        ])
+        .select('id, session_id');
+      if (error) throw error;
+      const ids = rows!.map((row) => row.id);
+      searchTxIds.push(...ids);
+      const literalId = rows!.find((row) => row.session_id === literalSessionId)!.id;
+      const decoyId = rows!.find((row) => row.session_id === decoySessionId)!.id;
+
+      const { status, data } = await get<ApiResponse<Payment[]>>(
+        `/api/v1/payments?search=${encodeURIComponent(literalSessionId)}`
+      );
+      expect(status).toBe(200);
+      const foundIds = data.data!.map((p) => p.id);
+      expect(foundIds).toContain(literalId);
+      expect(foundIds).not.toContain(decoyId);
+    });
+
+    it('does not let commas or parentheses in search rewrite the filter', async () => {
+      const payload = encodeURIComponent(`${needleEmail},status.eq.refunded`);
+      const { status, data } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?search=${payload}`);
+      expect(status).toBe(200);
+      // The literal (garbage) search term matches nothing — it must not be parsed
+      // as filter syntax that returns unrelated rows.
+      expect(data.data!.length).toBe(0);
+    });
+
+    it('rejects search input over 200 characters', async () => {
+      const { status, data } = await get<ApiResponse<Payment[]>>(`/api/v1/payments?search=${'a'.repeat(201)}`);
+      expect(status).toBe(400);
+      expect(data.error!.code).toBe('INVALID_INPUT');
+    });
+
+    it('paginates correctly within a filtered (searched) result set', async () => {
+      // Two more rows sharing a distinct product so search + limit=1 pagination
+      // can be exercised without picking up unrelated data.
+      const pageR = Math.random().toString(36).substring(7);
+      const { data: pageProduct, error: pageProductError } = await supabase
+        .from('products')
+        .insert({
+          name: `Search Page Product ${pageR}`,
+          slug: `search-page-product-${pageR}`,
+          description: 'd',
+          price: 1000,
+          currency: 'USD',
+          is_active: true,
+        })
+        .select('id')
+        .single();
+      if (pageProductError) throw pageProductError;
+
+      const { data: rows, error } = await supabase
+        .from('payment_transactions')
+        .insert([
+          { customer_email: `page1-${pageR}@example.com`, amount: 1000, currency: 'USD', status: 'completed', stripe_payment_intent_id: `pi_page1_${pageR}`, product_id: pageProduct.id, session_id: `cs_page1_${pageR}` },
+          { customer_email: `page2-${pageR}@example.com`, amount: 1000, currency: 'USD', status: 'completed', stripe_payment_intent_id: `pi_page2_${pageR}`, product_id: pageProduct.id, session_id: `cs_page2_${pageR}` },
+        ])
+        .select('id');
+      if (error) throw error;
+
+      try {
+        const search = encodeURIComponent(`Search Page Product ${pageR}`);
+        const page1 = await get<ApiResponse<Payment[]>>(`/api/v1/payments?search=${search}&limit=1`);
+        expect(page1.status).toBe(200);
+        expect(page1.data.data!.length).toBe(1);
+        expect(page1.data.pagination?.has_more).toBe(true);
+        expect(page1.data.pagination?.next_cursor).toBeTruthy();
+
+        const page2 = await get<ApiResponse<Payment[]>>(
+          `/api/v1/payments?search=${search}&limit=1&cursor=${page1.data.pagination!.next_cursor}`
+        );
+        expect(page2.status).toBe(200);
+        expect(page2.data.data!.length).toBe(1);
+        expect(page2.data.pagination?.has_more).toBe(false);
+        expect(page2.data.data![0].id).not.toBe(page1.data.data![0].id);
+
+        const allIds = [page1.data.data![0].id, page2.data.data![0].id].sort();
+        expect(allIds).toEqual(rows!.map((row) => row.id).sort());
+      } finally {
+        await supabase.from('payment_transactions').delete().in('id', rows!.map((row) => row.id));
+        await supabase.from('products').delete().eq('id', pageProduct.id);
+      }
+    });
   });
 
   describe('GET /api/v1/payments/:id', () => {

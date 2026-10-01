@@ -18,6 +18,7 @@ import OrderBumpFormModal from './OrderBumpFormModal';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { api } from '@/lib/api/client';
+import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface OrderBumpWithDetails {
   id: string;
@@ -68,12 +69,7 @@ const OrderBumpsPageContent: React.FC = () => {
   const fetchProducts = useCallback(async () => {
     try {
       setLoadingProducts(true);
-      const response = await api.list<Product>('products', {
-        limit: 1000,
-        status: 'active',
-        sort: 'name',
-      });
-      setProducts(response.data || []);
+      setProducts(await fetchAllProductsForDropdown('active'));
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {

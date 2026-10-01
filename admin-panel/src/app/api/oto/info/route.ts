@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 
 /**
@@ -38,10 +38,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 4. Query OTO coupon info
-    const supabase = await createClient();
-
-    const { data, error } = await supabase.rpc('get_oto_coupon_info', {
+    // 4. Query OTO coupon info server-side; the per-client limit above applies
+    const { data, error } = await createAdminClient().rpc('get_oto_coupon_info', {
       coupon_code_param: code,
       email_param: email.toLowerCase()
     });

@@ -35,6 +35,11 @@ export function canProcessRefundRequest(status: RefundRequestStatus, action: Ref
   return getAdminRefundActions(status).includes(action);
 }
 
+/** Amount still refundable on a transaction (smallest currency unit). */
+export function remainingRefundableAmount(transaction: { amount: number; refunded_amount: number | null }): number {
+  return Math.max(0, Math.round(transaction.amount - (transaction.refunded_amount ?? 0)));
+}
+
 export interface RefundApprovalLogInput {
   refundRequestId: string;
   transactionId: string;

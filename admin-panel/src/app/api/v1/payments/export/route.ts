@@ -9,6 +9,7 @@ import {
   handleCorsPreFlight,
   apiError,
   authenticate,
+  requireScope,
   handleApiError,
   parseJsonBody,
   API_SCOPES,
@@ -37,7 +38,8 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    const auth = await authenticate(request);
+    requireScope(auth, API_SCOPES.PAYMENTS_READ);
 
     // CSV export requires at least Registered Free license
     const tier = await resolveCurrentTier();

@@ -3,7 +3,7 @@
  * Builds redirect URLs for OTO and regular success redirects after payment
  */
 
-import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { isSafeRedirectUrl, isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 // ============================================
 // OTO Redirect
@@ -190,10 +190,11 @@ export function buildSuccessRedirectUrl(params: SuccessRedirectParams): SuccessR
   // Check if original URL has hide_bump (before any modifications)
   const hasHideBump = targetUrl.includes('hide_bump=true');
 
-  // If not passing params, return URL as-is
+  // If not passing params, return URL as-is (still scheme-gated: this feeds
+  // window.location.href on the payment-status page — see isRelativeOrHttpUrl).
   if (!passParams) {
     return {
-      url: targetUrl,
+      url: isRelativeOrHttpUrl(targetUrl) ? targetUrl : '/',
       hasHideBump
     };
   }

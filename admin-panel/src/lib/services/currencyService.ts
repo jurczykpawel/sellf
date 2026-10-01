@@ -103,13 +103,29 @@ class FixerIoProvider implements ExchangeRateProvider {
 }
 
 /**
+ * Real Frankfurter API host. The single source of truth for the ECB
+ * provider's default base URL — reused by the production startup guard
+ * (`assertCurrencyProviderBaseUrl`) so the two never drift apart.
+ */
+export const DEFAULT_ECB_BASE_URL = 'https://api.frankfurter.dev/v1';
+
+/**
  * European Central Bank Provider (FREE, official EU rates via Frankfurter API)
- * No API key needed. Uses frankfurter.app (open-source, maintained by ECB data)
- * Source: https://www.frankfurter.app/
+ * No API key needed. Uses frankfurter.dev (open-source, maintained by ECB data)
+ * Source: https://www.frankfurter.dev/
+ *
+ * The base URL is overridable via `CURRENCY_ECB_BASE_URL` so an E2E test run
+ * can point this provider at a local stub server instead of the real host —
+ * `assertCurrencyProviderBaseUrl` (startup-assertions.ts) refuses to boot in
+ * production with any override other than the real host.
  */
 class ECBProvider implements ExchangeRateProvider {
   name = 'ecb';
-  private baseUrl = 'https://api.frankfurter.dev/v1';
+  private baseUrl: string;
+
+  constructor(baseUrl: string = process.env.CURRENCY_ECB_BASE_URL || DEFAULT_ECB_BASE_URL) {
+    this.baseUrl = baseUrl;
+  }
 
   async fetchRates(baseCurrency: string): Promise<ExchangeRates> {
     const url = `${this.baseUrl}/latest?from=${baseCurrency}`;

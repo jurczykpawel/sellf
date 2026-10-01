@@ -10,7 +10,7 @@ import { requireAdminApi } from '@/lib/auth-server';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const authResult = await requireAdminApi(supabase);
+    const authResult = await requireAdminApi(supabase, request);
 
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url);

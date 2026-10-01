@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
+import { getVatDisplay } from '@/lib/product-pricing-display';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 import type { AppliedCoupon } from '@/types/coupon';
 import type { TaxMode } from '@/lib/actions/shop-config';
@@ -14,6 +15,8 @@ interface OrderSummaryProps {
   totalGross: number;
   totalNet: number;
   vatRate: number | null;
+  vatExempt?: boolean;
+  vatExemptNote?: string | null;
   taxMode?: TaxMode;
   customAmountError?: string | null;
   appliedCoupon?: AppliedCoupon;
@@ -34,6 +37,8 @@ export default function OrderSummary({
   totalGross,
   totalNet,
   vatRate,
+  vatExempt,
+  vatExemptNote,
   taxMode,
   customAmountError,
   appliedCoupon,
@@ -44,6 +49,7 @@ export default function OrderSummary({
   const t = useTranslations('checkout');
 
   const selectedBumpsForSummary = bumpProducts.filter(bp => selectedBumpIds.has(bp.bump_product_id));
+  const vatDisplay = getVatDisplay({ taxMode, vatRate, vatExempt, vatExemptNote });
   const showBreakdown = selectedBumpsForSummary.length > 0 || (appliedCoupon && discountAmount > 0);
 
   return (
@@ -85,9 +91,14 @@ export default function OrderSummary({
               <span className="text-xs font-normal ml-2">({t('invalidAmount', { defaultValue: 'invalid amount' })})</span>
             )}
           </div>
-          {taxMode !== 'stripe_tax' && !customAmountError && vatRate != null && vatRate > 0 && (
+          {!customAmountError && vatDisplay.kind === 'rate' && (
             <div className="text-xs text-sf-muted">
-              {t('netPrice')}: {formatPrice(totalNet, currency)} + {t('vat')} {vatRate}%
+              {t('netPrice')}: {formatPrice(totalNet, currency)} + {t('vat')} {vatDisplay.rate}%
+            </div>
+          )}
+          {!customAmountError && vatDisplay.kind === 'exempt' && (
+            <div className="text-xs text-sf-muted">
+              {t('vatExempt')}{vatDisplay.note && ` (${vatDisplay.note})`}
             </div>
           )}
         </div>

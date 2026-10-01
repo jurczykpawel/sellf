@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createCurrencyService, type ExchangeRates } from '@/lib/services/currencyService'
 import { getDecryptedCurrencyConfigInternal as getDecryptedCurrencyConfig } from '@/lib/integrations/internal-secrets'
+import { withAdminAuth } from '@/lib/actions/admin-auth'
 
 // ============================================
 // SERVER-SIDE CACHE FOR EXCHANGE RATES
@@ -59,33 +60,36 @@ function setCachedRates(provider: string, baseCurrency: string, rates: ExchangeR
  * Priority: Database config > .env config > manual fallback
  */
 export async function getExchangeRates(baseCurrency: string = 'USD'): Promise<ExchangeRates | null> {
-  try {
-    // Get decrypted config from database (priority) or .env (fallback)
-    const config = await getDecryptedCurrencyConfig()
+  const result = await withAdminAuth<ExchangeRates | null>(async () => {
+    try {
+      // Get decrypted config from database (priority) or .env (fallback)
+      const config = await getDecryptedCurrencyConfig()
 
-    if (!config) {
-      console.error('[getExchangeRates] No currency config found')
-      return null
+      if (!config) {
+        console.error('[getExchangeRates] No currency config found')
+        return { success: true, data: null }
+      }
+
+      // Check cache first
+      const cached = getCachedRates(config.provider, baseCurrency)
+      if (cached) {
+        return { success: true, data: cached }
+      }
+
+      const currencyService = createCurrencyService(config.provider, config.apiKey || undefined)
+      const rates = await currencyService.fetchRates(baseCurrency)
+
+      if (rates) {
+        setCachedRates(config.provider, baseCurrency, rates)
+      }
+
+      return { success: true, data: rates }
+    } catch (error: any) {
+      console.error('Error fetching exchange rates:', error)
+      return { success: true, data: null }
     }
-
-    // Check cache first
-    const cached = getCachedRates(config.provider, baseCurrency)
-    if (cached) {
-      return cached
-    }
-
-    const currencyService = createCurrencyService(config.provider, config.apiKey || undefined)
-    const rates = await currencyService.fetchRates(baseCurrency)
-
-    if (rates) {
-      setCachedRates(config.provider, baseCurrency, rates)
-    }
-
-    return rates
-  } catch (error: any) {
-    console.error('Error fetching exchange rates:', error)
-    return null
-  }
+  })
+  return result.success ? (result.data ?? null) : null
 }
 
 /**

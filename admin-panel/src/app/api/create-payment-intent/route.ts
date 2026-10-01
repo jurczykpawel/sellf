@@ -33,6 +33,8 @@ import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 import { signCheckoutBinding, verifyCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 import { findIssuedLicense } from '@/lib/license-keys/lookup';
+import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonBody<any>(request);
     const {
       productId,
       clientSecret,
@@ -143,9 +145,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use email from request if provided, otherwise from user session
-    // For guests without email, we'll let Stripe collect it via billing details
-    const finalEmail = email || user?.email || null;
+    // Signed-in buyers always check out as their account email (coupon rules,
+    // per-user limits and the Stripe customer are keyed on it). Guests use the
+    // form email; without one Stripe collects it via billing details.
+    const finalEmail = user ? user.email || null : email || null;
 
     // Validate email format + disposable domain check (consistent with checkout.ts)
     if (finalEmail) {
@@ -338,6 +341,7 @@ export async function POST(request: NextRequest) {
           stripeProductId,
           productId: subscriptionProduct.id,
           productSlug: subscriptionProduct.slug,
+          userId: user?.id,
           interval: (subscriptionProduct.billing_interval ?? 'month') as 'day' | 'week' | 'month' | 'year',
           intervalCount: subscriptionProduct.billing_interval_count ?? 1,
           taxRateId,
@@ -508,27 +512,31 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = toStripeCents(pricing.totalGross);
 
-    // 7a. Handle 100% coupon — skip Stripe, grant access directly
-    if (pricing.isFreeWithCoupon && user) {
-      // Grant access for main product
-      const { error: grantError } = await dataClient.rpc('grant_free_product_access', {
-        product_slug_param: product.slug,
+    // 7a. Handle 100% coupon — skip Stripe, grant access directly.
+    // The grant RPC runs as the buyer (auth.uid()), re-validates the coupon and
+    // records the redemption atomically with the access row, so a refused grant
+    // leaves the coupon untouched.
+    if (pricing.isFreeWithCoupon && user && appliedCoupon) {
+      const grant = await grantFreeProductAccess(supabase, dataClient, {
+        product: { id: product.id, slug: product.slug },
+        user: { id: user.id, email: user.email ?? '' },
+        couponCode: appliedCoupon.code,
       });
 
-      if (grantError) {
-        console.error('[create-payment-intent] Free coupon grant error:', grantError);
+      if (!grant.accessGranted) {
         return NextResponse.json(
-          { error: 'Failed to grant access' },
-          { status: 500 }
+          { error: grant.error || 'Failed to grant access' },
+          { status: 400 }
         );
       }
 
-      // Grant access for bump products (parallel — independent operations)
+      // Bumps are covered by the same coupon (the order total is zero).
       if (validatedBumps.length > 0) {
         const bumpGrantResults = await Promise.all(
           validatedBumps.map(vb =>
-            dataClient.rpc('grant_free_product_access', {
-              product_slug_param: vb.product.slug,
+            dataClient.rpc('grant_product_and_bundle_components', {
+              user_id_param: user.id,
+              product_id_param: vb.product.id,
             })
           )
         );
@@ -536,40 +544,6 @@ export async function POST(request: NextRequest) {
           if (bumpGrantResults[i].error) {
             console.error(`[create-payment-intent] Free coupon bump grant error for ${validatedBumps[i].product.slug}:`, bumpGrantResults[i].error);
           }
-        }
-      }
-
-      // Record coupon usage (normally done by webhook, but no Stripe payment here).
-      // Best-effort — access is already granted, failures are logged not fatal.
-      if (appliedCoupon && finalEmail) {
-        const adminClient = createAdminClient();
-
-        try {
-          // Record redemption (per-user usage tracking + prevents re-use)
-          await adminClient
-            .from('coupon_redemptions')
-            .insert({
-              coupon_id: appliedCoupon.id,
-              customer_email: finalEmail,
-              user_id: user.id,
-              discount_amount: pricing.discountAmount,
-              transaction_id: null,
-            });
-
-          // Atomic increment of global usage counter (prevents race condition
-          // where two concurrent 100% coupon redemptions both read the same count)
-          await adminClient.rpc('increment_coupon_usage', {
-            coupon_id_param: appliedCoupon.id,
-          });
-
-          // Cleanup reservation
-          await adminClient
-            .from('coupon_reservations')
-            .delete()
-            .eq('coupon_id', appliedCoupon.id)
-            .eq('customer_email', finalEmail);
-        } catch (couponErr) {
-          console.error('[create-payment-intent] Coupon usage recording error:', couponErr);
         }
       }
 
@@ -868,6 +842,9 @@ export async function POST(request: NextRequest) {
       }),
     });
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     // stripe_tax is enabled but the seller's Stripe account has no Tax origin/head-office address.
     // Surface a clear, diagnosable error instead of a generic 500. Actionable detail goes to the
     // log (for the seller); the buyer-facing message stays generic.

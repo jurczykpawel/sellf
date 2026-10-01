@@ -14,6 +14,7 @@ import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts } from '@/hooks/useProducts';
+import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 interface ProductsPageContentProps {
   hasLicenseIssuance?: boolean;
@@ -204,8 +205,9 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handlePreviewRedirect = (product: Product) => {
-    if (product.content_delivery_type === 'redirect' && product.content_config?.redirect_url) {
-      window.open(product.content_config.redirect_url, '_blank');
+    const redirectUrl = product.content_config?.redirect_url;
+    if (product.content_delivery_type === 'redirect' && redirectUrl && isRelativeOrHttpUrl(redirectUrl)) {
+      window.open(redirectUrl, '_blank');
     } else {
       toast.warning(t('noRedirectUrl'));
     }

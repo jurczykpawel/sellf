@@ -43,7 +43,19 @@ const FULL_RESULT = {
   customer_email: 'buyer@example.com',
   amount_total: 9900,
   currency: 'pln',
-  metadata: { product_id: 'prod-123' },
+  metadata: {
+    product_id: 'prod-123',
+    first_name: 'Jan',
+    last_name: 'Kowalski',
+    nip: '1234567890',
+    address: 'Main St 1',
+  },
+  created: 1700000000,
+  expires_at: 1700086400,
+  access_expires_at: null,
+  oto_info: { has_oto: true, coupon_code: 'OTO-123' },
+  scenario: 'guest_purchase_new_user',
+  is_guest_purchase: true,
   access_granted: true,
   requires_login: true,
   send_magic_link: true,
@@ -66,10 +78,48 @@ describe('POST /api/verify-payment — PII redaction', () => {
     expect(body.customer_email).toBeUndefined();
     expect(body.amount_total).toBeUndefined();
     expect(body.currency).toBeUndefined();
-    expect(body.metadata?.product_id).toBeUndefined();
+    expect(body.metadata).toBeUndefined();
+    expect(body.oto_info).toBeUndefined();
     // Flow-control fields the post-purchase page needs are still present.
     expect(body.access_granted).toBe(true);
     expect(body.send_magic_link).toBe(true);
+  });
+
+  it('returns only status and flow fields to an anonymous caller', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+
+    const res = await POST(makeRequest());
+    const body = await res.json();
+
+    expect(Object.keys(body).sort()).toEqual([
+      'access_granted',
+      'is_guest_purchase',
+      'payment_status',
+      'requires_login',
+      'scenario',
+      'send_magic_link',
+      'session_id',
+      'status',
+    ]);
+  });
+
+  it('returns only status, flow fields and the error to an anonymous caller on failure', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.verifyPaymentSession.mockResolvedValue({
+      ...FULL_RESULT,
+      access_granted: false,
+      error: 'Payment processing failed',
+    });
+
+    const res = await POST(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toBe('Payment processing failed');
+    expect(body.customer_email).toBeUndefined();
+    expect(body.amount_total).toBeUndefined();
+    expect(body.metadata).toBeUndefined();
+    expect(body.oto_info).toBeUndefined();
   });
 
   it('returns email to an authenticated caller (the owner)', async () => {
@@ -81,5 +131,6 @@ describe('POST /api/verify-payment — PII redaction', () => {
     expect(res.status).toBe(200);
     expect(body.customer_email).toBe('buyer@example.com');
     expect(body.amount_total).toBe(9900);
+    expect(body.metadata.first_name).toBe('Jan');
   });
 });

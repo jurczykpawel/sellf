@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_REASON_LENGTH = 2000;
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await readJsonBody<{ transaction_id?: string; reason?: string }>(request);
     const { transaction_id, reason } = body;
 
     // Validate body BEFORE consuming the 3/h budget so a bad payload or a
@@ -124,6 +125,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('Error creating refund request:', error);
     return NextResponse.json(
       { error: 'Failed to create refund request' },

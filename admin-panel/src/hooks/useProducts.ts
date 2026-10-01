@@ -286,6 +286,35 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
 }
 
 /**
+ * Fetches every product for dropdown/picker UIs and flat management tables
+ * with no paging of their own (webhook product scoping, variant group
+ * membership, order bumps, coupon product restrictions, the OTO/downsell
+ * pickers, access-grant pickers), following the v1 API's cursor pagination
+ * until it reports no more pages.
+ *
+ * The API caps each page at `MAX_LIMIT` (100) regardless of the requested
+ * `limit`, so a single request silently truncates any catalogue larger than
+ * that — a seller with more than ~100 products would see products missing
+ * from these pickers with no indication anything was cut off. `api.listAll`
+ * follows `next_cursor`/`has_more` until the API reports no more pages,
+ * keeping the existing "full list, then filter client-side" UX correct at
+ * any catalogue size (up to its own safety ceiling).
+ */
+export async function fetchAllProductsForDropdown(status: 'all' | 'active'): Promise<Product[]> {
+  const { data, truncated } = await api.listAll<Product>('products', {
+    status: status === 'all' ? undefined : status,
+    sort_by: 'name',
+    sort_order: 'asc',
+  });
+
+  if (truncated) {
+    console.warn('[fetchAllProductsForDropdown] Product list truncated at the safety ceiling; not every product was loaded.');
+  }
+
+  return data;
+}
+
+/**
  * Hook for fetching products dropdown (simple list for selects)
  */
 export function useProductsDropdown(status: 'all' | 'active' = 'active') {
@@ -298,14 +327,7 @@ export function useProductsDropdown(status: 'all' | 'active' = 'active') {
     setError(null);
 
     try {
-      const response = await api.list<Product>('products', {
-        limit: 1000, // Get all products for dropdown
-        status: status === 'all' ? undefined : status,
-        sort_by: 'name',
-        sort_order: 'asc',
-      });
-
-      setProducts(response.data);
+      setProducts(await fetchAllProductsForDropdown(status));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

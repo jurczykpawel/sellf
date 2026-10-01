@@ -25,6 +25,22 @@ export interface SingleResponse<T> {
   data: T;
 }
 
+// Safety ceiling for listAll(): the number of items fetched before the loop
+// gives up and reports `truncated: true` instead of continuing forever
+// against an unbounded (or adversarial) dataset.
+export const DEFAULT_LIST_ALL_MAX_ITEMS = 5000;
+
+export interface ListAllOptions {
+  /** Stop following the cursor once this many items have been collected. */
+  maxItems?: number;
+}
+
+export interface ListAllResult<T> {
+  data: T[];
+  /** True when the safety ceiling was hit before the API reported `has_more: false`. */
+  truncated: boolean;
+}
+
 export interface ApiErrorResponse {
   error: {
     code: string;
@@ -118,6 +134,55 @@ class ApiClient {
     });
 
     return handleResponse<PaginatedResponse<T>>(response);
+  }
+
+  /**
+   * GET request that follows cursor pagination until the API reports no
+   * more pages (`has_more: false`), instead of taking only the first page.
+   *
+   * The v1 API clamps `limit` to `MAX_LIMIT` (100, see `lib/api/pagination.ts`)
+   * regardless of what a caller requests, so a single `list()` call silently
+   * truncates any result set larger than that. Use `listAll` for screens that
+   * genuinely need the full collection (e.g. a picker/dropdown rendering
+   * every product, or a flat management table with no paging UI of its own).
+   * Screens that already have real paging UI (page/cursor controls) should
+   * keep using `list()` directly — fetching everything defeats the point of
+   * paging.
+   *
+   * Bounded by `options.maxItems` (default `DEFAULT_LIST_ALL_MAX_ITEMS`) so a
+   * huge or adversarial dataset can't turn this into an unbounded loop; when
+   * the ceiling is hit before the API reports `has_more: false`, the result
+   * is returned with `truncated: true` rather than continuing forever.
+   */
+  async listAll<T>(
+    resource: string,
+    params: PaginationParams & Record<string, unknown> = {},
+    options: ListAllOptions = {}
+  ): Promise<ListAllResult<T>> {
+    const maxItems = options.maxItems ?? DEFAULT_LIST_ALL_MAX_ITEMS;
+    const pageParams = { ...params };
+    let cursor = params.cursor;
+    const allItems: T[] = [];
+
+    for (;;) {
+      const response = await this.list<T>(resource, { ...pageParams, cursor });
+      allItems.push(...response.data);
+
+      if (allItems.length >= maxItems) {
+        return { data: allItems, truncated: response.pagination.has_more };
+      }
+
+      if (!response.pagination.has_more) {
+        return { data: allItems, truncated: false };
+      }
+
+      cursor = response.pagination.next_cursor ?? undefined;
+      if (!cursor) {
+        // has_more was true but no cursor was provided — nothing more we can
+        // ask for, so stop rather than looping on the same page forever.
+        return { data: allItems, truncated: false };
+      }
+    }
   }
 
   /**

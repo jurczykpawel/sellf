@@ -28,10 +28,10 @@ export const dynamic = 'force-dynamic';
 // OPTIMIZED: Cached data fetcher - React cache() deduplicates requests in the same render cycle
 // This eliminates duplicate queries between generateMetadata() and ProductPage()
 // Explicit field list — avoids pulling future sensitive columns automatically.
-// Must stay in sync with the Product interface in src/types/index.ts.
-// IMPORTANT: content_config IS fetched here (needed for redirect_url + preview)
-// but is sanitized via safeProduct before being sent to the client.
+// content_config is not part of it: it is loaded with the service role only
+// for admin preview or once the visitor's access is confirmed.
 import { PRODUCT_PAGE_FIELDS } from '@/lib/constants';
+import { loadProductContentConfig } from '@/lib/services/product-content-config';
 
 // Two-layer cache: React cache() dedupes within a single render (e.g. between
 // generateMetadata and the page); unstable_cache persists across requests so
@@ -103,7 +103,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
       .from('products')
-      .select(PRODUCT_PAGE_FIELDS)
+      .select(`${PRODUCT_PAGE_FIELDS}, content_config`)
       .eq('slug', slug)
       .single();
     product = data as Product | null;
@@ -194,8 +194,14 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   // Prefetch the secure content payload server-side for authenticated buyers
   // — eliminates the "Loading secure content…" spinner inside ProductAccessView.
   // getShopConfig() is deduped per-render via React cache() (layout calls it).
+  // Delivered content is loaded only for a visitor whose access is confirmed.
+  const buyerContentConfig =
+    outcome.kind === 'render-content' && !previewMode && resolvedAccess
+      ? (await loadProductContentConfig(createAdminClient(), product.id)) ?? {}
+      : null;
+
   let initialSecureData: SecureProductResponse | undefined;
-  if (outcome.kind === 'render-content' && !previewMode && resolvedAccess) {
+  if (buyerContentConfig && resolvedAccess) {
     const shopConfig = await getShopConfig();
     const expiresAtIso = resolvedAccess.access_expires_at ?? null;
     const expiresAt = expiresAtIso ? new Date(expiresAtIso) : null;
@@ -222,7 +228,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
     }
 
     initialSecureData = {
-      product,
+      product: { ...product, content_config: buyerContentConfig },
       branding: { shop_name: shopConfig?.shop_name ?? null },
       license: existingLicense,
       bundleComponents,
@@ -241,21 +247,17 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   // Only active when ?preview=1 AND the requester is a verified admin.
   // (previewMode already determined above, before product fetch)
 
-  // SECURITY: Strip sensitive content_config before sending to client component.
-  // The full content_config (with download_url, video URLs etc.) is in the DB row
-  // from select('*'), but it must NOT leak in the RSC payload — unauthenticated
-  // visitors could extract it from the page source / network tab.
-  // Authenticated content delivery happens via /api/public/products/[slug]/content.
-  //
-  // Exception: admin preview mode — the server has already verified admin identity,
-  // so passing the full content_config is safe and lets admins see actual content.
+  // The product prop carries content_config only where the visitor may see it:
+  // admin preview gets the full config, a buyer of a redirect product gets the
+  // redirect URL (ProductView navigates there client-side). Content items reach
+  // buyers via initialSecureData or /api/public/products/[slug]/content.
   const safeProduct = {
     ...product,
     content_config: previewMode
-      ? product.content_config                                    // admin preview: full config
-      : product.content_delivery_type === 'redirect'
-        ? { redirect_url: product.content_config?.redirect_url }  // redirect URL needed client-side
-        : {},                                                      // content items served via auth API
+      ? product.content_config
+      : buyerContentConfig && product.content_delivery_type === 'redirect'
+        ? { redirect_url: buyerContentConfig.redirect_url }
+        : {},
   };
 
   return (

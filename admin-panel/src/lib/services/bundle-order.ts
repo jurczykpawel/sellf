@@ -17,6 +17,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { issueLicense } from '@/lib/license-keys/issue';
 import type { PurchaseWebhookData } from '@/lib/services/webhook-payload';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 type AnySupabaseClient = SupabaseClient<any, any, any>;
 
@@ -56,7 +57,7 @@ export async function issueLicensesForOrder(
     customFieldValues?: Record<string, string>;
   },
 ): Promise<NonNullable<PurchaseWebhookData['licenses']>> {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+  const siteUrl = getCanonicalOriginOrNull() ?? '';
   const licenses: NonNullable<PurchaseWebhookData['licenses']> = [];
   for (const pid of args.productIds) {
     const res = await issueLicense(supabase, {

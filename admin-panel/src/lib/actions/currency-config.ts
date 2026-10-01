@@ -1,6 +1,5 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
 import { encryptSecret } from '@/lib/services/secret-encryption';
 import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
@@ -106,70 +105,70 @@ export async function saveCurrencyConfig(input: SaveCurrencyConfigInput): Promis
  * Checks both .env and database for configuration
  */
 export async function getCurrencyConfig(): Promise<ActionResponse<CurrencyConfig>> {
-  try {
-    // Check if provider and key are in environment (METHOD 1)
-    const envProvider = (process.env.NEXT_PUBLIC_CURRENCY_PROVIDER || 'ecb') as any;
-    const envKey = process.env.CURRENCY_API_KEY;
-    const hasEnvKey = !!(envKey && envKey.trim().length > 0);
-    const hasEnvConfig = !!(envProvider && envProvider !== 'ecb'); // Has explicit config (not just default)
+  return withAdminAuth<CurrencyConfig>(async ({ supabase }) => {
+    try {
+      // Check if provider and key are in environment (METHOD 1)
+      const envProvider = (process.env.NEXT_PUBLIC_CURRENCY_PROVIDER || 'ecb') as any;
+      const envKey = process.env.CURRENCY_API_KEY;
+      const hasEnvKey = !!(envKey && envKey.trim().length > 0);
+      const hasEnvConfig = !!(envProvider && envProvider !== 'ecb'); // Has explicit config (not just default)
 
-    // Check database for configuration (METHOD 2)
-    const supabase = await createClient();
+      // Check database for configuration (METHOD 2)
+      const { data: config } = await supabase
+        .from('integrations_config')
+        .select('currency_api_provider, currency_api_key_encrypted, currency_api_enabled')
+        .eq('id', 1)
+        .single();
 
-    const { data: config } = await supabase
-      .from('integrations_config')
-      .select('currency_api_provider, currency_api_key_encrypted, currency_api_enabled')
-      .eq('id', 1)
-      .single();
+      const hasDatabaseKey = !!(config?.currency_api_key_encrypted);
+      const databaseProvider = config?.currency_api_provider || 'ecb';
+      const databaseEnabled = config?.currency_api_enabled === true;
+      const hasDatabaseConfig = databaseProvider !== 'ecb' || hasDatabaseKey;
 
-    const hasDatabaseKey = !!(config?.currency_api_key_encrypted);
-    const databaseProvider = config?.currency_api_provider || 'ecb';
-    const databaseEnabled = config?.currency_api_enabled === true;
-    const hasDatabaseConfig = databaseProvider !== 'ecb' || hasDatabaseKey;
+      // Determine effective configuration
+      let provider: CurrencyConfig['provider'];
+      let enabled: boolean;
+      let hasKey: boolean;
+      let configuredIn: CurrencyConfig['configuredIn'];
 
-    // Determine effective configuration
-    let provider: CurrencyConfig['provider'];
-    let enabled: boolean;
-    let hasKey: boolean;
-    let configuredIn: CurrencyConfig['configuredIn'];
-
-    // Priority: Database > .env
-    if (hasDatabaseConfig && databaseEnabled) {
-      provider = databaseProvider as any;
-      enabled = true;
-      hasKey = hasDatabaseKey || databaseProvider === 'ecb'; // ecb doesn't need key
-      configuredIn = hasEnvConfig ? 'both' : 'database';
-    } else if (hasEnvConfig) {
-      provider = envProvider;
-      enabled = true;
-      hasKey = hasEnvKey || envProvider === 'ecb';
-      configuredIn = 'env';
-    } else {
-      provider = 'ecb';
-      enabled = true; // Always enabled (ECB is free default)
-      hasKey = true; // ECB doesn't need API key
-      configuredIn = 'none';
-    }
-
-    return {
-      success: true,
-      data: {
-        enabled,
-        hasKey,
-        provider,
-        configuredIn,
-        hasEnvConfig,
-        hasDatabaseConfig: hasDatabaseConfig && databaseEnabled,
+      // Priority: Database > .env
+      if (hasDatabaseConfig && databaseEnabled) {
+        provider = databaseProvider as any;
+        enabled = true;
+        hasKey = hasDatabaseKey || databaseProvider === 'ecb'; // ecb doesn't need key
+        configuredIn = hasEnvConfig ? 'both' : 'database';
+      } else if (hasEnvConfig) {
+        provider = envProvider;
+        enabled = true;
+        hasKey = hasEnvKey || envProvider === 'ecb';
+        configuredIn = 'env';
+      } else {
+        provider = 'ecb';
+        enabled = true; // Always enabled (ECB is free default)
+        hasKey = true; // ECB doesn't need API key
+        configuredIn = 'none';
       }
-    };
-  } catch (error) {
-    console.error('Error fetching Currency config:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'UNKNOWN_ERROR'
-    };
-  }
+
+      return {
+        success: true,
+        data: {
+          enabled,
+          hasKey,
+          provider,
+          configuredIn,
+          hasEnvConfig,
+          hasDatabaseConfig: hasDatabaseConfig && databaseEnabled,
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching Currency config:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'UNKNOWN_ERROR'
+      };
+    }
+  });
 }
 
 /**

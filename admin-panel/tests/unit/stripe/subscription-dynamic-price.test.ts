@@ -106,6 +106,30 @@ describe('createSubscriptionWithDynamicPrice', () => {
     expect(args.default_tax_rates).toEqual(['txr_test_23']);
   });
 
+  it('records the signed-in buyer in subscription metadata', async () => {
+    const { stripe, subscriptionsCreate } = makeStripeMock({ amount: 500, currency: 'PLN', customerId: 'cus_U' });
+    const base = {
+      stripe,
+      amount: 5,
+      currency: 'PLN',
+      customer: 'cus_U',
+      stripeProductId: 'prod_stripe_u',
+      productId: 'p',
+      productSlug: 's',
+      interval: 'month' as const,
+      intervalCount: 1,
+      priceIncludesVat: true,
+    };
+    await createSubscriptionWithDynamicPrice({ ...base, userId: 'user-1' });
+    await createSubscriptionWithDynamicPrice(base);
+
+    const [signedIn, guest] = subscriptionsCreate.mock.calls.map(
+      (call) => (call as unknown as [{ metadata: Record<string, string> }])[0].metadata,
+    );
+    expect(signedIn.user_id).toBe('user-1');
+    expect(guest).not.toHaveProperty('user_id');
+  });
+
   it('rejects amount <= 0', async () => {
     const { stripe } = makeStripeMock({ amount: 0, currency: 'USD', customerId: 'cus_W' });
     await expect(

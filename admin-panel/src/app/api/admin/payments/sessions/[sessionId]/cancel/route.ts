@@ -17,11 +17,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { sessionId } = await params;
 
   // Auth + admin check required even on stub endpoints
-  const supabase = await createClient();
-  await requireAdminApi(supabase);
+  try {
+    const supabase = await createClient();
+    await requireAdminApi(supabase, request);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+    console.error('[sessions/cancel] Auth error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
-  return NextResponse.json({ 
+  return NextResponse.json({
     error: 'Session cancellation not supported in embedded checkout',
-    sessionId 
+    sessionId
   }, { status: 501 });
 }

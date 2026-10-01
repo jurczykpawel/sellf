@@ -21,8 +21,11 @@ export function useWebhooks() {
   const fetchEndpoints = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.list<WebhookEndpoint>('webhooks', { limit: 100 });
-      setEndpoints(response.data || []);
+      const { data, truncated } = await api.listAll<WebhookEndpoint>('webhooks');
+      if (truncated) {
+        console.warn('[useWebhooks] Endpoint list truncated at the safety ceiling; not every endpoint was loaded.');
+      }
+      setEndpoints(data);
     } catch (err) {
       console.error(err);
       toast.error(tCommon('error'));

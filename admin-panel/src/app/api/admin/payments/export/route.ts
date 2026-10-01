@@ -9,6 +9,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { hasFeature } from '@/lib/license/features';
 import { buildCsv } from '@/lib/csv/sanitize';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get filters from request body
-    const filters = await request.json();
+    const filters = await readJsonBody<{ status?: string; dateRange?: string }>(request);
 
     // Build query for transactions
     let query = supabase
@@ -130,6 +131,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

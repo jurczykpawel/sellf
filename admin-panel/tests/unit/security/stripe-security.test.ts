@@ -44,6 +44,13 @@ const REFUND_ROUTE_SOURCE = readFileSync(
   'utf-8'
 );
 
+// The refund/dispute transaction lookup (payment intent id or session id) was extracted
+// from route.ts into a shared, parameterized helper; the `.maybeSingle()` calls live there now.
+const TRANSACTION_LOOKUP_SOURCE = readFileSync(
+  resolve(__dirname, '../../../src/lib/services/transaction-lookup.ts'),
+  'utf-8'
+);
+
 describe('Stripe Integration Security', () => {
   describe('Client Secret Parsing', () => {
     it('should verify production code uses split(_secret_) pattern (known vulnerability)', () => {
@@ -301,12 +308,17 @@ describe('Stripe Integration Security', () => {
     it('should verify production webhook checks existing transactions before processing', () => {
       // The webhook route queries payment_transactions by session_id before inserting
       expect(WEBHOOK_ROUTE_SOURCE).toContain("'payment_transactions'");
-      expect(WEBHOOK_ROUTE_SOURCE).toContain('.maybeSingle()');
+      expect(TRANSACTION_LOOKUP_SOURCE).toContain('.maybeSingle()');
     });
 
     it('should verify production webhook skips already-processed events', () => {
       // After finding an existing transaction, the handler returns early
       expect(ONETIME_HANDLERS_SOURCE).toContain('Already processed');
+    });
+
+    it('resolves a transaction from a Stripe order id via parameterized lookups, not a string-built filter', () => {
+      expect(WEBHOOK_ROUTE_SOURCE).not.toMatch(/\.or\(`/);
+      expect(WEBHOOK_ROUTE_SOURCE).toContain('findTransactionByOrderId');
     });
 
     it('should verify production webhook verifies signature before processing', () => {

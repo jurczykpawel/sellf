@@ -59,3 +59,26 @@ export function formatRecurringProductPrice(
 
   return `${amount}${currencyCode} / ${interval}`;
 }
+
+export type VatDisplay =
+  | { kind: 'none' }
+  | { kind: 'rate'; rate: number }
+  | { kind: 'exempt'; note: string | null };
+
+/**
+ * What the storefront shows next to a price. Mirrors the charge path
+ * (checkout-line-items): in local tax mode an exempt product carries no tax even though
+ * its vat_rate column still holds a rate, so it is labelled exempt instead of "+ VAT x%".
+ * In Stripe Tax mode Stripe is the sole authority on taxability — nothing is shown.
+ */
+export function getVatDisplay(input: {
+  taxMode?: 'local' | 'stripe_tax';
+  vatRate: number | null | undefined;
+  vatExempt: boolean | null | undefined;
+  vatExemptNote?: string | null;
+}): VatDisplay {
+  if (input.taxMode === 'stripe_tax') return { kind: 'none' };
+  if (input.vatExempt) return { kind: 'exempt', note: input.vatExemptNote?.trim() || null };
+  if (input.vatRate != null && input.vatRate > 0) return { kind: 'rate', rate: input.vatRate };
+  return { kind: 'none' };
+}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { checkRateLimit, checkRateLimitForIdentifier, getRateLimitIdentifier } from '@/lib/rate-limiting';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { code, productId, email } = await request.json();
+    const { code, productId, email } = await readJsonBody<any>(request);
 
     if (!code || typeof code !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Code and Product ID are required' }, { status: 400 });
@@ -30,13 +32,14 @@ export async function POST(request: NextRequest) {
 
     const normalisedCode = code.toUpperCase();
 
-    // Layered throttling: per-code bucket prevents enumeration of the code space
-    // through a botnet, per-source bucket keeps a single host from spamming.
+    // Layered throttling per client: attempts on one code, then all attempts.
+    // The database function is called with the server client, so these are
+    // the limits that apply to storefront visitors.
     const perCode = await checkRateLimitForIdentifier(
       'coupon_verify_code',
       5,
       60,
-      `code:${normalisedCode}`,
+      `code:${normalisedCode}:${await getRateLimitIdentifier()}`,
     );
     if (!perCode) return TOO_MANY();
 
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    const { data, error } = await supabase.rpc('verify_coupon', {
+    const { data, error } = await createAdminClient().rpc('verify_coupon', {
       code_param: normalisedCode,
       product_id_param: productId,
       customer_email_param: email || null,
@@ -73,6 +76,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('Coupon verification API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

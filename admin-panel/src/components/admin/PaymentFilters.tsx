@@ -3,8 +3,13 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+
+// Wait for the seller to stop typing before hitting the server — avoids
+// firing a request (and a fresh cursor-reset fetch) on every keystroke.
+const SEARCH_DEBOUNCE_MS = 400;
 
 interface PaymentFiltersProps {
   filters: {
@@ -26,7 +31,31 @@ export default function PaymentFilters({
   onRefresh 
 }: PaymentFiltersProps) {
   const t = useTranslations('admin.payments.filters');
-  
+
+  // Local, immediately-updated copy of the search text so typing feels
+  // responsive; the parent (and therefore the server request) only hears
+  // about it after SEARCH_DEBOUNCE_MS of inactivity.
+  const [searchInput, setSearchInput] = useState(filters.searchTerm);
+
+  // Keep the input in sync when the parent resets it externally (Clear
+  // filters button, removing the "Search: ..." chip). Adjusting state during
+  // render (rather than in a useEffect) is the pattern React recommends for
+  // "reset local state when a prop changes" — see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [syncedSearchTerm, setSyncedSearchTerm] = useState(filters.searchTerm);
+  if (filters.searchTerm !== syncedSearchTerm) {
+    setSyncedSearchTerm(filters.searchTerm);
+    setSearchInput(filters.searchTerm);
+  }
+
+  useEffect(() => {
+    if (searchInput === filters.searchTerm) return;
+    const timeout = setTimeout(() => {
+      onFiltersChange({ ...filters, searchTerm: searchInput });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [searchInput, filters, onFiltersChange]);
+
   const handleFilterChange = (key: string, value: string) => {
     onFiltersChange({
       ...filters,
@@ -37,7 +66,7 @@ export default function PaymentFilters({
   const handleReset = () => {
     onFiltersChange({
       status: 'all',
-      dateRange: '30',
+      dateRange: 'all',
       searchTerm: '',
     });
   };
@@ -90,10 +119,10 @@ export default function PaymentFilters({
               <option value="all">{t('allStatuses')}</option>
               <option value="pending">{t('pending')}</option>
               <option value="completed">{t('completed')}</option>
-              <option value="failed">{t('failed')}</option>
-              <option value="cancelled">{t('cancelled')}</option>
               <option value="refunded">{t('refunded')}</option>
+              <option value="partially_refunded">{t('partiallyRefunded')}</option>
               <option value="disputed">{t('disputed')}</option>
+              <option value="abandoned">{t('abandoned')}</option>
             </select>
           </div>
 
@@ -125,8 +154,8 @@ export default function PaymentFilters({
               id="payment-search-filter"
               type="text"
               placeholder={t('searchPlaceholder')}
-              value={filters.searchTerm}
-              onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full sm:w-64 px-3 py-2 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
             />
           </div>
@@ -156,7 +185,7 @@ export default function PaymentFilters({
       </div>
 
       {/* Active Filters Display */}
-      {(filters.status !== 'all' || filters.searchTerm || filters.dateRange !== '30') && (
+      {(filters.status !== 'all' || filters.searchTerm || filters.dateRange !== 'all') && (
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="text-sm text-sf-body">{t('activeFilters')}</span>
           {filters.status !== 'all' && (
@@ -181,11 +210,11 @@ export default function PaymentFilters({
               </button>
             </span>
           )}
-          {filters.dateRange !== '30' && (
+          {filters.dateRange !== 'all' && (
             <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-sf-success-soft text-sf-success">
-              {filters.dateRange === 'all' ? t('rangeFilter', { range: t('allTime') }) : t('rangeFilter', { range: `${filters.dateRange} ${t('days')}` })}
+              {t('rangeFilter', { range: `${filters.dateRange} ${t('days')}` })}
               <button
-                onClick={() => handleFilterChange('dateRange', '30')}
+                onClick={() => handleFilterChange('dateRange', 'all')}
                 className="ml-1 text-sf-success hover:opacity-80"
               >
                 ×

@@ -4,9 +4,14 @@
  * Single source of truth for "give me the Stripe customer id for this email/user".
  * Resolution order, fastest-first:
  *   1. DB cache: public.stripe_customers (when userId is known)
- *   2. Stripe customer search by email (handles guests + customers migrated from one-time payments)
+ *   2. Stripe customer search by email (handles guests + customers migrated from one-time payments).
+ *      A match is reused only while no other account holds it — neither via
+ *      metadata.sellf_user_id nor via a public.stripe_customers row.
  *   3. Create a fresh Stripe customer
  * After resolution, the mapping is persisted to public.stripe_customers when userId is provided.
+ *
+ * With a userId, `email` must be that account's own email — callers never pass a
+ * form-typed address for a signed-in buyer.
  *
  * Stripe Customer Search has eventual consistency (~few seconds). The DB cache covers the
  * deterministic path; Stripe search is the fallback for cold lookups.
@@ -17,6 +22,7 @@
 
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type Stripe from 'stripe';
 
 interface GetOrCreateStripeCustomerInput {
   email: string;
@@ -31,6 +37,8 @@ interface GetOrCreateStripeCustomerInput {
  * future regression cannot route them into the search call.
  */
 export const EMAIL_REGEX = /^[^\s@\\():"]+@[^\s@\\():"]+(\.[^\s@\\():"]+)+$/;
+/** RFC 5321 mailbox cap — also keeps the regex above (nested quantifiers) off unbounded input. */
+export const MAX_EMAIL_LENGTH = 254;
 
 /**
  * Escape a string for use inside a `email:"..."`-style Stripe search
@@ -44,11 +52,31 @@ export function escapeStripeSearchValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+async function isHeldByAnotherAccount(
+  db: ReturnType<typeof createAdminClient>,
+  customer: Stripe.Customer,
+  userId: string | undefined
+): Promise<boolean> {
+  const metaOwner = customer.metadata?.sellf_user_id;
+  if (metaOwner && metaOwner !== userId) return true;
+
+  const { data, error } = await db
+    .from('stripe_customers')
+    .select('user_id')
+    .eq('stripe_customer_id', customer.id)
+    .maybeSingle();
+  if (error) {
+    console.error('[getOrCreateStripeCustomer] mapping lookup error:', error);
+    return true;
+  }
+  return !!data && data.user_id !== userId;
+}
+
 export async function getOrCreateStripeCustomer(
   input: GetOrCreateStripeCustomerInput
 ): Promise<string> {
   const email = input.email?.trim().toLowerCase();
-  if (!email || !EMAIL_REGEX.test(email)) {
+  if (!email || email.length > MAX_EMAIL_LENGTH || !EMAIL_REGEX.test(email)) {
     throw new Error('getOrCreateStripeCustomer: valid email is required');
   }
 
@@ -79,7 +107,10 @@ export async function getOrCreateStripeCustomer(
       query: `email:"${escapeStripeSearchValue(email)}"`,
       limit: 1,
     });
-    stripeCustomerId = search.data[0]?.id;
+    const match = search.data[0];
+    if (match && !(await isHeldByAnotherAccount(db, match, input.userId))) {
+      stripeCustomerId = match.id;
+    }
   } catch (err) {
     console.warn('[getOrCreateStripeCustomer] Stripe customer search failed:', err);
   }

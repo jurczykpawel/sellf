@@ -2,6 +2,7 @@
 
 import { getStripeServer } from '@/lib/stripe/server'
 import { getCheckoutConfig, type CheckoutConfig, type ConfigSource } from '@/lib/stripe/checkout-config'
+import { withAdminAuth } from '@/lib/actions/admin-auth'
 import Stripe from 'stripe'
 
 export type TaxStatusValue =
@@ -29,69 +30,71 @@ export type StripeTaxStatusResponse = {
 }
 
 export async function getStripeTaxStatus(): Promise<StripeTaxStatusResponse> {
-  let stripe: Stripe
+  return withAdminAuth<StripeTaxStatus>(async () => {
+    let stripe: Stripe
 
-  try {
-    stripe = await getStripeServer()
-  } catch {
-    return {
-      success: true,
-      data: {
-        status: 'stripe_not_configured',
-        registrations: [],
-      },
-    }
-  }
-
-  try {
-    const [taxSettings, registrationsList] = await Promise.all([
-      stripe.tax.settings.retrieve(),
-      stripe.tax.registrations.list({ status: 'active', limit: 100 }),
-    ])
-
-    const registrations: TaxRegistration[] = registrationsList.data.map((r) => {
-      const us = r.country_options.us
-      return {
-        country: r.country,
-        state: us?.state,
-      }
-    })
-
-    const headOffice = taxSettings.head_office?.address
-      ? {
-          country: taxSettings.head_office.address.country || '',
-          state: taxSettings.head_office.address.state || undefined,
-        }
-      : undefined
-
-    return {
-      success: true,
-      data: {
-        // Stripe may add statuses; anything not explicitly active must not look active.
-        status: taxSettings.status === 'active' ? 'active' : 'pending',
-        missingFields:
-          taxSettings.status_details.pending?.missing_fields ?? undefined,
-        registrations,
-        headOffice,
-      },
-    }
-  } catch (error) {
-    if (error instanceof Stripe.errors.StripePermissionError) {
+    try {
+      stripe = await getStripeServer()
+    } catch {
       return {
         success: true,
         data: {
-          status: 'no_permission',
+          status: 'stripe_not_configured',
           registrations: [],
         },
       }
     }
 
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to retrieve tax status',
+    try {
+      const [taxSettings, registrationsList] = await Promise.all([
+        stripe.tax.settings.retrieve(),
+        stripe.tax.registrations.list({ status: 'active', limit: 100 }),
+      ])
+
+      const registrations: TaxRegistration[] = registrationsList.data.map((r) => {
+        const us = r.country_options.us
+        return {
+          country: r.country,
+          state: us?.state,
+        }
+      })
+
+      const headOffice = taxSettings.head_office?.address
+        ? {
+            country: taxSettings.head_office.address.country || '',
+            state: taxSettings.head_office.address.state || undefined,
+          }
+        : undefined
+
+      return {
+        success: true,
+        data: {
+          // Stripe may add statuses; anything not explicitly active must not look active.
+          status: taxSettings.status === 'active' ? 'active' : 'pending',
+          missingFields:
+            taxSettings.status_details.pending?.missing_fields ?? undefined,
+          registrations,
+          headOffice,
+        },
+      }
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripePermissionError) {
+        return {
+          success: true,
+          data: {
+            status: 'no_permission',
+            registrations: [],
+          },
+        }
+      }
+
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to retrieve tax status',
+      }
     }
-  }
+  })
 }
 
 export type CheckoutConfigResponse = {
@@ -101,17 +104,19 @@ export type CheckoutConfigResponse = {
 }
 
 export async function getCheckoutConfigAction(): Promise<CheckoutConfigResponse> {
-  try {
-    // Called from Settings UI — bypass the public shop-config cache so the
-    // admin always sees the row they just wrote.
-    const config = await getCheckoutConfig({ freshShopConfig: true })
-    return { success: true, data: config }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to resolve checkout config',
+  return withAdminAuth<CheckoutConfig>(async () => {
+    try {
+      // Called from Settings UI — bypass the public shop-config cache so the
+      // admin always sees the row they just wrote.
+      const config = await getCheckoutConfig({ freshShopConfig: true })
+      return { success: true, data: config }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to resolve checkout config',
+      }
     }
-  }
+  })
 }
 
 export type PaymentMethodSourceResponse = {
@@ -121,19 +126,21 @@ export type PaymentMethodSourceResponse = {
 }
 
 export async function getPaymentMethodSourceAction(): Promise<PaymentMethodSourceResponse> {
-  try {
-    const config = await getCheckoutConfig()
-    return {
-      success: true,
-      data: {
-        source: config.sources.payment_methods,
-        envExists: config.envExists.payment_methods,
-      },
+  return withAdminAuth<{ source: ConfigSource; envExists: boolean }>(async () => {
+    try {
+      const config = await getCheckoutConfig()
+      return {
+        success: true,
+        data: {
+          source: config.sources.payment_methods,
+          envExists: config.envExists.payment_methods,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to resolve payment method source',
+      }
     }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to resolve payment method source',
-    }
-  }
+  })
 }

@@ -15,6 +15,7 @@
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { deleteChecked } from '../helpers/db-cleanup';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -91,8 +92,12 @@ describe('generate_oto_coupon skips OTO when product already owned via order bum
 
   afterEach(async () => {
     // Coupons minted as a side effect of the control case (no FK to our rows).
+    // allowed_emails is jsonb, not a native Postgres array — .contains() must get a JSON
+    // string, not a JS array, or supabase-js builds a `{...}` array literal that PostgREST
+    // rejects with "invalid input syntax for type json" (silently, since the caller here
+    // never checked the error — every coupon this test minted was left behind).
     for (const email of emails) {
-      await admin.from('coupons').delete().contains('allowed_emails', [email]);
+      await deleteChecked('coupons', admin.from('coupons').delete().contains('allowed_emails', JSON.stringify([email])));
     }
     emails.length = 0;
     // line_items + guest_purchases + user_product_access cascade off these.

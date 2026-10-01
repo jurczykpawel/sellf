@@ -1,4 +1,5 @@
 import { createPublicClient } from '@/lib/supabase/server';
+import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import SmartLandingClient from '@/components/storefront/SmartLandingClient';
 import { Product } from '@/types';
@@ -17,13 +18,13 @@ export default async function StorePage() {
 
   const { data } = await supabase
     .from('products')
-    .select('*')
+    .select(PRODUCT_PUBLIC_COLUMNS_CSV)
     .eq('is_active', true)
     .eq('is_listed', true)
     .order('is_featured', { ascending: false })
     .order('price', { ascending: true });
 
-  const products = (data as Product[]) || [];
+  const products = (data as unknown as Product[] | null) || [];
   const hasProducts = products.length > 0;
 
   return (

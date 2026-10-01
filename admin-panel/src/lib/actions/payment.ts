@@ -147,7 +147,7 @@ export async function processRefund(data: RefundRequest): Promise<RefundResponse
         message: isFullRefund ? 'Full refund processed' : 'Partial refund processed',
       },
     };
-  });
+  }, { mutating: true });
 
   // Map ActionResponse to RefundResponse
   if (!authResult.success) {

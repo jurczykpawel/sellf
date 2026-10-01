@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
-import type { StripeCheckoutContact, StripePaymentElementOptions } from '@stripe/stripe-js';
+import type { StripePaymentElementOptions } from '@stripe/stripe-js';
 import { Product } from '@/types';
 import type { OrderBumpWithProduct } from '@/types/order-bump';
 import { ExpressCheckoutConfig } from '@/types/payment-config';
@@ -425,6 +425,8 @@ export default function CustomPaymentForm({
         totalGross={totalGross}
         totalNet={totalNet}
         vatRate={vatRate}
+        vatExempt={product.vat_exempt}
+        vatExemptNote={product.vat_exempt_note}
         taxMode={taxMode}
         customAmountError={customAmountError}
         appliedCoupon={appliedCoupon}
@@ -454,6 +456,14 @@ export default function CustomPaymentForm({
       <button
         type="submit"
         disabled={checkoutResult.type !== 'success' || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
+        // Exposes the one bit that actually matters for "is this button done
+        // loading" — checkoutResult.type !== 'success' also disables the
+        // button while processing/validation errors keep it disabled, so
+        // `disabled` alone can't tell a test whether Stripe's embedded
+        // Checkout is still initializing (about to flip enabled, mid opacity
+        // transition) versus genuinely staying disabled. No visual/assistive
+        // tech effect — inert data attribute, present only while loading.
+        {...(checkoutResult.type !== 'success' ? { 'data-checkout-pending': true } : {})}
         className={`w-full px-6 py-4 text-white font-bold rounded-full shadow-[var(--sf-shadow-accent)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] ${
           customAmountError
             ? 'bg-sf-muted/30 cursor-not-allowed'

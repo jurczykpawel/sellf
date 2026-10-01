@@ -13,6 +13,7 @@ import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 /**
  * POST /api/update-payment-metadata
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       // Validated with requireAll=true so required fields must be filled
       // before checkout.confirm() is allowed to proceed.
       customFieldValues,
-    } = await request.json();
+    } = await readJsonBody<any>(request);
 
     if (!clientSecret) {
       return NextResponse.json(
@@ -315,6 +316,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ success: false, error: 'Request body too large' }, { status: 413 });
+    }
     console.error('Error updating payment metadata:', error);
     return NextResponse.json(
       {

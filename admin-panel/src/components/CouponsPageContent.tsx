@@ -1,10 +1,13 @@
 /**
  * Coupons Management Page Component
- * 
+ *
  * 🤖 AI MAINTAINER NOTE:
  * This component manages the lifecycle of discount codes (Smart Coupons).
  * Key features:
- * - List all coupons with stable sorting (created_at DESC, id ASC)
+ * - Server-paginated list (see `fetchCouponsPage`) with type/search filters
+ *   applied server-side — the OTO system auto-generates a coupon per
+ *   qualifying purchase, so a busy shop's coupon table can grow to any size
+ *   and must never be pulled into the browser all at once.
  * - Create/Edit coupons via CouponFormModal
  * - Frictionless auto-apply logic is handled separately in PaidProductForm
  * - Supports global, product-specific, and email-restricted coupons
@@ -19,11 +22,16 @@ import CouponFormModal from './CouponFormModal';
 import { Product } from '@/types';
 import { useTranslations } from 'next-intl';
 import { api, ApiError } from '@/lib/api/client';
+import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
+import { fetchCouponsPage } from '@/lib/coupons/fetch-coupons-page';
 
-// Helper to identify OTO coupons by their code prefix
-const isOtoCoupon = (coupon: Coupon): boolean => {
-  return coupon.code.startsWith('OTO-');
-};
+// Wait for the seller to stop typing before hitting the server — avoids
+// firing a request (and a fresh cursor-reset fetch) on every keystroke.
+const SEARCH_DEBOUNCE_MS = 400;
+
+// The DB field is the source of truth (set only by the OTO system's own
+// functions, see `is_oto_coupon` in `supabase/migrations/20251230000000_oto_system.sql`).
+const isOtoCoupon = (coupon: Coupon): boolean => coupon.is_oto_coupon;
 
 const canDeleteCoupon = (coupon: Coupon): boolean => {
   return coupon.current_usage_count === 0;
@@ -56,13 +64,33 @@ const getRestrictedProducts = (coupon: Coupon, products: Product[]): string[] =>
 
 const CouponsPageContent: React.FC = () => {
   const t = useTranslations('admin.coupons');
-  
+
   // State
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'all' | 'oto' | 'regular'>('all');
+
+  // Search: local, immediately-updated copy so typing feels responsive; the
+  // debounced value below is what actually drives the server request.
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Pagination — the coupons table can grow without bound (the OTO system
+  // auto-generates a coupon per qualifying purchase), so only one page loads
+  // at a time; "Load more" fetches subsequent pages instead of pulling
+  // everything into the browser at once (mirrors the payments dashboard).
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Full, authoritative list of expired coupons for the "Delete expired"
+  // housekeeping action. Loaded separately from the paginated main list (via
+  // the existing `status=expired` filter) so that action always sees every
+  // expired coupon, not just whatever happens to be on the currently loaded
+  // page(s) of the main list.
+  const [expiredCoupons, setExpiredCoupons] = useState<Coupon[]>([]);
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -75,18 +103,35 @@ const CouponsPageContent: React.FC = () => {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showDeleteExpiredConfirm, setShowDeleteExpiredConfirm] = useState(false);
 
-  // Fetch data using v1 API for both coupons and products
+  // Debounce search input -> searchTerm (drives the server request).
+  useEffect(() => {
+    if (searchInput === searchTerm) return;
+    const timeout = setTimeout(() => setSearchTerm(searchInput), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [searchInput, searchTerm]);
+
+  // Fetch the first page of coupons (type/search filtered), the full expired
+  // list (for "Delete expired"), and the active products picker list.
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const [couponsRes, productsRes] = await Promise.all([
-        api.list<Coupon>('coupons', { limit: 500, sort: '-created_at' }),
-        api.list<Product>('products', { limit: 1000, status: 'active', sort: 'name' })
+      const [couponsPage, expiredResult, activeProducts] = await Promise.all([
+        fetchCouponsPage(undefined, { type: typeFilter, search: searchTerm }),
+        api.listAll<Coupon>('coupons', { status: 'expired', sort: '-created_at' }),
+        fetchAllProductsForDropdown('active'),
       ]);
 
-      setCoupons(couponsRes.data || []);
-      setProducts(productsRes.data || []);
+      if (expiredResult.truncated) {
+        console.warn('[CouponsPageContent] Expired coupon list truncated at the safety ceiling; "Delete expired" may not catch every expired coupon.');
+      }
+
+      setCoupons(couponsPage.coupons);
+      setCursor(couponsPage.nextCursor);
+      setHasMore(couponsPage.hasMore);
+      setExpiredCoupons(expiredResult.data);
+      setProducts(activeProducts);
+      setError(null);
     } catch (err) {
       console.error('Error fetching data:', err);
       if (err instanceof ApiError) {
@@ -97,25 +142,33 @@ const CouponsPageContent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [typeFilter, searchTerm, t]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Filter coupons based on type
-  const filteredCoupons = coupons.filter((coupon) => {
-    if (typeFilter === 'all') return true;
-    const isOto = isOtoCoupon(coupon);
-    return typeFilter === 'oto' ? isOto : !isOto;
-  });
-  const deletableFilteredCoupons = filteredCoupons.filter(canDeleteCoupon);
+  const handleLoadMore = useCallback(async () => {
+    if (!hasMore || loadingMore) return;
 
-  // Get expired coupons (OTO coupons with expires_at in the past)
-  const expiredCoupons = coupons.filter((coupon) => {
-    if (!coupon.expires_at) return false;
-    return new Date(coupon.expires_at) < new Date();
-  });
+    setLoadingMore(true);
+    try {
+      const nextPage = await fetchCouponsPage(cursor ?? undefined, { type: typeFilter, search: searchTerm });
+      setCoupons(prev => [...prev, ...nextPage.coupons]);
+      setCursor(nextPage.nextCursor);
+      setHasMore(nextPage.hasMore);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error(t('moreLoadError'));
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, cursor, typeFilter, searchTerm, t]);
+
+  const deletableCoupons = coupons.filter(canDeleteCoupon);
   const deletableExpiredCoupons = expiredCoupons.filter(canDeleteCoupon);
 
   // CRUD Handlers using v1 API
@@ -186,12 +239,14 @@ const CouponsPageContent: React.FC = () => {
     }
   };
 
-  // Selection handlers
+  // Selection handlers. Selection (and therefore bulk delete) only ever
+  // covers coupons currently loaded in the browser — the same page(s) the
+  // seller can see and check — not the full server-side result set.
   const handleSelectAll = () => {
-    if (selectedIds.size === deletableFilteredCoupons.length) {
+    if (selectedIds.size === deletableCoupons.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(deletableFilteredCoupons.map(c => c.id)));
+      setSelectedIds(new Set(deletableCoupons.map(c => c.id)));
     }
   };
 
@@ -210,7 +265,7 @@ const CouponsPageContent: React.FC = () => {
 
   const handleBulkDelete = async () => {
     try {
-      const deletableIds = new Set(coupons.filter(canDeleteCoupon).map(c => c.id));
+      const deletableIds = new Set(deletableCoupons.map(c => c.id));
       const ids = Array.from(selectedIds).filter(id => deletableIds.has(id));
       const skipped = selectedIds.size - ids.length;
       let failed = 0;
@@ -292,22 +347,33 @@ const CouponsPageContent: React.FC = () => {
         </button>
       </div>
 
-      {/* Type Filter & Bulk Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          {(['all', 'regular', 'oto'] as const).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => { setTypeFilter(filter); setSelectedIds(new Set()); }}
-              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                typeFilter === filter
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-sf-raised text-sf-body hover:bg-sf-hover'
-              }`}
-            >
-              {t(`filter.${filter}`)}
-            </button>
-          ))}
+      {/* Type Filter, Search & Bulk Actions */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-2">
+            {(['all', 'regular', 'oto'] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => { setTypeFilter(filter); setSelectedIds(new Set()); }}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                  typeFilter === filter
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-sf-raised text-sf-body hover:bg-sf-hover'
+                }`}
+              >
+                {t(`filter.${filter}`)}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={t('searchPlaceholder')}
+            aria-label={t('search')}
+            className="w-full sm:w-56 px-3 py-1.5 text-sm border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
+          />
         </div>
 
         <div className="flex gap-2">
@@ -345,7 +411,7 @@ const CouponsPageContent: React.FC = () => {
           </div>
         ) : error ? (
           <div className="text-center p-12 text-red-500">{error}</div>
-        ) : filteredCoupons.length === 0 ? (
+        ) : coupons.length === 0 ? (
           <div className="text-center p-12 text-sf-muted">{t('noCoupons')}</div>
         ) : (
           <div className="overflow-x-auto">
@@ -355,9 +421,9 @@ const CouponsPageContent: React.FC = () => {
                   <th className="px-4 py-3 w-10">
                     <input
                       type="checkbox"
-                      checked={deletableFilteredCoupons.length > 0 && selectedIds.size === deletableFilteredCoupons.length}
+                      checked={deletableCoupons.length > 0 && selectedIds.size === deletableCoupons.length}
                       onChange={handleSelectAll}
-                      disabled={deletableFilteredCoupons.length === 0}
+                      disabled={deletableCoupons.length === 0}
                       aria-label={t('selectAll', { defaultValue: 'Select all coupons' })}
                       className="w-4 h-4 rounded border-sf-border text-sf-accent focus:ring-sf-accent disabled:opacity-40"
                     />
@@ -370,7 +436,7 @@ const CouponsPageContent: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-sf-border">
-                {filteredCoupons.map((coupon, index) => {
+                {coupons.map((coupon, index) => {
                   const isOto = isOtoCoupon(coupon);
                   const otoStatus = isOto ? getOtoExpiryStatus(coupon) : null;
                   const restrictedProducts = getRestrictedProducts(coupon, products);
@@ -471,6 +537,19 @@ const CouponsPageContent: React.FC = () => {
         )}
       </div>
 
+      {!loading && !error && hasMore && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="px-4 py-2 text-sm font-medium text-sf-accent border-2 border-sf-border-medium hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMore ? t('loadingMore') : t('loadMore')}
+          </button>
+        </div>
+      )}
+
       {/* Modals */}
       {showForm && (
         <CouponFormModal
@@ -481,7 +560,7 @@ const CouponsPageContent: React.FC = () => {
           isSubmitting={isSubmitting}
         />
       )}
-      
+
       {/* Delete Confirmation */}
       {couponToDelete && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -524,7 +603,7 @@ const CouponsPageContent: React.FC = () => {
             </p>
             <div className="flex justify-end space-x-3">
               <button onClick={() => setShowDeleteExpiredConfirm(false)} className="px-4 py-2 text-sf-body hover:bg-sf-hover">{t('form.cancel')}</button>
-              <button onClick={handleDeleteExpired} className="px-4 py-2 bg-amber-700 text-white hover:bg-amber-700">{t('deleteExpired', { count: expiredCoupons.length })}</button>
+              <button onClick={handleDeleteExpired} className="px-4 py-2 bg-amber-700 text-white hover:bg-amber-700">{t('deleteExpired', { count: deletableExpiredCoupons.length })}</button>
             </div>
           </div>
         </div>

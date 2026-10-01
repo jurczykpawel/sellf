@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    const { email, productId } = await request.json();
+    const { email, productId } = await readJsonBody<{ email?: string; productId?: string }>(request);
 
     if (!email || typeof email !== 'string' || !productId || typeof productId !== 'string') {
       return NextResponse.json({ error: 'Email and Product ID are required' }, { status: 400 });
@@ -30,14 +32,19 @@ export async function POST(request: NextRequest) {
     if (!UUID_REGEX.test(productId)) {
       return NextResponse.json({ error: 'Invalid Product ID format' }, { status: 400 });
     }
-    if (email.length > 254 || !EMAIL_REGEX.test(email)) {
+    if (!isValidEmailFormat(email)) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
+    // Signed-in buyers are matched by their account e-mail (the database
+    // function reads it from the session); guests by the e-mail they typed,
+    // looked up server-side after the per-client limit above.
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const lookupClient = user ? supabase : createAdminClient();
 
-    const { data, error } = await supabase.rpc('find_auto_apply_coupon', {
-      customer_email_param: email,
+    const { data, error } = await lookupClient.rpc('find_auto_apply_coupon', {
+      customer_email_param: user?.email ?? email,
       product_id_param: productId
     });
 
@@ -48,6 +55,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('Auto-apply API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

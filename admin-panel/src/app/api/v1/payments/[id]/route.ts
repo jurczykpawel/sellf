@@ -11,6 +11,7 @@ import {
   jsonResponse,
   apiError,
   authenticate,
+  requireScope,
   handleApiError,
   successResponse,
   parseJsonBody,
@@ -42,7 +43,8 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    const auth = await authenticate(request);
+    requireScope(auth, API_SCOPES.PAYMENTS_READ);
     const { id } = await params;
 
     // Validate ID format

@@ -10,14 +10,25 @@ import {
   jsonResponse,
   apiError,
   authenticate,
+  requireScope,
   handleApiError,
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { escapeIlikePattern, validateUUID } from '@/lib/validations/product';
+import { quoteForPostgrestOr } from '@/lib/api/filters';
 import { firstRelated } from '@/lib/supabase/relations';
 import type { PaymentTransactionLineItem } from '@/types/payment';
+
+// Valid `payment_transactions.status` values (DB CHECK constraint,
+// `payment_transactions_status_check`). Keep in sync with that constraint.
+const VALID_PAYMENT_STATUSES = ['pending', 'completed', 'refunded', 'partially_refunded', 'disputed', 'abandoned'];
+
+// Upper bound on how many products a free-text `search` can match by name/slug
+// before we stop widening the `product_id IN (...)` clause. Search is meant to
+// find a handful of specific payments, not to enumerate an entire catalog.
+const SEARCH_MATCHING_PRODUCTS_LIMIT = 500;
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -31,16 +42,19 @@ export async function OPTIONS(request: NextRequest) {
  * Query params:
  * - cursor: string (pagination cursor)
  * - limit: number (default 50, max 100)
- * - status: 'all' | 'completed' | 'refunded' | 'failed' | 'pending' (default 'all')
+ * - status: 'all' | 'pending' | 'completed' | 'refunded' | 'partially_refunded' | 'disputed' | 'abandoned' (default 'all')
  * - product_id: string (filter by product)
- * - email: string (filter by customer email)
+ * - email: string (filter by customer email substring)
+ * - search: string, max 200 chars (free-text match across customer email,
+ *   Stripe session id, Stripe payment intent id, and product name/slug)
  * - date_from: string ISO date (filter from date)
  * - date_to: string ISO date (filter to date)
  * - sort: string (default '-created_at')
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticate(request, [API_SCOPES.ANALYTICS_READ]);
+    const auth = await authenticate(request);
+    requireScope(auth, API_SCOPES.PAYMENTS_READ);
 
     const adminClient = auth.supabase;
     const { searchParams } = request.nextUrl;
@@ -51,6 +65,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'all';
     const productId = searchParams.get('product_id');
     const email = searchParams.get('email');
+    const search = searchParams.get('search') || '';
     const dateFrom = searchParams.get('date_from');
     const dateTo = searchParams.get('date_to');
     const sort = searchParams.get('sort') || '-created_at';
@@ -59,6 +74,10 @@ export async function GET(request: NextRequest) {
     const cursorError = validateCursor(cursor);
     if (cursorError) {
       return apiError(request, 'INVALID_INPUT', cursorError);
+    }
+
+    if (search.length > 200) {
+      return apiError(request, 'INVALID_INPUT', 'Search query must be 200 characters or less');
     }
 
     // Build query
@@ -91,9 +110,8 @@ export async function GET(request: NextRequest) {
 
     // Filter by status
     if (status !== 'all') {
-      const validStatuses = ['completed', 'refunded', 'failed', 'pending'];
-      if (!validStatuses.includes(status)) {
-        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${validStatuses.join(', ')}`);
+      if (!VALID_PAYMENT_STATUSES.includes(status)) {
+        return apiError(request, 'INVALID_INPUT', `Invalid status. Valid values: all, ${VALID_PAYMENT_STATUSES.join(', ')}`);
       }
       query = query.eq('status', status);
     }
@@ -113,6 +131,37 @@ export async function GET(request: NextRequest) {
       }
       const escapedEmail = escapeIlikePattern(email);
       query = query.ilike('customer_email', `%${escapedEmail}%`);
+    }
+
+    // Free-text search across customer email, Stripe session/payment intent id,
+    // and product name/slug. Product name/slug are on a joined table, so we
+    // resolve matching product ids first (bounded) and fold them into the same
+    // .or() as an `in` clause instead of trying to mix a top-level and an
+    // embedded-resource filter in one PostgREST `or=` expression.
+    if (search) {
+      const searchPattern = quoteForPostgrestOr(`%${escapeIlikePattern(search)}%`);
+
+      const { data: matchingProducts, error: productSearchError } = await adminClient
+        .from('products')
+        .select('id')
+        .or(`name.ilike.${searchPattern},slug.ilike.${searchPattern}`)
+        .limit(SEARCH_MATCHING_PRODUCTS_LIMIT);
+
+      if (productSearchError) {
+        console.error('Error searching products for payment search:', productSearchError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to search payments');
+      }
+
+      const orClauses = [
+        `customer_email.ilike.${searchPattern}`,
+        `session_id.ilike.${searchPattern}`,
+        `stripe_payment_intent_id.ilike.${searchPattern}`,
+      ];
+      const matchingProductIds = (matchingProducts ?? []).map((p) => p.id);
+      if (matchingProductIds.length > 0) {
+        orClauses.push(`product_id.in.(${matchingProductIds.join(',')})`);
+      }
+      query = query.or(orClauses.join(','));
     }
 
     // Filter by date range

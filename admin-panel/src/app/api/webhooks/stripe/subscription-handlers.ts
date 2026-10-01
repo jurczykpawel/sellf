@@ -16,6 +16,7 @@ import type { createAdminClient, createPlatformClient } from '@/lib/supabase/adm
 import { WebhookService } from '@/lib/services/webhook-service';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
+import { STRIPE_MINIMUM_AMOUNT } from '@/lib/constants';
 import {
   buildSubscriptionCreatedPayload,
   buildSubscriptionUpdatedPayload,
@@ -54,17 +55,35 @@ function isoOrNull(unix: number | null | undefined): string | null {
   return unix || unix === 0 ? new Date(unix * 1000).toISOString() : null;
 }
 
+type ProductSummaryWithPrice = SubProductSummary & { stripe_price_id: string | null };
+
+/** Product fields that decide which Stripe prices may bind to the product. */
+interface ProductPriceBinding {
+  stripe_product_id: string | null;
+  allow_custom_price: boolean;
+  custom_price_min: number | null;
+}
+
 async function fetchProductForSummary(
   supabase: AdminClient,
   productId: string
-): Promise<(SubProductSummary & { stripe_price_id: string | null }) | null> {
+): Promise<{ summary: ProductSummaryWithPrice; binding: ProductPriceBinding } | null> {
   const { data } = await supabase
     .from('products')
-    .select('id, name, slug, currency, recurring_price, billing_interval, billing_interval_count, stripe_price_id')
+    .select('id, name, slug, currency, recurring_price, billing_interval, billing_interval_count, stripe_price_id, stripe_product_id, allow_custom_price, custom_price_min')
     .eq('id', productId)
     .single();
   if (!data) return null;
-  return data as SubProductSummary & { stripe_price_id: string | null };
+  const { stripe_product_id, allow_custom_price, custom_price_min, ...summary } =
+    data as ProductSummaryWithPrice & Partial<ProductPriceBinding>;
+  return {
+    summary,
+    binding: {
+      stripe_product_id: stripe_product_id ?? null,
+      allow_custom_price: allow_custom_price === true,
+      custom_price_min: custom_price_min ?? null,
+    },
+  };
 }
 
 /**
@@ -142,6 +161,19 @@ type SubscriptionContextResult =
   | { ok: true; ctx: SubscriptionContext }
   | { ok: false; reason: string };
 
+interface StripeItemPrice {
+  unit_amount?: number | null;
+  currency?: string;
+  product?: string | { id: string } | null;
+  recurring?: { interval?: string; interval_count?: number };
+}
+
+type PriceCheck = { ok: true } | { ok: false; reason: string };
+
+function itemPrice(sub: Stripe.Subscription): StripeItemPrice | undefined {
+  return (sub.items.data[0] as unknown as { price?: StripeItemPrice })?.price;
+}
+
 /**
  * ensure the Stripe subscription item actually matches the Sellf
  * product the metadata points at. `subscription.metadata.product_id` is a
@@ -152,15 +184,8 @@ type SubscriptionContextResult =
 function validateStripePriceMatchesProduct(
   sub: Stripe.Subscription,
   product: SubProductSummary
-): { ok: true } | { ok: false; reason: string } {
-  const item = sub.items.data[0];
-  const price = (item as unknown as {
-    price?: {
-      unit_amount?: number | null;
-      currency?: string;
-      recurring?: { interval?: string; interval_count?: number };
-    };
-  })?.price;
+): PriceCheck {
+  const price = itemPrice(sub);
   if (!price) return { ok: false, reason: 'Stripe subscription has no price item' };
 
   const expectedAmount =
@@ -175,6 +200,42 @@ function validateStripePriceMatchesProduct(
     };
   }
 
+  return validateRecurringTerms(price, product);
+}
+
+/**
+ * Buyer-chosen amounts are created with an ad-hoc price (price_data) on the
+ * product's own Stripe Product, so bind by that Stripe Product and require
+ * the amount to reach the product minimum.
+ */
+function validateCustomStripePriceMatchesProduct(
+  sub: Stripe.Subscription,
+  product: SubProductSummary,
+  binding: ProductPriceBinding
+): PriceCheck {
+  const price = itemPrice(sub);
+  if (!price) return { ok: false, reason: 'Stripe subscription has no price item' };
+
+  const priceProduct = typeof price.product === 'string' ? price.product : price.product?.id;
+  if (!binding.stripe_product_id || priceProduct !== binding.stripe_product_id) {
+    return {
+      ok: false,
+      reason: `Stripe product mismatch: Stripe=${priceProduct ?? 'none'} vs product=${binding.stripe_product_id ?? 'none'}`,
+    };
+  }
+
+  const minimumAmount = Math.round((binding.custom_price_min ?? STRIPE_MINIMUM_AMOUNT) * 100);
+  if (typeof price.unit_amount !== 'number' || price.unit_amount < minimumAmount) {
+    return {
+      ok: false,
+      reason: `Amount below minimum: Stripe=${price.unit_amount} vs minimum=${minimumAmount}`,
+    };
+  }
+
+  return validateRecurringTerms(price, product);
+}
+
+function validateRecurringTerms(price: StripeItemPrice, product: SubProductSummary): PriceCheck {
   if (price.currency && product.currency && price.currency.toLowerCase() !== product.currency.toLowerCase()) {
     return {
       ok: false,
@@ -272,15 +333,19 @@ async function resolveSubscriptionContext(
     productId = metaProductId;
   }
 
-  const product = await fetchProductForSummary(supabase, productId);
-  if (!product) {
+  const fetched = await fetchProductForSummary(supabase, productId);
+  if (!fetched) {
     console.error('[resolveSubscriptionContext] product not found:', productId);
     return { ok: false, reason: 'Product not found' };
   }
+  const product = fetched.summary;
 
   // First-event price-id check. Subsequent events use the per-sub binding
-  // above, which is immune to product-level rollover.
-  if (!existingSub) {
+  // above, which is immune to product-level rollover. A product that allows
+  // buyer-chosen amounts also accepts ad-hoc prices on its own Stripe Product.
+  const isCustomAmountPrice =
+    fetched.binding.allow_custom_price && subPriceId !== product.stripe_price_id;
+  if (!existingSub && !isCustomAmountPrice) {
     if (product.stripe_price_id && product.stripe_price_id !== subPriceId) {
       console.error(
         '[resolveSubscriptionContext] price_id_mismatch | sub=%s | sub_price=%s | product=%s | product_price=%s',
@@ -301,7 +366,9 @@ async function resolveSubscriptionContext(
   // against the current (mutable) product would reject legitimate
   // subsequent webhooks for subscriptions whose product has since been edited.
   if (!existingSub) {
-    const priceCheck = validateStripePriceMatchesProduct(sub, product);
+    const priceCheck = isCustomAmountPrice
+      ? validateCustomStripePriceMatchesProduct(sub, product, fetched.binding)
+      : validateStripePriceMatchesProduct(sub, product);
     if (!priceCheck.ok) {
       console.error(
         '[resolveSubscriptionContext] STRIPE_PRICE_MISMATCH | sub=%s | product=%s | reason=%s',
@@ -392,6 +459,22 @@ const TERMINAL_STATUSES: ReadonlySet<Stripe.Subscription.Status> = new Set([
   'incomplete_expired',
   'unpaid',
 ]);
+
+/**
+ * Subscription events can be delivered out of order. Once the stored row is in
+ * a terminal state, an event snapshot claiming otherwise may be older than the
+ * one that ended it, so the live Stripe state decides.
+ */
+async function currentSubscriptionState(
+  sub: Stripe.Subscription,
+  priorStatus: string | null,
+  stripe: Stripe
+): Promise<Stripe.Subscription> {
+  const storedTerminal =
+    priorStatus !== null && TERMINAL_STATUSES.has(priorStatus as Stripe.Subscription.Status);
+  if (!storedTerminal || TERMINAL_STATUSES.has(sub.status)) return sub;
+  return stripe.subscriptions.retrieve(sub.id);
+}
 
 interface AccessMutationResult {
   ok: boolean;
@@ -564,14 +647,15 @@ export async function handleSubscriptionCreated(
   if (!ctxResult.ok) return { processed: false, message: ctxResult.reason };
   const ctx = ctxResult.ctx;
 
-  const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, sub);
+  const current = await currentSubscriptionState(sub, ctx.priorStatus, stripe);
+  const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, current);
 
   // Stripe doesn't issue an invoice during a default-behavior trial, so
   // invoice.paid won't grant access until the trial ends. Grant on the
   // create event for trialing/active so the customer gets access immediately.
   // Best-effort: a transient failure here is recoverable by the next
   // invoice.paid (retriable) or by a subsequent customer.subscription.updated.
-  if (subscriptionRowId && STATUSES_GRANTING_ACCESS.has(sub.status)) {
+  if (subscriptionRowId && STATUSES_GRANTING_ACCESS.has(current.status)) {
     const r = await upsertUserProductAccess(supabase, ctx.userId, ctx.productId, subscriptionRowId);
     if (!r.ok) {
       console.warn('[handleSubscriptionCreated] access grant failed (best-effort):', r.reason);
@@ -581,7 +665,7 @@ export async function handleSubscriptionCreated(
   const payload = buildSubscriptionCreatedPayload({
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
-    subscription: sub,
+    subscription: current,
   });
   await WebhookService.trigger('subscription.created', payload, supabase, payload.product.id);
 
@@ -613,7 +697,8 @@ export async function handleSubscriptionUpdated(
   if (!ctxResult.ok) return { processed: false, message: ctxResult.reason };
   const ctx = ctxResult.ctx;
 
-  const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, sub);
+  const current = await currentSubscriptionState(sub, ctx.priorStatus, stripe);
+  const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, current);
 
   // Mirror the create-event grant for transitions like incomplete -> active,
   // past_due -> active, or trialing -> active. Without this, the customer
@@ -621,7 +706,7 @@ export async function handleSubscriptionUpdated(
   // is in RETRIABLE_EVENTS so a transient failure forces a Stripe redelivery;
   // upsertUserProductAccess is idempotent, so the redelivery either lands
   // the grant or no-ops on the existing row.
-  if (subscriptionRowId && STATUSES_GRANTING_ACCESS.has(sub.status)) {
+  if (subscriptionRowId && STATUSES_GRANTING_ACCESS.has(current.status)) {
     const r = await upsertUserProductAccess(supabase, ctx.userId, ctx.productId, subscriptionRowId);
     if (!r.ok) {
       console.error('[handleSubscriptionUpdated] access grant failed:', r.reason);
@@ -635,7 +720,7 @@ export async function handleSubscriptionUpdated(
   // the only signal we get for that transition. incomplete_expired follows
   // the same rule. Escalate on failure so the Stripe retry actually
   // revokes access — there is no fall-back event to recover from.
-  if (subscriptionRowId && TERMINAL_STATUSES.has(sub.status)) {
+  if (subscriptionRowId && TERMINAL_STATUSES.has(current.status)) {
     const r = await revokeUserProductAccessForSubscription(
       supabase,
       ctx.userId,
@@ -651,7 +736,7 @@ export async function handleSubscriptionUpdated(
   const payload = buildSubscriptionUpdatedPayload({
     customer: customerSummary(ctx.userId, ctx.email),
     product: ctx.product,
-    subscription: sub,
+    subscription: current,
     previousAttributes,
   });
   await WebhookService.trigger('subscription.updated', payload, supabase, payload.product.id);

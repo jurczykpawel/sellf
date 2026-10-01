@@ -347,6 +347,18 @@ describe('Success Redirect URL Builder', () => {
       expect(result.hasHideBump).toBe(false);
     });
 
+    it('should fall back to "/" for a dangerous-scheme URL even when passParams is false', () => {
+      // This is the sink guard: buildSuccessRedirectUrl's result feeds
+      // window.location.href on the payment-status page, so a URL that
+      // skipped write-time validation (or predates it) must not pass through.
+      const result = buildSuccessRedirectUrl({
+        targetUrl: 'javascript:alert(1)',
+        passParams: false
+      });
+
+      expect(result.url).toBe('/');
+    });
+
     it('should detect hide_bump in URL when passParams is false', () => {
       const result = buildSuccessRedirectUrl({
         targetUrl: 'https://example.com/thank-you?hide_bump=true',

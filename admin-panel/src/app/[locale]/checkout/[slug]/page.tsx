@@ -1,4 +1,6 @@
 import { createPublicClient } from '@/lib/supabase/server';
+import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
+import type { Product } from '@/types';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { cache } from 'react';
@@ -27,11 +29,11 @@ const getCheckoutProduct = cache(async (slug: string) => {
   // Don't filter by is_active - we might show waitlist for inactive products
   const { data: product, error } = await supabase
     .from('products')
-    .select('*')
+    .select(PRODUCT_PUBLIC_COLUMNS_CSV)
     .eq('slug', slug)
     .single();
 
-  return { product, error };
+  return { product: product as unknown as Product | null, error };
 });
 
 // Fetch a bundle's component products (icon + name + price fields) for the

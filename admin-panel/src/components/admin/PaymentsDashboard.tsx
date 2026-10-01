@@ -12,6 +12,7 @@ import PaymentSessionsTable from './PaymentSessionsTable';
 import PaymentFilters from './PaymentFilters';
 import type { PaymentTransaction, PaymentSession } from '@/types/payment';
 import { api } from '@/lib/api/client';
+import { fetchPaymentTransactionsPage, dateRangeToDateFrom } from '@/lib/payments/fetch-transactions-page';
 import CurrencySelector from '@/components/dashboard/CurrencySelector';
 import type { CurrencyAmount } from '@/lib/actions/analytics';
 
@@ -48,24 +49,49 @@ export default function PaymentsDashboard() {
   const [sessions, setSessions] = useState<PaymentSession[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMoreTransactions, setLoadingMoreTransactions] = useState(false);
+  const [transactionsCursor, setTransactionsCursor] = useState<string | null>(null);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
+  // dateRange defaults to 'all', not a narrower window: before this filter was
+  // wired to the server it was decorative, so sellers always effectively saw
+  // every payment. A narrower default would be a silent behavior change —
+  // payments outside the window would vanish on open, and server-side search
+  // (see da177bb9) would stop finding an older payment unless the seller
+  // first widened the range. A seller now opts into a narrower window
+  // explicitly via the dropdown.
   const [filters, setFilters] = useState({
     status: 'all',
-    dateRange: '30',
+    dateRange: 'all',
     searchTerm: '',
   });
 
-  // Fetch payment data (all from v1 API)
+  // Fetch payment data (all from v1 API). Transactions are paged (see
+  // fetchPaymentTransactionsPage) — the seller's full payment history can
+  // grow without bound, so only the first page loads here; "Load more"
+  // fetches subsequent pages via handleLoadMoreTransactions below instead of
+  // pulling everything into the browser at once. Status, search, and date
+  // range are sent to the server on every (re)fetch so a match beyond the
+  // first page is still found — filtering only the already-loaded page would
+  // silently miss older transactions. Stats intentionally ignore these
+  // filters: each stat card already names its own fixed period (today, this
+  // month, all-time total/refunded), independent of the dashboard filter bar.
   const fetchPaymentData = useCallback(async () => {
     setLoading(true);
     try {
-      const [transactionsRes, sessionsRes, statsRes] = await Promise.all([
-        api.list<PaymentTransaction>('payments', { limit: 500 }),
+      const [transactionsPage, sessionsRes, statsRes] = await Promise.all([
+        fetchPaymentTransactionsPage(undefined, {
+          status: filters.status,
+          search: filters.searchTerm,
+          dateRange: filters.dateRange,
+        }),
         fetch('/api/admin/payments/sessions'), // sessions still use old API - no dedicated v1 endpoint
         api.getCustom<PaymentStatsResponse>('payments/stats'),
       ]);
 
-      // Transactions from v1 API
-      setTransactions(transactionsRes.data || []);
+      // First page of transactions from v1 API
+      setTransactions(transactionsPage.transactions);
+      setTransactionsCursor(transactionsPage.nextCursor);
+      setHasMoreTransactions(transactionsPage.hasMore);
 
       // Sessions from old API (embedded checkout doesn't use sessions)
       if (sessionsRes.ok) {
@@ -88,38 +114,52 @@ export default function PaymentsDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [filters.status, filters.searchTerm, filters.dateRange, t]);
+
+  // Continues the SAME status/search/date-range-filtered result set the
+  // current page came from — not a fresh, unfiltered fetch.
+  const handleLoadMoreTransactions = useCallback(async () => {
+    if (!hasMoreTransactions || loadingMoreTransactions) return;
+
+    setLoadingMoreTransactions(true);
+    try {
+      const nextPage = await fetchPaymentTransactionsPage(transactionsCursor ?? undefined, {
+        status: filters.status,
+        search: filters.searchTerm,
+        dateRange: filters.dateRange,
+      });
+      setTransactions(prev => [...prev, ...nextPage.transactions]);
+      setTransactionsCursor(nextPage.nextCursor);
+      setHasMoreTransactions(nextPage.hasMore);
+    } catch {
+      toast.error(t('moreLoadError'));
+    } finally {
+      setLoadingMoreTransactions(false);
+    }
+  }, [hasMoreTransactions, loadingMoreTransactions, transactionsCursor, filters.status, filters.searchTerm, filters.dateRange, t]);
 
   useEffect(() => {
     fetchPaymentData();
   }, [fetchPaymentData, filters.status, filters.dateRange, filters.searchTerm]);
 
-  // Filter transactions based on current filters
-  const filteredTransactions = transactions.filter(transaction => {
-    if (filters.status !== 'all' && transaction.status !== filters.status) {
-      return false;
-    }
-    
-    if (filters.searchTerm) {
-      const searchLower = filters.searchTerm.toLowerCase();
-      return (
-        fieldMatchesSearch(transaction.id, searchLower) ||
-        fieldMatchesSearch(transaction.user_id, searchLower) ||
-        fieldMatchesSearch(transaction.stripe_payment_intent_id, searchLower) ||
-        fieldMatchesSearch((transaction as PaymentTransaction & { customer_email?: string | null }).customer_email, searchLower) ||
-        fieldMatchesSearch((transaction as PaymentTransaction & { product?: { name?: string | null } }).product?.name, searchLower)
-      );
-    }
-    
-    return true;
-  });
+  // Status and search are now applied server-side (see fetchPaymentData /
+  // handleLoadMoreTransactions) so a match beyond the currently loaded page
+  // is still found. `transactions` already reflects the active filters.
 
-  // Filter sessions based on current filters
+  // Filter sessions based on current filters. Sessions come from the legacy
+  // (non-paginated) endpoint and are always loaded in full, so filtering
+  // them client-side — including by date range, using the same day-count
+  // cutoff as the transactions tab — is still correct.
+  const sessionsDateFrom = dateRangeToDateFrom(filters.dateRange);
   const filteredSessions = sessions.filter(session => {
     if (filters.status !== 'all' && session.status !== filters.status) {
       return false;
     }
-    
+
+    if (sessionsDateFrom && session.created_at < sessionsDateFrom) {
+      return false;
+    }
+
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
       return (
@@ -127,7 +167,7 @@ export default function PaymentsDashboard() {
         fieldMatchesSearch(session.customer_email, searchLower)
       );
     }
-    
+
     return true;
   });
 
@@ -176,7 +216,7 @@ export default function PaymentsDashboard() {
                   : 'border-transparent text-sf-muted hover:text-sf-heading'
               }`}
             >
-              {t('transactions.title')} ({filteredTransactions.length})
+              {t('transactions.title')} ({transactions.length})
             </button>
             <button
               onClick={() => setActiveTab('sessions')}
@@ -193,12 +233,26 @@ export default function PaymentsDashboard() {
 
         <div className="p-6">
           {activeTab === 'transactions' ? (
-            <PaymentTransactionsTable 
-              transactions={filteredTransactions}
-              onRefreshData={fetchPaymentData}
-            />
+            <>
+              <PaymentTransactionsTable
+                transactions={transactions}
+                onRefreshData={fetchPaymentData}
+              />
+              {hasMoreTransactions && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreTransactions}
+                    disabled={loadingMoreTransactions}
+                    className="px-4 py-2 text-sm font-medium text-sf-accent border border-sf-border rounded-md hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingMoreTransactions ? t('loadingMore') : t('loadMore')}
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
-            <PaymentSessionsTable 
+            <PaymentSessionsTable
               sessions={filteredSessions}
               onRefreshData={fetchPaymentData}
             />

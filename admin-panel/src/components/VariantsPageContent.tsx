@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import VariantGroupFormModal from './VariantGroupFormModal';
 import { api } from '@/lib/api/client';
+import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface ProductInGroup {
   id: string;
@@ -67,11 +68,7 @@ const VariantsPageContent: React.FC = () => {
   const fetchProducts = useCallback(async () => {
     try {
       setLoadingProducts(true);
-      const response = await api.list<Product>('products', {
-        limit: 1000,
-        sort: 'name',
-      });
-      setAllProducts(response.data || []);
+      setAllProducts(await fetchAllProductsForDropdown('all'));
     } catch (err) {
       console.error('Error fetching products:', err);
     } finally {

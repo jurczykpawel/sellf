@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations, useLocale } from 'next-intl';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -149,7 +150,7 @@ export default function MyProductsPage() {
       // "Discover more" products
       const { data: allProductsData } = await supabase
         .from('products')
-        .select('*')
+        .select(PRODUCT_PUBLIC_COLUMNS_CSV)
         .eq('is_active', true)
         .eq('is_listed', true)
         .order('is_featured', { ascending: false })

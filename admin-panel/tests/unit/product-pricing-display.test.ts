@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatBillingIntervalLabel,
   formatRecurringProductPrice,
+  getVatDisplay,
 } from '@/lib/product-pricing-display';
 
 describe('formatBillingIntervalLabel', () => {
@@ -132,5 +133,41 @@ describe('formatRecurringProductPrice', () => {
         'en',
       ),
     ).toMatch(/\/ every 2 years$/);
+  });
+});
+
+describe('getVatDisplay', () => {
+  it('shows the rate for a taxable product in local tax mode', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: false })).toEqual({ kind: 'rate', rate: 23 });
+  });
+
+  it('marks an exempt product as exempt instead of showing its stored rate', () => {
+    // Exempt products keep their vat_rate column (e.g. 23) — the charge carries no tax,
+    // so the checkout must not render "net + VAT 23%".
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: true })).toEqual({ kind: 'exempt', note: null });
+  });
+
+  it('carries the exemption basis note, trimmed', () => {
+    expect(
+      getVatDisplay({ taxMode: 'local', vatRate: 23, vatExempt: true, vatExemptNote: '  art. 113 ust. 1  ' }),
+    ).toEqual({ kind: 'exempt', note: 'art. 113 ust. 1' });
+  });
+
+  it('treats a blank note as no note', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 0, vatExempt: true, vatExemptNote: '   ' })).toEqual({ kind: 'exempt', note: null });
+  });
+
+  it('shows nothing for a zero or missing rate on a taxable product', () => {
+    expect(getVatDisplay({ taxMode: 'local', vatRate: 0, vatExempt: false })).toEqual({ kind: 'none' });
+    expect(getVatDisplay({ taxMode: 'local', vatRate: null, vatExempt: false })).toEqual({ kind: 'none' });
+  });
+
+  it('shows nothing in Stripe Tax mode — Stripe decides taxability, local flags are ignored', () => {
+    expect(getVatDisplay({ taxMode: 'stripe_tax', vatRate: 23, vatExempt: false })).toEqual({ kind: 'none' });
+    expect(getVatDisplay({ taxMode: 'stripe_tax', vatRate: 23, vatExempt: true })).toEqual({ kind: 'none' });
+  });
+
+  it('defaults to local behaviour when tax mode is unknown', () => {
+    expect(getVatDisplay({ vatRate: 23, vatExempt: true })).toEqual({ kind: 'exempt', note: null });
   });
 });

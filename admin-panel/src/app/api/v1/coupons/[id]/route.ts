@@ -20,6 +20,7 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 
 interface RouteParams {
@@ -302,9 +303,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (body.allowed_emails.length > 500) {
         throw new ApiValidationError('allowed_emails cannot exceed 500 entries');
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       for (const email of body.allowed_emails) {
-        if (typeof email !== 'string' || !emailRegex.test(email)) {
+        if (typeof email !== 'string' || !isValidEmailFormat(email)) {
           throw new ApiValidationError(`Invalid email format in allowed_emails: ${email}`);
         }
       }

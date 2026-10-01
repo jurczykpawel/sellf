@@ -10,11 +10,14 @@ vi.mock('@/lib/supabase/admin', () => ({
   withAdminClient: vi.fn(),
 }))
 
+// Mirrors the real withAdminClient: it hands the caller whatever
+// createAdminClient() (mocked below, per-test) currently returns.
 vi.mock('@/lib/actions/admin-auth', () => ({
   withAdminAuth: vi.fn(),
-  withAdminClient: vi.fn(async (fn: (ctx: unknown) => Promise<unknown>) =>
-    fn({ user: {}, supabase: {}, role: 'platform_admin', dataClient: {} })
-  ),
+  withAdminClient: vi.fn(async (fn: (ctx: unknown) => Promise<unknown>) => {
+    const { createAdminClient: mockedCreate } = await import('@/lib/supabase/admin')
+    return fn({ user: {}, supabase: {}, role: 'platform_admin', dataClient: mockedCreate() })
+  }),
 }))
 
 vi.mock('@/lib/stripe/payment-method-configs', () => ({

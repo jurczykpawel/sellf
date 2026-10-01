@@ -2,9 +2,9 @@
  * Subscription checkout session builder.
  *
  * Pure helper that produces the Stripe Checkout session-create payload for
- * `mode: 'subscription'`. Both server-action (`actions/checkout.ts`) and the
- * service-layer path (`services/checkout.ts`) call this so the subscription
- * shape lives in exactly one place.
+ * `mode: 'subscription'`. Both the on-site route (`api/create-payment-intent`)
+ * and the service-layer path (`services/checkout.ts`) call this so the
+ * subscription shape lives in exactly one place.
  *
  * Subscriptions intentionally bypass coupons / bumps / Pay-What-You-Want in MVP
  * (recurring discounts use Stripe coupons via `discounts` in Phase 4+).

@@ -138,11 +138,11 @@ export default function OrderBumpList({ bumps, selectedBumpIds, onToggle }: Orde
                 const mins = Math.floor(remainingSec / 60);
                 const secs = remainingSec % 60;
                 return (
-                  <div className="flex items-center justify-between px-3 py-2 mb-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                  <div className="flex items-center justify-between px-3 py-2 mb-2 rounded-lg bg-sf-danger-soft border border-sf-danger/20">
+                    <span className="text-xs font-semibold text-sf-danger uppercase tracking-wider">
                       {t('specialOfferEnds')}
                     </span>
-                    <span className="text-sm font-bold text-red-400 tabular-nums">
+                    <span className="text-sm font-bold text-sf-danger tabular-nums">
                       {mins}m {secs.toString().padStart(2, '0')}s
                     </span>
                   </div>

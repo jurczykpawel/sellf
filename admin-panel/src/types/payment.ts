@@ -30,7 +30,7 @@ export interface PaymentTransaction {
   amount: number;
   currency: string;
   stripe_payment_intent_id?: string;
-  status: 'completed' | 'refunded' | 'disputed' | 'pending' | 'failed';
+  status: 'completed' | 'refunded' | 'disputed' | 'pending' | 'partially_refunded' | 'abandoned';
   refunded_amount: number;
   refunded_at?: string;
   refunded_by?: string;

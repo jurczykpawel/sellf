@@ -29,6 +29,7 @@ import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
+import { findTransactionByOrderId } from '@/lib/services/transaction-lookup';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import {
   handleSubscriptionCreated,
@@ -41,6 +42,15 @@ import {
 } from './subscription-handlers';
 import { RETRIABLE_EVENTS, TERMINAL_FAILURE_REASONS } from './retriable-events';
 import { handleCheckoutSessionCompleted, handlePaymentIntentSucceeded } from './onetime-handlers';
+import { readBodyWithByteLimit, ApiPayloadTooLargeError, DEFAULT_MAX_BODY_BYTES } from '@/lib/api/body-limit';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
+
+// Stripe events — particularly ones with many expanded line items, invoices,
+// or subscription phases — can run larger than a typical API JSON body.
+// This keeps a generous multiple of the default cap so those still go
+// through, while still bounding how much is read into memory before the
+// signature check runs.
+const STRIPE_WEBHOOK_MAX_BODY_BYTES = DEFAULT_MAX_BODY_BYTES * 5;
 
 /**
  * Handle refund - revoke product access
@@ -59,27 +69,16 @@ async function handleChargeRefunded(
     return { processed: true, message: 'No payment_intent in charge, skipping' };
   }
 
-  // Find transaction by payment intent ID (include session_id for guest cleanup)
-  const { data: transaction, error: txError } = await supabase
-    .from('payment_transactions')
-    .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, subscription_id')
-    .eq('stripe_payment_intent_id', paymentIntentId)
-    .maybeSingle();
+  // Find transaction by payment intent id or session id (include session_id for guest cleanup)
+  const transaction = await findTransactionByOrderId<Parameters<typeof processRefundForTransaction>[0]>(
+    supabase,
+    paymentIntentId,
+    'id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, subscription_id',
+  );
 
-  if (txError || !transaction) {
-    // Also try finding by session_id (for payment intent flow)
-    const { data: txBySession } = await supabase
-      .from('payment_transactions')
-      .select('id, user_id, product_id, status, session_id, stripe_payment_intent_id, amount, currency, customer_email, refunded_amount, subscription_id')
-      .eq('session_id', paymentIntentId)
-      .maybeSingle();
-
-    if (!txBySession) {
-      // Charge is not from this account — acknowledge so Stripe stops retrying.
-      return { processed: true, message: 'Transaction not found for refund, skipping' };
-    }
-
-    return await processRefundForTransaction(txBySession, charge, stripe, supabase);
+  if (!transaction) {
+    // Charge is not from this account — acknowledge so Stripe stops retrying.
+    return { processed: true, message: 'Transaction not found for refund, skipping' };
   }
 
   return await processRefundForTransaction(transaction, charge, stripe, supabase);
@@ -202,7 +201,7 @@ async function processRefundForTransaction(
   await emitLicenseRevokedWebhooks(
     supabase,
     refundRevoked.rows,
-    process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '',
+    getCanonicalOriginOrNull() ?? '',
   );
 
   const cancelResult = await scheduleSubscriptionCancelAfterFullRefund({
@@ -265,12 +264,14 @@ async function handleChargeDisputeCreated(
     return { processed: true, message: 'No payment_intent in disputed charge, skipping' };
   }
 
-  // Find transaction (include session_id for guest cleanup)
-  const { data: transaction } = await supabase
-    .from('payment_transactions')
-    .select('id, user_id, product_id, status, session_id')
-    .or(`stripe_payment_intent_id.eq.${paymentIntentId},session_id.eq.${paymentIntentId}`)
-    .maybeSingle();
+  // Find transaction by payment intent id or session id (include session_id for guest cleanup)
+  const transaction = await findTransactionByOrderId<{
+    id: string;
+    user_id: string | null;
+    product_id: string;
+    status: string;
+    session_id: string | null;
+  }>(supabase, paymentIntentId, 'id, user_id, product_id, status, session_id');
 
   if (!transaction) {
     // Charge is not from this account — acknowledge so Stripe stops retrying.
@@ -317,7 +318,7 @@ async function handleChargeDisputeCreated(
   await emitLicenseRevokedWebhooks(
     supabase,
     disputeRevoked.rows,
-    process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '',
+    getCanonicalOriginOrNull() ?? '',
   );
 
   return { processed: true, message: 'Dispute recorded and access revoked (main + bumps)' };
@@ -331,7 +332,15 @@ export async function POST(request: NextRequest) {
 
   // SECURITY: Get raw body for signature verification
   // The body must not be parsed/modified before verification
-  const body = await request.text();
+  let body: string;
+  try {
+    body = await readBodyWithByteLimit(request, STRIPE_WEBHOOK_MAX_BODY_BYTES);
+  } catch (err) {
+    if (err instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
+    throw err;
+  }
 
   // Get Stripe signature header
   const headersList = await headers();

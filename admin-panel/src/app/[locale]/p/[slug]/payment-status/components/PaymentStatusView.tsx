@@ -7,7 +7,7 @@ import { usePaymentStatus } from '../hooks';
 import { PaymentStatusViewProps } from '../types';
 import { getStatusInfo } from '../utils/helpers';
 import { useTracking } from '@/hooks/useTracking';
-import { generatePurchaseEventId } from '@/lib/tracking';
+import { generatePurchaseEventId } from '@/lib/tracking/types';
 import {
   ErrorStatus,
   ProcessingStatus,

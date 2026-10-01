@@ -16,6 +16,8 @@ export interface CreateDynamicSubscriptionInput {
   /** Sellf product id — pinned in subscription.metadata so the webhook can bind. */
   productId: string;
   productSlug: string;
+  /** Signed-in buyer, pinned in subscription.metadata like the fixed-price flow. */
+  userId?: string;
   interval: 'day' | 'week' | 'month' | 'year';
   intervalCount: number;
   taxRateId?: string;
@@ -72,6 +74,7 @@ export async function createSubscriptionWithDynamicPrice(
     metadata: {
       product_id: input.productId,
       product_slug: input.productSlug,
+      ...(input.userId ? { user_id: input.userId } : {}),
     },
     payment_settings: {
       payment_method_types: ['card'],

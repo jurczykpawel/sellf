@@ -14,7 +14,7 @@ import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl } from '@/lib/videoUtils';
 import PlayerstackEmbed from '@/components/player/PlayerstackEmbed';
 import { isPlayerstackPlatform } from '@/lib/playerstack';
-import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
+import { formatRecurringProductPrice, getVatDisplay } from '@/lib/product-pricing-display';
 import { isSalePriceActive, getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import BundleContentsPreview from './BundleContentsPreview';
 import type { BundleComponentSummary } from './BundleContentsPreview';
@@ -51,13 +51,13 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
   // Determine effective price (sale price if active, otherwise regular price)
   const effectivePrice = isSaleActive ? getEffectiveUnitPrice(product) : product.price;
 
-  // Calculate net price if VAT is included
-  const vatRate = product.vat_rate || 0;
   const grossPrice = effectivePrice;
-  const netPrice = product.price_includes_vat && vatRate > 0
-    ? grossPrice / (1 + vatRate / 100)
-    : grossPrice;
-  const vatAmount = grossPrice - netPrice;
+  const vatDisplay = getVatDisplay({
+    taxMode,
+    vatRate: product.vat_rate,
+    vatExempt: product.vat_exempt,
+    vatExemptNote: product.vat_exempt_note,
+  });
 
   const parsedVideo = useMemo(
     () => product.preview_video_url ? parseVideoUrl(product.preview_video_url) : null,
@@ -129,9 +129,14 @@ export default function ProductShowcase({ product, taxMode, bundleComponents }: 
             {recurringPriceDisplay ?? formatPrice(grossPrice, product.currency)}
           </div>
 
-          {taxMode !== 'stripe_tax' && product.vat_rate != null && product.vat_rate > 0 && (
+          {vatDisplay.kind === 'rate' && (
             <div className="text-sm text-sf-muted">
-              {t('includingVat', { defaultValue: 'including VAT' })} {vatRate}%
+              {t('includingVat', { defaultValue: 'including VAT' })} {vatDisplay.rate}%
+            </div>
+          )}
+          {vatDisplay.kind === 'exempt' && (
+            <div className="text-sm text-sf-muted">
+              {t('vatExempt')}{vatDisplay.note && ` (${vatDisplay.note})`}
             </div>
           )}
 

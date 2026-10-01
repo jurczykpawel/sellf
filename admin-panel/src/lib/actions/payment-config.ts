@@ -169,22 +169,19 @@ export async function getPublicPaymentConfig(): Promise<PublicPaymentMethodConfi
  * code reachable only by admins (settings UI, Stripe sync jobs).
  */
 export async function getAdminPaymentConfig(): Promise<PaymentMethodConfig | null> {
-  try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
+  const result = await withAdminClient<PaymentMethodConfig>(async ({ dataClient }) => {
+    const { data, error } = await dataClient
       .from('payment_method_config')
       .select('*')
       .eq('id', 1)
       .single();
     if (error) {
       console.error('[getAdminPaymentConfig] Error:', error);
-      return null;
+      return { success: true, data: null as unknown as PaymentMethodConfig };
     }
-    return data as unknown as PaymentMethodConfig;
-  } catch (error) {
-    console.error('[getAdminPaymentConfig] Exception:', error);
-    return null;
-  }
+    return { success: true, data: data as unknown as PaymentMethodConfig };
+  });
+  return result.success ? (result.data ?? null) : null;
 }
 
 /**

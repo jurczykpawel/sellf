@@ -11,13 +11,18 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
 import { emitRefundIssuedWebhook } from '@/lib/services/refund-webhook-payload';
 import { scheduleSubscriptionCancelAfterFullRefund } from '@/lib/services/subscription-refund-cancel';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Authenticate before initializing service client
     const { user } = await requireAdminApiWithRequest(request);
 
-    const { transactionId, amount, reason } = await request.json();
+    const { transactionId, amount, reason } = await readJsonBody<{
+      transactionId?: string;
+      amount?: number;
+      reason?: string;
+    }>(request);
 
     // Validate body BEFORE consuming rate-limit budget so a bad payload
     // can't burn the admin's 10/h refund quota.
@@ -226,6 +231,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
