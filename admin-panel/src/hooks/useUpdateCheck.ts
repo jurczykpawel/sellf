@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const STORAGE_KEY = 'sellf_update_check';
 const DISMISSED_KEY = 'sellf_update_dismissed';
 const CLIENT_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+const PENDING_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 const DISMISS_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface UpdateInfo {
@@ -42,6 +43,7 @@ interface CachedCheck {
 
 interface DismissedVersion {
   version: string;
+  current_version: string;
   timestamp: number;
 }
 
@@ -69,6 +71,10 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       const raw = localStorage.getItem(DISMISSED_KEY);
       if (!raw) return false;
       const dismissed: DismissedVersion = JSON.parse(raw);
+      if (dismissed.current_version !== process.env.NEXT_PUBLIC_APP_VERSION) {
+        localStorage.removeItem(DISMISSED_KEY);
+        return false;
+      }
       if (dismissed.version !== version) return false;
       return Date.now() - dismissed.timestamp < DISMISS_TTL;
     } catch {
@@ -85,7 +91,9 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const cached: CachedCheck = JSON.parse(raw);
-          if (Date.now() - cached.timestamp < CLIENT_CACHE_TTL) {
+          if (cached.data.current_version !== process.env.NEXT_PUBLIC_APP_VERSION) {
+            localStorage.removeItem(STORAGE_KEY);
+          } else if (Date.now() - cached.timestamp < CLIENT_CACHE_TTL) {
             setUpdateInfo(cached.data);
             if (cached.data.update_available && !isDismissed(cached.data.latest_version)) {
               setShowModal(true);
@@ -115,9 +123,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       const cached: CachedCheck = { data, timestamp: Date.now() };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-      if (data.update_available && !isDismissed(data.latest_version)) {
-        setShowModal(true);
-      }
+      setShowModal(data.update_available && !isDismissed(data.latest_version));
     } catch {
       // Silent fail — don't bother user with update check errors
     } finally {
@@ -130,6 +136,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     if (updateInfo?.latest_version) {
       const dismissed: DismissedVersion = {
         version: updateInfo.latest_version,
+        current_version: updateInfo.current_version,
         timestamp: Date.now(),
       };
       localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed));
@@ -143,8 +150,12 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     let healthPollCount = 0;
     let switchedToHealthPoll = false;
     let consecutiveErrors = 0;
+    let pendingSince: number | null = Date.now();
+    let pollInFlight = false;
 
     pollRef.current = setInterval(async () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
       try {
         if (!switchedToHealthPoll) {
           const response = await fetch(`/api/v1/system/upgrade-status?token=${token}`, {
@@ -171,6 +182,15 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
               return;
             }
 
+            if (progress.step === 'pending') {
+              pendingSince ??= Date.now();
+              if (Date.now() - pendingSince >= PENDING_TIMEOUT) {
+                switchedToHealthPoll = true;
+              }
+            } else {
+              pendingSince = null;
+            }
+
             if (progress.step === 'restarting') {
               switchedToHealthPoll = true;
             }
@@ -195,12 +215,27 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
           try {
             const healthResp = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
             if (healthResp.ok) {
-              const health = await healthResp.json();
               if (pollRef.current) clearInterval(pollRef.current);
+              let message = 'Upgrade completed!';
+              try {
+                const versionResp = await fetch('/api/v1/system/update-check?force=true', {
+                  signal: AbortSignal.timeout(5000),
+                  cache: 'no-store',
+                });
+                if (versionResp.ok) {
+                  const json = await versionResp.json();
+                  const version = json.data?.current_version;
+                  if (typeof version === 'string' && version) {
+                    message = `Upgrade to v${version} completed!`;
+                  }
+                }
+              } catch {
+                // Completion still succeeds when the version check is unavailable.
+              }
               setUpgradeProgress({
                 step: 'done',
                 progress: 100,
-                message: `Upgrade to v${health.version} completed!`,
+                message,
               });
               setUpgradeInProgress(false);
               localStorage.removeItem(STORAGE_KEY);
@@ -224,6 +259,8 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
         }
       } catch {
         consecutiveErrors++;
+      } finally {
+        pollInFlight = false;
       }
     }, 3000);
   }, []);

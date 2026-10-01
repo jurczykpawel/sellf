@@ -10,6 +10,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { readFileSync, openSync, closeSync, fstatSync, constants } from 'fs';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -18,9 +19,20 @@ import {
   apiError,
   API_SCOPES,
 } from '@/lib/api';
-import { readFileSync, openSync, closeSync, fstatSync, constants } from 'fs';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { getUpgradeProgressFilePath } from '@/lib/system/upgrade-paths';
+
+function pendingResponse(request: NextRequest) {
+  const response = jsonResponse({
+    data: {
+      step: 'pending',
+      progress: 0,
+      message: 'Waiting for upgrade process to start...',
+    },
+  }, request);
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  return response;
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -50,36 +62,41 @@ export async function GET(request: NextRequest) {
     // Sanitized path — token is validated as UUID, no path traversal possible
     const progressFile = getUpgradeProgressFilePath(token);
 
-    // Atomic open with O_NOFOLLOW — refuses symlinks at kernel level, no TOCTOU
     let fd: number;
+    let legacyFile = progressFile.startsWith('/tmp/');
     try {
       fd = openSync(progressFile, constants.O_RDONLY | constants.O_NOFOLLOW);
     } catch (err: unknown) {
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') {
-        return jsonResponse({
-          data: {
-            step: 'pending',
-            progress: 0,
-            message: 'Waiting for upgrade process to start...',
-          },
-        }, request);
-      }
-      if (code === 'ELOOP') {
-        // O_NOFOLLOW on a symlink → ELOOP
+        if (legacyFile) return pendingResponse(request);
+        // Older upgrade scripts keep writing to /tmp after the server restarts.
+        try {
+          fd = openSync(`/tmp/sellf-upgrade-${token}.json`, constants.O_RDONLY | constants.O_NOFOLLOW);
+          legacyFile = true;
+        } catch (legacyError: unknown) {
+          const legacyCode = (legacyError as NodeJS.ErrnoException).code;
+          if (legacyCode === 'ENOENT' || legacyCode === 'ELOOP') return pendingResponse(request);
+          throw legacyError;
+        }
+      } else if (code === 'ELOOP') {
         return apiError(request, 'VALIDATION_ERROR', 'Invalid progress file');
+      } else {
+        throw err;
       }
-      throw err;
     }
 
     try {
       const stat = fstatSync(fd);
+      if (legacyFile && (!stat.isFile() || typeof process.getuid !== 'function' || stat.uid !== process.getuid())) {
+        return pendingResponse(request);
+      }
       if (!stat.isFile()) {
         return apiError(request, 'VALIDATION_ERROR', 'Invalid progress file');
       }
       const content = readFileSync(fd, 'utf-8');
       const raw = JSON.parse(content);
-      // Only expose known fields — don't leak unexpected data from the progress file (§19)
+      // Return only the supported progress fields.
       const progress = {
         step: typeof raw.step === 'string' ? raw.step : 'unknown',
         progress: typeof raw.progress === 'number' ? raw.progress : 0,
