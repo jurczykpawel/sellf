@@ -2,23 +2,31 @@
  * Legal document Supabase Storage helper
  *
  * Archives the current document before overwriting, then uploads the new one
- * to the public `legal` bucket and returns the public URL.
+ * to the `legal` bucket and returns the internal Sellf page path that renders
+ * it — never the storage object's own URL.
  *
- * Bucket: `legal` (public) — must be created as a public bucket.
+ * The bucket is PRIVATE (see the migration that flips `storage.buckets.public`
+ * to false). Nothing links to a storage URL directly: Supabase Storage serves
+ * `text/html` objects as `text/plain` (buyers would see raw markup), and on
+ * self-hosted installs the stored `SUPABASE_URL` is often an internal address
+ * (e.g. Coolify's `http://kong:8000/...`) unreachable from the buyer's
+ * browser. `/legal/[type]` reads the same object with the service-role client
+ * and renders it through a sanitizing pipeline instead.
  * If this repo manages buckets via migration/seed, create the bucket there.
  * Otherwise, bucket creation is a required manual setup step (Supabase Dashboard
- * → Storage → New Bucket → Name: "legal" → Public: true).
+ * → Storage → New Bucket → Name: "legal" → Public: false).
  *
  * Path layout:
  *   {shopId}/terms.html         ← current document
  *   {shopId}/terms/archive/{ts}.html  ← archived previous version
  *
  * @see /app/api/legal/generate/route.ts — caller
+ * @see /app/[locale]/legal/[type]/page.tsx — reads the same object and renders it
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const BUCKET = 'legal';
+export const BUCKET = 'legal';
 
 export async function publishSnapshot(
   supabase: SupabaseClient,
@@ -50,6 +58,6 @@ export async function publishSnapshot(
 
   if (error) throw error;
 
-  // 3) Return the public URL
-  return supabase.storage.from(BUCKET).getPublicUrl(currentPath).data.publicUrl;
+  // 3) Return the internal page path — never the storage object's own URL.
+  return `/legal/${docType}`;
 }

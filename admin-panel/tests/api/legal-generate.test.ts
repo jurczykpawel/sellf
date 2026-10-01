@@ -192,7 +192,7 @@ function setupAuth(isAdmin: boolean) {
 function makeRequest(opts: { isAdmin?: boolean } = {}): NextRequest {
   return new Request('http://localhost:3777/api/legal/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3777' },
     body: JSON.stringify({}),
   }) as unknown as NextRequest;
 }
@@ -226,16 +226,16 @@ describe('POST /api/legal/generate', () => {
         .mockResolvedValue({ ok: true, html: '<h1>Generated</h1>' });
 
       (publishSnapshot as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce('https://storage.example.com/shop/terms.html')
-        .mockResolvedValueOnce('https://storage.example.com/shop/privacy.html');
+        .mockResolvedValueOnce('/legal/terms')
+        .mockResolvedValueOnce('/legal/privacy');
 
       const res = await POST(makeRequest());
       const json = await res.json();
 
       expect(res.status).toBe(200);
       expect(json.ok).toBe(true);
-      expect(json.termsUrl).toContain('terms.html');
-      expect(json.privacyUrl).toContain('privacy.html');
+      expect(json.termsUrl).toBe('/legal/terms');
+      expect(json.privacyUrl).toBe('/legal/privacy');
       expect(renderDocument).toHaveBeenCalledTimes(2);
       expect(publishSnapshot).toHaveBeenCalledTimes(2);
     });

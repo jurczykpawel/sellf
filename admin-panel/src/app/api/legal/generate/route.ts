@@ -3,7 +3,9 @@
  *
  * Generates and publishes legal documents (Terms of Service + Privacy Policy)
  * for the shop by calling the external legal-engine service, then stores them
- * in Supabase Storage and updates shop_config with the new public URLs.
+ * in Supabase Storage and updates shop_config with `/legal/<type>` page paths
+ * (publishSnapshot returns the Sellf page path, not the storage object's URL —
+ * see /lib/legal/storage.ts for why).
  *
  * SECURITY:
  * - Admin-only: requires authenticated admin session (requireAdminApi)
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // 1) Admin gate — throws 'Unauthorized' or 'Forbidden' on failure
     const supabase = await createClient();
-    await requireAdminApi(supabase);
+    await requireAdminApi(supabase, request);
 
     // 2) Load shop_config singleton, integrations_config, and products (service-role)
     const adminClient = createAdminClient();

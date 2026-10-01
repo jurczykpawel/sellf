@@ -317,6 +317,12 @@ export default function LegalDocumentsSettings() {
   };
 
   // ---- Helpers ----
+  // Generated URLs are now relative page paths (/legal/terms, /legal/privacy).
+  // Show the full address for clarity in the confirmation panel — the link's
+  // href stays relative, which already resolves correctly against this origin.
+  const absoluteUrl = (url: string) =>
+    url.startsWith('/') && typeof window !== 'undefined' ? `${window.location.origin}${url}` : url;
+
   const inputClass = (fieldKey?: string) => {
     const base =
       'w-full px-4 py-2 border-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent focus:border-transparent';
@@ -697,7 +703,7 @@ export default function LegalDocumentsSettings() {
                   rel="noopener noreferrer"
                   className="text-sf-accent underline hover:no-underline break-all"
                 >
-                  {generatedUrls.termsUrl}
+                  {absoluteUrl(generatedUrls.termsUrl)}
                 </a>
               </li>
               <li>
@@ -708,7 +714,7 @@ export default function LegalDocumentsSettings() {
                   rel="noopener noreferrer"
                   className="text-sf-accent underline hover:no-underline break-all"
                 >
-                  {generatedUrls.privacyUrl}
+                  {absoluteUrl(generatedUrls.privacyUrl)}
                 </a>
               </li>
             </ul>
@@ -727,7 +733,11 @@ export default function LegalDocumentsSettings() {
           {t('description')}
         </p>
 
-        <form onSubmit={handleUrlSubmit} className="space-y-6">
+        {/* noValidate: these type="url" fields are also populated by Generate & Publish
+            with a relative /legal/<type> path, which native URL constraint validation
+            (no scheme => "not a valid URL") would otherwise block on Save. The server
+            already accepts any string here (see validations/shop-config.ts). */}
+        <form onSubmit={handleUrlSubmit} className="space-y-6" noValidate>
           {/* Terms of Service URL */}
           <div>
             <div className="flex items-center gap-2 mb-2">
