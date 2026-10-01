@@ -46,6 +46,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (!errorMessage) return
     const id = window.setTimeout(() => {
+      const activeElement = document.activeElement
+      if (activeElement?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
       document.getElementById('email')?.focus()
     }, 100)
     return () => window.clearTimeout(id)

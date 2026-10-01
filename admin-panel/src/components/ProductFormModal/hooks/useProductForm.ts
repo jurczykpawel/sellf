@@ -358,14 +358,18 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       setSlugModified(false);
       setOto(initialOtoState);
     }
-
-    // Focus the name input when the modal opens
-    if (isOpen) {
-      setTimeout(() => {
-        nameInputRef.current?.focus();
-      }, 100);
-    }
   }, [product, isOpen]);
+
+  // Allow the modal to mount, but preserve focus if the user has moved on.
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      const activeElement = document.activeElement;
+      if (activeElement?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+      nameInputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
   // When shop default currency loads, apply it to new products (if user hasn't changed currency yet)
   useEffect(() => {
