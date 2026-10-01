@@ -112,6 +112,71 @@ log() {
   echo "[$(date -u +%H:%M:%S)] $*" >> "$LOG_FILE"
 }
 
+# ===== EXECUTABLE PREFLIGHT =====
+# Resolve once before any download or installation changes. systemd services
+# may omit the Bun/npm global bin directories from their minimal PATH.
+resolve_pm2() {
+  local candidate node_path global_dir
+  candidate=$(command -v pm2 || true)
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  node_path=$(command -v node || true)
+  for candidate in "$HOME/.bun/bin/pm2" /usr/local/bin/pm2 /usr/bin/pm2 \
+    "${node_path:+$(dirname "$node_path")/pm2}"; do
+    if [ -n "$candidate" ] && [ -f "$candidate" ] && [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  done
+  if command -v npm >/dev/null 2>&1; then
+    # npm 9+ removed `npm bin`; prefix/bin is its Unix global bin directory.
+    global_dir=$(npm prefix -g 2>/dev/null || true)
+    candidate="${global_dir}/bin/pm2"
+    if [ -n "$global_dir" ] && [ -f "$candidate" ] && [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  fi
+  if command -v bun >/dev/null 2>&1; then
+    global_dir=$(bun pm bin -g 2>/dev/null || true)
+    candidate="${global_dir}/pm2"
+    if [ -n "$global_dir" ] && [ -f "$candidate" ] && [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  fi
+  return 1
+}
+
+PM2_BIN=$(resolve_pm2) || {
+  write_error "PM2 executable not found. Install PM2 or fix the server PATH before upgrading."
+  log "ERROR: PM2 executable not found; installation unchanged"
+  exit 1
+}
+log "PM2_BIN: $PM2_BIN"
+
+# PM2's JS executable uses /usr/bin/env node, including when installed by Bun.
+# Bun itself is only an optional discovery tool; no later step requires it.
+NODE_BIN=$(command -v node || true)
+if [ -z "$NODE_BIN" ]; then
+  for candidate in "$HOME/.bun/bin/node" /usr/local/bin/node /usr/bin/node; do
+    if [ -f "$candidate" ] && [ -x "$candidate" ]; then NODE_BIN="$candidate"; break; fi
+  done
+fi
+if [ -z "$NODE_BIN" ] || ! "$NODE_BIN" --version >/dev/null 2>&1; then
+  write_error "Node executable not found or unusable. Install Node before upgrading."
+  log "ERROR: Node executable not found or unusable; installation unchanged"
+  exit 1
+fi
+export PATH="$(dirname "$NODE_BIN"):${PATH:-/usr/local/bin:/usr/bin:/bin}"
+if ! "$PM2_BIN" --version >> "$LOG_FILE" 2>&1; then
+  write_error "PM2 executable could not run. Check the upgrade log before retrying."
+  log "ERROR: PM2 executable could not run; installation unchanged"
+  exit 1
+fi
+
 # ===== AUTO-DETECT INSTALL DIR =====
 
 if [ -z "$INSTALL_DIR" ]; then
@@ -176,7 +241,7 @@ if [ -z "$PM2_NAME" ]; then
   # Primary: PM2 name matches the stack dir basename by convention.
   # e.g. /opt/stacks/sellf-tsa/admin-panel → parent = sellf-tsa → PM2 name = sellf-tsa
   BASENAME_NAME=$(basename "$(dirname "$INSTALL_DIR")")
-  if pm2 describe "$BASENAME_NAME" &>/dev/null; then
+  if "$PM2_BIN" describe "$BASENAME_NAME" &>/dev/null; then
     PM2_NAME="$BASENAME_NAME"
   fi
 fi
@@ -554,7 +619,7 @@ log "Backup created at $BACKUP_DIR"
 write_progress "stopping" 55 "Stopping application..."
 log "Stopping PM2 process: $PM2_NAME"
 
-pm2 stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || log "WARNING: PM2 stop failed (process may not be running)"
+"$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || log "WARNING: PM2 stop failed (process may not be running)"
 
 # ===== STEP 7: SWAP FILES =====
 
@@ -762,7 +827,7 @@ if [ ! -f "$SERVER_JS" ]; then
   if [ -f "$BACKUP_DIR/.env.local" ]; then
     cp "$BACKUP_DIR/.env.local" "$INSTALL_DIR/.env.local"
   fi
-  pm2 start "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  "$PM2_BIN" start "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
   write_error "Upgrade failed: server.js not found. Rolled back to previous version." true
   rm -rf "$TMP_DIR"
   exit 1
@@ -775,7 +840,7 @@ if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1024 ] || [ "$PORT" -gt 65535 ];
 fi
 
 # Delete old PM2 entry and start fresh
-pm2 delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+"$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
 cd "$(dirname "$SERVER_JS")"
 # Load .env.local into shell so PM2 captures actual values.
 # dotenv in server.js won't override vars already set by PM2, so we pre-load them here.
@@ -788,7 +853,7 @@ fi
 MEM_LIMIT="${SELLF_PM2_MAX_MEMORY:-512M}"
 OLD_SPACE="${SELLF_NODE_MAX_OLD_SPACE:-400}"
 # ::: loopback only — app runs behind Caddy, never exposed directly
-PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" pm2 start "$(basename "$SERVER_JS")" --name "$PM2_NAME" \
+PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" "$PM2_BIN" start "$(basename "$SERVER_JS")" --name "$PM2_NAME" \
   --max-memory-restart "${MEM_LIMIT}" \
   --node-args="--max-old-space-size=${OLD_SPACE}" >> "$LOG_FILE" 2>&1
 
@@ -804,7 +869,7 @@ for i in $(seq 1 12); do
 done
 
 if [ "$HEALTH_OK" = "true" ]; then
-  pm2 save >> "$LOG_FILE" 2>&1 || true
+  "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
   if [ "$MIGRATION_ERRORS" -gt 0 ]; then
     write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs."
     log "WARNING: Upgrade finished with $MIGRATION_ERRORS migration errors. Version: $TAG_NAME"
@@ -816,8 +881,8 @@ else
   log "ERROR: Health check failed after 60s — rolling back!"
   write_progress "rolling_back" 95 "Health check failed. Rolling back..."
 
-  pm2 stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
-  pm2 delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  "$PM2_BIN" stop "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
+  "$PM2_BIN" delete "$PM2_NAME" >> "$LOG_FILE" 2>&1 || true
 
   rm -rf "$INSTALL_DIR/.next" "$INSTALL_DIR/public"
   cp -r "$BACKUP_DIR/.next" "$INSTALL_DIR/" 2>/dev/null || true
@@ -835,10 +900,10 @@ else
       source "$INSTALL_DIR/.env.local"
       set +o allexport
     fi
-    PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" pm2 start "$(basename "$OLD_SERVER_JS")" --name "$PM2_NAME" \
+    PORT="${PORT}" HOSTNAME="${HOSTNAME:-::}" "$PM2_BIN" start "$(basename "$OLD_SERVER_JS")" --name "$PM2_NAME" \
       --max-memory-restart "${MEM_LIMIT:-512M}" \
       --node-args="--max-old-space-size=${OLD_SPACE:-400}" >> "$LOG_FILE" 2>&1 || true
-    pm2 save >> "$LOG_FILE" 2>&1 || true
+    "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
   fi
 
   write_error "Upgrade failed: health check timeout. Rolled back to previous version." true

@@ -15,6 +15,10 @@
  */
 
 import { NextRequest } from 'next/server';
+import { randomUUID } from 'crypto';
+import { spawn } from 'child_process';
+import { existsSync, openSync, closeSync } from 'fs';
+import { resolve, basename, dirname, isAbsolute } from 'path';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -24,10 +28,6 @@ import {
 } from '@/lib/api';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
-import { randomUUID } from 'crypto';
-import { spawn } from 'child_process';
-import { existsSync, openSync, closeSync } from 'fs';
-import { resolve, basename } from 'path';
 import { getUpgradeLockFilePath, getUpgradeLogFilePath } from '@/lib/system/upgrade-paths';
 
 /**
@@ -151,6 +151,13 @@ export async function POST(request: NextRequest) {
     // embedded in the installed upgrade.sh and refuses a version older than
     // the installed one; neither check can be switched off.
     const scriptArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
+    // Reject empty/relative entries (implicit cwd lookup) and control characters.
+    // Keep this as one spawn argument; no shell interpolation is involved.
+    const pathEntries = [...(process.env.PATH === undefined ? [] : process.env.PATH.split(':')), dirname(process.execPath)];
+    if (pathEntries.some((entry) => !isAbsolute(entry) || /[:\x00-\x1f\x7f]/.test(entry))) {
+      throw new Error('Invalid upgrade executable PATH');
+    }
+    const upgradePath = [...new Set(pathEntries)].join(':');
     const systemdRunArgs = [
       `--unit=sellf-upgrade-${token}`,
       '--collect',   // auto-remove unit after exit
@@ -161,6 +168,7 @@ export async function POST(request: NextRequest) {
       // pm2 stop/start to silently target a different daemon).
       '--setenv=HOME=/root',
       '--setenv=PM2_HOME=/root/.pm2',
+      `--setenv=PATH=${upgradePath}`,
       '--',
       'bash', ...scriptArgs,
     ];

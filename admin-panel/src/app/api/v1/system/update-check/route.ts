@@ -26,6 +26,8 @@ function withNoStore(res: NextResponse) {
 }
 
 const GITHUB_REPO = 'jurczykpawel/sellf';
+// Process identity is returned only after SYSTEM_READ admin authentication.
+const PROCESS_STARTED_AT = new Date(Date.now() - process.uptime() * 1000).toISOString();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 interface CachedRelease {
@@ -35,6 +37,7 @@ interface CachedRelease {
 
 interface UpdateCheckData {
   current_version: string;
+  started_at: string;
   latest_version: string;
   update_available: boolean;
   release_notes: string | null;
@@ -51,6 +54,7 @@ export async function OPTIONS(request: NextRequest) {
 function unknownUpstreamResponse(currentVersion: string): UpdateCheckData {
   return {
     current_version: currentVersion,
+    started_at: PROCESS_STARTED_AT,
     latest_version: currentVersion,
     update_available: false,
     release_notes: null,
@@ -68,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     // Return cached data if fresh
     if (!force && releaseCache && Date.now() - releaseCache.fetchedAt < CACHE_TTL_MS) {
-      const cached = { ...releaseCache.data, current_version: currentVersion };
+      const cached = { ...releaseCache.data, current_version: currentVersion, started_at: PROCESS_STARTED_AT };
       cached.update_available = isNewerVersion(currentVersion, cached.latest_version);
       return withNoStore(jsonResponse(successResponse(cached), request));
     }
@@ -116,6 +120,7 @@ export async function GET(request: NextRequest) {
 
     const data: UpdateCheckData = {
       current_version: currentVersion,
+      started_at: PROCESS_STARTED_AT,
       latest_version: latestVersion,
       update_available: isNewerVersion(currentVersion, latestVersion),
       release_notes: releaseNotes,

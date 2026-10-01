@@ -74,6 +74,7 @@ log() { printf '%s\\n' "$*"; }
 write_progress() { printf 'PROGRESS: %s %s\\n' "$1" "$3"; }
 write_error() { printf 'WRITE_ERROR: %s\\n' "$1"; }
 pm2() { :; }
+PM2_BIN=pm2
 ${block('# ===== STEP 8: RUN MIGRATIONS =====', '# ===== STEP 9: START PM2 =====')}
 ${block('if [ "$HEALTH_OK" = "true" ]; then', '# ===== FIREWALL CHECK =====')}
 ${block('# ===== CLEANUP =====', '\n}\nmain "$@"')}

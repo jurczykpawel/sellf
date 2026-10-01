@@ -21,6 +21,7 @@ const DISMISS_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface UpdateInfo {
   current_version: string;
+  started_at?: string; // Older cached checks may not carry process identity.
   latest_version: string;
   update_available: boolean;
   release_notes: string | null;
@@ -144,7 +145,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
     }
   }, [updateInfo]);
 
-  const pollUpgradeStatus = useCallback((token: string) => {
+  const pollUpgradeStatus = useCallback((token: string, targetVersion: string, previousVersion: string, previousStartedAt: string) => {
     // Clear any existing poll
     if (pollRef.current) clearInterval(pollRef.current);
 
@@ -166,15 +167,11 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
             consecutiveErrors = 0;
             const json = await response.json();
             const progress: UpgradeProgress = json.data;
-            setUpgradeProgress(progress);
-
             if (progress.step === 'done') {
-              if (pollRef.current) clearInterval(pollRef.current);
-              setUpgradeInProgress(false);
-              localStorage.removeItem(STORAGE_KEY);
-              localStorage.removeItem(DISMISSED_KEY);
-              setTimeout(() => window.location.reload(), 3000);
-              return;
+              // Even a terminal script status must agree with the live process.
+              switchedToHealthPoll = true;
+            } else {
+              setUpgradeProgress(progress);
             }
 
             if (progress.step === 'failed') {
@@ -217,7 +214,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
             const healthResp = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
             if (healthResp.ok) {
               if (pollRef.current) clearInterval(pollRef.current);
-              let message = 'Upgrade completed!';
+              let confirmed = false;
               try {
                 const versionResp = await fetch('/api/v1/system/update-check?force=true', {
                   signal: AbortSignal.timeout(5000),
@@ -225,23 +222,31 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
                 });
                 if (versionResp.ok) {
                   const json = await versionResp.json();
-                  const version = json.data?.current_version;
-                  if (typeof version === 'string' && version) {
-                    message = `Upgrade to v${version} completed!`;
-                  }
+                  const live = json.data;
+                  confirmed = live?.current_version === targetVersion && (
+                    previousVersion !== targetVersion || (
+                      typeof live.started_at === 'string' &&
+                      Number.isFinite(Date.parse(live.started_at)) &&
+                      live.started_at !== previousStartedAt
+                    )
+                  );
                 }
               } catch {
-                // Completion still succeeds when the version check is unavailable.
+                // A health response alone cannot establish upgrade completion.
               }
               setUpgradeProgress({
-                step: 'done',
-                progress: 100,
-                message,
+                step: confirmed ? 'done' : 'failed',
+                progress: confirmed ? 100 : -1,
+                message: confirmed
+                  ? `Upgrade to v${targetVersion} completed!`
+                  : 'Server did not restart into the requested version. Check the upgrade log.',
               });
               setUpgradeInProgress(false);
-              localStorage.removeItem(STORAGE_KEY);
-              localStorage.removeItem(DISMISSED_KEY);
-              setTimeout(() => window.location.reload(), 3000);
+              if (confirmed) {
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(DISMISSED_KEY);
+                setTimeout(() => window.location.reload(), 3000);
+              }
               return;
             }
           } catch {
@@ -274,7 +279,22 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       message: 'Initiating upgrade...',
     });
 
+    // Freeze the release the admin clicked, even if another release appears later.
+    const targetVersion = updateInfo?.latest_version;
     try {
+      if (!targetVersion) throw new Error('Missing upgrade target');
+      // Refresh process identity: localStorage may describe an earlier boot of
+      // this same version, which must not count as evidence of this restart.
+      const baselineResponse = await fetch('/api/v1/system/update-check?force=true', {
+        signal: AbortSignal.timeout(5000), cache: 'no-store',
+      });
+      if (!baselineResponse.ok) throw new Error('Could not check running process');
+      const baseline = (await baselineResponse.json()).data;
+      if (typeof baseline?.current_version !== 'string' ||
+          typeof baseline?.started_at !== 'string' ||
+          !Number.isFinite(Date.parse(baseline.started_at))) {
+        throw new Error('Could not establish running process identity');
+      }
       const response = await fetch('/api/v1/system/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -292,16 +312,16 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
       }
 
       const json = await response.json();
-      pollUpgradeStatus(json.data.token);
+      pollUpgradeStatus(json.data.token, targetVersion, baseline.current_version, baseline.started_at);
     } catch {
       setUpgradeProgress({
         step: 'failed',
         progress: -1,
-        message: 'Network error while starting upgrade',
+        message: 'Could not start upgrade or verify the running process. Check the upgrade log.',
       });
       setUpgradeInProgress(false);
     }
-  }, [pollUpgradeStatus]);
+  }, [pollUpgradeStatus, updateInfo]);
 
   // Auto-check on mount
   useEffect(() => {

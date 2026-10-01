@@ -14,7 +14,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 const fetchMock = vi.fn();
 const fresh: UpdateInfo = {
   current_version: '2026.10.0', latest_version: '2026.10.0', update_available: false,
-  release_notes: null, published_at: null, release_url: null,
+  release_notes: null, published_at: null, release_url: null, started_at: '2026-10-01T10:00:00.000Z',
 };
 const reply = (data: unknown) => ({ ok: true, json: async () => ({ data }) });
 
@@ -98,14 +98,19 @@ describe('update check across builds', () => {
 });
 
 describe('upgrade completion', () => {
-  async function start(step: string, versionCheckOk = true) {
-    cache(fresh);
+  async function start(step: string, versionCheckOk = true, reportedVersion = '2026.11.0', startedAt = '2026-10-01T11:00:00.000Z', target = '2026.11.0') {
+    cache({ ...fresh, latest_version: target });
+    let baselineRead = false;
     fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check?force=true' && !baselineRead) {
+        baselineRead = true;
+        return reply(fresh);
+      }
       if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
       if (url.startsWith('/api/v1/system/upgrade-status')) return reply({ step, progress: 0, message: '' });
       if (url === '/api/health') return { ok: true, json: async () => ({ status: 'ok', service: 'sellf-admin' }) };
       if (!versionCheckOk) throw new Error('Unavailable');
-      return reply({ ...fresh, current_version: '2026.11.0' });
+      return reply({ ...fresh, current_version: reportedVersion, started_at: startedAt });
     });
     const hook = await mount();
     await act(async () => hook.result.current.startUpgrade());
@@ -122,11 +127,22 @@ describe('upgrade completion', () => {
     expect(localStorage.getItem('sellf_update_check')).toBeNull();
   });
 
-  it('completes without a version if the authenticated version check fails', async () => {
+  it('fails when the authenticated version check is unavailable', async () => {
     const { result } = await start('restarting', false);
     await act(async () => vi.advanceTimersByTimeAsync(3000));
-    expect(result.current.upgradeProgress?.message).toBe('Upgrade completed!');
+    expect(result.current.upgradeProgress?.step).toBe('failed');
     expect(result.current.upgradeInProgress).toBe(false);
+  });
+
+  it.each([
+    ['old version', '2026.10.0', '2026-10-01T11:00:00.000Z', '2026.11.0', 'failed'],
+    ['same process reinstall', '2026.10.0', fresh.started_at, '2026.10.0', 'failed'],
+    ['restarted reinstall', '2026.10.0', '2026-10-01T11:00:00.000Z', '2026.10.0', 'done'],
+  ])('%s requires the installed version and restart evidence', async (_, version, startedAt, target, expected) => {
+    const { result } = await start('restarting', true, version, startedAt, target);
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(result.current.upgradeProgress?.step).toBe(expected);
+    if (expected === 'failed') expect(result.current.upgradeProgress?.message).toContain('Check the upgrade log');
   });
 
   it('switches to health polling after three minutes of pending responses', async () => {
@@ -161,13 +177,18 @@ describe('upgrade result UI', () => {
   it.each(['done', 'pending'])('keeps settings completion visible until reload for %s status', async (step) => {
     cache(fresh);
     const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+    let baselineRead = false;
     fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check?force=true' && !baselineRead) {
+        baselineRead = true;
+        return reply(fresh);
+      }
       if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
       if (url.startsWith('/api/v1/system/upgrade-status')) {
         return reply({ step, progress: step === 'done' ? 100 : 0, message: 'Upgrade completed!' });
       }
       if (url === '/api/health') return { ok: true };
-      return reply(fresh);
+      return reply({ ...fresh, started_at: '2026-10-01T11:00:00.000Z' });
     });
     render(createElement(SystemUpdateSettings));
     await act(async () => screen.getByRole('button', { name: 'settings.reinstall' }).click());
@@ -185,7 +206,12 @@ describe('upgrade result UI', () => {
 
   it('keeps a failed settings result visible until dismissal and resets it before retry', async () => {
     cache(fresh);
+    let baselineRead = false;
     fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/update-check?force=true' && !baselineRead) {
+        baselineRead = true;
+        return reply(fresh);
+      }
       if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
       if (url.startsWith('/api/v1/system/upgrade-status')) {
         return reply({ step: 'failed', progress: -1, message: 'Upgrade failed', rollback: true });
