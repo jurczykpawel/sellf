@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { MAGIC_LINK_FLOWS } from '@/lib/auth/magic-link/types';
 import type { MagicLinkErrorCode, MagicLinkFlow } from '@/lib/auth/magic-link/types';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const ALLOWED_KEYS = new Set([
   'email',
@@ -93,8 +94,11 @@ export async function POST(request: Request) {
 
   let rawBody: unknown;
   try {
-    rawBody = await request.json();
-  } catch {
+    rawBody = await readJsonBody(request);
+  } catch (err) {
+    if (err instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     return badRequest();
   }
 

@@ -7,7 +7,7 @@
  * cannot silently re-introduce `'unsafe-inline'` for `script-src` in
  * production.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   buildContentSecurityPolicyWithNonce,
   buildBaseSecurityHeaders,
@@ -81,6 +81,70 @@ describe('CSP with nonce — development posture', () => {
 
   it('localhost connect-src entries appear', () => {
     expect(csp).toMatch(/connect-src[^;]*127\.0\.0\.1/);
+  });
+});
+
+describe('CSP — form-action', () => {
+  const csp = buildContentSecurityPolicyWithNonce('NONCE_VALUE_FOR_TEST', { isDev: false });
+
+  it("restricts form submissions to 'self' — the app has no native <form action> targets", () => {
+    expect(csp).toMatch(/form-action 'self'/);
+  });
+});
+
+describe('CSP — connect-src Supabase origin', () => {
+  const ENV_KEYS = ['PUBLIC_SUPABASE_URL', 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'] as const;
+  const originalEnv: Record<(typeof ENV_KEYS)[number], string | undefined> = {
+    PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  };
+
+  function clearSupabaseEnv() {
+    for (const key of ENV_KEYS) delete process.env[key];
+  }
+
+  beforeEach(() => {
+    clearSupabaseEnv();
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      const value = originalEnv[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  it('uses the configured SUPABASE_URL origin in connect-src, not the wildcard', () => {
+    process.env.SUPABASE_URL = 'https://db.custom-domain.example';
+    const csp = buildContentSecurityPolicyWithNonce('NONCE', { isDev: false });
+    const connectSrc = csp.split(';').find((d) => d.trim().startsWith('connect-src')) ?? '';
+
+    expect(connectSrc).toContain('https://db.custom-domain.example');
+    expect(connectSrc).toContain('wss://db.custom-domain.example');
+    expect(connectSrc).not.toContain('*.supabase.co');
+  });
+
+  it('falls back to the *.supabase.co wildcard when no Supabase URL is configured', () => {
+    const csp = buildContentSecurityPolicyWithNonce('NONCE', { isDev: false });
+    const connectSrc = csp.split(';').find((d) => d.trim().startsWith('connect-src')) ?? '';
+
+    expect(connectSrc).toContain('*.supabase.co');
+    expect(connectSrc).toContain('wss://*.supabase.co');
+  });
+
+  it('prefers PUBLIC_SUPABASE_URL over SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL', () => {
+    process.env.PUBLIC_SUPABASE_URL = 'https://public.custom-domain.example';
+    process.env.SUPABASE_URL = 'http://kong:8000';
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://placeholder.supabase.co';
+
+    const csp = buildContentSecurityPolicyWithNonce('NONCE', { isDev: false });
+    const connectSrc = csp.split(';').find((d) => d.trim().startsWith('connect-src')) ?? '';
+
+    expect(connectSrc).toContain('https://public.custom-domain.example');
+    expect(connectSrc).not.toContain('kong:8000');
+    expect(connectSrc).not.toContain('placeholder.supabase.co');
   });
 });
 

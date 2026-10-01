@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { NextRequest } from 'next/server';
-import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
+import { getCanonicalOrigin, getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 function makeRequest(origin: string): NextRequest {
   return { nextUrl: new URL(origin) } as NextRequest;
@@ -106,6 +106,84 @@ describe('getCanonicalOrigin', () => {
       expect(getCanonicalOrigin(makeRequest('http://[::]:3333'))).toBe(
         'https://sellf.tojest.dev',
       );
+    });
+  });
+});
+
+describe('getCanonicalOriginOrNull', () => {
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const k of ENV_KEYS_TO_RESET) {
+      saved[k] = process.env[k];
+      delete process.env[k];
+    }
+  });
+
+  afterEach(() => {
+    for (const k of ENV_KEYS_TO_RESET) {
+      if (saved[k] !== undefined) process.env[k] = saved[k];
+      else delete process.env[k];
+    }
+  });
+
+  describe('env priority (same order as getCanonicalOrigin, no request fallback)', () => {
+    it('prefers SITE_URL', () => {
+      process.env.SITE_URL = 'https://sellf.tojest.dev';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://ignored.example.com';
+      process.env.MAIN_DOMAIN = 'ignored.example.com';
+      expect(getCanonicalOriginOrNull()).toBe('https://sellf.tojest.dev');
+    });
+
+    it('strips trailing slash from SITE_URL', () => {
+      process.env.SITE_URL = 'https://sellf.tojest.dev/';
+      expect(getCanonicalOriginOrNull()).toBe('https://sellf.tojest.dev');
+    });
+
+    it('falls through SITE_URL → NEXT_PUBLIC_SITE_URL', () => {
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://app.example.com';
+      expect(getCanonicalOriginOrNull()).toBe('https://app.example.com');
+    });
+
+    it('falls through to MAIN_DOMAIN with https scheme', () => {
+      process.env.MAIN_DOMAIN = 'sellf.tojest.dev';
+      expect(getCanonicalOriginOrNull()).toBe('https://sellf.tojest.dev');
+    });
+
+    it('uses http for MAIN_DOMAIN=localhost', () => {
+      process.env.MAIN_DOMAIN = 'localhost:3000';
+      expect(getCanonicalOriginOrNull()).toBe('http://localhost:3000');
+    });
+
+    it('rejects malformed SITE_URL and walks down the chain', () => {
+      process.env.SITE_URL = 'not-a-url';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://fallback.example.com';
+      expect(getCanonicalOriginOrNull()).toBe('https://fallback.example.com');
+    });
+
+    it('rejects non-http(s) schemes in env', () => {
+      process.env.SITE_URL = 'ftp://files.example.com';
+      process.env.MAIN_DOMAIN = 'sellf.tojest.dev';
+      expect(getCanonicalOriginOrNull()).toBe('https://sellf.tojest.dev');
+    });
+  });
+
+  describe('missing env', () => {
+    it('returns null when no env var is set (no request to fall back to)', () => {
+      expect(getCanonicalOriginOrNull()).toBeNull();
+    });
+  });
+
+  describe('bind-address hosts', () => {
+    it('never returns a bind-address value even if somehow set as SITE_URL', () => {
+      process.env.SITE_URL = 'http://0.0.0.0:3000';
+      expect(getCanonicalOriginOrNull()).toBeNull();
+    });
+
+    it('skips a bind-address SITE_URL and falls through to a usable NEXT_PUBLIC_SITE_URL', () => {
+      process.env.SITE_URL = 'http://[::]:3333';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://app.example.com';
+      expect(getCanonicalOriginOrNull()).toBe('https://app.example.com');
     });
   });
 });

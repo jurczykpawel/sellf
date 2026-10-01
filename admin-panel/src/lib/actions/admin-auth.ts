@@ -22,6 +22,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 
 interface AdminAuthContext {
@@ -45,20 +46,40 @@ export interface ActionResponse<T = unknown> {
   errorCode?: string;
 }
 
+export interface AdminAuthOptions {
+  /**
+   * Set for any action that writes data or triggers a side effect (Stripe
+   * call, webhook, email, file write, …). Blocks the call in demo mode
+   * before auth even runs — read-only actions leave this unset.
+   */
+  mutating?: boolean;
+}
+
 /**
  * Wraps a server action with admin authentication.
  *
- * 1. Creates Supabase client (cookie-based session)
- * 2. Verifies user is authenticated via getUser()
- * 3. Verifies user is admin via admin_users table
- * 4. Calls the provided function with { user, supabase } context
- * 5. Catches errors and returns generic error response
+ * 1. In demo mode, blocks `mutating` actions before touching auth
+ * 2. Creates Supabase client (cookie-based session)
+ * 3. Verifies user is authenticated via getUser()
+ * 4. Verifies user is admin via admin_users table
+ * 5. Calls the provided function with { user, supabase } context
+ * 6. Catches errors and returns generic error response
  *
- * Returns `{ success: false, errorCode: 'UNAUTHORIZED' | 'FORBIDDEN' }` on auth failure.
+ * Returns `{ success: false, errorCode: 'UNAUTHORIZED' | 'FORBIDDEN' }` on auth failure,
+ * or `{ success: false, errorCode: 'DEMO_MODE' }` when blocked by `options.mutating`.
  */
 export async function withAdminAuth<T>(
-  fn: (ctx: AdminAuthContext) => Promise<ActionResponse<T>>
+  fn: (ctx: AdminAuthContext) => Promise<ActionResponse<T>>,
+  options?: AdminAuthOptions
 ): Promise<ActionResponse<T>> {
+  if (options?.mutating && isDemoMode()) {
+    return {
+      success: false,
+      error: DEMO_MODE_ERROR,
+      errorCode: 'DEMO_MODE',
+    };
+  }
+
   try {
     const supabase = await createClient();
 
@@ -102,7 +123,8 @@ export async function withAdminAuth<T>(
  * Used by actions that need admin-level DB access (dashboard, analytics, shop-config, etc.).
  */
 export async function withAdminClient<T>(
-  fn: (ctx: AdminDataContext) => Promise<ActionResponse<T>>
+  fn: (ctx: AdminDataContext) => Promise<ActionResponse<T>>,
+  options?: AdminAuthOptions
 ): Promise<ActionResponse<T>> {
   return withAdminAuth(async ({ user, supabase }) => {
     const dataClient = createAdminClient();
@@ -112,5 +134,5 @@ export async function withAdminClient<T>(
       role: 'platform_admin',
       dataClient: dataClient as unknown as SupabaseClient,
     });
-  });
+  }, options);
 }

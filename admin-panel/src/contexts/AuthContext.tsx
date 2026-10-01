@@ -1,8 +1,9 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
+import { resolveUserRole } from '@/lib/auth/resolve-role'
 import { AuthContextType, UserRole } from '@/types/auth'
 
 // Create context with default values
@@ -48,31 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const prevUserIdRef = useRef<string | null>(null)
 
   /**
-   * Fetches admin status using cached function for better performance
-   */
-  const resolveUserRole = async (_userId: string, retries = 3): Promise<UserRole> => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const supabase = await createClient()
-
-        const { data: isAdminData, error } = await supabase.rpc('is_admin_cached')
-        if (error) {
-          if (attempt === retries) return 'user'
-          await new Promise(resolve => setTimeout(resolve, attempt * 1000))
-          continue
-        }
-
-        return isAdminData ? 'platform_admin' : 'user'
-      } catch {
-        if (attempt === retries) return 'user'
-        await new Promise(resolve => setTimeout(resolve, attempt * 1000))
-      }
-    }
-
-    return 'user'
-  }
-
-  /**
    * Handles auth state changes with debouncing to prevent multiple rapid updates
    */
   const handleAuthStateChange = useCallback(async (session: Session | null, immediate = false) => {
@@ -111,7 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (userSwitched) {
             setRole('user')
           }
-          const resolvedRole = await resolveUserRole(currentUser.id)
+          const supabase = await createClient()
+          const resolvedRole = await resolveUserRole(supabase)
 
           if (!isMountedRef.current) return
 

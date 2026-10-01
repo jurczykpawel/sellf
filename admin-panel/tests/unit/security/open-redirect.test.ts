@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { isSafeRedirectUrl, isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 /**
  * ============================================================================
@@ -135,4 +135,47 @@ describe('Open Redirect Prevention', () => {
     });
   });
 
+});
+
+/**
+ * isRelativeOrHttpUrl — scheme-only gate for admin-configured redirect
+ * fields that intentionally allow cross-origin destinations (a seller's
+ * own store, an external course platform, …). Used by:
+ *   - src/lib/api/dto/product.ts (success_redirect_url, write time)
+ *   - src/lib/payment/oto-redirect.ts (buildSuccessRedirectUrl sink)
+ *   - src/lib/validations/product.ts (content_config.redirect_url, write time)
+ *   - src/components/ProductsPageContent.tsx (redirect preview sink)
+ */
+describe('isRelativeOrHttpUrl', () => {
+  it('allows relative paths', () => {
+    expect(isRelativeOrHttpUrl('/thank-you')).toBe(true);
+    expect(isRelativeOrHttpUrl('/thank-you?ref=partner')).toBe(true);
+  });
+
+  it('allows http(s) absolute URLs on any origin', () => {
+    expect(isRelativeOrHttpUrl('https://example.com/thank-you')).toBe(true);
+    expect(isRelativeOrHttpUrl('http://shop.example/thank-you')).toBe(true);
+  });
+
+  it('rejects protocol-relative URLs', () => {
+    expect(isRelativeOrHttpUrl('//evil.com')).toBe(false);
+  });
+
+  it('rejects a backslash-prefixed path that normalizes to a protocol-relative URL', () => {
+    expect(isRelativeOrHttpUrl('/\\evil.com')).toBe(false);
+  });
+
+  it('rejects dangerous schemes', () => {
+    expect(isRelativeOrHttpUrl('javascript:alert(1)')).toBe(false);
+    expect(isRelativeOrHttpUrl('data:text/html,<script>alert(1)</script>')).toBe(false);
+    expect(isRelativeOrHttpUrl('vbscript:msgbox(1)')).toBe(false);
+  });
+
+  it('rejects a domain-only string (no scheme)', () => {
+    expect(isRelativeOrHttpUrl('example.com/thank-you')).toBe(false);
+  });
+
+  it('rejects empty input', () => {
+    expect(isRelativeOrHttpUrl('')).toBe(false);
+  });
 });

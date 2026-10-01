@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { isInternalHostname } from '@/lib/security/internal-hostname';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { loadProductContentConfig } from '@/lib/services/product-content-config';
 
 /**
  * Product Access Route
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
     // the unified grant RPC, so this route only needs product + access state.
     const { data: product } = await supabase
       .from('products')
-      .select('id, is_active, content_delivery_type, content_config')
+      .select('id, is_active, content_delivery_type')
       .eq('slug', slug)
       .single();
 
@@ -112,9 +113,12 @@ export async function GET(request: Request) {
     }
 
     // User has access - check content delivery type for redirect products
-    if (product.content_delivery_type === 'redirect' && product.content_config?.redirect_url) {
+    const contentConfig = product.content_delivery_type === 'redirect'
+      ? await loadProductContentConfig(createAdminClient(), product.id)
+      : null;
+    if (contentConfig?.redirect_url) {
       try {
-        const redirectUrl = new URL(product.content_config.redirect_url);
+        const redirectUrl = new URL(contentConfig.redirect_url);
         if (redirectUrl.protocol !== 'https:' && redirectUrl.protocol !== 'http:') {
           safeRedirect(prodUrl, returnUrl);
           return;

@@ -13,7 +13,7 @@
  * Requires: npx supabase start + migrations applied.
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -28,7 +28,7 @@ const TS = Date.now();
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
-  db: { schema: 'public' as 'public' },
+  db: { schema: 'public' as const },
 });
 
 // ============================================================================
@@ -366,5 +366,27 @@ describe('/auth/product-access — existing access', () => {
 
     const target = await runCallback(`http://localhost/auth/product-access?product=${product.slug}`);
     expect(target).toBe(`/p/${product.slug}`);
+  });
+
+  it('sends a buyer who already owns a redirect product to its content URL', async () => {
+    const email = `cb-redirect-${TS}@example.com`;
+    const user = await createUser(email);
+    userIds.push(user.id);
+    const product = await createProduct({
+      price: 0,
+      content_delivery_type: 'redirect',
+      content_config: { redirect_url: 'https://content.example.com/course' },
+    });
+    productIds.push(product.id);
+    await supabaseAdmin.from('user_product_access').insert({
+      user_id: user.id,
+      product_id: product.id,
+      access_expires_at: null,
+    });
+
+    currentAuthedClient = await signInAs(email);
+
+    const target = await runCallback(`http://localhost/auth/product-access?product=${product.slug}`);
+    expect(target).toBe('https://content.example.com/course');
   });
 });

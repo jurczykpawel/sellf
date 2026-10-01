@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 /**
  * Validate return URL using the shared isSafeRedirectUrl function.
@@ -27,8 +28,17 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    const body = await request.json().catch(() => ({}));
-    const returnUrl = validateReturnUrl(body.returnUrl);
+    let body: { returnUrl?: string } = {};
+    try {
+      body = await readJsonBody(request);
+    } catch (err) {
+      if (err instanceof ApiPayloadTooLargeError) {
+        const response = NextResponse.json({ success: false, error: 'Request body too large' }, { status: 413 });
+        clearSupabaseCookies(response, request);
+        return response;
+      }
+    }
+    const returnUrl = validateReturnUrl(body.returnUrl ?? null);
 
     const { error } = await supabase.auth.signOut();
     if (error) {

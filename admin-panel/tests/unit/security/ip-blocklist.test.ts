@@ -16,6 +16,14 @@ describe('isPrivateOrReservedIp', () => {
       expect(isPrivateOrReservedIp('192.168.1.1')).toBe(true);
     });
 
+    it('blocks CGNAT / Tailscale 100.64.0.0/10 (RFC 6598)', () => {
+      expect(isPrivateOrReservedIp('100.64.0.1')).toBe(true);
+      expect(isPrivateOrReservedIp('100.100.100.100')).toBe(true); // Tailscale MagicDNS default
+      expect(isPrivateOrReservedIp('100.127.255.255')).toBe(true);
+      expect(isPrivateOrReservedIp('100.63.255.255')).toBe(false); // just below the range
+      expect(isPrivateOrReservedIp('100.128.0.1')).toBe(false); // just above the range
+    });
+
     it('blocks link-local incl. cloud metadata 169.254.0.0/16', () => {
       expect(isPrivateOrReservedIp('169.254.169.254')).toBe(true); // AWS / GCP / DO metadata
       expect(isPrivateOrReservedIp('169.254.0.1')).toBe(true);

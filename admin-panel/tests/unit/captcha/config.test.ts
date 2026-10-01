@@ -82,6 +82,26 @@ describe('getCaptchaConfig', () => {
     expect(config.challengeUrl).toBe('/api/captcha/challenge');
   });
 
+  it('pins the ALTCHA CDN URL to an exact version and ships a matching SRI hash (Obs.8)', () => {
+    process.env.ALTCHA_HMAC_KEY = 'hmac-key';
+
+    const config = getCaptchaConfig();
+
+    // Not a floating major-version tag ("@3") — jsDelivr could serve a
+    // different file for that at any time, which would invalidate the hash.
+    expect(config.scriptUrl).toMatch(/altcha@\d+\.\d+\.\d+\//);
+    expect(config.scriptIntegrity).toMatch(/^sha384-[A-Za-z0-9+/]+=*$/);
+  });
+
+  it('does not provide an SRI hash for the Turnstile script (Cloudflare does not publish a stable one)', () => {
+    process.env.CLOUDFLARE_TURNSTILE_SITE_KEY = 'turnstile-site-key';
+    process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = 'turnstile-secret';
+
+    const config = getCaptchaConfig();
+
+    expect(config.scriptIntegrity).toBeNull();
+  });
+
   it('prefers turnstile over altcha when both are configured', () => {
     process.env.CLOUDFLARE_TURNSTILE_SITE_KEY = 'turnstile-site-key';
     process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY = 'turnstile-secret';

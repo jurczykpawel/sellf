@@ -16,6 +16,8 @@ export interface CaptchaConfig {
   provider: CaptchaProvider;
   siteKey: string | null;
   scriptUrl: string | null;
+  /** Subresource Integrity hash for scriptUrl, when the CDN asset is version-pinned (e.g. ALTCHA). Null when not applicable (e.g. Turnstile, which Cloudflare doesn't publish a stable hash for). */
+  scriptIntegrity: string | null;
   widgetTag: string | null;
   challengeUrl: string | null;
 }

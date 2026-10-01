@@ -5,10 +5,26 @@
  * through /api/auth/magic-link, confirm delivery in Mailpit, and follow the
  * link through /auth/callback.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import { createChallenge, solveChallenge } from 'altcha-lib/v1';
-import { API_URL } from './setup';
+import { API_URL, supabaseAdmin } from './setup';
 import { waitForEmail } from '../helpers/mailpit';
+import { deleteAuthUsers } from '../helpers/db-cleanup';
+
+// A successful /api/auth/magic-link request materializes the auth user immediately
+// (signInWithOtp), whether or not the link is ever clicked — track every email that
+// got a 200 so the user it created can be cleaned up.
+const createdEmails: string[] = [];
+
+afterAll(async () => {
+  if (createdEmails.length === 0) return;
+  const ids: string[] = [];
+  for (const email of createdEmails) {
+    const { data } = await supabaseAdmin().rpc('find_user_id_by_email', { p_email: email });
+    if (data) ids.push(data as string);
+  }
+  await deleteAuthUsers(supabaseAdmin(), ids);
+});
 
 async function getAltchaPayload(): Promise<string> {
   const response = await fetch(`${API_URL}/api/captcha/challenge`);
@@ -45,6 +61,7 @@ describe('Magic-link gateway', () => {
       body: JSON.stringify({ email, captchaToken, flow: 'login' }),
     });
     expect(response.status).toBe(200);
+    createdEmails.push(email);
 
     const message = await waitForEmail(email);
     const href = extractHref(message.HTML || '');
@@ -98,6 +115,7 @@ describe('Magic-link gateway', () => {
       body: JSON.stringify({ email, captchaToken, flow: 'free_product', productSlug: 'free-tutorial' }),
     });
     expect(response.status).toBe(200);
+    createdEmails.push(email);
 
     const message = await waitForEmail(email);
     const href = extractHref(message.HTML || '');
@@ -117,6 +135,7 @@ describe('Magic-link gateway', () => {
       body: JSON.stringify({ email: firstEmail, captchaToken, flow: 'login' }),
     });
     expect(first.status).toBe(200);
+    createdEmails.push(firstEmail);
     await waitForEmail(firstEmail);
 
     const second = await fetch(`${API_URL}/api/auth/magic-link`, {

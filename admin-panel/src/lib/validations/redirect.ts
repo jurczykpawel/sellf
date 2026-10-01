@@ -35,3 +35,21 @@ export function isSafeRedirectUrl(url: string, siteUrl?: string): boolean {
     return false;
   }
 }
+
+/**
+ * Validate that a URL string is a relative path or an http(s) absolute URL.
+ *
+ * Used for admin-configured redirect fields that intentionally allow
+ * cross-origin destinations (a seller's own store, an external course
+ * platform, …) — unlike `isSafeRedirectUrl`, origin is NOT restricted —
+ * but a dangerous scheme (`javascript:`, `data:`, …) must still be rejected.
+ *
+ * @see tests/unit/security/open-redirect.test.ts
+ */
+export function isRelativeOrHttpUrl(url: string): boolean {
+  if (!url) return false;
+  const normalized = url.replace(/\\/g, '/');
+  const isRelative = normalized.startsWith('/') && !normalized.startsWith('//');
+  const isHttp = normalized.startsWith('https://') || normalized.startsWith('http://');
+  return isRelative || isHttp;
+}

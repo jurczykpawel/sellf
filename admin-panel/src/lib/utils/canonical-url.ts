@@ -30,17 +30,24 @@ function deriveOriginFromMainDomain(): string | null {
   return isExternalSafeOrigin(candidate) ? candidate : null;
 }
 
-export function getCanonicalOrigin(request: NextRequest): string {
+// Shared env-only resolution order for both entry points below: SITE_URL →
+// NEXT_PUBLIC_SITE_URL → MAIN_DOMAIN. Returns null (not a request fallback)
+// when none of them yield a usable origin.
+function resolveOriginFromEnv(): string | null {
   const fromEnv =
     (isExternalSafeOrigin(process.env.SITE_URL) && process.env.SITE_URL) ||
     (isExternalSafeOrigin(process.env.NEXT_PUBLIC_SITE_URL) &&
       process.env.NEXT_PUBLIC_SITE_URL) ||
     deriveOriginFromMainDomain();
 
-  if (fromEnv) {
-    // Normalize: strip trailing slash so callers can append `/path` safely.
-    return fromEnv.replace(/\/+$/, '');
-  }
+  if (!fromEnv) return null;
+  // Normalize: strip trailing slash so callers can append `/path` safely.
+  return fromEnv.replace(/\/+$/, '');
+}
+
+export function getCanonicalOrigin(request: NextRequest): string {
+  const fromEnv = resolveOriginFromEnv();
+  if (fromEnv) return fromEnv;
 
   const requestOrigin = request.nextUrl.origin;
   if (isExternalSafeOrigin(requestOrigin)) {
@@ -54,4 +61,15 @@ export function getCanonicalOrigin(request: NextRequest): string {
       `and request origin "${requestOrigin}" is unusable (bind address or invalid). ` +
       `Set SITE_URL in the deployment env.`,
   );
+}
+
+/**
+ * Request-less counterpart of {@link getCanonicalOrigin}, for webhooks/cron/server
+ * actions that have no inbound request to fall back to. Same env order (SITE_URL →
+ * NEXT_PUBLIC_SITE_URL → MAIN_DOMAIN), same bind-address rejection. Returns `null`
+ * when none of them are set/usable — callers decide how to handle that (default,
+ * error response, or skip).
+ */
+export function getCanonicalOriginOrNull(): string | null {
+  return resolveOriginFromEnv();
 }

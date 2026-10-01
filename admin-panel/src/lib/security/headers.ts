@@ -7,7 +7,8 @@
  * - `buildContentSecurityPolicyWithNonce`: per-request CSP, attached by
  *   middleware (`src/proxy.ts`).
  * - `buildEmbeddableResourceHeaders`: relaxed CORP override for endpoints
- *   that must load from external seller domains (sellf.js, checkout embed loader, runtime config).
+ *   that must load from external seller domains (checkout embed loader,
+ *   login-wall / gating loader scripts, runtime config).
  */
 
 interface HeaderEntry {
@@ -17,18 +18,64 @@ interface HeaderEntry {
 
 /**
  * Endpoints intentionally exposed to external origins (embed checkout
- * loader on seller pages, runtime-config bootstrap). CORP is downgraded
- * to `cross-origin` for these only — never the admin app itself.
+ * loader, login-wall / gating loader scripts, runtime-config bootstrap —
+ * all loaded via `<script src>` from a seller's own page). CORP is
+ * downgraded to `cross-origin` for these only — never the admin app itself.
  */
 export const EMBEDDABLE_RESOURCE_PATHS = [
   '/embed/v1/checkout.js',
   '/api/runtime-config',
+  '/api/loginwall/login.js',
+  '/api/loginwall/gate.js',
+] as const;
+
+/**
+ * Of the paths above, these two also carry their own short public
+ * `Cache-Control` (set in the route handler) that the generic
+ * `/api/:path*` no-store rule in next.config.ts would otherwise win —
+ * next.config header rules apply in array order with the last matching
+ * rule winning per header key, so this list must be re-applied after that
+ * generic rule (mirrors the route handlers' own `Cache-Control`).
+ */
+export const EMBEDDABLE_PUBLIC_CACHE_PATHS = [
+  '/api/loginwall/login.js',
+  '/api/loginwall/gate.js',
 ] as const;
 
 interface CspBuildOptions {
   isDev?: boolean;
   extraConnectSrc?: string[];
   extraFrameSrc?: string[];
+}
+
+/**
+ * Resolve the Supabase origin the browser actually talks to, so `connect-src`
+ * can name it instead of allowing every `*.supabase.co` project (self-hosted
+ * Supabase behind a custom domain is not `*.supabase.co` either, which is
+ * exactly why the configured URL — not the wildcard — is the right source).
+ *
+ * Mirrors the precedence in `buildRuntimeConfig()` (`runtime-config.ts`):
+ * `PUBLIC_SUPABASE_URL || SUPABASE_URL || NEXT_PUBLIC_SUPABASE_URL`. Not
+ * imported from there directly — that module is `server-only`, and this file
+ * is also loaded by `next.config.ts` at build time, where `server-only`
+ * throws unconditionally. None of these three vars are `NEXT_PUBLIC_`-first,
+ * so this reads live at request time in the edge middleware rather than
+ * getting build-time inlined.
+ */
+function resolveSupabaseConnectOrigins(): { http: string; ws: string } | null {
+  const configuredUrl =
+    process.env.PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!configuredUrl) return null;
+
+  try {
+    const http = new URL(configuredUrl).origin;
+    const ws = http.replace(/^http/, 'ws');
+    return { http, ws };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -47,6 +94,10 @@ export function buildContentSecurityPolicyWithNonce(
   opts: CspBuildOptions = {},
 ): string {
   const isDev = opts.isDev ?? process.env.NODE_ENV === 'development';
+  const supabaseOrigins = resolveSupabaseConnectOrigins();
+  const supabaseConnectSrc = supabaseOrigins
+    ? `${supabaseOrigins.http} ${supabaseOrigins.ws}`
+    : '*.supabase.co wss://*.supabase.co';
   const scriptSrc = [
     "'self'",
     `'nonce-${nonce}'`,
@@ -71,11 +122,17 @@ export function buildContentSecurityPolicyWithNonce(
     "font-src 'self' data:",
     "media-src 'self' blob: *.b-cdn.net",
     `frame-src js.stripe.com challenges.cloudflare.com *.youtube.com player.vimeo.com fast.wistia.net player.twitch.tv${opts.extraFrameSrc?.length ? ' ' + opts.extraFrameSrc.join(' ') : ''}`,
-    `connect-src 'self' *.supabase.co wss://*.supabase.co *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com *.b-cdn.net *.wistia.com *.wistia.net *.vimeo.com *.twitch.tv player.twitch.tv clips.twitch.tv${opts.extraConnectSrc?.length ? ' ' + opts.extraConnectSrc.join(' ') : ''}${isDev ? ' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*' : ''}`,
+    `connect-src 'self' ${supabaseConnectSrc} *.stripe.com challenges.cloudflare.com www.youtube.com s.ytimg.com *.b-cdn.net *.wistia.com *.wistia.net *.vimeo.com *.twitch.tv player.twitch.tv clips.twitch.tv${opts.extraConnectSrc?.length ? ' ' + opts.extraConnectSrc.join(' ') : ''}${isDev ? ' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*' : ''}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'self'",
+    // No native <form action> targets exist anywhere in the app — every
+    // form calls preventDefault() and submits via fetch(); OAuth and magic
+    // links redirect via window.location, not a form post. 'self' covers
+    // the no-JS fallback (a plain form with no action posts to the current
+    // URL) without opening submissions to any third party.
+    "form-action 'self'",
   ].join('; ');
 }
 
@@ -116,7 +173,12 @@ export function buildApiSecurityHeaders(): HeaderEntry[] {
   ];
 }
 
-export function buildPublicLicenseCacheHeaders(): HeaderEntry[] {
+/**
+ * Short public caching for endpoints that are safe to cache at the edge:
+ * license verification material (JWKS, revocation list) and the
+ * login-wall / gating loader scripts (`EMBEDDABLE_PUBLIC_CACHE_PATHS`).
+ */
+export function buildPublicCacheHeaders(): HeaderEntry[] {
   return [
     { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=300' },
   ];

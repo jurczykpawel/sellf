@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { sanitizeForLog } from '@/lib/logger';
+import { isSessionWriteAllowed } from '@/lib/security/session-write-guard';
 
 import { SupabaseClient, User } from '@supabase/supabase-js';
 
@@ -45,8 +46,14 @@ export async function verifyAdminAccess(): Promise<User> {
 /**
  * Verifies admin access for API Routes.
  * Throws 'Unauthorized' or 'Forbidden' on failure.
+ *
+ * Pass `request` from every Route Handler call site — it gates state-changing
+ * calls behind `isSessionWriteAllowed` (this auth path is cookie-only, no
+ * API-key/bearer alternative). Server Actions have no `NextRequest` to pass;
+ * they already get the same protection from Next.js's own Origin check on
+ * action POSTs, so `request` is optional and the check is skipped when absent.
  */
-export async function requireAdminApi(supabase: SupabaseClient): Promise<AdminAccessResult> {
+export async function requireAdminApi(supabase: SupabaseClient, request?: NextRequest): Promise<AdminAccessResult> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
@@ -65,6 +72,11 @@ export async function requireAdminApi(supabase: SupabaseClient): Promise<AdminAc
     throw new Error('Forbidden');
   }
 
+  if (request && !isSessionWriteAllowed(request)) {
+    console.warn(`[requireAdminApi] Rejected cross-site write attempt by ${sanitizeForLog(user.email || 'unknown')} (${user.id}) at ${new Date().toISOString()}`);
+    throw new Error('Forbidden');
+  }
+
   return { user, role: 'platform_admin' };
 }
 
@@ -74,6 +86,7 @@ export async function requireAdminApi(supabase: SupabaseClient): Promise<AdminAc
  */
 export async function requireAdminApiWithRequest(request: NextRequest): Promise<AdminAccessResult> {
   let user: User | null = null;
+  let viaBearerToken = false;
 
   // Try Bearer token auth first (for API clients)
   const authHeader = request.headers.get('authorization');
@@ -83,6 +96,7 @@ export async function requireAdminApiWithRequest(request: NextRequest): Promise<
     const { data: { user: tokenUser }, error: authError } = await platformClient.auth.getUser(token);
     if (!authError && tokenUser) {
       user = tokenUser;
+      viaBearerToken = true;
     }
   }
 
@@ -98,6 +112,13 @@ export async function requireAdminApiWithRequest(request: NextRequest): Promise<
   if (!user) {
     console.warn(`[requireAdminApiWithRequest] Unauthenticated API request at ${new Date().toISOString()}`);
     throw new Error('Unauthorized');
+  }
+
+  // A bearer token can't be attached by a form post, so only the cookie
+  // path needs the same-site write check.
+  if (!viaBearerToken && !isSessionWriteAllowed(request)) {
+    console.warn(`[requireAdminApiWithRequest] Rejected cross-site write attempt by ${sanitizeForLog(user.email || 'unknown')} (${user.id}) at ${new Date().toISOString()}`);
+    throw new Error('Forbidden');
   }
 
   // Check platform admin

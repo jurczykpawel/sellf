@@ -9,6 +9,7 @@
  */
 
 import { getDisposableEmailConfig } from './disposable-email-config';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
 
 export class DisposableEmailService {
   private static domains: Set<string> | null = null;
@@ -84,8 +85,7 @@ export class DisposableEmailService {
     }
 
     // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmailFormat(email)) {
       return false;
     }
 
@@ -133,8 +133,7 @@ export class DisposableEmailService {
     }
 
     // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmailFormat(email)) {
       return {
         isValid: false,
         isDisposable: false,

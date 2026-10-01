@@ -37,10 +37,10 @@ function getUpstashClient() {
 /**
  * Get a unique identifier for rate limiting.
  *
- * SECURITY: Only trusts x-forwarded-for / x-real-ip headers when
- * TRUSTED_PROXY=true (i.e., app runs behind a known reverse proxy).
- * Otherwise, uses a fingerprint of request characteristics to avoid
- * IP spoofing via client-set headers.
+ * Only trusts x-forwarded-for / x-real-ip when TRUSTED_PROXY=true (the app
+ * runs behind a known reverse proxy). Production refuses to boot without it
+ * (assertTrustedProxyConfig), so the request-header fingerprint below is a
+ * development fallback, not a production identifier.
  */
 export async function getRateLimitIdentifier(userId?: string): Promise<string> {
   if (userId) {
