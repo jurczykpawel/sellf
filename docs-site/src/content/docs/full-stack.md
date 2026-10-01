@@ -1,937 +1,290 @@
 ---
-title: "Sellf - Production Deployment Guide"
-description: "Complete guide for deploying Sellf on a production server using Docker Compose."
+title: "Sellf - Self-Hosted Supabase + Docker"
+description: "Full control over your infrastructure: official self-hosted Supabase plus the Sellf container, both on your own server."
 ---
 
-Complete guide for deploying Sellf on a production server using Docker Compose.
+This guide is for people who want **zero dependency on any cloud database
+provider** — data residency requirements (GDPR), an air-gapped/offline
+environment, or simply the preference to own the whole stack. Everything runs
+in Docker, on a server you control.
+
+**Sellf itself does not bundle Supabase.** You stand up Supabase with its own
+official installer (a separate, independently-maintained project that ships
+its own updates roughly every two weeks), then point a single small Sellf
+container at it. This used to be a single `docker-compose.fullstack.yml` that
+tried to bundle both — it's gone (see [Migrating from
+`docker-compose.fullstack.yml`](#migrating-from-docker-composefullstackyml)
+below if you're on it). Splitting the two means Supabase's own installer keeps
+Postgres/GoTrue/PostgREST/Storage patched, and Sellf only has to track its own
+image tag.
+
+If you'd rather not run Postgres yourself, use [Supabase
+Cloud](/supabase-setup/) with [DEPLOYMENT-COOLIFY.md](/deployment-coolify/) or
+[DEPLOYMENT-MIKRUS.md](/deployment-mikrus/) instead — much less to maintain.
 
 ## Table of Contents
 
-1. [Requirements](#requirements)
-2. [Server Preparation](#server-preparation)
-3. [Environment Variables Configuration](#environment-variables-configuration)
-4. [Database Configuration](#database-configuration)
-5. [Starting the Application](#starting-the-application)
-6. [Domain and SSL Configuration](#domain-and-ssl-configuration)
-7. [Stripe Webhooks Configuration](#stripe-webhooks-configuration)
-8. [Initial Setup](#initial-setup)
-9. [Monitoring and Logs](#monitoring-and-logs)
-10. [Updating](#updating)
-11. [Backup and Restore](#backup-and-restore)
-12. [Troubleshooting](#troubleshooting)
+- [Requirements](#requirements)
+- [Part 1 — Self-hosted Supabase](#part-1--self-hosted-supabase)
+- [Part 2 — Magic-link email templates](#part-2--magic-link-email-templates)
+- [Part 3 — Run Sellf](#part-3--run-sellf)
+- [Domain and SSL](#domain-and-ssl)
+- [Stripe webhook](#stripe-webhook)
+- [First login](#first-login)
+- [Updating](#updating)
+- [Backup](#backup)
+- [Migrating from `docker-compose.fullstack.yml`](#migrating-from-docker-composefullstackyml)
+- [Troubleshooting](#troubleshooting)
 
 ## Requirements
 
-### Minimum Hardware Requirements
-- **CPU**: 2 vCPU
-- **RAM**: 4 GB (recommended: 8 GB)
-- **Disk**: 20 GB SSD (recommended: 50 GB)
-- **Transfer**: 100 GB/month
+- A Linux server with Docker + Docker Compose v2, **8 GB+ RAM** recommended
+  when Supabase and Sellf run on the same box (Supabase alone is ~6-8
+  containers; add Sellf and a reverse proxy)
+- A domain (or two — one for Sellf, one for Supabase's API, can be
+  subdomains of the same domain) with DNS you can point at the server
+- A Stripe account
+- Comfortable reading shell scripts and editing `.env` files — this path
+  trades convenience for control
 
-### Recommended Server (Sellf + Supabase self-hosted on one machine)
+## Part 1 — Self-hosted Supabase
 
-**[Hetzner CX33](https://www.hetzner.com/cloud)** — tested and recommended for early production:
-
-| Spec | Value |
-|------|-------|
-| CPU | 4 vCPU (AMD, shared) |
-| RAM | 8 GB |
-| Disk | 80 GB NVMe |
-| Transfer | 20 TB/month |
-| Price | ~€6.14/month |
-
-**Why it works:**
-- Supabase self-hosted uses ~2.0–2.5 GB RAM (13 containers)
-- Sellf (PM2/Next.js) uses ~200–300 MB RAM
-- Total: ~2.7 GB in use, 5+ GB free headroom
-- Sellf connects to Supabase via localhost → 5–10 ms latency vs. 90–130 ms over the internet
-- **~€6/month (~25 PLN) is enough to serve several thousand customers in a fully self-hosted environment** — no Supabase Pro (~$25/mo), no platform lock-in
-
-**Disk space estimate:**
-- Docker images (Supabase): ~3–4 GB
-- OS + swap: ~3 GB
-- App + DB data: growing over time
-- 80 GB is sufficient for early production; consider CPX32 (160 GB NVMe) if heavy Supabase Storage usage is planned
-
-**Swap (recommended):** Hetzner CX33 is a KVM VM with full kernel access — swap works without restrictions. Enable 2 GB swapfile as a buffer for traffic spikes (e.g. Supabase analytics container startup):
+Use Supabase's own installer — Sellf does not fork or vendor it, so follow
+the upstream docs for anything installer-specific:
+<https://supabase.com/docs/guides/self-hosting/docker>.
 
 ```bash
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# Reduce swappiness (default 60 is too aggressive for NVMe)
-echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
+git clone --depth 1 https://github.com/supabase/supabase
+cd supabase/docker
+cp .env.example .env
 ```
 
-> Note: LXC-based VPS (e.g. Mikrus) does not support swap — kernel access is blocked by the host.
+1. **Generate secrets** — the repo ships `./utils/generate-keys.sh` (or
+   follow the manual JWT steps in the upstream guide) to fill in
+   `POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`,
+   `DASHBOARD_PASSWORD`, etc. in `.env`.
+2. **Set your public URLs** — `API_EXTERNAL_URL`, `SITE_URL`, and
+   `SUPABASE_PUBLIC_URL` in `.env` to whatever domain you're pointing at this
+   stack (e.g. `https://api.your-shop.example.com`).
+3. **Put a reverse proxy in front** (Caddy/nginx/Traefik) terminating TLS and
+   forwarding to the gateway container's port (Kong or Envoy, depending on
+   the Supabase version you pulled — check `docker compose ps` after step 4).
+4. **Start it:**
+   ```bash
+   docker compose up -d
+   docker compose ps   # everything should report healthy after a minute or two
+   ```
+5. **Run Sellf's migrations against it** — from the Sellf repo, not the
+   Supabase one:
+   ```bash
+   npx supabase db push --db-url "postgresql://postgres:<POSTGRES_PASSWORD>@<supabase-host>:5432/postgres"
+   ```
+   This is a one-time step per install. Later Sellf releases that ship new
+   migrations are applied the same way, or via the in-app updater
+   (`admin-panel/scripts/upgrade.sh`) if you're running the standard release
+   tarball flow on top.
 
-### Software
-- **Operating System**: Ubuntu 22.04 LTS or newer (recommended)
-- **Docker**: version 24.0 or newer
-- **Docker Compose**: version 2.20 or newer
-- **Git**: for downloading the code
+Supabase's self-hosted stack changes over time (new component versions,
+occasionally a new default database major version) — that's an upstream
+concern, tracked and upgraded via **their** `update.sh` and any migration
+notes in their release changelog, not something Sellf's docs replicate here.
 
-### External Services
-- **Domain**: your own domain with DNS access
-- **SMTP**: email service (SendGrid, AWS SES, Mailgun, etc.)
-- **Stripe**: production account
-- **Cloudflare Turnstile**: account (optional, for CAPTCHA)
+## Part 2 — Magic-link email templates
 
-## Server Preparation
+Sellf's login is a magic link, and `/auth/callback` requires the link to
+carry `token_hash` — GoTrue's **default** email templates don't do that.
+Without this step, self-hosted login will not work.
 
-### 1. System Update
+Point GoTrue at Sellf's own templates, which it serves as static files at
+`/auth-email-templates/*.html` (no server code, no secrets in them):
 
-```bash
-sudo apt update && sudo apt upgrade -y
+```env
+# In the Supabase stack's .env, alongside SITE_URL etc.:
+GOTRUE_MAILER_TEMPLATES_MAGIC_LINK=https://your-shop.example.com/auth-email-templates/magic-link.html
+GOTRUE_MAILER_TEMPLATES_CONFIRMATION=https://your-shop.example.com/auth-email-templates/confirmation.html
+GOTRUE_MAILER_TEMPLATES_RECOVERY=https://your-shop.example.com/auth-email-templates/recovery.html
+GOTRUE_MAILER_TEMPLATES_INVITE=https://your-shop.example.com/auth-email-templates/invite.html
+GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE=https://your-shop.example.com/auth-email-templates/email-change.html
+
+# Also required so GoTrue accepts redirects back to your Sellf domain:
+GOTRUE_URI_ALLOW_LIST=https://your-shop.example.com/*
 ```
 
-### 2. Docker Installation
+Restart the Supabase auth container after editing `.env`. See
+[`supabase/templates/README.md`](https://github.com/jurczykpawel/sellf/blob/main/supabase/templates/README.md)
+in the Sellf repo for the full template reference (also used for Supabase
+Cloud, which reads the same HTML through its dashboard/Management API
+instead of a URL).
+
+You also need working SMTP configured on the Supabase side
+(`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`SMTP_ADMIN_EMAIL` in its
+`.env`) — GoTrue sends the email, Sellf only supplies the template.
+
+## Part 3 — Run Sellf
+
+From the Sellf repo, use the root `docker-compose.yml` (a single container,
+pulling the published image — no build step needed):
 
 ```bash
-# Remove old versions
-sudo apt remove docker docker-engine docker.io containerd runc
-
-# Install dependencies
-sudo apt install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release
-
-# Add official Docker GPG key
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-
-# Add Docker repository
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker Engine
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Verify installation
-docker --version
-docker compose version
-```
-
-### 3. Docker Configuration (optional but recommended)
-
-```bash
-# Add user to docker group (avoid sudo)
-sudo usermod -aG docker $USER
-
-# Log in again or:
-newgrp docker
-
-# Configure Docker to start automatically
-sudo systemctl enable docker
-sudo systemctl start docker
-```
-
-### 4. Git Installation
-
-```bash
-sudo apt install -y git
-```
-
-### 5. Firewall Configuration
-
-```bash
-# Enable UFW
-sudo ufw enable
-
-# Allow SSH
-sudo ufw allow 22/tcp
-
-# Allow HTTP and HTTPS
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-
-# Check status
-sudo ufw status
-```
-
-## Environment Variables Configuration
-
-### 1. Download Source Code
-
-```bash
-# Go to home directory
-cd ~
-
-# Clone the repository
-git clone https://github.com/your-organization/sellf.git
+git clone https://github.com/jurczykpawel/sellf
 cd sellf
+cp .env.docker.example .env
 ```
 
-### 2. Create Configuration File
+Fill in `.env`:
+
+```env
+SUPABASE_URL=https://api.your-shop.example.com          # the Supabase stack from Part 1
+SUPABASE_ANON_KEY=<ANON_KEY from the Supabase .env>
+SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY from the Supabase .env>
+SITE_URL=https://your-shop.example.com
+CHECKOUT_BINDING_SECRET=<openssl rand -base64 32>
+APP_ENCRYPTION_KEY=<openssl rand -base64 32>
+LOGINWALL_SECRET=<openssl rand -hex 32>
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+```
 
 ```bash
-# Copy the example file
-cp .env.production.example .env.production
-
-# Edit the file
-nano .env.production
-```
-
-### 3. Generate Secure Keys
-
-```bash
-# Generate JWT_SECRET
-openssl rand -base64 32
-
-# Generate REALTIME_SECRET_KEY_BASE
-openssl rand -base64 32
-
-# Generate POSTGRES_PASSWORD (long password)
-openssl rand -base64 48
-```
-
-### 4. Fill In All Variables
-
-Below you will find a detailed description of each variable:
-
-#### Database
-```env
-POSTGRES_PASSWORD=your_very_secure_postgresql_password
-```
-
-#### JWT and Authorization
-```env
-JWT_SECRET=paste_generated_jwt_secret
-REALTIME_SECRET_KEY_BASE=paste_generated_realtime_secret
-ANON_KEY=get_from_supabase_dashboard
-SERVICE_ROLE_KEY=get_from_supabase_dashboard
-```
-
-**Note**: The `ANON_KEY` and `SERVICE_ROLE_KEY` keys can be generated in the Supabase Dashboard or using a JWT generation tool with the appropriate secret.
-
-#### URLs and Domains
-```env
-API_EXTERNAL_URL=https://api.your-domain.com
-NEXT_PUBLIC_SUPABASE_URL=https://api.your-domain.com
-GOTRUE_SITE_URL=https://your-domain.com
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
-NEXT_PUBLIC_BASE_URL=https://your-domain.com
-MAIN_DOMAIN=your-domain.com
-GOTRUE_URI_ALLOW_LIST=https://your-domain.com/*,https://www.your-domain.com/*
-```
-
-#### SMTP (Email)
-Example for SendGrid:
-```env
-SMTP_ADMIN_EMAIL=noreply@your-domain.com
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASS=SG.xxxxxxxxxxxxxxxxxxxxxxxxx
-SMTP_SENDER_NAME=Sellf
-```
-
-Example for Gmail:
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-```
-
-#### Stripe - Choose ONE Configuration Method
-
-**METHOD 1: .env Configuration (Recommended for developers, Docker, CI/CD)**
-```env
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxxxxxxxxxxxx
-STRIPE_SECRET_KEY=sk_live_xxxxxxxxxxxxx  # Standard Secret Key or Restricted Key
-STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
-```
-
-**METHOD 2: Admin Panel Wizard (Recommended for non-technical users)**
-```env
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxxxxxxxxxxxx
-STRIPE_ENCRYPTION_KEY=ONIgOXqmoHOYZphEDkhydpL4briQsVlS9IS3o59mW9E=  # Generate: openssl rand -base64 32
-STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
-```
-Then configure the Restricted API Key through the graphical interface in Settings.
-
-**Both methods are fully supported. Choose the one that fits your workflow.**
-
-**Details:** See section [5. Stripe Configuration](#5-stripe-configuration) below.
-
-#### Cloudflare Turnstile (CAPTCHA)
-```env
-NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
-CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
-```
-
-**How captcha and magic links work:** Sellf verifies whichever captcha provider you configure (ALTCHA or Turnstile) itself, server-side, before it ever sends a login email. Supabase's own captcha setting (Authentication → Providers → Email in the dashboard, or `GOTRUE_SECURITY_CAPTCHA_*` if you self-host GoTrue) is a separate, independent lock on direct calls to the `/auth/v1` endpoints — it never receives Sellf's captcha tokens, so enable it as defense in depth whenever you have a Turnstile account, and confirm it's enforced with `admin-panel/scripts/verify-auth-captcha.sh <supabase_url> <anon_key>`. A custom `magic-link.html` / `confirmation.html` email template must build its link from `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (or `type=signup`), not `{{ .ConfirmationURL }}`.
-
-### 5. Stripe Configuration
-
-Sellf supports **two equivalent methods** for Stripe configuration. Choose the one that best fits your use case.
-
-#### Method 1: .env Configuration (Recommended for developers)
-
-**Advantages:**
-- ✅ Quick setup (one environment variable)
-- ✅ Ideal for Docker, CI/CD, automation
-- ✅ Developers are familiar with this pattern
-- ✅ Easy rollback (change .env and restart)
-
-**Steps:**
-1. Get the Secret Key from Stripe Dashboard:
-   - Test Mode: https://dashboard.stripe.com/test/apikeys
-   - Live Mode: https://dashboard.stripe.com/apikeys
-   - You can use the Standard Secret Key (`sk_test_` or `sk_live_`)
-   - Or a Restricted Key (`rk_test_` or `rk_live_`) with the appropriate permissions
-
-2. Add to `.env.production`:
-   ```bash
-   # Test Mode (development)
-   STRIPE_SECRET_KEY=sk_test_51ABC...xyz
-
-   # OR Live Mode (production)
-   STRIPE_SECRET_KEY=sk_live_51ABC...xyz
-   ```
-
-3. Restart the application:
-   ```bash
-   docker compose restart admin-panel
-   ```
-
-4. Verify in Settings:
-   - Go to: `https://your-domain.com/dashboard/settings`
-   - You should see a blue banner: **"Currently using: .env configuration"**
-
-#### Method 2: Admin Panel Wizard (Recommended for non-technical users)
-
-**Advantages:**
-- ✅ Visual step-by-step guide
-- ✅ AES-256-GCM encryption (keys in database)
-- ✅ Automatic permission validation
-- ✅ Key rotation reminders (every 90 days)
-- ✅ No file editing required
-
-**Steps:**
-
-1. **Generate an encryption key** (one-time):
-   ```bash
-   openssl rand -base64 32
-   ```
-
-2. **Add the key to `.env.production`**:
-   ```bash
-   echo "STRIPE_ENCRYPTION_KEY=YOUR_GENERATED_KEY" >> .env.production
-   ```
-
-   **⚠️ CRITICAL: Never commit this key to Git!**
-
-3. **Restart the application**:
-   ```bash
-   docker compose restart admin-panel
-   ```
-
-4. **Open the wizard**:
-   - Go to: `https://your-domain.com/dashboard/settings`
-   - Click the **"Configure Stripe"** button
-
-5. **Go through 5 steps**:
-   - **Step 1 (Welcome)**: Click "Start Configuration"
-   - **Step 2 (Mode selection)**: Choose "Test Mode" or "Live Mode"
-   - **Step 3 (Create key)**: Follow the visual guide:
-     1. Open Stripe Dashboard
-     2. Go to API Keys → Create restricted key
-     3. Set permissions:
-        - ✅ Charges: Write
-        - ✅ Customers: Write
-        - ✅ Checkout Sessions: Write
-        - ✅ Payment Intents: Read
-        - ✅ Webhooks: Read (optional)
-     4. Copy the key (starts with `rk_test_` or `rk_live_`)
-     5. Return to the wizard and click "I've Created the Key"
-   - **Step 4 (Validation)**: Paste the key and click "Validate API Key"
-   - **Step 5 (Success)**: Click "Finish"
-
-6. **Verify configuration**:
-   - You should see a green banner: **"Currently using: Database configuration"**
-   - Your masked key: `rk_test_****1234` (only last 4 characters)
-   - Status: Test Mode / Live Mode
-   - Permissions: ✅ Verified
-
-#### Switching Between Methods
-
-**From .env to Wizard**:
-1. Simply launch the wizard and configure the key
-2. Database configuration takes priority over .env
-3. You can leave the `STRIPE_SECRET_KEY` variable in .env as a fallback
-
-**From Wizard to .env**:
-1. Add `STRIPE_SECRET_KEY` to .env
-2. Remove configuration from the database:
-   ```bash
-   docker exec supabase_db_sellf psql -U postgres -d postgres -c \
-     "DELETE FROM stripe_configurations WHERE is_active = true;"
-   ```
-3. Restart the application
-
-#### Testing Configuration
-
-**Test with a Stripe test card:**
-1. Create a test product in the Admin Panel
-2. Go to the product page
-3. Click "Buy Now"
-4. Use the test card: `4242 4242 4242 4242`
-   - Expiry: any future date (e.g. 12/34)
-   - CVC: any 3 digits (e.g. 123)
-5. Verify the payment in:
-   - Dashboard → Payments
-   - Stripe Dashboard → Payments
-
-**📖 Full testing guide:** See the [Stripe Testing Guide](/stripe-testing-guide/)
-
-#### Required Database Migrations
-
-The wizard requires the `stripe_configurations` table in the database:
-
-```bash
-# Check if the migration exists
-ls -la supabase/migrations/ | grep stripe
-
-# Should be: 20251227000000_stripe_rak_configuration.sql
-```
-
-If the migration does not exist, it will be automatically executed during database startup.
-
-## Database Configuration
-
-### 1. Prepare Migrations
-
-Check that all migrations are in place:
-
-```bash
-ls -la supabase/migrations/
-```
-
-The following files should be present:
-- `20250709000000_initial_schema.sql` - Initial schema
-- `20250717000000_payment_system.sql` - Payment system
-- `20251227000000_stripe_rak_configuration.sql` - Stripe configuration (wizard)
-- `20251227100000_shop_config.sql` - Shop configuration
-- others...
-
-### 2. Optionally: Modify Seed Data
-
-If you want to have your own sample data:
-
-```bash
-nano supabase/seed.sql
-```
-
-## Starting the Application
-
-### 1. Build and Start Containers
-
-```bash
-# Make sure you are in the main project directory
-cd ~/sellf
-
-# Build images (may take a few minutes on the first run)
-docker compose build
-
-# Start all services
 docker compose up -d
-
-# Check container status
-docker compose ps
+docker compose ps    # sellf should report healthy within ~30s
 ```
 
-Expected output:
-```
-NAME                  STATUS              PORTS
-sellf-admin        running             0.0.0.0:3000->3000/tcp
-sellf-db           running (healthy)   0.0.0.0:5432->5432/tcp
-sellf-auth         running
-sellf-rest         running
-sellf-storage      running
-sellf-nginx        running             0.0.0.0:8080->80/tcp
-...
-```
+`docker compose config` refuses to run with any of the required secrets
+still blank, with a message telling you which one and how to generate it —
+that's intentional, it's cheaper to fail here than after a broken deploy.
 
-### 2. Check Logs
+## Domain and SSL
 
-```bash
-# All containers
-docker compose logs -f
-
-# Specific container
-docker compose logs -f admin-panel
-docker compose logs -f db
-```
-
-### 3. Initialize Database
-
-If the database was automatically initialized (migrations in `/docker-entrypoint-initdb.d`), you can skip this step. Otherwise:
-
-```bash
-# Connect to the database
-docker compose exec db psql -U postgres
-
-# Check tables
-\dt
-
-# Exit
-\q
-```
-
-If the tables do not exist, run migrations manually:
-
-```bash
-# Copy migrations to the container
-docker compose cp supabase/migrations/. db:/tmp/migrations/
-
-# Execute migrations
-docker compose exec db psql -U postgres -d postgres -f /tmp/migrations/20250709000000_initial_schema.sql
-docker compose exec db psql -U postgres -d postgres -f /tmp/migrations/20250717000000_payment_system.sql
-```
-
-## Domain and SSL Configuration
-
-### Option 1: Nginx Proxy Manager (Recommended for beginners)
-
-1. Install Nginx Proxy Manager:
-```bash
-# Create a separate directory
-mkdir ~/nginx-proxy-manager
-cd ~/nginx-proxy-manager
-
-# Download docker-compose.yml for NPM
-wget https://github.com/NginxProxyManager/nginx-proxy-manager/blob/main/docker-compose.yml
-
-# Start
-docker compose up -d
-```
-
-2. Log in to the panel: `http://your-server:81`
-   - Email: `admin@example.com`
-   - Password: `changeme`
-
-3. Add a Proxy Host:
-   - Domain: `your-domain.com`
-   - Forward Hostname: `admin-panel`
-   - Forward Port: `3000`
-   - Websockets: ✅
-   - SSL: Select "Request a new SSL Certificate" (Let's Encrypt)
-
-4. Add a second Proxy Host for the API:
-   - Domain: `api.your-domain.com`
-   - Forward Hostname: `kong`
-   - Forward Port: `8000`
-   - SSL: ✅
-
-5. Add a third Proxy Host for examples:
-   - Domain: `examples.your-domain.com` (optional)
-   - Forward Hostname: `nginx`
-   - Forward Port: `80`
-   - SSL: ✅
-
-### Option 2: Certbot + Nginx (For advanced users)
-
-```bash
-# Install Certbot
-sudo apt install -y certbot python3-certbot-nginx
-
-# Obtain certificate
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com -d api.your-domain.com
-
-# Automatic renewal
-sudo systemctl enable certbot.timer
-```
-
-### DNS Configuration
-
-Set DNS records with your provider:
+Put a reverse proxy in front of the Sellf container the same way you did for
+Supabase's gateway — one option:
 
 ```
-Type   Name     Value                TTL
-A      @        YOUR_SERVER_IP       3600
-A      www      YOUR_SERVER_IP       3600
-A      api      YOUR_SERVER_IP       3600
+your-shop.example.com {
+    reverse_proxy localhost:3000
+}
 ```
 
-## Stripe Webhooks Configuration
+(Caddy example; nginx/Traefik/Nginx Proxy Manager work the same way — forward
+to whatever host/port you bound in `docker-compose.yml`'s `SELLF_PORT`.)
 
-> **Quick path:** After your first login as admin (next major section below), open
-> **Settings → Payments** in the Sellf admin. Paste your Stripe keys, click
-> **Register webhook** — Sellf creates the endpoint on Stripe and saves the
-> signing secret encrypted in your Supabase DB. Skips the manual flow below.
->
-> The env-config flow in this section is still valid for CI-driven Docker
-> deploys where you don't want to log into the Sellf admin to click things.
+## Stripe webhook
 
-### 1. Create a Webhook Endpoint in Stripe Dashboard
+After first login (see below), go to **Settings → Payments** in the Sellf
+admin and click **Register webhook** — Sellf creates the Stripe endpoint,
+subscribes to the events it needs, and stores the signing secret encrypted in
+the database. No manual Stripe Dashboard step needed.
 
-1. Go to: https://dashboard.stripe.com/webhooks
-2. Click "Add endpoint"
-3. URL: `https://your-domain.com/api/webhooks/stripe`
-4. Select events:
-   - `checkout.session.completed`
-   - `checkout.session.async_payment_succeeded`
-   - `payment_intent.succeeded`
-   - `charge.refunded`
-   - `refund.created`
-   - `refund.updated`
-   - `charge.dispute.created`
-   - `customer.subscription.created`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-   - `customer.subscription.trial_will_end`
-   - `customer.subscription.paused`
-   - `customer.subscription.resumed`
-   - `invoice.paid`
-   - `invoice.upcoming`
-   - `invoice.payment_succeeded`
-   - `invoice.payment_failed`
-   - `invoice.payment_action_required`
-5. Save and copy the **Signing secret** (`whsec_...`)
+## First login
 
-### 2. Update Environment Variables
-
-```bash
-nano .env.production
-```
-
-Add/update:
-```env
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
-```
-
-Restart the application:
-```bash
-docker compose restart admin-panel
-```
-
-## Initial Setup
-
-### 1. Create First Administrator Account
-
-1. Go to: `https://your-domain.com/login`
-2. Enter your email
-3. Click "Send Magic Link"
-4. Check your email inbox and click the link
-5. The first account automatically gets administrator privileges!
-
-### 2. Test the Dashboard
-
-1. After logging in, go to: `https://your-domain.com/dashboard`
-2. Check the Admin section: `https://your-domain.com/admin/products`
-3. Create your first test product
-
-### 3. Test a Payment
-
-1. Create a product with a test price (e.g. 10 PLN)
-2. Go to the product page: `https://your-domain.com/p/product-slug`
-3. Use the Stripe test card: `4242 4242 4242 4242`
-4. Verify that the payment went through
-
-## Monitoring and Logs
-
-### Checking Status
-
-```bash
-# Status of all containers
-docker compose ps
-
-# Resource usage
-docker stats
-
-# Real-time logs
-docker compose logs -f
-
-# Logs of a specific service
-docker compose logs -f admin-panel
-docker compose logs -f db
-```
-
-### Application Logs
-
-Logs are available in containers:
-
-```bash
-# Admin Panel
-docker compose exec admin-panel sh
-ls -la /app/.next/
-
-# Database - PostgreSQL logs
-docker compose logs db | grep ERROR
-
-# Nginx
-docker compose logs nginx
-```
-
-### Database Monitoring
-
-```bash
-# Connect to the database
-docker compose exec db psql -U postgres
-
-# Check database size
-SELECT pg_size_pretty(pg_database_size('postgres'));
-
-# Check active connections
-SELECT count(*) FROM pg_stat_activity;
-
-# Check most popular queries
-SELECT query, calls, total_exec_time
-FROM pg_stat_statements
-ORDER BY total_exec_time DESC
-LIMIT 10;
-```
+1. Open `https://your-shop.example.com/login`
+2. Enter your email, click the magic link (see Part 2 if it doesn't arrive
+   with a working link)
+3. First registered user becomes admin automatically
 
 ## Updating
 
-### Updating the Code
+Two independent things to update:
 
-```bash
-# Go to the project directory
-cd ~/sellf
+- **Supabase** — follow the upstream project's own `update.sh` /
+  upgrade notes for the self-hosted stack. This is entirely outside Sellf's
+  release cycle.
+- **Sellf** — bump `SELLF_VERSION` in `.env` (or override it at the shell:
+  `SELLF_VERSION=2026.10.0 docker compose up -d`) to pull a newer image, then
+  run any new migrations with `npx supabase db push --db-url ...` (or the
+  in-app updater if you installed via the release tarball elsewhere).
 
-# Stop the application
-docker compose down
+## Backup
 
-# Pull the latest code
-git pull origin main
+Supabase's data lives in its own Postgres container — back it up the same
+way regardless of how you run Sellf:
 
-# Rebuild images
-docker compose build --no-cache
-
-# Start again
-docker compose up -d
-
-# Check logs
-docker compose logs -f admin-panel
-```
-
-### Updating the Database (Migrations)
-
-```bash
-# New migration will appear in supabase/migrations/
-ls -la supabase/migrations/
-
-# Execute the migration
-docker compose exec db psql -U postgres -d postgres -f /tmp/migrations/NEW_MIGRATION.sql
-```
-
-### Backup Before Updating
-
-**ALWAYS make a backup before updating!**
-
-```bash
-# Database backup
-docker compose exec db pg_dump -U postgres postgres > backup_$(date +%Y%m%d_%H%M%S).sql
-
-# Volume backup
-docker run --rm \
-  -v sellf_postgres_data:/data \
-  -v $(pwd):/backup \
-  alpine tar czf /backup/postgres_backup_$(date +%Y%m%d_%H%M%S).tar.gz /data
-```
-
-## Backup and Restore
-
-### Automatic Database Backup
-
-Create a backup script:
-
-```bash
-nano ~/backup-sellf.sh
-```
-
-Contents:
 ```bash
 #!/bin/bash
-BACKUP_DIR="/home/$(whoami)/backups/sellf"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-mkdir -p $BACKUP_DIR
-
-# Database backup
-docker compose -f /home/$(whoami)/sellf/docker-compose.yml \
-  exec -T db pg_dump -U postgres postgres | gzip > $BACKUP_DIR/db_$DATE.sql.gz
-
-# Remove old backups (older than 7 days)
-find $BACKUP_DIR -name "db_*.sql.gz" -mtime +7 -delete
-
-echo "Backup completed: $BACKUP_DIR/db_$DATE.sql.gz"
+# Run from the Supabase stack's docker/ directory
+BACKUP_DIR=/opt/backups/sellf
+mkdir -p "$BACKUP_DIR"
+docker compose exec -T db pg_dumpall -U postgres > "$BACKUP_DIR/sellf-$(date +%F).sql"
+find "$BACKUP_DIR" -name "*.sql" -mtime +7 -delete
 ```
 
-Set permissions and cron:
-```bash
-chmod +x ~/backup-sellf.sh
+Add it to cron (e.g. daily at 2 AM: `0 2 * * * /opt/backups/backup.sh`), and
+also back up the `storage_data` volume if you use Supabase Storage for file
+delivery.
 
-# Add to cron (backup daily at 2:00 AM)
-crontab -e
-
-# Add the line:
-0 2 * * * /home/yourusername/backup-sellf.sh >> /home/yourusername/backup-sellf.log 2>&1
-```
-
-### Restoring from Backup
+**Restore:**
 
 ```bash
-# Stop the application
-cd ~/sellf
-docker compose down
-
-# Restore the database
-gunzip -c ~/backups/sellf/db_20250126_020000.sql.gz | \
-  docker compose run --rm -T db psql -U postgres
-
-# Start again
-docker compose up -d
+docker compose exec -T db psql -U postgres < /opt/backups/sellf/sellf-2026-09-01.sql
 ```
 
-### File Backup
+## Migrating from `docker-compose.fullstack.yml`
 
-```bash
-# Volume backup (storage, uploads, etc.)
-docker run --rm \
-  -v sellf_storage_data:/data \
-  -v ~/backups/sellf:/backup \
-  alpine tar czf /backup/storage_$(date +%Y%m%d).tar.gz /data
-```
+If you have an older Sellf checkout with `docker-compose.fullstack.yml`,
+that file is gone starting with this release. It bundled a broken Supabase
+setup (the database's own initialization was silently skipped after the
+first restart) — anyone running it either already patched it by hand or
+never had a working self-hosted install from it in the first place.
+
+1. **Back up first:** `docker exec <your-db-container> pg_dumpall -U postgres > sellf-backup.sql` — plus the `storage_data` volume if used.
+2. **Stand up an official Supabase self-hosted stack** (Part 1 above) or
+   Supabase Cloud.
+3. **Restore your data** into the new Supabase: `psql` the dump into the new
+   Postgres (`--schema=public --schema=auth`), then run Sellf's own
+   migrations with `npx supabase db push --db-url ...` to make sure the
+   schema matches what the new Sellf version expects.
+4. **Point Sellf at the new Supabase** — update `SUPABASE_URL`,
+   `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` in your `.env`.
+   **Keep `APP_ENCRYPTION_KEY` identical to what you had** — it decrypts
+   every secret already stored in your database (Stripe keys, webhook
+   signing secrets); rotating it makes those unreadable.
+5. If a different Supabase project means a different `JWT_SECRET`, existing
+   sessions log out — expected, users just sign in again.
+6. **Not ready to migrate?** Pin your deployment to Sellf `v2026.9.2` — the
+   last release that shipped `docker-compose.fullstack.yml` — until you can.
+   You won't get newer Sellf releases on that pin.
 
 ## Troubleshooting
 
-### Problem: Containers won't start
+### Sellf container is unhealthy / won't start
 
 ```bash
-# Check logs
-docker compose logs
-
-# Check configuration
-docker compose config
-
-# Remove everything and start from scratch
-docker compose down -v
-docker compose up -d
+docker compose logs sellf
+docker compose config   # confirms every required secret is actually set
 ```
 
-### Problem: Database not responding
+### Magic link email doesn't arrive or the link doesn't log you in
+
+1. Check SMTP is actually configured on the Supabase side
+   (`docker compose logs auth` in the Supabase stack)
+2. Confirm `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` (Part 2) is set and the URL
+   is publicly reachable — `curl` it from the Supabase server
+3. Confirm `GOTRUE_URI_ALLOW_LIST` includes your Sellf domain
+4. Check spam folder
+
+### Stripe payments don't work
 
 ```bash
-# Check status
-docker compose ps db
-
-# Check logs
-docker compose logs db
-
-# Restart the database
-docker compose restart db
-
-# If that doesn't help, check free disk space
-df -h
+docker compose logs sellf | grep -i stripe
 ```
 
-### Problem: Admin Panel returns 500
+Confirm the webhook is registered (Settings → Payments in the admin) and
+that `STRIPE_SECRET_KEY`/`STRIPE_PUBLISHABLE_KEY` match the mode (test vs
+live) of the checkout you're testing.
+
+### Running low on disk
 
 ```bash
-# Check logs
-docker compose logs admin-panel
-
-# Check environment variables
-docker compose exec admin-panel env | grep SUPABASE
-
-# Restart the panel
-docker compose restart admin-panel
-```
-
-### Problem: Magic link doesn't work
-
-1. Check SMTP configuration:
-```bash
-docker compose logs auth | grep SMTP
-```
-
-2. Check `GOTRUE_URI_ALLOW_LIST` in `.env.production`
-
-3. Check if the email arrived (check spam)
-
-### Problem: Stripe payments don't work
-
-1. Check webhook secret:
-```bash
-docker compose exec admin-panel env | grep STRIPE
-```
-
-2. Check webhook logs in Stripe Dashboard
-
-3. Test the endpoint manually:
-```bash
-curl -X POST https://your-domain.com/api/webhooks/stripe \
-  -H "stripe-signature: test" \
-  -d '{}'
-```
-
-### Problem: No disk space
-
-```bash
-# Check space
-df -h
-
-# Remove unused images
+docker system df
 docker image prune -a
-
-# Remove unused volumes
 docker volume prune
-
-# Remove old logs
-docker compose logs --tail=0
 ```
 
-### Problem: Slow performance
+## Security checklist
 
-1. Check resource usage:
-```bash
-docker stats
-```
-
-2. Add more RAM or CPU in server settings
-
-3. Optimize the database:
-```bash
-docker compose exec db psql -U postgres -c "VACUUM ANALYZE;"
-```
-
-4. Add indexes to frequently used columns
-
-## Support and Documentation
-
-- **Sellf Documentation**: `/CLAUDE.md` in the repository
-- **Docker Documentation**: https://docs.docker.com/
-- **Supabase Documentation**: https://supabase.com/docs
-- **Stripe Documentation**: https://stripe.com/docs
-- **GitHub Issues**: [link to repository]
-
-## Security - Checklist
-
-After deployment, check:
-
-- [ ] All passwords are long and secure
-- [ ] `.env.production` is NOT in the Git repository
-- [ ] Firewall is configured (only ports 22, 80, 443)
-- [ ] SSL/TLS is enabled (HTTPS)
-- [ ] Backups are configured and tested
-- [ ] SMTP uses an encrypted connection
-- [ ] Stripe is in production mode (keys `pk_live_` and `sk_live_`)
-- [ ] Rate limiting is enabled
-- [ ] Logs do not contain sensitive data
-- [ ] Monitoring is configured
-
----
-
-**Congratulations! Sellf is now running in production!** 🎉
+- [ ] `.env` files (Sellf and Supabase) are not in Git, permissions `600`
+- [ ] SSL/HTTPS enabled on both the Sellf domain and the Supabase API domain
+- [ ] Firewall allows only 22/80/443
+- [ ] `APP_ENCRYPTION_KEY`, `CHECKOUT_BINDING_SECRET`, `LOGINWALL_SECRET` generated with the commands above, not left as placeholders
+- [ ] Backups scheduled and tested with an actual restore
+- [ ] Supabase Studio (`SUPABASE_PUBLIC_URL`'s dashboard) is not publicly reachable without a password

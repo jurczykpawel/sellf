@@ -185,6 +185,7 @@ For limited access, use specific scopes:
 - `products:read`, `products:write`
 - `users:read`, `users:write`
 - `analytics:read`
+- `payments:read`, `payments:write`
 - `coupons:read`, `coupons:write`
 - `webhooks:read`, `webhooks:write`
 - `system:read`

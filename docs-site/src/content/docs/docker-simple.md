@@ -1,24 +1,26 @@
 ---
-title: "Sellf - Simple Deploy (Using Existing Setup)"
-description: "Are you already using admin-panel/docker-compose.yml for testing? Great! You can use the same file in production. This is the simplest solution."
+title: "Sellf - Simple Deploy (Docker + Supabase Cloud)"
+description: "Run the published Sellf image with docker compose against Supabase Cloud (or your own Supabase). One container, no build step."
 ---
 
-**THIS IS THE RECOMMENDED OPTION** if you are already testing `admin-panel/docker-compose.yml` on your server!
+**Use this** if you want Docker without self-hosting Supabase — Sellf runs
+from the published image, Supabase Cloud (or your own Supabase project)
+hosts the database.
 
 ## Overview
 
-Are you already using `admin-panel/docker-compose.yml` for testing? Great! You can use the same file in production. This is the simplest solution.
-
 ### What Does It Do?
 
-- Runs **only Admin Panel** (1 container)
-- Connects to **Supabase Cloud** (or local Supabase)
+- Runs **only the Sellf container** (1 container), pulling
+  `ghcr.io/jurczykpawel/sellf` — no build step on your server
+- Connects to **Supabase Cloud** (or a self-hosted Supabase, see
+  [full-stack.md](/full-stack/))
 - Does not require nginx (you use your own reverse proxy)
-- Simple, lightweight, proven
+- Simple, lightweight
 
 ## Requirements
 
-- VPS with Docker (min. 2GB RAM)
+- VPS with Docker (min. 1 GB RAM)
 - Reverse proxy for SSL (Nginx Proxy Manager, Caddy, Traefik)
 - Supabase Cloud account (free)
 - Stripe account
@@ -33,10 +35,10 @@ Are you already using `admin-panel/docker-compose.yml` for testing? Great! You c
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
 
-# Clone the project
+# Clone the project (only needed for docker-compose.yml + optional migrations)
 cd /opt
-git clone https://github.com/your-org/sellf.git
-cd sellf/admin-panel
+git clone https://github.com/jurczykpawel/sellf.git
+cd sellf
 ```
 
 ### 2. Create a Project in Supabase Cloud
@@ -50,85 +52,48 @@ cd sellf/admin-panel
 
 ### 3. Run Database Migrations
 
-In Supabase Dashboard:
+Easiest from your own machine with the Supabase CLI:
 
-1. Go to **SQL Editor**
-2. Copy the contents of `supabase/migrations/20250709000000_initial_schema.sql`
-3. Paste and run
-4. Repeat for all migrations
+```bash
+npx supabase db push --db-url "postgresql://postgres:<password>@db.abcdef.supabase.co:5432/postgres"
+```
 
-### 4. Configure SMTP in Supabase
+Or paste each file under `supabase/migrations/` into the Supabase Dashboard's
+**SQL Editor**, in filename order, if you don't have the CLI available.
 
-1. **Settings** → **Authentication** → **SMTP Settings**
-2. Enable Custom SMTP
-3. Fill in with SendGrid/Mailgun details
+### 4. Configure SMTP + magic-link templates in Supabase
+
+1. **Settings → Authentication → SMTP Settings** — enable Custom SMTP, fill
+   in with SendGrid/Mailgun/etc.
+2. **Settings → Authentication → Email Templates** — paste the templates
+   from `supabase/templates/*.html` in the Sellf repo (they're what make the
+   magic-link URL carry `token_hash`, which `/auth/callback` requires). See
+   `supabase/templates/README.md` for the full reference.
 
 ### 5. Create the `.env` File
 
 ```bash
-cd /opt/sellf/admin-panel
+cp .env.docker.example .env
 nano .env
 ```
 
-Contents:
+Fill in `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+`SITE_URL`, the three generated secrets, and your Stripe keys — see the
+comments in `.env.docker.example` for exact commands.
 
-```env
-# ===========================================
-# Sellf - Production (admin-panel/docker-compose.yml)
-# ===========================================
+**How captcha and magic links work:** the app verifies your captcha provider (ALTCHA or Turnstile) itself before sending any login email; Supabase's own captcha setting is a separate, independent lock on direct calls to its `/auth/v1` endpoints — enable it too when you have a Turnstile account, and verify it with `admin-panel/scripts/verify-auth-captcha.sh <supabase_url> <anon_key>`.
 
-# App
-APP_ENV=production
-PORT=3000
-NODE_ENV=production
-NEXT_TELEMETRY_DISABLED=1
-
-# Supabase Cloud
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
-
-# Stripe
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# URLs
-NEXT_PUBLIC_BASE_URL=https://your-domain.com
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
-MAIN_DOMAIN=your-domain.com
-
-# Cloudflare Turnstile (CAPTCHA)
-NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
-CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
-```
-
-**How captcha and magic links work:** the app verifies your captcha provider (ALTCHA or Turnstile) itself before sending any login email; Supabase's own captcha setting is a separate, independent lock on direct calls to its `/auth/v1` endpoints — enable it too when you have a Turnstile account, and verify it with `admin-panel/scripts/verify-auth-captcha.sh <supabase_url> <anon_key>`. A custom magic-link/confirmation email template must link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` (or `type=signup`), not `{{ .ConfirmationURL }}`.
-
-### 6. Create `.stripe` (Optional)
+### 6. Start Docker
 
 ```bash
-cp .stripe.example .stripe
-nano .stripe
-# Fill in as needed
-```
-
-### 7. Start Docker
-
-```bash
-# Build and start
 docker compose up -d
-
-# Check logs
 docker compose logs -f
-
-# Check status
 docker compose ps
 ```
 
-It should be running at `http://localhost:3000`
+It should be running at `http://localhost:3000` (or whatever `SELLF_PORT` you set).
 
-### 8. Configure Reverse Proxy for SSL
+### 7. Configure Reverse Proxy for SSL
 
 #### Option A: Nginx Proxy Manager (Recommended)
 
@@ -137,7 +102,7 @@ If you are already using NPM:
 1. Add a **Proxy Host**:
    - Domain: `your-domain.com`
    - Forward Hostname: `localhost` (or server IP)
-   - Forward Port: `3000`
+   - Forward Port: `3000` (or your `SELLF_PORT`)
    - Websockets: enabled
    - SSL: Request Let's Encrypt Certificate
    - Force SSL: enabled
@@ -145,10 +110,7 @@ If you are already using NPM:
 #### Option B: Caddy
 
 ```bash
-# Install Caddy
 sudo apt install -y caddy
-
-# Configuration
 sudo nano /etc/caddy/Caddyfile
 ```
 
@@ -163,9 +125,9 @@ your-domain.com, www.your-domain.com {
 sudo systemctl restart caddy
 ```
 
-### 9. Configure Stripe Webhooks
+### 8. Configure Stripe Webhooks
 
-**Easiest path — register from the Sellf admin (after Step 10 below):**
+**Easiest path — register from the Sellf admin (after Step 9 below):**
 
 After your first login as admin, open **Settings → Payments** in the Sellf admin. Two cards: paste your Stripe `pk_…` and `sk_…` into the API keys card, then click **Register webhook** in the second card. Sellf creates the endpoint on Stripe for you, subscribes to all the events, and stores the signing secret encrypted in your Supabase DB. No Dashboard hopping, no env-var edits.
 
@@ -178,7 +140,7 @@ After your first login as admin, open **Settings → Payments** in the Sellf adm
 5. Add to `.env` as `STRIPE_WEBHOOK_SECRET`
 6. Restart: `docker compose restart`
 
-### 10. First Login
+### 9. First Login
 
 1. Open: `https://your-domain.com/login`
 2. Enter email
@@ -188,42 +150,25 @@ After your first login as admin, open **Settings → Payments** in the Sellf adm
 
 ## Done!
 
-Your application is running in production using the same setup as for testing!
-
 ## Monitoring
 
 ```bash
-# Check logs
 docker compose logs -f
-
-# Check resource usage
 docker stats
-
-# Check status
 docker compose ps
-
-# Test API
 curl https://your-domain.com/api/runtime-config
 ```
 
 ## Updating
 
 ```bash
-cd /opt/sellf/admin-panel
+cd /opt/sellf
 
-# Stop
-docker compose down
-
-# Pull changes
-git pull
-
-# Rebuild
-docker compose build --no-cache
-
-# Start
+# Bump the version, then:
+docker compose pull
 docker compose up -d
 
-# Check logs
+# Run any new migrations (see Step 3), then check logs:
 docker compose logs -f
 ```
 
@@ -232,13 +177,9 @@ docker compose logs -f
 ### Problem: Container does not start
 
 ```bash
-# Check logs in detail
-docker compose logs admin-panel
-
-# Check if .env is correct
+docker compose logs sellf
+docker compose config    # confirms every required secret is actually set
 cat .env | grep SUPABASE_URL
-
-# Restart
 docker compose restart
 ```
 
@@ -248,56 +189,32 @@ docker compose restart
 2. Check Auth logs in Supabase
 3. Check spam folder
 4. Check `GOTRUE_URI_ALLOW_LIST` in Supabase Settings
+5. Check the magic-link email template actually carries `token_hash` (Step 4)
 
 ### Problem: Stripe webhook is not working
 
 ```bash
-# Test endpoint
 curl -X POST https://your-domain.com/api/webhooks/stripe
-
-# Check logs
-docker compose logs admin-panel | grep stripe
-
-# Check webhook secret in .env
+docker compose logs sellf | grep stripe
 grep STRIPE_WEBHOOK_SECRET .env
 ```
 
 ### Problem: 502 Bad Gateway
 
 1. Check if the container is running: `docker compose ps`
-2. Check if port 3000 is available: `netstat -tlnp | grep 3000`
+2. Check if the port is available: `netstat -tlnp | grep 3000`
 3. Check reverse proxy config
 
 ## File Structure
 
 ```
 /opt/sellf/
-├── admin-panel/
-│   ├── docker-compose.yml  ← THIS IS THE FILE YOU USE
-│   ├── .env                ← Your production configuration
-│   ├── .stripe             ← Optional Stripe configuration
-│   ├── Dockerfile          ← Automatically used by docker-compose
-│   └── src/
-├── supabase/
-│   └── migrations/         ← Migrations (run in Supabase Cloud)
-└── ...
+├── docker-compose.yml      ← THIS IS THE FILE YOU USE
+├── .env                    ← Your production configuration
+└── supabase/
+    ├── migrations/         ← Migrations (run against Supabase Cloud)
+    └── templates/          ← Magic-link email templates (Step 4)
 ```
-
-### About the Dockerfile
-
-Your `admin-panel/Dockerfile` is **correct and does not require changes**!
-
-**How it works:**
-- Next.js standalone reads `NEXT_PUBLIC_*` variables at runtime from `.env`
-- NO build args needed - variables are passed when the container starts
-- If you change `.env`, just `docker compose restart` (no rebuild needed!)
-
-**Node 20 vs Node 18:**
-- Dockerfile uses Node 20 (latest LTS) - this is good!
-- If you have issues, you can switch back to Node 18 by changing the first line:
-  ```dockerfile
-  FROM node:18-alpine AS base
-  ```
 
 ## Security
 
@@ -313,7 +230,7 @@ Check before starting:
 
 ## Monthly Costs
 
-- **VPS** (2GB RAM): ~$5-10
+- **VPS** (1-2GB RAM): ~$5-10
 - **Supabase Cloud Free**: $0 (up to 500MB database)
 - **Stripe**: 0% + 2.9% + $0.30 per transaction
 - **Domain**: ~$1/month
@@ -322,22 +239,18 @@ Check before starting:
 
 ## Advantages of This Approach
 
-- **Simplest** - you use what you already know
-- **Proven** - you are already testing this locally
-- **Lightweight** - only 1 container
-- **Cheap** - minimal resources
-- **Easy to update** - git pull + rebuild
-- **Supabase Cloud** - automatic backups and monitoring
+- **Simplest Docker path** — no build step, pulls a signed, published image
+- **Lightweight** — only 1 container
+- **Cheap** — minimal resources
+- **Easy to update** — `docker compose pull && docker compose up -d`
+- **Supabase Cloud** — automatic backups and monitoring
 
 ## Other Deployment Options
 
 If you need more control:
 
-- **`docker-compose.fullstack.yml`**: Full self-hosted stack (11 containers)
-  - For enterprise, compliance (GDPR data residency), high traffic
-  - See: **`DEPLOYMENT.md`**
-
-- **`DOCKER-COMPOSE-GUIDE.md`**: Comparison of all deployment options
+- **[full-stack.md](/full-stack/)**: Self-hosted Supabase too (official installer), same Sellf container
+- **[deployment.md](/deployment/)**: Comparison of all deployment options
 
 ---
 

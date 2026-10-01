@@ -287,7 +287,8 @@ Deduplication: each event gets a UUID `event_id` shared between Pixel and CAPI.
 | `gtm_container_id` | TEXT | GTM Container ID |
 | `gtm_server_container_url` | TEXT | GTM Server URL |
 | `facebook_pixel_id` | TEXT | Meta Pixel ID |
-| `facebook_capi_token` | TEXT | Meta CAPI access token |
+| `facebook_capi_token_encrypted` / `_iv` / `_tag` | TEXT | Meta CAPI access token, AES-256-GCM encrypted with `APP_ENCRYPTION_KEY` |
+| `facebook_capi_token` | TEXT | Legacy plaintext token from older versions; converted to the encrypted columns automatically at server start |
 | `facebook_test_event_code` | TEXT | Meta test event code |
 | `fb_capi_enabled` | BOOLEAN | Enable server-side conversions |
 | `send_conversions_without_consent` | BOOLEAN | Allow CAPI without consent |

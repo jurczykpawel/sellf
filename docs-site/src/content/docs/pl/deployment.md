@@ -32,19 +32,19 @@ Wybierz w zależności od tego co chcesz.
 
 ---
 
-### [DEPLOYMENT-COOLIFY.md](/pl/deployment-coolify/) — Coolify (one-click samodzielny hosting)
+### [DEPLOYMENT-COOLIFY.md](/pl/deployment-coolify/) — Coolify (samodzielny hosting)
 **Wybierz gdy potrzebujesz:**
-- Najbliżej "prawdziwego one-click" — migracje uruchamiają się automatycznie
-- Samodzielnego hostingu pełnego stosu (Sellf + Supabase) na własnym VPS
+- Sellfa na własnym VPS, ściągniętego jako gotowy obraz (bez budowania)
+- Opcjonalnie też samodzielnego Supabase, przez własny szablon Coolify
 - Auto TLS + auto-deploy na pushu do GitHuba
 
-**Wymagania:** VPS z 8GB+ RAM (4 GB wystarcza na działanie ale build wypada przez OOM — zobacz przewodnik), Coolify zainstalowany (darmowy), 10 min konfiguracja
+**Wymagania:** VPS z 4GB+ RAM (więcej, jeśli obok stawiasz też samodzielny Supabase), Coolify zainstalowany (darmowy), 10 min konfiguracja. Migracje uruchamiasz raz na wydanie, nie automatycznie przy każdym restarcie — zobacz przewodnik.
 
 ---
 
 ### [FULL-STACK.md](/full-stack/) — Samodzielny Supabase + Docker
 **Wybierz gdy potrzebujesz:**
-- Pełnej kontroli nad infrastrukturą (11 kontenerów Docker)
+- Pełnej kontroli nad infrastrukturą (własny kontener Sellfa plus oficjalny, samodzielnie hostowany stos Supabase)
 - Samodzielnego Supabase (bez zależności od chmury)
 - Zgodność RODO (wymagania co do lokalizacji danych)
 - Duży ruch (1M+ requestów/miesiąc)
@@ -78,7 +78,7 @@ Wybierz w zależności od tego co chcesz.
 
 ### [DOCKER-SIMPLE.md](/docker-simple/) — Prosty Docker
 **Wybierz gdy:**
-- Chcesz Docker + Supabase Cloud
+- Chcesz uruchomić gotowy obraz Sellfa przez `docker compose` z Supabase Cloud (albo własnym Supabase)
 - Potrzebujesz dokładniejszego opisu niż w głównym przewodniku
 
 ---

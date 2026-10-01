@@ -153,7 +153,9 @@ Each API key has a `scopes` array that controls what it can access.
 | `users:write` | Manage user access (grant, revoke, extend) |
 | `coupons:read` | View coupons |
 | `coupons:write` | Create, update, delete coupons |
-| `analytics:read` | View analytics, reports, and payment data |
+| `analytics:read` | View analytics and reports (aggregates only) |
+| `payments:read` | View payment transactions and export them as CSV |
+| `payments:write` | Update payment metadata |
 | `webhooks:read` | View webhook configurations |
 | `webhooks:write` | Manage webhooks (create, update, delete, test) |
 | `integrations:write` | Manage tracking and consent integrations |
@@ -174,7 +176,7 @@ Common scope combinations for quick setup:
 |--------|--------|----------|
 | **Full Access** | `*` | Admin integrations, MCP server |
 | **Read Only** | All `:read` scopes | Dashboards, BI tools, reporting |
-| **Analytics** | `analytics:read` | Revenue dashboards |
+| **Analytics** | `analytics:read` | Revenue dashboards (aggregates only — add `payments:read` for individual transactions) |
 | **Support** | `products:read`, `users:read`, `coupons:read` | Customer support team |
 
 ---
@@ -343,11 +345,11 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 
 | Method | Path | Scope | Description |
 |--------|------|-------|-------------|
-| GET | `/payments` | `analytics:read` | List payments |
-| GET | `/payments/{id}` | `analytics:read` | Get payment details |
-| PATCH | `/payments/{id}` | `analytics:read` | Update payment metadata |
-| GET | `/payments/stats` | `analytics:read` | Payment statistics |
-| POST | `/payments/export` | `analytics:read` | Export payments (CSV) |
+| GET | `/payments` | `payments:read` | List payments |
+| GET | `/payments/{id}` | `payments:read` | Get payment details |
+| PATCH | `/payments/{id}` | `payments:write` | Update payment metadata |
+| GET | `/payments/stats` | `analytics:read` | Payment statistics (aggregates only) |
+| POST | `/payments/export` | `payments:read` | Export payments (CSV) |
 | POST | `/payments/{id}/refund` | `refund-requests:write` | Refund a payment, including partial refunds |
 
 ### Order Bumps
@@ -381,6 +383,8 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 | PATCH | `/integrations` | `integrations:write` | Update tracking and consent integrations |
 
 Supported fields: `gtm_container_id`, `gtm_server_container_url`, `gtm_ss_enabled`, `google_ads_conversion_id`, `google_ads_conversion_label`, `facebook_pixel_id`, `facebook_capi_token`, `facebook_test_event_code`, `fb_capi_enabled`, `send_conversions_without_consent`, `umami_website_id`, `umami_script_url`, `cookie_consent_enabled`, `consent_logging_enabled`.
+
+`facebook_capi_token` is write-only: it is stored encrypted and never returned. Omit the field to keep the stored token; send `null` to remove it.
 
 Supported outgoing event types include purchases, leads, waitlist signups, refund issued events, subscription lifecycle events, and invoice payment events.
 
@@ -467,10 +471,3 @@ Subscribe the Stripe endpoint to the events listed by `STRIPE_WEBHOOK_EVENTS` in
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/waitlist/signup` | Public or session | Capture waitlist signups and dispatch `waitlist.signup` outgoing webhooks |
-
----
-
-## OpenAPI Specification
-
-The OpenAPI 3.1 registry and generator live in `admin-panel/src/lib/api/schemas/openapi.ts`.
-Use it as the source for generated API docs or Bruno/Postman imports when exposing a spec endpoint in your deployment.

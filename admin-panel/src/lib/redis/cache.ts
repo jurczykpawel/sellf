@@ -13,7 +13,7 @@
  * Setup:
  * 1. Create free account: https://console.upstash.com
  * 2. Create Redis database
- * 3. Add to .env.fullstack:
+ * 3. Add to .env:
  *    UPSTASH_REDIS_REST_URL=https://your-region.upstash.io
  *    UPSTASH_REDIS_REST_TOKEN=your_token
  * 4. Restart app - caching activates automatically

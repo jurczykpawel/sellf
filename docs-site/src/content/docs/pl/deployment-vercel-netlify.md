@@ -44,7 +44,7 @@ echo "LOGINWALL_SECRET=$(openssl rand -hex 32)"
 
 Zachowaj wynik pod ręką — wkleisz każdą wartość do formularza w Kroku 4.
 
-> **Po co?** `CHECKOUT_BINDING_SECRET` podpisuje HMAC wiążący sesję checkout Stripe z konkretną parą (użytkownik, produkt), blokując manipulację metadanymi. `APP_ENCRYPTION_KEY` szyfruje klucze API Stripe i GUS przechowywane w panelu admina. `LOGINWALL_SECRET` podpisuje token przekierowania dla bramki dostępu do treści per-produkt. Nigdy nie trzeba ich zmieniać chyba że podejrzewasz wyciek.
+> **Po co?** `CHECKOUT_BINDING_SECRET` podpisuje HMAC wiążący sesję checkout Stripe z konkretną parą (użytkownik, produkt), blokując manipulację metadanymi. `APP_ENCRYPTION_KEY` szyfruje klucze API Stripe i GUS przechowywane w panelu admina. `LOGINWALL_SECRET` podpisuje token przekierowania dla bramki dostępu do treści per-produkt — pamiętaj, że ten snippet tylko chowa stronę w przeglądarce odwiedzającego, więc do pobierania plików, płatnych materiałów i wszystkiego, co dzieje się na Twoim serwerze, użyj blokowania elementów z jego weryfikacją po stronie serwera. Nigdy nie trzeba ich zmieniać chyba że podejrzewasz wyciek.
 
 ## Krok 2 — Utwórz projekt Supabase (3 min)
 

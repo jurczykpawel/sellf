@@ -56,7 +56,7 @@ REST API Token: AX...your-token-here...==
 
 ### Step 4: Add to Environment Variables
 
-Add to `.env.fullstack`:
+Add to your deployment's env file (`admin-panel/.env.local` for PM2, `.env` for the Docker compose deploys):
 
 ```bash
 # Upstash Redis (Optional - Performance Optimization)
@@ -230,7 +230,7 @@ pm2 logs | grep "Redis"
 ## 🔐 Security Best Practices
 
 ✅ **DO:**
-- Keep tokens in `.env.fullstack` (never commit!)
+- Keep tokens in your `.env`/`.env.local` file (never commit!)
 - Use TLS (enabled by default)
 - Rotate tokens periodically (Upstash console → Settings → Rotate)
 

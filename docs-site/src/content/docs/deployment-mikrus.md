@@ -116,30 +116,42 @@ cd ..
 
 ### Step 3: Configure Environment Variables
 
+This guide assumes the Supabase project from the Prerequisites already
+exists (hosted or self-hosted elsewhere) — PM2 only runs the Sellf app
+itself, so `.env.local` needs just the app's own config, not any
+Postgres/JWT/gateway variables.
+
 Copy and edit environment file:
 
 ```bash
-cp .env.fullstack.example .env.fullstack
-nano .env.fullstack
+cd admin-panel
+cp .env.example .env.local
+nano .env.local
 ```
 
 **Minimum Required Variables:**
 
 ```bash
-# Database
-POSTGRES_PASSWORD=your_secure_password_here
+# Supabase (the project from the Prerequisites)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# JWT & Auth
-JWT_SECRET=generate_with_openssl_rand_base64_32
-REALTIME_SECRET_KEY_BASE=generate_with_openssl_rand_base64_32
-ANON_KEY=your_supabase_anon_key
-SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# URLs
-API_EXTERNAL_URL=https://api.yourdomain.com
-NEXT_PUBLIC_SUPABASE_URL=https://api.yourdomain.com
-GOTRUE_SITE_URL=https://yourdomain.com
+# Site URL
+SITE_URL=https://yourdomain.com
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+
+# Runtime
+NODE_ENV=production
+TRUSTED_PROXY=true
+
+# Auto-generated secrets — see admin-panel/.env.example for the exact
+# openssl commands and what each one protects
+CHECKOUT_BINDING_SECRET=
+APP_ENCRYPTION_KEY=
+LOGINWALL_SECRET=
 
 # Stripe — pk/sk required, webhook secret optional (auto-managed via
 # the admin's Register-webhook button by default — see top of this doc)
@@ -147,9 +159,13 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_SECRET_KEY=sk_live_xxx
 # STRIPE_WEBHOOK_SECRET=whsec_xxx   # env-config path only
 
-# Cloudflare Turnstile
+# Cloudflare Turnstile (or ALTCHA — see admin-panel/.env.example)
 NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=your_site_key
 CLOUDFLARE_TURNSTILE_SECRET_KEY=your_secret_key
+```
+
+```bash
+cd ..
 ```
 
 **Optional - Upstash Redis (Recommended for better performance):**
@@ -524,7 +540,7 @@ See [UPSTASH-REDIS.md](/upstash-redis/) for detailed setup guide.
 
 1. Create free Upstash account: https://console.upstash.com
 2. Create Redis database (choose region closest to your VPS)
-3. Add credentials to `.env.fullstack`:
+3. Add credentials to `admin-panel/.env.local`:
    ```bash
    UPSTASH_REDIS_REST_URL=https://your-region.upstash.io
    UPSTASH_REDIS_REST_TOKEN=AX...your-token...==
@@ -629,7 +645,7 @@ pm2 logs sellf-admin --err --lines 50
 **Common errors**:
 
 1. **"Your project's URL and Key are required"**
-   - Missing Supabase credentials in `.env.fullstack`
+   - Missing Supabase credentials in `admin-panel/.env.local`
 
 2. **"listen EADDRINUSE: address already in use"**
    - Port 3000 already taken (see above)

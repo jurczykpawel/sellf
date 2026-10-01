@@ -24,10 +24,10 @@ Ten przewodnik pokrywa oba tryby. Wybierz jeden i podążaj za krokami tylko dla
 ## Czemu w ogóle wybrać Coolify?
 
 Wybierz Coolify jeśli:
-- Masz (albo chcesz wynająć) VPS z **8 GB+ RAM**. Sam build Sellfa potrzebuje ~3 GB wolnego dla `bun run build` na Next.js 16 z Turbopack; na 4 GB VPS Coolify + Postgres + Redis zjadają już ~1 GB, więc build pada przez OOM. Zweryfikowano 2026-05-27: 4 GB Hetzner CX22 zabija build, 8 GB Hetzner CX32 buduje się w ~8 minut i serwuje poprawnie.
 - Chcesz wszystko na własnej infrastrukturze (bez Supabase Cloud, bez Vercela)
 - OK Ci self-hostować Postgresa (i własne backupy, w trybie self-hosted Coolify)
 - Chcesz "deploy and forget" — Coolify obsługuje auto-renew TLS, automatyczne redeploy na `git push`, restarty kontenerów
+- Masz (albo chcesz wynająć) VPS z **4 GB+ RAM**. Sam Sellf działa z **gotowego, opublikowanego obrazu** (`ghcr.io/jurczykpawel/sellf`) — Coolify go pobiera, a nie buduje, więc nie ma lokalnego builda Next.js który mógłby zabić OOM. To Supabase (jeśli hostujesz go sam obok Sellfa) zajmuje większość RAM-u — zaplanuj odpowiednio.
 
 Wybierz **Coolify Cloud** jeśli chcesz wszystkiego powyżej PLUS wolisz nie uruchamiać dashboardu Coolify samemu (auto-aktualizacje, backupy, alerty mailowe załatwione za Ciebie, ~$5/miesiąc).
 
@@ -40,7 +40,7 @@ Nie wybieraj Coolify jeśli pasują Ci bardziej:
 
 ## Najkrótsza ścieżka — użyj instalatora StackPilot
 
-[`install-coolify.sh`](https://github.com/jurczykpawel/stackpilot/blob/main/apps/sellf/install-coolify.sh) ze StackPilot automatyzuje cały ten przewodnik. Dwa style wywołania zależnie od tego którego wariantu Coolify używasz:
+[`install-coolify.sh`](https://github.com/jurczykpawel/stackpilot/blob/main/apps/sellf/install-coolify.sh) ze StackPilot automatyzuje cały ten przewodnik (celuje w Supabase Cloud, nie samodzielnie hostowany Supabase — zobacz "Self-hosting Supabase też" niżej, jeśli chcesz obu na Coolify). Dwa style wywołania zależnie od tego którego wariantu Coolify używasz:
 
 **Coolify Self-Hosted (domyślnie):**
 
@@ -50,7 +50,7 @@ Nie wybieraj Coolify jeśli pasują Ci bardziej:
     --repo-path /sciezka/do/sellf
 ```
 
-Skrypt instaluje Coolify na targecie (jeśli go nie ma), rejestruje admina, generuje token API, tworzy aplikację, ustawia zmienne, aplikuje migracje bazy i tworzy webhook Stripe. Łączny czas: ~12 minut na świeżym VPS, ~7 minut jeśli Coolify już działa.
+Skrypt instaluje Coolify na targecie (jeśli go nie ma), rejestruje admina, generuje token API, tworzy aplikację, ustawia zmienne, aplikuje migracje bazy i tworzy webhook Stripe.
 
 **Coolify Cloud:**
 
@@ -62,11 +62,9 @@ Skrypt instaluje Coolify na targecie (jeśli go nie ma), rejestruje admina, gene
     --repo-path /sciezka/do/sellf
 ```
 
-Dla Cloud zrobiłeś już jednorazową konfigurację w Coolify Cloud (rejestracja, dodanie serwera, wygenerowanie tokenu API). Skrypt tworzy tylko projekt + aplikację + zmienne + webhook Stripe przeciwko `https://app.coolify.io/api/v1/...`. Łączny czas: ~7 minut.
+Dla Cloud zrobiłeś już jednorazową konfigurację w Coolify Cloud (rejestracja, dodanie serwera, wygenerowanie tokenu API). Skrypt tworzy tylko projekt + aplikację + zmienne + webhook Stripe przeciwko `https://app.coolify.io/api/v1/...`.
 
-Zweryfikowano na Hetzner CX32 (8 GB RAM) 2026-05-27.
-
-Jeśli wolisz ręczny flow (albo wdrażasz bez root SSH na VPS), użyj kroków poniżej.
+Jeśli wolisz ręczny flow, albo chcesz też samodzielnie hostować Supabase (nie tylko Sellfa), użyj kroków poniżej.
 
 ## Krok 1 — Uruchom Coolify
 
@@ -93,75 +91,82 @@ Pełna dokumentacja Coolify: https://coolify.io/docs/installation
 
 Dla reszty przewodnika URL dashboardu Coolify to `https://app.coolify.io` (Cloud) zamiast `http://<ip-twojego-vps>:8000` (Self-Hosted). Wszystkie inne kroki działają identycznie — to samo UI, to samo API.
 
-## Krok 2 — Utwórz aplikację
+## Krok 2 — Zdobądź projekt Supabase
 
-W dashboardzie Coolify:
+Sellf potrzebuje projektu Supabase, z którym będzie rozmawiał. Dwie opcje na Coolify:
 
-1. **Projects → New Project** → nazwij `sellf`
-2. W projekcie **New Resource → Public Repository**
-3. Wklej:
+**Opcja A — Supabase Cloud (najprościej):** stwórz darmowy projekt na
+https://supabase.com i przejdź do Kroku 3. Bez dodatkowego zasobu w Coolify.
+
+**Opcja B — Samodzielny hosting Supabase na tej samej instancji Coolify:**
+
+1. **Projects → New Project** → nazwij `sellf` (albo użyj istniejącego projektu)
+2. W projekcie **New Resource → Service → Supabase** — to własny szablon
+   one-click Coolify dla oficjalnego, samodzielnie hostowanego stosu
+   Supabase. Jego magiczne zmienne `SERVICE_*` same generują sekret JWT
+   oraz klucze `anon`/`service_role` — bez ręcznego podpisywania JWT.
+3. Wdróż go, potem otwórz zakładkę **Environment Variables** tego zasobu i
+   skopiuj wygenerowane `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   (Coolify może je nazwać `SERVICE_SUPABASEANON_KEY` /
+   `SERVICE_SUPABASESERVICE_KEY` — sprawdź dokładne nazwy w swojej wersji
+   Coolify) oraz publiczny URL jaki Coolify mu przydzielił
+   (`SERVICE_URL_SUPABASEKONG` albo podobny).
+4. **Skonfiguruj szablony maili magic link zanim pójdziesz dalej** —
+   domyślne szablony GoTrue nie niosą `token_hash`, którego wymaga
+   `/auth/callback` Sellfa. Dodaj do zmiennych zasobu Supabase:
+   ```env
+   GOTRUE_MAILER_TEMPLATES_MAGIC_LINK=https://<twoja-domena-sellf>/auth-email-templates/magic-link.html
+   GOTRUE_MAILER_TEMPLATES_CONFIRMATION=https://<twoja-domena-sellf>/auth-email-templates/confirmation.html
+   GOTRUE_MAILER_TEMPLATES_RECOVERY=https://<twoja-domena-sellf>/auth-email-templates/recovery.html
+   GOTRUE_MAILER_TEMPLATES_INVITE=https://<twoja-domena-sellf>/auth-email-templates/invite.html
+   GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE=https://<twoja-domena-sellf>/auth-email-templates/email-change.html
+   GOTRUE_URI_ALLOW_LIST=https://<twoja-domena-sellf>/*
+   ```
+   (Te szablony są częścią Sellfa i są serwowane jako statyczne pliki przez
+   sam kontener Sellf — zobacz [full-stack.md](/full-stack/#part-2--magic-link-email-templates)
+   po pełne wyjaśnienie.) Skonfiguruj też SMTP w tym zasobie, jeśli
+   jeszcze tego nie zrobiłeś (szablon Supabase w Coolify wystawia zwykłe
+   zmienne `SMTP_*`).
+5. Szablon Supabase w Coolify potrafi być kilka miesięcy w tyle za
+   wydaniami upstream Supabase — to własny szablon zespołu Coolify,
+   niekontrolowany przez Sellfa.
+
+## Krok 3 — Wdróż Sellfa
+
+1. W tym samym projekcie: **New Resource → Docker Compose**
+2. Wskaż na główny `docker-compose.yml` z repo Sellfa:
    - **Git Repository:** `https://github.com/jurczykpawel/sellf`
    - **Branch:** `main`
-   - **Build Pack:** `Docker Compose`
-   - **Compose File Location:** `docker-compose.fullstack.yml`
-4. Kliknij **Continue**
+   - **Compose File Location:** `docker-compose.yml`
+3. Wypełnij zmienne środowiskowe jakie Coolify odczyta z pliku compose:
+   ```env
+   SUPABASE_URL=<URL Supabase z Kroku 2>
+   SUPABASE_ANON_KEY=<z Kroku 2>
+   SUPABASE_SERVICE_ROLE_KEY=<z Kroku 2>
+   # Tylko jeśli SUPABASE_URL powyżej to wewnętrzny adres sieci Coolify,
+   # a nie publiczny:
+   # PUBLIC_SUPABASE_URL=<publiczny URL który dobija do tej samej bramy Supabase>
+   SITE_URL=https://<twoja-domena-coolify-app>
+   CHECKOUT_BINDING_SECRET=<openssl rand -base64 32>
+   APP_ENCRYPTION_KEY=<openssl rand -base64 32>
+   LOGINWALL_SECRET=<openssl rand -hex 32>
+   STRIPE_SECRET_KEY=sk_test_…                # albo sk_live_… dla produkcji
+   STRIPE_PUBLISHABLE_KEY=pk_test_…
+   # STRIPE_WEBHOOK_SECRET — zostaw puste; zarejestrujesz webhook z panelu
+   # admina w Kroku 4, signing secret wyląduje w bazie.
+   ```
+4. Kliknij **Deploy**. Coolify pobiera opublikowany obraz — bez builda, więc
+   to zajmuje poniżej minuty po ściągnięciu warstw obrazu.
+5. **Uruchom migracje raz** — to ręczny krok, nie dzieje się automatycznie
+   przy restarcie. Z własnej maszyny (z zainstalowanym CLI `supabase`) albo
+   z powłoki wewnątrz kontenera Sellfa:
+   ```bash
+   npx supabase db push --db-url "postgresql://postgres:<haslo>@<host-supabase>:5432/postgres"
+   ```
+   Powtórz to przy każdej aktualizacji Sellfa do wersji z nowymi migracjami,
+   przed albo zaraz po redeployu.
 
-## Krok 3 — Ustaw zmienne środowiskowe
-
-Coolify odczyta plik compose i poprosi o zmienne z niego. Wypełnij:
-
-### Wygeneruj lokalnie (uruchom w terminalu)
-
-```bash
-echo "POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-24)"
-echo "JWT_SECRET=$(openssl rand -base64 32)"
-echo "ANON_KEY=<wygeneruj przez narzędzie podpisu JWT Supabase, zobacz Krok 3.1>"
-echo "SERVICE_ROLE_KEY=<to samo>"
-echo "CHECKOUT_BINDING_SECRET=$(openssl rand -base64 32)"
-echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)"
-echo "LOGINWALL_SECRET=$(openssl rand -hex 32)"
-```
-
-### Krok 3.1 — Wygeneruj klucze JWT Supabase
-
-Samodzielnie hostowane Supabase wymaga `ANON_KEY` i `SERVICE_ROLE_KEY` podpisanych Twoim `JWT_SECRET`. Użyj online narzędzia Supabase: https://supabase.com/docs/guides/self-hosting#api-keys (strona ma wbudowany generator). Albo uruchom lokalnie:
-
-```bash
-JWT_SECRET="<twoja wartość z góry>"
-# anon key:
-docker run --rm -i node:20-alpine sh -c "npm i -g jsonwebtoken-cli && jwt encode --secret '$JWT_SECRET' '{\"role\": \"anon\", \"iss\": \"supabase\"}'"
-# service_role key:
-docker run --rm -i node:20-alpine sh -c "npm i -g jsonwebtoken-cli && jwt encode --secret '$JWT_SECRET' '{\"role\": \"service_role\", \"iss\": \"supabase\"}'"
-```
-
-### Wklejone do Coolify
-
-```
-POSTGRES_PASSWORD=<z kroku 3>
-JWT_SECRET=<z kroku 3>
-ANON_KEY=<z kroku 3.1>
-SERVICE_ROLE_KEY=<z kroku 3.1>
-SUPABASE_URL=http://kong:8000              # wewnętrzna sieć Docker
-SUPABASE_ANON_KEY=<to samo co ANON_KEY>
-SUPABASE_SERVICE_ROLE_KEY=<to samo co SERVICE_ROLE_KEY>
-SITE_URL=https://<twoja-domena-coolify-app>
-STRIPE_SECRET_KEY=sk_test_…                # albo sk_live_… dla produkcji
-STRIPE_PUBLISHABLE_KEY=pk_test_…
-# STRIPE_WEBHOOK_SECRET — zostaw puste; zarejestrujesz webhook z panelu
-# admina w Kroku 5, signing secret wyląduje w bazie.
-CHECKOUT_BINDING_SECRET=<z kroku 3>
-APP_ENCRYPTION_KEY=<z kroku 3>
-LOGINWALL_SECRET=<z kroku 3>
-TRUSTED_PROXY=true
-```
-
-## Krok 4 — Deploy
-
-Kliknij **Deploy** w Coolify. Pierwszy deploy trwa 5-10 minut (buduje bundle Next.js Sellfa i pobiera obrazy Supabase). Coolify pokazuje live logi builda.
-
-**Bez osobnego kroku migracji** — `docker-compose.fullstack.yml` montuje `./supabase/migrations` do kontenera Postgresa w `/docker-entrypoint-initdb.d`, więc migracje uruchamiają się automatycznie przy pierwszym boocie. To główny powód dla którego Coolify jest bliżej prawdziwego one-click niż Vercel/Netlify.
-
-## Krok 5 — Rejestracja + webhook Stripe (1 min, 1 klik)
+## Krok 4 — Rejestracja + webhook Stripe (1 min, 1 klik)
 
 Po deployu Twoja aplikacja jest pod `https://<twoja-coolify-domena>`.
 
@@ -172,7 +177,7 @@ Po deployu Twoja aplikacja jest pod `https://<twoja-coolify-domena>`.
 
 > **Env-config alt:** Jeśli wolisz trzymać sekrety w env varach Coolify (np. dla redeployów z CI), użyj legacy flow — stwórz webhook ręcznie na https://dashboard.stripe.com/test/webhooks, wklej `whsec_…` do `STRIPE_WEBHOOK_SECRET` w Coolify, restart. Ten sam efekt.
 
-## Krok 6 — Własna domena + TLS
+## Krok 5 — Własna domena + TLS
 
 W dashboardzie Coolify:
 1. Otwórz aplikację Sellf
@@ -184,52 +189,51 @@ W dashboardzie Coolify:
 
 ## Backup
 
-Coolify nie widzi do wewnątrz Twojego Supabase Sellfa. Skonfiguruj własne backupy:
+Jeśli sam hostujesz Supabase na Coolify (Krok 2, Opcja B), Coolify domyślnie
+nie widzi do wewnątrz jego Postgresa — skonfiguruj własne backupy:
 
 ```bash
-# W dashboardzie Coolify → projekt → Backups
-# ALBO przez cron na VPS-ie:
-0 3 * * * docker exec sellf-db pg_dumpall -U postgres > /backups/sellf-$(date +%F).sql
+# W dashboardzie Coolify → zasób Supabase → Backups (jeśli szablon to wystawia)
+# ALBO przez cron na VPS-ie, celując w kontener db tego zasobu:
+0 3 * * * docker exec <kontener-db-supabase> pg_dumpall -U postgres > /backups/sellf-$(date +%F).sql
 ```
 
-Dla backupów offsite kompatybilnych z S3, zobacz `vault/brands/_shared/infra/INDEX.md` dla wzorca backup-host-restic.sh.
+Jeśli używasz Supabase Cloud (Krok 2, Opcja A), backupy są załatwione za Ciebie.
 
 ## Aktualizacja Sellf
 
 W dashboardzie Coolify:
 1. Otwórz aplikację Sellf
-2. **Deployments → Redeploy** — pobiera najnowsze `main` z GitHuba, przebudowuje
-3. Migracje w nowszych wersjach Sellfa uruchamiają się automatycznie przy restarcie kontenera (idempotentne)
+2. **Deployments → Redeploy** — pobiera tag obrazu skonfigurowany w
+   `docker-compose.yml` (najpierw podbij `SELLF_VERSION`, jeśli chcesz
+   nowsze wydanie) i restartuje kontener
+3. **Uruchom ręcznie nowe migracje** (zobacz Krok 3.5) — Sellf nie
+   uruchamia migracji automatycznie przy restarcie
 
-Jeśli chcesz auto-deploy przy każdym `git push` do `main`, włącz **Webhooks → GitHub** w ustawieniach projektu Coolify.
+Jeśli chcesz auto-deploy przy każdym `git push` do `main`, włącz **Webhooks → GitHub** w ustawieniach projektu Coolify (dotyczy tylko zasobu Sellfa, nie zasobu Supabase).
 
 ## Rozwiązywanie problemów
 
-### Build OOM-zabija `bun` na 4 GB VPS
-
-Objaw: Coolify pokazuje deploy jako "in progress" ale kontener builda znika bez błędu w UI logach. `dmesg` na hoście pokazuje:
-
-```
-Out of memory: Killed process <pid> (bun) total-vm:76GB ...
-```
-
-Przyczyna: Next.js 16 + Turbopack + `bun run build` szczytuje ~3 GB residentnej pamięci, a usługi Coolify + Postgres + Redis już używają ~1 GB. 4 GB VPS się nie mieści.
-
-Fix: aktualizuj do **8 GB+** (Hetzner CX32, Contabo VPS 200, Linode g6-standard-2 itd.) i redeploy. Albo zbuduj obraz gdzie indziej i pozwól Coolify tylko go pobrać (zobacz "Build server" w ustawieniach Coolify).
-
 ### Kontener Postgres restartuje się w pętli
 
-Objaw: kontener `sellf-db` ciągle restartuje, logi mówią `FATAL: password authentication failed`.
+Objaw: kontener db zasobu Supabase ciągle restartuje, logi mówią `FATAL: password authentication failed`.
 
-Przyczyna: zmienna `POSTGRES_PASSWORD` została zmieniona po pierwszym boocie. Katalog danych Postgresa został zainicjalizowany ze starym hasłem; nowe nie autoryzuje.
+Przyczyna: zmienna hasła Postgresa została zmieniona po pierwszym boocie. Katalog danych Postgresa został zainicjalizowany ze starym hasłem; nowe nie autoryzuje.
 
-Fix: zatrzymaj stack, `docker volume rm sellf_postgres_data`, redeploy. **Niszczy wszystkie dane** — upewnij się że masz backup jeśli jesteś po pierwszym deployu.
+Fix: zatrzymaj zasób, usuń jego wolumen Postgresa, redeploy. **Niszczy wszystkie dane** — upewnij się że masz backup jeśli jesteś po pierwszym deployu.
 
-### Kong API gateway zwraca 404 na każdy request
+### Sellf nie dobija do Supabase / 500 na każdej stronie
 
-Przyczyna: brakuje albo nieprawidłowy plik `supabase/kong.yml` w repo. Compose montuje go tylko-do-odczytu.
+Przyczyna: `SUPABASE_URL` wskazuje na adres, do którego kontener Sellf
+faktycznie nie dobije (np. wewnętrzny hostname Coolify istniejący tylko w
+innej sieci Docker), albo klucze anon/service-role nie pasują do projektu
+Supabase, na który wskazujesz.
 
-Fix: sprawdź że plik istnieje pod ścieżką jakiej oczekuje `docker-compose.fullstack.yml` (`./supabase/kong.yml`).
+Fix: z powłoki wewnątrz kontenera Sellf, `curl $SUPABASE_URL/rest/v1/` —
+`401`/`200` znaczy że ścieżka sieciowa działa i problem jest w kluczach;
+błąd połączenia znaczy że sam URL jest zły. Jeśli przeglądarki muszą
+dobijać do innego (publicznego) adresu niż serwer, ustaw
+`PUBLIC_SUPABASE_URL` (Krok 3).
 
 ### "Service quota exceeded" od Coolify
 
@@ -243,9 +247,15 @@ Ten sam problem co w przewodniku Vercel/Netlify — zmienna `STRIPE_WEBHOOK_SECR
 
 ## Czemu to nie jest jeszcze opublikowane jako "Coolify Template"
 
-Coolify wspiera szablony one-click z marketplace. Sellf jeszcze takiego nie ma bo:
+Coolify wspiera szablony one-click z marketplace dla pojedynczej aplikacji.
+Sam obraz Sellfa nadaje się do tego trywialnie (to jeden kontener, jeden
+plik compose, kilka zmiennych) — trudniejsza część to fakt, że
+*kompletne* doświadczenie one-click potrzebuje drugiego zasobu (Supabase)
+połączonego z pierwszym, a format szablonów Coolify nie ma jeszcze
+czystego sposobu na wyrażenie "wdróż zasób A, potem podaj jego
+wygenerowany output do zmiennych zasobu B" pomiędzy dwoma osobnymi
+definicjami szablonów. Do czasu aż to się pojawi, dwa ręczne zasoby z tego
+przewodnika (Krok 2 + Krok 3) to praktyczna ścieżka.
 
-- Plik compose fullstack używa obrazów Supabase wymagających kluczy podpisanych JWT (Krok 3.1) — format szablonu Coolify nie wspiera natywnie "wygeneruj ten JWT, podpisz tamtą inną wygenerowaną wartością." Wciąż potrzebowałbyś ręcznego kroku JWT.
-- Self-Hosted Supabase to ruchomy cel (wersje auth/realtime/storage się zmieniają). Compose fullstack jest przypięty do znanych-dobrych wersji; szablon wymagałby utrzymania.
-
-Jeśli ktoś chce wnieść szablon Coolify zawierający init container podpisujący JWT, byłby mile widziany — otwórz issue.
+Jeśli ktoś chce wnieść połączony szablon albo "compose group" Coolify
+spinający oba, byłby mile widziany — otwórz issue.

@@ -190,15 +190,27 @@ A solved ALTCHA payload is consumed exactly once: `verifyCaptchaToken()` records
 
 `signInWithOtp` may only be called from `src/lib/auth/magic-link/deliver.ts` (`deliverMagicLink()`) — every other call site is a lint error (`eslint.config.mjs`, `no-restricted-syntax`). `deliverMagicLink()` itself may only be imported from `src/lib/auth/magic-link/request.ts` (`no-restricted-imports`) — every server call site goes through `requestMagicLink()` (captcha + IP/email rate limits) or `sendTrustedMagicLink()` (per-email rate limit only, for callers that already proved trust another way, e.g. a verified Stripe payment). Browsers request a magic link via `sendMagicLinkRequest()` → `POST /api/auth/magic-link` → `requestMagicLink()`. See "Magic Link Authentication" above.
 
-### Rate Limiting Anti-Spoofing
+### Rate Limiting Layers
 
-**CRITICAL**: The rate limiting system (`check_rate_limit()` function) implements multi-layer anti-spoofing:
-- **ONLY uses `inet_client_addr()`** (TCP connection IP from server)
-- **NEVER trusts client headers** (x-forwarded-for, x-real-ip can be spoofed)
-- Fallback to `pg_backend_pid()` + timestamp bucket if IP unavailable
-- Global anonymous rate limiting as final protection layer
+Two layers, each responsible for different callers:
 
-When modifying rate limiting, you MUST maintain this security model.
+- **Application (`src/lib/rate-limiting.ts`, `check_application_rate_limit`)** — the only layer that
+  can tell storefront visitors apart. Keys: `user:<id>` for signed-in users, otherwise the client IP
+  from `extractTrustedClientIp()` (forwarded headers are trusted only with `TRUSTED_PROXY=true`, which
+  production requires). Routes that call database functions for anonymous visitors apply their limits
+  here and then call the function with the service client.
+- **Database (`check_rate_limit()` inside SECURITY DEFINER functions)** — guards direct PostgREST RPC use:
+  - no request JWT (triggers fired by the auth server, cron) or `service_role` → not counted
+    (the server already applied the application layer);
+  - signed-in user → bucket per `auth.uid()`;
+  - anonymous → ONE shared bucket per function. The database only sees the PostgREST connection,
+    so `inet_client_addr()` cannot identify visitors; this bucket is a ceiling on direct anonymous
+    RPC use, not a per-visitor limit. Never route legitimate anonymous traffic through it — call the
+    function server-side instead.
+  - `identifier_param` → bucket per caller-supplied key (include the caller in the key, e.g.
+    `verify_coupon` uses code + user id or e-mail).
+
+When modifying rate limiting, keep each caller in exactly one of these buckets.
 
 ### Injection Prevention
 
@@ -429,10 +441,24 @@ This pattern allows purchasing before account creation, critical for conversion 
 
 ### First User Admin Assignment
 
-- `handle_new_user_registration()` trigger checks if user is first
-- Uses advisory lock to prevent race conditions
-- First user automatically gets `is_admin = true` in `user_metadata`
-- Admin status cached in session for performance
+- `handle_new_user_registration()` trigger promotes a new registrant only when nobody else exists yet in `auth.users` — i.e. only the very first user of the whole installation. Once that user exists (or has since been removed from `admin_users`), no later registration auto-promotes anyone else.
+- Uses an advisory lock to prevent race conditions
+- Admin status is a row in `public.admin_users` (checked via `public.is_admin()`), not a `user_metadata` flag; admin status is cached in session for performance
+- **Restoring an admin manually** (e.g. the last admin was removed by mistake): insert a row for that user as the service role — `INSERT INTO public.admin_users (user_id) VALUES ('<user-uuid>');` via `docker exec -i supabase_db_sellf psql -U postgres` locally, or the Supabase SQL editor / service-role client in production. There is no self-service UI for this by design.
+
+### Deleting a User
+
+There is no in-app "delete my account" flow. An operator deletes a user from Supabase Auth directly — the dashboard's "Delete user" button, or `auth.admin.deleteUser(id)` from a service-role client — for example to fulfil a GDPR erasure request.
+
+Every table that references `auth.users(id)` falls into one of two buckets (see `supabase/migrations/20260924000000_access_scope_tightening.sql`, "Account deletion" section):
+
+- **Kept, with the reference set to NULL** — financial and legal records that must survive the account: `payment_transactions` (including `refunded_by`), `refund_requests` (including `admin_id`), `product_price_history` (Omnibus Directive price-history compliance), `audit_log` (`user_id` and `performed_by`), `admin_actions`, `issued_licenses` (license issuance history — `seller_id`), `seller_license_keys` (the seller's signing keypair — `seller_id`), and `subscriptions` (`user_id`, once the subscription has ended — see below). Each of these already stores an independent snapshot (amount, e-mail, product, timestamps), so nulling the account reference loses no financial or audit detail. `consent_logs` has no foreign key at all and is never touched.
+- **Removed with the account** — pure per-account data: `profiles`, `user_product_access`, `video_progress`, `admin_users` (and anything that cascades from it, e.g. that admin's `api_keys`), `stripe_customers`, `seller_embed_settings`.
+
+Two tables needed a product decision rather than a mechanical "keep vs remove" call:
+
+- **`subscriptions.user_id`** blocks deletion only while Stripe is currently charging the account, or about to — a `BEFORE DELETE` trigger on `auth.users` (`prevent_delete_user_with_active_subscription()`, mirroring how `handle_new_user_registration()` is wired to `auth.users`) raises an exception when the user has a subscription in `trialing`, `active`, `past_due`, or `incomplete`. Those are the statuses where Stripe's own lifecycle (docs.stripe.com/billing/subscriptions/overview) is currently billing or about to bill the customer; `unpaid`, `canceled`, `incomplete_expired`, and `paused` are not blocking because Stripe has already stopped (or never started) attempting to collect. Once a subscription reaches a non-blocking status, the row is kept with `user_id` set to `NULL`, like the other financial tables above. The DELETE call itself gets back a generic `"Database error deleting user"` (500) — GoTrue does not forward the trigger's message to the API response — the specific reason ("an active Stripe subscription exists…") is only visible in the Postgres/GoTrue server logs.
+- **`seller_license_keys.seller_id`** is kept (`NULL`ed) rather than cascaded, so a deleted seller's buyers can keep verifying licenses issued before the deletion. A license token carries no seller claim (`src/lib/license-keys/format.ts`) — the buyer's verifier is handed the seller id once, out of band, at issuance — so nulling the live `seller_id` FK alone would silently break every already-issued license's lookup. Both `seller_license_keys` and `issued_licenses` carry a second column, `original_seller_id` (plain UUID, no foreign key, stamped once at insert by `stamp_original_seller_id()` and also set explicitly by `storeSellerKey()`/`issueLicense()`), which is what `GET /api/licenses/jwks?seller=<id>` (via `seller_license_public_keys()`) and the CRL/revocation lookup (`GET /api/licenses/revoked`, via `seller_revoked_orders()`) actually filter on — so verification and revocation keep working by the same seller id the buyer already has, regardless of what happens to the seller's account afterwards. New issuance still requires a live seller, obviously.
 
 ### License Tier Registry
 
@@ -468,6 +494,18 @@ gate content behind a Sellf sign-in + active-access check. The snippet does not
 verify the user against the page's server — the seller's page can remain a
 plain static page.
 
+**This is a UX-level gate, not a server-enforced access control.** The check that
+decides whether the page's content shows or hides runs entirely in the visitor's
+browser (presence of `_sf_token` in the URL fragment); there is no server-side
+call that re-confirms the token before the page renders, so a visitor who edits
+the page's own script/DOM can bypass it. That's an accepted trade-off for a
+plain static page with no backend of its own. **Gating real content or actions —
+anything where a bypass would matter — needs server-side verification instead:**
+use Element gating's `POST /api/loginwall/verify` (documented below — or
+`SellfGate.verify()` from a page that already has the gate snippet), which
+re-reads live access on the Sellf server for every call. Do not reach for the
+whole-page Login Wall when that's the requirement.
+
 **Flow (one round trip per visit):**
 
 1. Visitor hits `cust.example/some-page` (snippet in `<head>`).
@@ -489,8 +527,9 @@ plain static page.
 
 **Pieces:**
 
-- Pure crypto: `src/lib/loginwall/token.ts` — HMAC-SHA256 sign + verify with constant-time compare; no DB, no env.
-- Nonce store: `src/lib/loginwall/store.ts` — single-use ledger in `public.loginwall_tokens` (service-role only; hourly cron cleanup).
+- Pure crypto: `src/lib/loginwall/token.ts` — `signLoginwallToken` (HMAC-SHA256, no DB, no env). There is
+  no corresponding server-side verify for this v1 token — see the UX-only caveat above; the gate token
+  (v2, multi-product) has its own `signGateToken`/`verifyGateToken` pair for the flow that does verify.
 - Snippet builder: `src/lib/loginwall/snippet.ts` — `buildLoginwallSnippet` (HTML the seller pastes) and `buildLoginwallScript` (the JS served at `/api/loginwall/login.js`). Per-product variable hash so the global flag name doesn't collide across products.
 - Redirect allowlist: reuses `loadAllowedOriginsForProduct` from `src/lib/embed/checkout-embed.ts` (shared with the embed checkout flow). Sellers register origins in `public.seller_embed_settings.allowed_embed_origins`; the `SELLF_EMBED_ALLOWED_ORIGINS` env var is the fallback for solo deployments.
 - Routes: `src/app/[locale]/loginwall/protect/route.ts` and `src/app/api/loginwall/login.js/route.ts`.
@@ -547,6 +586,37 @@ calls `revokeLicensesForOrder`, keyed on `paymentIntentId || sessionId`) and **m
   Fire-and-forget: it never throws, so a webhook failure neither undoes a revocation nor causes a
   Stripe refund/dispute event to be redelivered; the queue worker retries failed deliveries.
 
+### Generated legal documents (Terms of Service, Privacy Policy)
+
+`POST /api/legal/generate` calls the external legal-engine service and stores the rendered
+HTML in the `legal` Storage bucket via `publishSnapshot` (`src/lib/legal/storage.ts`), same as
+before. What changed: the bucket is **private**, and `shop_config.terms_of_service_url` /
+`privacy_policy_url` are set to `/legal/terms` / `/legal/privacy` — a Sellf page, never the
+storage object's own URL.
+
+**Why not link storage directly:** Supabase Storage serves `text/html` objects as `text/plain`
+(confirmed in `storage-api`'s renderer, cloud and self-hosted alike — see the B10 audit), so a
+buyer clicking "Terms" would see raw markup (`<h2>`, `<li>`, …) as literal text instead of a
+document. On Coolify-style installs the stored `SUPABASE_URL` is also an internal address
+(`http://kong:8000/...`) the buyer's browser can never reach.
+
+**The fix:** `/legal/[type]/page.tsx` reads the stored object with the **service-role** client
+(fixes the internal-URL problem), parses it with `hast-util-from-html`, sanitizes it against a
+narrow allowlist (`LEGAL_SCHEMA` in `src/lib/legal/sanitize-legal-html.ts` — derived from the
+tags/attributes the legal-engine is actually known to emit: headings, lists incl. `ol[start]`,
+tables, links, `pre/code`; no `id`/`class`/`style`/`title` on anything), and renders it with
+`hast-util-to-jsx-runtime` (`src/components/legal/LegalDocument.tsx`) — never
+`dangerouslySetInnerHTML`. The sanitizing step matters because this document now renders on the
+admin panel's own origin, where the session cookie is `httpOnly: false`.
+
+Already-published documents do not need to be regenerated: the migration that ships this
+(`supabase/migrations/20260924000000_access_scope_tightening.sql`) only rewrites the stored
+`shop_config` URL (matched by our own bucket's storage path, so an admin-typed external URL is
+left untouched) and flips `storage.buckets.public` to `false` for `legal`.
+
+`/polityka-prywatnosci` redirects to `/privacy` — the legal-engine terms template hardcodes a
+link to that path, which Sellf never had.
+
 ### Element gating (per-element content + features)
 
 Where the login wall gates a whole page, **element gating** lets a seller gate
@@ -566,10 +636,26 @@ of `[data-has-access]`, `[data-no-access]`, `[data-no-session]`; the runtime kee
 the branch matching the visitor's state and removes the others (CSS hides everything
 until resolved to avoid a flash). `[data-sellf-feature="<slug>"]` controls are enabled
 only for owners. For an action that runs on a backend, gate it on
-`SellfGate.verify(slug)` (POST to `/api/loginwall/verify`): the token authenticates
-identity and the server **re-reads live access** (`user_product_access`), so a revoked
-or expired grant is denied immediately rather than after the token TTL. Display and
-in-browser features resolve client-side from the token and are best-effort.
+`SellfGate.verify(slug)` (POST to `/api/loginwall/verify?product=<slug>`, the slug
+URL-encoded and repeated in the body): the token authenticates identity for the
+products listed in its `products` request (any other slug is denied) and the server
+**re-reads live access** (`user_product_access`), so a revoked or expired grant is
+denied immediately rather than after the token TTL. Display and in-browser features
+resolve client-side from the token and are best-effort.
+
+The `?product=` query param exists so the browser's CORS preflight (`OPTIONS`) can
+check the *right* product's seller allowlist before the actual `POST` — without it,
+the preflight had no way to know which allowlist applied and had to accept any
+well-formed origin (the real access check still happened on `POST`, which always
+scoped CORS correctly, so this was a preflight-only gap, not a way to read another
+seller's data). Sellers never touch this: the pasted snippet (`buildGateSnippet`,
+the `<script src=".../api/loginwall/gate.js?...">` tag) is unchanged — the query
+param is added by the runtime `gate.js` serves (`buildGateScript`), so it updates
+automatically the next time a customer page loads. A direct browser call to
+`/api/loginwall/verify` that does not go through `SellfGate.verify()` must add `?product=<slug>`
+itself or its preflight will not reflect the origin. Server-to-server calls (no
+`Origin` header, see below) are unaffected either way — CORS preflights only happen
+from a browser.
 
 **Server-side verification pattern** (for real back-end actions): `SellfGate.verify()`
 returns a `Promise<boolean>` in the browser — the check runs on the Sellf server, but
@@ -697,6 +783,7 @@ days. Because it is anonymous with no personal data, **no DPA is required**.
 - **Magic Links:** Use `Mailpit` API to capture emails and extract tokens programmatically
 - **Consent Banners (vanilla-cookieconsent):** Banners block UI interactions in tests. Use a helper (e.g., `acceptAllCookies`) to inject the consent cookie *before* navigation to bypass the banner
 - **Race Conditions:** When testing high-concurrency scenarios (like multiple signups), ensuring DB triggers use transaction-level locks (`pg_advisory_xact_lock`) prevents "tuple concurrently updated" errors
+- **Currency conversion (`currency-conversion.spec.ts`, `currency-config.spec.ts`):** the E2E dev server never calls the real frankfurter.dev host. `playwright.config.ts` starts a tiny local fixed-rate server (`scripts/fx-rate-stub-server.mjs`) as an extra `webServer` entry and points the dev server's `ECBProvider` at it via `CURRENCY_ECB_BASE_URL` (see `.env.example`). This keeps the suite deterministic and independent of network/third-party uptime. The override is a test-only seam — `assertCurrencyProviderBaseUrl` (`src/lib/security/startup-assertions.ts`) refuses to boot in production if `CURRENCY_ECB_BASE_URL` is set to anything other than the real host.
 
 ## File Structure Context
 
@@ -796,6 +883,15 @@ CLOUDFLARE_TURNSTILE_SECRET_KEY=...
 
 # Login Wall (HMAC for the content-gating handoff token — see "Login Wall" above)
 LOGINWALL_SECRET=  # openssl rand -hex 32
+
+# AES-256-GCM key encrypting every DB-stored secret (Stripe DB-mode key, webhook
+# signing secret, license-issuer keys). Production startup refuses to boot without
+# a valid one (see startup-assertions.ts).
+APP_ENCRYPTION_KEY=  # openssl rand -base64 32
+
+# HMAC binding checkout sessions to their buyer/product. Production startup
+# refuses to boot without it (min 16 chars).
+CHECKOUT_BINDING_SECRET=  # openssl rand -base64 32
 ```
 
 ## CI/CD & Release Flow
@@ -843,6 +939,106 @@ Steps: `bun install --frozen-lockfile` → `bun run typecheck` → `bun run buil
 The tar.gz contains: `.next/` (with `standalone/admin-panel/server.js`), `package.json`, `public/`, `supabase/migrations/`, `supabase/templates/`.
 
 **Important:** The standalone output has a nested `admin-panel/` directory inside `.next/standalone/` because the CI builds from `admin-panel/` with a parent `package.json` at repo root. Next.js file tracing detects the parent and creates this nested structure.
+
+### Release signing
+
+Each release carries four assets: `sellf-build.tar.gz`, `sellf-build.tar.gz.sha256` (plain
+`sha256sum` output, unsigned, kept for tools that read it), `sellf-build.manifest` and
+`sellf-build.manifest.sig`. The manifest is exactly two LF-terminated lines, in this order, with
+nothing after the second newline:
+
+```
+version=2026.10.0
+sha256=<64 lowercase hex: sha256 of sellf-build.tar.gz>
+```
+
+`version` is the release tag without its leading `v` (CalVer `YYYY.M.patch`). The `.sig` is a raw
+Ed25519 signature over the exact manifest bytes (`openssl pkeyutl -sign -rawin`), made in CI
+("Write and sign release manifest" step) with the private key from the GitHub Actions secret
+`RELEASE_SIGNING_KEY` (PEM). The step fails the release if the secret is missing, if the tag is not
+strict `v?YYYY.M.patch` (no prerelease suffix) or differs from `admin-panel/package.json`, if
+`upgrade.sh` still holds the placeholder key, or if the signature does not verify against the
+public key embedded in `admin-panel/scripts/upgrade.sh` (which must equal
+`admin-panel/scripts/release-signing-key.pub.pem`). `upgrade.sh` trusts only the signed manifest,
+never the plain `.sha256`.
+
+- **Trust anchor:** the PEM between `# release-signing-key:start` / `:end` in `upgrade.sh`. The check
+  uses the copy in the **already-installed** script, never anything from the download.
+  `admin-panel/scripts/release-signing-key.pub.pem` is an auditable mirror; a unit test keeps it
+  byte-identical to the embedded key. Rotating the key = ship a release signed with the OLD key
+  that contains the NEW public key, then switch the secret.
+- **Order in `upgrade.sh`:** download manifest + `.sig` → verify signature → parse manifest (strict
+  two-line format; version must equal the release tag minus its `v`) → compare with the installed version →
+  download tarball → sha256 against the manifest → archive entry validation → extract.
+- **Installed version:** first line of `<install dir>/version.txt` (written by CI from
+  `package.json`, copied on every install/upgrade), falling back to `version` in
+  `<install dir>/package.json`. Unreadable → the upgrade is refused.
+- **Version rule:** fields compared as numbers (`2026.10.0` > `2026.9.10`); a `v` on the installed
+  version is ignored. Older than installed → refused. Equal → reinstalled through the normal install
+  path with every check (the admin UI's "Reinstall" button). Newer → installed.
+- **No override:** a missing or invalid signature, a malformed manifest, or an older version is
+  always refused; there is no environment switch. OpenSSL ≥ 1.1.1 with Ed25519 is required (not
+  LibreSSL).
+- **Bootstrap:** the first upgrade *to* the first signed release is performed by the previous,
+  non-verifying script; verification applies from the next upgrade onward.
+
+Verify a release by hand (only `openssl` + `sha256sum` needed):
+
+```bash
+V=v2026.10.0   # release tag
+for f in sellf-build.tar.gz sellf-build.manifest sellf-build.manifest.sig; do
+  curl -fsSLO "https://github.com/jurczykpawel/sellf/releases/download/$V/$f"; done
+curl -fsSLO https://raw.githubusercontent.com/jurczykpawel/sellf/main/admin-panel/scripts/release-signing-key.pub.pem
+openssl pkeyutl -verify -pubin -inkey release-signing-key.pub.pem -rawin \
+  -in sellf-build.manifest -sigfile sellf-build.manifest.sig          # "Signature Verified Successfully"
+grep -qx "sha256=$(sha256sum sellf-build.tar.gz | awk '{print $1}')" sellf-build.manifest \
+  && echo "sellf-build.tar.gz: OK"                                    # hash matches the signed manifest
+grep -x "version=${V#v}" sellf-build.manifest                        # signed version is the tag you asked for
+```
+
+### Docker image signing
+
+The `docker` job pushes `ghcr.io/<owner>/sellf` and exposes the pushed image's digest as a job
+output. The `latest` tag only moves on a real `release` event (`type=raw,value=latest,enable=${{
+github.event_name == 'release' }}`), never on a `workflow_dispatch` re-run of an old tag, and the
+same strict version gate as the tarball manifest runs before login/push, so a malformed or
+mismatched tag never reaches GHCR.
+
+A separate job, `sign-image` (`needs: [build, docker]`), then signs that digest so a Docker install
+can pin and verify it instead of trusting the mutable `latest` tag. It writes `sellf-image.manifest`,
+exactly two LF-terminated lines, nothing after the second newline:
+
+```
+version=2026.10.0
+image=ghcr.io/jurczykpawel/sellf@sha256:<64 lowercase hex>
+```
+
+Line 2 is `image=`, never `sha256=` — that keeps this format disjoint from `sellf-build.manifest`
+(line 2 `sha256=`), so a signed tarball manifest can never be replayed as an image manifest or vice
+versa. Signing and verification reuse the exact same Ed25519 mechanism as the tarball manifest, via
+the shared `admin-panel/scripts/ci/sign-manifest.sh sign|verify` helper: sign with
+`RELEASE_SIGNING_KEY`, then verify against the same public key embedded in `upgrade.sh` before
+upload. `sellf-build.manifest`, its signing step, and `upgrade.sh` itself are untouched by this —
+`upgrade.sh` only ever serves the standalone/PM2 layout, and the image does not ship it.
+
+If the `docker` job fails, only `sign-image` is skipped: the tarball release stays valid for PM2
+installs, and a Docker install refuses cleanly for lacking a signed image rather than falling back to
+an unsigned one.
+
+Verify a released image by hand:
+
+```bash
+V=v2026.10.0
+for f in sellf-image.manifest sellf-image.manifest.sig; do
+  curl -fsSLO "https://github.com/jurczykpawel/sellf/releases/download/$V/$f"; done
+curl -fsSLO https://raw.githubusercontent.com/jurczykpawel/sellf/main/admin-panel/scripts/release-signing-key.pub.pem
+openssl pkeyutl -verify -pubin -inkey release-signing-key.pub.pem -rawin \
+  -in sellf-image.manifest -sigfile sellf-image.manifest.sig          # "Signature Verified Successfully"
+grep -x "version=${V#v}" sellf-image.manifest                        # signed version is the tag you asked for
+IMAGE_REF="$(grep '^image=' sellf-image.manifest | cut -d= -f2-)"
+docker pull "$IMAGE_REF"                                              # pulls by digest, not by mutable tag
+docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$IMAGE_REF"
+```
 
 ### Deploying to server (stackpilot)
 

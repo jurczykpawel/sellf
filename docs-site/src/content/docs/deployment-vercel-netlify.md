@@ -39,7 +39,7 @@ echo "LOGINWALL_SECRET=$(openssl rand -hex 32)"
 
 Keep the output handy — you'll paste each value into the deploy form in Step 4.
 
-> **Why these?** `CHECKOUT_BINDING_SECRET` signs the HMAC that ties a Stripe checkout session to a specific (user, product) pair, blocking metadata tampering. `APP_ENCRYPTION_KEY` encrypts the Stripe and GUS API keys you store in the admin panel. `LOGINWALL_SECRET` signs the handoff token for the per-product content gating snippet. They never need to change unless you suspect a leak.
+> **Why these?** `CHECKOUT_BINDING_SECRET` signs the HMAC that ties a Stripe checkout session to a specific (user, product) pair, blocking metadata tampering. `APP_ENCRYPTION_KEY` encrypts the Stripe and GUS API keys you store in the admin panel. `LOGINWALL_SECRET` signs the handoff token for the per-product content gating snippet — note that the login wall snippet only hides a page in the visitor's browser, so for downloads, paid files, or anything that runs on your server, use element gating with its server-side check instead. They never need to change unless you suspect a leak.
 
 ## Step 2 — Create a Supabase project (3 min)
 
