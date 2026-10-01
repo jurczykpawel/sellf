@@ -2,10 +2,11 @@
 **/node_modules
 admin-panel/.next
 
-# Environment files
-.env
-.env.local
-.env*.local
+# Environment files: every variant, at any depth (.env, .env.local,
+# .env.production, admin-panel/.env.local, ...). Nothing in the Dockerfile
+# reads them; runtime configuration comes from the container environment.
+**/.env*
+.stripe/
 
 # Testing
 admin-panel/coverage

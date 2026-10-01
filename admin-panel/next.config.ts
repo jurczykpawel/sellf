@@ -6,8 +6,9 @@ import {
   buildBaseSecurityHeaders,
   buildEmbeddableResourceHeaders,
   buildApiSecurityHeaders,
-  buildPublicLicenseCacheHeaders,
+  buildPublicCacheHeaders,
   EMBEDDABLE_RESOURCE_PATHS,
+  EMBEDDABLE_PUBLIC_CACHE_PATHS,
 } from './src/lib/security/headers';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
@@ -162,7 +163,7 @@ const nextConfig: NextConfig = {
       // These exact routes come after the generic API rule so this value wins.
       ...['/api/licenses/jwks', '/api/licenses/revoked'].map((source) => ({
         source,
-        headers: buildPublicLicenseCacheHeaders(),
+        headers: buildPublicCacheHeaders(),
       })),
       // Embeddable cross-domain endpoints — relax CORP only.
       // Listed AFTER /api/:path* so CORP override wins.
@@ -173,6 +174,13 @@ const nextConfig: NextConfig = {
       ...EMBEDDABLE_RESOURCE_PATHS.map((source) => ({
         source,
         headers: buildEmbeddableResourceHeaders(),
+      })),
+      // These embeddable routes also set their own short public
+      // Cache-Control — re-assert it here so it wins over the generic
+      // API no-store rule above (same ordering trick as CORP).
+      ...EMBEDDABLE_PUBLIC_CACHE_PATHS.map((source) => ({
+        source,
+        headers: buildPublicCacheHeaders(),
       })),
     ];
   },

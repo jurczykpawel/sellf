@@ -1,3 +1,5 @@
+import { DEFAULT_ECB_BASE_URL } from '@/lib/services/currencyService';
+
 export function assertTrustedProxyConfig(): void {
   if (process.env.NODE_ENV !== 'production') return;
   if (process.env.TRUSTED_PROXY === 'true') return;
@@ -72,10 +74,64 @@ export function assertCheckoutBindingSecret(): void {
   );
 }
 
+/**
+ * Refuse to boot when the database secret-encryption key is missing or the
+ * wrong shape. src/lib/services/secret-encryption.ts uses APP_ENCRYPTION_KEY
+ * (or the legacy STRIPE_ENCRYPTION_KEY) to encrypt/decrypt every DB-stored
+ * secret — Stripe keys, webhook signing secrets, license-issuer keys. Without
+ * this check the app boots fine and only fails the first time a request
+ * actually reads or writes one of those secrets. Validation mirrors
+ * secret-encryption.ts's own check: present, base64, decodes to 32 bytes.
+ */
+export function assertAppEncryptionKey(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const key = process.env.APP_ENCRYPTION_KEY || process.env.STRIPE_ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error(
+      'Refusing to start: APP_ENCRYPTION_KEY is not set in production. ' +
+        'It decrypts every secret stored in the database (Stripe keys, webhook ' +
+        'signing secrets, license-issuer keys). Generate one with `openssl rand ' +
+        '-base64 32` and add to .env.local before booting. See .env.example.',
+    );
+  }
+
+  const decoded = Buffer.from(key, 'base64');
+  if (decoded.length !== 32) {
+    throw new Error(
+      'Refusing to start: APP_ENCRYPTION_KEY must decode to 32 bytes (256 bits) of ' +
+        `base64. Decoded length: ${decoded.length} bytes. Generate a new key with ` +
+        '`openssl rand -base64 32`.',
+    );
+  }
+}
+
+/**
+ * Refuse to boot when the ECB currency provider's base URL has been
+ * redirected away from the real Frankfurter host. `CURRENCY_ECB_BASE_URL`
+ * exists only so the E2E suite can point `ECBProvider` (currencyService.ts)
+ * at a local stub server with fixed rates; left set in production it would
+ * silently feed fake exchange rates into real payment/revenue conversions.
+ */
+export function assertCurrencyProviderBaseUrl(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const override = process.env.CURRENCY_ECB_BASE_URL;
+  if (!override || override === DEFAULT_ECB_BASE_URL) return;
+
+  throw new Error(
+    `Refusing to start: NODE_ENV=production but CURRENCY_ECB_BASE_URL is set to "${override}" ` +
+      `instead of the real Frankfurter host (${DEFAULT_ECB_BASE_URL}). This exists only to point ` +
+      'the currency provider at a local test stub during E2E runs; unset it for a real deploy.',
+  );
+}
+
 /** Run every production startup gate in one call. */
 export function assertProductionStartupConfig(): void {
   assertNodeEnvIsSet();
   assertTrustedProxyConfig();
   assertNonProductionFlagsOff();
   assertCheckoutBindingSecret();
+  assertAppEncryptionKey();
+  assertCurrencyProviderBaseUrl();
 }

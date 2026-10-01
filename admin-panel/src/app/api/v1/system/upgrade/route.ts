@@ -28,6 +28,7 @@ import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { existsSync, openSync, closeSync } from 'fs';
 import { resolve, basename } from 'path';
+import { getUpgradeLockFilePath, getUpgradeLogFilePath } from '@/lib/system/upgrade-paths';
 
 /**
  * Resolve upgrade script path dynamically based on process.cwd().
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
     // installDir = /opt/stacks/sellf-tsa/admin-panel → parent = sellf-tsa
     // This matches the lock key used by upgrade.sh.
     const instanceName = installDir ? basename(resolve(installDir, '..')) : 'unknown';
-    const instanceLockFile = `/tmp/sellf-upgrade-${instanceName}.lock`;
+    const instanceLockFile = getUpgradeLockFilePath(instanceName);
     if (existsSync(instanceLockFile)) {
       return jsonResponse(
         { error: { code: 'CONFLICT', message: 'An upgrade is already in progress.' } },
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     // Create log file with restricted permissions before launching.
     // upgrade.sh writes to it via its own log() function using >>.
-    const logFile = `/tmp/sellf-upgrade-${token}.log`;
+    const logFile = getUpgradeLogFilePath(token);
     const logFd = openSync(logFile, 'w', 0o600);
     closeSync(logFd);
 
@@ -145,6 +146,10 @@ export async function POST(request: NextRequest) {
     //
     // systemd-run creates a new scope under system.slice/<unit>.service
     // that is unaffected by pm2 stop on the parent process.
+    //
+    // The script verifies the signed release manifest with the public key
+    // embedded in the installed upgrade.sh and refuses a version older than
+    // the installed one; neither check can be switched off.
     const scriptArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
     const systemdRunArgs = [
       `--unit=sellf-upgrade-${token}`,

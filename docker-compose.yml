@@ -1,0 +1,68 @@
+# Sellf — single-container deploy against your own Supabase project.
+#
+# This compose file runs ONLY the Sellf admin panel, from the published
+# image. Supabase is NOT included: stand it up separately (official
+# self-hosted installer, the Coolify "Supabase" template, or Supabase Cloud)
+# and point this container at it. See docs-site: full-stack.md (self-hosted
+# Supabase) or deployment-coolify.md (Coolify).
+#
+# Quick start:
+#   cp .env.docker.example .env
+#   # fill in .env, then:
+#   docker compose up -d
+#
+# `docker compose config` fails fast with a readable message for every
+# secret below that's still unset — nothing starts half-configured.
+
+services:
+  sellf:
+    image: ghcr.io/jurczykpawel/sellf:${SELLF_VERSION:-2026.9.2}
+    restart: unless-stopped
+    ports:
+      - "${SELLF_BIND:-127.0.0.1}:${SELLF_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      # Sellf always runs behind a reverse proxy in this setup (Caddy/nginx/
+      # Traefik/Coolify) — the port above binds to loopback by default so the
+      # app is never reachable except through that proxy.
+      TRUSTED_PROXY: "true"
+
+      SITE_URL: "${SITE_URL:?Set SITE_URL to your public https URL, e.g. https://shop.example.com}"
+      SUPABASE_URL: "${SUPABASE_URL:?Set SUPABASE_URL to your Supabase project URL (server-reachable; see PUBLIC_SUPABASE_URL below if it differs from the public one)}"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:?Set SUPABASE_ANON_KEY from your Supabase project API settings}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:?Set SUPABASE_SERVICE_ROLE_KEY from your Supabase project API settings, never expose this to a browser}"
+      # Only needed when SUPABASE_URL above is an internal-only address (e.g.
+      # a Docker-network hostname behind Coolify) that a visitor's browser
+      # can't reach. Leave unset when SUPABASE_URL is already public.
+      PUBLIC_SUPABASE_URL: "${PUBLIC_SUPABASE_URL:-}"
+
+      CHECKOUT_BINDING_SECRET: "${CHECKOUT_BINDING_SECRET:?Generate one with openssl rand -base64 32}"
+      APP_ENCRYPTION_KEY: "${APP_ENCRYPTION_KEY:?Generate one with openssl rand -base64 32}"
+      LOGINWALL_SECRET: "${LOGINWALL_SECRET:?Generate one with openssl rand -hex 32}"
+
+      # Stripe: set here, or leave blank and configure from Settings →
+      # Payments after the first login (stored encrypted in the DB instead).
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_PUBLISHABLE_KEY: "${STRIPE_PUBLISHABLE_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+    env_file:
+      # Anything not listed above (captcha keys, OAuth providers, currency
+      # provider, etc. — see .env.docker.example) is passed through as-is.
+      - .env
+    healthcheck:
+      # node:22-slim has neither wget nor curl — use the runtime's own fetch.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  default:
+    name: sellf-network

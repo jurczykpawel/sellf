@@ -1,8 +1,9 @@
 /**
  * GET /api/v1/system/upgrade-status?token={uuid}
  *
- * Reads upgrade progress from /tmp/sellf-upgrade-{token}.json
- * written by upgrade.sh during the self-upgrade process.
+ * Reads upgrade progress from the file written by upgrade.sh during the
+ * self-upgrade process — see lib/system/upgrade-paths.ts for the resolved
+ * location (prefers /run/sellf/, falls back to /tmp/).
  *
  * @see /admin-panel/scripts/upgrade.sh
  * @see /api/v1/system/upgrade
@@ -19,6 +20,7 @@ import {
 } from '@/lib/api';
 import { readFileSync, openSync, closeSync, fstatSync, constants } from 'fs';
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { getUpgradeProgressFilePath } from '@/lib/system/upgrade-paths';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sanitized path — token is validated as UUID, no path traversal possible
-    const progressFile = `/tmp/sellf-upgrade-${token}.json`;
+    const progressFile = getUpgradeProgressFilePath(token);
 
     // Atomic open with O_NOFOLLOW — refuses symlinks at kernel level, no TOCTOU
     let fd: number;

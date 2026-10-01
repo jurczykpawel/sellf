@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  assertAppEncryptionKey,
   assertCheckoutBindingSecret,
+  assertCurrencyProviderBaseUrl,
   assertNodeEnvIsSet,
   assertNonProductionFlagsOff,
   assertProductionStartupConfig,
@@ -15,6 +17,9 @@ const SAVED_DEMO_MODE = process.env.DEMO_MODE;
 const SAVED_ALLOW_PRODUCTION_DEMO_MODE = process.env.ALLOW_PRODUCTION_DEMO_MODE;
 const SAVED_ALLOW_PRODUCTION_E2E_MODE = process.env.ALLOW_PRODUCTION_E2E_MODE;
 const SAVED_BINDING_SECRET = process.env.CHECKOUT_BINDING_SECRET;
+const SAVED_APP_ENCRYPTION_KEY = process.env.APP_ENCRYPTION_KEY;
+const SAVED_STRIPE_ENCRYPTION_KEY = process.env.STRIPE_ENCRYPTION_KEY;
+const SAVED_CURRENCY_ECB_BASE_URL = process.env.CURRENCY_ECB_BASE_URL;
 
 beforeEach(() => {
   delete process.env.TRUSTED_PROXY;
@@ -23,6 +28,9 @@ beforeEach(() => {
   delete process.env.ALLOW_PRODUCTION_DEMO_MODE;
   delete process.env.ALLOW_PRODUCTION_E2E_MODE;
   delete process.env.CHECKOUT_BINDING_SECRET;
+  delete process.env.APP_ENCRYPTION_KEY;
+  delete process.env.STRIPE_ENCRYPTION_KEY;
+  delete process.env.CURRENCY_ECB_BASE_URL;
 });
 
 afterEach(() => {
@@ -40,6 +48,12 @@ afterEach(() => {
   else process.env.ALLOW_PRODUCTION_E2E_MODE = SAVED_ALLOW_PRODUCTION_E2E_MODE;
   if (SAVED_BINDING_SECRET === undefined) delete process.env.CHECKOUT_BINDING_SECRET;
   else process.env.CHECKOUT_BINDING_SECRET = SAVED_BINDING_SECRET;
+  if (SAVED_APP_ENCRYPTION_KEY === undefined) delete process.env.APP_ENCRYPTION_KEY;
+  else process.env.APP_ENCRYPTION_KEY = SAVED_APP_ENCRYPTION_KEY;
+  if (SAVED_STRIPE_ENCRYPTION_KEY === undefined) delete process.env.STRIPE_ENCRYPTION_KEY;
+  else process.env.STRIPE_ENCRYPTION_KEY = SAVED_STRIPE_ENCRYPTION_KEY;
+  if (SAVED_CURRENCY_ECB_BASE_URL === undefined) delete process.env.CURRENCY_ECB_BASE_URL;
+  else process.env.CURRENCY_ECB_BASE_URL = SAVED_CURRENCY_ECB_BASE_URL;
 });
 
 describe('assertTrustedProxyConfig', () => {
@@ -156,6 +170,61 @@ describe('assertCheckoutBindingSecret', () => {
   });
 });
 
+describe('assertAppEncryptionKey', () => {
+  it('is a no-op outside production', () => {
+    process.env.NODE_ENV = 'development';
+    expect(() => assertAppEncryptionKey()).not.toThrow();
+  });
+
+  it('throws in production when the key is unset', () => {
+    process.env.NODE_ENV = 'production';
+    expect(() => assertAppEncryptionKey()).toThrow(/APP_ENCRYPTION_KEY/);
+  });
+
+  it('throws in production when the key does not decode to 32 bytes', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.APP_ENCRYPTION_KEY = Buffer.alloc(16, 7).toString('base64');
+    expect(() => assertAppEncryptionKey()).toThrow(/APP_ENCRYPTION_KEY/);
+  });
+
+  it('passes in production with a valid 32-byte base64 key', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.APP_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+    expect(() => assertAppEncryptionKey()).not.toThrow();
+  });
+
+  it('accepts a legacy STRIPE_ENCRYPTION_KEY when APP_ENCRYPTION_KEY is unset', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.STRIPE_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+    expect(() => assertAppEncryptionKey()).not.toThrow();
+  });
+});
+
+describe('assertCurrencyProviderBaseUrl', () => {
+  it('is a no-op outside production even when overridden', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.CURRENCY_ECB_BASE_URL = 'http://127.0.0.1:3799/fake-fx';
+    expect(() => assertCurrencyProviderBaseUrl()).not.toThrow();
+  });
+
+  it('passes in production when unset (real host used)', () => {
+    process.env.NODE_ENV = 'production';
+    expect(() => assertCurrencyProviderBaseUrl()).not.toThrow();
+  });
+
+  it('passes in production when set to the real frankfurter.dev host', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.CURRENCY_ECB_BASE_URL = 'https://api.frankfurter.dev/v1';
+    expect(() => assertCurrencyProviderBaseUrl()).not.toThrow();
+  });
+
+  it('throws in production when overridden to any other host', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.CURRENCY_ECB_BASE_URL = 'http://127.0.0.1:3799/fake-fx';
+    expect(() => assertCurrencyProviderBaseUrl()).toThrow(/CURRENCY_ECB_BASE_URL/);
+  });
+});
+
 describe('assertProductionStartupConfig', () => {
   it('fails first when NODE_ENV is unset', () => {
     delete process.env.NODE_ENV;
@@ -166,6 +235,7 @@ describe('assertProductionStartupConfig', () => {
     process.env.NODE_ENV = 'production';
     process.env.TRUSTED_PROXY = 'true';
     process.env.CHECKOUT_BINDING_SECRET = 'a-base64-secret-that-is-clearly-long-enough';
+    process.env.APP_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
     expect(() => assertProductionStartupConfig()).not.toThrow();
   });
 
@@ -180,5 +250,21 @@ describe('assertProductionStartupConfig', () => {
     process.env.NODE_ENV = 'production';
     process.env.TRUSTED_PROXY = 'true';
     expect(() => assertProductionStartupConfig()).toThrow(/CHECKOUT_BINDING_SECRET/);
+  });
+
+  it('rejects production without an app encryption key even if other secrets are right', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.TRUSTED_PROXY = 'true';
+    process.env.CHECKOUT_BINDING_SECRET = 'a-base64-secret-that-is-clearly-long-enough';
+    expect(() => assertProductionStartupConfig()).toThrow(/APP_ENCRYPTION_KEY/);
+  });
+
+  it('rejects production with an overridden currency provider base URL even if everything else is right', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.TRUSTED_PROXY = 'true';
+    process.env.CHECKOUT_BINDING_SECRET = 'a-base64-secret-that-is-clearly-long-enough';
+    process.env.APP_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+    process.env.CURRENCY_ECB_BASE_URL = 'http://127.0.0.1:3799/fake-fx';
+    expect(() => assertProductionStartupConfig()).toThrow(/CURRENCY_ECB_BASE_URL/);
   });
 });

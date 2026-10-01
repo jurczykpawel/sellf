@@ -21,15 +21,19 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
 
       - name: Install dependencies
         working-directory: ./admin-panel
+        run: bun install --frozen-lockfile
+
+      - name: Install MCP server dependencies
+        working-directory: ./mcp-server
         run: bun install --frozen-lockfile
 
       - name: Run type check
@@ -44,16 +48,24 @@ jobs:
         working-directory: ./admin-panel
         run: bun run lint
 
-      - name: Dependency audit
+      - name: Dependency audit (admin-panel)
         working-directory: ./admin-panel
-        continue-on-error: true
-        run: |
-          # Generate package-lock.json for npm audit (bun has no native audit)
-          npm i --package-lock-only --ignore-scripts 2>/dev/null
-          npm audit --omit=dev --audit-level=critical
+        # Blocking: audits the real bun.lock (not a generated package-lock.json)
+        # and fails the build on any high/critical advisory in the resolved
+        # dependency tree. Use `--ignore=<advisory id>` for a specific,
+        # time-bound, reviewed exception — never continue-on-error again.
+        run: bun audit --audit-level=high
+
+      - name: Dependency audit (mcp-server)
+        working-directory: ./mcp-server
+        # Blocking: audits the real bun.lock and fails the build on any
+        # high/critical advisory in the resolved dependency tree. Use
+        # `--ignore=<advisory id>` for a specific, time-bound, reviewed
+        # exception — never continue-on-error again.
+        run: bun audit --audit-level=high
 
       - name: Scan for leaked secrets
-        uses: trufflesecurity/trufflehog@363923b901c911a9164f50b6c423f47c15372b1c # v3.97.4
+        uses: trufflesecurity/trufflehog@4dd8831c5f12599465d4d45c3c447b4018a34c85 # v3.97.9
         with:
           extra_args: --results verified,unknown
 
@@ -61,15 +73,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sellf
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
 
       - name: Install SSH deploy key (read-only to playerstack)
-        uses: webfactory/ssh-agent@v0.10.0
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: ${{ secrets.PLAYERSTACK_DEPLOY_KEY }}
 
@@ -162,10 +174,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
 
@@ -282,21 +294,87 @@ jobs:
           cd ../release
           tar -czvf ../sellf-build.tar.gz .
 
+          # Plain checksum ("<hex>  sellf-build.tar.gz"), kept for tools that
+          # read it. The signed source of truth is sellf-build.manifest below.
+          cd ..
+          sha256sum sellf-build.tar.gz > sellf-build.tar.gz.sha256
+          cat sellf-build.tar.gz.sha256
+
+      # Signed release manifest: exactly two lines, `version=<YYYY.M.patch>` and
+      # `sha256=<hex of sellf-build.tar.gz>`, plus an Ed25519 signature over
+      # it (sellf-build.manifest.sig). upgrade.sh verifies the signature with
+      # the public key embedded in the already-installed script, refuses a
+      # version older than the installed one, and checks the tarball against
+      # the hash, so one signature covers origin, version and contents.
+      - name: Write and sign release manifest
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
+            echo "::error::RELEASE_SIGNING_KEY secret is not set — refusing to publish an unsigned release"
+            exit 1
+          fi
+
+          # The tag must be CalVer (optional v prefix) and match
+          # admin-panel/package.json, which becomes the installed version.txt
+          # the next upgrade compares against.
+          if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release tag '$RELEASE_VERSION' is not YYYY.M.patch"
+            exit 1
+          fi
+          PACKAGE_VERSION="$(node -p "require('./admin-panel/package.json').version")"
+          MANIFEST_VERSION="${RELEASE_VERSION#v}"
+          if [ "$MANIFEST_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::release tag $RELEASE_VERSION does not match admin-panel/package.json version $PACKAGE_VERSION"
+            exit 1
+          fi
+
+          printf 'version=%s\nsha256=%s\n' "$MANIFEST_VERSION" "$(sha256sum sellf-build.tar.gz | awk '{print $1}')" > sellf-build.manifest
+          cat sellf-build.manifest
+
+          umask 077
+          KEY_FILE="$(mktemp)"
+          PUB_FILE="$(mktemp)"
+          trap 'rm -f "$KEY_FILE" "$PUB_FILE"' EXIT
+          printf '%s\n' "$RELEASE_SIGNING_KEY" > "$KEY_FILE"
+          openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin \
+            -in sellf-build.manifest -out sellf-build.manifest.sig
+
+          # Verify against the key installed servers trust: the one embedded
+          # in upgrade.sh. Catches a secret/public-key mismatch before publishing.
+          sed -n '/^# release-signing-key:start/,/^# release-signing-key:end/p' admin-panel/scripts/upgrade.sh \
+            | sed -n '/^-----BEGIN PUBLIC KEY-----$/,/^-----END PUBLIC KEY-----$/p' > "$PUB_FILE"
+          if grep -q 'REPLACE_WITH_RELEASE_SIGNING_PUBLIC_KEY' "$PUB_FILE"; then
+            echo "::error::admin-panel/scripts/upgrade.sh still holds the placeholder release signing public key"
+            exit 1
+          fi
+          openssl pkeyutl -verify -pubin -inkey "$PUB_FILE" -rawin \
+            -in sellf-build.manifest -sigfile sellf-build.manifest.sig
+          cmp -s "$PUB_FILE" admin-panel/scripts/release-signing-key.pub.pem || {
+            echo "::error::admin-panel/scripts/release-signing-key.pub.pem differs from the key embedded in upgrade.sh"
+            exit 1
+          }
+
       - name: Upload artifact to release
         if: github.event_name == 'release'
-        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz --clobber
+        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build.manifest sellf-build.manifest.sig --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release (manual dispatch)
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: Sellf ${{ steps.version.outputs.VERSION }}
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
-          files: sellf-build.tar.gz
+          files: |
+            sellf-build.tar.gz
+            sellf-build.tar.gz.sha256
+            sellf-build.manifest
+            sellf-build.manifest.sig
           body: |
             ## Sellf ${{ steps.version.outputs.VERSION }}
 
@@ -339,10 +417,13 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: [test, verify-playerstack-bundle]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.version.outputs.VERSION }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Get version
         id: version
@@ -353,28 +434,48 @@ jobs:
             echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
+      # Same strict gate as the tarball manifest (build job): a malformed or
+      # rc tag, or one that doesn't match admin-panel/package.json, must
+      # never reach GHCR — checked before login/push, not after.
+      - name: Validate release version
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release tag '$RELEASE_VERSION' is not YYYY.M.patch"
+            exit 1
+          fi
+          PACKAGE_VERSION="$(node -p "require('./admin-panel/package.json').version")"
+          MANIFEST_VERSION="${RELEASE_VERSION#v}"
+          if [ "$MANIFEST_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::release tag $RELEASE_VERSION does not match admin-panel/package.json version $PACKAGE_VERSION"
+            exit 1
+          fi
+
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/sellf
           tags: |
             type=semver,pattern={{version}},value=${{ steps.version.outputs.VERSION }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.VERSION }}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Login to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Build and push
-        uses: docker/build-push-action@v7
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: true
@@ -382,3 +483,54 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify the pushed digest resolves on GHCR
+        run: |
+          set -euo pipefail
+          OWNER_LOWER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          docker buildx imagetools inspect "ghcr.io/${OWNER_LOWER}/sellf@${{ steps.build.outputs.digest }}"
+
+  # Sign the pushed image's digest so stackpilot can pin + verify it instead
+  # of trusting the mutable `latest` tag. Runs after both `build` (which
+  # creates the GitHub release on a manual dispatch) and `docker` (which
+  # produces the digest), so a release always exists and the digest is known.
+  # If `docker` fails, only this job is skipped — the tarball release stays
+  # valid, and a Docker install refuses cleanly for lacking a signed image.
+  sign-image:
+    runs-on: ubuntu-latest
+    needs: [build, docker]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Write and sign image manifest
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_VERSION: ${{ needs.docker.outputs.version }}
+          IMAGE_DIGEST: ${{ needs.docker.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
+            echo "::error::RELEASE_SIGNING_KEY secret is not set — refusing to publish an unsigned image manifest"
+            exit 1
+          fi
+          if ! [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::docker job did not produce a valid image digest: '$IMAGE_DIGEST'"
+            exit 1
+          fi
+
+          OWNER_LOWER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          MANIFEST_VERSION="${RELEASE_VERSION#v}"
+          printf 'version=%s\nimage=ghcr.io/%s/sellf@%s\n' "$MANIFEST_VERSION" "$OWNER_LOWER" "$IMAGE_DIGEST" > sellf-image.manifest
+          cat sellf-image.manifest
+
+          admin-panel/scripts/ci/sign-manifest.sh sign sellf-image.manifest sellf-image.manifest.sig
+          # Verify against the key installed servers trust, same as the
+          # tarball manifest — catches a secret/public-key mismatch before publishing.
+          admin-panel/scripts/ci/sign-manifest.sh verify sellf-image.manifest sellf-image.manifest.sig
+
+      - name: Upload artifact to release
+        run: gh release upload "${{ needs.docker.outputs.version }}" sellf-image.manifest sellf-image.manifest.sig --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

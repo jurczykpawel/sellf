@@ -3,6 +3,12 @@ name: Sync KSeF n8n example
 # n8n/sellf-ksef*.json is a MIRROR — source of truth lives in
 # jurczykpawel/ksef-gateway (examples/n8n/). Edit it THERE; this job
 # copies changes here so the example ships in both repos.
+#
+# This opens a PR instead of pushing to main directly: the fetched content
+# comes from another repo and isn't reviewed before landing here, so a
+# human should look at the diff (and CI should run against it) before it
+# merges — a scheduled job with contents:write pushing straight to main
+# has no such gate.
 on:
   schedule:
     - cron: '17 6 * * 1' # weekly, Monday morning
@@ -10,28 +16,35 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Fetch from ksef-gateway
         run: |
+          set -euo pipefail
           base="https://raw.githubusercontent.com/jurczykpawel/ksef-gateway/main/examples/n8n"
           for f in sellf-ksef.json sellf-ksef-PL.json; do
             curl -fsSL "$base/$f" -o "n8n/$f"
           done
 
-      - name: Commit if changed
-        run: |
-          if git diff --quiet -- n8n/; then
-            echo "Already in sync."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add n8n/sellf-ksef.json n8n/sellf-ksef-PL.json
-          git commit -m "chore(n8n): sync Sellf→KSeF example from ksef-gateway"
-          git push
+      - name: Open a PR if the mirror changed
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          commit-message: "chore(n8n): sync Sellf→KSeF example from ksef-gateway"
+          title: "chore(n8n): sync Sellf→KSeF example from ksef-gateway"
+          body: |
+            Automated mirror sync from `jurczykpawel/ksef-gateway`
+            (`examples/n8n/sellf-ksef.json`, `examples/n8n/sellf-ksef-PL.json`).
+
+            Review the diff before merging — this content comes from another
+            repository and hasn't been reviewed yet.
+          branch: chore/sync-ksef-example
+          delete-branch: true
+          add-paths: |
+            n8n/sellf-ksef.json
+            n8n/sellf-ksef-PL.json

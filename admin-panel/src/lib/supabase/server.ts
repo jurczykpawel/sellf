@@ -67,7 +67,7 @@ export function createPublicClient() {
   //   1. SUPABASE_URL / SUPABASE_ANON_KEY — what Sellf docs ask for
   //   2. NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY — Vercel's
   //      Supabase integration sets these, so the integration just works
-  //   3. ANON_KEY — legacy fallback from .env.fullstack
+  //   3. ANON_KEY — legacy fallback name from older self-hosted setups
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey =
     process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.ANON_KEY
