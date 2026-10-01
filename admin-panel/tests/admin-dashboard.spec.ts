@@ -7,6 +7,8 @@ test.describe.configure({ mode: 'serial' });
 test.describe('Authenticated Admin Dashboard', () => {
   let adminEmail: string;
   const adminPassword = 'password123';
+  let adminUserId: string;
+  const createdProductIds: string[] = [];
 
   // Helper to create product via API (faster setup)
   const createProductViaApi = async (name: string, price = 10) => {
@@ -22,25 +24,42 @@ test.describe('Authenticated Admin Dashboard', () => {
       })
       .select()
       .single();
-    
+
     if (error) throw error;
+    createdProductIds.push(data.id);
     return data;
   };
 
   test.beforeAll(async () => {
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `test-admin-${Date.now()}-${randomStr}@example.com`;
-    
+
     const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
       password: adminPassword,
       email_confirm: true,
     });
     if (createError) throw createError;
+    adminUserId = user!.id;
 
     await supabaseAdmin
       .from('admin_users')
       .insert({ user_id: user!.id });
+  });
+
+  test.afterAll(async () => {
+    if (createdProductIds.length > 0) {
+      // A product deleted through the admin UI during a test is already gone by the
+      // time this runs; a plain delete on a missing id is a no-op, not an error.
+      await supabaseAdmin.from('order_bumps').delete().in('main_product_id', createdProductIds);
+      await supabaseAdmin.from('order_bumps').delete().in('bump_product_id', createdProductIds);
+      await supabaseAdmin.from('payment_transactions').delete().in('product_id', createdProductIds);
+      await supabaseAdmin.from('products').delete().in('id', createdProductIds);
+    }
+    if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
+      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
+    }
   });
 
   test('should access all admin pages with expected content', async ({ page }) => {

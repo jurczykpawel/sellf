@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
+import { deleteAuthUserByEmail } from './helpers/db-cleanup';
 
 /**
  * Complete Payment Flow E2E Tests
@@ -471,6 +472,9 @@ test.describe('Order Bump - Guest User', () => {
     } finally {
       await cleanupMockPayment(sessionId);
       await supabaseAdmin.from('guest_purchases').delete().eq('customer_email', guestEmail);
+      // The payment-status page sends a trusted magic link for the guest email, which
+      // materializes an auth user immediately even though nothing clicks the link.
+      await deleteAuthUserByEmail(supabaseAdmin, guestEmail);
     }
   });
 
@@ -508,6 +512,7 @@ test.describe('Order Bump - Guest User', () => {
     } finally {
       await cleanupMockPayment(sessionId);
       await supabaseAdmin.from('guest_purchases').delete().eq('customer_email', guestEmail);
+      await deleteAuthUserByEmail(supabaseAdmin, guestEmail);
     }
   });
 });

@@ -18,6 +18,7 @@
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { deleteChecked, deleteBundleItemsFor, deleteAuthUsers } from '../../helpers/db-cleanup';
 
 const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -48,13 +49,14 @@ beforeEach(async () => {
 });
 afterAll(async () => {
   if (!db) return;
-  await db.from('guest_purchases').delete().in('customer_email', emails);
-  await db.from('payment_line_items').delete().in('product_id', ids);
-  await db.from('user_product_access').delete().in('product_id', ids);
-  await db.from('payment_transactions').delete().in('product_id', ids);
-  await db.from('bundle_items').delete().in('bundle_product_id', ids);
-  await db.from('products').delete().in('id', ids);
-  for (const u of users) await db.auth.admin.deleteUser(u).catch(() => {});
+  await deleteChecked('guest_purchases', db.from('guest_purchases').delete().in('customer_email', emails));
+  // Bundle links must go first — component_product_id is ON DELETE RESTRICT.
+  await deleteBundleItemsFor(db, ids);
+  await deleteChecked('payment_line_items', db.from('payment_line_items').delete().in('product_id', ids));
+  await deleteChecked('user_product_access', db.from('user_product_access').delete().in('product_id', ids));
+  await deleteChecked('payment_transactions', db.from('payment_transactions').delete().in('product_id', ids));
+  await deleteChecked('products', db.from('products').delete().in('id', ids));
+  await deleteAuthUsers(db, users);
 });
 
 describe.skipIf(!db)('bundle completion + guest claim', () => {

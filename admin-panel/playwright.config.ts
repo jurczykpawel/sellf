@@ -28,6 +28,13 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 const isRateLimitTestMode = process.env.RATE_LIMIT_TEST_MODE === 'true';
 const quietMode = process.env.QUIET_MODE === '1';
 
+// The dev server's ECBProvider (src/lib/services/currencyService.ts) is redirected here
+// instead of the real frankfurter.dev host, via the webServer entry below — fixed rates,
+// no network dependency, no flakiness from a third-party API being slow/down/changed.
+// See scripts/fx-rate-stub-server.mjs.
+const FX_STUB_PORT = 3779;
+const FX_STUB_BASE_URL = `http://127.0.0.1:${FX_STUB_PORT}/v1`;
+
 // Visual test projects run a subset of tests at different viewports with screenshots
 const VISUAL_TESTS = [
   '**/visual-pages.spec.ts',
@@ -63,6 +70,10 @@ export default defineConfig({
   testDir: './tests',
   /* Only run .spec.ts files (exclude .test.ts which are for Vitest) */
   testMatch: '**/*.spec.ts',
+  /* Safety net: puts known seed products back to their seeded active state even if a
+   * spec that bulk-deactivates products gets interrupted before its own restore runs.
+   * See tests/global-teardown.ts and tests/helpers/product-state.ts. */
+  globalTeardown: './tests/global-teardown.ts',
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -179,11 +190,25 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
+      // Fixed-rate exchange stub — see the FX_STUB_* constants above. Started first so
+      // its /health check is green before the dev server (which points at it) takes
+      // its first currency request.
+      command: `FX_STUB_PORT=${FX_STUB_PORT} node scripts/fx-rate-stub-server.mjs`,
+      url: `http://127.0.0.1:${FX_STUB_PORT}/health`,
+      reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
+      stdout: quietMode ? 'ignore' : 'pipe',
+      stderr: quietMode ? 'ignore' : 'pipe',
+      timeout: 10000,
+    },
+    {
       // E2E specs assume captcha test mode; pin it so results don't depend on .env.local
       // (API tests pin the opposite — real ALTCHA — in scripts/run-api-tests.sh).
+      // CURRENCY_ECB_BASE_URL redirects the ECB currency provider at the fixed-rate
+      // stub above instead of the real frankfurter.dev host (see currencyService.ts /
+      // startup-assertions.ts — this override is refused outside test runs in production).
       command: isRateLimitTestMode
-        ? 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev'
-        : 'NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true PORT=3777 bun run dev',
+        ? `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true CURRENCY_ECB_BASE_URL=${FX_STUB_BASE_URL} PORT=3777 RATE_LIMIT_TEST_MODE=true bun run dev`
+        : `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=true CURRENCY_ECB_BASE_URL=${FX_STUB_BASE_URL} PORT=3777 bun run dev`,
       url: 'http://localhost:3777',
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
       reuseExistingServer: process.env.PW_REUSE_SERVER === '1',

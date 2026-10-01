@@ -2,7 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession, createTestAdmin, supabaseAdmin } from './helpers/admin-auth';
 
-// The test server runs with DEMO_MODE=true, which forces the license to business
+// The test server runs with E2E_MODE=true, which forces the license to business
 // tier — so per-product scoping is unlocked. These tests cover the unlocked flow
 // end-to-end (UI → /api/v1/webhooks → webhook_endpoint_products). The locked
 // (sub-Pro) state is exercised by the API integration + unit tests, which can
@@ -118,6 +118,9 @@ test.describe('Per-product webhook scoping', () => {
       page.getByText('Events not tied to a specific product will still fire for all products', { exact: false }),
     ).toBeVisible();
 
+    // Scope the picker to this test's own product via its filter box, so the
+    // assertion doesn't depend on how many other products exist in the DB.
+    await page.getByPlaceholder('Filter products').fill('Scoping E2E Product');
     await page.locator('#webhook-form label', { hasText: 'Scoping E2E Product' }).locator('input[type="checkbox"]').check();
     await page.getByRole('button', { name: 'Create' }).click();
 
@@ -167,6 +170,9 @@ test.describe('Per-product webhook scoping', () => {
 
     await expect(page.locator('#webhook-form')).toBeVisible();
     await page.getByRole('button', { name: 'Selected products' }).click();
+    // Scope the picker to this test's own product so the assertion doesn't
+    // depend on how many other products exist in the DB.
+    await page.getByPlaceholder('Filter products').fill('Edit Scoping Product');
     await page.locator('#webhook-form label', { hasText: 'Edit Scoping Product' }).locator('input[type="checkbox"]').check();
     await page.getByRole('button', { name: 'Update' }).click();
 

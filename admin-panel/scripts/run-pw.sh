@@ -17,7 +17,7 @@ cleanup() {
   local status=$?
   trap - EXIT INT TERM
   rm -f "$_PW"
-  bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
+  bash scripts/kill-dev-server.sh 3777 3779 >/dev/null 2>&1 || true
   exit "$status"
 }
 

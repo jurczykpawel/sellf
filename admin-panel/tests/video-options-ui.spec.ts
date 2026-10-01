@@ -68,18 +68,23 @@ async function openWizardAndGoToStep2(page: Page, productName: string) {
     await expect(vatRateInput).not.toHaveValue('', { timeout: 10000 });
   }
 
-  // Advance to step 2. Retry the click ONLY if step-1 validation held us back
-  // (name input still visible). Clicking again when already on step 2 would
-  // inadvertently advance to step 3 before the textarea renders.
+  // Advance to step 2. A transient step-1 validation state (e.g. the
+  // shop-config fetch that seeds VAT/price defaults still settling right as
+  // "Dalej" becomes clickable) can hold the wizard on step 1 for a click —
+  // retry clicking for as long as step 1 is still showing, until step 2's
+  // description textarea actually renders, instead of assuming one retry is
+  // always enough. Clicking again once step 2 is already showing would
+  // inadvertently advance to step 3, so the click is conditional on still
+  // being stuck on step 1.
   const nextBtn = dlg.getByRole('button', { name: /Dalej/i });
   const nameInput = dlg.locator('input#name');
   const descTextarea = dlg.locator('textarea#description');
-  await nextBtn.click();
-  const stuckOnStep1 = await nameInput.isVisible({ timeout: 1500 }).catch(() => false);
-  if (stuckOnStep1) {
-    await nextBtn.click();
-  }
-  await expect(descTextarea).toBeVisible({ timeout: 12000 });
+  await expect(async () => {
+    if (await nameInput.isVisible().catch(() => false)) {
+      await nextBtn.click();
+    }
+    await expect(descTextarea).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 20000 });
   await descTextarea.fill('Video options test');
 
   // Confirm content delivery section is rendered

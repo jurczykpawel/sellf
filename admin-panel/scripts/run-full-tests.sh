@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
-  bash scripts/kill-dev-server.sh 3777 3778 >/dev/null 2>&1 || true
+  bash scripts/kill-dev-server.sh 3777 3778 3779 >/dev/null 2>&1 || true
   exit "$status"
 }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -30,6 +30,13 @@ describe('process_stripe_payment_completion_with_bump — active sale price', ()
       .single();
     if (error) throw error;
     productId = product!.id;
+  });
+
+  afterAll(async () => {
+    await supabaseAdmin.from('guest_purchases').delete().like('customer_email', `sale.${TS}.%@example.com`);
+    await supabaseAdmin.from('payment_line_items').delete().eq('product_id', productId);
+    await supabaseAdmin.from('payment_transactions').delete().eq('product_id', productId);
+    await supabaseAdmin.from('products').delete().eq('id', productId);
   });
 
   const complete = (suffix: string, amountCents: number) =>

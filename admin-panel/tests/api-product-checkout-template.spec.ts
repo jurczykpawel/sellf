@@ -10,12 +10,15 @@ test.describe('Products API — checkout_template + custom_checkout_fields', () 
 
   let cookie: string;
   let cleanupAdmin: (() => Promise<void>) | null = null;
+  let cleanupCookieAdmin: (() => Promise<void>) | null = null;
   let productId: string;
 
   test.beforeAll(async () => {
     const admin = await createTestAdmin('cf-api');
     cleanupAdmin = admin.cleanup;
-    cookie = await getAdminAuthCookie();
+    const cookieAdmin = await getAdminAuthCookie();
+    cookie = cookieAdmin.cookie;
+    cleanupCookieAdmin = cookieAdmin.cleanup;
 
     const slug = `cf-api-${Date.now()}`;
     const { data } = await supabaseAdmin
@@ -36,6 +39,7 @@ test.describe('Products API — checkout_template + custom_checkout_fields', () 
   test.afterAll(async () => {
     if (productId) await supabaseAdmin.from('products').delete().eq('id', productId);
     if (cleanupAdmin) await cleanupAdmin();
+    if (cleanupCookieAdmin) await cleanupCookieAdmin();
   });
 
   test('PATCH accepts valid checkout_template', async ({ request }) => {

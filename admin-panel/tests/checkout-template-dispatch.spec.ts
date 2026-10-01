@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { deleteChecked, deleteOtoOffersFor } from './helpers/db-cleanup';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -65,6 +66,10 @@ test.describe('Checkout template dispatch (default / oto)', () => {
     const source = await createProduct('default', 'Render Source');
     const upsell = await createProduct('oto', 'Render Upsell');
     const downsell = await createProduct('default', 'Render Downsell');
+    // generate_oto_coupon rows have no FK to the products/offer/transaction it was minted for
+    // (oto_offer_id / source_transaction_id are ON DELETE SET NULL) — deleting those doesn't
+    // remove the coupon, so it must be cleaned up explicitly by code.
+    const otoCouponCodes: string[] = [];
     try {
       const { data: offer } = await supabaseAdmin
         .from('oto_offers')
@@ -106,6 +111,7 @@ test.describe('Checkout template dispatch (default / oto)', () => {
       const result = rpc as Record<string, unknown>;
       const upsellCode = (result.upsell_code ?? result.coupon_code) as string;
       const downsellCode = result.downsell_code as string;
+      otoCouponCodes.push(upsellCode, downsellCode);
       expect(upsellCode).toMatch(/^OTO-/);
       expect(downsellCode).toMatch(/^OTO-/);
 
@@ -118,9 +124,16 @@ test.describe('Checkout template dispatch (default / oto)', () => {
       await expect(page.getByTestId('oto-countdown-banner')).toBeVisible({ timeout: 15000 });
       await expect(page.getByTestId('oto-decline-button')).toBeVisible();
     } finally {
-      await supabaseAdmin.from('products').delete().eq('id', source.id);
-      await supabaseAdmin.from('products').delete().eq('id', upsell.id);
-      await supabaseAdmin.from('products').delete().eq('id', downsell.id);
+      if (otoCouponCodes.length > 0) {
+        await deleteChecked('coupons', supabaseAdmin.from('coupons').delete().in('code', otoCouponCodes));
+      }
+      // oto_offers must go first: downsell_product_id is ON DELETE SET NULL, but the
+      // oto_offers_downsell_consistency CHECK requires the downsell columns to move together,
+      // so a bare SET NULL from deleting the downsell product violates it.
+      await deleteOtoOffersFor(supabaseAdmin, [source.id, upsell.id, downsell.id]);
+      await deleteChecked('products', supabaseAdmin.from('products').delete().eq('id', source.id));
+      await deleteChecked('products', supabaseAdmin.from('products').delete().eq('id', upsell.id));
+      await deleteChecked('products', supabaseAdmin.from('products').delete().eq('id', downsell.id));
     }
   });
 });

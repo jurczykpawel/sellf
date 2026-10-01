@@ -27,5 +27,27 @@ if [ "${#PIDS[@]}" -gt 0 ]; then
   done
 fi
 
+# A dead PID does not guarantee the kernel has released the listening socket yet —
+# signal delivery (especially SIGKILL) is asynchronous, and under load the process
+# can take longer than expected to actually exit. Poll each port until nothing is
+# LISTENING on it (bounded deadline) before returning, so the caller never starts a
+# fresh server against a port that is still momentarily held by the one we just
+# killed. Without this, Playwright's own webServer step can see "port already in
+# use" and abort the whole shard with 0 tests executed.
+DEADLINE_S=10
+TICK_S=0.2
+TICKS=$(awk -v d="$DEADLINE_S" -v t="$TICK_S" 'BEGIN { printf "%d", d / t }')
+for port in "${PORTS[@]}"; do
+  waited=0
+  while lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; do
+    waited=$((waited + 1))
+    if [ "$waited" -ge "$TICKS" ]; then
+      echo "kill-dev-server.sh: port $port still held after ${DEADLINE_S}s deadline, giving up" >&2
+      break
+    fi
+    sleep "$TICK_S"
+  done
+done
+
 # Next.js can leave the lock behind after a forced or interrupted shutdown.
 rm -f "$LOCK"

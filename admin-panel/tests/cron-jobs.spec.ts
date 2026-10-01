@@ -207,6 +207,7 @@ test.describe('Cron job: access-expired', () => {
 test.describe('Cron job: cleanup-webhook-logs', () => {
   let oldLogId: string;
   let newLogId: string;
+  let endpointId: string;
 
   test.beforeAll(async () => {
     // Need an endpoint to attach logs to
@@ -217,7 +218,7 @@ test.describe('Cron job: cleanup-webhook-logs', () => {
       .single();
     if (!ep) return;
 
-    const endpointId = ep.id;
+    endpointId = ep.id;
 
     // Insert an old log (40 days ago)
     const oldDate = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
@@ -254,15 +255,12 @@ test.describe('Cron job: cleanup-webhook-logs', () => {
       .select('id')
       .single();
     newLogId = newLog?.id;
-
-    // Cleanup endpoint after logs are inserted (logs will cascade? check FK)
-    // Keep endpoint alive for test; delete in afterAll
-    (test as any)._endpointId = endpointId;
   });
 
   test.afterAll(async () => {
     // Cleanup remaining records
     if (newLogId) await supabaseAdmin.from('webhook_logs').delete().eq('id', newLogId);
+    if (endpointId) await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
   });
 
   test('deletes old logs and keeps recent ones', async ({ request }) => {

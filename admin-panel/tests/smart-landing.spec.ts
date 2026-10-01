@@ -399,19 +399,81 @@ test.describe('Smart Landing Page', () => {
     }).toPass({ timeout: 30000 });
 
     const languageSwitcher = page.locator('nav button[aria-haspopup="menu"]').first();
-
-    // Hover to open the dropdown (SiteMenu opens on mouseenter, not click)
-    await languageSwitcher.hover();
-    await page.waitForTimeout(300);
-
     // Dropdown shows full language names ("Polski", "English")
     const plOption = page.locator('[role="menu"] button:has-text("Polski")').first();
-    await expect(plOption).toBeVisible({ timeout: 5000 });
+
+    // Click to open the dropdown (SiteMenu is a click-toggled menu button) — retry the
+    // click, since under load the first click can land before hydration attaches the
+    // handler and the native event fires on dead DOM.
+    await expect(async () => {
+      await languageSwitcher.click();
+      await expect(plOption).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
 
     await plOption.click();
-    await page.waitForTimeout(1000);
 
-    // URL should contain /pl
+    // URL should contain /pl — wait on the real client-side navigation instead of a
+    // fixed sleep (the router.push + startTransition can outlast a fixed wait under load)
+    await page.waitForURL(/\/pl(\/|$|\?)/, { timeout: 10000 });
     expect(page.url()).toContain('/pl');
+  });
+
+  test('Site menu opens/closes with keyboard (Enter opens, Escape closes and returns focus)', async ({ page }) => {
+    await acceptAllCookies(page);
+    await expect(async () => {
+      await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await expect(page.locator('nav button[aria-haspopup="menu"]').first()).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
+
+    const trigger = page.locator('nav button[aria-haspopup="menu"]').first();
+    const plOption = page.locator('[role="menu"] button:has-text("Polski")').first();
+
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(plOption).toBeHidden();
+
+    // Keyboard-only: focus the trigger and activate it with Enter (native button
+    // behaviour) instead of clicking or hovering. Retry — under load the first Enter
+    // can land before hydration attaches the handler and the native keydown fires on
+    // dead DOM (same hydration race as the click-based flows elsewhere in this file).
+    await expect(async () => {
+      await trigger.focus();
+      await page.keyboard.press('Enter');
+      await expect(plOption).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await page.keyboard.press('Escape');
+
+    await expect(plOption).toBeHidden();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+  });
+
+  test('Site menu opens on tap on touch devices', async ({ browser }) => {
+    const context = await browser.newContext({ hasTouch: true });
+    const page = await context.newPage();
+    try {
+      await acceptAllCookies(page);
+      await expect(async () => {
+        await page.goto('/about', { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await expect(page.locator('nav button[aria-haspopup="menu"]').first()).toBeVisible({ timeout: 5000 });
+      }).toPass({ timeout: 30000 });
+
+      const trigger = page.locator('nav button[aria-haspopup="menu"]').first();
+      const plOption = page.locator('[role="menu"] button:has-text("Polski")').first();
+
+      await expect(async () => {
+        await trigger.tap();
+        await expect(plOption).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 20000 });
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+      // Tap outside closes the menu.
+      await page.locator('body').tap({ position: { x: 5, y: 5 } });
+      await expect(plOption).toBeHidden();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    } finally {
+      await context.close();
+    }
   });
 });

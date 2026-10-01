@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
+import { deleteAuthUserByEmail, deleteCouponsForEmail } from './helpers/db-cleanup';
 
 /**
  * Payment Status Redirect E2E Tests
@@ -210,6 +211,10 @@ test.afterAll(async () => {
     await supabaseAdmin.from('profiles').delete().eq('id', TEST_USER.id);
     await supabaseAdmin.auth.admin.deleteUser(TEST_USER.id);
   }
+
+  // The guest-flow tests below hit payment-status, which sends a trusted magic link for
+  // GUEST_EMAIL — that materializes an auth user immediately even though nothing clicks it.
+  await deleteAuthUserByEmail(supabaseAdmin, GUEST_EMAIL);
 });
 
 test.describe('Payment Status Redirect - Logged-in User', () => {
@@ -256,6 +261,9 @@ test.describe('Payment Status Redirect - Logged-in User', () => {
           access_granted_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         }, { onConflict: 'user_id,product_id' });
       await cleanupMockPayment(sessionId);
+      // payment-status verification mints an OTO coupon for the buyer when the source
+      // product has an active offer — this test's whole point is triggering that.
+      await deleteCouponsForEmail(supabaseAdmin, TEST_USER.email);
     }
   });
 
@@ -371,6 +379,9 @@ test.describe('Payment Status Redirect - Guest User', () => {
       await expect(page.getByTestId('oto-countdown-banner')).toBeVisible({ timeout: 15000 });
     } finally {
       await cleanupMockPayment(sessionId);
+      // payment-status verification mints an OTO coupon for the buyer when the source
+      // product has an active offer — this test's whole point is triggering that.
+      await deleteCouponsForEmail(supabaseAdmin, GUEST_EMAIL);
     }
   });
 

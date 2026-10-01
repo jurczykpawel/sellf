@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
+import { deleteAuthUserByEmail } from './helpers/db-cleanup';
 
 /**
  * Multi Order Bump Access Granting E2E Tests
@@ -616,6 +617,9 @@ test.describe('Multi-Bump Access — Guest User', () => {
     } finally {
       await cleanupMultiBumpMockPayment(sessionId, []);
       await supabaseAdmin.from('guest_purchases').delete().eq('customer_email', guestEmail);
+      // The payment-status page sends a trusted magic link for the guest email, which
+      // materializes an auth user immediately even though nothing clicks the link.
+      await deleteAuthUserByEmail(supabaseAdmin, guestEmail);
     }
   });
 
@@ -677,6 +681,7 @@ test.describe('Multi-Bump Access — Guest User', () => {
     } finally {
       await cleanupMultiBumpMockPayment(sessionId, [bumpProduct2.id]);
       await supabaseAdmin.from('guest_purchases').delete().eq('customer_email', guestEmail);
+      await deleteAuthUserByEmail(supabaseAdmin, guestEmail);
     }
   });
 
@@ -733,6 +738,7 @@ test.describe('Multi-Bump Access — Guest User', () => {
     } finally {
       await cleanupMultiBumpMockPayment(sessionId, [bumpProduct1.id, bumpProduct2.id, bumpProduct3.id]);
       await supabaseAdmin.from('guest_purchases').delete().eq('customer_email', guestEmail);
+      await deleteAuthUserByEmail(supabaseAdmin, guestEmail);
     }
   });
 });

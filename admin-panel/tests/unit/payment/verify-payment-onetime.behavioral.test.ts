@@ -20,6 +20,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } 
 import { createClient } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
 import type { User } from '@supabase/supabase-js';
+import { deleteChecked, deleteBundleItemsFor, deleteAuthUsers } from '../../helpers/db-cleanup';
 
 const h = vi.hoisted(() => ({ stripe: null as unknown as Stripe }));
 
@@ -65,20 +66,23 @@ beforeAll(() => {
 
 afterAll(async () => {
   if (!db) return;
-  if (createdEmails.length > 0) await db.from('guest_purchases').delete().in('customer_email', createdEmails);
+  if (createdEmails.length > 0) {
+    await deleteChecked('guest_purchases', db.from('guest_purchases').delete().in('customer_email', createdEmails));
+  }
   if (createdProductIds.length > 0) {
-    await db.from('issued_licenses').delete().in('product_id', createdProductIds);
-    await db.from('bundle_items').delete().in('bundle_product_id', createdProductIds);
-    await db.from('payment_line_items').delete().in('product_id', createdProductIds);
-    await db.from('user_product_access').delete().in('product_id', createdProductIds);
-    await db.from('payment_transactions').delete().in('product_id', createdProductIds);
-    await db.from('order_bumps').delete().in('main_product_id', createdProductIds);
-    await db.from('products').delete().in('id', createdProductIds);
+    // Bundle links must go first — component_product_id is ON DELETE RESTRICT.
+    await deleteBundleItemsFor(db, createdProductIds);
+    await deleteChecked('issued_licenses', db.from('issued_licenses').delete().in('product_id', createdProductIds));
+    await deleteChecked('payment_line_items', db.from('payment_line_items').delete().in('product_id', createdProductIds));
+    await deleteChecked('user_product_access', db.from('user_product_access').delete().in('product_id', createdProductIds));
+    await deleteChecked('payment_transactions', db.from('payment_transactions').delete().in('product_id', createdProductIds));
+    await deleteChecked('order_bumps', db.from('order_bumps').delete().in('main_product_id', createdProductIds));
+    await deleteChecked('products', db.from('products').delete().in('id', createdProductIds));
   }
   if (createdSellerIds.length > 0) {
-    await db.from('seller_license_keys').delete().in('seller_id', createdSellerIds);
+    await deleteChecked('seller_license_keys', db.from('seller_license_keys').delete().in('seller_id', createdSellerIds));
   }
-  for (const id of createdAuthUserIds) await db.auth.admin.deleteUser(id).catch(() => {});
+  await deleteAuthUsers(db, createdAuthUserIds);
 });
 
 let triggerSpy: ReturnType<typeof vi.spyOn>;

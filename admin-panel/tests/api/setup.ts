@@ -12,6 +12,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createHash, randomBytes } from 'crypto';
 import { ALL_SCOPES } from '@/lib/api/scope-constants';
+import { deleteBundleItemsFor } from '../helpers/db-cleanup';
 
 // Test configuration
 export const API_URL = process.env.TEST_API_URL || 'http://localhost:3777';
@@ -279,6 +280,13 @@ export const testData = {
 
 /**
  * Cleanup helper - delete created resources
+ *
+ * `del()` resolves normally even on a non-2xx response (it's a thin fetch wrapper,
+ * not a throwing client), so a plain `Promise.allSettled` over the raw calls treats
+ * a 409/500 delete failure as "fulfilled" and silently leaves the row behind. Every
+ * delete below is checked against its actual HTTP status; an unexpected one is
+ * logged loudly instead of swallowed. A 404 is tolerated (the test already deleted
+ * the resource itself).
  */
 export async function cleanup(resources: {
   products?: string[];
@@ -288,7 +296,7 @@ export async function cleanup(resources: {
   tags?: string[];
   userAccess?: Array<{ userId: string; accessId: string }>;
 }) {
-  const promises: Promise<unknown>[] = [];
+  const calls: Array<{ label: string; promise: Promise<{ status: number }> }> = [];
 
   if (resources.tags?.length) {
     const { error } = await supabase.from('tags').delete().in('id', resources.tags);
@@ -296,30 +304,52 @@ export async function cleanup(resources: {
   }
 
   if (resources.products?.length) {
+    // A product that is a bundle's component is still referenced by `bundle_items`
+    // (ON DELETE RESTRICT) if the bundle itself hasn't been deleted yet — the v1
+    // DELETE route does not clear that link, so the delete below would 409. Clear it
+    // directly so cleanup doesn't depend on delete ordering/timing between a bundle
+    // and its component.
+    await deleteBundleItemsFor(supabase, resources.products);
+
     resources.products.forEach((id) => {
-      promises.push(del(`/api/v1/products/${id}`));
+      calls.push({ label: `product ${id}`, promise: del(`/api/v1/products/${id}`) });
     });
   }
 
   if (resources.coupons?.length) {
     resources.coupons.forEach((id) => {
-      promises.push(del(`/api/v1/coupons/${id}`));
+      calls.push({ label: `coupon ${id}`, promise: del(`/api/v1/coupons/${id}`) });
     });
   }
 
   if (resources.webhooks?.length) {
     resources.webhooks.forEach((id) => {
-      promises.push(del(`/api/v1/webhooks/${id}`));
+      calls.push({ label: `webhook ${id}`, promise: del(`/api/v1/webhooks/${id}`) });
     });
   }
 
   if (resources.userAccess?.length) {
     resources.userAccess.forEach(({ userId, accessId }) => {
-      promises.push(del(`/api/v1/users/${userId}/access/${accessId}`));
+      calls.push({
+        label: `user access ${userId}/${accessId}`,
+        promise: del(`/api/v1/users/${userId}/access/${accessId}`),
+      });
     });
   }
 
-  await Promise.allSettled(promises);
+  const results = await Promise.allSettled(calls.map((c) => c.promise));
+  const failures: string[] = [];
+  results.forEach((result, i) => {
+    const { label } = calls[i];
+    if (result.status === 'rejected') {
+      failures.push(`${label}: ${result.reason}`);
+    } else if (result.value.status !== 204 && result.value.status !== 404) {
+      failures.push(`${label}: unexpected status ${result.value.status}`);
+    }
+  });
+  if (failures.length > 0) {
+    throw new Error(`cleanup failed for:\n${failures.join('\n')}`);
+  }
 }
 
 /**

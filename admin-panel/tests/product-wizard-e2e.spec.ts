@@ -471,6 +471,80 @@ test.describe('Product type radio', () => {
   });
 });
 
+// The wizard seeds taxMode + vat_rate defaults from an async shop-config
+// fetch (getMyShopConfig, in useProductForm). Advancing or submitting before
+// that fetch settles would act on placeholder values (taxMode='local',
+// vat_rate=null) — wrongly blocking a valid product, or (in edit mode, where
+// no DB trigger back-fills vat_rate) silently saving vat_rate=null. These
+// tests force the race with a delayed server action and assert the wizard
+// waits instead of racing ahead.
+test.describe('Shop config loading race', () => {
+  test('"Dalej" stays disabled while shop settings load, then advances once they do', async ({ page }) => {
+    await goToProducts(page);
+
+    // Delay every server action POST to the dashboard/products route (this
+    // covers getMyShopConfig, the same request the wizard awaits).
+    await page.route('**/pl/dashboard/products*', async (route) => {
+      if (route.request().method() === 'POST') {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      await route.continue();
+    });
+
+    await openWizard(page);
+    await page.fill('input#name', `Race Continue ${Date.now()}`);
+    await page.locator('[data-product-type="tip-jar"]').click();
+
+    const continueBtn = page.getByRole('dialog').getByRole('button', { name: /Dalej/i });
+    await expect(continueBtn).toBeDisabled();
+
+    await expect(continueBtn).toBeEnabled({ timeout: 10000 });
+    await continueBtn.click();
+
+    // Reaches step 2 — it didn't get stuck on a stale-vat_rate step-1 error.
+    await expect(page.locator('textarea#description')).toBeVisible({ timeout: 5000 });
+
+    // Close without saving
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    const exitModal = page.getByText(/Odrzucić zmiany/i);
+    if (await exitModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await page.getByRole('button', { name: /Odrzuć/i }).click();
+    }
+  });
+
+  test('"Publikuj" stays disabled while shop settings load, then publishes with the shop\'s default VAT rate', async ({ page }) => {
+    await goToProducts(page);
+
+    await page.route('**/pl/dashboard/products*', async (route) => {
+      if (route.request().method() === 'POST') {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      await route.continue();
+    });
+
+    await openWizard(page);
+    const uniqueSuffix = Date.now();
+    const productName = `Race Publish ${uniqueSuffix}`;
+    const slug = `race-publish-${uniqueSuffix}`;
+    createdProductSlugs.push(slug);
+
+    await page.fill('input#name', productName);
+    await page.fill('input#price', '49,99');
+
+    const publishBtn = page.getByRole('button', { name: /Publikuj/i });
+    await expect(publishBtn).toBeDisabled();
+
+    await expect(publishBtn).toBeEnabled({ timeout: 10000 });
+    await publishBtn.click();
+
+    // Closes and creates the product — it didn't submit with vat_rate still null.
+    await expect(page.getByText('Utwórz nowy produkt')).not.toBeVisible({ timeout: 10000 });
+
+    const { data } = await supabaseAdmin.from('products').select('vat_rate').eq('slug', slug).single();
+    expect(data?.vat_rate).toBe(23); // seeded shop default (tax_rate=0.23) in supabase/seed.sql
+  });
+});
+
 test.describe('Step 3 layout', () => {
   test('renders 5 collapsible groups (A–E), default expansion + no doubled letters', async ({ page }) => {
     await goToProducts(page);

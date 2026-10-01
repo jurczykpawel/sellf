@@ -19,34 +19,46 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 test.describe('Integrations & Script Injection', () => {
   let adminEmail: string;
   const adminPassword = 'password123';
-  let productSlug: string;
+  let adminUserId: string;
+  const createdProductIds: string[] = [];
 
   // Helper to login in any test
   const loginAsAdmin = async (page: any) => {
     await acceptAllCookies(page);
     await page.goto('/');
-    
+
     // Simulate login via client-side auth state injection
     await setAuthSession(page, adminEmail, adminPassword);
 
-    await page.waitForTimeout(1000); 
+    await page.waitForTimeout(1000);
   };
 
   test.beforeAll(async () => {
     // 1. Create Admin User
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `int-test-admin-${Date.now()}-${randomStr}@example.com`;
-    
+
     const { data: { user }, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
       password: adminPassword,
       email_confirm: true,
     });
     if (createError) throw createError;
+    adminUserId = user!.id;
 
     await supabaseAdmin
       .from('admin_users')
       .insert({ user_id: user!.id });
+  });
+
+  test.afterAll(async () => {
+    if (createdProductIds.length > 0) {
+      await supabaseAdmin.from('products').delete().in('id', createdProductIds);
+    }
+    if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
+      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
+    }
   });
 
   test.afterEach(async () => {
@@ -59,6 +71,9 @@ test.describe('Integrations & Script Injection', () => {
       facebook_pixel_id: null,
       fb_capi_enabled: false,
       facebook_capi_token: null,
+      facebook_capi_token_encrypted: null,
+      facebook_capi_token_iv: null,
+      facebook_capi_token_tag: null,
       umami_website_id: null,
       umami_script_url: null,
       cookie_consent_enabled: true,
@@ -74,13 +89,14 @@ test.describe('Integrations & Script Injection', () => {
   test('should save integration settings and verify tracking on product page', async ({ page }) => {
     // Create product for this test
     const productSlug = `int-product-${Date.now()}-1`;
-    await supabaseAdmin.from('products').insert({
+    const { data: product1 } = await supabaseAdmin.from('products').insert({
       name: 'Integration Test Product 1',
       slug: productSlug,
       price: 10,
       currency: 'USD',
       is_active: true
-    });
+    }).select('id').single();
+    if (product1) createdProductIds.push(product1.id);
 
     page.on('console', msg => console.log(`BROWSER: ${msg.text()}`));
     await loginAsAdmin(page);
@@ -166,13 +182,14 @@ test.describe('Integrations & Script Injection', () => {
   test('should verify consent blocking behavior', async ({ page }) => {
     // Create NEW product for this test to avoid cache
     const productSlug = `int-product-${Date.now()}-2`;
-    await supabaseAdmin.from('products').insert({
+    const { data: product2 } = await supabaseAdmin.from('products').insert({
       name: 'Integration Test Product 2',
       slug: productSlug,
       price: 10,
       currency: 'USD',
       is_active: true
-    });
+    }).select('id').single();
+    if (product2) createdProductIds.push(product2.id);
 
     // Setup via UI to ensure cache invalidation
     await loginAsAdmin(page);
@@ -399,11 +416,21 @@ test.describe('Integrations - Field Persistence & Validation', () => {
     // Verify in DB
     const { data: config } = await supabaseAdmin
       .from('integrations_config')
-      .select('fb_capi_enabled, facebook_capi_token')
+      .select('fb_capi_enabled, facebook_capi_token, facebook_capi_token_encrypted, facebook_capi_token_iv, facebook_capi_token_tag')
       .single();
 
     expect(config?.fb_capi_enabled).toBe(true);
-    expect(config?.facebook_capi_token).toBeTruthy();
+    // Stored encrypted only — the plaintext column stays empty.
+    expect(config?.facebook_capi_token).toBeNull();
+    expect(config?.facebook_capi_token_encrypted).toBeTruthy();
+    expect(config?.facebook_capi_token_encrypted).not.toContain('EAAtest_capi_token_12345');
+    expect(config?.facebook_capi_token_iv).toBeTruthy();
+    expect(config?.facebook_capi_token_tag).toBeTruthy();
+
+    // The page never receives the token back.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    expect(await page.content()).not.toContain('EAAtest_capi_token_12345');
   });
 
   test('should reject invalid GTM ID format', async ({ page }) => {

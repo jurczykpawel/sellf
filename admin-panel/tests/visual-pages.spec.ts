@@ -9,7 +9,7 @@
  * Review: bun run test:visual:review
  */
 import { test, Page } from '@playwright/test';
-import { setAuthSession, createTestAdmin } from './helpers/admin-auth';
+import { setAuthSession, createTestAdmin, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 
 // Each test navigates many pages — need more time than default 30s
@@ -32,6 +32,14 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   await cleanup();
+  // Visiting /checkout/premium-course for its screenshot initializes a real Stripe
+  // checkout session, which inserts a "pending" abandoned-cart payment_transactions
+  // row (placeholder email) as a side effect — clean that up too.
+  await supabaseAdmin
+    .from('payment_transactions')
+    .delete()
+    .eq('customer_email', 'pending@sellf.app')
+    .eq('status', 'pending');
 });
 
 /**

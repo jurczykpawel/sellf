@@ -18,6 +18,7 @@ test.describe('Currency Conversion Feature', () => {
   test.describe.configure({ mode: 'serial' });
 
   let adminEmail: string;
+  let adminUserId: string;
   const adminPassword = 'password123';
   let productId: string;
 
@@ -66,6 +67,7 @@ test.describe('Currency Conversion Feature', () => {
       email_confirm: true,
     });
     if (createError) throw createError;
+    adminUserId = user!.id;
 
     await supabaseAdmin
       .from('admin_users')
@@ -111,6 +113,17 @@ test.describe('Currency Conversion Feature', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
   });
 
+  test.afterAll(async () => {
+    if (productId) {
+      await supabaseAdmin.from('payment_transactions').delete().eq('product_id', productId);
+      await supabaseAdmin.from('products').delete().eq('id', productId);
+    }
+    if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
+      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
+    }
+  });
+
   test('should show currency selector with multiple currencies', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/dashboard');
@@ -126,6 +139,103 @@ test.describe('Currency Conversion Feature', () => {
     // Currency selector should be visible
     const currencySelector = page.locator('button', { hasText: /Grouped|Convert/i }).first();
     await expect(currencySelector).toBeVisible({ timeout: 10000 });
+  });
+
+  test('currency info tooltip shows on focus, hides on Escape (keyboard access)', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    // Trigger must be a real, focusable button with an accessible name — not a
+    // bare hover-only span/svg.
+    const infoTrigger = page.getByRole('button', { name: /Exchange rates are used|Kursy wymiany walut/i });
+    await expect(infoTrigger).toBeVisible({ timeout: 10000 });
+
+    const tooltip = page.getByRole('tooltip');
+    await expect(tooltip).toBeHidden();
+
+    await infoTrigger.focus();
+    await expect(tooltip).toBeVisible({ timeout: 2000 });
+
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toBeHidden();
+  });
+
+  test('currency info tooltip toggles on tap on touch devices', async ({ browser }) => {
+    const context = await browser.newContext({ hasTouch: true });
+    const page = await context.newPage();
+    try {
+      await loginAsAdmin(page);
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(3000);
+
+      const infoTrigger = page.getByRole('button', { name: /Exchange rates are used|Kursy wymiany walut/i });
+      await expect(infoTrigger).toBeVisible({ timeout: 10000 });
+      const tooltip = page.getByRole('tooltip');
+      await expect(tooltip).toBeHidden();
+
+      // Touch: tap toggles the tooltip open (there is no hover on touch devices).
+      await infoTrigger.tap();
+      await expect(tooltip).toBeVisible({ timeout: 2000 });
+
+      // Tap outside closes it.
+      await page.locator('body').tap({ position: { x: 5, y: 5 } });
+      await expect(tooltip).toBeHidden();
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('currency selector supports rapid consecutive selections without the dropdown getting stuck closed', async ({ page }) => {
+    // Regression guard: `handleSelect` used to await two sequential preference
+    // saves (view mode, then currency) before closing the dropdown. Because the
+    // toggle button flips `isOpen` based on its current value
+    // (`onClick={() => setIsOpen(!isOpen)}`), reopening the selector while the
+    // previous selection's save was still in flight (dropdown still logically
+    // "open") flipped it straight back to closed instead of opening a fresh
+    // menu — the dropdown then looked stuck: further clicks on an option landed
+    // on nothing. The button itself never leaves the DOM in this scenario (the
+    // dashboard's `revalidatePath('/dashboard')` does not remount it — verified
+    // separately below), so the option-not-found symptom is the real signal.
+    await loginAsAdmin(page);
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+
+    const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
+    await expect(currencyButton).toBeVisible({ timeout: 10000 });
+    const buttonHandle = await currencyButton.elementHandle();
+    if (!buttonHandle) throw new Error('Could not get element handle for currency selector button');
+
+    // A MutationObserver catches a detachment event itself instead of polling at
+    // a fixed interval, which could straddle a remount that happens between checks.
+    await page.evaluate((el) => {
+      (window as unknown as { __sellfDetachedAt: number | null }).__sellfDetachedAt = null;
+      const observer = new MutationObserver(() => {
+        const w = window as unknown as { __sellfDetachedAt: number | null };
+        if (w.__sellfDetachedAt === null && !(el as HTMLElement).isConnected) {
+          w.__sellfDetachedAt = performance.now();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }, buttonHandle);
+
+    // Select three currencies back-to-back, reopening the dropdown immediately
+    // after each selection — without waiting for that selection's save to land.
+    for (const code of ['USD', 'EUR', 'PLN']) {
+      await currencyButton.click();
+      const option = page.locator('button', { hasText: code }).first();
+      await expect(option, `dropdown should reopen with a fresh menu offering ${code}`).toBeVisible({ timeout: 5000 });
+      await option.click();
+    }
+
+    await expect(currencyButton).toContainText('PLN', { timeout: 5000 });
+
+    const detachedAt = await page.evaluate(
+      () => (window as unknown as { __sellfDetachedAt: number | null }).__sellfDetachedAt
+    );
+    expect(detachedAt, 'currency selector button node was detached from the DOM (unmount/remount) during rapid preference changes').toBeNull();
   });
 
   test('should display grouped currencies by default (multi-currency dashboard)', async ({ page }) => {
@@ -164,21 +274,20 @@ test.describe('Currency Conversion Feature', () => {
     const usdOption = page.locator('button', { hasText: 'USD' }).first();
     await usdOption.click();
 
-    // Wait for conversion
-    await page.waitForTimeout(1000);
-
     // Verify button now shows "Convert to USD"
     await expect(page.locator('button', { hasText: /Convert to USD/i }).first()).toBeVisible({ timeout: 5000 });
 
-    // Check revenue card now shows only USD
+    // Check revenue card now shows only USD. Conversion is an async round trip
+    // (fetch exchange rates, then convert), so wait on the real condition
+    // instead of a fixed sleep — a slow-but-successful rate fetch (e.g. a cold
+    // provider cache) must not be mistaken for a stuck conversion.
     const revenueCard = page.getByTestId('stat-card-total-revenue');
     const revenueValue = revenueCard.locator('p').nth(1);
-    const revenueText = await revenueValue.textContent();
 
     // Should NOT contain + sign (single currency)
-    expect(revenueText).not.toContain('+');
+    await expect(revenueValue).not.toContainText('+', { timeout: 15_000 });
     // Should contain $ symbol
-    expect(revenueText).toContain('$');
+    await expect(revenueValue).toContainText('$');
   });
 
   test('should convert to EUR and show euro symbol', async ({ page }) => {
@@ -196,17 +305,20 @@ test.describe('Currency Conversion Feature', () => {
     const eurOption = page.locator('button', { hasText: 'EUR' }).filter({ has: page.locator('span', { hasText: '€' }) }).first();
     await eurOption.click();
 
-    await page.waitForTimeout(1000);
-
     // Verify converted
     await expect(page.locator('button', { hasText: /Convert to EUR/i }).first()).toBeVisible({ timeout: 5000 });
 
+    // Conversion is an async round trip (fetch exchange rates, then convert), so
+    // wait on the real condition instead of a fixed sleep — same pattern as
+    // "should switch to converted mode and show single currency" above. A fixed
+    // 1s sleep here was pre-existing flakiness unrelated to the selector fix
+    // below: on a loaded test run the rate fetch can outlast 1s and this would
+    // read the card mid-conversion (still showing the grouped multi-currency total).
     const revenueCard = page.getByTestId('stat-card-total-revenue');
     const revenueValue = revenueCard.locator('p').nth(1);
-    const revenueText = await revenueValue.textContent();
 
-    expect(revenueText).not.toContain('+');
-    expect(revenueText).toContain('€');
+    await expect(revenueValue).not.toContainText('+', { timeout: 15_000 });
+    await expect(revenueValue).toContainText('€');
   });
 
   test('should persist currency preference across page reloads', async ({ page }) => {
@@ -222,13 +334,21 @@ test.describe('Currency Conversion Feature', () => {
     const eurOption = page.locator('button', { hasText: 'EUR' }).filter({ has: page.locator('span', { hasText: '€' }) }).first();
     await eurOption.click();
 
-    // The preference is saved by a server action after an optimistic UI update, so a
-    // fixed sleep before reload races under load. Reload until the saved value sticks.
+    // The preference is saved by two sequential server actions (view mode, then
+    // currency) after an optimistic UI update. A reload right after the click can
+    // cancel those in-flight requests before they reach the server — especially on
+    // a cold dev-server compile — so wait on the real condition (the row the server
+    // actually wrote) instead of racing a reload against them.
     await expect(async () => {
-      await page.reload();
-      await page.waitForLoadState('domcontentloaded');
-      await expect(page.locator('button', { hasText: /Convert to EUR/i }).first()).toBeVisible({ timeout: 3000 });
-    }).toPass({ timeout: 20_000 });
+      const { data, error } = await supabaseAdmin.auth.admin.getUserById(adminUserId);
+      if (error) throw error;
+      expect(data.user?.user_metadata?.preferences?.displayCurrency).toBe('EUR');
+      expect(data.user?.user_metadata?.preferences?.currencyViewMode).toBe('converted');
+    }).toPass({ timeout: 10_000 });
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('button', { hasText: /Convert to EUR/i }).first()).toBeVisible({ timeout: 5000 });
 
     // Revenue should still show €
     const revenueCard = page.getByTestId('stat-card-total-revenue');
@@ -323,7 +443,9 @@ test.describe('Currency Conversion Feature', () => {
     await expect(currencyBtn).toBeVisible({ timeout: 30000 });
     const btnText = await currencyBtn.textContent() || '';
     if (/Convert/i.test(btnText)) {
-      // Currently in converted mode — switch to grouped first (retry for RSC refetch)
+      // Currently in converted mode — switch to grouped first (retry as defensive
+      // timing padding; not required by a known bug since the selector's dropdown
+      // now closes synchronously on selection — see CurrencySelector.handleSelect).
       const groupedOpt = page.locator('button', { hasText: /Grouped by Currency|Pogrupowane/i }).first();
       await expect(async () => {
         await currencyBtn.click();
@@ -338,17 +460,26 @@ test.describe('Currency Conversion Feature', () => {
     const initialValue = await revenueCard.locator('p').nth(1).textContent();
     console.log('Grouped revenue:', initialValue);
 
-    // Convert to a currency — retry click to handle RSC refetch swallowing events
+    // Convert to a currency — retry the whole open+read+select sequence as defensive
+    // timing padding. (Earlier investigation attributed a flaky version of this to
+    // the dashboard's `revalidatePath('/dashboard')` remounting the selector on a
+    // preference-save refetch; that was checked directly — see the DOM-detachment
+    // assertion in "currency selector supports rapid consecutive selections..." above
+    // — and disproved: the button node is never detached. The real bug was
+    // CurrencySelector's dropdown toggle racing its own pending save and has been
+    // fixed at the source, but the retry wrapper is kept here as cheap insurance
+    // against ordinary CI timing variance.)
     const currencyButton = page.locator('button', { hasText: /Grouped|Convert/i }).first();
     const currencyOption = page.locator('button').filter({ hasNotText: /Grouped|Pogrupowane|Convert/i }).filter({ hasText: /\b(USD|EUR|PLN|GBP|CHF|CZK|SEK|NOK|DKK|HUF|RON|BGN|HRK|JPY|CAD|AUD)\b/ }).first();
+    let rawText = '';
     await expect(async () => {
       await currencyButton.click();
       await expect(currencyOption).toBeVisible({ timeout: 1000 });
+      rawText = await currencyOption.textContent() || '';
+      await currencyOption.click();
     }).toPass({ timeout: 15000 });
-    const rawText = await currencyOption.textContent() || '';
     // Extract 3-letter currency code (e.g. "$ USD" → "USD")
     const selectedCurrency = rawText.match(/[A-Z]{3}/)?.[0] || rawText.trim();
-    await currencyOption.click();
 
     // Wait for conversion to take effect — value must change from grouped
     await expect(async () => {

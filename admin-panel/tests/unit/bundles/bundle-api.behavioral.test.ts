@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { upsertBundleItems } from '@/lib/services/bundle-items';
+import { deleteChecked, deleteBundleItemsFor } from '../../helpers/db-cleanup';
 
 const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -29,9 +30,8 @@ async function components(bundleId: string): Promise<string[]> {
 beforeAll(() => { if (!db) console.warn('[bundle-api] skip — needs Supabase env'); });
 afterAll(async () => {
   if (!db) return;
-  await db.from('bundle_items').delete().in('component_product_id', ids);
-  await db.from('bundle_items').delete().in('bundle_product_id', ids);
-  await db.from('products').delete().in('id', ids);
+  await deleteBundleItemsFor(db, ids);
+  await deleteChecked('products', db.from('products').delete().in('id', ids));
 });
 
 describe.skipIf(!db)('upsertBundleItems', () => {

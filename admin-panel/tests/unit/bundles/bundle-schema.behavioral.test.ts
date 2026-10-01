@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { deleteChecked, deleteBundleItemsFor, deleteAuthUsers } from '../../helpers/db-cleanup';
 
 const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,11 +24,10 @@ async function mkProduct(over: Record<string, unknown> = {}) {
 beforeAll(() => { if (!db) console.warn('[bundle-schema] skip — needs Supabase env'); });
 afterAll(async () => {
   if (!db) return;
-  await db.from('user_product_access').delete().in('product_id', ids);
-  await db.from('bundle_items').delete().in('component_product_id', ids);
-  await db.from('bundle_items').delete().in('bundle_product_id', ids);
-  await db.from('products').delete().in('id', ids);
-  for (const u of users) await db.auth.admin.deleteUser(u).catch(() => {});
+  await deleteChecked('user_product_access', db.from('user_product_access').delete().in('product_id', ids));
+  await deleteBundleItemsFor(db, ids);
+  await deleteChecked('products', db.from('products').delete().in('id', ids));
+  await deleteAuthUsers(db, users);
 });
 
 describe.skipIf(!db)('bundle_items schema + guards', () => {

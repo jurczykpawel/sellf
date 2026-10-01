@@ -32,6 +32,7 @@ RESET=$'\033[0m'
 LIGHT_N="${1:-6}"
 HEAVY_N="${2:-4}"
 FAILED=""
+INFRA_FAILED=""
 TOTAL_PASS=0
 TOTAL_FAIL=0
 ALL_ERRORS=""
@@ -41,7 +42,7 @@ cleanup() {
   local status=$?
   trap - EXIT INT TERM
   [ -z "$ACTIVE_TMP" ] || rm -f "$ACTIVE_TMP"
-  bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
+  bash scripts/kill-dev-server.sh 3777 3779 >/dev/null 2>&1 || true
   exit "$status"
 }
 
@@ -58,7 +59,7 @@ run_shards() {
   for k in $(seq 1 "$n"); do
     echo ""
     echo "===================== $project shard $k/$n ====================="
-    bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
+    bash scripts/kill-dev-server.sh 3777 3779 >/dev/null 2>&1 || true
     # Wipe Turbopack's persistent on-disk cache before each fresh server. Killing the
     # dev server between shards can interrupt Turbopack mid-write to .next/dev/cache,
     # leaving a dangling .meta -> missing .sst reference. The NEXT server then panics on
@@ -88,19 +89,34 @@ ${errors}"
     TOTAL_PASS=$((TOTAL_PASS + pass_n))
     TOTAL_FAIL=$((TOTAL_FAIL + fail_n))
     echo "${DIM}shard result: ${pass_n} passed, ${fail_n} failed${RESET}"
-    rm -f "$_tmp"
-    ACTIVE_TMP=""
     if [ "$rc" != 0 ]; then
       FAILED="$FAILED $project:$k/$n"
-      echo ">>> $project shard $k/$n exited $rc"
+      # Keep the full Playwright output on disk instead of discarding it — a shard
+      # that exits non-zero is exactly the case where the reason matters most, and
+      # deleting the log here is what made past failures undiagnosable.
+      local savelog="test-runs/${TIMESTAMP}_${project}_${k}of${n}.log"
+      cp "$_tmp" "$savelog"
+      if [ "$pass_n" = 0 ] && [ "$fail_n" = 0 ]; then
+        # No test even started running: this is not a test failure, it's the runner
+        # infrastructure (dev server boot / port handoff) that broke.
+        INFRA_FAILED="$INFRA_FAILED $project:$k/$n"
+        echo "${RED}>>> $project shard $k/$n: INFRA FAILURE — 0 tests executed, exited $rc (full log: $savelog)${RESET}"
+      else
+        echo ">>> $project shard $k/$n exited $rc (full log: $savelog)"
+      fi
+      echo "${DIM}--- last 40 lines of $project shard $k/$n ---${RESET}"
+      tail -40 "$_tmp"
+    else
+      rm -f "$_tmp"
     fi
+    ACTIVE_TMP=""
   done
 }
 
 echo "=== Sharded chromium E2E: heavy=$HEAVY_N + light=$LIGHT_N shards, fresh dev server per shard ==="
 run_shards "chromium-heavy" "$HEAVY_N"
 run_shards "chromium" "$LIGHT_N"
-bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
+bash scripts/kill-dev-server.sh 3777 3779 >/dev/null 2>&1 || true
 
 # Write log
 {
@@ -110,6 +126,9 @@ bash scripts/kill-dev-server.sh 3777 >/dev/null 2>&1 || true
   echo "result:  ${TOTAL_PASS} passed, ${TOTAL_FAIL} failed"
   if [ -n "$FAILED" ]; then
     echo "failed_shards:$FAILED"
+    if [ -n "$INFRA_FAILED" ]; then
+      echo "infra_failed_shards:$INFRA_FAILED"
+    fi
     echo ""
     echo "FAILURE DETAILS:${ALL_ERRORS}"
   fi
@@ -123,6 +142,9 @@ if [ -z "$FAILED" ]; then
   exit 0
 else
   echo "SHARDS WITH FAILURES:$FAILED"
+  if [ -n "$INFRA_FAILED" ]; then
+    echo "${RED}INFRA FAILURES (0 tests executed, not a test regression):$INFRA_FAILED${RESET}"
+  fi
   echo "Re-run one with: npx playwright test --project=<chromium|chromium-heavy> --shard=k/N"
   echo "Total: ${TOTAL_PASS} passed, ${TOTAL_FAIL} failed"
   echo "${DIM}Log: ${LOGFILE}${RESET}"

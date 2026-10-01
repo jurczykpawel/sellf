@@ -15,6 +15,21 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 test.describe('Smart Coupons System', () => {
+  const createdProductIds: string[] = [];
+  const createdCouponIds: string[] = [];
+
+  test.afterAll(async () => {
+    if (createdProductIds.length > 0) {
+      await supabaseAdmin
+        .from('order_bumps')
+        .delete()
+        .or(`main_product_id.in.(${createdProductIds.join(',')}),bump_product_id.in.(${createdProductIds.join(',')})`);
+      await supabaseAdmin.from('products').delete().in('id', createdProductIds);
+    }
+    if (createdCouponIds.length > 0) {
+      await supabaseAdmin.from('coupons').delete().in('id', createdCouponIds);
+    }
+  });
 
   // Clear rate limits before each test to prevent "Too many requests" errors
   test.beforeEach(async () => {
@@ -46,6 +61,7 @@ test.describe('Smart Coupons System', () => {
     }).select().single();
 
     expect(product, 'Product insert failed — check Supabase logs').not.toBeNull();
+    if (product) createdProductIds.push(product.id);
 
     // 2. Create Coupon
     const { data: coupon, error: couponError } = await supabaseAdmin.from('coupons').insert({
@@ -59,6 +75,7 @@ test.describe('Smart Coupons System', () => {
 
     if (couponError) console.error('Coupon creation error:', couponError);
     expect(coupon).not.toBeNull();
+    if (coupon) createdCouponIds.push(coupon.id);
 
     // 3. Visit Checkout with Coupon URL Param
     await acceptAllCookies(page);
@@ -81,13 +98,14 @@ test.describe('Smart Coupons System', () => {
     const invalidCode = `INVALID${Date.now()}`;
 
     // 1. Create Product
-    await supabaseAdmin.from('products').insert({
+    const { data: invalidCouponProduct } = await supabaseAdmin.from('products').insert({
       name: 'Invalid Coupon Product',
       slug: productSlug,
       price: 50,
       currency: 'USD',
       is_active: true
-    });
+    }).select().single();
+    if (invalidCouponProduct) createdProductIds.push(invalidCouponProduct.id);
 
     // 2. Visit Checkout
     await acceptAllCookies(page);
@@ -118,9 +136,10 @@ test.describe('Smart Coupons System', () => {
       currency: 'USD',
       is_active: true
     }).select().single();
+    if (product) createdProductIds.push(product.id);
 
     // 2. Create Coupon
-    await supabaseAdmin.from('coupons').insert({
+    const { data: fixedCoupon } = await supabaseAdmin.from('coupons').insert({
       code: couponCode,
       name: 'Fixed Amount Coupon',
       discount_type: 'fixed',
@@ -128,7 +147,8 @@ test.describe('Smart Coupons System', () => {
       is_active: true,
       currency: 'USD',
       allowed_product_ids: [] // Global
-    });
+    }).select().single();
+    if (fixedCoupon) createdCouponIds.push(fixedCoupon.id);
 
     // 3. Visit Checkout
     await acceptAllCookies(page);
@@ -151,6 +171,7 @@ test.describe('Smart Coupons System', () => {
       currency: 'USD',
       is_active: true,
     }).select().single();
+    if (product) createdProductIds.push(product.id);
 
     const { data: bumpProduct } = await supabaseAdmin.from('products').insert({
       name: 'Coupon + Bump UI Addon',
@@ -159,6 +180,7 @@ test.describe('Smart Coupons System', () => {
       currency: 'USD',
       is_active: true,
     }).select().single();
+    if (bumpProduct) createdProductIds.push(bumpProduct.id);
 
     await supabaseAdmin.from('order_bumps').insert({
       main_product_id: product!.id,
@@ -169,7 +191,7 @@ test.describe('Smart Coupons System', () => {
       display_order: 1,
     });
 
-    await supabaseAdmin.from('coupons').insert({
+    const { data: bumpUiCoupon } = await supabaseAdmin.from('coupons').insert({
       code: couponCode,
       name: '20 percent global',
       discount_type: 'percentage',
@@ -177,7 +199,8 @@ test.describe('Smart Coupons System', () => {
       exclude_order_bumps: false,
       is_active: true,
       allowed_product_ids: [],
-    });
+    }).select().single();
+    if (bumpUiCoupon) createdCouponIds.push(bumpUiCoupon.id);
 
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${productSlug}?coupon=${couponCode}&show_promo=true`);

@@ -20,6 +20,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 let testProduct: any;
 let testTransaction: any;
 let adminToken: string;
+let cleanupAdminToken: (() => Promise<void>) | null = null;
 
 // Auth tests that don't need transaction setup
 test.describe('Admin Refund API - Auth Tests', () => {
@@ -51,7 +52,9 @@ test.describe('Admin Refund API Tests', () => {
 
   test.beforeAll(async () => {
     // Get admin token
-    adminToken = await getAdminBearerToken();
+    const admin = await getAdminBearerToken();
+    adminToken = admin.token;
+    cleanupAdminToken = admin.cleanup;
 
     // Get existing active product with non-zero price
     const { data: products } = await supabaseAdmin
@@ -104,6 +107,10 @@ test.describe('Admin Refund API Tests', () => {
 
       console.log(`🗑️  Deleted test transaction: ${testTransaction.id}`);
     }
+  });
+
+  test.afterAll(async () => {
+    if (cleanupAdminToken) await cleanupAdminToken();
   });
 
   test('🔴 CRITICAL: Prevent double refund via concurrent requests', async ({ request }) => {

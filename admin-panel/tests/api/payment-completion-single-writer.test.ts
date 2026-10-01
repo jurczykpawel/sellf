@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { deleteAuthUsers } from '../helpers/db-cleanup';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321',
@@ -27,6 +28,12 @@ describe('process_stripe_payment_completion_with_bump — single writer', () => 
       session_id: cs, product_id: productId, customer_email: email,
       amount: 1000, currency: 'usd', stripe_payment_intent_id: pi, status: 'pending',
     });
+  });
+
+  afterAll(async () => {
+    await supabaseAdmin.from('guest_purchases').delete().eq('customer_email', email);
+    await supabaseAdmin.from('payment_transactions').delete().eq('stripe_payment_intent_id', pi);
+    await supabaseAdmin.from('products').delete().eq('id', productId);
   });
 
   it('grants exactly once under concurrent completion', async () => {
@@ -89,7 +96,7 @@ describe('process_stripe_payment_completion_with_bump — registered-user single
     await supabaseAdmin.from('user_product_access').delete().eq('user_id', userId);
     await supabaseAdmin.from('payment_transactions').delete().eq('stripe_payment_intent_id', pi);
     await supabaseAdmin.from('products').delete().eq('id', productId);
-    await supabaseAdmin.auth.admin.deleteUser(userId);
+    await deleteAuthUsers(supabaseAdmin, [userId]);
   });
 
   it('grants exactly once for a registered user under concurrent completion', async () => {

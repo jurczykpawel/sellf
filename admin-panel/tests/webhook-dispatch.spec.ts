@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { supabaseAdmin, loginAsAdmin, createTestAdmin, getAdminBearerToken } from './helpers/admin-auth';
+import { supabaseAdmin, loginAsAdmin, createTestAdmin } from './helpers/admin-auth';
 import crypto from 'crypto';
 import { STRIPE_API_VERSION } from '@/lib/constants';
 

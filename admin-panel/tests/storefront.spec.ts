@@ -23,6 +23,19 @@ test.describe('Storefront & Checkout Flows', () => {
   let freeProductSlug: string;
   let freeProductName: string;
   let freeProductId: string;
+  let adminUserId: string;
+  let leadUserId: string | undefined;
+  let authUserId: string | undefined;
+
+  test.afterAll(async () => {
+    if (freeProductId) await supabaseAdmin.from('products').delete().eq('id', freeProductId);
+    if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
+      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
+    }
+    if (leadUserId) await supabaseAdmin.auth.admin.deleteUser(leadUserId);
+    if (authUserId) await supabaseAdmin.auth.admin.deleteUser(authUserId);
+  });
 
   // Helper to login as admin
   const loginAsAdmin = async (page: Page) => {
@@ -45,11 +58,12 @@ test.describe('Storefront & Checkout Flows', () => {
       email_confirm: true,
     });
     if (createError) throw createError;
+    adminUserId = user!.id;
 
     await supabaseAdmin
       .from('admin_users')
       .insert({ user_id: user!.id });
-      
+
     // Create Free Product
     freeProductName = `Magnet-${Date.now()}`;
     freeProductSlug = `m-${Date.now()}`;
@@ -145,7 +159,8 @@ test.describe('Storefront & Checkout Flows', () => {
     // 7. BACKEND VERIFICATION
     const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
     const newUser = users.find(u => u.email === userEmail);
-    
+    leadUserId = newUser?.id;
+
     expect(newUser).toBeDefined();
     console.log(`Verified user created in Auth: ${newUser?.id}`);
 
@@ -184,6 +199,7 @@ test.describe('Storefront & Checkout Flows', () => {
     });
     if (error) throw error;
     const userId = user!.id;
+    authUserId = userId;
 
     await page.goto('/');
     await setAuthSession(page, userEmail, userPassword);

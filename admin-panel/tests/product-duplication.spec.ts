@@ -155,20 +155,25 @@ test.describe('Product Duplication', () => {
     }
 
     // Description lives on step 2 after the redesign. Navigate there to
-    // verify it was copied across.
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej|Next/i }).click();
+    // verify it was copied across. The "Dalej"/"Continue Setup" button stays
+    // disabled until the wizard's shop-config fetch settles — wait for it to
+    // become enabled rather than guessing a fixed delay before clicking.
+    const continueBtn = page.getByRole('dialog').getByRole('button', { name: /Dalej|Next|Continue Setup/i });
+    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
+    await continueBtn.click();
     const descInput = page.locator('textarea[name="description"]');
+    await expect(descInput).toBeVisible({ timeout: 10000 });
     const descValue = await descInput.inputValue();
     expect(descValue).toBe('Product to be duplicated');
 
     // Navigate to step 3 (Sales & Settings) — one more Continue takes us there.
     // Group A (Konwersja) is expanded by default and contains sale_price.
-    await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
-    await page.waitForTimeout(1000);
+    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
+    await continueBtn.click();
 
     // Check that sale_price is copied on step 3
     const salePriceInput = page.locator('input#sale_price');
-    await expect(salePriceInput).toBeVisible({ timeout: 5000 });
+    await expect(salePriceInput).toBeVisible({ timeout: 10000 });
     const salePriceValue = await salePriceInput.inputValue();
     expect(salePriceValue).toContain('60'); // May have comma formatting
   });

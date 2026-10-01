@@ -13,6 +13,7 @@
 
 import { describe, it, expect, afterAll, beforeAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { deleteChecked, deleteAuthUsers } from '../helpers/db-cleanup';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -35,19 +36,19 @@ const createdStripeCustomerIds: string[] = [];
 const createdAuthUserIds: string[] = [];
 
 afterAll(async () => {
+  // Subscriptions must go before auth users — an active/trialing/past_due/incomplete
+  // subscription row referencing a user blocks that user's deletion at the DB layer.
   if (createdSubscriptionIds.length > 0) {
-    await supabaseAdmin.from('subscriptions').delete().in('id', createdSubscriptionIds);
+    await deleteChecked('subscriptions', supabaseAdmin.from('subscriptions').delete().in('id', createdSubscriptionIds));
   }
   if (createdStripeCustomerIds.length > 0) {
-    await supabaseAdmin.from('stripe_customers').delete().in('id', createdStripeCustomerIds);
+    await deleteChecked('stripe_customers', supabaseAdmin.from('stripe_customers').delete().in('id', createdStripeCustomerIds));
   }
   if (createdProductIds.length > 0) {
-    await supabaseAdmin.from('products').delete().in('id', createdProductIds);
+    await deleteChecked('products', supabaseAdmin.from('products').delete().in('id', createdProductIds));
   }
   if (createdAuthUserIds.length > 0) {
-    await Promise.allSettled(
-      createdAuthUserIds.map((id) => supabaseAdmin.auth.admin.deleteUser(id))
-    );
+    await deleteAuthUsers(supabaseAdmin, createdAuthUserIds);
   }
 });
 
@@ -248,9 +249,7 @@ describe('Subscriptions schema: stripe_customers table', () => {
     expect(error).toBeNull();
     expect(data?.user_id).toBe(user!.id);
     if (data?.id) createdStripeCustomerIds.push(data.id);
-
-    // Cleanup user
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 
   it('enforces unique stripe_customer_id', async () => {
@@ -280,8 +279,7 @@ describe('Subscriptions schema: stripe_customers table', () => {
     expect(error).not.toBeNull();
     expect(error?.code).toBe('23505'); // unique_violation
 
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
-    await supabaseAdmin.auth.admin.deleteUser(user2!.id);
+    createdAuthUserIds.push(user!.id, user2!.id);
   });
 });
 
@@ -330,8 +328,7 @@ describe('Subscriptions schema: subscriptions table', () => {
     expect(data?.status).toBe('active');
     expect(data?.cancel_at_period_end).toBe(false);
     if (data?.id) createdSubscriptionIds.push(data.id);
-
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 
   it('rejects invalid status via CHECK constraint', async () => {
@@ -367,7 +364,7 @@ describe('Subscriptions schema: subscriptions table', () => {
     expect(error).not.toBeNull();
     expect(error?.code).toBe('23514');
 
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 
   it('enforces unique stripe_subscription_id', async () => {
@@ -418,7 +415,7 @@ describe('Subscriptions schema: subscriptions table', () => {
     expect(error).not.toBeNull();
     expect(error?.code).toBe('23505');
 
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 });
 
@@ -478,7 +475,7 @@ describe('Subscriptions schema: payment_transactions extensions', () => {
     expect(pt?.subscription_id).toBe(sub!.id);
 
     if (pt?.id) await supabaseAdmin.from('payment_transactions').delete().eq('id', pt.id);
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 
   it('enforces unique stripe_invoice_id when not null', async () => {
@@ -531,7 +528,7 @@ describe('Subscriptions schema: payment_transactions extensions', () => {
     expect(error?.code).toBe('23505');
 
     if (pt1?.id) await supabaseAdmin.from('payment_transactions').delete().eq('id', pt1.id);
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 });
 
@@ -585,7 +582,7 @@ describe('Subscriptions schema: user_product_access extensions', () => {
     expect(upa?.subscription_id).toBe(sub!.id);
 
     if (upa?.id) await supabaseAdmin.from('user_product_access').delete().eq('id', upa.id);
-    await supabaseAdmin.auth.admin.deleteUser(user!.id);
+    createdAuthUserIds.push(user!.id);
   });
 });
 

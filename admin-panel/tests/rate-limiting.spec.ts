@@ -567,11 +567,14 @@ test.describe('Rate Limiting', () => {
 
   test.describe('Admin Endpoint Rate Limiting', () => {
     let adminToken: string;
+    let cleanupAdminToken: (() => Promise<void>) | null = null;
     let testProduct: any;
 
     test.beforeAll(async () => {
       // Get admin token for API requests
-      adminToken = await getAdminBearerToken();
+      const admin = await getAdminBearerToken();
+      adminToken = admin.token;
+      cleanupAdminToken = admin.cleanup;
 
       // Get a product for test data
       const { data: products } = await supabaseAdmin
@@ -587,6 +590,10 @@ test.describe('Rate Limiting', () => {
       } else {
         console.warn('No active products found for admin rate limit tests - tests will be skipped');
       }
+    });
+
+    test.afterAll(async () => {
+      if (cleanupAdminToken) await cleanupAdminToken();
     });
 
     test('admin refund endpoint should be rate limited (10/hour)', async ({ request }) => {

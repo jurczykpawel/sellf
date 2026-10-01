@@ -65,4 +65,42 @@ describe('API test runner contract', () => {
     expect(shardedRunner).toContain("/^[[:space:]]*[0-9]+ failed/{print $1; exit}");
     expect(shardedRunner).not.toContain("grep -c '✘'");
   });
+
+  it('waits until a killed port has no listener left instead of trusting a fixed sleep', () => {
+    // A dead PID does not guarantee the kernel released the socket yet. The old
+    // "kill, sleep 1, check the PID" logic let the caller start a new server while
+    // the port was still briefly held, which Playwright's webServer step reports as
+    // "port already in use" and aborts the whole shard with 0 tests executed.
+    expect(cleanup).toMatch(/while .*lsof -tiTCP:"\$port" -sTCP:LISTEN/);
+    expect(cleanup).toMatch(/deadline|DEADLINE/i);
+  });
+
+  it('preserves a shard log on disk instead of unconditionally deleting it', () => {
+    // "rm -f "$_tmp"" must only run on the success path (inside the rc==0 branch),
+    // never unconditionally right after computing pass/fail counts — that is what
+    // destroyed the evidence for every past infra failure.
+    expect(shardedRunner).toMatch(/if \[ "\$rc" != 0 \]; then[\s\S]*else\s*\n\s*rm -f "\$_tmp"/);
+    expect(shardedRunner).toContain('test-runs/');
+  });
+
+  it('saves the failing shard log and prints its tail instead of losing the output', () => {
+    expect(shardedRunner).toMatch(/cp\s+"\$_tmp"\s+"\$\w+"/);
+    expect(shardedRunner).toContain('tail -40');
+  });
+
+  it('flags a shard that exited non-zero with zero tests executed as an infra failure', () => {
+    expect(shardedRunner).toMatch(/INFRA_FAILED/);
+    expect(shardedRunner.toUpperCase()).toContain('INFRA FAILURE');
+  });
+
+  it('frees the exchange-rate stub port along with the dev server between runs', () => {
+    const stubPort = /FX_STUB_PORT = (\d+)/.exec(readFileSync(resolve('playwright.config.ts'), 'utf8'))?.[1];
+    expect(stubPort).toBeDefined();
+    for (const script of [shardedRunner, playwrightRunner, fullRunner]) {
+      const cleanups = script.match(/kill-dev-server\.sh [^>|&\n]*/g) ?? [];
+      const serverCleanups = cleanups.filter((c) => c.includes('3777'));
+      expect(serverCleanups.length).toBeGreaterThan(0);
+      for (const c of serverCleanups) expect(c.split(/\s+/)).toContain(stubPort);
+    }
+  });
 });

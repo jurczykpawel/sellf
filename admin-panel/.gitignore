@@ -28,6 +28,8 @@
 # misc
 .DS_Store
 *.pem
+# Public release signing key (audit mirror of the key embedded in scripts/upgrade.sh)
+!/scripts/release-signing-key.pub.pem
 
 # debug
 npm-debug.log*

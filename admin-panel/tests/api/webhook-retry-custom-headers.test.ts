@@ -37,7 +37,10 @@ vi.mock('undici', () => ({
     return { ok: true, status: 200, text: async () => 'ok' };
   }),
 }));
-vi.mock('@/lib/security/safe-fetch', () => ({ getSsrfSafeAgent: vi.fn(() => undefined) }));
+vi.mock('@/lib/security/safe-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/security/safe-fetch')>()),
+  getSsrfSafeAgent: vi.fn(() => undefined),
+}));
 vi.mock('@/lib/validations/webhook', () => ({
   validateWebhookUrlAsync: vi.fn(async () => ({ valid: true })),
 }));

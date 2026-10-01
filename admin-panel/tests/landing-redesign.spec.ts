@@ -42,17 +42,20 @@ for (const path of ABOUT_PATHS) {
         .locator('[data-landing-section="fee-comparison"] input[type="range"]')
         .first();
       await slider.scrollIntoViewIfNeeded();
-      await slider.evaluate((el) => {
-        const input = el as HTMLInputElement;
-        input.value = '20000';
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-
       const hero = page.locator('[data-landing-section="hero"]').first();
-      await hero.scrollIntoViewIfNeeded();
       const badge = hero.locator('[data-revenue-badge="active"]').first();
-      await expect(badge).toBeVisible();
+
+      // Retry the input events — under load they can fire before hydration attaches handlers.
+      await expect(async () => {
+        await slider.evaluate((el) => {
+          const input = el as HTMLInputElement;
+          input.value = '20000';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        await hero.scrollIntoViewIfNeeded();
+        await expect(badge).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 20000 });
     });
 
     test('feature snippet flip toggles aria-expanded', async ({ page }) => {
@@ -62,8 +65,11 @@ for (const path of ABOUT_PATHS) {
       const first = flipCards.first();
       await first.scrollIntoViewIfNeeded();
       await expect(first).toHaveAttribute('aria-expanded', 'false');
-      await first.click();
-      await expect(first).toHaveAttribute('aria-expanded', 'true');
+      // Retry the click — under load it can land before hydration attaches the handler.
+      await expect(async () => {
+        await first.click();
+        await expect(first).toHaveAttribute('aria-expanded', 'true', { timeout: 2000 });
+      }).toPass({ timeout: 20000 });
     });
 
     test('conversion stack: product → checkout (inline bump+coupon) → pay → OTO → done', async ({ page }) => {
@@ -71,8 +77,11 @@ for (const path of ABOUT_PATHS) {
       await section.scrollIntoViewIfNeeded();
 
       // Stage 1: product → click Buy
-      await section.locator('[data-action="buy-now"]').click();
-      await expect(section.locator('[data-stage-screen="checkout"]')).toBeVisible();
+      // Retry the click — under load it can land before hydration attaches the handler.
+      await expect(async () => {
+        await section.locator('[data-action="buy-now"]').click();
+        await expect(section.locator('[data-stage-screen="checkout"]')).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 20000 });
 
       // Stage 2: checkout — bump inline
       await section.locator('[data-action="toggle-bump"]').check();
@@ -98,15 +107,22 @@ for (const path of ABOUT_PATHS) {
       const section = page.locator('[data-landing-section="login-wall"]').first();
       await section.scrollIntoViewIfNeeded();
       await expect(section.locator('[data-wall-state="locked"]')).toBeVisible();
-      await section.locator('[data-action="unlock"]').click();
-      await expect(section.locator('[data-wall-state="open"]')).toBeVisible();
+      // Retry the click — under load it can land before hydration attaches the handler.
+      await expect(async () => {
+        await section.locator('[data-action="unlock"]').click();
+        await expect(section.locator('[data-wall-state="open"]')).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 20000 });
       await expect(section.locator('[data-token-fragment="present"]')).toBeVisible();
     });
 
     test('subscriptions timeline reveals all 14 months after play', async ({ page }) => {
       const section = page.locator('[data-landing-section="subscriptions-demo"]').first();
       await section.scrollIntoViewIfNeeded();
-      await section.locator('[data-action="play"]').click();
+      // Retry the click — under load it can land before hydration attaches the handler.
+      await expect(async () => {
+        await section.locator('[data-action="play"]').click();
+        await expect(section.locator('[data-action="pause"]')).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 20000 });
       // Final month chip becomes data-revealed='true'
       await expect(
         section.locator('[data-month-idx="13"][data-revealed="true"]'),

@@ -18,6 +18,7 @@ test.describe('Currency API Configuration', () => {
 
   let adminEmail: string;
   const adminPassword = 'password123';
+  let adminUserId: string;
 
   const loginAsAdmin = async (page: Page) => {
     await acceptAllCookies(page);
@@ -54,10 +55,18 @@ test.describe('Currency API Configuration', () => {
       email_confirm: true,
     });
     if (createError) throw createError;
+    adminUserId = user!.id;
 
     await supabaseAdmin
       .from('admin_users')
       .insert({ user_id: user!.id });
+  });
+
+  test.afterAll(async () => {
+    if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
+      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
+    }
   });
 
   test.beforeEach(async () => {

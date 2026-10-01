@@ -720,7 +720,6 @@ test.describe('Refund System - Admin Product Form UI', () => {
 
     await page.goto('/en/dashboard/products');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
 
     // Find the row with test product and click its edit button (pencil icon)
     const productRow = page.locator('tr').filter({ hasText: testProduct.name });
@@ -731,19 +730,23 @@ test.describe('Refund System - Admin Product Form UI', () => {
     const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible({ timeout: 10000 });
 
-    // Navigate to step 3 (Sales & Settings) where Refund section lives
+    // Navigate to step 3 (Sales & Settings) where Refund section lives.
+    // The "Dalej"/"Continue Setup" button stays disabled until the wizard's
+    // shop-config fetch settles — wait for it to become enabled and for the
+    // destination step's own marker to appear, rather than guessing a fixed
+    // delay after each click.
     const continueBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
-    await expect(continueBtn).toBeVisible({ timeout: 5000 });
+    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
     await continueBtn.click();
-    await page.waitForTimeout(1000);
 
-    // Step 2 — click Continue again
-    await expect(continueBtn).toBeVisible({ timeout: 5000 });
+    // Step 2 — the description field confirms the wizard actually advanced.
+    await expect(modal.locator('#description')).toBeVisible({ timeout: 10000 });
+    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
     await continueBtn.click();
-    await page.waitForTimeout(1000);
 
     // Step 3 groups (A-E) are collapsed by default. Expand group D (Refunds).
     const refundsGroup = modal.locator('section[data-step3-group="D"]');
+    await expect(refundsGroup).toBeVisible({ timeout: 10000 });
     await refundsGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
 
     // Should see the toggle for allowing refunds inside the expanded group
@@ -755,25 +758,32 @@ test.describe('Refund System - Admin Product Form UI', () => {
 
     await page.goto('/en/dashboard/products');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
 
     // Close cookie banner if present
     await closeCookieBanner(page);
 
     // Find the row with test product and click its edit button
     const productRow = page.locator('tr').filter({ hasText: testProduct.name });
+    await expect(productRow).toBeVisible({ timeout: 10000 });
     await productRow.locator('button[title*="Edit"], button[title*="Edytuj"]').click();
-    await page.waitForTimeout(1000);
 
-    // Navigate to step 3 (Sales & Settings) where Refund section lives
+    // Navigate to step 3 (Sales & Settings) where Refund section lives.
+    // The "Dalej"/"Continue Setup" button stays disabled until the wizard's
+    // shop-config fetch settles — wait for it to become enabled and for the
+    // destination step's own marker to appear, rather than guessing a fixed
+    // delay after each click.
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#wizard-form') });
-    await modal.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
-    await page.waitForTimeout(500);
-    await modal.getByRole('button', { name: /Dalej|Continue Setup/i }).click();
-    await page.waitForTimeout(500);
+    await expect(modal).toBeVisible({ timeout: 10000 });
+    const continueBtn = modal.getByRole('button', { name: /Dalej|Continue Setup/i });
+    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
+    await continueBtn.click();
+    await expect(modal.locator('#description')).toBeVisible({ timeout: 10000 });
+    await expect(continueBtn).toBeEnabled({ timeout: 15000 });
+    await continueBtn.click();
 
     // Step 3 groups B-E are collapsed by default — expand group D (Refunds)
     const refundsGroup = modal.locator('section[data-step3-group="D"]');
+    await expect(refundsGroup).toBeVisible({ timeout: 10000 });
     await refundsGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
 
     // Find the refund toggle checkbox by its ID
@@ -783,12 +793,11 @@ test.describe('Refund System - Admin Product Form UI', () => {
     // First uncheck if already checked
     if (await refundToggle.isChecked()) {
       await refundToggle.click({ force: true });
-      await page.waitForTimeout(500);
+      await expect(refundToggle).not.toBeChecked();
     }
 
     // Now enable refunds
     await refundToggle.click({ force: true });
-    await page.waitForTimeout(500);
 
     // Verify checkbox is now checked
     await expect(refundToggle).toBeChecked();
@@ -806,7 +815,6 @@ test.describe('Refund System - Admin Product Form UI', () => {
 
     // Test that disabling refunds hides the period input
     await refundToggle.click({ force: true });
-    await page.waitForTimeout(500);
     await expect(refundToggle).not.toBeChecked();
     await expect(periodInput).not.toBeVisible();
   });

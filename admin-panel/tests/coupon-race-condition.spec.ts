@@ -76,6 +76,16 @@ test.describe('Coupon Race Condition Security', () => {
       await supabaseAdmin.from('coupon_redemptions').delete().eq('coupon_id', couponId);
       await supabaseAdmin.from('coupons').delete().eq('id', couponId);
     }
+    // Whichever concurrent request "won" the race created a real payment_transaction
+    // via /api/create-payment-intent against the borrowed active product — clean it up
+    // without touching that product's own (unrelated) history.
+    if (productId) {
+      await supabaseAdmin
+        .from('payment_transactions')
+        .delete()
+        .eq('product_id', productId)
+        .like('customer_email', 'user%@example.com');
+    }
   });
 
   test('SECURITY: Prevent race condition in coupon usage limit', async ({ request }) => {

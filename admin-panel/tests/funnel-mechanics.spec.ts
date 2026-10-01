@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { waitForEmail, extractMagicLink, deleteAllMessages } from './helpers/mailpit';
 import { acceptAllCookies } from './helpers/consent';
+import { deleteChecked, deleteOtoOffersFor, deleteAuthUsers } from './helpers/db-cleanup';
 
 // Enforce single worker because we modify global DB state (products)
 test.describe.configure({ mode: 'serial' });
@@ -16,16 +17,46 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+// This file previously had no teardown at all: every product/coupon/auth-user created by a
+// scenario below was left in the shared local DB forever. Track everything created and clean it
+// up in one afterAll. generate_oto_coupon rows in particular have no FK to the product/offer/
+// transaction they were minted for (oto_offer_id / source_transaction_id are ON DELETE SET NULL),
+// so deleting the products does NOT remove the coupon — it must be deleted by code.
+const createdProductSlugs: string[] = [];
+const otoCouponCodes: string[] = [];
+const createdEmails: string[] = [];
+
 test.describe('Funnel Mechanics (Redirects & OTO)', () => {
-  
+
   test.beforeAll(async () => {
     try { await deleteAllMessages(); } catch {}
+  });
+
+  test.afterAll(async () => {
+    if (otoCouponCodes.length > 0) {
+      await deleteChecked('coupons', supabaseAdmin.from('coupons').delete().in('code', otoCouponCodes));
+    }
+    if (createdProductSlugs.length > 0) {
+      const { data: prods } = await supabaseAdmin.from('products').select('id').in('slug', createdProductSlugs);
+      const productIds = (prods ?? []).map((p) => p.id as string);
+      // oto_offers must go first: downsell_product_id is ON DELETE SET NULL, but the
+      // oto_offers_downsell_consistency CHECK requires the downsell columns to move together,
+      // so a bare SET NULL from deleting the downsell product violates it.
+      await deleteOtoOffersFor(supabaseAdmin, productIds);
+      await deleteChecked('products', supabaseAdmin.from('products').delete().in('slug', createdProductSlugs));
+    }
+    if (createdEmails.length > 0) {
+      const { data } = await supabaseAdmin.auth.admin.listUsers();
+      const matches = (data?.users ?? []).filter((u) => createdEmails.includes(u.email ?? ''));
+      await deleteAuthUsers(supabaseAdmin, matches.map((u) => u.id));
+    }
   });
 
   test('Scenario 1: DB Configured Redirect (Free Product -> OTO)', async ({ page }) => {
     const otoSlug = `oto-db-${Date.now()}`;
     const productSlug = `free-db-${Date.now()}`;
-    
+    createdProductSlugs.push(otoSlug, productSlug);
+
     // 1. Create OTO Product (Target)
     await supabaseAdmin.from('products').insert({
       name: 'OTO Target DB',
@@ -52,6 +83,7 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
     await page.goto(`/p/${productSlug}`); // Should redirect to checkout/slug for free product
     
     const email = `funnel-db-${Date.now()}@example.com`;
+    createdEmails.push(email);
     await page.locator('input[type="email"]').fill(email);
     
     const terms = page.locator('label').filter({ hasText: /agree|akceptuję/i });
@@ -86,7 +118,8 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
   test('Scenario 2: URL Override Redirect (Free Product -> Custom OTO)', async ({ page }) => {
     const otoSlug = `oto-link-${Date.now()}`;
     const productSlug = `free-link-${Date.now()}`;
-    
+    createdProductSlugs.push(otoSlug, productSlug);
+
     // 1. Create Products
     await supabaseAdmin.from('products').insert({
       name: 'OTO Target Link',
@@ -112,6 +145,7 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
     await page.goto(entryUrl);
     
     const email = `funnel-link-${Date.now()}@example.com`;
+    createdEmails.push(email);
     await page.locator('input[type="email"]').fill(email);
     
     const terms = page.locator('label').filter({ hasText: /agree|akceptuję/i });
@@ -151,6 +185,7 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
     const sourceSlug = `src-decline-${stamp}`;
     const upsellSlug = `up-decline-${stamp}`;
     const downsellSlug = `down-decline-${stamp}`;
+    createdProductSlugs.push(sourceSlug, upsellSlug, downsellSlug);
 
     const { data: source } = await supabaseAdmin
       .from('products')
@@ -217,6 +252,7 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
     expect(rpcErr).toBeNull();
     const upsellCode = (rpc as any).upsell_code ?? (rpc as any).coupon_code;
     const downsellCode = (rpc as any).downsell_code;
+    otoCouponCodes.push(upsellCode, downsellCode);
     expect(upsellCode).toMatch(/^OTO-/);
     expect(downsellCode, 'downsell coupon code must be generated').toMatch(/^OTO-/);
 
@@ -249,6 +285,7 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
     // After purchasing A then B in sequence, both transactions must produce
     // a generate_oto_coupon RPC result with has_oto=true and the right target.
     const stamp = Date.now();
+    createdProductSlugs.push(`chain-a-${stamp}`, `chain-b-${stamp}`, `chain-c-${stamp}`);
     const { data: a } = await supabaseAdmin
       .from('products')
       .insert({ name: `Chain A ${stamp}`, slug: `chain-a-${stamp}`, price: 10, currency: 'USD', is_active: true })
@@ -305,6 +342,9 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
       customer_email_param: email,
       transaction_id_param: txA!.id,
     });
+    const rpcACode = (rpcA as any).upsell_code ?? (rpcA as any).coupon_code;
+    if (rpcACode) otoCouponCodes.push(rpcACode);
+    if ((rpcA as any).downsell_code) otoCouponCodes.push((rpcA as any).downsell_code);
     expect((rpcA as any).has_oto).toBe(true);
     expect((rpcA as any).oto_product_id).toBe(b!.id);
 
@@ -327,6 +367,9 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
       customer_email_param: email,
       transaction_id_param: txB!.id,
     });
+    const rpcBCode = (rpcB as any).upsell_code ?? (rpcB as any).coupon_code;
+    if (rpcBCode) otoCouponCodes.push(rpcBCode);
+    if ((rpcB as any).downsell_code) otoCouponCodes.push((rpcB as any).downsell_code);
     expect((rpcB as any).has_oto).toBe(true);
     expect((rpcB as any).oto_product_id).toBe(c!.id);
   });

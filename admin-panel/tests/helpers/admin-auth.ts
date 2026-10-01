@@ -159,6 +159,12 @@ export async function loginAsAdmin(page: Page, email: string, password: string) 
   await page.waitForSelector('nav, [role="navigation"], aside', { timeout: 15000 });
 }
 
+/** Deletes the `admin_users` row and the auth user created by a `getAdminAuthCookie`/`getAdminBearerToken` call. */
+async function cleanupAdminUser(userId: string): Promise<void> {
+  await supabaseAdmin.from('admin_users').delete().eq('user_id', userId);
+  await supabaseAdmin.auth.admin.deleteUser(userId);
+}
+
 /**
  * Get admin auth cookie header for API requests that require cookie-based auth.
  *
@@ -166,9 +172,9 @@ export async function loginAsAdmin(page: Page, email: string, password: string) 
  * creates a test admin, signs in, and returns the Cookie header value
  * in the format that @supabase/ssr expects (base64url-encoded session).
  *
- * @returns Cookie header string for use with Playwright request context
+ * @returns Cookie header string plus a `cleanup()` to remove the admin user it created
  */
-export async function getAdminAuthCookie(): Promise<string> {
+export async function getAdminAuthCookie(): Promise<{ cookie: string; cleanup: () => Promise<void> }> {
   const randomStr = Math.random().toString(36).substring(7);
   const email = `api-admin-${Date.now()}-${randomStr}@example.com`;
   const password = 'password123';
@@ -179,6 +185,7 @@ export async function getAdminAuthCookie(): Promise<string> {
     email_confirm: true,
   });
   if (createError) throw createError;
+  const cleanup = () => cleanupAdminUser(user!.id);
 
   await supabaseAdmin
     .from('admin_users')
@@ -206,7 +213,7 @@ export async function getAdminAuthCookie(): Promise<string> {
   // Supabase SSR chunks cookies at ~3180 chars. If under that limit, single cookie.
   const CHUNK_SIZE = 3180;
   if (cookieValue.length <= CHUNK_SIZE) {
-    return `${cookieKey}=${cookieValue}`;
+    return { cookie: `${cookieKey}=${cookieValue}`, cleanup };
   }
 
   // Chunked format: sb-127-auth-token.0, sb-127-auth-token.1, etc.
@@ -214,15 +221,15 @@ export async function getAdminAuthCookie(): Promise<string> {
   for (let i = 0; i < cookieValue.length; i += CHUNK_SIZE) {
     chunks.push(cookieValue.substring(i, i + CHUNK_SIZE));
   }
-  return chunks.map((chunk, i) => `${cookieKey}.${i}=${chunk}`).join('; ');
+  return { cookie: chunks.map((chunk, i) => `${cookieKey}.${i}=${chunk}`).join('; '), cleanup };
 }
 
 /**
  * Get admin bearer token for API requests
  * Creates a test admin user and returns their JWT token
- * @returns Bearer token string
+ * @returns Bearer token plus a `cleanup()` to remove the admin user it created
  */
-export async function getAdminBearerToken(): Promise<string> {
+export async function getAdminBearerToken(): Promise<{ token: string; cleanup: () => Promise<void> }> {
   // Create test admin user
   const randomStr = Math.random().toString(36).substring(7);
   const email = `api-admin-${Date.now()}-${randomStr}@example.com`;
@@ -234,6 +241,7 @@ export async function getAdminBearerToken(): Promise<string> {
     email_confirm: true,
   });
   if (createError) throw createError;
+  const cleanup = () => cleanupAdminUser(user!.id);
 
   // Add to admin_users
   await supabaseAdmin
@@ -253,5 +261,5 @@ export async function getAdminBearerToken(): Promise<string> {
     throw new Error('Failed to sign in admin user');
   }
 
-  return session.access_token;
+  return { token: session.access_token, cleanup };
 }

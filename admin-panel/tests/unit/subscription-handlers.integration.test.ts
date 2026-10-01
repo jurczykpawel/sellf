@@ -29,6 +29,7 @@ import {
   handleInvoicePaymentFailed,
 } from '@/app/api/webhooks/stripe/subscription-handlers';
 import { WebhookService } from '@/lib/services/webhook-service';
+import { deleteChecked, deleteAuthUsers } from '../helpers/db-cleanup';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -60,17 +61,16 @@ afterAll(async () => {
   if (createdStripeCustomerIds.length > 0 && stripe) {
     await Promise.allSettled(createdStripeCustomerIds.map((id) => stripe.customers.del(id)));
   }
-  if (createdAuthUserIds.length > 0 && platformClient) {
-    await Promise.allSettled(
-      createdAuthUserIds.map((id) => platformClient.auth.admin.deleteUser(id))
-    );
-  }
   if (createdProductIds.length > 0 && supabaseSeller) {
-    // Delete dependent rows first so FKs don't block.
-    await supabaseSeller.from('user_product_access').delete().in('product_id', createdProductIds);
-    await supabaseSeller.from('payment_transactions').delete().in('product_id', createdProductIds);
-    await supabaseSeller.from('subscriptions').delete().in('product_id', createdProductIds);
-    await supabaseSeller.from('products').delete().in('id', createdProductIds);
+    // Delete dependent rows first — both for FKs and because an active/trialing/past_due/
+    // incomplete subscription row referencing a user blocks that user's deletion below.
+    await deleteChecked('user_product_access', supabaseSeller.from('user_product_access').delete().in('product_id', createdProductIds));
+    await deleteChecked('payment_transactions', supabaseSeller.from('payment_transactions').delete().in('product_id', createdProductIds));
+    await deleteChecked('subscriptions', supabaseSeller.from('subscriptions').delete().in('product_id', createdProductIds));
+    await deleteChecked('products', supabaseSeller.from('products').delete().in('id', createdProductIds));
+  }
+  if (createdAuthUserIds.length > 0 && platformClient) {
+    await deleteAuthUsers(platformClient, createdAuthUserIds);
   }
 });
 

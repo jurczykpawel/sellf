@@ -2,7 +2,9 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { deleteChecked } from './helpers/db-cleanup';
 import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants';
+import { encryptSecret } from '@/lib/services/secret-encryption';
 
 /**
  * Stripe Webhook UI Tests
@@ -26,12 +28,14 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 const EXPECTED_WEBHOOK_URL = `${SITE_URL}/api/webhooks/stripe`;
 const FAKE_ENDPOINT_ID = 'we_test_uifake123456';
+const FAKE_STRIPE_TEST_KEY = 'sk_test_ui_fixture_0000000000000000000000000000'; // trufflehog:ignore — synthetic test value
 
 test.describe('Stripe Webhook Section UI', () => {
   test.describe.configure({ mode: 'serial' });
 
   let adminEmail: string;
   let fakeConfigId: string;
+  let deactivatedConfigIds: string[] = [];
   const adminPassword = 'password123';
 
   const loginAndGoToSettings = async (page: Page) => {
@@ -81,21 +85,40 @@ test.describe('Stripe Webhook Section UI', () => {
     await supabaseAdmin.from('admin_users').insert({ user_id: user!.id });
 
     // Remove any leftover fake configs from previous runs (identified by key_last_4 = 'xxxx')
-    await supabaseAdmin.from('stripe_configurations').delete().eq('key_last_4', 'xxxx');
+    await deleteChecked(
+      'leftover fixture stripe_configurations',
+      supabaseAdmin.from('stripe_configurations').delete().eq('key_last_4', 'xxxx'),
+    );
 
-    // Insert a fake stripe_configurations row so webhook state updates work.
-    // The encrypted fields must be valid base64 with correct lengths to avoid
-    // "Invalid IV length" errors when other tests try to decrypt active configs.
-    // IV = 16 bytes, Tag = 16 bytes (AES-256-GCM)
-    const fakeIv = Buffer.alloc(16, 0).toString('base64');   // 16 bytes → valid IV
-    const fakeTag = Buffer.alloc(16, 0).toString('base64');  // 16 bytes → valid tag
+    // `stripe_configurations` has a unique (mode, is_active) partial index — only one
+    // active row per mode can exist. Snapshot + deactivate any pre-existing active
+    // 'test' config so the fixture insert below can't collide with it, and restore it
+    // in afterAll (mirrors ProductStateGuard's save/restore pattern for products).
+    const { data: activeConfigs, error: activeError } = await supabaseAdmin
+      .from('stripe_configurations')
+      .select('id')
+      .eq('mode', 'test')
+      .eq('is_active', true);
+    if (activeError) throw activeError;
+    deactivatedConfigIds = (activeConfigs ?? []).map((c) => c.id as string);
+    if (deactivatedConfigIds.length > 0) {
+      await deleteChecked(
+        'deactivate pre-existing active test config',
+        supabaseAdmin.from('stripe_configurations').update({ is_active: false }).in('id', deactivatedConfigIds),
+      );
+    }
+
+    // Insert a fixture stripe_configurations row with a REAL ciphertext (encrypted with
+    // the same AES-256-GCM helper the app uses) so pages loaded while this spec runs can
+    // decrypt it instead of failing auth-tag verification and falling back to env config.
+    const encrypted = await encryptSecret(FAKE_STRIPE_TEST_KEY);
     const { data: config, error: configError } = await supabaseAdmin
       .from('stripe_configurations')
       .insert({
         mode: 'test',
-        encrypted_key: 'ui_test_fake_encrypted_key_placeholder',
-        encryption_iv: fakeIv,
-        encryption_tag: fakeTag,
+        encrypted_key: encrypted.encryptedKey,
+        encryption_iv: encrypted.iv,
+        encryption_tag: encrypted.tag,
         key_last_4: 'xxxx',
         key_prefix: 'sk_test_',
         is_active: true,
@@ -108,9 +131,20 @@ test.describe('Stripe Webhook Section UI', () => {
   });
 
   test.afterAll(async () => {
-    // Delete the fake config row (also resets webhook state)
+    // Delete the fixture config row (also resets webhook state)
     if (fakeConfigId) {
-      await supabaseAdmin.from('stripe_configurations').delete().eq('id', fakeConfigId);
+      await deleteChecked(
+        'fixture stripe_configurations cleanup',
+        supabaseAdmin.from('stripe_configurations').delete().eq('id', fakeConfigId),
+      );
+    }
+
+    // Restore whatever active 'test' config existed before this spec ran
+    if (deactivatedConfigIds.length > 0) {
+      await deleteChecked(
+        'restore pre-existing active test config',
+        supabaseAdmin.from('stripe_configurations').update({ is_active: true }).in('id', deactivatedConfigIds),
+      );
     }
 
     const { data: users } = await supabaseAdmin.auth.admin.listUsers();
