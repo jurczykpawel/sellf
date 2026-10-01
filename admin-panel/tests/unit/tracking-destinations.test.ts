@@ -7,6 +7,24 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// postJson now routes through undici's fetch + getSsrfSafeAgent (same
+// transport as the webhook dispatcher) instead of global fetch, so it can
+// be re-checked at connect time — mock at the module level like the
+// dispatcher's own tests do.
+vi.mock('undici', () => ({
+  fetch: vi.fn(),
+}));
+vi.mock('@/lib/security/safe-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/security/safe-fetch')>()),
+  getSsrfSafeAgent: vi.fn(() => undefined),
+}));
+vi.mock('@/lib/security/outbound-url', () => ({
+  assertSafeOutboundUrl: vi.fn().mockResolvedValue(undefined),
+  UnsafeOutboundUrlError: class extends Error {},
+}));
+
+import { fetch as undiciFetch } from 'undici';
 import {
   fbCapiDestination,
   gtmSsDestination,
@@ -15,11 +33,6 @@ import {
 } from '@/lib/tracking/destinations';
 import type { TrackingDecision } from '@/lib/tracking/consent-mode';
 import { FB_GRAPH_API_VERSION } from '@/lib/tracking/types';
-
-vi.mock('@/lib/security/outbound-url', () => ({
-  assertSafeOutboundUrl: vi.fn().mockResolvedValue(undefined),
-  UnsafeOutboundUrlError: class extends Error {},
-}));
 
 function createEvent(overrides: Partial<TrackingEvent> = {}): TrackingEvent {
   return {
@@ -56,26 +69,26 @@ function createConfig(overrides: Partial<DestinationConfig> = {}): DestinationCo
 }
 
 function mockFetchOk(body: Record<string, unknown> = { events_received: 1 }) {
-  vi.spyOn(global, 'fetch').mockResolvedValue({
+  vi.mocked(undiciFetch).mockResolvedValue({
     ok: true,
     status: 200,
     json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
-  } as Response);
+    body: new Response(JSON.stringify(body)).body,
+  } as unknown as Awaited<ReturnType<typeof undiciFetch>>);
 }
 
 function mockFetchError(status: number, body: Record<string, unknown>) {
-  vi.spyOn(global, 'fetch').mockResolvedValue({
+  vi.mocked(undiciFetch).mockResolvedValue({
     ok: false,
     status,
     json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
-  } as Response);
+    body: new Response(JSON.stringify(body)).body,
+  } as unknown as Awaited<ReturnType<typeof undiciFetch>>);
 }
 
 function lastFetchBody(): Record<string, unknown> {
-  const call = vi.mocked(global.fetch).mock.calls[0];
-  return JSON.parse(call[1]?.body as string);
+  const call = vi.mocked(undiciFetch).mock.calls[0];
+  return JSON.parse((call[1] as { body?: string })?.body as string);
 }
 
 const FULL: TrackingDecision = { action: 'send_full' };
@@ -108,7 +121,7 @@ describe('fbCapiDestination', () => {
       mockFetchOk();
       await fbCapiDestination.send(createEvent(), FULL, createConfig());
 
-      const [url, options] = vi.mocked(global.fetch).mock.calls[0];
+      const [url, options] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toBe(
         `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/123456789/events`
       );
@@ -185,7 +198,7 @@ describe('fbCapiDestination', () => {
     });
 
     it('returns failure on network error', async () => {
-      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network down'));
+      vi.mocked(undiciFetch).mockRejectedValue(new Error('Network down'));
       const result = await fbCapiDestination.send(createEvent(), FULL, createConfig());
 
       expect(result.destination).toBe('fb_capi');
@@ -220,7 +233,7 @@ describe('gtmSsDestination', () => {
       mockFetchOk({});
       await gtmSsDestination.send(createEvent(), FULL, createConfig());
 
-      const [url] = vi.mocked(global.fetch).mock.calls[0];
+      const [url] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toBe('https://gtm.example.com/mp/collect');
     });
 
@@ -232,7 +245,7 @@ describe('gtmSsDestination', () => {
         createConfig({ gtm_server_container_url: 'https://gtm.example.com/' })
       );
 
-      const [url] = vi.mocked(global.fetch).mock.calls[0];
+      const [url] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toBe('https://gtm.example.com/mp/collect');
     });
 

@@ -14,8 +14,11 @@
  * @see lib/tracking/consent-mode.ts — decision policy
  */
 
+import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { CAPI_TOKEN_SELECT, withResolvedCapiToken } from '@/lib/integrations/capi-token';
+import type { CapiTokenColumns } from '@/lib/integrations/capi-token';
 import type { FBEventName, EcommerceItem } from './types';
 import type { ConversionTrackingMode } from './consent-mode';
 import type { DestinationConfig, TrackingEvent } from './destinations';
@@ -151,7 +154,7 @@ function createServiceClient() {
 
 // ===== LEGACY FACADE =====
 
-interface IntegrationsConfigRow extends DestinationConfig {
+interface IntegrationsConfigRow extends DestinationConfig, CapiTokenColumns {
   conversion_tracking_mode?: string | null;
   facebook_test_event_code?: string | null;
 }
@@ -211,10 +214,10 @@ export async function trackServerSideConversion(
     return { success: false, error: 'Server configuration error' };
   }
 
-  const { data: config, error: configError } = await supabase
+  const { data: storedConfig, error: configError } = await supabase
     .from('integrations_config')
     .select(
-      'facebook_pixel_id, facebook_capi_token, facebook_test_event_code, fb_capi_enabled, conversion_tracking_mode, gtm_ss_enabled, gtm_server_container_url'
+      `facebook_pixel_id, ${CAPI_TOKEN_SELECT}, facebook_test_event_code, fb_capi_enabled, conversion_tracking_mode, gtm_ss_enabled, gtm_server_container_url`
     )
     .single<IntegrationsConfigRow>();
 
@@ -233,6 +236,9 @@ export async function trackServerSideConversion(
     });
     return { success: false, error: 'Failed to fetch configuration' };
   }
+
+  // Decrypts the CAPI token (and upgrades a legacy plaintext one in place).
+  const config = storedConfig ? await withResolvedCapiToken(storedConfig, supabase) : null;
 
   const mode = (config?.conversion_tracking_mode ?? 'strict') as ConversionTrackingMode;
   const event = toTrackingEvent(data, eventId);

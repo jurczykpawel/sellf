@@ -13,12 +13,16 @@
  * @see lib/tracking/dispatcher.ts — orchestration + audit
  */
 
+import 'server-only';
+import { fetch as undiciFetch } from 'undici';
 import { assertSafeOutboundUrl } from '@/lib/security/outbound-url';
+import { getSsrfSafeAgent, readBoundedText } from '@/lib/security/safe-fetch';
 import type { TrackingDecision } from './consent-mode';
 import type { FBEventName, EcommerceItem } from './types';
 import { FB_GRAPH_API_VERSION } from './types';
 
 const HTTP_TIMEOUT_MS = 5_000;
+const MAX_ERROR_BODY_CHARS = 2_000;
 
 /** Destination-agnostic event shape. Each adapter projects this into its own wire format. */
 export interface TrackingEvent {
@@ -93,13 +97,19 @@ function buildCapiUserData(event: TrackingEvent, allowCookies: boolean) {
 }
 
 async function postJson(url: string, body: unknown, headers: HeadersInit = {}) {
+  // assertSafeOutboundUrl resolves DNS once as a pre-flight check, but the
+  // actual connection below does its own, separate resolution, so the
+  // resolved address could differ between the two lookups. Route the
+  // request itself through getSsrfSafeAgent() (same one webhook dispatch
+  // uses) so the address is re-checked at connect time, not just up front.
   await assertSafeOutboundUrl(url);
-  return fetch(url, {
+  return undiciFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
     redirect: 'error',
     signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+    dispatcher: getSsrfSafeAgent(),
   });
 }
 
@@ -150,7 +160,7 @@ export const fbCapiDestination: TrackingDestination = {
 
       let body: Record<string, unknown>;
       try {
-        body = await response.json();
+        body = (await response.json()) as Record<string, unknown>;
       } catch {
         return {
           destination: 'fb_capi',
@@ -246,7 +256,7 @@ export const gtmSsDestination: TrackingDestination = {
       const response = await postJson(url, payload);
 
       if (!response.ok) {
-        const text = await response.text().catch(() => '');
+        const text = await readBoundedText(response, MAX_ERROR_BODY_CHARS).catch(() => '');
         return {
           destination: 'gtm_ss',
           success: false,

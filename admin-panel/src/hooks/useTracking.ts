@@ -1,12 +1,8 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import {
-  trackEvent,
-  type GA4EventName,
-  type TrackingEventData,
-  type TrackingConfigFromDB,
-} from '@/lib/tracking';
+import { trackEvent } from '@/lib/tracking/client';
+import type { GA4EventName, TrackingEventData, TrackingConfigFromDB } from '@/lib/tracking/types';
 import { useTrackingConfig } from '@/components/providers/tracking-config-provider';
 
 /**

@@ -20,6 +20,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FB_GRAPH_API_VERSION } from '@/lib/tracking/types';
 import type { ServerTrackingData } from '@/lib/tracking/server';
+import { fetch as undiciFetch } from 'undici';
 
 // ===== MOCKS =====
 
@@ -41,6 +42,16 @@ vi.mock('@supabase/supabase-js', () => ({
 vi.mock('@/lib/security/outbound-url', () => ({
   assertSafeOutboundUrl: vi.fn().mockResolvedValue(undefined),
   UnsafeOutboundUrlError: class extends Error {},
+}));
+
+// destinations.ts posts through undici's fetch + getSsrfSafeAgent (same
+// transport as the webhook dispatcher), not global fetch.
+vi.mock('undici', () => ({
+  fetch: vi.fn(),
+}));
+vi.mock('@/lib/security/safe-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/security/safe-fetch')>()),
+  getSsrfSafeAgent: vi.fn(() => undefined),
 }));
 
 // ===== HELPERS =====
@@ -100,17 +111,18 @@ function setupSupabaseMock(
   mockSingle.mockResolvedValue({ data: config, error });
 }
 
-/** Configure global.fetch to return a given JSON response */
+/** Configure undici's fetch (destinations.ts's transport) to return a given JSON response */
 function setupFetchMock(
   body: Record<string, unknown>,
   ok = true,
   status = 200
 ) {
-  vi.spyOn(global, 'fetch').mockResolvedValue({
+  vi.mocked(undiciFetch).mockResolvedValue({
     ok,
     status,
     json: () => Promise.resolve(body),
-  } as Response);
+    body: new Response(JSON.stringify(body)).body,
+  } as unknown as Awaited<ReturnType<typeof undiciFetch>>);
 }
 
 /** Setup fetch to return different responses per URL pattern */
@@ -120,7 +132,7 @@ function setupMultiFetchMock(handlers: Array<{
   ok?: boolean;
   status?: number;
 }>) {
-  vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+  vi.mocked(undiciFetch).mockImplementation(async (input) => {
     const url = typeof input === 'string' ? input : input.toString();
     const handler = handlers.find((h) => url.includes(h.pattern));
     if (!handler) throw new Error(`No mock for ${url}`);
@@ -128,8 +140,8 @@ function setupMultiFetchMock(handlers: Array<{
       ok: handler.ok ?? true,
       status: handler.status ?? 200,
       json: () => Promise.resolve(handler.body),
-      text: () => Promise.resolve(JSON.stringify(handler.body)),
-    } as Response;
+      body: new Response(JSON.stringify(handler.body)).body,
+    } as unknown as Awaited<ReturnType<typeof undiciFetch>>;
   });
 }
 
@@ -354,8 +366,8 @@ describe('trackServerSideConversion', () => {
 
       expect(result.success).toBe(true);
       // Should only call GTM SS, not FB CAPI
-      expect(global.fetch).toHaveBeenCalledOnce();
-      const [url] = vi.mocked(global.fetch).mock.calls[0];
+      expect(undiciFetch).toHaveBeenCalledOnce();
+      const [url] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toContain('gtm.example.com');
     });
 
@@ -396,7 +408,7 @@ describe('trackServerSideConversion', () => {
       const result = await trackServerSideConversion(createDefaultTrackingData());
 
       expect(result.success).toBe(true);
-      const body = JSON.parse(vi.mocked(global.fetch).mock.calls[0][1]?.body as string);
+      const body = JSON.parse(vi.mocked(undiciFetch).mock.calls[0][1]?.body as string);
       expect(body.data[0].data_processing_options).toEqual(['LDU']);
     });
   });
@@ -413,9 +425,9 @@ describe('trackServerSideConversion', () => {
       const data = createDefaultTrackingData({ eventId: 'evt_fixed_123' });
       await trackServerSideConversion(data);
 
-      expect(global.fetch).toHaveBeenCalledOnce();
+      expect(undiciFetch).toHaveBeenCalledOnce();
 
-      const [url, options] = vi.mocked(global.fetch).mock.calls[0];
+      const [url, options] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toBe(
         `https://graph.facebook.com/${FB_GRAPH_API_VERSION}/${config.facebook_pixel_id}/events`
       );
@@ -461,7 +473,7 @@ describe('trackServerSideConversion', () => {
       await trackServerSideConversion(data);
 
       const body = JSON.parse(
-        vi.mocked(global.fetch).mock.calls[0][1]?.body as string
+        vi.mocked(undiciFetch).mock.calls[0][1]?.body as string
       );
       const hashedEmail = body.data[0].user_data.em[0];
 
@@ -481,7 +493,7 @@ describe('trackServerSideConversion', () => {
       );
 
       const body = JSON.parse(
-        vi.mocked(global.fetch).mock.calls[0][1]?.body as string
+        vi.mocked(undiciFetch).mock.calls[0][1]?.body as string
       );
       expect(body.test_event_code).toBe('TEST12345');
     });
@@ -498,7 +510,7 @@ describe('trackServerSideConversion', () => {
       );
 
       const body = JSON.parse(
-        vi.mocked(global.fetch).mock.calls[0][1]?.body as string
+        vi.mocked(undiciFetch).mock.calls[0][1]?.body as string
       );
       expect(body.test_event_code).toBeUndefined();
     });
@@ -513,7 +525,7 @@ describe('trackServerSideConversion', () => {
       );
 
       const body = JSON.parse(
-        vi.mocked(global.fetch).mock.calls[0][1]?.body as string
+        vi.mocked(undiciFetch).mock.calls[0][1]?.body as string
       );
       expect(body.data[0].event_id).toBe('custom_event_id_xyz');
     });
@@ -530,7 +542,7 @@ describe('trackServerSideConversion', () => {
       );
 
       const body = JSON.parse(
-        vi.mocked(global.fetch).mock.calls[0][1]?.body as string
+        vi.mocked(undiciFetch).mock.calls[0][1]?.body as string
       );
       expect(body.data[0].event_id).toBe('purchase_cs_test_session_123');
     });
@@ -545,7 +557,7 @@ describe('trackServerSideConversion', () => {
       );
 
       const body = JSON.parse(
-        vi.mocked(global.fetch).mock.calls[0][1]?.body as string
+        vi.mocked(undiciFetch).mock.calls[0][1]?.body as string
       );
       expect(body.data[0].event_id).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -612,7 +624,7 @@ describe('trackServerSideConversion', () => {
     it('should handle fetch network error', async () => {
       const trackServerSideConversion = await getTrackFn();
       setupSupabaseMock(createDefaultConfig());
-      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+      vi.mocked(undiciFetch).mockRejectedValue(new Error('Network error'));
 
       const result = await trackServerSideConversion(createDefaultTrackingData());
 
@@ -634,9 +646,9 @@ describe('trackServerSideConversion', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(global.fetch).toHaveBeenCalledOnce();
+      expect(undiciFetch).toHaveBeenCalledOnce();
 
-      const [url, options] = vi.mocked(global.fetch).mock.calls[0];
+      const [url, options] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toBe('https://gtm.example.com/mp/collect');
       expect(options?.method).toBe('POST');
 
@@ -656,7 +668,7 @@ describe('trackServerSideConversion', () => {
 
       await trackServerSideConversion(createDefaultTrackingData());
 
-      const [url] = vi.mocked(global.fetch).mock.calls[0];
+      const [url] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toBe('https://gtm.example.com/mp/collect');
     });
 
@@ -672,7 +684,7 @@ describe('trackServerSideConversion', () => {
 
       expect(result.success).toBe(true);
       expect(result.eventsReceived).toBe(1);
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(undiciFetch).toHaveBeenCalledTimes(2);
     });
 
     it('should succeed if GTM SS fails but FB CAPI succeeds', async () => {
@@ -724,8 +736,8 @@ describe('trackServerSideConversion', () => {
 
       await trackServerSideConversion(createDefaultTrackingData());
 
-      expect(global.fetch).toHaveBeenCalledOnce();
-      const [url] = vi.mocked(global.fetch).mock.calls[0];
+      expect(undiciFetch).toHaveBeenCalledOnce();
+      const [url] = vi.mocked(undiciFetch).mock.calls[0];
       expect(url).toContain('graph.facebook.com');
     });
   });
@@ -956,7 +968,7 @@ describe('trackServerSideConversion logging integration', () => {
   it('should log failed event on network exception', async () => {
     const trackServerSideConversion = await getTrackFn();
     setupSupabaseMock(createDefaultConfig());
-    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+    vi.mocked(undiciFetch).mockRejectedValue(new Error('Network error'));
 
     await trackServerSideConversion(createDefaultTrackingData());
 
@@ -1004,5 +1016,70 @@ describe('generatePurchaseEventId', () => {
     const id1 = generatePurchaseEventId('cs_test_same');
     const id2 = generatePurchaseEventId('cs_test_same');
     expect(id1).toBe(id2);
+  });
+});
+
+// ===== CAPI token at rest =====
+
+describe('trackServerSideConversion — CAPI token storage', () => {
+  const originalEnv = { ...process.env };
+  const TOKEN = 'EAAstored_capi_token_0123456789';
+  const mockUpdate = vi.fn();
+
+  beforeEach(() => {
+    setupTestEnv();
+    const updateChain = {
+      eq: vi.fn(() => updateChain),
+      is: vi.fn(() => updateChain),
+      select: vi.fn(() => updateChain),
+      then: (resolve: (value: unknown) => unknown) => resolve({ data: [{ id: 1 }], error: null }),
+    };
+    mockUpdate.mockReset();
+    mockUpdate.mockReturnValue(updateChain);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'tracking_logs') return { insert: mockInsert };
+      return { select: mockSelect, update: mockUpdate };
+    });
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    vi.restoreAllMocks();
+  });
+
+  it('sends the decrypted token for an encrypted row', async () => {
+    const { encryptSecret } = await import('@/lib/services/secret-encryption');
+    const { trackServerSideConversion } = await import('@/lib/tracking/server');
+    const enc = await encryptSecret(TOKEN);
+    setupSupabaseMock(createDefaultConfig({
+      facebook_capi_token: null,
+      facebook_capi_token_encrypted: enc.encryptedKey,
+      facebook_capi_token_iv: enc.iv,
+      facebook_capi_token_tag: enc.tag,
+    }));
+    setupFetchMock({ events_received: 1 });
+
+    const result = await trackServerSideConversion(createDefaultTrackingData());
+
+    expect(result.success).toBe(true);
+    const [, options] = vi.mocked(undiciFetch).mock.calls[0];
+    expect((options?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('still sends events for a legacy plaintext row and upgrades it to ciphertext', async () => {
+    const { trackServerSideConversion } = await import('@/lib/tracking/server');
+    setupSupabaseMock(createDefaultConfig({ facebook_capi_token: TOKEN }));
+    setupFetchMock({ events_received: 1 });
+
+    const result = await trackServerSideConversion(createDefaultTrackingData());
+
+    expect(result.success).toBe(true);
+    const [, options] = vi.mocked(undiciFetch).mock.calls[0];
+    expect((options?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    const payload = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.facebook_capi_token).toBeNull();
+    expect(JSON.stringify(payload)).not.toContain(TOKEN);
   });
 });

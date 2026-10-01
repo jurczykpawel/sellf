@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext } from 'react'
-import type { TrackingConfigFromDB } from '@/lib/tracking'
+import type { TrackingConfigFromDB } from '@/lib/tracking/types'
 
 const TrackingConfigContext = createContext<TrackingConfigFromDB | null>(null)
 

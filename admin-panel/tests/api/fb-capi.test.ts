@@ -28,9 +28,12 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** POST to /api/tracking/fb-capi with JSON body */
+/** POST to /api/tracking/fb-capi with JSON body. Endpoint requires Origin matching SITE_URL. */
 async function postCapi(body: Record<string, unknown>, cookies?: Record<string, string>) {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Origin: process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || API_URL,
+  };
   if (cookies && Object.keys(cookies).length > 0) {
     headers.Cookie = Object.entries(cookies)
       .map(([k, v]) => `${k}=${v}`)
@@ -67,6 +70,47 @@ function validBody(overrides: Record<string, unknown> = {}) {
     value: 99.0,
     content_name: 'Test Product',
     ...overrides,
+  };
+}
+
+/**
+ * A Purchase event only reaches a tracking destination when its order id
+ * matches a completed transaction. Creates a throwaway product + completed
+ * transaction and returns the order id to send, plus a cleanup to run after
+ * the test.
+ */
+async function createCompletedOrder(): Promise<{ orderId: string; cleanup: () => Promise<void> }> {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const { data: product, error: productError } = await supabase
+    .from('products')
+    .insert({
+      name: `FB CAPI Test ${suffix}`,
+      slug: `fb-capi-test-${suffix}`,
+      price: 49.99,
+      currency: 'PLN',
+      is_active: true,
+    })
+    .select('id')
+    .single();
+  if (productError || !product) throw new Error(`Failed to create test product: ${productError?.message}`);
+
+  const orderId = `cs_test_fbcapi_${suffix.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const { error: txError } = await supabase.from('payment_transactions').insert({
+    session_id: orderId,
+    product_id: (product as { id: string }).id,
+    customer_email: `fb-capi-test-${suffix}@example.com`,
+    amount: 49.99,
+    currency: 'PLN',
+    status: 'completed',
+  });
+  if (txError) throw new Error(`Failed to create test transaction: ${txError.message}`);
+
+  return {
+    orderId,
+    cleanup: async () => {
+      await supabase.from('payment_transactions').delete().eq('session_id', orderId);
+      await supabase.from('products').delete().eq('id', (product as { id: string }).id);
+    },
   };
 }
 
@@ -149,6 +193,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: false,
         facebook_pixel_id: 'fake-pixel-123',
         facebook_capi_token: 'fake-token-abc',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
       });
 
       const res = await postCapi(validBody());
@@ -164,6 +211,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: null,
         facebook_capi_token: 'fake-token-abc',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
       });
 
       const res = await postCapi(validBody());
@@ -184,6 +234,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'strict',
       });
     });
@@ -209,6 +262,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'permissive',
       });
 
@@ -232,22 +288,31 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'permissive',
       });
 
-      const res = await postCapi(
-        validBody({
-          event_name: 'Purchase',
-          has_consent: false,
-          value: 49.99,
-          currency: 'PLN',
-        })
-      );
-      const body = await res.json();
+      const { orderId, cleanup } = await createCompletedOrder();
+      try {
+        const res = await postCapi(
+          validBody({
+            event_name: 'Purchase',
+            has_consent: false,
+            value: 49.99,
+            currency: 'PLN',
+            order_id: orderId,
+          })
+        );
+        const body = await res.json();
 
-      // Passed consent check → reached Facebook API → fails with invalid token
-      expect(res.status).toBe(500);
-      expect(body.error).toMatch(/(failed|destination)/i);
+        // Passed consent check → reached Facebook API → fails with invalid token
+        expect(res.status).toBe(500);
+        expect(body.error).toMatch(/(failed|destination)/i);
+      } finally {
+        await cleanup();
+      }
     });
 
     it('should forward any event to Facebook when has_consent=true', async () => {
@@ -256,6 +321,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'strict',
       });
 
@@ -272,16 +340,19 @@ describe('POST /api/tracking/fb-capi', () => {
       expect(body.error).toMatch(/(failed|destination)/i);
     });
 
-    it('should default has_consent to true when not provided (backwards compat)', async () => {
+    it('treats a missing has_consent flag as not consented (strict mode skips)', async () => {
       await supabase.schema('public' as never).from('integrations_config').upsert({
         id: 1,
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'strict',
       });
 
-      // No has_consent field → defaults to true → forwards to Facebook
+      // No has_consent field and no consent cookie → not consented → strict mode skips
       const res = await postCapi(
         validBody({
           event_name: 'ViewContent',
@@ -289,11 +360,8 @@ describe('POST /api/tracking/fb-capi', () => {
       );
       const body = await res.json();
 
-      // Should NOT be skipped — default consent is true
-      expect(body.skipped).toBeUndefined();
-      // Reached Facebook API → fails with invalid token
-      expect(res.status).toBe(500);
-      expect(body.error).toMatch(/(failed|destination)/i);
+      expect(res.status).toBe(200);
+      expect(body.skipped).toBe(true);
     });
   });
 
@@ -306,6 +374,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'permissive',
       });
     });
@@ -337,6 +408,9 @@ describe('POST /api/tracking/fb-capi', () => {
         fb_capi_enabled: true,
         facebook_pixel_id: 'fake-pixel-id-000',
         facebook_capi_token: 'fake-capi-token-000',
+        facebook_capi_token_encrypted: null,
+        facebook_capi_token_iv: null,
+        facebook_capi_token_tag: null,
         conversion_tracking_mode: 'strict',
       });
     });

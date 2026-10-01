@@ -1,7 +1,7 @@
 import { getIntegrationsConfig } from '@/lib/actions/integrations'
 import IntegrationsForm from '@/components/IntegrationsForm'
+import type { IntegrationsFormInitialData } from '@/components/IntegrationsForm'
 import { verifyAdminAccess } from '@/lib/auth-server'
-import type { IntegrationsInput } from '@/lib/validations/integrations'
 
 export default async function IntegrationsPage() {
   await verifyAdminAccess()
@@ -13,7 +13,7 @@ export default async function IntegrationsPage() {
         sellf_license_env_configured: _envLicenseConfigured,
         sellf_license_env_status: _envLicenseStatus,
         ...editableConfig
-      }) => editableConfig)(config as Record<string, unknown>) as IntegrationsInput
+      }) => editableConfig)(config as Record<string, unknown>) as IntegrationsFormInitialData
     : null
 
   return (

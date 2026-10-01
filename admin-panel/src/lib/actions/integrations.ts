@@ -8,6 +8,8 @@ import { getEnvLicenseStatus } from '@/lib/license/env-status'
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { createPublicClient } from '@/lib/supabase/server'
+import { capiTokenUpdateColumns, redactCapiToken } from '@/lib/integrations/capi-token'
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url'
 
 // --- GLOBAL CONFIG ---
 
@@ -43,7 +45,7 @@ export async function getIntegrationsConfig() {
   return withAdminClient(async ({ dataClient }) => {
     const { data, error } = await dataClient.from('integrations_config').select('*').single()
     const envLicenseConfigured = Boolean(process.env.SELLF_LICENSE_KEY)
-    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN
+    const siteUrl = getCanonicalOriginOrNull()
     const platformDomain = normalizeLicenseDomain(siteUrl) ?? null
     const envLicenseStatus = await getEnvLicenseStatus(process.env.SELLF_LICENSE_KEY, platformDomain)
 
@@ -53,6 +55,7 @@ export async function getIntegrationsConfig() {
         data: {
           cookie_consent_enabled: true,
           consent_logging_enabled: false,
+          facebook_capi_token_set: false,
           sellf_license_env_configured: envLicenseConfigured,
           sellf_license_env_status: envLicenseStatus,
           sellf_license_status: null,
@@ -67,7 +70,8 @@ export async function getIntegrationsConfig() {
     return {
       success: true as const,
       data: {
-        ...(data as Record<string, unknown>),
+        // The CAPI token never reaches the browser — only whether one is set.
+        ...redactCapiToken(data as Record<string, unknown>),
         sellf_license_env_configured: envLicenseConfigured,
         sellf_license_env_status: envLicenseStatus,
         sellf_license_status: dbLicenseStatus,
@@ -85,7 +89,7 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
 
     // Validate Sellf license if provided
     if (sanitizedValues.sellf_license) {
-      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+      const siteUrl = getCanonicalOriginOrNull();
       const currentDomain = normalizeLicenseDomain(siteUrl);
       const licenseValidation = currentDomain
         ? await verifyPlatformLicenseToken(sanitizedValues.sellf_license, currentDomain)
@@ -102,12 +106,22 @@ export async function updateIntegrationsConfig(values: IntegrationsInput) {
       }
     }
 
+    // The CAPI token is stored encrypted; a blank value keeps the stored token.
+    const { facebook_capi_token: capiToken, ...otherValues } = sanitizedValues
+    let capiTokenColumns: Awaited<ReturnType<typeof capiTokenUpdateColumns>>
+    try {
+      capiTokenColumns = await capiTokenUpdateColumns(capiToken)
+    } catch (error) {
+      console.error('[updateIntegrationsConfig] CAPI token encryption failed:', error instanceof Error ? error.message : 'Unknown error')
+      return { success: false, error: 'Could not encrypt the CAPI token. Check that APP_ENCRYPTION_KEY is configured.' }
+    }
+
     // `.select()` forces PostgREST `Prefer: return=representation` which
     // makes the update synchronous w.r.t. follow-up reads from a different
     // pool connection (without it, a service-role poll right after success
     // could occasionally observe the pre-update value).
     const { error } = await dataClient.from('integrations_config')
-      .update({ ...sanitizedValues, updated_at: new Date().toISOString() })
+      .update({ ...otherValues, ...capiTokenColumns, updated_at: new Date().toISOString() })
       .eq('id', 1)
       .select('id')
 

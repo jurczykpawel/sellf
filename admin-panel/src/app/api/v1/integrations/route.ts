@@ -16,6 +16,7 @@ import {
   successResponse,
 } from '@/lib/api';
 import { createPlatformClient } from '@/lib/supabase/admin';
+import { capiTokenUpdateColumns } from '@/lib/integrations/capi-token';
 import { validateIntegrations, type IntegrationsInput } from '@/lib/validations/integrations';
 
 const ALLOWED_FIELDS = [
@@ -104,9 +105,26 @@ export async function PATCH(request: NextRequest) {
     }
 
     const changedFields = Object.keys(updates).sort();
+
+    // The CAPI token is stored encrypted: null removes it, a value is encrypted.
+    const { facebook_capi_token: capiToken, ...otherUpdates } = updates;
+    let capiTokenColumns: Awaited<ReturnType<typeof capiTokenUpdateColumns>>;
+    try {
+      capiTokenColumns = await capiTokenUpdateColumns(capiToken as string | null | undefined);
+    } catch (encryptionError) {
+      console.error(
+        '[PATCH /api/v1/integrations] CAPI token encryption failed:',
+        encryptionError instanceof Error ? encryptionError.message : 'Unknown error'
+      );
+      return apiError(request, 'INTERNAL_ERROR', 'Failed to update integrations configuration');
+    }
+
     const { data, error } = await auth.supabase
       .from('integrations_config')
-      .upsert({ id: 1, ...updates, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+      .upsert(
+        { id: 1, ...otherUpdates, ...capiTokenColumns, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      )
       .select('id, updated_at')
       .single();
 

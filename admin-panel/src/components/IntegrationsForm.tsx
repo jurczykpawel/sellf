@@ -9,13 +9,25 @@ import CurrencySettings from '@/components/settings/CurrencySettings'
 import GUSSettings from '@/components/settings/GUSSettings'
 import { toast } from 'sonner'
 
+/**
+ * Loaded config. The CAPI token itself is never sent to the browser — only
+ * `facebook_capi_token_set`, whether one is stored.
+ */
+export type IntegrationsFormInitialData = IntegrationsInput & { facebook_capi_token_set?: boolean }
+
 interface IntegrationsFormProps {
-  initialData: IntegrationsInput | null | undefined
+  initialData: IntegrationsFormInitialData | null | undefined
 }
 
 export default function IntegrationsForm({ initialData }: IntegrationsFormProps) {
   const t = useTranslations('integrations')
-  const [formData, setFormData] = useState<IntegrationsInput>(initialData ?? {} as IntegrationsInput)
+  const [formData, setFormData] = useState<IntegrationsInput>(() => {
+    const editable: IntegrationsFormInitialData = { ...(initialData ?? {}) }
+    delete editable.facebook_capi_token_set
+    return editable
+  })
+  const [capiTokenSaved, setCapiTokenSaved] = useState<boolean>(initialData?.facebook_capi_token_set === true)
+  const hasCapiToken = capiTokenSaved || !!formData.facebook_capi_token
   const [dirtyFields, setDirtyFields] = useState<Set<keyof IntegrationsInput>>(new Set())
 
   const [loading, setLoading] = useState(false)
@@ -35,6 +47,13 @@ export default function IntegrationsForm({ initialData }: IntegrationsFormProps)
         toast.error(result.error)
       } else {
         toast.success(t('messages.saveSuccess'))
+        if (dirtyFields.has('facebook_capi_token')) {
+          // The saved token is not echoed back; keep only the "saved" state.
+          // A new value was stored, null removed it, a blank value kept the old one.
+          const savedToken = formData.facebook_capi_token
+          setCapiTokenSaved(savedToken ? true : savedToken === null ? false : capiTokenSaved)
+          setFormData(prev => ({ ...prev, facebook_capi_token: undefined }))
+        }
         setDirtyFields(new Set())
       }
     } catch {
@@ -437,8 +456,22 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-sf-body mb-1">{t('facebook.capiToken')}</label>
-                        <input type="password" autoComplete="off" value={formData.facebook_capi_token || ''} onChange={(e) => handleChange('facebook_capi_token', e.target.value)} className="w-full border-2 border-sf-border-medium px-3 py-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent outline-none" />
-                        <p className="mt-1 text-xs text-sf-muted">{t('facebook.capiTokenHelp')}</p>
+                        <div className="flex gap-2">
+                          <input type="password" autoComplete="off" value={formData.facebook_capi_token || ''} placeholder={capiTokenSaved ? '••••••••••••••••' : undefined} onChange={(e) => handleChange('facebook_capi_token', e.target.value || (capiTokenSaved ? '' : null))} className="w-full border-2 border-sf-border-medium px-3 py-2 bg-sf-input text-sf-heading focus:ring-2 focus:ring-sf-accent outline-none" />
+                          {capiTokenSaved && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCapiTokenSaved(false)
+                                handleChange('facebook_capi_token', null)
+                              }}
+                              className="px-3 py-2 text-sm border-2 border-sf-border-medium text-sf-body hover:text-sf-heading whitespace-nowrap"
+                            >
+                              {t('facebook.capiTokenRemove')}
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-sf-muted">{capiTokenSaved ? t('facebook.capiTokenSaved') : t('facebook.capiTokenHelp')}</p>
                     </div>
                     <div className="md:col-span-2">
                       <div className="flex items-center gap-3">
@@ -447,14 +480,14 @@ Facebook: 1 konwersja (deduplikacja po event_id)`}
                           id="fb_capi_enabled"
                           checked={formData.fb_capi_enabled ?? false}
                           onChange={(e) => handleChange('fb_capi_enabled', e.target.checked)}
-                          disabled={!formData.facebook_capi_token}
+                          disabled={!hasCapiToken}
                           className="w-4 h-4 text-sf-accent rounded border-sf-border focus:ring-sf-accent disabled:opacity-50"
                         />
-                        <label htmlFor="fb_capi_enabled" className={`text-sm font-medium ${!formData.facebook_capi_token ? 'text-sf-muted' : 'text-sf-body'}`}>
+                        <label htmlFor="fb_capi_enabled" className={`text-sm font-medium ${!hasCapiToken ? 'text-sf-muted' : 'text-sf-body'}`}>
                           {t('facebook.enableCAPI')}
                         </label>
                       </div>
-                      {formData.fb_capi_enabled && !formData.facebook_capi_token && (
+                      {formData.fb_capi_enabled && !hasCapiToken && (
                         <p className="mt-1 text-xs text-amber-600">{t('facebook.capiTokenRequired')}</p>
                       )}
                     </div>

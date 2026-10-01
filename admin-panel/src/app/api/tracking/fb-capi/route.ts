@@ -13,6 +13,11 @@ import {
 import { readMarketingConsentFromCookieValue } from '@/lib/tracking/consent-mode';
 import { isValidFbEventName } from '@/lib/tracking/types';
 import { CONSENT_COOKIE_NAME } from '@/lib/constants';
+import { isAllowedOrigin } from '@/lib/security/origin-match';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { CAPI_TOKEN_SELECT, withResolvedCapiToken } from '@/lib/integrations/capi-token';
+import type { CapiTokenColumns } from '@/lib/integrations/capi-token';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 /** Max length for free-form string fields to prevent storage exhaustion */
 const MAX_STRING_LEN = 500;
@@ -38,9 +43,36 @@ function sanitizeValue(val: unknown): number | undefined {
   return val;
 }
 
-interface FbCapiConfigRow {
+/**
+ * A Purchase event only leaves the server when its order id matches a
+ * completed transaction we actually recorded. `order_id` in the request
+ * body is client-supplied (see sendToCAPI in lib/tracking/client.ts, which
+ * sends the Stripe checkout session id or payment intent id as-is), so it
+ * is checked against payment_transactions rather than trusted outright.
+ */
+async function hasCompletedTransactionForOrder(
+  supabase: ReturnType<typeof createAdminClient>,
+  orderId: string
+): Promise<boolean> {
+  const { data: bySession } = await supabase
+    .from('payment_transactions')
+    .select('id')
+    .eq('session_id', orderId)
+    .eq('status', 'completed')
+    .maybeSingle();
+  if (bySession) return true;
+
+  const { data: byIntent } = await supabase
+    .from('payment_transactions')
+    .select('id')
+    .eq('stripe_payment_intent_id', orderId)
+    .eq('status', 'completed')
+    .maybeSingle();
+  return !!byIntent;
+}
+
+interface FbCapiConfigRow extends CapiTokenColumns {
   facebook_pixel_id: string | null;
-  facebook_capi_token: string | null;
   facebook_test_event_code: string | null;
   fb_capi_enabled: boolean | null;
   conversion_tracking_mode: string | null;
@@ -78,7 +110,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    // Origin must match the configured site, same as /api/consent — this is
+    // a same-site browser proxy, not a public webhook receiver.
+    const origin = request.headers.get('origin');
+    const siteUrl = getCanonicalOriginOrNull();
+    if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await readJsonBody<Record<string, unknown>>(request);
 
     const eventName = sanitizeString(body.event_name, 100);
     const eventId = sanitizeString(body.event_id, 200);
@@ -120,10 +160,13 @@ export async function POST(request: NextRequest) {
     const value = sanitizeValue(body.value);
     const currency = sanitizeString(body.currency, 10);
     const orderId = sanitizeString(body.order_id, 200);
-    const bodyEmail = sanitizeString(body.user_email, 320);
     const contentName = sanitizeString(body.content_name, 200);
     const eventSourceUrl = sanitizeUrl(body.event_source_url);
-    const bodyConsent = typeof body.has_consent === 'boolean' ? body.has_consent : true;
+    // A caller that never sends the flag (or sends a non-boolean) is treated as
+    // not consented, same as an explicit `false`. The configured
+    // conversion_tracking_mode (strict/limited/permissive) — not this default —
+    // decides what happens next for events without consent.
+    const bodyConsent = body.has_consent === true;
     // Server-side override: when the visitor has a consent cookie, trust it
     // over whatever the body claims. Body is only the fallback for callers
     // that never had a cookie (legacy tests, SSR pages).
@@ -138,19 +181,46 @@ export async function POST(request: NextRequest) {
           .map((id: string) => id.slice(0, 200))
       : [];
 
-    // Trust the session email over body for authenticated callers.
+    // Identity comes only from the session — a caller can claim to be
+    // anyone in the request body, so it's never used to attribute an event.
     const userClient = await createClient();
     const {
       data: { user },
     } = await userClient.auth.getUser();
-    const userEmail = user?.email ?? bodyEmail;
+    const userEmail = user?.email;
 
     const supabase = createAdminClient();
 
-    const { data: config, error: configError } = await supabase
+    if (eventName === 'Purchase') {
+      const verified = orderId ? await hasCompletedTransactionForOrder(supabase, orderId) : false;
+      if (!verified) {
+        logTrackingEvent({
+          eventName,
+          eventId,
+          source: 'client_proxy',
+          status: 'skipped',
+          skipReason: 'unmatched_order',
+          orderId,
+          customerEmail: userEmail,
+          value,
+          currency,
+        }).catch((err) => {
+          console.warn('[fb-capi] Non-critical error:', err);
+        });
+
+        return NextResponse.json({
+          success: false,
+          skipped: true,
+          reason: 'unmatched_order',
+          message: 'Event skipped: unmatched_order',
+        });
+      }
+    }
+
+    const { data: storedConfig, error: configError } = await supabase
       .from('integrations_config')
       .select(
-        'facebook_pixel_id, facebook_capi_token, facebook_test_event_code, fb_capi_enabled, conversion_tracking_mode, gtm_ss_enabled, gtm_server_container_url'
+        `facebook_pixel_id, ${CAPI_TOKEN_SELECT}, facebook_test_event_code, fb_capi_enabled, conversion_tracking_mode, gtm_ss_enabled, gtm_server_container_url`
       )
       .maybeSingle<FbCapiConfigRow>();
 
@@ -173,7 +243,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch configuration' }, { status: 500 });
     }
 
-    if (!config) {
+    if (!storedConfig) {
       logTrackingEvent({
         eventName,
         eventId,
@@ -190,6 +260,9 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ error: 'No tracking destination configured' }, { status: 400 });
     }
+
+    // Decrypts the CAPI token (and upgrades a legacy plaintext one in place).
+    const config = await withResolvedCapiToken(storedConfig, supabase);
 
     const clientIp = getClientIp(request);
     const userAgent = request.headers.get('user-agent') || '';
@@ -256,6 +329,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('[Tracking Proxy] Unexpected error:', error);
     logTrackingEvent({
       eventName: 'unknown',
