@@ -7,10 +7,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const querySchema = z.object({
   seller: z.string().uuid(),
   // k-anonymity range query: the caller sends a hex PREFIX of SHA-256(order) and gets back
-  // only the revoked hashes in that bucket — never the whole list. 2–16 hex chars balances
-  // bucket size against how much of its hash the caller reveals. Required: there is no
-  // full-dump mode, so the revocation count can't be scraped in one request.
-  prefix: z.string().regex(/^[a-f0-9]{2,16}$/),
+  // only the revoked hashes in that bucket — never the whole list. Fixed at 4 hex chars
+  // (documented protocol, see AGENTS.md) to keep the bucket size consistent regardless of
+  // caller. Required: there is no full-dump mode, so the revocation count can't be scraped
+  // in one request.
+  prefix: z.string().regex(/^[a-f0-9]{4}$/),
 });
 
 interface RevokedRow {

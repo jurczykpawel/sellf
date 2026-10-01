@@ -64,10 +64,20 @@ describe('GET /api/licenses/revoked', () => {
     // wildcards / non-hex are rejected before reaching the RPC
     expect((await GET(req(`seller=${SELLER}&prefix=%25`))).status).toBe(400);
     expect((await GET(req(`seller=${SELLER}&prefix=ZZZZ`))).status).toBe(400);
-    // too short (< 2 hex)
+    // too short (< 4 hex)
     expect((await GET(req(`seller=${SELLER}&prefix=a`))).status).toBe(400);
 
     vi.mocked(checkRateLimit).mockResolvedValue(false);
     expect((await GET(req(`seller=${SELLER}&prefix=${PREFIX}`))).status).toBe(429);
+  });
+
+  it('accepts exactly a 4-char hex prefix and nothing shorter or longer', async () => {
+    // The k-anonymity bucket size is fixed at 4 hex chars (documented in AGENTS.md); a
+    // shorter prefix would widen the bucket, a longer one would narrow it too far.
+    expect((await GET(req(`seller=${SELLER}&prefix=aa`))).status).toBe(400);
+    expect((await GET(req(`seller=${SELLER}&prefix=aaa`))).status).toBe(400);
+    expect((await GET(req(`seller=${SELLER}&prefix=aaaaa`))).status).toBe(400);
+    expect((await GET(req(`seller=${SELLER}&prefix=${'a'.repeat(16)}`))).status).toBe(400);
+    expect((await GET(req(`seller=${SELLER}&prefix=${PREFIX}`))).status).toBe(200);
   });
 });

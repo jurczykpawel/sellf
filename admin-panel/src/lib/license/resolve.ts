@@ -2,6 +2,7 @@ import { domainMatches, normalizeLicenseDomain } from '@/lib/license-keys/domain
 import { parseLicenseClaims } from '@/lib/license-keys/format';
 import { verifySellfLicense, type SellfPublicKey } from '@/lib/license-keys/sdk';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 import { hasFeature, type Feature, type LicenseTier } from './features';
 
@@ -140,8 +141,7 @@ export async function verifyPlatformLicenseToken(
 }
 
 function getPlatformDomain(): string | null {
-  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.MAIN_DOMAIN;
-  return normalizeLicenseDomain(configured) ?? null;
+  return normalizeLicenseDomain(getCanonicalOriginOrNull()) ?? null;
 }
 
 async function tierForToken(

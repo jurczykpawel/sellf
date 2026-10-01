@@ -13,6 +13,7 @@ import {
   storeSellerKey,
   loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys'
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface ProductLicenseConfigInput {
@@ -156,7 +157,7 @@ export async function getSellerLicenseInfo(): Promise<ActionResponse<SellerLicen
     try {
       const active = await loadActivePublicKeyInfo(admin, user.id)
       if (!active) return { success: true, data: null }
-      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || ''
+      const siteUrl = getCanonicalOriginOrNull() ?? ''
       return {
         success: true,
         data: {

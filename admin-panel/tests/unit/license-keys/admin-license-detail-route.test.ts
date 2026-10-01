@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), rate: vi.fn(), admin: vi.fn(), platform: vi.fn(), checkFeature: vi.fn(), trigger: vi.fn() }));
@@ -12,7 +12,7 @@ import { DELETE, GET } from '@/app/api/admin/licenses/[id]/route';
 
 const ID = '22222222-2222-4222-8222-222222222222';
 const context = { params: Promise.resolve({ id: ID }) };
-const request = () => new NextRequest(`https://sellf.example/api/admin/licenses/${ID}`);
+const request = (origin = 'https://sellf.example') => new NextRequest(`${origin}/api/admin/licenses/${ID}`);
 
 function selectChain(data: unknown) {
   const chain = { eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data, error: null }) };
@@ -29,11 +29,18 @@ function updateChain(data: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.DEMO_MODE;
+  delete process.env.SITE_URL;
+  delete process.env.NEXT_PUBLIC_SITE_URL;
   mocks.auth.mockResolvedValue({ user: { id: 'admin-1' }, role: 'platform_admin' });
   mocks.rate.mockResolvedValue(true);
   mocks.platform.mockReturnValue({ from: () => ({ insert: vi.fn().mockResolvedValue({ error: null }) }) });
   mocks.checkFeature.mockResolvedValue(true);
   mocks.trigger.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  delete process.env.SITE_URL;
+  delete process.env.NEXT_PUBLIC_SITE_URL;
 });
 
 const revokedRow = {
@@ -95,6 +102,15 @@ describe('/api/admin/licenses/:id', () => {
     expect(payload.license.id).toBe(ID);
     expect(payload.crlUrl).toContain('/api/licenses/revoked?seller=seller-1');
     expect(JSON.stringify(payload)).not.toContain('payload.signature');
+  });
+
+  it('builds the crlUrl from the configured site URL, not the request Host header', async () => {
+    process.env.SITE_URL = 'https://sellf.example.com';
+    mocks.admin.mockReturnValue({ from: () => updateChain(revokedRow) });
+    const response = await DELETE(request('https://other-host.example'), context);
+    expect(response.status).toBe(200);
+    const [, payload] = mocks.trigger.mock.calls[0];
+    expect(payload.crlUrl).toBe('https://sellf.example.com/api/licenses/revoked?seller=seller-1');
   });
 
   it('does not fire the webhook when the Pro feature is inactive', async () => {

@@ -23,7 +23,8 @@ export interface RevokedLicenseRow {
   product_id: string;
   email: string | null;
   order_id: string;
-  seller_id: string;
+  /** Null once the issuing seller's own account has since been deleted (the license record is kept; the account reference is not). */
+  seller_id: string | null;
   license_domain: string | null;
   issuance_source: string;
   issued_at: string | null;
@@ -88,10 +89,15 @@ export async function emitLicenseRevokedWebhooks(
   origin: string,
 ): Promise<void> {
   try {
-    if (rows.length === 0) return;
+    // A row with no seller_id means the issuing seller's account has since
+    // been deleted: there is no seller-scoped CRL left to point the webhook
+    // at (its signing keys are gone with the account), so it is skipped
+    // rather than firing with a meaningless crlUrl.
+    const notifiable = rows.filter((row): row is RevokedLicenseRow & { seller_id: string } => row.seller_id !== null);
+    if (notifiable.length === 0) return;
     if (!(await checkFeature('license-revoked-webhook', { dataClient: admin }))) return;
     await Promise.all(
-      rows.map((row) =>
+      notifiable.map((row) =>
         WebhookService.trigger('license.revoked', buildLicenseRevokeWebhookData(row, origin), admin, row.product_id),
       ),
     );

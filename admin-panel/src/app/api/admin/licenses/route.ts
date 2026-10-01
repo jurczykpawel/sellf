@@ -8,6 +8,8 @@ import { parseLicenseClaims } from '@/lib/license-keys/format';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 
 const issueSchema = z.object({
   productId: z.string().uuid(),
@@ -55,7 +57,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Rate limited' }, { status: 429, headers: noStore });
   }
 
-  const parsed = issueSchema.safeParse(await request.json().catch(() => null));
+  let rawBody: unknown = null;
+  try {
+    rawBody = await readJsonBody(request);
+  } catch (err) {
+    if (err instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413, headers: noStore });
+    }
+  }
+  const parsed = issueSchema.safeParse(rawBody);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400, headers: noStore });
   }
@@ -95,7 +105,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const origin = request.nextUrl.origin;
+    const origin = getCanonicalOrigin(request);
     return NextResponse.json({
       license: {
         id: result.id,

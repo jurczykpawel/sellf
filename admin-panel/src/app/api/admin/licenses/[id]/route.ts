@@ -5,6 +5,7 @@ import { requireAdminApiWithRequest } from '@/lib/auth-server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { emitLicenseRevokedWebhooks, type RevokedLicenseRow } from '@/lib/services/license-revoke-webhook-payload';
+import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 
 const idSchema = z.string().uuid();
 const noStore = { 'Cache-Control': 'no-store' };
@@ -76,7 +77,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   });
 
   // Notify the seller's integrations (Pro, fire-and-forget — see helper).
-  await emitLicenseRevokedWebhooks(admin, [row], request.nextUrl.origin);
+  await emitLicenseRevokedWebhooks(admin, [row], getCanonicalOrigin(request));
 
   return NextResponse.json({ revoked: true }, { headers: noStore });
 }

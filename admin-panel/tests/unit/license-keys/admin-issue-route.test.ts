@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
@@ -23,8 +23,8 @@ const PRODUCT = '11111111-1111-4111-8111-111111111111';
 const LICENSE = '22222222-2222-4222-8222-222222222222';
 const SELLER = '33333333-3333-4333-8333-333333333333';
 
-function request(body: unknown) {
-  return new NextRequest('https://sellf.example/api/admin/licenses', {
+function request(body: unknown, origin = 'https://sellf.example') {
+  return new NextRequest(`${origin}/api/admin/licenses`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -34,11 +34,18 @@ function request(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.DEMO_MODE;
+  delete process.env.SITE_URL;
+  delete process.env.NEXT_PUBLIC_SITE_URL;
   mocks.auth.mockResolvedValue({ user: { id: 'admin-1' }, role: 'platform_admin' });
   mocks.rate.mockResolvedValue(true);
   mocks.admin.mockReturnValue({});
   mocks.platform.mockReturnValue({ from: () => ({ insert: vi.fn().mockResolvedValue({ error: null }) }) });
   mocks.issue.mockResolvedValue({ id: LICENSE, token: 'payload.signature', kid: 'kid-1', sellerId: SELLER });
+});
+
+afterEach(() => {
+  delete process.env.SITE_URL;
+  delete process.env.NEXT_PUBLIC_SITE_URL;
 });
 
 describe('POST /api/admin/licenses', () => {
@@ -95,6 +102,18 @@ describe('POST /api/admin/licenses', () => {
     const body = await response.json();
     expect(body.license).toMatchObject({ id: LICENSE, token: 'payload.signature', sellerId: SELLER });
     expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('builds the license URLs from the configured site URL, not the request Host header', async () => {
+    process.env.SITE_URL = 'https://sellf.example.com';
+    const response = await POST(request(
+      { productId: PRODUCT, email: 'buyer@example.com', domain: 'example.com' },
+      'https://other-host.example',
+    ));
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.license.jwksUrl).toBe(`https://sellf.example.com/api/licenses/jwks?seller=${SELLER}`);
+    expect(body.license.crlUrl).toBe(`https://sellf.example.com/api/licenses/revoked?seller=${SELLER}`);
   });
 
   it('does not return or log a token when issuance cannot proceed', async () => {

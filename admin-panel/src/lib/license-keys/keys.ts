@@ -41,6 +41,9 @@ export async function storeSellerKey(
   const { error } = await admin.from('seller_license_keys').upsert(
     {
       seller_id: input.sellerId,
+      // Frozen at write time: the buyer's verifier keeps using this id for the life of
+      // the license, even if the seller's account is later deleted (seller_id -> NULL).
+      original_seller_id: input.sellerId,
       kid,
       public_key: input.publicKeyPem,
       encrypted_key: enc.encryptedKey,

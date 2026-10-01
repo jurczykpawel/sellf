@@ -122,6 +122,9 @@ export async function issueLicense(
   const { error } = await admin.from('issued_licenses').insert({
     id: licenseId,
     seller_id: product.seller_id,
+    // Frozen at issuance: keeps the JWKS/CRL lookup working for this license even if
+    // the seller's account is later deleted (seller_id -> NULL).
+    original_seller_id: product.seller_id,
     product_id: input.productId,
     email: input.email,
     user_id: input.userId,
