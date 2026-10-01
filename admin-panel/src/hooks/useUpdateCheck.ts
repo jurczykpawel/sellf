@@ -133,6 +133,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
 
   const dismissUpdate = useCallback(() => {
     setShowModal(false);
+    setUpgradeProgress(null);
     if (updateInfo?.latest_version) {
       const dismissed: DismissedVersion = {
         version: updateInfo.latest_version,
@@ -315,7 +316,7 @@ export function useUpdateCheck(isAdmin: boolean): UseUpdateCheckResult {
   return {
     updateInfo,
     isChecking,
-    showModal,
+    showModal: showModal || upgradeProgress?.step === 'done' || upgradeProgress?.step === 'failed',
     upgradeInProgress,
     upgradeProgress,
     checkNow: checkForUpdate,

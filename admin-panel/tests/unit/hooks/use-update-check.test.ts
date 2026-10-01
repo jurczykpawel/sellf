@@ -6,10 +6,10 @@ import { Storage } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
 import SystemUpdateSettings from '@/components/settings/SystemUpdateSettings';
+import UpdateNotificationModal from '@/components/UpdateNotificationModal';
 import type { UpdateInfo } from '@/hooks/useUpdateCheck';
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
-vi.mock('@/components/UpdateNotificationModal', () => ({ default: () => null }));
 
 const fetchMock = vi.fn();
 const fresh: UpdateInfo = {
@@ -38,6 +38,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -135,5 +136,74 @@ describe('upgrade completion', () => {
     await act(async () => vi.advanceTimersByTimeAsync(3000));
     expect(fetchMock).toHaveBeenCalledWith('/api/health', expect.any(Object));
     expect(result.current.upgradeProgress?.step).toBe('done');
+  });
+});
+
+
+describe('upgrade result UI', () => {
+  it.each(['done', 'failed'])('renders %s in the modal after polling stops', (step) => {
+    const onDismiss = vi.fn();
+    render(createElement(UpdateNotificationModal, {
+      updateInfo: fresh,
+      upgradeInProgress: false,
+      upgradeProgress: { step, progress: step === 'done' ? 100 : -1, message: 'Terminal result' },
+      onUpgrade: vi.fn(),
+      onDismiss,
+    }));
+    expect(screen.getByRole('heading').textContent).toBe(`progress.${step}`);
+    expect(screen.getAllByText('Terminal result').length).toBeGreaterThan(0);
+    if (step === 'failed') {
+      screen.getByRole('button', { name: 'progress.close' }).click();
+      expect(onDismiss).toHaveBeenCalledOnce();
+    }
+  });
+
+  it.each(['done', 'pending'])('keeps settings completion visible until reload for %s status', async (step) => {
+    cache(fresh);
+    const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
+      if (url.startsWith('/api/v1/system/upgrade-status')) {
+        return reply({ step, progress: step === 'done' ? 100 : 0, message: 'Upgrade completed!' });
+      }
+      if (url === '/api/health') return { ok: true };
+      return reply(fresh);
+    });
+    render(createElement(SystemUpdateSettings));
+    await act(async () => screen.getByRole('button', { name: 'settings.reinstall' }).click());
+    await act(async () => vi.advanceTimersByTimeAsync(step === 'pending' ? 180000 : 3000));
+    expect(screen.getByRole('heading', { name: 'progress.done' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'progress.reload' })).toBeTruthy();
+    expect(reload).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(2999));
+    expect(screen.getByRole('heading', { name: 'progress.done' })).toBeTruthy();
+    expect(reload).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(reload).toHaveBeenCalledOnce();
+    reload.mockRestore();
+  });
+
+  it('keeps a failed settings result visible until dismissal and resets it before retry', async () => {
+    cache(fresh);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/system/upgrade') return reply({ token: 'token' });
+      if (url.startsWith('/api/v1/system/upgrade-status')) {
+        return reply({ step: 'failed', progress: -1, message: 'Upgrade failed', rollback: true });
+      }
+      return reply(fresh);
+    });
+    render(createElement(SystemUpdateSettings));
+    await act(async () => screen.getByRole('button', { name: 'settings.reinstall' }).click());
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(screen.getByRole('heading', { name: 'progress.failed' })).toBeTruthy();
+    expect(screen.getByText('Upgrade failed')).toBeTruthy();
+    expect(screen.getByText('progress.rolledBack')).toBeTruthy();
+    await act(async () => vi.advanceTimersByTimeAsync(10000));
+    expect(screen.getByText('Upgrade failed')).toBeTruthy();
+    await act(async () => screen.getByRole('button', { name: 'progress.close' }).click());
+    expect(screen.queryByText('Upgrade failed')).toBeNull();
+    await act(async () => screen.getByRole('button', { name: 'settings.reinstall' }).click());
+    expect(screen.getByText('Initiating upgrade...')).toBeTruthy();
+    expect(screen.queryByText('Upgrade failed')).toBeNull();
   });
 });
