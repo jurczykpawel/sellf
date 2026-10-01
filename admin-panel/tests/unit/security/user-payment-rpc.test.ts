@@ -846,13 +846,15 @@ describe('get_payment_statistics RPC', () => {
     // Create 4 guest purchases: 2 unclaimed, 2 claimed (known ratio)
     const claimUser1 = await createTestRegularUser('upr-claim1');
     const claimUser2 = await createTestRegularUser('upr-claim2');
-    await createTestGuestPurchase(testProduct.id, 'guest-unclaimed-1@example.com');
-    await createTestGuestPurchase(testProduct.id, 'guest-unclaimed-2@example.com');
+    await createTestGuestPurchase(testProduct.id, 'guest-unclaimed-1@example.com', { created_at: now.toISOString() });
+    await createTestGuestPurchase(testProduct.id, 'guest-unclaimed-2@example.com', { created_at: now.toISOString() });
     await createTestGuestPurchase(testProduct.id, claimUser1.email, {
+      created_at: now.toISOString(),
       claimed_by_user_id: claimUser1.userId,
       claimed_at: new Date().toISOString(),
     });
     await createTestGuestPurchase(testProduct.id, claimUser2.email, {
+      created_at: now.toISOString(),
       claimed_by_user_id: claimUser2.userId,
       claimed_at: new Date().toISOString(),
     });

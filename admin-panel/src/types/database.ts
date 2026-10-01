@@ -763,6 +763,9 @@ export type Database = {
           currency_api_key_tag: string | null
           currency_api_provider: string | null
           facebook_capi_token: string | null
+          facebook_capi_token_encrypted: string | null
+          facebook_capi_token_iv: string | null
+          facebook_capi_token_tag: string | null
           facebook_pixel_id: string | null
           facebook_test_event_code: string | null
           fb_capi_enabled: boolean | null
@@ -792,6 +795,9 @@ export type Database = {
           currency_api_key_tag?: string | null
           currency_api_provider?: string | null
           facebook_capi_token?: string | null
+          facebook_capi_token_encrypted?: string | null
+          facebook_capi_token_iv?: string | null
+          facebook_capi_token_tag?: string | null
           facebook_pixel_id?: string | null
           facebook_test_event_code?: string | null
           fb_capi_enabled?: boolean | null
@@ -821,6 +827,9 @@ export type Database = {
           currency_api_key_tag?: string | null
           currency_api_provider?: string | null
           facebook_capi_token?: string | null
+          facebook_capi_token_encrypted?: string | null
+          facebook_capi_token_iv?: string | null
+          facebook_capi_token_tag?: string | null
           facebook_pixel_id?: string | null
           facebook_test_event_code?: string | null
           fb_capi_enabled?: boolean | null
@@ -852,9 +861,10 @@ export type Database = {
           license_domain: string | null
           license_key: string
           order_id: string
+          original_seller_id: string
           product_id: string
           revoked_at: string | null
-          seller_id: string
+          seller_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -867,9 +877,10 @@ export type Database = {
           license_domain?: string | null
           license_key: string
           order_id: string
+          original_seller_id: string
           product_id: string
           revoked_at?: string | null
-          seller_id: string
+          seller_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -882,9 +893,10 @@ export type Database = {
           license_domain?: string | null
           license_key?: string
           order_id?: string
+          original_seller_id?: string
           product_id?: string
           revoked_at?: string | null
-          seller_id?: string
+          seller_id?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -918,58 +930,6 @@ export type Database = {
           },
           {
             foreignKeyName: "issued_licenses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_access_stats"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      loginwall_tokens: {
-        Row: {
-          created_at: string
-          expires_at: string
-          id: string
-          nonce_hash: string
-          product_id: string
-          used_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at: string
-          id?: string
-          nonce_hash: string
-          product_id: string
-          used_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          nonce_hash?: string
-          product_id?: string
-          used_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "loginwall_tokens_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "loginwall_tokens_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "seller_customer_stats"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "loginwall_tokens_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_access_stats"
@@ -2054,8 +2014,9 @@ export type Database = {
           id: string
           is_active: boolean
           kid: string
+          original_seller_id: string
           public_key: string
-          seller_id: string
+          seller_id: string | null
         }
         Insert: {
           alg?: string
@@ -2067,8 +2028,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           kid: string
+          original_seller_id: string
           public_key: string
-          seller_id: string
+          seller_id?: string | null
         }
         Update: {
           alg?: string
@@ -2080,8 +2042,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           kid?: string
+          original_seller_id?: string
           public_key?: string
-          seller_id?: string
+          seller_id?: string | null
         }
         Relationships: [
           {
@@ -2348,7 +2311,7 @@ export type Database = {
           stripe_subscription_id: string
           trial_end: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           cancel_at_period_end?: boolean
@@ -2366,7 +2329,7 @@ export type Database = {
           stripe_subscription_id: string
           trial_end?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           cancel_at_period_end?: boolean
@@ -2384,7 +2347,7 @@ export type Database = {
           stripe_subscription_id?: string
           trial_end?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -3073,7 +3036,6 @@ export type Database = {
       cleanup_audit_logs: { Args: { retention_days?: number }; Returns: number }
       cleanup_captcha_nonces: { Args: never; Returns: number }
       cleanup_expired_oto_coupons: { Args: never; Returns: number }
-      cleanup_loginwall_tokens: { Args: never; Returns: number }
       cleanup_old_admin_actions: {
         Args: { retention_days?: number }
         Returns: number
@@ -3358,6 +3320,14 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: boolean
       }
+      is_free_grantable_now: {
+        Args: {
+          p_available_from: string
+          p_available_until: string
+          p_product_type: string
+        }
+        Returns: boolean
+      }
       is_sale_price_active: {
         Args: {
           p_sale_price: number
@@ -3422,18 +3392,6 @@ export type Database = {
           action_param: string
           admin_response_param?: string
           request_id_param: string
-        }
-        Returns: Json
-      }
-      process_stripe_payment_completion: {
-        Args: {
-          amount_total: number
-          currency_param: string
-          customer_email_param: string
-          product_id_param: string
-          session_id_param: string
-          stripe_payment_intent_id?: string
-          user_id_param?: string
         }
         Returns: Json
       }

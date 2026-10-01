@@ -7,9 +7,10 @@
  * @see src/lib/services/pending-free-grants.ts
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { deleteChecked, deleteAuthUsers } from '../../helpers/db-cleanup';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -28,11 +29,13 @@ const FREE_SLUG = 'free-tutorial';
 
 let freeProductId: string;
 let paidProduct: { id: string; slug: string };
+const createdUserIds: string[] = [];
 
 async function createUser(): Promise<{ id: string; email: string }> {
   const email = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
   const { data, error } = await admin.auth.admin.createUser({ email, password: PASSWORD, email_confirm: true });
   if (error || !data.user) throw error ?? new Error('createUser failed');
+  createdUserIds.push(data.user.id);
   return { id: data.user.id, email };
 }
 
@@ -60,6 +63,14 @@ beforeAll(async () => {
     .limit(1)
     .single();
   paidProduct = paid!;
+});
+
+afterAll(async () => {
+  if (createdUserIds.length > 0) {
+    // free-tutorial is a seed product (never deleted) — only the access grant belongs to us.
+    await deleteChecked('user_product_access', admin.from('user_product_access').delete().in('user_id', createdUserIds));
+  }
+  await deleteAuthUsers(admin, createdUserIds);
 });
 
 describe('queue_pending_free_grant', () => {

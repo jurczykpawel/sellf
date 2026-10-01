@@ -1,10 +1,27 @@
 # Szablony Email Sellf
 
-Szablony emaili dla Supabase Auth używane przez Sellf.
+Szablony emaili dla Supabase Auth używane przez Sellf. Wszystkie linki
+logowania (magic link, invite) muszą nieść `{{ .TokenHash }}`, bo tego
+wymaga `/auth/callback` w admin-panelu — domyślne szablony GoTrue tego nie
+robią.
+
+**To jest źródło prawdy** — Supabase CLI (`supabase/config.toml`) czyta
+szablony właśnie stąd, a te same pliki trafiają do release'u i obrazu
+Dockera (`.github/workflows/build-release.yml`, `Dockerfile`), które
+odrzucają dowiązania symboliczne w archiwum/obrazie. `admin-panel/public/auth-email-templates/*.html`
+(Opcja 3 niżej) to zwykłe pliki będące **mirrorem** tej samej treści — nie
+dowiązaniem — bo Sellf musi je serwować jako statyczne zasoby HTTP z
+katalogu `public/`. Zgodność mirrora z oryginałem pilnuje test jednostkowy
+(`admin-panel/tests/unit/scripts/docker-compose-contract.test.ts`, ten sam
+wzorzec co dla `admin-panel/scripts/release-signing-key.pub.pem`). Aby
+zaktualizować szablon: edytuj plik tutaj, skopiuj go 1:1 do
+`admin-panel/public/auth-email-templates/`, potem uruchom
+`bunx vitest run tests/unit/scripts/docker-compose-contract.test.ts` żeby
+potwierdzić że oba pliki znów są bajt-w-bajt identyczne.
 
 ## Pliki
 
-| Plik | Przeznaczenie | Pole API |
+| Plik | Przeznaczenie | Pole API (Cloud) |
 |------|---------------|----------|
 | `magic-link.html` | Login przez email (magic link) | `mailer_templates_magic_link_content` |
 | `confirmation.html` | Potwierdzenie rejestracji | `mailer_templates_confirmation_content` |
@@ -14,25 +31,14 @@ Szablony emaili dla Supabase Auth używane przez Sellf.
 
 ## Konfiguracja
 
-### Opcja 1: Dashboard Supabase
+### Opcja 1: Dashboard Supabase (Cloud)
 
 1. Przejdź do **Authentication** → **Email Templates** w dashboardzie Supabase
 2. Skopiuj zawartość odpowiedniego pliku HTML
 3. Wklej do edytora szablonu
 4. Zapisz zmiany
 
-### Opcja 2: Użyj skryptu setup
-
-```bash
-cd supabase/templates
-./setup-templates.sh
-```
-
-Skrypt wymaga zmiennych środowiskowych:
-- `SUPABASE_PROJECT_REF` - ID projektu Supabase
-- `SUPABASE_ACCESS_TOKEN` - Token dostępu (Management API)
-
-### Opcja 3: API Management
+### Opcja 2: API Management (Cloud)
 
 ```bash
 # Przykład aktualizacji szablonu magic link
@@ -43,6 +49,26 @@ curl -X PATCH "https://api.supabase.com/v1/projects/{project_ref}/config/auth" \
     "mailer_templates_magic_link_content": "<zawartość HTML>"
   }'
 ```
+
+Wymaga `SUPABASE_ACCESS_TOKEN` (Management API) dla Twojego projektu.
+
+### Opcja 3: Self-hosted GoTrue (URL, bez kopiowania)
+
+GoTrue w self-hosted Supabase pobiera szablon spod **URL-a**. Sellf serwuje
+te same pliki jako statyczne zasoby pod `/auth-email-templates/*.html` — nie
+trzeba nic kopiować, wystarczy wskazać własną domenę Sellfa w `.env`
+Twojego stosu Supabase:
+
+```env
+GOTRUE_MAILER_TEMPLATES_MAGIC_LINK=https://twoja-domena-sellf/auth-email-templates/magic-link.html
+GOTRUE_MAILER_TEMPLATES_CONFIRMATION=https://twoja-domena-sellf/auth-email-templates/confirmation.html
+GOTRUE_MAILER_TEMPLATES_RECOVERY=https://twoja-domena-sellf/auth-email-templates/recovery.html
+GOTRUE_MAILER_TEMPLATES_INVITE=https://twoja-domena-sellf/auth-email-templates/invite.html
+GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE=https://twoja-domena-sellf/auth-email-templates/email-change.html
+GOTRUE_URI_ALLOW_LIST=https://twoja-domena-sellf/*
+```
+
+Pełny kontekst wdrożenia: [`full-stack.md`](https://docs.sellf.app/full-stack/#part-2--magic-link-email-templates).
 
 ## Dostępne zmienne
 

@@ -135,22 +135,53 @@ describe('find_auto_apply_coupon', () => {
     expect(data.discount_value).toBe(20);
   });
 
-  it('works with anon client (function is grantable to anon)', async () => {
+  it('is not callable by anonymous clients', async () => {
     const email = `auto-anon-${TS}@example.com`;
     const product = await createProduct();
-    const coupon = await createCoupon({
-      allowed_emails: [email],
-      allowed_product_ids: [product.id],
-    });
+    await createCoupon({ allowed_emails: [email], allowed_product_ids: [product.id] });
 
     const { data, error } = await supabaseAnon.rpc('find_auto_apply_coupon', {
       customer_email_param: email,
       product_id_param: product.id,
     });
 
-    expect(error).toBeNull();
-    expect(data.found).toBe(true);
-    expect(data.code).toBe(coupon.code);
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it('matches a signed-in user by their account e-mail only', async () => {
+    const ownEmail = `auto-own-${TS}@example.com`;
+    const otherEmail = `auto-other-${TS}@example.com`;
+    const product = await createProduct();
+    const ownCoupon = await createCoupon({ allowed_emails: [ownEmail], allowed_product_ids: [product.id] });
+    await createCoupon({ allowed_emails: [otherEmail], allowed_product_ids: [product.id] });
+
+    const password = 'auto-apply-Test-123!';
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: ownEmail, password, email_confirm: true,
+    });
+    if (createError || !created.user) throw createError;
+    try {
+      const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      await userClient.auth.signInWithPassword({ email: ownEmail, password });
+
+      const other = await userClient.rpc('find_auto_apply_coupon', {
+        customer_email_param: otherEmail,
+        product_id_param: product.id,
+      });
+      expect(other.error).toBeNull();
+      expect(other.data.code).toBe(ownCoupon.code);
+
+      const own = await userClient.rpc('find_auto_apply_coupon', {
+        customer_email_param: ownEmail,
+        product_id_param: product.id,
+      });
+      expect(own.data.code).toBe(ownCoupon.code);
+    } finally {
+      await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    }
   });
 
   it('finds coupon matching email with empty allowed_product_ids (any product)', async () => {
@@ -823,21 +854,10 @@ describe('verify_coupon', () => {
       allowed_product_ids: [],
     });
 
-    // Use the anon client to simulate the real threat model: anonymous brute-force.
-    // Rate limit key for anon users is derived from inet_client_addr() (TCP connection IP)
-    // with a fallback to pg_backend_pid() + time bucket. In local test environments,
-    // inet_client_addr() may return NULL (e.g. via Unix socket or connection pooling),
-    // so rate limiting falls back to the pg_backend_pid-based key. This key may differ
-    // across calls if connection pooling rotates backends. However, the global anonymous
-    // backup rate limit ('global_anon_verify_coupon') provides a second layer that
-    // catches this scenario since it uses a single deterministic key for ALL anonymous
-    // callers of the same function.
-    //
-    // We make enough calls (42) to exceed both the per-connection limit (20) AND the
-    // global anonymous backup limit (max(10, 20*2) = 40) to guarantee rate limiting
-    // triggers regardless of connection pooling behavior.
+    // Direct anonymous RPC calls without an e-mail share one bucket per code
+    // (5 per minute), so the sixth call is refused.
     const results = [];
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < 6; i++) {
       const { data } = await supabaseAnon.rpc('verify_coupon', {
         code_param: coupon.code,
         product_id_param: product.id,
@@ -845,25 +865,10 @@ describe('verify_coupon', () => {
       results.push(data);
     }
 
-    // At least the last call must be rate-limited. Depending on connection pooling,
-    // either the per-connection limit (20) or global anon limit (40) will trigger.
+    expect(results.slice(0, 5).every((r) => r?.valid === true)).toBe(true);
     const lastResult = results[results.length - 1];
     expect(lastResult?.valid).toBe(false);
     expect(lastResult?.error).toContain('Too many attempts');
-
-    // Verify that rate limiting kicked in at some point during the run
-    const rateLimitedCount = results.filter(
-      (r) => r?.valid === false && r?.error?.includes('Too many attempts')
-    ).length;
-    expect(rateLimitedCount).toBeGreaterThanOrEqual(1);
-
-    // FRAGILITY NOTE: The exact call at which rate limiting triggers depends on
-    // connection pooling behavior. inet_client_addr() may return NULL in local/test
-    // environments, causing fallback to pg_backend_pid-based keys. Connection pooling
-    // may rotate backends, distributing calls across different rate limit keys.
-    // The global anonymous backup limit (40 calls) provides a second layer.
-    // If this test becomes flaky, consider seeding rate_limit entries directly to
-    // guarantee the limit is hit deterministically.
 
     // Verify that rate_limits table has entries showing calls were tracked
     const { data: rateLimitEntries } = await supabaseAdmin

@@ -11,6 +11,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
+import { PRODUCT_PUBLIC_COLUMNS_CSV } from '@/lib/product-columns';
 import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -30,7 +31,6 @@ if (!isLocalSupabase) {
 // Tables that storefront pages MUST be able to read as anon. Add to this list
 // whenever a new storefront-facing table is introduced.
 const STOREFRONT_ANON_READ_TABLES = [
-  'products',
   'categories',
   'tags',
   'order_bumps',
@@ -39,8 +39,9 @@ const STOREFRONT_ANON_READ_TABLES = [
   'product_variant_groups',
   'product_categories',
   'product_tags',
-  // shop_config is NOT here: it uses column-level anon grants (PII is admin-only),
-  // so select=* is intentionally denied. It has dedicated tests below.
+  // products and shop_config are NOT here: they use column-level grants (content
+  // and PII are admin-only), so select=* is intentionally denied. They have
+  // dedicated tests below.
 ] as const;
 
 describe('Storefront anon read access', () => {
@@ -83,6 +84,29 @@ describe('Storefront anon read access', () => {
         `must stay in sync with SHOP_CONFIG_PUBLIC_COLUMNS in shop-config.ts.`,
     ).toBeLessThan(300);
   });
+
+  it('anon CAN read products public columns (no 42501)', async () => {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/products?select=${PRODUCT_PUBLIC_COLUMNS_CSV}&limit=1`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } },
+    );
+    const body = res.ok ? null : await res.text();
+    expect(
+      res.status,
+      `anon SELECT of public columns on products failed with HTTP ${res.status}. Body: ${body ?? '<ok>'}. ` +
+        `PRODUCT_PUBLIC_COLUMNS (src/lib/product-columns.ts) must match the column-level GRANT.`,
+    ).toBeLessThan(300);
+  });
+
+  it.each(['content_config', 'stripe_product_id'])(
+    'anon CANNOT read products.%s (column-level grant)',
+    async (column) => {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=${column}&limit=1`, {
+        headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+      });
+      expect(res.status).toBeGreaterThanOrEqual(400);
+    },
+  );
 
   it('anon CANNOT read shop_config seller PII columns (column-level grant)', async () => {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/shop_config?select=nip&limit=1`, {
@@ -144,6 +168,22 @@ describe('Storefront authenticated read access to shop_config', () => {
       res.status,
       `authenticated SELECT of public columns on shop_config failed with HTTP ${res.status}. Body: ${body ?? '<ok>'}`,
     ).toBeLessThan(300);
+  });
+
+  it('authenticated CAN read products public columns (no 42501)', async () => {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/products?select=${PRODUCT_PUBLIC_COLUMNS_CSV}&limit=1`,
+      { headers: authedHeaders() },
+    );
+    const body = res.ok ? null : await res.text();
+    expect(res.status, `Body: ${body ?? '<ok>'}`).toBeLessThan(300);
+  });
+
+  it('authenticated CANNOT read products.content_config (column-level grant)', async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=content_config&limit=1`, {
+      headers: authedHeaders(),
+    });
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 
   it('authenticated CANNOT read shop_config admin-only columns (column-level grant)', async () => {

@@ -22,6 +22,7 @@
  * ============================================================================
  */
 
+import { execSync } from 'child_process';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -1140,6 +1141,89 @@ describe('handle_new_user_registration', () => {
       .eq('user_id', userId)
       .maybeSingle();
     expect(adminRecord).toBeNull();
+  });
+
+  it('does not promote a new registrant to admin once the installation already has other users, even with admin_users emptied', () => {
+    // Regression: the trigger used to promote whoever registered next whenever
+    // admin_users was empty -- including right after the last admin was
+    // removed, even though the installation already had other registered
+    // users. Only the very first user of the whole installation should ever
+    // be auto-promoted.
+    //
+    // Runs entirely inside a transaction that is always rolled back, so
+    // emptying admin_users here never touches the shared local database.
+    const testUserId = 'eeeeeeee-1111-4000-a000-' + TEST_ID.toString().padStart(12, '0').slice(-12);
+    const email = `admin-regression-${TEST_ID}@example.com`;
+    const sql = `
+      BEGIN;
+      DELETE FROM public.admin_users;
+      INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, confirmation_token, recovery_token,
+        email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+        raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        '${testUserId}',
+        'authenticated',
+        'authenticated',
+        '${email}',
+        extensions.crypt('test-password-123', extensions.gen_salt('bf')),
+        NOW(), '', '', '', '', '', '',
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{}'::jsonb,
+        NOW(), NOW()
+      );
+      SELECT count(*) FROM public.admin_users WHERE user_id = '${testUserId}';
+      ROLLBACK;
+    `;
+    const out = execSync('docker exec -i supabase_db_sellf psql -U postgres -t -A -q', {
+      input: sql,
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    const rows = out.split('\n').map((l) => l.trim()).filter(Boolean);
+    expect(rows[rows.length - 1]).toBe('0');
+  });
+
+  it('promotes the first user of an empty installation to admin', () => {
+    // Rolled-back transaction: empties auth.users (constraint triggers off only
+    // for that delete), then registers one user and checks the promotion.
+    const testUserId = 'eeeeeeee-2222-4000-a000-' + TEST_ID.toString().padStart(12, '0').slice(-12);
+    const email = `first-owner-${TEST_ID}@example.com`;
+    const sql = `
+      BEGIN;
+      SET LOCAL session_replication_role = replica;
+      DELETE FROM public.admin_users;
+      DELETE FROM auth.users;
+      SET LOCAL session_replication_role = origin;
+      INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, confirmation_token, recovery_token,
+        email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+        raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        '${testUserId}',
+        'authenticated',
+        'authenticated',
+        '${email}',
+        extensions.crypt('test-password-123', extensions.gen_salt('bf')),
+        NOW(), '', '', '', '', '', '',
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{}'::jsonb,
+        NOW(), NOW()
+      );
+      SELECT count(*) FROM public.admin_users WHERE user_id = '${testUserId}';
+      ROLLBACK;
+    `;
+    const out = execSync('docker exec -i supabase_db_sellf psql -U postgres -t -A -q', {
+      input: sql,
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    const rows = out.split('\n').map((l) => l.trim()).filter(Boolean);
+    expect(rows[rows.length - 1]).toBe('1');
   });
 });
 

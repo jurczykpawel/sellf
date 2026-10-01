@@ -6,10 +6,11 @@
  * @see src/lib/services/pending-free-grants.ts
  * @see supabase/migrations/20260911000000_pending_free_grants.sql
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { solveChallenge } from 'altcha-lib/v1';
 import { API_URL } from './setup';
+import { deleteChecked, deleteAuthUsers } from '../helpers/db-cleanup';
 
 const admin = createClient(
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -35,6 +36,16 @@ async function getAltchaPayload(): Promise<string> {
 }
 
 describe('Pending free grants', () => {
+  const createdUserIds: string[] = [];
+
+  afterEach(async () => {
+    if (createdUserIds.length > 0) {
+      // free-tutorial is a seed product (never deleted) — only the access grant belongs to us.
+      await deleteChecked('user_product_access', admin.from('user_product_access').delete().in('user_id', createdUserIds));
+    }
+    await deleteAuthUsers(admin, createdUserIds.splice(0));
+  });
+
   it('grants a requested free product when the user signs in with a plain login link', async () => {
     const email = `pending-api-${Date.now()}@example.com`;
 
@@ -48,6 +59,7 @@ describe('Pending free grants', () => {
     // The user ignores that email and asks for an ordinary login link instead.
     const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: 'magiclink', email });
     expect(linkError).toBeNull();
+    if (link.user?.id) createdUserIds.push(link.user.id);
     const callbackUrl = `${API_URL}/auth/callback?flow=login&type=magiclink&token_hash=${link.properties!.hashed_token}`;
 
     const callback = await fetch(callbackUrl, { redirect: 'manual' });
