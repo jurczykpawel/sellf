@@ -649,6 +649,7 @@ log "Files swapped"
 
 write_progress "migrating" 75 "Running database migrations..."
 log "Running migrations..."
+MIGRATION_ERRORS=0
 
 # Read Supabase connection info from .env.local
 SUPABASE_URL=$(grep -E '^SUPABASE_URL=' "$INSTALL_DIR/.env.local" 2>/dev/null | cut -d= -f2- || true)
@@ -670,15 +671,19 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
       log "Run 'deploy.sh sellf --update' once to bootstrap migration system"
     else
       MIGRATION_COUNT=0
-      MIGRATION_ERRORS=0
+      MIGRATION_SKIPPED=0
 
       for migration_file in "$INSTALL_DIR/supabase/migrations/"*.sql; do
         [ -f "$migration_file" ] || continue
         [ -d "$migration_file" ] && continue
         VERSION=$(basename "$migration_file" .sql)
 
-        # Skip if already applied
-        echo "$APPLIED" | grep -q "\"$VERSION\"" && continue
+        # The database records timestamps independently of migration names.
+        if jq -e --arg v "${VERSION%%_*}" \
+          'any(.[]; (.version | split("_")[0]) == $v)' <<< "$APPLIED" >/dev/null 2>&1; then
+          MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
+          continue
+        fi
 
         SQL_CONTENT=$(cat "$migration_file")
         CHECKSUM=$(echo -n "$SQL_CONTENT" | sha256sum | cut -d' ' -f1)
@@ -699,11 +704,36 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SERVICE_KEY" ] && [ -d "$INSTALL_DIR/supabas
           continue
         }
 
-        log "Migration $VERSION: $RESULT"
-        MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+        if ! OUTCOME=$(jq -er -s '
+          if length != 1 then error("Expected one result")
+          else .[0] |
+            if type != "object" then error("Expected an object")
+            elif (.success | type) != "boolean" then error("Expected success boolean")
+            elif has("skipped") and (.skipped | type) != "boolean" then error("Expected skipped boolean")
+            elif .success == false then "failed"
+            elif .skipped == true then "already_applied"
+            else "applied"
+            end
+          end' <<< "$RESULT" 2>/dev/null); then
+          log "WARNING: Migration $VERSION failed: Invalid migration RPC response"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+          continue
+        fi
+
+        if [ "$OUTCOME" = "failed" ]; then
+          MESSAGE=$(jq -r '.message | if type == "string" then gsub("[\\r\\n]"; " ") else "Migration RPC reported failure" end' <<< "$RESULT")
+          log "WARNING: Migration $VERSION failed: $MESSAGE"
+          MIGRATION_ERRORS=$((MIGRATION_ERRORS + 1))
+        elif [ "$OUTCOME" = "already_applied" ]; then
+          log "Migration $VERSION: already applied"
+          MIGRATION_SKIPPED=$((MIGRATION_SKIPPED + 1))
+        else
+          log "Migration $VERSION: $RESULT"
+          MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+        fi
       done
 
-      log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_ERRORS errors"
+      log "Migrations complete: $MIGRATION_COUNT applied, $MIGRATION_SKIPPED already applied, $MIGRATION_ERRORS errors"
     fi
   fi
 else
@@ -775,8 +805,13 @@ done
 
 if [ "$HEALTH_OK" = "true" ]; then
   pm2 save >> "$LOG_FILE" 2>&1 || true
-  write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
-  log "Upgrade complete! Version: $TAG_NAME"
+  if [ "$MIGRATION_ERRORS" -gt 0 ]; then
+    write_error "Upgrade to ${TAG_NAME} finished with $MIGRATION_ERRORS migration errors. Check upgrade logs."
+    log "WARNING: Upgrade finished with $MIGRATION_ERRORS migration errors. Version: $TAG_NAME"
+  else
+    write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
+    log "Upgrade complete! Version: $TAG_NAME"
+  fi
 else
   log "ERROR: Health check failed after 60s — rolling back!"
   write_progress "rolling_back" 95 "Health check failed. Rolling back..."
@@ -833,6 +868,10 @@ fi
 
 rm -rf "$TMP_DIR"
 log "Temp files cleaned up. Backup preserved at $BACKUP_DIR"
+
+if [ "$MIGRATION_ERRORS" -gt 0 ]; then
+  exit 1
+fi
 
 }
 main "$@"
