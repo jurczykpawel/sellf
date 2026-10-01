@@ -34,7 +34,7 @@ export function registerCouponsTools(server: McpServer): void {
   // List coupons
   server.tool(
     'list_coupons',
-    'List all discount coupons with optional filters',
+    'List all discount coupons with optional filters. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
     {
       status: z.enum(['all', 'active', 'inactive', 'expired']).optional().describe('Filter by status'),
       search: z.string().optional().describe('Search in code and name'),
@@ -58,7 +58,7 @@ export function registerCouponsTools(server: McpServer): void {
   // Get single coupon
   server.tool(
     'get_coupon',
-    'Get detailed information about a specific coupon',
+    'Get detailed information about a specific coupon. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
     {
       id: z.string().uuid().describe('Coupon ID'),
     },
@@ -75,12 +75,12 @@ export function registerCouponsTools(server: McpServer): void {
   // Create coupon
   server.tool(
     'create_coupon',
-    'Create a new discount coupon',
+    'Create a new discount coupon. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
     {
       code: z.string().min(1).max(50).describe('Unique coupon code (alphanumeric, hyphens, underscores)'),
       name: z.string().optional().describe('Display name'),
       discount_type: z.enum(['percentage', 'fixed']).describe('Type of discount'),
-      discount_value: z.number().positive().describe('Percentage (0-100) or fixed amount in cents'),
+      discount_value: z.number().positive().describe('Percentage: 25 means 25%; fixed discount: major units, 49.99 means 49.99 in the coupon currency'),
       currency: z.string().length(3).optional().describe('Currency for fixed discounts (required for fixed type)'),
       is_active: z.boolean().optional().describe('Whether coupon is active'),
       is_public: z.boolean().optional().describe('Reserved field for future use; currently not used by runtime logic'),
@@ -105,12 +105,12 @@ export function registerCouponsTools(server: McpServer): void {
   // Update coupon
   server.tool(
     'update_coupon',
-    'Update an existing coupon. Only provided fields will be updated.',
+    'Update an existing coupon. Only provided fields will be updated. Returns discount_value as percent (25 means 25%) or, for fixed discounts, major units (49.99 means 49.99 in the coupon currency).',
     {
       id: z.string().uuid().describe('Coupon ID to update'),
       name: z.string().optional().describe('Display name'),
       discount_type: z.enum(['percentage', 'fixed']).optional().describe('Type of discount'),
-      discount_value: z.number().positive().optional().describe('Discount value'),
+      discount_value: z.number().positive().optional().describe('Percentage: 25 means 25%; fixed discount: major units, 49.99 means 49.99 in the coupon currency'),
       currency: z.string().length(3).optional().describe('Currency for fixed discounts'),
       is_active: z.boolean().optional().describe('Whether coupon is active'),
       is_public: z.boolean().optional().describe('Reserved field for future use; currently not used by runtime logic'),
@@ -151,7 +151,7 @@ export function registerCouponsTools(server: McpServer): void {
   // Get coupon stats
   server.tool(
     'get_coupon_stats',
-    'Get usage statistics for a specific coupon',
+    'Get usage statistics for a specific coupon. Returns summary.total_discount_amount, recent_redemptions[].discount_amount, daily_usage[].amount and usage_by_product[].amount in major units (49.99 means 49.99 in the coupon currency). Recorded discounts may be zero for paid redemptions; these are recorded amounts, not measured savings or ROI.',
     {
       id: z.string().uuid().describe('Coupon ID'),
     },
@@ -159,11 +159,10 @@ export function registerCouponsTools(server: McpServer): void {
       const api = getApiClient();
       const result = await api.get<{
         data: {
-          id: string;
-          code: string;
-          total_uses: number;
-          total_discount_given: number;
-          usage_by_product: Array<{ product_id: string; product_name: string; uses: number }>;
+          summary: { total_redemptions: number; total_discount_amount: number; unique_users: number };
+          recent_redemptions: Array<{ discount_amount: number }>;
+          daily_usage: Array<{ amount: number }>;
+          usage_by_product: Array<{ product_id: string; product_name: string; count: number; amount: number }>;
         };
       }>(`/api/v1/coupons/${id}/stats`);
 

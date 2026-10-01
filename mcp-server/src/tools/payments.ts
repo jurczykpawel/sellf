@@ -45,7 +45,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // List payments
   server.tool(
     'list_payments',
-    'List payment transactions with optional filters',
+    'List payment transactions with optional filters. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units of each payment currency (4999 means 49.99 for PLN/USD). Line item prices line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
     {
       status: z.enum(['all', 'completed', 'refunded', 'failed', 'pending']).optional().describe('Filter by status'),
       product_id: z.string().uuid().optional().describe('Filter by product ID'),
@@ -72,7 +72,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // Get single payment
   server.tool(
     'get_payment',
-    'Get detailed information about a specific payment',
+    'Get detailed information about a specific payment. product.price uses major units (49.99 means 49.99 in product.currency). Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units of each payment currency (4999 means 49.99 for PLN/USD).',
     {
       id: z.string().uuid().describe('Payment ID'),
     },
@@ -89,7 +89,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // Search payments
   server.tool(
     'search_payments',
-    'Search for payments by customer email or product',
+    'Search for payments by customer email or product. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units of each payment currency (4999 means 49.99 for PLN/USD). Line item prices line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
     {
       email: z.string().optional().describe('Customer email to search'),
       product_id: z.string().uuid().optional().describe('Product ID to filter by'),
@@ -110,10 +110,10 @@ export function registerPaymentsTools(server: McpServer): void {
   // Process refund
   server.tool(
     'process_refund',
-    'Process a full or partial refund for a payment. Requires full API access scope.',
+    'Process a full or partial refund for a payment. Requires explicit human confirmation before invocation and the payments:refund scope. Returns refund.amount and total_refunded in minor units (4999 means 49.99 for PLN/USD) in the payment currency.',
     {
       id: z.string().uuid().describe('Payment ID to refund'),
-      amount: z.number().int().positive().optional().describe('Refund amount in cents. If not provided, full refund.'),
+      amount: z.number().int().positive().optional().describe('Refund amount in integer minor units of the payment currency (4999 means 49.99 for PLN/USD). If not provided, full refund.'),
       reason: z.enum(['duplicate', 'fraudulent', 'requested_by_customer']).optional().describe('Reason for refund'),
     },
     async ({ id, amount, reason }) => {
@@ -143,7 +143,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // Export payments
   server.tool(
     'export_payments',
-    'Export payment transactions as CSV data',
+    'Get an export preview of up to 100 payments and five sample records; download CSV in the admin panel. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units of each payment currency (4999 means 49.99 for PLN/USD). Line item prices line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
     {
       status: z.enum(['all', 'completed', 'refunded', 'failed', 'pending']).optional().describe('Filter by status'),
       date_from: z.string().optional().describe('Filter from date (ISO 8601)'),
@@ -191,7 +191,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // List failed payments
   server.tool(
     'list_failed_payments',
-    'List all failed payment transactions',
+    'List all failed payment transactions. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units of each payment currency (4999 means 49.99 for PLN/USD). Line item prices line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
     {
       date_from: z.string().optional().describe('Filter from date (ISO 8601)'),
       date_to: z.string().optional().describe('Filter to date (ISO 8601)'),
@@ -213,7 +213,7 @@ export function registerPaymentsTools(server: McpServer): void {
   // Get payment stats
   server.tool(
     'get_payment_stats',
-    'Get payment statistics including total revenue, transaction counts, and trends',
+    'Get payment statistics including total revenue, transaction counts, and trends. Returns total_revenue, refunded_amount, today_revenue, this_month_revenue and all *_by_currency/by_currency amounts in minor units (4999 means 49.99 for PLN/USD). Aggregate amounts may mix currencies; use the currency breakdowns.',
     {},
     async () => {
       const api = getApiClient();

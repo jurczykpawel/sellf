@@ -134,7 +134,7 @@ describe('Products Tools', () => {
       const tool = registeredTools.get('create_product')!;
       const result = await tool.handler(newProduct, {});
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products', newProduct);
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products', { ...newProduct, is_active: false });
       expect(result.content[0].text).toContain('created successfully');
     });
   });

@@ -42,7 +42,7 @@ export function registerUsersTools(server: McpServer): void {
   // List users
   server.tool(
     'list_users',
-    'List all users with their product access and statistics',
+    'List all users with their product access and statistics. Returns product_price (or nested product.price) and stats.total_value in major units (49.99 means 49.99 in the product currency). total_value sums list prices, can mix currencies and is not spending.',
     {
       search: z.string().optional().describe('Search by email'),
       cursor: z.string().optional().describe('Pagination cursor'),
@@ -69,7 +69,7 @@ export function registerUsersTools(server: McpServer): void {
   // Get single user
   server.tool(
     'get_user',
-    'Get detailed information about a single user including all product access',
+    'Get detailed information about a single user including all product access. Returns product_price (or nested product.price) and stats.total_value in major units (49.99 means 49.99 in the product currency). total_value sums list prices, can mix currencies and is not spending.',
     {
       id: z.string().uuid().describe('User ID'),
     },
@@ -86,7 +86,7 @@ export function registerUsersTools(server: McpServer): void {
   // Search users by email
   server.tool(
     'search_users',
-    'Search for users by email address',
+    'Search for users by email address. Returns product_price (or nested product.price) and stats.total_value in major units (49.99 means 49.99 in the product currency). total_value sums list prices, can mix currencies and is not spending.',
     {
       email: z.string().min(1).describe('Email address or partial match to search for'),
     },
@@ -148,7 +148,7 @@ export function registerUsersTools(server: McpServer): void {
   // Extend access
   server.tool(
     'extend_access',
-    'Extend or modify a user\'s product access expiration',
+    'Extend or modify a user\'s product access expiration. Returns product_price (or nested product.price) and stats.total_value in major units (49.99 means 49.99 in the product currency). total_value sums list prices, can mix currencies and is not spending.',
     {
       user_id: z.string().uuid().describe('User ID'),
       access_id: z.string().uuid().describe('Access entry ID'),
@@ -216,7 +216,7 @@ export function registerUsersTools(server: McpServer): void {
   // Get user purchases (via payments endpoint)
   server.tool(
     'get_user_purchases',
-    'Get all purchases/payments made by a user',
+    'Get up to 100 purchases/payments made by a user. Returns amount, refunded_amount, refund.amount, net_total, tax_total, line_items.net_amount and line_items.tax_amount in minor units in each payment currency (4999 means 49.99 for PLN/USD). line_items.unit_price and line_items.total_price use major units (49.99 means 49.99 in the line currency); nested tax_breakdown amounts use minor units.',
     {
       email: z.string().email().describe('User email address'),
     },

@@ -126,6 +126,47 @@ describe('MCP Server Protocol', () => {
   });
 
   describe('Tool Execution', () => {
+    it('publishes price units and draft defaults in the discovered schema', async () => {
+      const result = await client.listTools();
+      for (const name of ['create_product', 'update_product']) {
+        const tool = result.tools.find(tool => tool.name === name)!;
+        const properties = tool.inputSchema.properties as Record<string, { description?: string; default?: unknown }>;
+        for (const field of ['price', 'sale_price', 'recurring_price', 'custom_price_min', 'custom_price_presets']) {
+          expect(properties[field].description).toContain('major units');
+          expect(properties[field].description).toContain('49.99 means 49.99');
+        }
+        expect(properties.is_active.default).toBe(name === 'create_product' ? false : undefined);
+      }
+    });
+
+    it('creates a subscription draft with content, media and relation fields', async () => {
+      const id = '123e4567-e89b-42d3-a456-426614174000';
+      const input = {
+        name: ' Course ', slug: 'COURSE', price: 149, currency: 'pln',
+        long_description: 'Full course details', image_url: '/course.png',
+        features: [{ title: 'Included', items: ['Lessons'] }],
+        product_type: 'subscription', recurring_price: 49.99, billing_interval: 'month',
+        billing_interval_count: 1, trial_days: 7, tags: [id], bundleItemIds: [id],
+      };
+      mockApiClient.post.mockResolvedValue({ data: { id } });
+      const result = await client.callTool({ name: 'create_product', arguments: input });
+      expect(result.isError).not.toBe(true);
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products', {
+        ...input, name: 'Course', slug: 'course', currency: 'PLN', is_active: false,
+      });
+    });
+
+    it.each(['create_product', 'update_product'])('rejects invalid subscription fields for %s before calling the API', async (name) => {
+      const id = '123e4567-e89b-42d3-a456-426614174000';
+      const result = await client.callTool({
+        name,
+        arguments: { id, name: 'Course', slug: 'course', price: 149, trial_days: -1, billing_interval_count: 0 },
+      });
+      expect(result.isError).toBe(true);
+      expect(mockApiClient.post).not.toHaveBeenCalled();
+      expect(mockApiClient.patch).not.toHaveBeenCalled();
+    });
+
     it.each(['create_product', 'update_product'])('validates content configuration for %s', async (name) => {
       const content_config = { sections: ['intro'], enabled: true, metadata: { title: 'Course' } };
       const product = { name: 'Course', slug: 'course', description: 'Course content', price: 1000, content_config };
@@ -140,7 +181,7 @@ describe('MCP Server Protocol', () => {
 
       expect(result.isError).not.toBe(true);
       if (name === 'create_product') {
-        expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products', product);
+        expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/products', { ...product, is_active: false });
       } else {
         expect(mockApiClient.patch).toHaveBeenCalledWith(`/api/v1/products/${id}`, { content_config });
       }

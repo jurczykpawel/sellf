@@ -7,6 +7,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getApiClient } from '../api-client.js';
+import { productCreateShape, productUpdateShape } from './product-schema.js';
 
 interface Product {
   id: string;
@@ -32,7 +33,7 @@ export function registerProductsTools(server: McpServer): void {
   // List products
   server.tool(
     'list_products',
-    'List all products with optional filters and pagination',
+    'List all products with optional filters and pagination. Returns price, sale_price, recurring_price, custom_price_min, and custom_price_presets in major units: 49.99 means 49.99 in the product currency.',
     {
       status: z.enum(['active', 'inactive', 'all']).optional().describe('Filter by status'),
       search: z.string().optional().describe('Search in name and description'),
@@ -61,7 +62,7 @@ export function registerProductsTools(server: McpServer): void {
   // Get single product
   server.tool(
     'get_product',
-    'Get a single product by ID with full details including categories',
+    'Get a single product by ID with full details including categories. Returns price, sale_price, recurring_price, custom_price_min, and custom_price_presets in major units: 49.99 means 49.99 in the product currency.',
     {
       id: z.string().uuid().describe('Product ID'),
     },
@@ -78,26 +79,13 @@ export function registerProductsTools(server: McpServer): void {
   // Create product
   server.tool(
     'create_product',
-    'Create a new product',
+    'Create a new product. Defaults to a draft until explicitly published using update_product with is_active: true. Returns price, sale_price, recurring_price, custom_price_min, and custom_price_presets in major units: 49.99 means 49.99 in the product currency.',
     {
-      name: z.string().min(1).max(100).describe('Product name'),
-      slug: z.string().min(1).max(100).describe('URL-friendly slug'),
-      description: z.string().min(1).describe('Product description'),
-      price: z.number().min(0).describe('Price in smallest currency unit (e.g., cents)'),
-      currency: z.string().length(3).optional().describe('ISO 4217 currency code (default: USD)'),
-      is_active: z.boolean().optional().describe('Whether product is available for purchase'),
-      is_featured: z.boolean().optional().describe('Whether product is featured'),
-      icon: z.string().optional().describe('Emoji icon for the product'),
-      content_delivery_type: z.enum(['content', 'redirect', 'download']).optional().describe('How content is delivered'),
-      content_config: z.record(z.string(), z.unknown()).optional().describe('Content delivery configuration'),
-      available_from: z.string().optional().describe('ISO 8601 date when product becomes available'),
-      available_until: z.string().optional().describe('ISO 8601 date when product is no longer available'),
-      auto_grant_duration_days: z.number().optional().describe('Days of access granted on purchase'),
-      categories: z.array(z.string()).optional().describe('Array of category IDs'),
+      ...productCreateShape,
     },
     async (params) => {
       const api = getApiClient();
-      const result = await api.post<{ data: Product }>('/api/v1/products', params);
+      const result = await api.post<{ data: Product }>('/api/v1/products', { ...params, is_active: params.is_active ?? false });
 
       return {
         content: [{ type: 'text', text: `Product created successfully:\n${JSON.stringify(result.data, null, 2)}` }],
@@ -108,23 +96,10 @@ export function registerProductsTools(server: McpServer): void {
   // Update product
   server.tool(
     'update_product',
-    'Update an existing product. Only provided fields will be updated.',
+    'Update an existing product. Only provided fields will be updated. Returns price, sale_price, recurring_price, custom_price_min, and custom_price_presets in major units: 49.99 means 49.99 in the product currency.',
     {
       id: z.string().uuid().describe('Product ID to update'),
-      name: z.string().min(1).max(100).optional().describe('Product name'),
-      slug: z.string().min(1).max(100).optional().describe('URL-friendly slug'),
-      description: z.string().min(1).optional().describe('Product description'),
-      price: z.number().min(0).optional().describe('Price in smallest currency unit'),
-      currency: z.string().length(3).optional().describe('ISO 4217 currency code'),
-      is_active: z.boolean().optional().describe('Whether product is available for purchase'),
-      is_featured: z.boolean().optional().describe('Whether product is featured'),
-      icon: z.string().optional().describe('Emoji icon'),
-      content_delivery_type: z.enum(['content', 'redirect', 'download']).optional().describe('How content is delivered'),
-      content_config: z.record(z.string(), z.unknown()).optional().describe('Content delivery configuration'),
-      available_from: z.string().optional().describe('ISO 8601 date when product becomes available'),
-      available_until: z.string().optional().describe('ISO 8601 date when product is no longer available'),
-      auto_grant_duration_days: z.number().optional().describe('Days of access granted on purchase'),
-      categories: z.array(z.string()).optional().describe('Array of category IDs (replaces existing)'),
+      ...productUpdateShape,
     },
     async ({ id, ...updates }) => {
       const api = getApiClient();
@@ -175,7 +150,7 @@ export function registerProductsTools(server: McpServer): void {
   // Duplicate product
   server.tool(
     'duplicate_product',
-    'Create a copy of an existing product with a new name and slug',
+    'Create a copy of an existing product with a new name and slug. Returns price, sale_price, recurring_price, custom_price_min, and custom_price_presets in major units: 49.99 means 49.99 in the product currency.',
     {
       source_id: z.string().uuid().describe('ID of product to duplicate'),
       new_name: z.string().min(1).max(100).describe('Name for the new product'),
@@ -217,7 +192,7 @@ export function registerProductsTools(server: McpServer): void {
   // Get product stats (uses analytics endpoint)
   server.tool(
     'get_product_stats',
-    'Get sales statistics for a specific product',
+    'Get sales statistics from a sample of at most the first 100 payments for a product. Returns product.price in major units (49.99 means 49.99 in the product currency), sales.total_revenue and sales.by_currency in minor units (4999 means 49.99 for PLN/USD). The aggregate can mix currencies; use by_currency.',
     {
       product_id: z.string().uuid().describe('Product ID'),
     },
@@ -228,7 +203,7 @@ export function registerProductsTools(server: McpServer): void {
       const productResult = await api.get<{ data: Product }>(`/api/v1/products/${product_id}`);
 
       // Fetch payments for this product
-      const paymentsResult = await api.get<{ data: { status: string; amount: number }[]; pagination: unknown }>(
+      const paymentsResult = await api.get<{ data: { status: string; amount: number; currency?: string }[]; pagination?: { has_more: boolean; next_cursor: string | null } }>(
         '/api/v1/payments',
         { product_id, limit: 100 }
       );
@@ -237,7 +212,18 @@ export function registerProductsTools(server: McpServer): void {
       const successfulPayments = payments.filter((p) => p.status === 'completed');
       const totalRevenue = successfulPayments.reduce((sum, p) => sum + p.amount, 0);
 
+      const byCurrency: Record<string, number> = {};
+      for (const payment of successfulPayments) {
+        const currency = (payment.currency || productResult.data.currency).toUpperCase();
+        byCurrency[currency] = (byCurrency[currency] || 0) + payment.amount;
+      }
       const stats = {
+        sample: {
+          limit: 100,
+          returned: payments.length,
+          has_more: paymentsResult.pagination?.has_more ?? false,
+          next_cursor: paymentsResult.pagination?.next_cursor ?? null,
+        },
         product: {
           id: productResult.data.id,
           name: productResult.data.name,
@@ -248,7 +234,8 @@ export function registerProductsTools(server: McpServer): void {
         sales: {
           total_transactions: successfulPayments.length,
           total_revenue: totalRevenue,
-          currency: productResult.data.currency,
+          by_currency: byCurrency,
+          amount_unit: 'minor',
         },
       };
 

@@ -18,7 +18,9 @@ export function registerPrompts(server: McpServer): void {
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please generate a comprehensive weekly sales report for Sellf.
+            text: `State date windows, pagination/sample coverage and money units. Keep currencies separate. Do not forecast from these numbers.
+
+Please generate a comprehensive weekly sales report for Sellf.
 
 Use the following tools to gather data:
 1. get_dashboard - Get overall metrics
@@ -28,7 +30,7 @@ Use the following tools to gather data:
 
 The report should include:
 - Executive Summary (2-3 sentences)
-- Revenue Overview (this week vs previous patterns)
+- Revenue Overview (state the reported window and currency; do not infer previous-week comparisons)
 - Top Performing Products (with revenue and sales count)
 - Transaction Summary
 - Refund Analysis
@@ -54,7 +56,9 @@ Format the report in a clear, professional markdown format suitable for stakehol
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please perform a comprehensive analysis of product: ${args.product_id}
+            text: `State date windows, pagination/sample coverage and money units. Keep currencies separate. Do not forecast from these numbers.
+
+Please perform a comprehensive analysis of product: ${args.product_id}
 
 Use the following tools:
 1. get_product - Get product details
@@ -64,7 +68,7 @@ Use the following tools:
 
 The analysis should include:
 - Product Overview (name, price, status)
-- Sales Performance (total sales, revenue)
+- Sales Performance (get_product_stats is a sample of at most 100 payments; report sample coverage and separate currencies)
 - Customer Patterns
 - Recommendations for improvement
 
@@ -75,33 +79,34 @@ Provide actionable insights for optimizing this product's performance.`,
     })
   );
 
-  // Revenue forecast prompt
+  // Historical revenue review prompt
   server.prompt(
     'revenue-forecast',
-    'Project future revenue based on historical trends',
+    'Review observed revenue and its data limitations',
     () => ({
       messages: [
         {
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please create a revenue forecast for Sellf.
+            text: `State date windows, pagination/sample coverage and money units. Keep currencies separate. Do not forecast from these numbers.
+
+Please review observed revenue for Sellf. Do not forecast revenue from these metrics.
 
 Use these tools to gather historical data:
 1. get_dashboard - Get current metrics
 2. get_sales_trends - Get daily activity trends
-3. compare_periods - Compare current month vs previous month
+3. compare_periods - Compare two current windows ending now, limited to top 50 products; these are not previous-month comparisons
 4. get_top_products (period: month, quarter) - Identify revenue drivers
 
 Based on the data, provide:
-- Current Revenue Trajectory
-- Month-over-Month Trends
-- Projected Revenue (next 30 days)
-- Key Growth Drivers
-- Potential Risks
-- Recommendations to Accelerate Growth
+- Observed Revenue by Currency
+- Reported Date Windows and Coverage
+- Observed Revenue Drivers
+- Data Limitations
+- Questions for Further Measurement
 
-Use conservative, moderate, and optimistic scenarios where appropriate.`,
+Report only observed values. Do not infer future growth or historical periods absent from the response.`,
           },
         },
       ],
@@ -118,20 +123,21 @@ Use conservative, moderate, and optimistic scenarios where appropriate.`,
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please analyze user cohorts and purchasing behavior in Sellf.
+            text: `State date windows, pagination/sample coverage and money units. Keep currencies separate. Do not forecast from these numbers.
+
+Please analyze user cohorts and purchasing behavior in Sellf.
 
 Use these tools:
 1. list_users with different sort options - Understand user distribution
-2. get_conversion_stats - Get conversion metrics
+2. get_conversion_stats - Get users-with-access share; includes free/manual access, not visitor conversion
 3. get_dashboard - Get user statistics
 4. list_payments - Analyze purchasing patterns
 
 The analysis should cover:
-- User Acquisition Overview
-- Conversion Funnel Analysis
-- High-Value User Segment
+- Registered User Overview
+- Users-with-Access Share
 - Product Access Distribution
-- User Lifetime Value Indicators
+- Observed Payments by Currency (product list value is not spending or lifetime value)
 - Recommendations for User Engagement
 
 Identify patterns that could inform marketing and product decisions.`,
@@ -144,14 +150,16 @@ Identify patterns that could inform marketing and product decisions.`,
   // Coupon effectiveness prompt
   server.prompt(
     'coupon-effectiveness',
-    'Analyze coupon performance and ROI',
+    'Review recorded coupon usage and discounts',
     () => ({
       messages: [
         {
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please analyze coupon effectiveness and ROI for Sellf.
+            text: `State date windows, pagination/sample coverage and money units. Keep currencies separate. Do not forecast from these numbers.
+
+Please review recorded coupon usage and discounts for Sellf. These data do not establish ROI or incremental revenue.
 
 Use these tools:
 1. list_coupons - Get all coupons
@@ -161,7 +169,7 @@ Use these tools:
 The analysis should include:
 - Active Coupon Summary
 - Usage Statistics (total uses, per-coupon breakdown)
-- Revenue Impact Analysis
+- Recorded Discount Amounts (paid redemptions may record zero; do not infer measured savings)
 - Best Performing Coupons
 - Underperforming Coupons
 - Coupon Strategy Recommendations
@@ -183,13 +191,14 @@ Provide specific recommendations for coupon optimization.`,
           role: 'user' as const,
           content: {
             type: 'text' as const,
-            text: `Please analyze refund patterns in Sellf.
+            text: `State date windows, pagination/sample coverage and money units. Keep currencies separate. Do not forecast from these numbers.
+
+Please analyze refund patterns in Sellf.
 
 Use these tools:
 1. get_refund_stats - Get refund statistics
-2. list_payments with status=refunded - Get refunded transactions
+2. list_payments - Inspect refunded_amount (including partial refunds on completed payments); paginate before aggregating by product
 3. get_dashboard - Get overall context
-4. get_top_products - Identify which products have most refunds
 
 The analysis should cover:
 - Refund Rate Overview
