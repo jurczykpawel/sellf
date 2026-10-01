@@ -18,7 +18,7 @@ vi.mock('@/lib/system/upgrade-paths', () => ({ getUpgradeLockFilePath: () => '/l
 import { POST } from '@/app/api/v1/system/upgrade/route';
 
 beforeEach(() => vi.clearAllMocks());
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('upgrade unit PATH', () => {
   it('passes deduplicated server PATH plus running executable directory as one argument', async () => {
     vi.stubEnv('PATH', '/usr/bin:/root/.bun/bin:/usr/bin');
@@ -26,10 +26,22 @@ describe('upgrade unit PATH', () => {
     const paths = [...new Set(['/usr/bin', '/root/.bun/bin', dirname(process.execPath)])];
     expect(spawn).toHaveBeenCalledWith('systemd-run', expect.arrayContaining([`--setenv=PATH=${paths.join(':')}`]), expect.any(Object));
   });
-  it.each(['relative:/usr/bin', '/usr/bin::/bin', '/usr/bin\n--setenv=EVIL=1', '/usr/bin\0evil', 'C:\\tools:/bin'])('rejects unsafe PATH %j before launching', async (value) => {
+  it.each([
+    ['/usr/bin:', ['/usr/bin'], 1],
+    ['/usr/bin:.:/bin', ['/usr/bin', '/bin'], 1],
+    ['relative:/usr/bin', ['/usr/bin'], 1],
+    ['/usr/bin:/bad\nentry:/bin', ['/usr/bin', '/bin'], 1],
+    ['/usr/bin::/bin', ['/usr/bin', '/bin'], 1],
+    ['/usr/bin:/bad\0entry', ['/usr/bin'], 1],
+    ['C:\\tools:/bin', ['/bin'], 2],
+    ['.:relative:', [], 3],
+  ])('drops unusable entries from PATH %j and proceeds without logging their values', async (value, validEntries, droppedCount) => {
     // Native process.env truncates NULs on assignment; preserve crafted input.
     vi.stubGlobal('process', { ...process, env: { ...process.env, PATH: value } });
-    expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(500);
-    expect(spawn).not.toHaveBeenCalled();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(202);
+    const paths = [...new Set([...validEntries, dirname(process.execPath)])];
+    expect(spawn).toHaveBeenCalledWith('systemd-run', expect.arrayContaining([`--setenv=PATH=${paths.join(':')}`]), expect.any(Object));
+    expect(warn.mock.calls).toEqual([[`[system/upgrade] Skipped ${droppedCount} unusable PATH entries`]]);
   });
 });

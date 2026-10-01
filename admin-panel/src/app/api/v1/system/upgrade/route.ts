@@ -151,13 +151,16 @@ export async function POST(request: NextRequest) {
     // embedded in the installed upgrade.sh and refuses a version older than
     // the installed one; neither check can be switched off.
     const scriptArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
-    // Reject empty/relative entries (implicit cwd lookup) and control characters.
+    // Drop unusable entries (including implicit cwd lookup) while retaining the
+    // running executable's directory. Log counts only, never environment values.
     // Keep this as one spawn argument; no shell interpolation is involved.
-    const pathEntries = [...(process.env.PATH === undefined ? [] : process.env.PATH.split(':')), dirname(process.execPath)];
-    if (pathEntries.some((entry) => !isAbsolute(entry) || /[:\x00-\x1f\x7f]/.test(entry))) {
-      throw new Error('Invalid upgrade executable PATH');
+    const pathEntries = process.env.PATH === undefined ? [] : process.env.PATH.split(':');
+    const validPathEntries = pathEntries.filter((entry) => isAbsolute(entry) && !/[:\x00-\x1f\x7f]/.test(entry));
+    const droppedCount = pathEntries.length - validPathEntries.length;
+    if (droppedCount > 0) {
+      console.warn(`[system/upgrade] Skipped ${droppedCount} unusable PATH entries`);
     }
-    const upgradePath = [...new Set(pathEntries)].join(':');
+    const upgradePath = [...new Set([...validPathEntries, dirname(process.execPath)])].join(':');
     const systemdRunArgs = [
       `--unit=sellf-upgrade-${token}`,
       '--collect',   // auto-remove unit after exit
