@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 /**
  * Handle CORS preflight requests
  */
 export async function OPTIONS() {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  const siteUrl = getCanonicalOriginOrNull();
   return new NextResponse(null, {
     status: 200,
     headers: {
@@ -35,7 +36,7 @@ export async function GET() {
       service: 'sellf-admin',
     }
 
-    const healthSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    const healthSiteUrl = getCanonicalOriginOrNull();
     return NextResponse.json(health, {
       status: 200,
       headers: {
@@ -45,7 +46,7 @@ export async function GET() {
       }
     })
   } catch {
-    const errorSiteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    const errorSiteUrl = getCanonicalOriginOrNull();
     return NextResponse.json(
       {
         status: 'error',

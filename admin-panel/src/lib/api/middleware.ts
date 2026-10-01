@@ -31,9 +31,12 @@ import {
   ApiScope,
   ALL_SCOPES,
 } from './api-keys';
-import { ApiAuthError, ApiValidationError } from './errors';
+import { ApiAuthError, ApiValidationError, ApiPayloadTooLargeError } from './errors';
+import { readBodyWithByteLimit, DEFAULT_MAX_BODY_BYTES } from './body-limit';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { extractTrustedClientIp } from '@/lib/security/client-ip';
+import { isSessionWriteAllowed } from '@/lib/security/session-write-guard';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 /**
  * Check rate limit for API key using distributed backend (Upstash Redis or Supabase DB)
@@ -82,7 +85,7 @@ export type AuthResult = SessionAuthResult | ApiKeyAuthResult;
  * CORS headers for API v1 endpoints
  */
 export function getApiCorsHeaders(origin: string | null): Record<string, string> {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  const siteUrl = getCanonicalOriginOrNull();
 
   const isAllowed = origin && (
     origin === siteUrl ||
@@ -405,6 +408,14 @@ export async function authenticate(
   // Try session auth first
   const sessionAuth = await authenticateViaSession(request);
   if (sessionAuth) {
+    // Cookie auth relies on SameSite + CORS, which don't stop a same-site
+    // sibling origin from riding the session on a state-changing request.
+    // API-key/bearer callers below are unaffected — a custom Authorization
+    // header can't be attached by a form post.
+    if (!isSessionWriteAllowed(request)) {
+      throw new ApiAuthError('FORBIDDEN', 'Request origin or content type not allowed');
+    }
+
     // Session admins receive the full scope snapshot
     if (requiredScopes && requiredScopes.length > 0) {
       for (const scope of requiredScopes) {
@@ -477,7 +488,7 @@ export function requireScope(auth: AuthResult, scope: ApiScope): void {
   }
 }
 
-export { ApiAuthError, ApiValidationError };
+export { ApiAuthError, ApiValidationError, ApiPayloadTooLargeError };
 
 /**
  * Handle errors in API routes
@@ -491,6 +502,11 @@ export function handleApiError(error: unknown, request: NextRequest): NextRespon
   // Handle validation errors
   if (error instanceof ApiValidationError) {
     return apiError(request, 'VALIDATION_ERROR', error.message, error.details);
+  }
+
+  // Handle oversized bodies (actual bytes read, not just a declared Content-Length)
+  if (error instanceof ApiPayloadTooLargeError) {
+    return apiError(request, 'PAYLOAD_TOO_LARGE', error.message);
   }
 
   // Handle legacy error format from requireAdminApi
@@ -529,11 +545,18 @@ export function withAuth<T>(
 }
 
 /**
- * Parse and validate request body as JSON
+ * Parse and validate request body as JSON.
+ *
+ * Byte-capped via the shared `readBodyWithByteLimit` (see `./body-limit`) so
+ * a chunked request with no declared Content-Length is still bounded.
  */
 export async function parseJsonBody<T>(request: NextRequest): Promise<T> {
+  // Byte-limit read is awaited outside the try below on purpose — its
+  // ApiPayloadTooLargeError must propagate as-is, not get relabeled as
+  // "Invalid JSON".
+  const text = await readBodyWithByteLimit(request, DEFAULT_MAX_BODY_BYTES);
   try {
-    return await request.json();
+    return JSON.parse(text) as T;
   } catch {
     throw new ApiValidationError('Invalid JSON in request body');
   }

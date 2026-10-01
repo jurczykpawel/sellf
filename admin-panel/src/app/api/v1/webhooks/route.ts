@@ -16,7 +16,12 @@ import {
   successResponse,
   API_SCOPES,
 } from '@/lib/api';
-import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
+import {
+  validateWebhookUrlAsync,
+  validateEventTypes,
+  validateProductFilter,
+  validateCustomPayloadFields,
+} from '@/lib/validations/webhook';
 import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCursor } from '@/lib/api/pagination';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
@@ -220,6 +225,13 @@ export async function POST(request: NextRequest) {
     const scoped = product_filter_mode === 'selected';
     if (scoped && !(await checkFeature(PRODUCT_SCOPING_FEATURE, { dataClient: adminClient }))) {
       return apiError(request, 'FORBIDDEN', PRODUCT_SCOPING_DENIED);
+    }
+
+    // Custom field names must not collide with the envelope's own keys
+    // (event/timestamp/data) — see validateCustomPayloadFields.
+    const fieldNameValidation = validateCustomPayloadFields(custom_payload_fields);
+    if (!fieldNameValidation.valid) {
+      return apiError(request, 'INVALID_INPUT', fieldNameValidation.error || 'Invalid custom payload field name');
     }
 
     // Payload customization (custom headers/fields/field selection) is a Pro feature.

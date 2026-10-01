@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
+
 const SLUG_RE = /^[a-z0-9-]+$/;
 
 const isoDateOrEmpty = z
@@ -82,8 +84,16 @@ const baseShape = {
   omnibus_exempt: z.boolean().optional(),
   vat_exempt: z.boolean().optional(),
   vat_exempt_note: z.string().max(500).nullable().optional(),
-  // Post-purchase redirect (success page)
-  success_redirect_url: z.string().max(2048).nullable().optional(),
+  // Post-purchase redirect (success page). Cross-origin destinations are
+  // allowed by design (the seller's own store) — only the scheme is gated.
+  success_redirect_url: z
+    .string()
+    .max(2048)
+    .nullable()
+    .optional()
+    .refine((v) => v == null || v === '' || isRelativeOrHttpUrl(v), {
+      message: 'success_redirect_url must be a relative path or an http(s) URL',
+    }),
   pass_params_to_redirect: z.boolean().optional(),
   // License keys (signed JWT issued on purchase)
   issue_license_on_purchase: z.boolean().optional(),

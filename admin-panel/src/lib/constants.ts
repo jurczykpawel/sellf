@@ -100,8 +100,9 @@ export const STRIPE_WEBHOOK_EVENTS = [
 
 /**
  * Product fields for public-facing product page queries.
- * Used by /p/[slug] product pages.
- * @see supabase/migrations/20250101000000_core_schema.sql — products table
+ * Used by /p/[slug] product pages. Must be a subset of PRODUCT_PUBLIC_COLUMNS
+ * (src/lib/product-columns.ts); content_config is loaded separately once
+ * access is confirmed.
  */
 export const PRODUCT_PAGE_FIELDS = [
   'id', 'name', 'slug', 'description', 'long_description',
@@ -112,7 +113,7 @@ export const PRODUCT_PAGE_FIELDS = [
   'omnibus_exempt',
   'sale_price', 'sale_price_until', 'sale_quantity_limit', 'sale_quantity_sold',
   'available_from', 'available_until', 'auto_grant_duration_days',
-  'content_delivery_type', 'content_config',
+  'content_delivery_type',
   'success_redirect_url', 'pass_params_to_redirect',
   'is_refundable', 'refund_period_days',
   'enable_waitlist',

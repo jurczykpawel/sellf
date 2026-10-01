@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DisposableEmailService } from '@/lib/services/disposable-email';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { canonicalizeEmailForBucket } from '@/lib/security/email-canonical';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 /**
  * Email Validation API Endpoint
@@ -32,11 +34,6 @@ interface EmailValidationResponse {
   };
 }
 
-function validateEmailFormat(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
 export async function POST(request: NextRequest): Promise<NextResponse<EmailValidationResponse>> {
   const startTime = Date.now();
   
@@ -59,8 +56,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<EmailVali
     }
 
     // Parse and validate request body
-    const body = await request.json().catch(() => null);
-    
+    let body: any = null;
+    try {
+      body = await readJsonBody(request);
+    } catch (err) {
+      if (err instanceof ApiPayloadTooLargeError) {
+        return NextResponse.json({
+          success: false,
+          error: {
+            message: 'Request body too large',
+            code: 'PAYLOAD_TOO_LARGE'
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            processingTime: Date.now() - startTime,
+            domainsLoaded: 0
+          }
+        }, { status: 413 });
+      }
+      body = null;
+    }
+
     if (!body) {
       return NextResponse.json({
         success: false,
@@ -94,7 +110,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<EmailVali
       }, { status: 400 });
     }
 
-    if (!validateEmailFormat(email)) {
+    if (!isValidEmailFormat(email)) {
       return NextResponse.json({
         success: false,
         error: {

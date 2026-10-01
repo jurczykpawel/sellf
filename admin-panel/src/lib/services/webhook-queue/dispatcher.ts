@@ -1,5 +1,5 @@
 import { fetch as undiciFetch } from 'undici';
-import { getSsrfSafeAgent } from '@/lib/security/safe-fetch';
+import { getSsrfSafeAgent, readBoundedText } from '@/lib/security/safe-fetch';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
 import { decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 import { signWebhookPayload } from './signature';
@@ -91,8 +91,11 @@ export class WebhookDispatcher {
           dispatcher: getSsrfSafeAgent(),
         });
 
-        const text = await response.text();
-        const trimmed = text ? text.substring(0, MAX_RESPONSE_BODY_CHARS) : '';
+        // Read only up to MAX_RESPONSE_BODY_CHARS off the wire instead of
+        // buffering the full body first — a hostile/misbehaving endpoint
+        // could otherwise stream an unbounded amount of data during the
+        // request's timeout window before the old `.substring()` ever ran.
+        const trimmed = await readBoundedText(response, MAX_RESPONSE_BODY_CHARS);
 
         return {
           ok: response.ok,

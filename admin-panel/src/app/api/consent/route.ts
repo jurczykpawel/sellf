@@ -5,6 +5,8 @@ import { checkRateLimit } from '@/lib/rate-limiting'
 import { isAllowedOrigin } from '@/lib/security/origin-match'
 import { getClientIp } from '@/lib/security/client-ip'
 import { parseConsentBody } from './schema'
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit'
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +14,7 @@ export async function POST(request: NextRequest) {
     // Origin header on POST is a clear sign of a non-browser caller and
     // is rejected here rather than treated as "same-origin".
     const origin = request.headers.get('origin');
-    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+    const siteUrl = getCanonicalOriginOrNull();
     if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content-Type must be application/json' }, { status: 415 });
     }
 
-    const body = await request.json()
+    const body = await readJsonBody(request)
 
     const parsed = parseConsentBody(body)
     if (!parsed.ok) {
@@ -81,6 +83,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 })
+    }
     console.error('[consent] API error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

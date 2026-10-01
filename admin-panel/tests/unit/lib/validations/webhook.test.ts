@@ -10,6 +10,7 @@ import {
   isValidWebhookUrl,
   isValidEventType,
   validateEventTypes,
+  validateCustomPayloadFields,
   WEBHOOK_EVENT_TYPES,
 } from '@/lib/validations/webhook';
 
@@ -213,6 +214,37 @@ describe('Webhook Validation', () => {
       const result = validateEventTypes(['bad.event']);
       expect(result.valid).toBe(false);
       expect(result.error).toContain('purchase.completed');
+    });
+  });
+
+  describe('validateCustomPayloadFields', () => {
+    it('accepts null/undefined (no custom fields)', () => {
+      expect(validateCustomPayloadFields(null).valid).toBe(true);
+      expect(validateCustomPayloadFields(undefined).valid).toBe(true);
+    });
+
+    it('accepts field names that do not collide with the envelope', () => {
+      const result = validateCustomPayloadFields({ brand: 'tsa', to: '{{email}}' });
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects a field named after a core envelope key', () => {
+      const result = validateCustomPayloadFields({ event: 'fake' });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('event');
+    });
+
+    it('rejects "data" and "timestamp" the same way', () => {
+      expect(validateCustomPayloadFields({ data: 'x' }).valid).toBe(false);
+      expect(validateCustomPayloadFields({ timestamp: 'x' }).valid).toBe(false);
+    });
+
+    it('lists every colliding key when several are reserved', () => {
+      const result = validateCustomPayloadFields({ event: 'x', timestamp: 'y', brand: 'tsa' });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('event');
+      expect(result.error).toContain('timestamp');
+      expect(result.error).not.toContain('brand');
     });
   });
 

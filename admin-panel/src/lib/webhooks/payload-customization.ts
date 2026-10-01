@@ -12,6 +12,14 @@ export interface PayloadCustomization {
   custom_payload_fields?: Record<string, unknown> | null;
 }
 
+/**
+ * Top-level keys of the outbound envelope (see `buildEndpointBody`). A seller-defined
+ * custom field sharing one of these names must never be able to replace the real
+ * value — `buildEndpointBody` drops colliding custom fields, and
+ * `validateCustomPayloadFields` (lib/validations/webhook.ts) rejects them at save time.
+ */
+export const RESERVED_ENVELOPE_KEYS = ['event', 'timestamp', 'data'] as const;
+
 /** Keep only whitelisted keys of `data`; null selection = identity. */
 export function selectDataFields(
   data: Record<string, unknown>,
@@ -49,8 +57,17 @@ export function buildEndpointBody(
   ctx: PlaceholderContext,
 ): Record<string, unknown> {
   const data = selectDataFields(baseEnvelope.data, customization.payload_field_selection);
-  const extra = customization.custom_payload_fields
+  const rendered = customization.custom_payload_fields
     ? (renderTemplate(customization.custom_payload_fields, ctx) as Record<string, unknown>)
     : {};
+  // Reserved keys are also rejected at save time (validateCustomPayloadFields);
+  // here the real envelope value always wins, so a
+  // field saved before that check existed (or written directly in the DB) can never
+  // silently replace the event type, timestamp, or data object.
+  const extra: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rendered)) {
+    if ((RESERVED_ENVELOPE_KEYS as readonly string[]).includes(key)) continue;
+    extra[key] = value;
+  }
   return { event: baseEnvelope.event, timestamp: baseEnvelope.timestamp, data, ...extra };
 }

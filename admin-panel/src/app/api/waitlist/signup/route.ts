@@ -4,6 +4,8 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { sanitizeForLog } from '@/lib/logger';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +27,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonBody<{
+      email?: string;
+      productId?: string;
+      productSlug?: string;
+      captchaToken?: string;
+    }>(request);
     const { email: bodyEmail, productId, productSlug, captchaToken } = body;
 
     // Validate productId is a UUID
@@ -56,8 +63,7 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(bodyEmail)) {
+      if (!isValidEmailFormat(bodyEmail)) {
         return NextResponse.json(
           { error: 'Invalid email format' },
           { status: 400 }
@@ -120,6 +126,9 @@ export async function POST(request: Request) {
       message: 'Successfully signed up for waitlist',
     });
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('[Waitlist] Error processing signup:', error);
     return NextResponse.json(
       { error: 'Failed to process waitlist signup' },

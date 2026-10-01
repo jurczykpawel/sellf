@@ -304,6 +304,42 @@ describe('Product Validation', () => {
     });
   });
 
+  describe('redirect content_config validation', () => {
+    const redirectProduct = {
+      name: 'Redirect Product',
+      slug: 'redirect-product',
+      description: 'A test product that redirects to an external page',
+      price: 0,
+      currency: 'PLN',
+      content_delivery_type: 'redirect',
+    };
+
+    it.each([
+      ['relative path', '/thank-you'],
+      ['https URL on any origin', 'https://course.example/welcome'],
+      ['http URL', 'http://shop.example/welcome'],
+    ])('accepts a redirect_url that is a %s', (_label, redirectUrl) => {
+      const result = validateCreateProduct({
+        ...redirectProduct,
+        content_config: { redirect_url: redirectUrl },
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it.each([
+      ['javascript:', 'javascript:alert(document.cookie)'],
+      ['data:', 'data:text/html,<script>alert(1)</script>'],
+      ['protocol-relative', '//evil.example/phish'],
+      ['domain only (no scheme)', 'evil.example/phish'],
+    ])('rejects a redirect_url with a dangerous scheme (%s)', (_label, redirectUrl) => {
+      const result = validateCreateProduct({
+        ...redirectProduct,
+        content_config: { redirect_url: redirectUrl },
+      });
+      expect(result.isValid).toBe(false);
+    });
+  });
+
   describe('video content validation', () => {
     const validProduct = {
       name: 'Video Product',

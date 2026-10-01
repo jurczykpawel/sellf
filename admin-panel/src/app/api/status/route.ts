@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rate-limiting';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 function corsHeadersForSite(): Record<string, string> {
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  const siteUrl = getCanonicalOriginOrNull();
   const base: Record<string, string> = {
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',

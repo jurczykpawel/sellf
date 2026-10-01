@@ -27,3 +27,11 @@ export class ApiValidationError extends Error {
     this.name = 'ApiValidationError';
   }
 }
+
+/** Thrown by parseJsonBody when the actual byte count read exceeds the cap. */
+export class ApiPayloadTooLargeError extends Error {
+  constructor(message = 'Request body too large') {
+    super(message);
+    this.name = 'ApiPayloadTooLargeError';
+  }
+}

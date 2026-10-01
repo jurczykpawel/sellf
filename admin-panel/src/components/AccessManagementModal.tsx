@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { UserWithAccess, Product } from '@/types';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button, Message } from './ui/Modal';
 import { useTranslations } from 'next-intl';
-import { api } from '@/lib/api/client';
+import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface AccessManagementModalProps {
   user: UserWithAccess;
@@ -67,13 +67,8 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
 
   const fetchAvailableProducts = useCallback(async (retryCount = 0) => {
     try {
-      // Fetch only active products using v1 API
-      const response = await api.list<Product>('products', {
-        status: 'active',
-        limit: 100,
-        sort: 'name',
-      });
-      setAvailableProducts(response.data || []);
+      // Fetch every active product using v1 API
+      setAvailableProducts(await fetchAllProductsForDropdown('active'));
     } catch (err) {
       // Retry on auth errors (session might not be ready yet)
       if (retryCount < 2) {
@@ -119,7 +114,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || t('grantAccessError'));
+        throw new Error(errorData.error?.message || errorData.error || t('grantAccessError'));
       }
 
       // Refresh user access
@@ -148,7 +143,7 @@ const AccessManagementModal: React.FC<AccessManagementModalProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || t('removeAccessError'));
+        throw new Error(errorData.error?.message || errorData.error || t('removeAccessError'));
       }
 
       // Refresh user access

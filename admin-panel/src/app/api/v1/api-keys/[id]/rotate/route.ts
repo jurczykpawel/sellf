@@ -24,6 +24,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
 import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
+import { logApiKeyAuditEvent } from '@/lib/api/api-key-audit';
 import { validateUUID } from '@/lib/validations/product';
 import type { Database } from '@/types/database';
 
@@ -49,7 +50,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminApi(supabase, request);
     const { id } = await params;
 
     // Validate ID format
@@ -141,42 +142,43 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .update(oldKeyUpdate)
       .eq('id', oldKey.id);
 
+    const warnings: string[] = [];
     if (updateError) {
       console.error('Error updating old key:', updateError);
-      // Don't fail - new key is already created
+      // The new key already exists and can't be un-created here, but the
+      // response must not claim the old key was deactivated when it wasn't
+      // — it's still fully active until this is retried.
+      warnings.push('New key created, but the old key could not be deactivated. It is still active — retry the rotation or deactivate it manually.');
     }
 
-    // Log rotation event
-    await supabase
-      .from('api_key_audit_log')
-      .insert({
-        api_key_id: oldKey.id,
-        event_type: 'rotated',
-        event_data: {
-          new_key_id: newKey.id,
-          grace_period_hours: gracePeriodHours,
-          grace_until: graceUntil,
-        },
-      });
+    // Log rotation event through the shared audit helper (service-role client).
+    await logApiKeyAuditEvent(oldKey.id, 'rotated', {
+      new_key_id: newKey.id,
+      grace_period_hours: gracePeriodHours,
+      grace_until: graceUntil,
+    });
 
-    return jsonResponse(
-      successResponse({
-        new_key: {
-          ...newKey,
-          key: newKeyData.plaintext,
-          warning: 'Save this key now - it will not be shown again!',
-        },
-        old_key: {
-          id: oldKey.id,
-          grace_until: graceUntil,
-          message: graceUntil
+    const oldKeyDeactivated = !updateError;
+    const result = {
+      new_key: {
+        ...newKey,
+        key: newKeyData.plaintext,
+        warning: 'Save this key now - it will not be shown again!',
+      },
+      old_key: {
+        id: oldKey.id,
+        deactivated: oldKeyDeactivated,
+        grace_until: oldKeyDeactivated ? graceUntil : null,
+        message: !oldKeyDeactivated
+          ? 'Old key could not be deactivated and is still active'
+          : graceUntil
             ? `Old key will remain valid until ${graceUntil}`
             : 'Old key has been immediately deactivated',
-        },
-      }),
-      request,
-      201
-    );
+      },
+      ...(warnings.length > 0 ? { _warnings: warnings } : {}),
+    };
+
+    return jsonResponse(successResponse(result), request, warnings.length > 0 ? 207 : 201);
   } catch (error) {
     return handleApiError(error, request);
   }

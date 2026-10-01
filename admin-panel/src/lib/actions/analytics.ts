@@ -151,8 +151,8 @@ export async function setRevenueGoal(amount: number, startDate: string, currency
       success: true as const,
       data: error ? { ok: false, msg: 'Failed to set revenue goal' } : { ok: true, msg: '' },
     }
-  })
+  }, { mutating: true })
 
-  if (!result.success) return { success: false, error: 'Unauthorized' }
+  if (!result.success) return { success: false, error: result.error || 'Unauthorized' }
   return { success: result.data!.ok, error: result.data!.ok ? undefined : result.data!.msg }
 }

@@ -127,6 +127,29 @@ describe('mapApiInputToProductRow', () => {
     expect(typeof ProductCreateDTO.parse).toBe('function');
     expect(typeof ProductUpdateDTO.parse).toBe('function');
   });
+
+  describe('success_redirect_url', () => {
+    it('accepts a relative path, an http(s) URL, or an empty string', () => {
+      for (const url of ['/thank-you', 'https://example.com/thank-you', 'http://shop.example', '']) {
+        const result = mapApiInputToProductRow({ ...validBase, success_redirect_url: url }, 'create');
+        expect(result.success_redirect_url).toBe(url);
+      }
+    });
+
+    it('rejects a dangerous scheme', () => {
+      for (const url of ['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', '//evil.com']) {
+        expect(() =>
+          mapApiInputToProductRow({ ...validBase, success_redirect_url: url }, 'create'),
+        ).toThrow();
+      }
+    });
+
+    it('rejects a dangerous scheme on partial update too', () => {
+      expect(() =>
+        mapApiInputToProductRow({ success_redirect_url: 'javascript:alert(1)' }, 'update'),
+      ).toThrow();
+    });
+  });
 });
 
 describe('features sections', () => {

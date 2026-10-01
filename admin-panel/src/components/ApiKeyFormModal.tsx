@@ -68,6 +68,7 @@ export default function ApiKeyFormModal({
       API_SCOPES.USERS_READ,
       API_SCOPES.COUPONS_READ,
       API_SCOPES.ANALYTICS_READ,
+      API_SCOPES.PAYMENTS_READ,
       API_SCOPES.WEBHOOKS_READ,
     ] },
     { id: 'productsOnly', name: t('presets.productsOnly'), scopes: [API_SCOPES.PRODUCTS_READ, API_SCOPES.PRODUCTS_WRITE] },

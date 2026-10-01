@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { validateProfile, type ProfileInput } from '@/lib/validations/profile'
+import { validateProfile, ProfileUpdateDTO, type ProfileInput } from '@/lib/validations/profile'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 
 export async function getProfile() {
@@ -39,14 +39,21 @@ export async function updateProfile(values: ProfileInput) {
     return { error: 'Invalid fields', details: validation.errors }
   }
 
+  // Write only the parsed, editable columns — never the raw argument.
+  const parsed = ProfileUpdateDTO.safeParse(values)
+  if (!parsed.success) {
+    return { error: 'Invalid fields' }
+  }
+  const validatedValues = parsed.data
+
   // Computed full name if not provided
-  const fullName = values.full_name || 
-    (values.first_name && values.last_name ? `${values.first_name} ${values.last_name}` : null)
+  const fullName = validatedValues.full_name ||
+    (validatedValues.first_name && validatedValues.last_name ? `${validatedValues.first_name} ${validatedValues.last_name}` : null)
 
   const { error } = await supabase
     .from('profiles')
     .update({
-      ...values,
+      ...validatedValues,
       full_name: fullName,
       updated_at: new Date().toISOString()
     })

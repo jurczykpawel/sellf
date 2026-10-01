@@ -9,6 +9,7 @@
  */
 
 import { withAdminClient } from '@/lib/actions/admin-auth';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 export interface SecurityCheckResult {
   id: string;
@@ -86,7 +87,7 @@ async function executeAudit(): Promise<SecurityAuditResult> {
     return { success: false, checks: [], timestamp: new Date().toISOString(), error: 'Missing Supabase configuration' };
   }
 
-  const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+  const siteUrl = getCanonicalOriginOrNull() ?? '';
 
   // Define all checks with scope
   interface ScopedCheck {

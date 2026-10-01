@@ -83,4 +83,42 @@ describe('updateShopConfig — singleton upsert', () => {
     expect(insertSingle).not.toHaveBeenCalled();
     expect(updateEq).not.toHaveBeenCalled();
   });
+
+  it('rejects an update carrying a column not in the shop config shape', async () => {
+    maybeSingle.mockResolvedValue({ data: { id: 'existing-id' }, error: null });
+    updateEq.mockResolvedValue({ error: null });
+
+    const { updateShopConfig } = await import('@/lib/actions/shop-config');
+    const ok = await updateShopConfig({
+      shop_name: 'X',
+      // @ts-expect-error — deliberately not a ShopConfig column
+      is_admin: true,
+    });
+
+    expect(ok).toBe(false);
+    expect(updateEq).not.toHaveBeenCalled();
+    expect(insertSingle).not.toHaveBeenCalled();
+  });
+
+  it('accepts a valid checkout_theme', async () => {
+    maybeSingle.mockResolvedValue({ data: { id: 'existing-id' }, error: null });
+    updateEq.mockResolvedValue({ error: null });
+
+    const { updateShopConfig } = await import('@/lib/actions/shop-config');
+    for (const theme of ['system', 'light', 'dark', null] as const) {
+      expect(await updateShopConfig({ checkout_theme: theme })).toBe(true);
+    }
+  });
+
+  it('rejects a checkout_theme outside the enum without writing', async () => {
+    maybeSingle.mockResolvedValue({ data: { id: 'existing-id' }, error: null });
+    updateEq.mockResolvedValue({ error: null });
+
+    const { updateShopConfig } = await import('@/lib/actions/shop-config');
+    const ok = await updateShopConfig({ checkout_theme: 'purple' as never });
+
+    expect(ok).toBe(false);
+    expect(updateEq).not.toHaveBeenCalled();
+    expect(insertSingle).not.toHaveBeenCalled();
+  });
 });

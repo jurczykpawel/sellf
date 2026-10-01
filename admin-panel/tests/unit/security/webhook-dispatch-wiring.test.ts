@@ -8,10 +8,16 @@ import { join } from 'path';
  * Why this test exists: the connect-time SSRF protection in src/lib/security/safe-fetch.ts
  * relies on undici's Agent.dispatch via `dispatcher: getSsrfSafeAgent()`. That hook
  * is a no-op under Bun (Agent.prototype.dispatch is undefined on Bun's bundled
- * undici), and Sellf's production runtime is Bun (see Dockerfile CMD). As a
- * runtime-portable defence, the WebhookDispatcher re-resolves the URL via
- * validateWebhookUrlAsync immediately before each fetch, so a hostname that
- * has rebinded to a private address since save-time gets blocked.
+ * undici — verified directly: `new (require('undici').Agent)().dispatch` is
+ * `undefined` under `bun`). The Dockerfile's own CMD runs `node server.js`
+ * (real Node, where the dispatcher hook does work), but the generic
+ * self-host release tarball documented in build-release.yml's release notes
+ * starts the app via `start.sh` → `bun run start`, so Bun IS a real,
+ * documented production interpreter for this app, just not the Docker one.
+ * As a runtime-portable defence that works regardless of interpreter, the
+ * WebhookDispatcher re-resolves the URL via validateWebhookUrlAsync
+ * immediately before each fetch, so a hostname that has rebound to a
+ * private address since save-time gets blocked either way.
  *
  * If a future refactor drops that pre-flight call, the connect-time hook may
  * silently revert to "no protection" on the production runtime. These

@@ -6,6 +6,7 @@
  */
 
 import { isPrivateOrReservedIp } from '@/lib/security/ip-blocklist';
+import { RESERVED_ENVELOPE_KEYS } from '@/lib/webhooks/payload-customization';
 
 async function resolveAuthoritative(hostname: string): Promise<string[]> {
   const dns = await import('node:dns/promises');
@@ -210,6 +211,31 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export function isValidProductFilterMode(mode: string): mode is WebhookProductFilterMode {
   return (WEBHOOK_PRODUCT_FILTER_MODES as readonly string[]).includes(mode);
+}
+
+/**
+ * Custom payload fields (`custom_payload_fields`) are merged into the outbound
+ * webhook envelope alongside the core `event`/`timestamp`/`data` keys
+ * (`buildEndpointBody` in lib/webhooks/payload-customization.ts). A field sharing
+ * one of those names would collide with the real value, so it is rejected here at
+ * save time — `buildEndpointBody` also drops any that slip through some other way.
+ */
+export function validateCustomPayloadFields(
+  fields: Record<string, unknown> | null | undefined,
+): { valid: boolean; error?: string } {
+  if (!fields) return { valid: true };
+
+  const reserved = Object.keys(fields).filter((key) =>
+    (RESERVED_ENVELOPE_KEYS as readonly string[]).includes(key),
+  );
+  if (reserved.length > 0) {
+    return {
+      valid: false,
+      error: `Custom payload field name(s) reserved for the webhook envelope: ${reserved.join(', ')}. Rename them (e.g. "event" -> "event_name").`,
+    };
+  }
+
+  return { valid: true };
 }
 
 export function validateProductFilter(

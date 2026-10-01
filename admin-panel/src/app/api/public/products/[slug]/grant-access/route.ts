@@ -10,6 +10,8 @@ import {
   validateCustomFieldDefinitions,
   validateCustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 export async function POST(
   request: NextRequest,
@@ -45,7 +47,10 @@ export async function POST(
     try {
       const contentType = request.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        const body = await request.json().catch(() => null);
+        const body = await readJsonBody(request).catch((err) => {
+          if (err instanceof ApiPayloadTooLargeError) throw err;
+          return null;
+        });
         if (body && typeof body === 'object') {
           const rawCoupon = (body as { couponCode?: unknown }).couponCode;
           if (typeof rawCoupon === 'string' && rawCoupon.trim().length > 0) {
@@ -57,7 +62,10 @@ export async function POST(
           }
         }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiPayloadTooLargeError) {
+        return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+      }
       couponCode = null;
     }
 
@@ -124,7 +132,7 @@ export async function POST(
         return null;
       });
 
-      const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '';
+      const siteUrl = getCanonicalOriginOrNull() ?? '';
       const webhookPayload: Record<string, unknown> = {
         customer: { email: user.email, userId: user.id },
         product: {

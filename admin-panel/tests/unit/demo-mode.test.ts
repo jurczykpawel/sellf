@@ -189,6 +189,10 @@ describe('Proxy demo blocking (whitelist verified against source)', () => {
     expect(adminRoutes).toHaveLength(0);
   });
 
+  it('whitelist does NOT include user management routes', () => {
+    expect(whitelist.filter(r => r.startsWith('/api/users'))).toHaveLength(0);
+  });
+
   it('whitelist does NOT include /api/v1 (blocked by default)', () => {
     const v1Routes = whitelist.filter(r => r.startsWith('/api/v1'));
     expect(v1Routes).toHaveLength(0);
@@ -384,6 +388,22 @@ describe('Server action demo guards', () => {
       const { updateShopConfig } = await import('@/lib/actions/shop-config');
       const result = await updateShopConfig({ shop_name: 'Test' });
       expect(result).toBe(false);
+    });
+  });
+
+  describe('payment (return pattern)', () => {
+    it('processRefund returns error in demo mode', async () => {
+      const { processRefund } = await import('@/lib/actions/payment');
+      const result = await processRefund({ transactionId: 'txn_1' } as never);
+      expect(result).toEqual({ success: false, message: 'This action is disabled in demo mode' });
+    });
+  });
+
+  describe('analytics (return pattern)', () => {
+    it('setRevenueGoal returns error in demo mode', async () => {
+      const { setRevenueGoal } = await import('@/lib/actions/analytics');
+      const result = await setRevenueGoal(100, '2026-01-01', 'usd');
+      expect(result).toEqual({ success: false, error: 'This action is disabled in demo mode' });
     });
   });
 });

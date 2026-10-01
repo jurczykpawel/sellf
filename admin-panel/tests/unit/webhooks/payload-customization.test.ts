@@ -43,4 +43,22 @@ describe('buildEndpointBody', () => {
       brand: 'tsa', to: 'a@b.com',
     });
   });
+
+  it('keeps the real envelope values when a custom field collides with a core key', () => {
+    const base = { event: 'purchase.completed', timestamp: 't', data: { email: 'a@b.com' } };
+    const out = buildEndpointBody(base, {
+      custom_payload_fields: {
+        event: 'fake.event',
+        timestamp: 'fake-timestamp',
+        data: { replaced: true },
+        brand: 'tsa',
+      },
+    }, {});
+    expect(out).toEqual({
+      event: 'purchase.completed',
+      timestamp: 't',
+      data: { email: 'a@b.com' },
+      brand: 'tsa',
+    });
+  });
 });

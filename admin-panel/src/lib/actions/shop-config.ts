@@ -8,6 +8,7 @@ import { isDemoMode } from '@/lib/demo-guard'
 import { withAdminClient } from '@/lib/actions/admin-auth'
 import { resolveLegalDocsSource, type LegalDocsSource } from '@/lib/legal/legal-docs-source'
 import { SHOP_CONFIG_PUBLIC_COLUMNS_CSV } from '@/lib/shop-config-columns'
+import { ShopConfigUpdateDTO } from '@/lib/validations/shop-config'
 
 export type TaxMode = 'local' | 'stripe_tax'
 
@@ -183,8 +184,18 @@ export async function getMyDefaultCurrency(): Promise<string> {
 /**
  * Update shop configuration
  */
+
 export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 'created_at' | 'updated_at'>>): Promise<boolean> {
   if (isDemoMode()) return false
+
+  // Reject unknown keys and parse to the validated shape — never spread the
+  // raw argument into .insert()/.update().
+  const parsed = ShopConfigUpdateDTO.safeParse(updates)
+  if (!parsed.success) {
+    console.error('[updateShopConfig] Invalid input:', parsed.error.issues)
+    return false
+  }
+  const validatedUpdates = parsed.data
 
   const result = await withAdminClient(async ({ dataClient }) => {
     // Read config from the SAME schema we'll write to (not platform's getShopConfig)
@@ -202,7 +213,7 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
     if (!configId) {
       const { data: created, error: insertError } = await dataClient
         .from('shop_config')
-        .insert({ ...updates, updated_at: new Date().toISOString() })
+        .insert({ ...validatedUpdates, updated_at: new Date().toISOString() })
         .select('id')
         .single()
       if (insertError || !created) {
@@ -218,7 +229,7 @@ export async function updateShopConfig(updates: Partial<Omit<ShopConfig, 'id' | 
     const { error } = await dataClient
       .from('shop_config')
       .update({
-        ...updates,
+        ...validatedUpdates,
         updated_at: new Date().toISOString()
       })
       .eq('id', configId)

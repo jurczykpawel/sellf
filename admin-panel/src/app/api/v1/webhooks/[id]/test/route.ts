@@ -15,7 +15,11 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
+import { isValidEventType } from '@/lib/validations/webhook';
 import { WebhookService } from '@/lib/services/webhook-service';
+
+/** `WebhookService.testEndpoint`'s own generic-event fallback — not a subscribable event type. */
+const GENERIC_TEST_EVENT = 'test.event';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -61,7 +65,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     let eventType: string | undefined;
     try {
       const body = await request.json();
-      eventType = body.event_type;
+      if (body.event_type !== undefined) {
+        const isGenericTestEvent = body.event_type === GENERIC_TEST_EVENT;
+        if (typeof body.event_type !== 'string' || !(isGenericTestEvent || isValidEventType(body.event_type))) {
+          return apiError(request, 'INVALID_INPUT', 'Invalid event_type');
+        }
+        eventType = body.event_type;
+      }
     } catch {
       // Empty body is OK
     }

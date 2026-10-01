@@ -15,6 +15,7 @@ import {
   apiError,
   ApiAuthError,
   ApiValidationError,
+  ApiPayloadTooLargeError,
   handleApiError,
 } from '@/lib/api/middleware';
 
@@ -333,6 +334,17 @@ describe('API Middleware', () => {
       const body = await response.json();
       expect(body.error.code).toBe('VALIDATION_ERROR');
       expect(body.error.details).toEqual({ name: ['Required'] });
+    });
+
+    it('should handle ApiPayloadTooLargeError', async () => {
+      const request = createMockRequest();
+      const error = new ApiPayloadTooLargeError();
+
+      const response = handleApiError(error, request);
+
+      expect(response.status).toBe(413);
+      const body = await response.json();
+      expect(body.error.code).toBe('PAYLOAD_TOO_LARGE');
     });
 
     it('should handle legacy Unauthorized error', async () => {

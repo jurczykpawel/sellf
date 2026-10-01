@@ -4,6 +4,7 @@ import createMiddleware from 'next-intl/middleware'
 import { locales, defaultLocale } from './lib/locales'
 import { buildSupabaseCookieOptions } from './lib/supabase/cookie-options'
 import { buildContentSecurityPolicyWithNonce } from './lib/security/headers'
+import { DEMO_MODE_API_ERROR } from './lib/demo-guard'
 
 /**
  * Header name used to forward the per-request CSP nonce from middleware
@@ -60,7 +61,6 @@ const DEMO_MUTATION_ALLOWED = [
   '/api/oto/',
   '/api/products/',
   '/api/profile/',
-  '/api/users/',
   '/api/refund-requests',
 ]
 
@@ -207,10 +207,7 @@ export async function proxy(request: NextRequest) {
 
   // Demo mode: block mutating requests on API routes
   if (isDemoBlocked(pathname, request.method)) {
-    return applyHeaders(NextResponse.json(
-      { error: { code: 'DEMO_MODE', message: 'This action is disabled in demo mode' } },
-      { status: 403 }
-    ));
+    return applyHeaders(NextResponse.json(DEMO_MODE_API_ERROR, { status: 403 }));
   }
 
   // Body size limit for API routes (1MB) — prevents large payload DoS
@@ -374,13 +371,18 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // Always run for API routes — a dynamic segment (e.g. a UUID param)
+    // that happens to end in one of the extensions below must still hit
+    // the demo/body-size/admin-auth gate and CSP headers.
+    '/api/:path*',
     /*
-     * Match all request paths except for the ones starting with:
+     * Everything else, except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - static images
+     * - static images (never API routes, so excluding them here is safe)
+     * - api (handled by the matcher above)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -6,6 +6,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { User } from '@supabase/supabase-js';
 import { DisposableEmailService } from './disposable-email';
+import { isValidEmailFormat } from '@/lib/validations/email-format';
 
 export type ProductType = 'one_time' | 'subscription';
 export type BillingInterval = 'day' | 'week' | 'month' | 'year';
@@ -182,8 +183,7 @@ export class ProductValidationService {
    * Validate email format only (basic regex check)
    */
   static validateEmailFormat(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return isValidEmailFormat(email);
   }
 
   /**

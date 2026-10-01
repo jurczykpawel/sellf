@@ -43,8 +43,6 @@ export const SCOPE_PRESETS = {
     API_SCOPES.SYSTEM_READ,
   ],
 
-  analyticsOnly: [API_SCOPES.ANALYTICS_READ],
-
   support: [
     API_SCOPES.PRODUCTS_READ,
     API_SCOPES.USERS_READ,
@@ -81,7 +79,7 @@ export function generateApiKey(isTest: boolean = false): GeneratedApiKey {
 
   return {
     plaintext,
-    prefix: plaintext.substring(0, 12), // "sf_live_a1b2" or "sf_test_a1b2"
+    prefix: plaintext.substring(0, 16), // "sf_live_a1b2c3d4" or "sf_test_a1b2c3d4"
     hash: hashApiKey(plaintext),
   };
 }

@@ -5,6 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { getShopConfig } from '@/lib/actions/shop-config';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 import { firstRelated } from '@/lib/supabase/relations';
+import { loadProductContentConfig } from '@/lib/services/product-content-config';
 
 export async function GET(
   request: NextRequest,
@@ -46,7 +47,6 @@ export async function GET(
         is_bundle,
         available_from,
         available_until,
-        content_config,
         content_delivery_type
       `)
       .eq('slug', slug)
@@ -94,6 +94,7 @@ export async function GET(
     // Fetch license for this product if one was issued to this user.
     // issued_licenses is service-role only — must use admin client.
     const admin = createAdminClient();
+    const contentConfig = await loadProductContentConfig(admin, productWithAccess.id);
     const license = toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user));
 
     // For bundles, resolve the component products so the access view can link to
@@ -131,7 +132,7 @@ export async function GET(
         is_featured: productWithAccess.is_featured,
         available_from: productWithAccess.available_from,
         available_until: productWithAccess.available_until,
-        content_config: productWithAccess.content_config,
+        content_config: contentConfig ?? {},
         content_delivery_type: productWithAccess.content_delivery_type
       },
       branding: {

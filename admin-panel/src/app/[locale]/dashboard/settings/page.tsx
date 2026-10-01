@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import SettingsTabs from '@/components/settings/SettingsTabs';
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { checkFeature } from '@/lib/license/resolve';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 export default async function SettingsPage() {
   await verifyAdminAccess();
@@ -24,7 +25,7 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsTabs
-        siteUrl={process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || ''}
+        siteUrl={getCanonicalOriginOrNull() ?? ''}
         initialCheckoutTheme={shopConfig?.checkout_theme ?? null}
         hasLicenseIssuance={hasLicenseIssuance}
       />

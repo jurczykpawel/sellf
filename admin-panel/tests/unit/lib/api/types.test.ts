@@ -145,6 +145,7 @@ describe('API Types', () => {
       'INTERNAL_ERROR',
       'SERVICE_UNAVAILABLE',
       'RATE_LIMITED',
+      'PAYLOAD_TOO_LARGE',
     ] as const;
 
     it('should contain exactly the expected error codes', () => {
@@ -167,6 +168,7 @@ describe('API Types', () => {
       expect(ErrorCodes.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
       expect(ErrorCodes.SERVICE_UNAVAILABLE).toBe('SERVICE_UNAVAILABLE');
       expect(ErrorCodes.RATE_LIMITED).toBe('RATE_LIMITED');
+      expect(ErrorCodes.PAYLOAD_TOO_LARGE).toBe('PAYLOAD_TOO_LARGE');
     });
 
     it('should not contain unexpected extra codes', () => {
@@ -206,6 +208,10 @@ describe('API Types', () => {
 
     it('should map rate limit to 429', () => {
       expect(ErrorHttpStatus[ErrorCodes.RATE_LIMITED]).toBe(429);
+    });
+
+    it('should map payload too large to 413', () => {
+      expect(ErrorHttpStatus[ErrorCodes.PAYLOAD_TOO_LARGE]).toBe(413);
     });
 
     it('should have mapping for all error codes', () => {

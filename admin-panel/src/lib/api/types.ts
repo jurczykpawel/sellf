@@ -59,6 +59,9 @@ export const ErrorCodes = {
 
   // Rate limiting
   RATE_LIMITED: 'RATE_LIMITED',
+
+  // Request size
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
 } as const;
 
 export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
@@ -100,4 +103,5 @@ export const ErrorHttpStatus: Record<ErrorCode, number> = {
   [ErrorCodes.INTERNAL_ERROR]: 500,
   [ErrorCodes.SERVICE_UNAVAILABLE]: 503,
   [ErrorCodes.RATE_LIMITED]: 429,
+  [ErrorCodes.PAYLOAD_TOO_LARGE]: 413,
 };

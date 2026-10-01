@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('undici', () => ({
   fetch: vi.fn(),
 }));
-vi.mock('@/lib/security/safe-fetch', () => ({
+vi.mock('@/lib/security/safe-fetch', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/security/safe-fetch')>()),
   getSsrfSafeAgent: vi.fn(() => undefined),
 }));
 vi.mock('@/lib/validations/webhook', () => ({
@@ -20,6 +21,19 @@ const endpoint = {
   url: 'https://example.com/hook',
   secret: 'whsec_test_abc',
 };
+
+/**
+ * WebhookDispatcher reads the response via readBoundedText (a ReadableStream
+ * reader), not response.text() — build a mock Response backed by a real
+ * stream so responseBody assertions reflect the actual code path.
+ */
+function mockResponse(status: number, text: string): { ok: boolean; status: number; body: ReadableStream<Uint8Array> } {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    body: new Response(text).body!,
+  };
+}
 const payload = {
   event: 'test.event',
   timestamp: '2026-05-23T12:00:00Z',
@@ -33,7 +47,7 @@ describe('WebhookDispatcher', () => {
   });
 
   it('signs payload with the timestamped v1 scheme (t=<unix>,v1=<hmac>) and includes required headers', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    (undiciFetch as any).mockResolvedValue(mockResponse(200, 'ok'));
 
     await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 1 });
 
@@ -49,21 +63,21 @@ describe('WebhookDispatcher', () => {
   });
 
   it('adds X-Sellf-Retry-Attempt header when attemptCount > 1', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    (undiciFetch as any).mockResolvedValue(mockResponse(200, 'ok'));
     await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 3 });
     const [, init] = (undiciFetch as any).mock.calls[0];
     expect(init.headers['X-Sellf-Retry-Attempt']).toBe('3');
   });
 
   it('omits X-Sellf-Retry-Attempt header on first attempt', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    (undiciFetch as any).mockResolvedValue(mockResponse(200, 'ok'));
     await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 1 });
     const [, init] = (undiciFetch as any).mock.calls[0];
     expect(init.headers['X-Sellf-Retry-Attempt']).toBeUndefined();
   });
 
   it('returns ok=true and httpStatus on 2xx', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'hello' });
+    (undiciFetch as any).mockResolvedValue(mockResponse(200, 'hello'));
     const result = await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 1 });
     expect(result.ok).toBe(true);
     expect(result.httpStatus).toBe(200);
@@ -73,7 +87,7 @@ describe('WebhookDispatcher', () => {
   });
 
   it('returns ok=false and HTTP <status> error on non-2xx', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: false, status: 503, text: async () => 'down' });
+    (undiciFetch as any).mockResolvedValue(mockResponse(503, 'down'));
     const result = await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 1 });
     expect(result.ok).toBe(false);
     expect(result.httpStatus).toBe(503);
@@ -90,7 +104,7 @@ describe('WebhookDispatcher', () => {
   });
 
   it('caps responseBody at 5000 chars', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'x'.repeat(10000) });
+    (undiciFetch as any).mockResolvedValue(mockResponse(200, 'x'.repeat(10000)));
     const result = await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, { attemptCount: 1 });
     expect(result.responseBody!.length).toBe(5000);
   });
@@ -112,7 +126,7 @@ describe('WebhookDispatcher', () => {
   });
 
   it('forwards extra headers but does not allow overwriting X-Sellf-Signature', async () => {
-    (undiciFetch as any).mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+    (undiciFetch as any).mockResolvedValue(mockResponse(200, 'ok'));
     await WebhookDispatcher.dispatch(endpoint, 'test.event', payload, {
       attemptCount: 1,
       extraHeaders: { 'X-Custom': 'value', 'X-Sellf-Signature': 'forged' },

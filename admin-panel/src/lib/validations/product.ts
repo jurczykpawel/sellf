@@ -9,6 +9,7 @@ import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
 import { CHECKOUT_TEMPLATE_SLUGS } from '@/lib/checkout-templates/types';
 import { validateCustomFieldDefinitions } from '@/lib/validations/custom-checkout-fields';
+import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 /**
  * Explicit field list for Products API v1 responses.
@@ -392,6 +393,17 @@ function validateContentConfig(contentConfig: unknown): ValidationResult {
 
   if (!config || typeof config !== 'object') {
     return { isValid: true, errors }; // Content config is optional
+  }
+
+  // Redirect-type products send the buyer straight to this URL (window.location.href /
+  // window.open in the admin preview) — cross-origin is intentional (a seller's own
+  // store, an external course platform), only the scheme is gated.
+  if (config.redirect_url !== undefined && config.redirect_url !== null && config.redirect_url !== '') {
+    if (typeof config.redirect_url !== 'string') {
+      errors.push('redirect_url must be a string');
+    } else if (!isRelativeOrHttpUrl(config.redirect_url)) {
+      errors.push('redirect_url must be a relative path or an http(s) URL');
+    }
   }
 
   // Validate content items if present

@@ -54,8 +54,13 @@ function findRoutes(dir: string, base = dir): Array<{ rel: string; source: strin
 
 const allRoutes = findRoutes(API_DIR);
 
-/** Routes that call request.json() */
-const bodyParsingRoutes = allRoutes.filter(r => /request\.json\(\)/.test(r.source));
+/**
+ * Routes that parse a request body — either the raw `request.json()` or the
+ * shared byte-capped `readJsonBody(request)` helper (`@/lib/api/body-limit`),
+ * which every non-v1 route now uses in its place.
+ */
+const BODY_PARSE_PATTERN = /request\.json\(\)|readJsonBody\s*(?:<[^>]*>)?\s*\(/;
+const bodyParsingRoutes = allRoutes.filter(r => BODY_PARSE_PATTERN.test(r.source));
 
 /**
  * Returns true when the source shows at least one validation pattern
@@ -201,7 +206,7 @@ describe('Area 10: Input Validation — every request.json() route', () => {
         /emailRegex|email_regex|\/\^\[\\^\s@\]/i.test(route.source) ||
         /typeof\s+email\s*!==/.test(route.source) ||
         /!email\b/.test(route.source) ||
-        /validateEmail\s*\(|isValidEmail\b/.test(route.source) ||
+        /validateEmail\s*\(|isValidEmail\w*/.test(route.source) ||
         /\.parse\s*\(|\.safeParse\s*\(/.test(route.source)
       );
       if (!hasEmailValidation) {

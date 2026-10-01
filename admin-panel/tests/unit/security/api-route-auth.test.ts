@@ -95,7 +95,6 @@ const PUBLIC_ROUTES = new Set([
   'public/products/[slug]/content/route.ts',
   'public/products/[slug]/grant-access/route.ts',
   'public/products/[slug]/recent-supporters/route.ts',
-  'public/refund-request/route.ts',
   'order-bumps/route.ts',
   'oto/info/route.ts',
   'tracking/fb-capi/route.ts',                 // CORS-protected server-side CAPI proxy

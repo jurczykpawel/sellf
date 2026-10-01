@@ -1,6 +1,5 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
 import { encryptSecret } from '@/lib/services/secret-encryption';
 import { revalidatePath } from 'next/cache';
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
@@ -105,41 +104,41 @@ export async function saveGUSAPIKey(input: SaveGUSKeyInput): Promise<ActionRespo
  * Checks both .env and database for key presence
  */
 export async function getGUSConfig(): Promise<ActionResponse<GUSConfig>> {
-  try {
-    // Check if key is in environment (METHOD 1)
-    const envKey = process.env.GUS_API_KEY;
-    const hasEnvKey = !!(envKey && envKey.trim().length > 0);
+  return withAdminAuth<GUSConfig>(async ({ supabase }) => {
+    try {
+      // Check if key is in environment (METHOD 1)
+      const envKey = process.env.GUS_API_KEY;
+      const hasEnvKey = !!(envKey && envKey.trim().length > 0);
 
-    // Check database for encrypted key (METHOD 2)
-    const supabase = await createClient();
+      // Check database for encrypted key (METHOD 2)
+      const { data: config } = await supabase
+        .from('integrations_config')
+        .select('gus_api_key_encrypted, gus_api_enabled')
+        .eq('id', 1)
+        .single();
 
-    const { data: config } = await supabase
-      .from('integrations_config')
-      .select('gus_api_key_encrypted, gus_api_enabled')
-      .eq('id', 1)
-      .single();
+      const hasDatabaseKey = !!(config?.gus_api_key_encrypted);
+      const enabled = config?.gus_api_enabled === true;
 
-    const hasDatabaseKey = !!(config?.gus_api_key_encrypted);
-    const enabled = config?.gus_api_enabled === true;
+      // Key exists if either method has a key
+      const hasKey = hasEnvKey || hasDatabaseKey;
 
-    // Key exists if either method has a key
-    const hasKey = hasEnvKey || hasDatabaseKey;
-
-    return {
-      success: true,
-      data: {
-        enabled: hasEnvKey || enabled, // If env key exists, consider it enabled
-        hasKey,
-      }
-    };
-  } catch (error) {
-    console.error('Error fetching GUS config:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: 'UNKNOWN_ERROR'
-    };
-  }
+      return {
+        success: true,
+        data: {
+          enabled: hasEnvKey || enabled, // If env key exists, consider it enabled
+          hasKey,
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching GUS config:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'UNKNOWN_ERROR'
+      };
+    }
+  });
 }
 
 /**

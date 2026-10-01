@@ -19,7 +19,12 @@ import {
   API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
-import { validateWebhookUrlAsync, validateEventTypes, validateProductFilter } from '@/lib/validations/webhook';
+import {
+  validateWebhookUrlAsync,
+  validateEventTypes,
+  validateProductFilter,
+  validateCustomPayloadFields,
+} from '@/lib/validations/webhook';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
 import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
@@ -206,6 +211,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
       scopedLinks =
         body.product_filter_mode === 'selected' ? Array.from(new Set(body.product_ids ?? [])) : [];
+    }
+
+    // Custom field names must not collide with the envelope's own keys
+    // (event/timestamp/data) — see validateCustomPayloadFields.
+    if (body.custom_payload_fields !== undefined) {
+      const fieldNameValidation = validateCustomPayloadFields(body.custom_payload_fields);
+      if (!fieldNameValidation.valid) {
+        return apiError(request, 'INVALID_INPUT', fieldNameValidation.error || 'Invalid custom payload field name');
+      }
     }
 
     // Payload customization (custom headers/fields/field selection) is a Pro feature.

@@ -9,6 +9,7 @@ import Stripe from 'stripe'
 import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard'
 import { invalidateStripeCache } from '@/lib/stripe/server'
 import { getDecryptedStripeKeyInternal } from '@/lib/stripe/internal-config'
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url'
 import type {
   StripeConfiguration,
   StripeMode,
@@ -646,7 +647,7 @@ export async function createStripeWebhookEndpoint(): Promise<RegisterWebhookResp
     const supabase = await createClient()
     await requireAdminApi(supabase)
 
-    const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL
+    const siteUrl = getCanonicalOriginOrNull()
     if (!siteUrl) {
       return { success: false, error: 'SITE_URL is not set', errorCode: 'CONFIGURATION_ERROR' }
     }

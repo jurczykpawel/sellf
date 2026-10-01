@@ -4,6 +4,7 @@ import { GUSAPIClient } from '@/lib/services/gus-api-client';
 import { getDecryptedGUSAPIKeyInternal } from '@/lib/integrations/internal-secrets';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { isAllowedOrigin } from '@/lib/security/origin-match';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 /**
  * POST /api/gus/fetch-company-data
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     //    Protected by rate limiting (above) and origin check.
 
     // 3. Parse and validate request
-    const { nip } = await request.json();
+    const { nip } = await readJsonBody<{ nip?: string }>(request);
 
     // Validate NIP is provided
     if (!nip) {
@@ -170,6 +171,12 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error: unknown) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json(
+        { success: false, error: 'Request body too large', code: 'PAYLOAD_TOO_LARGE' },
+        { status: 413 }
+      );
+    }
     const msg = error instanceof Error ? error.message : '';
 
     // Auth errors

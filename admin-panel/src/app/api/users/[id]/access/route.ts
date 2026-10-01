@@ -14,10 +14,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
+import { isDemoMode, DEMO_MODE_API_ERROR } from '@/lib/demo-guard';
 import {
   validateGrantAccess,
   sanitizeGrantAccessData
 } from '@/lib/validations/access';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 // GET /api/users/[id]/access - Get user's product access
 export async function GET(
@@ -29,10 +31,9 @@ export async function GET(
     const supabase = await createClient();
 
     // Verify admin access
-    let authResult;
     try {
-      authResult = await requireAdminApi(supabase);
-    } catch (authError: any) {
+      await requireAdminApi(supabase, request);
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -85,13 +86,17 @@ export async function POST(
     // Verify admin access
     let authResult;
     try {
-      authResult = await requireAdminApi(supabase);
-    } catch (authError: any) {
+      authResult = await requireAdminApi(supabase, request);
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const adminUser = authResult.user;
 
-    const body = await request.json();
+    if (isDemoMode()) {
+      return NextResponse.json(DEMO_MODE_API_ERROR, { status: 403 });
+    }
+
+    const body = await readJsonBody<Record<string, unknown>>(request);
     const adminClient = createAdminClient();
 
     // Sanitize input data
@@ -186,6 +191,9 @@ export async function POST(
       access: newAccess
     }, { status: 201 });
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('Error in POST /api/users/[id]/access:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -203,11 +211,15 @@ export async function DELETE(
     // Verify admin access
     let authResult;
     try {
-      authResult = await requireAdminApi(supabase);
-    } catch (authError: any) {
+      authResult = await requireAdminApi(supabase, request);
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const adminUser = authResult.user;
+
+    if (isDemoMode()) {
+      return NextResponse.json(DEMO_MODE_API_ERROR, { status: 403 });
+    }
 
     const adminClient = createAdminClient();
     const { searchParams } = new URL(request.url);

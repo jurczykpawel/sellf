@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
+import { isDemoMode, DEMO_MODE_API_ERROR } from '@/lib/demo-guard';
 import {
   validateUserAction,
   sanitizeUserActionData
 } from '@/lib/validations/access';
 import { escapeIlikePattern } from '@/lib/validations/product';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,8 +34,8 @@ export async function GET(request: NextRequest) {
     
     // CRITICAL: Verify admin access before using adminClient
     try {
-      await requireAdminApi(supabase);
-    } catch (authError: any) {
+      await requireAdminApi(supabase, request);
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -124,12 +126,16 @@ export async function POST(request: NextRequest) {
 
     // Verify admin access
     try {
-      await requireAdminApi(supabase);
-    } catch (authError: any) {
+      await requireAdminApi(supabase, request);
+    } catch {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    if (isDemoMode()) {
+      return NextResponse.json(DEMO_MODE_API_ERROR, { status: 403 });
+    }
+
+    const body = await readJsonBody<Record<string, unknown>>(request);
 
     // Sanitize input data
     const sanitizedData = sanitizeUserActionData(body);
@@ -187,6 +193,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid action. Use "grant" or "revoke"' }, { status: 400 });
     }
   } catch (error) {
+    if (error instanceof ApiPayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+    }
     console.error('Error in users API POST:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

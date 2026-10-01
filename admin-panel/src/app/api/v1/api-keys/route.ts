@@ -28,6 +28,7 @@ import { hasFeature } from '@/lib/license/features';
 import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
+import { logApiKeyAuditEvent } from '@/lib/api/api-key-audit';
 import type { Database } from '@/types/database';
 
 type ApiKeyInsert = Database['public']['Tables']['api_keys']['Insert'];
@@ -45,7 +46,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { user } = await requireAdminApi(supabase);
+    const { user } = await requireAdminApi(supabase, request);
 
     // api_keys is in public schema — use platform client (service_role)
     const platformQuery = createPlatformClient();
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { user } = await requireAdminApi(supabase);
+    const { user } = await requireAdminApi(supabase, request);
 
     const body = await parseJsonBody<{
       name?: string;
@@ -212,6 +213,13 @@ export async function POST(request: NextRequest) {
 
       return apiError(request, 'INTERNAL_ERROR', 'Failed to create API key');
     }
+
+    // Log creation event through the shared audit helper (service-role client).
+    await logApiKeyAuditEvent(newKey.id, 'created', {
+      scopes,
+      rate_limit_per_minute: rateLimit,
+      expires_at: expiresAt,
+    });
 
     // Return with the full key (only time it's returned)
     return jsonResponse(

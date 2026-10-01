@@ -32,13 +32,13 @@ describe('API Keys', () => {
     it('should generate live key with correct prefix', () => {
       const key = generateApiKey(false);
       expect(key.plaintext).toMatch(/^sf_live_[a-f0-9]{64}$/);
-      expect(key.prefix).toBe(key.plaintext.substring(0, 12));
+      expect(key.prefix).toBe(key.plaintext.substring(0, 16));
     });
 
     it('should generate test key with correct prefix', () => {
       const key = generateApiKey(true);
       expect(key.plaintext).toMatch(/^sf_test_[a-f0-9]{64}$/);
-      expect(key.prefix).toBe(key.plaintext.substring(0, 12));
+      expect(key.prefix).toBe(key.plaintext.substring(0, 16));
     });
 
     it('should generate unique keys each time', () => {
@@ -58,9 +58,9 @@ describe('API Keys', () => {
       expect(verifyApiKey(key.plaintext, key.hash)).toBe(true);
     });
 
-    it('should generate prefix of exactly 12 characters', () => {
+    it('should generate prefix of exactly 16 characters', () => {
       const key = generateApiKey();
-      expect(key.prefix.length).toBe(12);
+      expect(key.prefix.length).toBe(16);
     });
   });
 

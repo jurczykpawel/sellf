@@ -22,6 +22,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createPlatformClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
 import { resolveApiKeyOwner } from '@/lib/api/owner-resolution';
+import { logApiKeyAuditEvent } from '@/lib/api/api-key-audit';
 import { validateUUID } from '@/lib/validations/product';
 import type { Database } from '@/types/database';
 
@@ -43,7 +44,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminApi(supabase, request);
     const { id } = await params;
 
     // Validate ID format
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminApi(supabase, request);
     const { id } = await params;
 
     // Validate ID format
@@ -127,7 +128,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check key exists and belongs to this user
     let checkQuery = platformClient
       .from('api_keys')
-      .select('id, is_active, revoked_at')
+      .select('id, is_active, revoked_at, rotation_grace_until')
       .eq('id', id);
 
     checkQuery = checkQuery.eq('admin_user_id', owner.adminId!);
@@ -167,6 +168,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         throw new ApiValidationError('is_active must be a boolean');
       }
       updateData.is_active = body.is_active;
+
+      if (body.is_active && !existingKey.is_active) {
+        // A rotated key stays retired: its replacement is the key to use.
+        const { data: replacement } = await platformClient
+          .from('api_keys')
+          .select('id')
+          .eq('rotated_from_id', id)
+          .limit(1);
+        if (existingKey.rotation_grace_until || (replacement && replacement.length > 0)) {
+          return apiError(request, 'VALIDATION_ERROR', 'Cannot re-enable a rotated key');
+        }
+      }
+      if (!body.is_active) {
+        updateData.rotation_grace_until = null;
+      }
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -197,6 +213,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return apiError(request, 'INTERNAL_ERROR', 'Failed to update API key');
     }
 
+    // Log activation-state changes through the shared audit helper.
+    if (body.is_active !== undefined) {
+      await logApiKeyAuditEvent(id, body.is_active ? 'reactivated' : 'deactivated', {
+        previous_is_active: existingKey.is_active,
+      });
+    }
+
     return jsonResponse(successResponse(updatedKey), request);
   } catch (error) {
     return handleApiError(error, request);
@@ -215,7 +238,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const supabase = await createClient();
-    const { user, role } = await requireAdminApi(supabase);
+    const { user, role } = await requireAdminApi(supabase, request);
     const { id } = await params;
 
     // Validate ID format
@@ -256,6 +279,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .from('api_keys')
       .update({
         is_active: false,
+        rotation_grace_until: null,
         revoked_at: new Date().toISOString(),
         revoked_reason: reason,
       })
@@ -265,6 +289,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       console.error('Error revoking API key:', revokeError);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to revoke API key');
     }
+
+    // Log revocation event through the shared audit helper (service-role client).
+    await logApiKeyAuditEvent(id, 'revoked', { reason });
 
     return jsonResponse(
       successResponse({
