@@ -14,6 +14,7 @@ import { getCaptchaConfig } from '@/lib/captcha/config';
 import { CheckoutError, CheckoutErrorType } from '@/types/checkout';
 import { CheckoutService } from '@/lib/services/checkout';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const PRODUCT_SELECT =
   'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id' as const;
@@ -56,8 +57,11 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (err) {
+    if (err instanceof ApiPayloadTooLargeError) {
+      return embedJson({ error: 'Request body too large' }, 413, origin, []);
+    }
     return embedJson({ error: 'Invalid request' }, 400, origin, []);
   }
 

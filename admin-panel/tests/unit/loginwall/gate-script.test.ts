@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { buildGateScript } from '@/lib/loginwall/gate-snippet';
 import { signGateToken } from '@/lib/loginwall/token';
@@ -90,5 +90,43 @@ describe('gate client runtime — display resolution', () => {
     run({ authenticated: true, owned: [SLUG] });
     const gate = (window as unknown as Record<string, unknown>).SellfGate as { verify: unknown } | undefined;
     expect(typeof gate?.verify).toBe('function');
+  });
+});
+
+describe('gate client runtime — SellfGate.verify()', () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('calls the verify endpoint with the slug URL-encoded as a query param', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ access: true }) });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    run({ authenticated: true, owned: [SLUG] });
+    const gate = (window as unknown as Record<string, unknown>).SellfGate as { verify: (slug: string) => Promise<boolean> };
+
+    const result = await gate.verify('slug with spaces');
+
+    expect(result).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0] as [string, unknown];
+    expect(url).toBe(`${ORIGIN}/api/loginwall/verify?product=${encodeURIComponent('slug with spaces')}`);
+  });
+
+  it('resolves to false (not a rejected promise) when the fetch fails', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error')) as unknown as typeof fetch;
+    run({ authenticated: true, owned: [SLUG] });
+    const gate = (window as unknown as Record<string, unknown>).SellfGate as { verify: (slug: string) => Promise<boolean> };
+
+    await expect(gate.verify(SLUG)).resolves.toBe(false);
+  });
+
+  it('resolves to false when the response body is not valid JSON', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ json: () => Promise.reject(new Error('bad json')) }) as unknown as typeof fetch;
+    run({ authenticated: true, owned: [SLUG] });
+    const gate = (window as unknown as Record<string, unknown>).SellfGate as { verify: (slug: string) => Promise<boolean> };
+
+    await expect(gate.verify(SLUG)).resolves.toBe(false);
   });
 });

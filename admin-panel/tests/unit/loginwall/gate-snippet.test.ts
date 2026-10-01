@@ -57,4 +57,17 @@ describe('buildGateScript', () => {
     expect(js).toContain('SellfGate');
     expect(js).toContain(`${ORIGIN}/api/loginwall/verify`);
   });
+
+  it('builds the verify() call with the slug URL-encoded in the query string', () => {
+    const js = buildGateScript({ slugs: ['pro-kit'], sellfOrigin: ORIGIN });
+    // encodeURIComponent(slug) is appended at call time, so the source only
+    // needs to build the "?product=" + encodeURIComponent(slug) expression —
+    // assert both halves are present rather than a literal slug value.
+    expect(js).toContain(`"${ORIGIN}/api/loginwall/verify" + "?product=" + encodeURIComponent(slug)`);
+  });
+
+  it('fails closed: the verify() fetch chain ends in .catch(() => false)', () => {
+    const js = buildGateScript({ slugs: ['pro-kit'], sellfOrigin: ORIGIN });
+    expect(js).toMatch(/\.catch\(function\s*\(\)\s*\{\s*return false;\s*\}\)/);
+  });
 });

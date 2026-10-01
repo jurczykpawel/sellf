@@ -133,11 +133,11 @@ export function buildGateScript(input: GateSnippetInput): string {
     token: token,
     payload: payload,
     verify: function (slug) {
-      return fetch("${verifyUrl}", {
+      return fetch("${verifyUrl}" + "?product=" + encodeURIComponent(slug), {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
         body: JSON.stringify({ product: slug }),
-      }).then(function (r) { return r.json(); }).then(function (d) { return !!(d && d.access); });
+      }).then(function (r) { return r.json(); }).then(function (d) { return !!(d && d.access); }).catch(function () { return false; });
     },
   };
   window._SF_GATE_EXECUTED = true;

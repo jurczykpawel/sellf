@@ -15,6 +15,9 @@ function makeRequest(url: string, headers: Record<string, string> = {}): NextReq
 beforeEach(() => {
   vi.mocked(checkRateLimit).mockReset();
   vi.mocked(checkRateLimit).mockResolvedValue(true);
+  // SITE_URL takes priority over NEXT_PUBLIC_SITE_URL (getCanonicalOriginOrNull),
+  // so both must point at the same test origin.
+  process.env.SITE_URL = SITE_URL;
   process.env.NEXT_PUBLIC_SITE_URL = SITE_URL;
 });
 

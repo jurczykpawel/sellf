@@ -228,4 +228,55 @@ test.describe('Verify endpoint (bearer-only)', () => {
 
     await supabaseAdmin.from('user_product_access').delete().eq('user_id', testUser.id).eq('product_id', productA.id);
   });
+
+  test('server-to-server still works with only the body product and no Origin header', async ({ page, request }) => {
+    const token = await mintToken(page, true);
+    const res = await request.post('/api/loginwall/verify', {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { product: productA.slug },
+    });
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ access: true });
+    expect(res.headers()['access-control-allow-origin']).toBeUndefined();
+
+    await supabaseAdmin.from('user_product_access').delete().eq('user_id', testUser.id).eq('product_id', productA.id);
+  });
+});
+
+test.describe('Verify endpoint preflight (OPTIONS ?product=)', () => {
+  test('reflects an allowlisted origin for a real product slug', async ({ request }) => {
+    const res = await request.fetch('/api/loginwall/verify?product=' + productA.slug, {
+      method: 'OPTIONS',
+      headers: { Origin: CUSTOMER_ORIGIN, 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(res.status()).toBe(204);
+    expect(res.headers()['access-control-allow-origin']).toBe(CUSTOMER_ORIGIN);
+  });
+
+  test('does not reflect an origin outside the product seller allowlist', async ({ request }) => {
+    const res = await request.fetch('/api/loginwall/verify?product=' + productA.slug, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(res.status()).toBe(204);
+    expect(res.headers()['access-control-allow-origin']).toBeUndefined();
+  });
+
+  test('does not reflect any origin when the product param is missing', async ({ request }) => {
+    const res = await request.fetch('/api/loginwall/verify', {
+      method: 'OPTIONS',
+      headers: { Origin: CUSTOMER_ORIGIN, 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(res.status()).toBe(204);
+    expect(res.headers()['access-control-allow-origin']).toBeUndefined();
+  });
+
+  test('does not reflect any origin for an unknown product slug', async ({ request }) => {
+    const res = await request.fetch('/api/loginwall/verify?product=' + `${RUN_ID}-nope`, {
+      method: 'OPTIONS',
+      headers: { Origin: CUSTOMER_ORIGIN, 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(res.status()).toBe(204);
+    expect(res.headers()['access-control-allow-origin']).toBeUndefined();
+  });
 });

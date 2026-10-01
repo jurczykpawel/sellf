@@ -44,6 +44,13 @@ describe('GET /embed/v1/checkout.js — provider-aware captcha loader', () => {
     expect(script).toMatch(/turnstileToken/);
   });
 
+  it('sets integrity + crossOrigin on the ALTCHA script tag when the API response provides a hash (Obs.8)', async () => {
+    const script = await getEmbedScript();
+    expect(script).toMatch(/captcha\.scriptIntegrity/);
+    expect(script).toMatch(/altchaScript\.integrity\s*=\s*captcha\.scriptIntegrity/);
+    expect(script).toMatch(/altchaScript\.crossOrigin\s*=\s*['"]anonymous['"]/);
+  });
+
   it('mounts the ALTCHA widget invisibly and auto-solves (matches in-app; no unstyled checkbox to click)', async () => {
     const script = await getEmbedScript();
     // Invisible + auto-solve sidesteps widget styling entirely and mirrors the

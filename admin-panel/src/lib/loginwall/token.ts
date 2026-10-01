@@ -13,14 +13,7 @@ export interface SignOptions {
 export interface SignResult {
   token: string;
   nonce: string;
-  nonceHash: string;
   expiresAt: Date;
-}
-
-export interface VerifyOptions {
-  expectedProductId: string;
-  secret: string;
-  now?: Date;
 }
 
 export type VerifyFailureReason =
@@ -28,10 +21,6 @@ export type VerifyFailureReason =
   | 'signature'
   | 'expired'
   | 'wrong_product';
-
-export type VerifyResult =
-  | { valid: true; userId: string; nonce: string; nonceHash: string }
-  | { valid: false; reason: VerifyFailureReason };
 
 interface TokenPayload {
   pid: string;
@@ -42,10 +31,6 @@ interface TokenPayload {
 
 function hmac(secret: string, data: string): Buffer {
   return createHmac('sha256', secret).update(data).digest();
-}
-
-export function hashNonce(nonce: string, secret: string): string {
-  return hmac(secret, nonce).toString('base64url');
 }
 
 export function signLoginwallToken(opts: SignOptions): SignResult {
@@ -64,67 +49,7 @@ export function signLoginwallToken(opts: SignOptions): SignResult {
   return {
     token: `${payloadB64}.${sigB64}`,
     nonce,
-    nonceHash: hashNonce(nonce, opts.secret),
     expiresAt,
-  };
-}
-
-function isTokenPayload(value: unknown): value is TokenPayload {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.pid === 'string' &&
-    typeof v.uid === 'string' &&
-    typeof v.exp === 'number' &&
-    typeof v.nonce === 'string'
-  );
-}
-
-export function verifyLoginwallToken(token: string, opts: VerifyOptions): VerifyResult {
-  if (!token || typeof token !== 'string') {
-    return { valid: false, reason: 'malformed' };
-  }
-  const dot = token.indexOf('.');
-  if (dot <= 0 || dot === token.length - 1) {
-    return { valid: false, reason: 'malformed' };
-  }
-  const payloadB64 = token.slice(0, dot);
-  const sigB64 = token.slice(dot + 1);
-
-  const expected = hmac(opts.secret, payloadB64);
-  let provided: Buffer;
-  try {
-    provided = Buffer.from(sigB64, 'base64url');
-  } catch {
-    return { valid: false, reason: 'malformed' };
-  }
-  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
-    return { valid: false, reason: 'signature' };
-  }
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8'));
-  } catch {
-    return { valid: false, reason: 'malformed' };
-  }
-  if (!isTokenPayload(payload)) {
-    return { valid: false, reason: 'malformed' };
-  }
-
-  const nowSec = Math.floor((opts.now ?? new Date()).getTime() / 1000);
-  if (payload.exp < nowSec) {
-    return { valid: false, reason: 'expired' };
-  }
-  if (payload.pid !== opts.expectedProductId) {
-    return { valid: false, reason: 'wrong_product' };
-  }
-
-  return {
-    valid: true,
-    userId: payload.uid,
-    nonce: payload.nonce,
-    nonceHash: hashNonce(payload.nonce, opts.secret),
   };
 }
 

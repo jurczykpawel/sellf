@@ -9,6 +9,7 @@ import {
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const PRODUCT_SELECT =
   'id, slug, name, price, is_active, available_from, available_until, embed_enabled, seller_id' as const;
@@ -49,8 +50,11 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (err) {
+    if (err instanceof ApiPayloadTooLargeError) {
+      return embedJson({ error: 'Request body too large' }, 413, origin, []);
+    }
     return embedJson({ error: 'Invalid request' }, 400, origin, []);
   }
 

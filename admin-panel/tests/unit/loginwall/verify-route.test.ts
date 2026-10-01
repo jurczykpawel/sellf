@@ -49,14 +49,25 @@ function token(opts: { authenticated: boolean; owned: string[] }): string {
   return signGateToken({ userId: USER_ID, authenticated: opts.authenticated, requested: [SLUG], owned: opts.owned, secret: SECRET }).token;
 }
 
-function post(opts: { token?: string; product?: string; origin?: string }): NextRequest {
+function post(opts: {
+  token?: string;
+  product?: string;
+  queryProduct?: string;
+  body?: Record<string, unknown>;
+  origin?: string;
+}): NextRequest {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (opts.token) headers['Authorization'] = `Bearer ${opts.token}`;
   if (opts.origin) headers['Origin'] = opts.origin;
-  return new NextRequest('https://sellf.example/api/loginwall/verify', {
+  const url =
+    opts.queryProduct !== undefined
+      ? `https://sellf.example/api/loginwall/verify?product=${encodeURIComponent(opts.queryProduct)}`
+      : 'https://sellf.example/api/loginwall/verify';
+  const bodyPayload = opts.body !== undefined ? opts.body : { product: opts.product ?? SLUG };
+  return new NextRequest(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ product: opts.product ?? SLUG }),
+    body: JSON.stringify(bodyPayload),
   });
 }
 
@@ -120,22 +131,108 @@ describe('POST /api/loginwall/verify', () => {
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
 
+  it('denies a product outside the token\'s requested set, even with live access', async () => {
+    const other = signGateToken({ userId: USER_ID, authenticated: true, requested: ['other-kit'], owned: ['other-kit'], secret: SECRET }).token;
+    const res = await POST(post({ token: other, product: SLUG, origin: CUSTOMER_ORIGIN }));
+    expect(await res.json()).toEqual({ access: false });
+  });
+
   it('429s when rate limited', async () => {
     vi.mocked(checkRateLimit).mockResolvedValue(false);
     const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), origin: CUSTOMER_ORIGIN }));
     expect(res.status).toBe(429);
   });
+
+  it('denies when the query product differs from the body product', async () => {
+    const res = await POST(
+      post({
+        token: token({ authenticated: true, owned: [SLUG] }),
+        origin: CUSTOMER_ORIGIN,
+        queryProduct: 'other-kit',
+        product: SLUG,
+      }),
+    );
+    expect(await res.json()).toEqual({ access: false });
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('grants access when only the query carries the product (no product in the body)', async () => {
+    const res = await POST(
+      post({
+        token: token({ authenticated: true, owned: [SLUG] }),
+        origin: CUSTOMER_ORIGIN,
+        queryProduct: SLUG,
+        body: {},
+      }),
+    );
+    expect(await res.json()).toEqual({ access: true });
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe(CUSTOMER_ORIGIN);
+  });
+
+  it('still works with only the body product and no Origin header (server-to-server, unchanged)', async () => {
+    const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }), product: SLUG }));
+    expect(await res.json()).toEqual({ access: true });
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
 });
 
 describe('OPTIONS /api/loginwall/verify', () => {
+  function options(opts: { origin?: string; product?: string }): NextRequest {
+    const url =
+      opts.product !== undefined
+        ? `https://sellf.example/api/loginwall/verify?product=${encodeURIComponent(opts.product)}`
+        : 'https://sellf.example/api/loginwall/verify';
+    const headers: Record<string, string> = { 'Access-Control-Request-Method': 'POST' };
+    if (opts.origin) headers['Origin'] = opts.origin;
+    return new NextRequest(url, { method: 'OPTIONS', headers });
+  }
+
   it('answers preflight without a credentials header', async () => {
-    const req = new NextRequest('https://sellf.example/api/loginwall/verify', {
-      method: 'OPTIONS',
-      headers: { Origin: CUSTOMER_ORIGIN, 'Access-Control-Request-Method': 'POST' },
-    });
-    const res = await OPTIONS(req);
-    expect([200, 204]).toContain(res.status);
+    const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN, product: SLUG }));
+    expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Methods')).toContain('POST');
     expect(res.headers.get('Access-Control-Allow-Credentials')).toBeNull();
+  });
+
+  it('reflects an allowlisted origin for the product in the query', async () => {
+    const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN, product: SLUG }));
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe(CUSTOMER_ORIGIN);
+  });
+
+  it('does not reflect an origin outside the product\'s seller allowlist', async () => {
+    const res = await OPTIONS(options({ origin: 'https://evil.example', product: SLUG }));
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('does not reflect when there is no product param', async () => {
+    const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN }));
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('does not reflect when the product param fails the slug pattern', async () => {
+    const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN, product: 'Bad_Slug' }));
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('does not reflect when the product is unknown', async () => {
+    vi.mocked(createClient).mockResolvedValueOnce({ from: () => chainReturning(null) } as never);
+    const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN, product: SLUG }));
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('does not reflect a malformed Origin header even for an allowlisted product', async () => {
+    const res = await OPTIONS(options({ origin: 'not-a-valid-origin', product: SLUG }));
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('429s when rate limited, without reflecting the origin', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
+    const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN, product: SLUG }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
 });

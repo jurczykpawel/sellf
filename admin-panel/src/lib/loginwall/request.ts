@@ -30,16 +30,6 @@ export function parseCustomerRedirect(raw: string): URL | null {
   }
 }
 
-export function siteOrigin(): string | null {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL;
-  if (!raw) return null;
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return null;
-  }
-}
-
 export function validateRedirectAgainstAllowlist(redirectOrigin: string, allowedOrigins: string[]): boolean {
   return isAllowedEmbedOrigin(redirectOrigin, allowedOrigins);
 }

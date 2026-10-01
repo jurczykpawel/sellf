@@ -5,13 +5,13 @@ import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import {
   appendTokenToFragment,
   parseCustomerRedirect,
-  siteOrigin,
+  rateLimitGuard,
   validateRedirectAgainstAllowlist,
 } from '@/lib/loginwall/request';
 import { signLoginwallToken } from '@/lib/loginwall/token';
-import { storeLoginwallNonce } from '@/lib/loginwall/store';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 const querySchema = z.object({
   id: z.string().uuid(),
@@ -31,12 +31,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return jsonError('Bad request', 400);
   }
 
+  const limited = await rateLimitGuard('loginwall_protect', 60, 1);
+  if (limited) return limited;
+
   const redirectTarget = parseCustomerRedirect(parsed.data.redirect);
   if (!redirectTarget) {
     return jsonError('Invalid redirect', 400);
   }
 
-  const origin = siteOrigin();
+  const origin = getCanonicalOriginOrNull();
   if (!origin) {
     return jsonError('Server misconfigured', 500);
   }
@@ -87,17 +90,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return jsonError('Server misconfigured', 500);
   }
 
-  const { token, nonceHash, expiresAt } = signLoginwallToken({
+  const { token } = signLoginwallToken({
     productId: product.id,
     userId: user.id,
     secret,
-  });
-
-  await storeLoginwallNonce({
-    productId: product.id,
-    userId: user.id,
-    nonceHash,
-    expiresAt,
   });
 
   return NextResponse.redirect(appendTokenToFragment(new URL(redirectTarget.toString()), token), 307);

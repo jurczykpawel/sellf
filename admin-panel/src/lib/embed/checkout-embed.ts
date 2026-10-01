@@ -83,10 +83,17 @@ export async function loadAllowedOriginsForProduct(
     const dbOrigins = sanitizeAllowedEmbedOrigins(data?.allowed_embed_origins ?? []);
     if (dbOrigins.length > 0) return dbOrigins;
   } else {
-    const { data } = await adminClient
-      .from('seller_embed_settings')
-      .select('allowed_embed_origins')
-      .limit(2);
+    // Products without a seller belong to the shop: only an admin's row may
+    // stand in, and only when exactly one exists.
+    const { data: admins } = await adminClient.from('admin_users').select('user_id');
+    const adminIds = (admins ?? []).map((row: { user_id: string }) => row.user_id);
+    const { data } = adminIds.length > 0
+      ? await adminClient
+        .from('seller_embed_settings')
+        .select('allowed_embed_origins')
+        .in('seller_id', adminIds)
+        .limit(2)
+      : { data: null };
 
     if (data && data.length === 1) {
       const dbOrigins = sanitizeAllowedEmbedOrigins(data[0]?.allowed_embed_origins ?? []);

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { buildLoginwallScript } from '@/lib/loginwall/snippet';
-import { rateLimitGuard, siteOrigin } from '@/lib/loginwall/request';
+import { rateLimitGuard } from '@/lib/loginwall/request';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 const querySchema = z.object({ id: z.string().uuid() });
 
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 
-  const origin = siteOrigin();
+  const origin = getCanonicalOriginOrNull();
   if (!origin) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }

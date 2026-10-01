@@ -7,9 +7,7 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => ({})),
 }));
-vi.mock('@/lib/loginwall/store', () => ({
-  storeLoginwallNonce: vi.fn(),
-}));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn() }));
 vi.mock('@/lib/embed/checkout-embed', async () => {
   const actual = await vi.importActual<typeof import('@/lib/embed/checkout-embed')>(
     '@/lib/embed/checkout-embed',
@@ -21,8 +19,8 @@ vi.mock('@/lib/embed/checkout-embed', async () => {
 });
 
 import { createClient } from '@/lib/supabase/server';
-import { storeLoginwallNonce } from '@/lib/loginwall/store';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { GET } from '@/app/[locale]/loginwall/protect/route';
 
 const PRODUCT_ID = 'a1b2c3d4-e5f6-7890-abcd-ef0123456789';
@@ -65,10 +63,10 @@ function makeRequest(path: string): NextRequest {
 
 beforeEach(() => {
   vi.mocked(createClient).mockReset();
-  vi.mocked(storeLoginwallNonce).mockReset();
-  vi.mocked(storeLoginwallNonce).mockResolvedValue();
   vi.mocked(loadAllowedOriginsForProduct).mockReset();
   vi.mocked(loadAllowedOriginsForProduct).mockResolvedValue([CUSTOMER_ORIGIN]);
+  vi.mocked(checkRateLimit).mockReset();
+  vi.mocked(checkRateLimit).mockResolvedValue(true);
   process.env.NEXT_PUBLIC_SITE_URL = SITE_URL;
   process.env.LOGINWALL_SECRET = 'a'.repeat(64);
 });
@@ -114,7 +112,6 @@ describe('GET /loginwall/protect', () => {
     const disallowedUrl = 'https://not-allowed.example.com/blocked';
     const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(disallowedUrl)));
     expect(res.status).toBe(400);
-    expect(vi.mocked(storeLoginwallNonce)).not.toHaveBeenCalled();
   });
 
   it('redirects to /login when there is no session', async () => {
@@ -159,7 +156,6 @@ describe('GET /loginwall/protect', () => {
     expect(target.startsWith(CUSTOMER_PAGE)).toBe(true);
     expect(target).toMatch(/#_sf_token=[A-Za-z0-9_.-]+$/);
     expect(target).not.toMatch(/[?&]_sf_token=/);
-    expect(vi.mocked(storeLoginwallNonce)).toHaveBeenCalledOnce();
   });
 
   it('preserves any existing fragment on the customer URL when appending the token', async () => {
@@ -195,5 +191,12 @@ it('redirects to /p/{slug} when the access has expired', async () => {
     }) as never);
     const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(CUSTOMER_PAGE)));
     expect(res.status).toBe(500);
+  });
+
+  it('429s when the rate limit denies', async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue(false);
+    vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({ user: { id: USER_ID } }) as never);
+    const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(CUSTOMER_PAGE)));
+    expect(res.status).toBe(429);
   });
 });

@@ -2,7 +2,6 @@ import { describe, it, expect, afterEach } from 'vitest';
 
 import {
   parseCustomerRedirect,
-  siteOrigin,
   appendTokenToFragment,
 } from '@/lib/loginwall/request';
 
@@ -24,25 +23,6 @@ describe('parseCustomerRedirect', () => {
 
   it('rejects garbage', () => {
     expect(parseCustomerRedirect('not a url')).toBeNull();
-  });
-});
-
-describe('siteOrigin', () => {
-  const prev = { site: process.env.NEXT_PUBLIC_SITE_URL, alt: process.env.SITE_URL };
-  afterEach(() => {
-    process.env.NEXT_PUBLIC_SITE_URL = prev.site;
-    process.env.SITE_URL = prev.alt;
-  });
-
-  it('reads NEXT_PUBLIC_SITE_URL origin', () => {
-    process.env.NEXT_PUBLIC_SITE_URL = 'https://sellf.example/path';
-    expect(siteOrigin()).toBe('https://sellf.example');
-  });
-
-  it('returns null when unset', () => {
-    delete process.env.NEXT_PUBLIC_SITE_URL;
-    delete process.env.SITE_URL;
-    expect(siteOrigin()).toBeNull();
   });
 });
 

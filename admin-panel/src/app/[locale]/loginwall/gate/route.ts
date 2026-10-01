@@ -6,12 +6,12 @@ import {
   appendTokenToFragment,
   parseCustomerRedirect,
   rateLimitGuard,
-  siteOrigin,
   validateRedirectAgainstAllowlist,
 } from '@/lib/loginwall/request';
 import { signGateToken } from '@/lib/loginwall/token';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 const slugSchema = z.string().regex(/^[a-z0-9-]{1,96}$/);
 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return jsonError('Invalid redirect', 400);
   }
 
-  const origin = siteOrigin();
+  const origin = getCanonicalOriginOrNull();
   if (!origin) {
     return jsonError('Server misconfigured', 500);
   }

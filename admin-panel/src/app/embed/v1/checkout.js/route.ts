@@ -87,6 +87,14 @@ export async function GET() {
       var altchaScript = document.createElement('script');
       altchaScript.src = captcha.scriptUrl;
       altchaScript.type = 'module';
+      // Subresource Integrity: the ALTCHA CDN URL is pinned to an exact
+      // version (see lib/captcha/config.ts), so a hash mismatch here means
+      // jsDelivr served something other than the reviewed, audited file —
+      // the browser refuses to execute it rather than silently running it.
+      if (captcha.scriptIntegrity) {
+        altchaScript.integrity = captcha.scriptIntegrity;
+        altchaScript.crossOrigin = 'anonymous';
+      }
       altchaScript.onload = function () {
         var widget = document.createElement('altcha-widget');
         // The challenge endpoint reflects CORS only for the product's allowlisted

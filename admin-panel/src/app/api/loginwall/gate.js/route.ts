@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { buildGateScript } from '@/lib/loginwall/gate-snippet';
-import { rateLimitGuard, siteOrigin } from '@/lib/loginwall/request';
+import { rateLimitGuard } from '@/lib/loginwall/request';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
 const querySchema = z.object({
   products: z
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 
-  const origin = siteOrigin();
+  const origin = getCanonicalOriginOrNull();
   if (!origin) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
