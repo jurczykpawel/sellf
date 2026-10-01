@@ -1,11 +1,22 @@
 'use client'
 
-import { useRef, useState, useTransition, useCallback } from 'react'
+import {
+  useRef,
+  useState,
+  useTransition,
+  useCallback,
+  useEffect,
+  useId,
+  type MouseEvent as ReactMouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/components/providers/theme-provider'
 import { locales } from '@/lib/locales'
+
+const MENU_ITEM_SELECTOR = '[role="menuitem"]:not([disabled])'
 
 const languages = {
   en: { name: 'English', flag: '🇺🇸' },
@@ -29,19 +40,77 @@ export default function SiteMenu({
   const { theme, setTheme, isLocked } = useTheme()
   const [isPending, startTransition] = useTransition()
   const [isOpen, setIsOpen] = useState(false)
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const menuId = useId()
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  // Set right before opening so the effect below knows whether to move focus into the
+  // menu (keyboard activation) or leave it on the trigger (mouse/touch activation).
+  const openedViaKeyboardRef = useRef(false)
 
-  const openMenu = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
+  const closeMenu = useCallback((refocusTrigger = false) => {
+    setIsOpen(false)
+    if (refocusTrigger) {
+      triggerRef.current?.focus()
     }
-    setIsOpen(true)
   }, [])
 
-  const closeMenu = useCallback(() => {
-    closeTimerRef.current = setTimeout(() => setIsOpen(false), 150)
+  // A MouseEvent triggered by keyboard activation of a <button> (Enter/Space) has
+  // detail === 0 — no actual mouse clicks happened. That lets one handler serve both
+  // pointer and keyboard activation without duplicating open/close logic.
+  const handleTriggerClick = useCallback((e: ReactMouseEvent<HTMLButtonElement>) => {
+    openedViaKeyboardRef.current = e.detail === 0
+    setIsOpen((prev) => !prev)
   }, [])
+
+  const handleTriggerKeyDown = useCallback((e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault()
+      openedViaKeyboardRef.current = true
+      setIsOpen(true)
+    }
+  }, [isOpen])
+
+  // Move focus into the menu when it was opened via keyboard, and wire up
+  // "click outside" / Escape-to-close / roving arrow-key navigation while it's open.
+  useEffect(() => {
+    if (!isOpen) return
+
+    if (openedViaKeyboardRef.current) {
+      menuRef.current?.querySelector<HTMLElement>(MENU_ITEM_SELECTOR)?.focus()
+    }
+
+    const handlePointerDown = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        closeMenu(true)
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>(MENU_ITEM_SELECTOR) ?? [])
+      if (items.length === 0) return
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+      e.preventDefault()
+      const nextIndex =
+        e.key === 'ArrowDown'
+          ? (currentIndex + 1) % items.length
+          : (currentIndex - 1 + items.length) % items.length
+      items[nextIndex]?.focus()
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, closeMenu])
 
   const handleLanguageChange = (newLocale: string) => {
     startTransition(() => {
@@ -69,9 +138,14 @@ export default function SiteMenu({
 
   const trigger = (
     <button
+      ref={triggerRef}
+      type="button"
       aria-label={t('userMenu')}
       aria-expanded={isOpen}
       aria-haspopup="menu"
+      aria-controls={isOpen ? menuId : undefined}
+      onClick={handleTriggerClick}
+      onKeyDown={handleTriggerKeyDown}
       className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-sf-accent"
     >
       {user ? (
@@ -92,8 +166,8 @@ export default function SiteMenu({
 
   const dropdown = isOpen && (
     <div
-      onMouseEnter={openMenu}
-      onMouseLeave={closeMenu}
+      ref={menuRef}
+      id={menuId}
       className={`absolute z-50 mt-2 w-52 rounded-2xl bg-sf-base border-2 border-sf-border-medium shadow-xl overflow-hidden ${dropdownAlignClass}`}
       role="menu"
     >
@@ -200,11 +274,7 @@ export default function SiteMenu({
   )
 
   const container = (
-    <div
-      className="relative"
-      onMouseEnter={openMenu}
-      onMouseLeave={closeMenu}
-    >
+    <div ref={containerRef} className="relative">
       {trigger}
       {dropdown}
     </div>

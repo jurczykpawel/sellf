@@ -157,6 +157,38 @@ test.describe('Theme Editor (Branding Settings)', () => {
     expect(newValue).toBe('#FF0000');
   });
 
+  test('Setting a low-contrast heading color shows a non-blocking warning and save stays enabled', async ({ page }) => {
+    await navigateToSettings(page);
+
+    // Accent/danger button text and badge text are auto-corrected (pickReadableForeground /
+    // deriveAccentText), so they can't be used to trigger this warning anymore — heading
+    // text is fully seller-controlled with no automatic fix, so make it nearly identical
+    // to the dark preset's own background (#06080D) to force a real, unfixable AA miss.
+    const headingTextInput = page
+      .locator('label', { hasText: 'Text Heading' })
+      .first()
+      .locator('..')
+      .locator('input[type="text"]');
+    await headingTextInput.fill('#0A0A0F');
+    await page.waitForTimeout(300);
+
+    const warning = page.getByTestId('theme-contrast-warning');
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText(/4\.5/);
+
+    // Saving must stay allowed — this is a warning, not a block (SELLF_LICENSE_KEY
+    // env var already provides a valid license, same as the other save-button test).
+    const saveButton = page.locator('button', { hasText: /Save Theme|Zapisz motyw/i });
+    await expect(saveButton).toBeEnabled();
+  });
+
+  test('A theme that already passes AA shows no contrast warning', async ({ page }) => {
+    await navigateToSettings(page);
+
+    // The default preset ships already fixed — no warning should render for it.
+    await expect(page.getByTestId('theme-contrast-warning')).not.toBeVisible();
+  });
+
   test('Import valid theme JSON updates editor', async ({ page }) => {
     await navigateToSettings(page);
 

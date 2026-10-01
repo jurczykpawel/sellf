@@ -2,9 +2,12 @@
  * Theme License Guard Unit Tests
  *
  * Tests server-side license enforcement on theme mutations:
- * - checkThemeLicense() bypasses in demo mode
- * - saveActiveTheme() / removeActiveTheme() reject without license
- * - Demo mode unlocks all theme operations
+ * - checkThemeLicense() reports the feature as available in demo mode
+ *   (read-only, so a demo visitor sees the editor unlocked)
+ * - saveActiveTheme() / removeActiveTheme() reject without license (non-demo)
+ * - saveActiveTheme() / removeActiveTheme() return the demo-mode error in demo
+ *   mode: the active theme is one file shared by every visitor
+ *   (see tests/unit/actions/theme-demo-mode-auth.test.ts)
  * @see lib/actions/theme.ts
  */
 
@@ -183,14 +186,15 @@ describe('Theme license guard', () => {
       expect(mockWriteFile).not.toHaveBeenCalled();
     });
 
-    it('succeeds in demo mode (license bypassed)', async () => {
+    it('rejects in demo mode -- the active theme is shared by every visitor, so demo never writes it', async () => {
       process.env.DEMO_MODE = 'true';
 
       const { saveActiveTheme } = await import('@/lib/actions/theme');
       const result = await saveActiveTheme(VALID_THEME as any);
 
-      expect(result.success).toBe(true);
-      expect(mockWriteFile).toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('DEMO_MODE');
+      expect(mockWriteFile).not.toHaveBeenCalled();
     });
 
     it('succeeds with valid license (non-demo)', async () => {
@@ -205,14 +209,17 @@ describe('Theme license guard', () => {
       expect(mockWriteFile).toHaveBeenCalled();
     });
 
-    it('rejects invalid theme data even with license', async () => {
-      process.env.DEMO_MODE = 'true';
+    it('rejects invalid theme data even with a valid license (non-demo)', async () => {
+      process.env.DEMO_MODE = 'false';
+      setupSupabaseMock('payload.signature');
+      mockCheckFeature.mockResolvedValue(true);
 
       const { saveActiveTheme } = await import('@/lib/actions/theme');
       const result = await saveActiveTheme({ name: '' } as any);
 
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/Invalid theme/i);
+      expect(mockWriteFile).not.toHaveBeenCalled();
     });
   });
 
@@ -233,13 +240,15 @@ describe('Theme license guard', () => {
       expect(mockUnlink).not.toHaveBeenCalled();
     });
 
-    it('succeeds in demo mode', async () => {
+    it('rejects in demo mode -- the active theme is shared by every visitor, so demo never deletes it', async () => {
       process.env.DEMO_MODE = 'true';
 
       const { removeActiveTheme } = await import('@/lib/actions/theme');
       const result = await removeActiveTheme();
 
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('DEMO_MODE');
+      expect(mockUnlink).not.toHaveBeenCalled();
     });
 
     it('succeeds with valid license (non-demo)', async () => {
@@ -270,13 +279,14 @@ describe('Theme license guard', () => {
       expect(result.error).toMatch(/license/i);
     });
 
-    it('succeeds in demo mode', async () => {
+    it('rejects in demo mode -- inherits the save guard, so it never persists a preset', async () => {
       process.env.DEMO_MODE = 'true';
 
       const { applyPreset } = await import('@/lib/actions/theme');
       const result = await applyPreset('sunset');
 
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('DEMO_MODE');
     });
 
     it('rejects unknown preset', async () => {

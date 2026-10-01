@@ -37,6 +37,7 @@
     "createSessionError": "Nie udało się utworzyć sesji płatności",
     "netPrice": "Cena netto",
     "vat": "VAT",
+    "vatExempt": "Sprzedaż zwolniona z VAT",
     "includingVat": "w tym VAT",
     "payButton": "Zapłać {amount}",
     "subscribeButton": "Subskrybuj {amount}",
@@ -272,6 +273,8 @@
       "testEventCodeHelp": "Do testowania zdarzeń w Events Manager. Usuń na produkcji.",
       "enableCAPI": "Włącz Conversions API (Server-Side)",
       "capiTokenRequired": "Token CAPI jest wymagany do włączenia tej funkcji",
+      "capiTokenSaved": "Token zapisany. Zostaw puste, aby go zachować, albo wpisz nowy, aby go zastąpić.",
+      "capiTokenRemove": "Usuń token",
       "pixelIdPlaceholder": "1234567890"
     },
     "cookieConsent": {
@@ -390,15 +393,6 @@
         "step3": "Dla CAPI: Ustawienia → Generuj Access Token",
         "step4": "Skopiuj token dostępu i wklej jako Token CAPI",
         "step5": "Włącz 'Conversions API' aby aktywować śledzenie server-side",
-        "pixelVsCapi": "Pixel vs CAPI",
-        "pixel": {
-          "title": "Meta Pixel (Client-Side)",
-          "desc": "Skrypt ładowany w przeglądarce użytkownika. Może być blokowany przez adblockers lub prywatność przeglądarki. Wymaga zgody na cookies."
-        },
-        "capi": {
-          "title": "Conversions API (Server-Side)",
-          "desc": "Zdarzenia wysyłane z serwera bezpośrednio do Meta. Nie może być blokowane przez przeglądarkę. Zachowanie po odrzuceniu cookies zależy od trybu konwersji w zakładce Zgody (Ścisły / Ograniczony LDU / Pełny)."
-        },
         "deduplication": "Deduplikacja Zdarzeń",
         "deduplicationDesc": "Gdy włączone są oba (Pixel + CAPI), używamy tego samego event_id dla deduplikacji. Meta automatycznie liczy zdarzenie tylko raz.",
         "trackedEvents": "Śledzone Zdarzenia",
@@ -675,8 +669,10 @@
     "step3": "Powracający z aktywnym dostępem widzą stronę od razu.",
     "howItWorksTitle": "Jak działa brama",
     "howItWorksBody": "Po logowaniu dodajemy do URL krótko żyjący podpisany token. Snippet sprawdza go przy załadowaniu strony i natychmiast usuwa z URL przez history.replaceState — udostępniane linki pozostają czyste.",
+    "notEnoughTitle": "Za mało do pobierania plików i płatnych akcji",
+    "notEnoughBody": "To tylko chowa stronę w przeglądarce odwiedzającego — nic po stronie Twojego serwera tego nie sprawdza. Do pobierania plików, płatnych materiałów i wszystkiego, co dzieje się na Twoim serwerze, użyj blokowania elementów (menu produktu → „Generuj kod blokowania elementów”), które Twój serwer może zweryfikować.",
     "emptyAllowlistTitle": "Brak dozwolonych domen na białej liście",
-    "emptyAllowlistBody": "Login wall odrzuci przekierowanie z 400 dopóki nie dodasz domeny strony, na której wklejasz snippet, do allowed_embed_origins (Ustawienia → Osadzanie) albo do zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS.",
+    "emptyAllowlistBody": "Login wall odrzuci przekierowanie z 400, dopóki ta domena nie będzie dozwolona — ustaw ją w zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS albo dodaj w tabeli seller_embed_settings w swojej bazie danych (nie ma jeszcze do tego ekranu w ustawieniach).",
     "close": "Zamknij"
   },
   "gateSnippet": {
@@ -690,7 +686,7 @@
     "howItWorksTitle": "Jak działa blokowanie",
     "howItWorksBody": "Przy załadowaniu snippet ustala stan każdego elementu na podstawie krótko żyjącego podpisanego tokenu, a potem usuwa token z URL. Wyświetlanie i funkcje lokalne rozstrzygają się w przeglądarce; realne akcje serwerowe zabezpiecz przez SellfGate.verify(), które weryfikuje serwer.",
     "emptyAllowlistTitle": "Brak dozwolonych domen na białej liście",
-    "emptyAllowlistBody": "Blokowanie odrzuci przekierowanie z 400 dopóki nie dodasz domeny strony, na której wklejasz snippet, do allowed_embed_origins (Ustawienia → Osadzanie) albo do zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS.",
+    "emptyAllowlistBody": "Blokowanie odrzuci przekierowanie z 400, dopóki ta domena nie będzie dozwolona — ustaw ją w zmiennej środowiskowej SELLF_EMBED_ALLOWED_ORIGINS albo dodaj w tabeli seller_embed_settings w swojej bazie danych (nie ma jeszcze do tego ekranu w ustawieniach).",
     "close": "Zamknij",
     "advanced": {
       "toggle": "Zaawansowane: weryfikacja po stronie serwera",
@@ -1546,6 +1542,7 @@
           "stepOf": "Krok {current} z {total}",
           "createProduct": "Utwórz produkt",
           "continueSetup": "Dalej",
+          "loadingConfig": "Ładowanie ustawień sklepu…",
           "back": "Wstecz",
           "cancel": "Anuluj",
           "earlyCreateHint": "Możesz utworzyć produkt teraz z samymi podstawami lub kontynuować konfigurację dostawy treści, promocji cenowych i więcej.",
@@ -2138,6 +2135,11 @@
         "saving": "Zapisywanie...",
         "perUserLimit": "Limit na użytkownika"
       },
+      "search": "Szukaj kuponów",
+      "searchPlaceholder": "Szukaj po kodzie lub nazwie...",
+      "loadMore": "Załaduj więcej",
+      "loadingMore": "Ładowanie...",
+      "moreLoadError": "Nie udało się załadować kolejnych kuponów",
       "loadError": "Nie udało się załadować kuponów",
       "createError": "Nie udało się utworzyć kuponu",
       "updateError": "Nie udało się zaktualizować kuponu",
@@ -2217,6 +2219,9 @@
       "title": "Zarządzanie Płatnościami",
       "subtitle": "Zarządzaj wszystkimi transakcjami, przetwarzaj zwroty i monitoruj aktywność płatności.",
       "loading": "Ładowanie danych płatności...",
+      "loadMore": "Wczytaj więcej",
+      "loadingMore": "Wczytywanie...",
+      "moreLoadError": "Nie udało się wczytać kolejnych płatności",
       "filters": {
         "status": "Status",
         "dateRange": "Zakres dat",
@@ -2224,10 +2229,10 @@
         "allStatuses": "Wszystkie statusy",
         "pending": "Oczekująca",
         "completed": "Zakończona",
-        "failed": "Nieudana",
-        "cancelled": "Anulowana",
         "refunded": "Zwrócona",
+        "partiallyRefunded": "Częściowo zwrócona",
         "disputed": "Sporna",
+        "abandoned": "Porzucona",
         "searchPlaceholder": "Szukaj po emailu, ID transakcji...",
         "last7Days": "Ostatnie 7 dni",
         "last30Days": "Ostatnie 30 dni",
@@ -2281,7 +2286,9 @@
           "failed": "Nieudana",
           "refunded": "Zwrócona",
           "disputed": "Sporna",
-          "partialRefunded": "Częściowo zwrócona"
+          "abandoned": "Porzucona",
+          "partialRefunded": "Częściowo zwrócona",
+          "partially_refunded": "Częściowo zwrócona"
         },
         "refunded": "Zwrot: {amount}",
         "partialRefunded": "Częściowo zwrócono: {amount}",
@@ -2730,7 +2737,17 @@
       "fontFamilyPlaceholder": "Montserrat, system-ui, sans-serif",
       "letterSpacingPlaceholder": "-0.02em",
       "demoProTitle": "Edytor motywów — Funkcja PRO",
-      "demoProDesc": "To jest płatna funkcja, odblokowana za darmo w trybie demo. Edytuj motywy, wybieraj presety i podglądaj zmiany na żywo."
+      "demoProDesc": "To jest płatna funkcja, odblokowana za darmo w trybie demo. Edytuj motywy, wybieraj presety i podglądaj zmiany na żywo.",
+      "contrastWarningTitle": "Ostrzeżenia o kontraście",
+      "contrastWarningIntro": "Te pary kolorów mogą być trudne do odczytania dla niektórych odwiedzających (WCAG AA). Zapis jest nadal możliwy — to tylko ostrzeżenie.",
+      "contrastWarningLine": "{mode}: {pair} — {ratio}:1 (wymagane {required}:1)",
+      "contrastModeDark": "Tryb ciemny",
+      "contrastModeLight": "Tryb jasny",
+      "contrastPairHeadingOnBase": "Tekst nagłówka na tle",
+      "contrastPairBodyOnBase": "Tekst podstawowy na tle",
+      "contrastPairMutedOnRaised": "Tekst przygaszony na podniesionej powierzchni",
+      "contrastPairButtonTextOnAccent": "Tekst przycisku na tle akcentu",
+      "contrastPairButtonTextOnDanger": "Tekst przycisku na tle ostrzegawczym (danger)"
     },
     "checkoutTheme": {
       "title": "Motyw strony",

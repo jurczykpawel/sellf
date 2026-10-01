@@ -5,13 +5,13 @@ import { useTranslations } from 'next-intl';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { getUsedCurrencies } from '@/lib/actions/currency';
 import { Info } from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export default function CurrencySelector() {
   const t = useTranslations('common');
   const tCurrency = useTranslations('dashboard.currency');
-  const { displayCurrency, setDisplayCurrency, currencyViewMode, setCurrencyViewMode } = useUserPreferences();
+  const { displayCurrency, currencyViewMode, setCurrencyPreferences } = useUserPreferences();
   const [isOpen, setIsOpen] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
   const [currencies, setCurrencies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,14 +63,16 @@ export default function CurrencySelector() {
     return null;
   }
 
-  const handleSelect = async (mode: 'grouped' | 'converted', currency: string | null) => {
-    try {
-      await setCurrencyViewMode(mode);
-      await setDisplayCurrency(currency);
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Error updating currency preference:', error);
-    }
+  const handleSelect = (mode: 'grouped' | 'converted', currency: string | null) => {
+    // Close immediately — the dropdown reflects the user's choice, not the save's
+    // network state. Awaiting the save first (as this used to) left the dropdown
+    // logically "open" for the duration of the save; a second click on the toggle
+    // button during that window (e.g. an impatient user opening it again) would
+    // then flip it straight back closed instead of opening a fresh menu.
+    // setCurrencyPreferences handles its own errors (logs + reverts optimistic
+    // state), so this call is intentionally not awaited or caught here.
+    setIsOpen(false);
+    setCurrencyPreferences(mode, currency);
   };
 
   // Determine current display label
@@ -112,23 +114,20 @@ export default function CurrencySelector() {
       </button>
 
       {/* Info tooltip */}
-      <div className="relative">
+      <Tooltip
+        content={tCurrency('dashboardInfo')}
+        side="bottom"
+        className="w-64 px-3 py-2 bg-sf-heading text-sf-inverse text-xs z-50"
+        arrowClassName="fill-sf-heading"
+      >
         <button
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
           className="p-1 text-sf-muted hover:text-sf-body transition-colors"
           type="button"
           aria-label={tCurrency('dashboardInfo')}
         >
           <Info className="w-4 h-4" />
         </button>
-        {showTooltip && (
-          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 px-3 py-2 bg-sf-heading text-sf-inverse text-xs z-50 pointer-events-none">
-            {tCurrency('dashboardInfo')}
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-2 h-2 bg-sf-heading rotate-45 -mb-1"></div>
-          </div>
-        )}
-      </div>
+      </Tooltip>
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 z-[9999] w-56 bg-sf-base border-2 border-sf-border-medium overflow-hidden">

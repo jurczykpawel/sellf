@@ -136,7 +136,7 @@ export default function WebhookFailuresPanel({ refreshTrigger, onRefresh }: Webh
       />
 
       <div className="px-6 py-3 border-t border-sf-danger/20 text-right">
-        <Link href="/dashboard/webhooks/deliveries" className="text-xs text-sf-accent hover:underline font-medium">
+        <Link href="/dashboard/webhooks/deliveries" className="text-xs text-sf-danger hover:underline font-medium">
           {t('viewAllDlq')}
         </Link>
       </div>

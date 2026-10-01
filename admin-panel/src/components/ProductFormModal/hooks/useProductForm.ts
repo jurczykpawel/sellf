@@ -14,6 +14,7 @@ import { isTrustedDownloadUrl } from '@/lib/trustedDownloadProviders';
 import { useConfig } from '@/components/providers/config-provider';
 import { createClient } from '@/lib/supabase/client';
 import { api } from '@/lib/api/client';
+import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 import {
   ProductFormData,
   OtoState,
@@ -73,6 +74,16 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   // Tax mode from shop config
   const [taxMode, setTaxMode] = useState<TaxMode>('local');
 
+  // Whether the async getMyShopConfig() fetch (below) has settled at least
+  // once for this modal-open session. formData.vat_rate is seeded from that
+  // fetch for new products, and taxMode/shopDefaultVatRate feed required-
+  // field validation (collectVatErrors) directly. Advancing/submitting the
+  // wizard before this settles can act on stale defaults (taxMode defaults
+  // to 'local', vat_rate to null) — the wizard footer disables "Dalej" /
+  // "Publikuj" while this is false, and handleSubmit below early-returns as
+  // a second guard (e.g. against Enter-key form submission).
+  const [shopConfigLoaded, setShopConfigLoaded] = useState(false);
+
   // OTO (One-Time Offer) state
   const [oto, setOto] = useState<OtoState>(initialOtoState);
 
@@ -89,6 +100,10 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   // Fetch categories, default currency, and omnibus setting
   useEffect(() => {
     if (isOpen) {
+      // Reset per modal-open session — the wizard blocks advancing/
+      // submitting until the shop config fetch below settles again.
+      setShopConfigLoaded(false);
+
       // Fetch all categories
       const fetchCats = async () => {
         setLoadingCategories(true);
@@ -144,6 +159,8 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         }
       }).catch(err => {
         console.error('Failed to fetch shop config', err);
+      }).finally(() => {
+        setShopConfigLoaded(true);
       });
 
       // Fetch waitlist webhook availability
@@ -376,12 +393,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       if (!isOpen) return;
       try {
         setLoadingProducts(true);
-        const response = await api.list<Product>('products', {
-          limit: 1000,
-          status: 'active',
-          sort: 'name',
-        });
-        setProducts(response.data || []);
+        setProducts(await fetchAllProductsForDropdown('active'));
       } catch (err) {
         console.error('Failed to fetch products', err);
       } finally {
@@ -642,6 +654,19 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Required-field validation (below) treats vat_rate as required for any
+    // paid, non-exempt, local-tax product — correctly, since neither the
+    // shop's own default (still loading here) nor the DB's insert-time
+    // fallback (apply_shop_vat_defaults — INSERT only, and only when
+    // shop_config.tax_rate is actually set) can be relied on to have run
+    // yet. A submit this early would either wrongly fail that check on a
+    // value that's merely still loading, or — for edit mode, where the
+    // trigger never runs — wrongly save vat_rate=null. Block until the
+    // fetch has settled instead; the "Publikuj"/"Dalej" buttons stay
+    // disabled for the same reason (WizardFooter), this guards direct form
+    // submission (e.g. Enter key) too.
+    if (!shopConfigLoaded) return;
+
     if (!validateRequiredFields()) return;
 
     // Validate all content items with URLs before submission
@@ -711,7 +736,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     }
 
     onSubmit(submitData);
-  }, [formData, oto, onSubmit, validateContentItemUrl, checkWaitlistConfig]);
+  }, [formData, oto, onSubmit, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded]);
 
   return {
     // Form data
@@ -743,6 +768,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     omnibusEnabled,
     shopDefaultVatRate,
     taxMode,
+    shopConfigLoaded,
 
     // OTO
     oto,

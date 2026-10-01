@@ -37,6 +37,7 @@
     "createSessionError": "Failed to create checkout session",
     "netPrice": "Net price",
     "vat": "VAT",
+    "vatExempt": "VAT-exempt sale",
     "includingVat": "including VAT",
     "payButton": "Pay {amount}",
     "subscribeButton": "Subscribe {amount}",
@@ -85,6 +86,12 @@
     "confirmEmailLabel": "I confirm the product will be linked to my account ({accountEmail}). Receipt will be sent to {purchaseEmail}.",
     "confirmEmailRequired": "Please confirm the product assignment to your account",
     "emailMismatchWarning": "You are purchasing with {purchaseEmail}, but you are logged in as {accountEmail}. The product will be linked to your account.",
+    "nipValidation": {
+      "invalidChecksum": "Invalid tax ID number",
+      "mustBe10Digits": "Tax ID must be 10 digits",
+      "required": "Tax ID is required",
+      "invalidFormat": "Invalid tax ID format"
+    },
     "checkoutBranding": "This checkout runs on Sellf →",
     "productBranding": "Secured by →",
     "failedToGetAccess": "Failed to get access",
@@ -266,6 +273,8 @@
       "testEventCodeHelp": "For testing events in Events Manager. Remove in production.",
       "enableCAPI": "Enable Conversions API (Server-Side)",
       "capiTokenRequired": "CAPI Token is required to enable this feature",
+      "capiTokenSaved": "Token saved. Leave blank to keep it, or enter a new one to replace it.",
+      "capiTokenRemove": "Remove token",
       "pixelIdPlaceholder": "1234567890"
     },
     "cookieConsent": {
@@ -660,8 +669,10 @@
     "step3": "Returning visitors with active access see the page immediately.",
     "howItWorksTitle": "How the gate works",
     "howItWorksBody": "A short-lived signed token is added to the URL after sign-in. The snippet checks for it on load, then strips it from the URL with history.replaceState so visitors share clean links.",
+    "notEnoughTitle": "Not enough for downloads or paid actions",
+    "notEnoughBody": "This only hides the page in the visitor's browser — nothing on your server checks it. For downloads, paid files, or anything that runs on your server, use element gating instead (product menu → “Generate gating snippet”), which your server can verify.",
     "emptyAllowlistTitle": "No allowed origins configured",
-    "emptyAllowlistBody": "The login wall will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
+    "emptyAllowlistBody": "The login wall will reject the redirect with 400 until this domain is allowed — set it in the SELLF_EMBED_ALLOWED_ORIGINS environment variable, or add it to the seller_embed_settings table in your database (there's no settings screen for this yet).",
     "close": "Close"
   },
   "gateSnippet": {
@@ -675,7 +686,7 @@
     "howItWorksTitle": "How gating works",
     "howItWorksBody": "On load the snippet resolves each element to the visitor's state from a short-lived signed token, then strips the token from the URL. Display and local features resolve in the browser; for real server actions, gate them on SellfGate.verify() which the server checks.",
     "emptyAllowlistTitle": "No allowed origins configured",
-    "emptyAllowlistBody": "Gating will reject the redirect with 400 until you add the domain you paste the snippet on to allowed_embed_origins (Settings → Embed) or to the SELLF_EMBED_ALLOWED_ORIGINS environment variable.",
+    "emptyAllowlistBody": "Gating will reject the redirect with 400 until this domain is allowed — set it in the SELLF_EMBED_ALLOWED_ORIGINS environment variable, or add it to the seller_embed_settings table in your database (there's no settings screen for this yet).",
     "close": "Close",
     "advanced": {
       "toggle": "Advanced: server-side verification",
@@ -1531,6 +1542,7 @@
           "stepOf": "Step {current} of {total}",
           "createProduct": "Create Product",
           "continueSetup": "Continue Setup",
+          "loadingConfig": "Loading shop settings…",
           "back": "Back",
           "cancel": "Cancel",
           "earlyCreateHint": "You can create your product now with just the essentials, or continue to configure content delivery, pricing promotions, and more.",
@@ -2123,6 +2135,11 @@
         "saving": "Saving...",
         "perUserLimit": "Per User Limit"
       },
+      "search": "Search coupons",
+      "searchPlaceholder": "Search by code or name...",
+      "loadMore": "Load more",
+      "loadingMore": "Loading more...",
+      "moreLoadError": "Failed to load more coupons",
       "loadError": "Failed to load coupons",
       "createError": "Failed to create coupon",
       "updateError": "Failed to update coupon",
@@ -2202,6 +2219,9 @@
       "title": "Payment Management",
       "subtitle": "Manage all payment transactions, process refunds, and monitor payment activity.",
       "loading": "Loading payment data...",
+      "loadMore": "Load more",
+      "loadingMore": "Loading more...",
+      "moreLoadError": "Failed to load more payments",
       "filters": {
         "status": "Status",
         "dateRange": "Date Range",
@@ -2209,10 +2229,10 @@
         "allStatuses": "All Statuses",
         "pending": "Pending",
         "completed": "Completed",
-        "failed": "Failed",
-        "cancelled": "Cancelled",
         "refunded": "Refunded",
+        "partiallyRefunded": "Partially refunded",
         "disputed": "Disputed",
+        "abandoned": "Abandoned",
         "searchPlaceholder": "Search by email, transaction ID...",
         "last7Days": "Last 7 days",
         "last30Days": "Last 30 days",
@@ -2266,7 +2286,9 @@
           "failed": "Failed",
           "refunded": "Refunded",
           "disputed": "Disputed",
-          "partialRefunded": "Partially refunded"
+          "abandoned": "Abandoned",
+          "partialRefunded": "Partially refunded",
+          "partially_refunded": "Partially refunded"
         },
         "refunded": "Refunded: {amount}",
         "partialRefunded": "Partially refunded: {amount}",
@@ -2715,7 +2737,17 @@
       "fontFamilyPlaceholder": "Montserrat, system-ui, sans-serif",
       "letterSpacingPlaceholder": "-0.02em",
       "demoProTitle": "Theme Editor — PRO Feature",
-      "demoProDesc": "This is a paid feature, unlocked for free in demo mode. Edit themes, pick presets, and see changes live."
+      "demoProDesc": "This is a paid feature, unlocked for free in demo mode. Edit themes, pick presets, and see changes live.",
+      "contrastWarningTitle": "Contrast warnings",
+      "contrastWarningIntro": "These color pairs may not be easy to read for every visitor (WCAG AA). You can still save — this is just a heads-up.",
+      "contrastWarningLine": "{mode}: {pair} — {ratio}:1 (needs {required}:1)",
+      "contrastModeDark": "Dark mode",
+      "contrastModeLight": "Light mode",
+      "contrastPairHeadingOnBase": "Heading text on background",
+      "contrastPairBodyOnBase": "Body text on background",
+      "contrastPairMutedOnRaised": "Muted text on raised surface",
+      "contrastPairButtonTextOnAccent": "Button text on accent background",
+      "contrastPairButtonTextOnDanger": "Button text on danger background"
     },
     "checkoutTheme": {
       "title": "Site Theme",

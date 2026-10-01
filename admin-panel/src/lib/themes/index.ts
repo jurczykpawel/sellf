@@ -75,6 +75,7 @@ import sunsetTheme from './sunset.json';
 import oceanTheme from './ocean.json';
 import forestTheme from './forest.json';
 import minimalLightTheme from './minimal-light.json';
+import { deriveAccentText, compositeOver, parseColor, resolveOpaque, pickReadableForeground, FIXED_STATUS_SOFT_TINTS } from './contrast';
 
 export interface ThemePreset {
   id: string;
@@ -140,6 +141,54 @@ export function themeToCSS(theme: ThemeConfig, isDark: boolean): Record<string, 
         if (alias.color) vars[alias.color] = value;
       }
     }
+  }
+
+  // `--sf-*` / `--sf-*-bg` (set above) stay the seller's exact brand/status color — they
+  // back solid buttons and dots. The plain `--color-sf-*` tokens are *also* used as text
+  // colors though (badges, links, status copy — components using `text-sf-accent` /
+  // `text-sf-danger` / etc.), so each is re-derived into an AA-legible variant against the
+  // surfaces it actually renders on, instead of reusing the raw brand/status color — which
+  // is exactly the near-miss shipped presets used to hit, and what left presets without a
+  // `colors-light` override for status colors unreadable in light mode.
+  //
+  // Target ratio is set above the 4.5 WCAG floor: a real browser's text-contrast
+  // measurement (anti-aliasing, nested translucent layers in the actual badge markup)
+  // reads a bit lower than compositing just two flat colors predicts, so the extra
+  // margin is what actually clears 4.5 in a live page, not just in this calculation.
+  const SAFETY_TARGET_RATIO = 5.5;
+  const raised = colors['bg-raised'] || colors['bg-base'] || colors['bg-deep'];
+  const softTints = isDark ? FIXED_STATUS_SOFT_TINTS.dark : FIXED_STATUS_SOFT_TINTS.light;
+
+  for (const key of ['accent', 'danger', 'warning', 'success'] as const) {
+    const raw = colors[key];
+    if (!raw) continue;
+
+    const backgrounds = [colors['bg-raised'], colors['bg-base'], colors['bg-deep']].filter(
+      (c): c is string => Boolean(c)
+    );
+    if (raised) {
+      const softTint = key === 'accent' ? colors['accent-soft'] : softTints[key];
+      if (softTint) {
+        const badgeBg = compositeOver(parseColor(softTint), resolveOpaque(raised));
+        backgrounds.push(`rgb(${badgeBg.r}, ${badgeBg.g}, ${badgeBg.b})`);
+      }
+    }
+    if (backgrounds.length === 0) continue;
+
+    vars[COLOR_MAP[key].color!] = deriveAccentText(raw, backgrounds, SAFETY_TARGET_RATIO);
+  }
+
+  // Foreground for text/icons sitting ON TOP of a solid accent/danger/warning/success
+  // background (button labels, solid badges) — these backgrounds must stay the
+  // seller's exact brand/status color (see above), so unlike the derived text tokens,
+  // the fix here is picking white vs. near-black, not adjusting the color itself.
+  // `--sf-*-fg` is a plain CSS var (not Tailwind-exposed) — see the
+  // `.bg-sf-*-bg { color: var(--sf-*-fg) }` rules in globals.css for how it reaches
+  // the ~300 call sites that currently hardcode `text-white` without editing each one.
+  for (const key of ['accent', 'danger', 'warning', 'success'] as const) {
+    const raw = colors[key];
+    if (!raw) continue;
+    vars[`--sf-${key}-fg`] = pickReadableForeground(raw).color;
   }
 
   if (theme.typography) {

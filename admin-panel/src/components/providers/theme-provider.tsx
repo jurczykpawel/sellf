@@ -40,6 +40,15 @@ function resolveTheme(theme: Theme): 'light' | 'dark' {
   return theme === 'system' ? getSystemTheme() : theme
 }
 
+/**
+ * Escape a JSON string so it's safe to embed inline inside a <script> tag.
+ * Escaping only `</` still leaves `<script>`/`<!--` sequences intact, which
+ * can confuse the HTML parser's script-data states — escape every `<`.
+ */
+export function escapeForInlineScript(json: string): string {
+  return json.replace(/</g, '\\u003c')
+}
+
 function applyTheme(resolved: 'light' | 'dark') {
   const root = document.documentElement
   if (resolved === 'dark') {
@@ -132,7 +141,7 @@ export function ThemeScript({ adminTheme, nonce }: { adminTheme?: string; nonce?
     (function() {
       try {
         var t = localStorage.getItem('${STORAGE_KEY}');
-        var admin = ${JSON.stringify(adminTheme || null).replace(/<\//g, '<\\/')};
+        var admin = ${escapeForInlineScript(JSON.stringify(adminTheme || null))};
         if (t === 'dark' || t === 'light') {
           if (t === 'dark') document.documentElement.classList.add('dark');
         } else if (admin === 'dark' || admin === 'light') {

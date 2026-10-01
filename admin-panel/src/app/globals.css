@@ -23,8 +23,18 @@
   --sf-accent-glow: rgba(0,120,187,0.35);
 
   /* Tailwind v4 @theme overrides: brighter colors for dark-mode text contrast */
-  --color-sf-accent: #1A8FC8;
-  --color-sf-danger: #F25555;
+  --color-sf-accent: #2C98CC;
+  --color-sf-danger: #FF706D;
+
+  /* Readable text/icon color for whatever sits ON TOP of the solid accent/status
+     backgrounds above (button labels, solid badges) — picked (white vs near-black)
+     per lib/themes/contrast.ts's pickReadableForeground(), so a custom theme's
+     brand color never ends up with illegible button text. See the
+     `.bg-sf-*-bg { color: var(--sf-*-fg) }` rules below. */
+  --sf-accent-fg: #FFFFFF;
+  --sf-danger-fg: #000000;
+  --sf-warning-fg: #000000;
+  --sf-success-fg: #000000;
 
   --sf-text-heading: #F0F4FA;
   --sf-text-body: #94A3B8;
@@ -101,6 +111,11 @@
   --sf-accent-med: rgba(0,106,171,0.15);
   --sf-accent-hover: #005C8F;
   --sf-accent-glow: rgba(0,106,171,0.20);
+
+  --sf-accent-fg: #FFFFFF;
+  --sf-danger-fg: #FFFFFF;
+  --sf-warning-fg: #FFFFFF;
+  --sf-success-fg: #FFFFFF;
 
   --sf-text-heading: #0B1120;
   --sf-text-body: #3E5068;
@@ -215,6 +230,20 @@
   --color-sf-border-subtle: var(--sf-border-subtle);
   --color-sf-border-medium: var(--sf-border-medium);
   --color-sf-border-strong: var(--sf-border-strong);
+}
+
+/* Readable text on solid accent/danger backgrounds — centralized instead of editing
+ * every call site that hardcodes `text-white` (there is no shared Button component
+ * in this codebase to change once). Unlayered (not `@layer utilities`), so per CSS
+ * Cascade Layers it always wins over Tailwind's `.text-white` utility regardless of
+ * class order in the markup — a call site keeping `text-white` for clarity still
+ * reads the correct color. Value: see lib/themes/index.ts (themeToCSS) /
+ * pickReadableForeground() in lib/themes/contrast.ts for how `--sf-*-fg` is derived. */
+.bg-sf-accent-bg {
+  color: var(--sf-accent-fg);
+}
+.bg-sf-danger-bg {
+  color: var(--sf-danger-fg);
 }
 
 /* Sidebar layout — desktop margin for fixed sidebar */

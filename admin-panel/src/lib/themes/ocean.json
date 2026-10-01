@@ -14,7 +14,7 @@
     "bg-float": "#1B2F4E",
     "text-heading": "#E8F4FC",
     "text-body": "#8BADC8",
-    "text-muted": "#5A8AAD",
+    "text-muted": "#6192B5",
     "border": "rgba(255,255,255,0.06)",
     "border-accent": "rgba(14,165,233,0.15)",
     "success": "#10B981",
@@ -31,7 +31,7 @@
     "bg-float": "#FFFFFF",
     "text-heading": "#082F49",
     "text-body": "#334155",
-    "text-muted": "#64748B"
+    "text-muted": "#5F6E85"
   },
   "typography": {
     "font-family": "inherit",

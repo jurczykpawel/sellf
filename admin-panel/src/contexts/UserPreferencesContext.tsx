@@ -9,9 +9,17 @@ interface UserPreferencesContextProps {
   hideValues: boolean;
   toggleHideValues: () => Promise<void>;
   displayCurrency: string | null;
-  setDisplayCurrency: (currency: string | null) => Promise<void>;
   currencyViewMode: CurrencyViewMode;
-  setCurrencyViewMode: (mode: CurrencyViewMode) => Promise<void>;
+  /**
+   * Sets the view mode and display currency together in a single optimistic
+   * update and a single `updateUserPreferences` call. These two fields are
+   * always changed together from the currency selector (mode + currency are
+   * one logical choice — "grouped" or "convert to X") — saving them as two
+   * sequential awaited calls left the UI (and the dropdown's open/closed
+   * state) in an inconsistent, flickering in-between state while the first
+   * save was still in flight. See CurrencySelector.tsx `handleSelect`.
+   */
+  setCurrencyPreferences: (mode: CurrencyViewMode, currency: string | null) => Promise<void>;
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextProps | undefined>(undefined);
@@ -51,36 +59,31 @@ export const UserPreferencesProvider = ({
     }
   }, [hideValues]);
 
-  const setDisplayCurrency = useCallback(async (currency: string | null) => {
-    setDisplayCurrencyState(currency); // Optimistic update
+  const setCurrencyPreferences = useCallback(async (mode: CurrencyViewMode, currency: string | null) => {
+    const previousMode = currencyViewMode;
+    const previousCurrency = displayCurrency;
+
+    // Optimistic update — apply both fields together so there is no render in
+    // between where the mode has changed but the currency hasn't (or vice versa).
+    setCurrencyViewModeState(mode);
+    setDisplayCurrencyState(currency);
 
     try {
-      await updateUserPreferences({ displayCurrency: currency });
+      await updateUserPreferences({ currencyViewMode: mode, displayCurrency: currency });
     } catch (error) {
-      console.error('Failed to save display currency preference:', error);
-      setDisplayCurrencyState(displayCurrency); // Revert on error
+      console.error('Failed to save currency preferences:', error);
+      setCurrencyViewModeState(previousMode); // Revert on error
+      setDisplayCurrencyState(previousCurrency);
     }
-  }, [displayCurrency]);
-
-  const setCurrencyViewMode = useCallback(async (mode: CurrencyViewMode) => {
-    setCurrencyViewModeState(mode); // Optimistic update
-
-    try {
-      await updateUserPreferences({ currencyViewMode: mode });
-    } catch (error) {
-      console.error('Failed to save currency view mode preference:', error);
-      setCurrencyViewModeState(currencyViewMode); // Revert on error
-    }
-  }, [currencyViewMode]);
+  }, [currencyViewMode, displayCurrency]);
 
   return (
     <UserPreferencesContext.Provider value={{
       hideValues,
       toggleHideValues,
       displayCurrency,
-      setDisplayCurrency,
       currencyViewMode,
-      setCurrencyViewMode
+      setCurrencyPreferences
     }}>
       {children}
     </UserPreferencesContext.Provider>

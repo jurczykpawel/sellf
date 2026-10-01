@@ -12,6 +12,7 @@ import { revalidatePath } from 'next/cache';
 import { themeConfigSchema, THEME_PRESETS, getPresetById } from '@/lib/themes';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import { checkFeature } from '@/lib/license/resolve';
+import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import type { ActionResponse } from '@/lib/actions/admin-auth';
 import type { ThemeConfig, ThemePreset } from '@/lib/themes';
 
@@ -39,19 +40,9 @@ export async function getActiveTheme(): Promise<ThemeConfig | null> {
 // ===== WRITE =====
 
 export async function saveActiveTheme(theme: ThemeConfig): Promise<ActionResponse<void>> {
-  const isDemoMode = process.env.DEMO_MODE === 'true';
-
-  // Demo mode: skip auth + license (demo users can freely explore theme editor)
-  if (isDemoMode) {
-    const result = themeConfigSchema.safeParse(theme);
-    if (!result.success) {
-      return { success: false, error: `Invalid theme: ${result.error.message}` };
-    }
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(ACTIVE_THEME_PATH, JSON.stringify(result.data, null, 2), 'utf-8');
-    revalidatePath('/', 'layout');
-    return { success: true };
-  }
+  // The active theme is one file shared by every visitor, so demo mode keeps it
+  // read-only like every other admin setting; the editor still previews locally.
+  if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' };
 
   return withAdminClient(async ({ dataClient }) => {
     const licenseCheck = await checkFeature('theme-customization', { dataClient });
@@ -85,16 +76,8 @@ export async function applyPreset(presetId: string): Promise<ActionResponse<void
 // ===== DELETE =====
 
 export async function removeActiveTheme(): Promise<ActionResponse<void>> {
-  // Demo mode: skip auth + license
-  if (process.env.DEMO_MODE === 'true') {
-    try {
-      await fs.unlink(ACTIVE_THEME_PATH);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-    revalidatePath('/', 'layout');
-    return { success: true };
-  }
+  // Read-only in demo mode, as in saveActiveTheme.
+  if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' };
 
   return withAdminClient(async ({ dataClient }) => {
     const licenseCheck = await checkFeature('theme-customization', { dataClient });
@@ -128,10 +111,14 @@ export async function getThemePresets(): Promise<ThemePreset[]> {
 /**
  * Public server action for license check — requires admin/seller auth.
  * Returns ActionResponse<boolean> with the license validity in `data`.
+ *
+ * Demo mode is intentionally left unlocked here (read-only: it does not
+ * write anything) so a visitor can open the theme editor and see the Pro
+ * feature unlocked — actually saving a change is a mutation and is
+ * blocked above in saveActiveTheme/removeActiveTheme.
  */
 export async function checkThemeLicense(): Promise<ActionResponse<boolean>> {
-  // Demo mode: all features unlocked without auth
-  if (process.env.DEMO_MODE === 'true') {
+  if (isDemoMode()) {
     return { success: true, data: true };
   }
 

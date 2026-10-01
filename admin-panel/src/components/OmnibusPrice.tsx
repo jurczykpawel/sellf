@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 interface OmnibusPriceProps {
   productId: string;
@@ -32,7 +33,6 @@ export default function OmnibusPrice({
   const t = useTranslations('checkout');
   const [lowestPriceData, setLowestPriceData] = useState<LowestPriceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -80,27 +80,33 @@ export default function OmnibusPrice({
   });
 
   return (
-    <div className="relative">
-      <div
-        className="text-sm text-sf-muted mt-2 flex items-center gap-1 cursor-help"
-        data-testid="omnibus-price"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+    <div
+      className="text-sm text-sf-muted mt-2 flex items-center gap-1"
+      data-testid="omnibus-price"
+    >
+      <span>{t('lowestPriceLabel')}: {formatter.format(lowestPriceData.lowestPrice)}</span>
+      <Tooltip
+        content={
+          <>
+            <p className="font-semibold text-white mb-2">{t('lowestPriceTooltipTitle')}</p>
+            <p className="mb-2">{t('lowestPriceTooltipDescription')}</p>
+            <p className="text-xs text-sf-muted">{t('lowestPriceTooltipDisclaimer')}</p>
+          </>
+        }
+        side="top-start"
+        className="z-10 w-80 p-4 bg-gray-900 border border-gray-700 rounded-lg text-sm text-gray-300"
+        showArrow={false}
       >
-        <span>{t('lowestPriceLabel')}: {formatter.format(lowestPriceData.lowestPrice)}</span>
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-        </svg>
-      </div>
-
-      {/* Tooltip */}
-      {showTooltip && (
-        <div className="absolute z-10 bottom-full left-0 mb-2 w-80 p-4 bg-gray-900 border border-gray-700 rounded-lg text-sm text-gray-300">
-          <p className="font-semibold text-white mb-2">{t('lowestPriceTooltipTitle')}</p>
-          <p className="mb-2">{t('lowestPriceTooltipDescription')}</p>
-          <p className="text-xs text-sf-muted">{t('lowestPriceTooltipDisclaimer')}</p>
-        </div>
-      )}
+        <button
+          type="button"
+          aria-label={t('lowestPriceTooltipTitle')}
+          className="cursor-help text-sf-muted hover:text-sf-body transition-colors"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </Tooltip>
     </div>
   );
 }

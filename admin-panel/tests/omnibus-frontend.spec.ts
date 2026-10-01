@@ -142,6 +142,57 @@ test.describe('Omnibus Frontend - Client Side', () => {
     expect(priceText).toMatch(/najniższa cena|lowest price/i); // Polish or English text
   });
 
+  test('OmnibusPrice info tooltip shows on focus, hides on Escape (keyboard access)', async ({ page }) => {
+    await page.goto(`/pl/checkout/${testProductSlug}`, { timeout: 60000 });
+    await page.waitForLoadState('domcontentloaded', { timeout: 60000 });
+    await page.waitForTimeout(3000);
+
+    const omnibusPrice = page.locator('[data-testid="omnibus-price"]');
+    await expect(omnibusPrice).toBeVisible({ timeout: 10000 });
+
+    // Trigger must be a real, focusable button — not a bare hover-only span/svg.
+    const infoTrigger = omnibusPrice.getByRole('button');
+    await expect(infoTrigger).toBeVisible();
+
+    const tooltip = page.getByRole('tooltip');
+    await expect(tooltip).toBeHidden();
+
+    // Keyboard: focusing the trigger must reveal the legally-relevant disclosure text.
+    await infoTrigger.focus();
+    await expect(tooltip).toBeVisible({ timeout: 2000 });
+    await expect(tooltip).toContainText(/najniższa cena|lowest price/i);
+
+    // Escape dismisses it.
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toBeHidden();
+  });
+
+  test('OmnibusPrice info tooltip toggles on tap on touch devices', async ({ browser }) => {
+    const context = await browser.newContext({ hasTouch: true });
+    const page = await context.newPage();
+    try {
+      await page.goto(`/pl/checkout/${testProductSlug}`, { timeout: 60000 });
+      await page.waitForLoadState('domcontentloaded', { timeout: 60000 });
+      await page.waitForTimeout(3000);
+
+      const omnibusPrice = page.locator('[data-testid="omnibus-price"]');
+      await expect(omnibusPrice).toBeVisible({ timeout: 10000 });
+      const infoTrigger = omnibusPrice.getByRole('button');
+      const tooltip = page.getByRole('tooltip');
+      await expect(tooltip).toBeHidden();
+
+      // Touch: tap toggles the tooltip open (there is no hover on touch devices).
+      await infoTrigger.tap();
+      await expect(tooltip).toBeVisible({ timeout: 2000 });
+
+      // Tap outside closes it.
+      await page.locator('body').tap({ position: { x: 5, y: 5 } });
+      await expect(tooltip).toBeHidden();
+    } finally {
+      await context.close();
+    }
+  });
+
   test('should NOT display OmnibusPrice when Omnibus globally disabled', async ({ page }) => {
     // Disable Omnibus globally
     const { data: shopConfig } = await supabaseAdmin
@@ -229,6 +280,7 @@ test.describe('Omnibus Frontend - Client Side', () => {
 test.describe('Omnibus Frontend - Admin Side', () => {
   let adminEmail: string;
   const adminPassword = 'password123';
+  let adminUserId: string;
   let testProductId: string;
   let testProductSlug: string;
   let testProductName: string;
@@ -245,6 +297,7 @@ test.describe('Omnibus Frontend - Admin Side', () => {
       email_confirm: true,
     });
     if (createError) throw createError;
+    adminUserId = user!.id;
 
     await supabaseAdmin
       .from('admin_users')
@@ -280,6 +333,10 @@ test.describe('Omnibus Frontend - Admin Side', () => {
         .from('products')
         .delete()
         .eq('id', testProductId);
+    }
+    if (adminUserId) {
+      await supabaseAdmin.from('admin_users').delete().eq('user_id', adminUserId);
+      await supabaseAdmin.auth.admin.deleteUser(adminUserId);
     }
   });
 

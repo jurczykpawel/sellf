@@ -12,6 +12,16 @@ interface WizardFooterProps {
   isEditMode: boolean;
   formData: ProductFormData;
   priceDisplayValue: string;
+  /**
+   * False until the shop config fetch (getMyShopConfig, in useProductForm)
+   * has settled at least once for this modal-open session. taxMode and
+   * vat_rate default to placeholder values (`'local'` / `null`) until then,
+   * so "Dalej" and "Publikuj" stay disabled — advancing or submitting
+   * against those placeholders can wrongly block a valid product (vat_rate
+   * still loading) or, in edit mode, save vat_rate=null for good (no
+   * insert-time DB fallback runs on update).
+   */
+  shopConfigLoaded: boolean;
   onBack: () => void;
   onContinue: () => void;
   onSubmit: () => void;
@@ -26,6 +36,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   isEditMode,
   formData,
   priceDisplayValue,
+  shopConfigLoaded,
   onBack,
   onContinue,
   onSubmit,
@@ -38,9 +49,11 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   const missing = checklist.filter((c) => !c.ok);
   const canPublish = isEditMode || missing.length === 0;
   const submitLabel = isEditMode ? t('updateProduct') : t('publish.cta');
-  const tooltip = canPublish
-    ? undefined
-    : t('publish.disabledTooltip', { missing: missing.map((m) => m.label).join(', ') });
+  const tooltip = !shopConfigLoaded
+    ? t('wizard.loadingConfig')
+    : canPublish
+      ? undefined
+      : t('publish.disabledTooltip', { missing: missing.map((m) => m.label).join(', ') });
 
   return (
     <div className="px-6 py-3 border-t border-sf-border bg-sf-raised space-y-2">
@@ -81,13 +94,18 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
           <Button
             onClick={onSubmit}
             variant="primary"
-            disabled={isSubmitting || !canPublish}
-            loading={isSubmitting}
+            disabled={isSubmitting || !canPublish || !shopConfigLoaded}
+            loading={isSubmitting || !shopConfigLoaded}
           >
             {submitLabel}
           </Button>
           {!isLastStep && (
-            <Button onClick={onContinue} variant="ghost">
+            <Button
+              onClick={onContinue}
+              variant="ghost"
+              disabled={!shopConfigLoaded}
+              loading={!shopConfigLoaded}
+            >
               {t('wizard.continueSetup')}
               <svg
                 className="w-4 h-4 ml-1.5"

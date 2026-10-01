@@ -9,7 +9,7 @@
  * @see components/providers/whitelabel-provider.tsx for CSS injection
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useConfig } from '@/components/providers/config-provider';
@@ -21,8 +21,25 @@ import {
  checkThemeLicense,
  exportActiveTheme,
 } from '@/lib/actions/theme';
-import { themeConfigSchema, THEME_PRESETS } from '@/lib/themes';
+import { themeConfigSchema, THEME_PRESETS, themeToCSS } from '@/lib/themes';
+import { evaluateCssVarsContrast } from '@/lib/themes/contrast';
+import type { ContrastIssue } from '@/lib/themes/contrast';
 import type { ThemeConfig, ThemePreset } from '@/lib/themes';
+
+// ===== CONTRAST WARNINGS =====
+
+/** Maps evaluateCssVarsContrast() pair ids to translation keys (settings.branding.*). */
+const CONTRAST_PAIR_LABEL_KEYS: Record<string, string> = {
+ 'heading-on-base': 'contrastPairHeadingOnBase',
+ 'body-on-base': 'contrastPairBodyOnBase',
+ 'muted-on-raised': 'contrastPairMutedOnRaised',
+ 'button-text-on-accent': 'contrastPairButtonTextOnAccent',
+ 'button-text-on-danger': 'contrastPairButtonTextOnDanger',
+};
+
+interface ModeContrastIssue extends ContrastIssue {
+ mode: 'dark' | 'light';
+}
 
 // ===== TYPES =====
 
@@ -184,6 +201,15 @@ export default function BrandingSettings() {
  setSelectedPresetId(preset.id);
  setHasChanges(true);
  };
+
+ // Non-blocking contrast check — reflects exactly what themeToCSS() will render
+ // (so already-auto-corrected tokens like accent/status text never show up here),
+ // computed for both color modes since a theme applies to both.
+ const contrastIssues: ModeContrastIssue[] = useMemo(() => {
+ const darkIssues = evaluateCssVarsContrast(themeToCSS(editTheme, true)).map((i) => ({ ...i, mode: 'dark' as const }));
+ const lightIssues = evaluateCssVarsContrast(themeToCSS(editTheme, false)).map((i) => ({ ...i, mode: 'light' as const }));
+ return [...darkIssues, ...lightIssues];
+ }, [editTheme]);
 
  const handleSave = async () => {
  if (!licenseValid) {
@@ -349,6 +375,26 @@ export default function BrandingSettings() {
  >
  {t('removeTheme')}
  </button>
+ </div>
+ )}
+
+ {/* Contrast Warnings — non-blocking, saving stays allowed */}
+ {contrastIssues.length > 0 && (
+ <div data-testid="theme-contrast-warning" className="p-4 bg-sf-warning-soft border border-sf-warning/20">
+ <p className="text-sm font-medium text-sf-warning">{t('contrastWarningTitle')}</p>
+ <p className="text-xs text-sf-warning/90 mt-1">{t('contrastWarningIntro')}</p>
+ <ul className="mt-2 space-y-1">
+ {contrastIssues.map((issue) => (
+ <li key={`${issue.mode}-${issue.id}`} className="text-xs text-sf-warning">
+ {t('contrastWarningLine', {
+ mode: t(issue.mode === 'dark' ? 'contrastModeDark' : 'contrastModeLight'),
+ pair: t(CONTRAST_PAIR_LABEL_KEYS[issue.id] ?? 'contrastPairHeadingOnBase'),
+ ratio: issue.ratio.toFixed(1),
+ required: issue.required.toFixed(1),
+ })}
+ </li>
+ ))}
+ </ul>
  </div>
  )}
 

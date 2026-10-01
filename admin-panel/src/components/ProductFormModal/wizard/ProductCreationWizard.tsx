@@ -68,6 +68,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     omnibusEnabled,
     shopDefaultVatRate,
     taxMode,
+    shopConfigLoaded,
     oto,
     setOto,
     urlValidation,
@@ -104,13 +105,20 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   }, [isFormDirty, onClose]);
 
   const handleContinue = useCallback(() => {
+    // The "Dalej" button is disabled while shopConfigLoaded is false
+    // (WizardFooter) — this guards against it firing anyway (e.g. a
+    // keyboard-triggered click on a not-yet-re-rendered disabled state).
+    // See useProductForm's handleSubmit for why: step-1 validation depends
+    // on taxMode/vat_rate, which are only trustworthy once the shop config
+    // fetch has settled.
+    if (!shopConfigLoaded) return;
     if (currentStep === 1 && !validateStep1Fields()) {
       return;
     }
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, validateStep1Fields]);
+  }, [currentStep, validateStep1Fields, shopConfigLoaded]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
@@ -279,6 +287,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           isEditMode={isEditMode}
           formData={formData}
           priceDisplayValue={priceDisplayValue}
+          shopConfigLoaded={shopConfigLoaded}
           onBack={handleBack}
           onContinue={handleContinue}
           onSubmit={handleWizardSubmit}
