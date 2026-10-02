@@ -5,10 +5,11 @@ import { test, expect } from '@playwright/test';
 import Stripe from 'stripe';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { PREDEFINED_CUSTOM_FIELDS } from '@/lib/validations/custom-checkout-fields';
-import type { Page } from '@playwright/test';
+import type { Frame, Page } from '@playwright/test';
 import { supabaseAdmin, createTestUser, setAuthSession } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
+import { extractMagicLink, waitForEmail } from '../helpers/mailpit';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const artifacts = process.env.STRIPE_LIVE_ARTIFACTS!;
@@ -97,7 +98,16 @@ async function setup(s: Scenario, loggedIn: boolean): Promise<void> {
 async function cleanup(s: Scenario): Promise<void> {
   // Stop remote billing before removing the local subscription/account.
   const subs = s.productIds.length ? await rows('subscriptions', 'product_id', s.productIds[0]) : [];
-  for (const sub of subs) await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+  for (const sub of subs) {
+    await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+    await expect.poll(async () => {
+      const events = await stripe.events.list({ type: 'customer.subscription.deleted', limit: 100 });
+      const event = events.data.find(item => item.data.object.id === sub.stripe_subscription_id);
+      if (!event) return false;
+      return readFileSync(`${artifacts}/stripe.jsonl`, 'utf8').split('\n')
+        .some(line => line.includes('[200] POST') && line.includes(event.id));
+    }, { timeout: 60000, message: 'Subscription cancellation acknowledged before fixture removal' }).toBe(true);
+  }
   for (const id of s.sessionIds) {
     const session = await stripe.checkout.sessions.retrieve(id);
     if (session.status === 'open') await stripe.checkout.sessions.expire(id);
@@ -112,10 +122,12 @@ async function cleanup(s: Scenario): Promise<void> {
   await remove('payment_transactions', 'product_id', s.productIds);
   await remove('subscriptions', 'product_id', s.productIds);
   await remove('order_bumps', 'main_product_id', s.productIds);
-  const products = s.productIds.length ? await supabaseAdmin.from('products').select('stripe_product_id,stripe_price_id').in('id', s.productIds) : { data: [] };
+  const products = s.productIds.length ? await supabaseAdmin.from('products').select('id,stripe_product_id,stripe_price_id').in('id', s.productIds) : { data: [] };
   for (const product of products.data ?? []) {
-    if (product.stripe_price_id) await stripe.prices.update(product.stripe_price_id, { active: false });
-    if (product.stripe_product_id) await stripe.products.update(product.stripe_product_id, { active: false });
+    const price = product.stripe_price_id ? await stripe.prices.retrieve(product.stripe_price_id) : null;
+    const stripeProductId = product.stripe_product_id || (typeof price?.product === 'string' ? price.product : price?.product.id);
+    if (stripeProductId) await stripe.products.update(stripeProductId, { default_price: '', active: false });
+    if (price) await stripe.prices.update(price.id, { active: false });
   }
   await remove('products', 'id', s.productIds);
   await deleteAuthUserByEmail(supabaseAdmin, s.email);
@@ -191,11 +203,20 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     await fillCard(page, card);
     await page.locator('button[type="submit"]').click();
     if (options.challenge) {
-      const challenge = page.frameLocator('iframe[name^="__privateStripeFrame"]').frameLocator('iframe#challengeFrame');
-      await challenge.getByRole('button', { name: /Complete/ }).click({ timeout: 60000 });
+      let challenge: Frame | undefined;
+      await expect.poll(async () => {
+        for (const frame of page.frames()) {
+          if (frame.url().startsWith('https://testmode-acs.stripe.com/') && await frame.getByRole('button', { name: /Complete/ }).count()) {
+            challenge = frame;
+            return true;
+          }
+        }
+        return false;
+      }, { timeout: 60000, message: 'Stripe test authentication challenge' }).toBe(true);
+      await challenge!.getByRole('button', { name: /Complete/ }).click();
     }
     if (options.declined) {
-      await expect(page.getByText(/Your card was declined/i)).toBeVisible({ timeout: 60000 });
+      await expect(page.getByText(/Your card (?:was|has been) declined/i)).toBeVisible({ timeout: 60000 });
       await expect.poll(() => s.sessionIds.length).toBeGreaterThan(0);
       // Await Stripe's real terminal attempt event before checking negative outcomes.
       await expect.poll(async () => {
@@ -221,8 +242,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       order = await timing(s, sessionId, pageAt);
       const txs = await rows('payment_transactions', 'product_id', s.productIds[0]);
       expect(txs.filter(row => row.status === 'pending')).toHaveLength(0);
-      expect(txs).toHaveLength(1);
-      const tx = txs[0];
+      const completed = txs.filter(row => row.status === 'completed');
+      expect(completed).toHaveLength(1);
+      for (const superseded of txs.filter(row => row.status !== 'completed')) {
+        expect(superseded.customer_email).toBe(s.email);
+        expect(superseded.status).toBe('abandoned');
+        expect((await stripe.checkout.sessions.retrieve(superseded.session_id)).status).toBe('expired');
+      }
+      const tx = completed[0];
       expect(tx.status).toBe('completed');
       expect(tx.customer_email).toBe(s.email);
       if (s.buyerId) expect(tx.user_id).toBe(s.buyerId);
@@ -233,6 +260,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         const items = await rows('payment_line_items', 'transaction_id', tx.id);
         expect(items).toHaveLength(2);
         expect(new Set(items.map(row => row.product_id))).toEqual(new Set(s.productIds));
+        for (const item of items) {
+          const expectedPrice = item.product_id === s.productIds[0] ? 10 : 2;
+          expect(item.quantity).toBe(1);
+          expect(Number(item.unit_price)).toBe(expectedPrice);
+          expect(Number(item.total_price)).toBe(expectedPrice);
+          expect(item.currency).toBe('USD');
+        }
+        expect(items.reduce((total, item) => total + Number(item.total_price), 0) * 100).toBe(Number(tx.amount));
         const licenses = await rows('issued_licenses', 'product_id', s.productIds[0]);
         expect(licenses).toHaveLength(1);
         expect(licenses[0].license_domain).toBe(s.domain);
@@ -241,7 +276,25 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       if (s.buyerId) {
         for (const id of s.productIds) expect((await rows('user_product_access', 'product_id', id)).some(row => row.user_id === s.buyerId)).toBe(true);
       } else {
-        for (const id of s.productIds) expect((await rows('guest_purchases', 'product_id', id)).some(row => row.customer_email === s.email)).toBe(true);
+        const purchases = await rows('guest_purchases', 'session_id', sessionId);
+        expect(purchases).toHaveLength(1);
+        expect(purchases[0].product_id).toBe(s.productIds[0]);
+        expect(purchases[0].customer_email).toBe(s.email);
+        const message = await waitForEmail(s.email, { timeout: 60000 });
+        const magicLink = extractMagicLink(message.HTML || message.Text || '');
+        expect(magicLink, 'Delivered post-checkout magic link').toBeTruthy();
+        await page.goto(magicLink!);
+        await expect(page).toHaveURL(new RegExp(`/p/${slug}(?:[/?]|$)`));
+        await page.goto('/en/my-products');
+        await expect(page).toHaveURL(/\/my-products(?:[/?]|$)/);
+        const { data: buyerId, error: buyerError } = await supabaseAdmin.rpc('find_user_id_by_email', { p_email: s.email });
+        if (buyerError || !buyerId) throw new Error(buyerError?.message ?? 'Guest account was not created');
+        s.buyerId = buyerId as string;
+        for (const id of s.productIds) {
+          await expect.poll(async () => (await rows('user_product_access', 'product_id', id)).some(row => row.user_id === s.buyerId), { timeout: 60000 }).toBe(true);
+        }
+        const claimed = await rows('guest_purchases', 'session_id', sessionId);
+        expect(claimed[0].claimed_by_user_id).toBe(s.buyerId);
       }
       const delivery = deliveries(s)[0];
       expect(delivery.body.event).toBe(s.subscription ? 'invoice.paid' : 'purchase.completed');
@@ -260,7 +313,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       writeFileSync(`${artifacts}/${slug}.json`, JSON.stringify({
         scenario: s, transactions,
         licenses: await rows('issued_licenses', 'product_id', s.productIds[0]),
-        lineItems: transactions.length ? await rows('payment_line_items', 'transaction_id', transactions[0].id) : [],
+        lineItems: (await Promise.all(transactions.map(tx => rows('payment_line_items', 'transaction_id', tx.id)))).flat(),
         deliveries: deliveries(s),
       }, null, 2), { mode: 0o600 });
     }

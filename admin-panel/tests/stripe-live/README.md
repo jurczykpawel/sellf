@@ -35,7 +35,8 @@ billing handler's fulfillment event).
 The ten runs cover guest and signed-in buyers, required license-domain input,
 one order bump, 3D Secure, decline, initial subscription payment, and five fresh
 guest repetitions. Assertions require one completed transaction, no pending
-transaction, both line items, preserved domain and exactly one matching license,
+transaction, expired superseded sessions with abandoned history rows, both line
+items with correct amounts, guest access after registration, preserved domain and exactly one matching license,
 access records and one outbound delivery with its envelope ID in the header.
 The decline run requires an actual failed Stripe attempt and no completed order,
 license or delivery. Subscription cleanup cancels Stripe billing before deleting

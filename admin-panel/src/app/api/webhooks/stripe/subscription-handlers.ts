@@ -940,11 +940,7 @@ export async function handleInvoicePaid(
   };
 
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).
-  const paymentIntentId =
-    typeof (invoice as unknown as { payment_intent?: string | { id: string } }).payment_intent ===
-    'string'
-      ? ((invoice as unknown as { payment_intent: string }).payment_intent)
-      : ((invoice as unknown as { payment_intent?: { id: string } }).payment_intent?.id ?? null);
+  const paymentIntentId = await resolveInvoicePaymentIntentId(invoice, stripe);
 
   let insertedTx = existingTx;
   if (!insertedTx) {
@@ -1076,7 +1072,26 @@ export async function handleInvoicePaymentFailed(
 // utils
 // ---------------------------------------------------------------------------
 
+async function resolveInvoicePaymentIntentId(invoice: Stripe.Invoice, stripe: Stripe): Promise<string | null> {
+  const legacy = (invoice as unknown as { payment_intent?: string | { id: string } | null }).payment_intent;
+  if (typeof legacy === 'string') return legacy;
+  if (legacy) return legacy.id;
+
+  let payments = invoice.payments;
+  if (!payments && invoice.parent?.type === 'subscription_details') {
+    const expanded = await stripe.invoices.retrieve(invoice.id!, { expand: ['payments'] });
+    payments = expanded.payments;
+  }
+  const payment = payments?.data.find(item => item.status === 'paid' && item.payment.type === 'payment_intent');
+  const paymentIntent = payment?.payment.payment_intent;
+  return typeof paymentIntent === 'string' ? paymentIntent : paymentIntent?.id ?? null;
+}
+
 function extractSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const fromParent = invoice.parent?.subscription_details?.subscription;
+  if (typeof fromParent === 'string') return fromParent;
+  if (fromParent && typeof fromParent === 'object') return fromParent.id;
+
   const fromTopLevel = (invoice as unknown as { subscription?: string | { id: string } | null })
     .subscription;
   if (typeof fromTopLevel === 'string') return fromTopLevel;

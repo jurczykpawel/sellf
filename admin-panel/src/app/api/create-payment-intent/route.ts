@@ -7,6 +7,7 @@ import { calculatePricing, toStripeCents } from '@/hooks/usePricing';
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
+import { expireBoundCheckoutSession } from '@/lib/stripe/checkout-expiration';
 import { isStripeTaxNotConfiguredError } from '@/lib/stripe/tax-errors';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
@@ -30,7 +31,7 @@ import { buildSubscriptionSessionConfig } from '@/lib/stripe/subscription-checko
 import { createSubscriptionWithDynamicPrice } from '@/lib/stripe/subscription-dynamic-price';
 import { ensureStripeProduct } from '@/lib/stripe/ensure-product';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
-import { signCheckoutBinding, verifyCheckoutBinding } from '@/lib/security/checkout-binding';
+import { signCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 import { findIssuedLicense } from '@/lib/license-keys/lookup';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
@@ -42,11 +43,6 @@ function extractStripeObjectId(clientSecret: string): string | null {
 
 type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>;
 type CheckoutPaymentMethodType = NonNullable<CheckoutSessionCreateParams['payment_method_types']>[number];
-
-function extractCheckoutSessionId(clientSecret: string): string | null {
-  const sessionId = clientSecret.split('_secret_')[0];
-  return /^cs_(test|live)_[a-zA-Z0-9]+$/.test(sessionId) ? sessionId : null;
-}
 
 function stripeMetadataValue(value: unknown): string {
   return value === null || value === undefined ? '' : String(value);
@@ -80,6 +76,7 @@ export async function POST(request: NextRequest) {
       productId,
       clientSecret,
       bindingToken: previousBindingToken,
+      expireOnly,
       email,
       firstName,
       lastName,
@@ -162,6 +159,21 @@ export async function POST(request: NextRequest) {
     }
 
     const dataClient = createAdminClient();
+
+    if ((typeof clientSecret === 'string' && clientSecret.startsWith('cs_')) || expireOnly === true) {
+      const stripe = await getStripeServer();
+      if (!stripe) {
+        return NextResponse.json({ error: 'Payment system not configured' }, { status: 503 });
+      }
+      const expiration = await expireBoundCheckoutSession(stripe, dataClient, {
+        clientSecret,
+        bindingToken: previousBindingToken,
+      });
+      if (!expiration.success) {
+        return NextResponse.json({ error: expiration.error }, { status: expiration.status ?? 503 });
+      }
+      if (expireOnly === true) return NextResponse.json({ success: true });
+    }
 
     // 1. Fetch product
     const { data: product, error: productError } = await dataClient
@@ -391,6 +403,10 @@ export async function POST(request: NextRequest) {
           productId: subscriptionProduct.id,
         }),
       });
+    }
+
+    if (clientSecret && (typeof clientSecret !== 'string' || !clientSecret.startsWith('cs_'))) {
+      return NextResponse.json({ error: 'Invalid checkout session format' }, { status: 400 });
     }
 
     // 3. Validate PWYW (Pay What You Want) custom pricing
@@ -738,45 +754,6 @@ export async function POST(request: NextRequest) {
         { error: 'Payment system not configured. Please configure Stripe in admin settings.' },
         { status: 503 }
       );
-    }
-
-    const existingCheckoutSessionId =
-      typeof clientSecret === 'string' ? extractCheckoutSessionId(clientSecret) : null;
-
-    if (clientSecret && !existingCheckoutSessionId) {
-      return NextResponse.json(
-        { error: 'Invalid checkout session format' },
-        { status: 400 }
-      );
-    }
-
-    if (existingCheckoutSessionId) {
-      try {
-        const existingSession = await stripe.checkout.sessions.retrieve(existingCheckoutSessionId);
-        const sessionOwnerId =
-          typeof existingSession.metadata?.user_id === 'string' && existingSession.metadata.user_id.length > 0
-            ? existingSession.metadata.user_id
-            : null;
-        const sessionProductId =
-          typeof existingSession.metadata?.product_id === 'string' && existingSession.metadata.product_id.length > 0
-            ? existingSession.metadata.product_id
-            : null;
-        const bindingOk =
-          typeof previousBindingToken === 'string' &&
-          sessionProductId !== null &&
-          verifyCheckoutBinding(previousBindingToken, {
-            stripeObjectId: existingCheckoutSessionId,
-            userId: sessionOwnerId,
-            productId: sessionProductId,
-          });
-        if (bindingOk && existingSession.status === 'open') {
-          await stripe.checkout.sessions.expire(existingCheckoutSessionId);
-        } else if (!bindingOk) {
-          console.warn('[create-payment-intent] Skipping expire of previous session: missing or invalid binding token');
-        }
-      } catch (expireError) {
-        console.warn('[create-payment-intent] Failed to expire previous Checkout Session:', expireError);
-      }
     }
 
     // stripe_tax + on-site (Elements): the session is otherwise a guest-by-email checkout with

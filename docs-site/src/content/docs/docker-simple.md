@@ -135,7 +135,7 @@ After your first login as admin, open **Settings → Payments** in the Sellf adm
 
 1. https://dashboard.stripe.com/webhooks
 2. Add endpoint: `https://your-domain.com/api/webhooks/stripe`
-3. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `payment_intent.succeeded`, `charge.refunded`, `refund.created`, `refund.updated`, `charge.dispute.created`, `customer.subscription.{created,updated,deleted,trial_will_end,paused,resumed}`, `invoice.{paid,upcoming,payment_succeeded,payment_failed,payment_action_required}`
+3. Events: `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded`, `payment_intent.succeeded`, `charge.refunded`, `refund.created`, `refund.updated`, `charge.dispute.created`, `customer.subscription.{created,updated,deleted,trial_will_end,paused,resumed}`, `invoice.{paid,upcoming,payment_succeeded,payment_failed,payment_action_required}`
 4. Copy the **Signing secret**
 5. Add to `.env` as `STRIPE_WEBHOOK_SECRET`
 6. Restart: `docker compose restart`

@@ -50,3 +50,16 @@ kolejne zdarzenie lub weryfikację zakupu. Zapis zakończonej transakcji nie ozn
 
 Pełny katalog zdarzeń, przykłady danych VAT i licencji oraz konfiguracja ponowień
 znajdują się w [dokumentacji webhooków po angielsku](/webhooks/).
+
+## Wygaśnięcie checkoutu Stripe
+
+Włącz `checkout.session.expired` na endpoincie Stripe wysyłającym zdarzenia do
+`/api/webhooks/stripe`, obok zdarzeń zakończenia płatności. Nowe endpointy tworzone
+w ustawieniach Sellf mają je automatycznie. Dla istniejącego endpointu dodaj to
+zdarzenie w Stripe Dashboard → Workbench → Webhooks → endpoint → Edit events.
+
+Po zmianie koszyka Sellf wygasza poprzednią Checkout Session i zmienia status jej
+oczekującej transakcji na `abandoned`. Naturalne wygaśnięcie uruchamia tę samą
+zmianę przez zdarzenie Stripe. Zakończone transakcje pozostają bez zmian,
+a powtórne zdarzenia można obsłużyć ponownie. Błąd zapisu zwraca HTTP 500, aby
+Stripe ponowił dostawę.

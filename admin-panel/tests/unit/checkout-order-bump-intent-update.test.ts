@@ -22,7 +22,7 @@ describe('checkout order bump Checkout Session refresh', () => {
 
   it('creates a fresh Checkout Session when checkout composition changes', () => {
     expect(paidProductFormSource).toContain('lastCheckoutSessionSignature');
-    expect(paidProductFormSource).toContain('setCheckoutSessionId(data.checkoutSessionId)');
+    expect(paidProductFormSource).toContain('setCheckoutSessionId(data.checkoutSessionId ?? null)');
     expect(paidProductFormSource).not.toContain('elementsUpdateRevision');
     expect(paidProductFormSource).not.toContain('fetchUpdates');
 

@@ -288,3 +288,15 @@ WEBHOOK_QUEUE_DRIVER=sqs         # AWS SQS stub (throws NotImplemented)
 ```
 
 A future SQS implementation would replace `pickDue` with `ReceiveMessage`, `markFailed` with `ChangeMessageVisibility`, and `markPermanentlyFailed` with `SendMessage` to a configured DLQ queue. `webhook_logs` would remain the audit log of attempts in either case.
+
+## Stripe checkout expiration
+
+Enable `checkout.session.expired` on the Stripe endpoint that delivers to
+`/api/webhooks/stripe`, alongside the completion events. New endpoints created
+from Sellf settings include it automatically. For an existing endpoint, add the
+event in Stripe Dashboard → Workbench → Webhooks → your endpoint → Edit events.
+
+When a buyer changes the cart, Sellf expires the previous Checkout Session and
+marks its pending transaction `abandoned`. Natural expiration does the same via
+this Stripe event. Completed transactions remain unchanged, and repeated events
+are safe to process. Failed reconciliation returns HTTP 500 so Stripe can retry.

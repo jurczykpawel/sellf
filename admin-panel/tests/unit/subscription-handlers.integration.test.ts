@@ -155,7 +155,8 @@ function makeFakeInvoice(
     billing_reason: 'subscription_create',
     attempt_count: 1,
     next_payment_attempt: null,
-    subscription: subscriptionId,
+    parent: { type: 'subscription_details', subscription_details: { subscription: subscriptionId } },
+    payments: { object: 'list', data: [], has_more: false, url: '/v1/invoice_payments' },
     ...overrides,
   } as unknown as Stripe.Invoice;
 }
@@ -340,7 +341,13 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     } as unknown as Stripe;
 
     await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
-    const invoice = makeFakeInvoice(subStripe.id, customer.id, email);
+    const paymentIntentId = `pi_invoice_${crypto.randomUUID().replaceAll('-', '')}`;
+    const invoice = makeFakeInvoice(subStripe.id, customer.id, email, {
+      payments: {
+        object: 'list', has_more: false, url: '/v1/invoice_payments',
+        data: [{ status: 'paid', is_default: true, payment: { type: 'payment_intent', payment_intent: paymentIntentId } } as Stripe.InvoicePayment],
+      },
+    });
 
     const r1 = await handleInvoicePaid(
       invoice,
@@ -353,10 +360,11 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
 
     const { data: tx1 } = await supabaseSeller!
       .from('payment_transactions')
-      .select('stripe_invoice_id')
+      .select('stripe_invoice_id,stripe_payment_intent_id')
       .eq('stripe_invoice_id', invoice.id!)
       .single();
     expect(tx1?.stripe_invoice_id).toBe(invoice.id);
+    expect(tx1?.stripe_payment_intent_id).toBe(paymentIntentId);
 
     const { data: access } = await supabaseSeller!
       .from('user_product_access')

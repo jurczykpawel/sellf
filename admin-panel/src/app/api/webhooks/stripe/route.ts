@@ -22,6 +22,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
+import { abandonPendingCheckoutSession } from '@/lib/stripe/checkout-expiration';
 import { verifyWebhookSignature, getStripeServer } from '@/lib/stripe/server';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import { emitLicenseRevokedWebhooks } from '@/lib/services/license-revoke-webhook-payload';
@@ -397,6 +398,13 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const expiration = await abandonPendingCheckoutSession(supabase, session.id);
+        result = { processed: expiration.success, message: expiration.error ?? 'Pending checkout session abandoned' };
+        break;
+      }
+
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         // Only process if payment is complete (not async payment methods)

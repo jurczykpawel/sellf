@@ -676,6 +676,14 @@ BEGIN
   ('cs_test_pln_002', user3_id, pro_toolkit_id, 'anna.kowalska@example.com', 399.99, 'PLN', 'completed', 'pi_pln_002', NOW() - INTERVAL '3 days', false),
   ('cs_test_pln_003', user3_id, vip_masterclass_id, 'anna.kowalska@example.com', 799.99, 'PLN', 'completed', 'pi_pln_003', NOW(), false);
 
+  -- A superseded checkout remains in the transaction history.
+  INSERT INTO payment_transactions (
+    session_id, product_id, customer_email, amount, currency, status, metadata
+  ) VALUES (
+    'cs_test_superseded_example', premium_product_id, 'checkout.history@example.com',
+    4599, 'EUR', 'abandoned', '{"checkout_state":"superseded"}'::jsonb
+  );
+
   -- Grant product access to users (excluding john.doe for OTO testing)
   INSERT INTO user_product_access (user_id, product_id, access_granted_at)
   VALUES

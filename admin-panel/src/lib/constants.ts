@@ -78,6 +78,7 @@ export const STRIPE_API_VERSION = '2026-08-26.dahlia' as const;
  */
 export const STRIPE_WEBHOOK_EVENTS = [
   'checkout.session.completed',
+  'checkout.session.expired',
   'checkout.session.async_payment_succeeded',
   'payment_intent.succeeded',
   'charge.refunded',

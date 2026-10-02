@@ -47,6 +47,7 @@ export const RETRIABLE_EVENTS: ReadonlySet<string> = new Set<string>([
   // idempotent on session_id + payment_intent_id (migration
   // 20260515180000), so a redelivery is at worst a no-op.
   'checkout.session.completed',
+  'checkout.session.expired',
   'payment_intent.succeeded',
 ]);
 

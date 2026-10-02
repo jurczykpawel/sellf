@@ -371,6 +371,7 @@ supabase db push --password "$DB_PASS" --yes
 # === Step 9: Create the Stripe webhook + capture its signing secret ===
 WH=$(stripe webhook_endpoints create --url="${SITE_URL}/api/webhooks/stripe" \
   --enabled-events="checkout.session.completed" \
+  --enabled-events="checkout.session.expired" \
   --enabled-events="checkout.session.async_payment_succeeded" \
   --enabled-events="checkout.session.async_payment_failed" \
   --enabled-events="customer.subscription.created" \

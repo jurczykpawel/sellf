@@ -1,43 +1,46 @@
 'use client';
 
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
-import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
-import { Product } from '@/types';
-import { ExpressCheckoutConfig } from '@/types/payment-config';
-import type { TaxMode } from '@/lib/actions/shop-config';
-import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/constants';
-import { useAuth } from '@/contexts/AuthContext';
-import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
 import { useSearchParams } from 'next/navigation';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
+import { CheckoutElementsProvider } from '@stripe/react-stripe-js/checkout';
+import { formatPrice, STRIPE_MINIMUM_AMOUNT, STRIPE_MAX_AMOUNT } from '@/lib/constants';
+import { signOutAndRedirectToCheckout } from '@/lib/actions/checkout';
+import { validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
+import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
+import { createCheckoutSessionQueue } from '@/lib/checkout/session-queue';
+import { getStripeClient } from '@/lib/stripe/client';
+import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
+import { useAuth } from '@/contexts/AuthContext';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTheme } from '@/components/providers/theme-provider';
 import { useOrderBumps } from '@/hooks/useOrderBumps';
-import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
-import {
-  validateCustomFieldValues,
-  type CustomFieldDefinition,
-  type CustomFieldValues,
-} from '@/lib/validations/custom-checkout-fields';
-import { useTranslations } from 'next-intl';
 import { useTracking } from '@/hooks/useTracking';
 import { useCoupon } from '@/hooks/useCoupon';
 import { useOto } from '@/hooks/useOto';
 import { useFreeAccess } from '@/hooks/useFreeAccess';
 import { useCheckoutRedirect } from '@/hooks/useCheckoutRedirect';
 import { calculatePricing } from '@/hooks/usePricing';
-import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
-import ProductShowcase from './ProductShowcase';
+import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
+import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
+import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
+import type { Product } from '@/types';
+import type { ExpressCheckoutConfig } from '@/types/payment-config';
+import type { TaxMode } from '@/lib/actions/shop-config';
+import type { CustomFieldDefinition, CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
+import type { CheckoutSessionIdentity } from '@/lib/checkout/session-queue';
 import type { BundleComponentSummary } from './BundleContentsPreview';
+import ProductShowcase from './ProductShowcase';
 import CustomPaymentForm from './CustomPaymentForm';
 import FunnelTestBanner from './FunnelTestBanner';
 import AccessGrantedCard from './AccessGrantedCard';
-import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
 import OrderBumpList from './OrderBumpList';
 import CouponField from './CouponField';
 import PwywSection from './PwywSection';
-import { getStripeClient } from '@/lib/stripe/client';
-import { TWO_COLUMN_ROW_CLASSNAME, PANEL_END_CLASSNAME } from '@/lib/two-column-layout';
+
+interface CheckoutSessionResponse extends CheckoutSessionIdentity {
+  freeAccess?: boolean;
+}
 
 interface PaidProductFormProps {
   product: Product;
@@ -81,7 +84,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bindingToken, setBindingToken] = useState<string | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
-  const lastCheckoutSessionSignature = useRef<string | null>(null);
+  const [lastCheckoutSessionSignature, setLastCheckoutSessionSignature] = useState<string | null>(null);
+  const [sessionQueue] = useState(() => createCheckoutSessionQueue<CheckoutSessionResponse>(async identity => {
+    // Dynamic recurring support uses a PaymentIntent rather than a Checkout Session.
+    if (!identity.clientSecret?.startsWith('cs_')) return;
+    const response = await fetch('/api/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: product.id, ...identity, expireOnly: true }),
+    });
+    if (!response.ok) throw new Error('Unable to expire checkout session');
+  }));
+
+  useEffect(() => () => sessionQueue.update(null), [sessionQueue]);
 
   // Email state - from logged in user or from URL param (for OTO redirects)
   const urlEmail = searchParams.get('email');
@@ -275,104 +290,68 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     track('begin_checkout', trackingData);
   }, [product, track, effectiveUnitPrice]);
 
-  // Fetch Stripe client secret. Inlined inside the effect (rather than a
-  // useCallback) so React Compiler doesn't flag the call site as
-  // "setState-in-effect" — every setState here lands in an async then-callback,
-  // not synchronously in the effect body.
+  // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (hasAccess || error || authLoading) return;
-    if (isFunnelTest) return;
-    const checkoutEmail = email?.trim();
-
-    // Free-access paths (PWYW=0 or 100% coupon) bypass Stripe entirely — the
-    // free-access section handles grant + magic-link flows. The render
-    // gate checks `!isFreeAccess` before mounting the embedded checkout, so
-    // we don't need to clear clientSecret here.
-    if (isFreeAccess) return;
-
-    if (product.allow_custom_price && checkCustomAmount(customAmount) !== null) {
+    if (hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+      (product.allow_custom_price && checkCustomAmount(customAmount) !== null)) {
+      sessionQueue.update(null);
       return;
     }
 
-    const shouldRefreshExistingSession =
-      !!clientSecret &&
-      !!lastCheckoutSessionSignature.current &&
-      lastCheckoutSessionSignature.current !== checkoutSessionSignature;
-
-    if (clientSecret && !shouldRefreshExistingSession) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    fetch('/api/create-payment-intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        productId: product.id,
-        clientSecret: shouldRefreshExistingSession ? clientSecret : undefined,
-        bindingToken: shouldRefreshExistingSession ? bindingToken ?? undefined : undefined,
-        email: checkoutEmail || undefined,
-        bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
-        couponCode: coupon.appliedCoupon?.code,
-        successUrl: searchParams.get('success_url') || undefined,
-        customAmount: product.allow_custom_price ? customAmount : undefined,
-        customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
-        repurchase: explicitRepurchase,
-      }),
-    })
-      .then(async response => {
-        if (controller.signal.aborted) return;
+    sessionQueue.update({
+      key: checkoutSessionSignature,
+      run: async previous => {
+        const response = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: product.id,
+            clientSecret: previous?.clientSecret,
+            bindingToken: previous?.bindingToken ?? undefined,
+            email: email?.trim() || undefined,
+            bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
+            couponCode: coupon.appliedCoupon?.code,
+            successUrl: searchParams.get('success_url') || undefined,
+            customAmount: product.allow_custom_price ? customAmount : undefined,
+            customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
+            repurchase: explicitRepurchase,
+          }),
+        });
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          if (controller.signal.aborted) return;
-          if (errorData.error === 'You already have access to this product') {
-            grantAccess();
-            return;
-          }
-          // Custom field validation surfaces per-field errors — keep them so
-          // the form can highlight the offending input.
-          if (errorData.error === 'Invalid custom field values' && errorData.details) {
-            setCustomFieldErrors(errorData.details as Record<string, string>);
-            setError(t('createSessionError'));
-            return;
-          }
-          // Surface the server's error verbatim — previously a throw+catch
-          // fallthrough replaced this with a generic "Failed to load checkout"
-          // which masked actionable server messages (e.g. 401 coupon errors).
-          setError(errorData.error || t('createSessionError'));
-          return;
+          const data = await response.json().catch(() => ({}));
+          throw Object.assign(new Error(data.error || t('createSessionError')), { details: data.details });
         }
-        const data = await response.json().catch(() => null);
-        if (controller.signal.aborted) return;
-        if (!data) {
-          setError(t('loadError'));
-          return;
-        }
+        return await response.json() as CheckoutSessionResponse;
+      },
+      apply: data => {
         setCustomFieldErrors({});
-        // 100% coupon: server granted free access
         if (data.freeAccess) {
           grantAccess();
           return;
         }
-        lastCheckoutSessionSignature.current = checkoutSessionSignature;
-        setClientSecret(data.clientSecret);
-        setCheckoutSessionId(data.checkoutSessionId);
+        setLastCheckoutSessionSignature(checkoutSessionSignature);
+        setClientSecret(data.clientSecret ?? null);
+        setCheckoutSessionId(data.checkoutSessionId ?? null);
         setBindingToken(data.bindingToken ?? null);
-      })
-      .catch(err => {
-        if (controller.signal.aborted) return;
-        if (err instanceof Error && err.name === 'AbortError') return;
-        setError(t('loadError'));
-      });
-
-    return () => controller.abort();
+      },
+      fail: err => {
+        if (err instanceof Error && err.message === 'You already have access to this product') {
+          grantAccess();
+          return;
+        }
+        if (err instanceof Error && err.message === 'Invalid custom field values' && 'details' in err) {
+          setCustomFieldErrors(err.details as Record<string, string>);
+          setError(t('createSessionError'));
+          return;
+        }
+        setError(err instanceof Error ? err.message : t('loadError'));
+      },
+    });
   }, [
     hasAccess, error, authLoading,
     product, email, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
-    customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess, isSubscription,
-    clientSecret, bindingToken, checkoutSessionSignature, explicitRepurchase,
+    customAmount, checkCustomAmount, isFunnelTest, isFreeAccess, grantAccess,
+    checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
   ]);
 
   const handleSignOutAndCheckout = async () => {
@@ -537,7 +516,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             </button>
           )}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && lastCheckoutSessionSignature === checkoutSessionSignature && (
             <CheckoutElementsProvider
               key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}
