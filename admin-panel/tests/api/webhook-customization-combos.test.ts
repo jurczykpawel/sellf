@@ -111,13 +111,17 @@ describe('webhook customization combination matrix', () => {
 
     // Owned headers always present as a sanity check.
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
+    expect(captured.body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(captured.body.id).toBe(captured.headers!['X-Sellf-Delivery-Id']);
 
     // body.data is the full mock payload (no field selection applied).
     expect(captured.body.data).toEqual(M);
 
-    // No extra top-level keys beyond event / timestamp / data.
+    // No extra top-level keys beyond id / event / timestamp / data.
     const topLevel = Object.keys(captured.body);
-    expect(topLevel.sort()).toEqual(['data', 'event', 'timestamp'].sort());
+    expect(topLevel.sort()).toEqual(['data', 'event', 'id', 'timestamp'].sort());
   });
 
   it('2 headers-only: custom_headers_encrypted only — Authorization injected, full data', async () => {
@@ -127,13 +131,17 @@ describe('webhook customization combination matrix', () => {
 
     expect(captured.headers!['Authorization']).toBe('Bearer K1');
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
+    expect(captured.body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(captured.body.id).toBe(captured.headers!['X-Sellf-Delivery-Id']);
 
     // Field selection unchanged — full payload in data.
     expect(captured.body.data).toEqual(M);
 
     // No extra top-level keys.
     const topLevel = Object.keys(captured.body);
-    expect(topLevel.sort()).toEqual(['data', 'event', 'timestamp'].sort());
+    expect(topLevel.sort()).toEqual(['data', 'event', 'id', 'timestamp'].sort());
   });
 
   it('3 fields-only: custom_payload_fields only — extra fields rendered, full data', async () => {
@@ -144,6 +152,10 @@ describe('webhook customization combination matrix', () => {
 
     expect(captured.headers!['Authorization']).toBeUndefined();
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
+    expect(captured.body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(captured.body.id).toBe(captured.headers!['X-Sellf-Delivery-Id']);
 
     // Static extra field.
     expect(captured.body.brand).toBe('tsa');
@@ -161,13 +173,17 @@ describe('webhook customization combination matrix', () => {
 
     expect(captured.headers!['Authorization']).toBeUndefined();
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
+    expect(captured.body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(captured.body.id).toBe(captured.headers!['X-Sellf-Delivery-Id']);
 
     // data contains only the requested key.
     expect(captured.body.data).toEqual({ order: M.order });
 
     // No extra top-level keys.
     const topLevel = Object.keys(captured.body);
-    expect(topLevel.sort()).toEqual(['data', 'event', 'timestamp'].sort());
+    expect(topLevel.sort()).toEqual(['data', 'event', 'id', 'timestamp'].sort());
   });
 
   it('5 deselect-all: payload_field_selection=[] — data is empty object', async () => {
@@ -176,12 +192,16 @@ describe('webhook customization combination matrix', () => {
 
     expect(captured.headers!['Authorization']).toBeUndefined();
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
+    expect(captured.body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(captured.body.id).toBe(captured.headers!['X-Sellf-Delivery-Id']);
 
     expect(captured.body.data).toEqual({});
 
     // No extra top-level keys.
     const topLevel = Object.keys(captured.body);
-    expect(topLevel.sort()).toEqual(['data', 'event', 'timestamp'].sort());
+    expect(topLevel.sort()).toEqual(['data', 'event', 'id', 'timestamp'].sort());
   });
 
   it('6 all-three: headers + extra fields + field selection — full combo', async () => {
@@ -196,6 +216,10 @@ describe('webhook customization combination matrix', () => {
     // Custom header present.
     expect(captured.headers!['Authorization']).toBe('Bearer K6');
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
+    expect(captured.body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(captured.body.id).toBe(captured.headers!['X-Sellf-Delivery-Id']);
 
     // Extra field rendered.
     expect(captured.body.brand).toBe('tsa');
