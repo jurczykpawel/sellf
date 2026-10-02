@@ -100,6 +100,16 @@ bunx playwright test tests/checkout-payment-e2e.spec.ts   # Single spec file
 bunx playwright test -g "test name"        # Single test by title
 ```
 
+### Real Stripe test-mode E2E — admin-panel/
+
+```bash
+admin-panel/scripts/run-stripe-live-e2e.sh  # actual Stripe UI + network webhooks; opt-in
+```
+
+Requires Stripe CLI, cloudflared, test-mode Stripe keys, and disposable local
+Supabase. Excluded from default Playwright runs. See
+`admin-panel/tests/stripe-live/README.md` for prerequisites and recorded timing.
+
 ### Combined shortcuts — admin-panel/
 
 ```bash
@@ -946,6 +956,8 @@ Releases are manual. CI builds the `sellf-build.tar.gz` artifact automatically.
 | `README.md` | version badge URL | `version-2026.3.0-blue` |
 
 **Before creating a release, always run tests:**
+
+- run admin-panel/scripts/run-stripe-live-e2e.sh before every release
 
 ```bash
 cd admin-panel
