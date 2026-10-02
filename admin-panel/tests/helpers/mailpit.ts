@@ -43,9 +43,13 @@ export async function getMessage(messageId: string): Promise<MailpitMessage> {
  * Extract magic link from email text
  */
 export function extractMagicLink(emailText: string): string | null {
-  // Sellf magic-link emails link to /auth/callback with a token_hash param
-  const match = emailText.match(/(https?:\/\/[^\s)]+\/auth\/callback\?[^\s)]+)/);
-  return match ? match[1] : null;
+  // Read the delivered href verbatim (only decode HTML entities). In particular,
+  // never reconstruct a callback from token_hash or repair a rejected redirect.
+  const decoded = emailText.replace(/&amp;/g, '&').replace(/&#38;/g, '&');
+  const links = decoded.match(/https?:\/\/[^\s"'<>]+/g) || [];
+  return links.find(link => {
+    return link.includes('token_hash=');
+  }) || null;
 }
 
 /**

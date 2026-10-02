@@ -239,11 +239,11 @@ export function ConversionStack() {
                 >
                   {urlHasCoupon ? (
                     <>
-                      shop.your-domain.com/
+                      shop.store.example/
                       <span className="text-sf-accent">?coupon=FRIENDS50</span>
                     </>
                   ) : (
-                    <>shop.your-domain.com</>
+                    <>shop.store.example</>
                   )}
                 </span>
                 <div className="flex items-center gap-1 flex-shrink-0">

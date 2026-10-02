@@ -54,3 +54,6 @@ RATE_LIMIT_TEST_MODE=true scripts/run-pw.sh \
   --project=rate-limiting \
   --project=rate-limiting-v1
 
+
+echo "=== Production artifact runtime URL regression ==="
+node scripts/run-runtime-url-tests.mjs

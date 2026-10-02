@@ -863,18 +863,17 @@ Runtime & package manager: **Bun** (use `bun` not `npm`).
 **Admin Panel** (`.env.local` in `admin-panel/`):
 ```env
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # Stripe
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # URLs
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SITE_URL=http://localhost:3000
 MAIN_DOMAIN=localhost:3000
 
 # Cloudflare Turnstile (CAPTCHA)
@@ -893,6 +892,21 @@ APP_ENCRYPTION_KEY=  # openssl rand -base64 32
 # refuses to boot without it (min 16 chars).
 CHECKOUT_BINDING_SECRET=  # openssl rand -base64 32
 ```
+
+Public instance URLs resolve at runtime from `SITE_URL`, then `MAIN_DOMAIN` (HTTPS;
+localhost uses HTTP), then non-placeholder legacy `NEXT_PUBLIC_SITE_URL`,
+`NEXT_PUBLIC_BASE_URL`, `NEXT_PUBLIC_APP_URL`. Release installs do not need the
+`NEXT_PUBLIC_*` URL variables. Set `SITE_URL` to the public origin without a path;
+production refuses to boot without a usable configured origin. The resolver rejects
+build placeholders. Shared browser redirect checks use `window.location.origin`;
+client OTO builders receive `siteUrl` from runtime-config explicitly.
+
+Supabase Auth must separately allow `${SITE_URL}/auth/callback` (or `${SITE_URL}/**`)
+in its redirect URL list. Keep the email template mirrors byte-identical: they append
+`&token_hash` to `.RedirectTo`; Sellf guarantees an absolute callback with a query.
+A service-role key cannot read the hosted Auth redirect allowlist cheaply, so startup
+cannot verify that provider-side setting. An incorrect allowlist causes Supabase to
+substitute its Site URL and breaks the email. Verify a real delivered email after setup.
 
 ## CI/CD & Release Flow
 
@@ -943,6 +957,17 @@ The tar.gz contains: `.next/` (with `standalone/admin-panel/server.js`), `packag
 **Important:** The standalone output has a nested `admin-panel/` directory inside `.next/standalone/` because the CI builds from `admin-panel/` with a parent `package.json` at repo root. Next.js file tracing detects the parent and creates this nested structure.
 
 ### Release signing
+
+Before packaging and signing, the release build runs
+`admin-panel/scripts/check-build-artifact.sh` against `.next/server` and every
+standalone `.next/server` tree. No placeholder host/key literals are allowlisted in
+server artifacts. `node admin-panel/scripts/run-runtime-url-tests.mjs` builds with
+CI placeholders and runs production on port 3777 with runtime `SITE_URL`; it verifies
+real Mailpit login/free-access emails, Stripe embed return URLs, sitemap and metadata.
+It requires an existing local Supabase, the 3777 Auth redirect allowlist, and a test-mode
+Stripe key. It never resets the database; fixtures belong only to that test run.
+The production E2E solves real ALTCHA challenges because provider=none is fail-closed
+in production. The full test runner includes this release regression.
 
 Each release carries four assets: `sellf-build.tar.gz`, `sellf-build.tar.gz.sha256` (plain
 `sha256sum` output, unsigned, kept for tools that read it), `sellf-build.manifest` and

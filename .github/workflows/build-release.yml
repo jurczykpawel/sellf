@@ -212,6 +212,10 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
           STRIPE_WEBHOOK_SECRET: whsec_placeholder
 
+      - name: Check build for runtime URL placeholders
+        working-directory: ./admin-panel
+        run: bash scripts/check-build-artifact.sh
+
       - name: Package build artifacts
         working-directory: ./admin-panel
         run: |
@@ -249,16 +253,11 @@ jobs:
           # Copy this file to .env.local and fill in your values
 
           # Supabase
-          NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
           SUPABASE_URL=https://your-project.supabase.co
           SUPABASE_ANON_KEY=your-anon-key
           SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-          # Site URLs
-          NEXT_PUBLIC_SITE_URL=https://your-domain.com
-          NEXT_PUBLIC_BASE_URL=https://your-domain.com
-          NEXT_PUBLIC_APP_URL=https://your-domain.com
+          # Public instance URL — resolved at runtime; NEXT_PUBLIC_* URL vars are unnecessary
           SITE_URL=https://your-domain.com
 
           # Stripe

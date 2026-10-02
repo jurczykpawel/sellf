@@ -554,7 +554,7 @@ function BrowserSuccessMock() {
         </div>
         <div>
           <p className="text-xs uppercase tracking-wider text-sf-muted">Live</p>
-          <p className="text-sm font-mono font-bold text-sf-heading">your-domain.com</p>
+          <p className="text-sm font-mono font-bold text-sf-heading">store.example</p>
         </div>
         <div className="inline-flex items-center gap-1.5 text-[10px] text-sf-success bg-sf-success-soft px-2 py-0.5 rounded-full">
           <Key className="w-3 h-3" /> HTTPS · Let&apos;s Encrypt

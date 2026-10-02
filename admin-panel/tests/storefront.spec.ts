@@ -143,10 +143,8 @@ test.describe('Storefront & Checkout Flows', () => {
     // 5. Click Magic Link
     const magicLink = extractMagicLink(message.Text || message.HTML || '');
     expect(magicLink).toBeTruthy();
-    console.log(`Clicking magic link: ${magicLink}`);
     
-    const fixedLink = magicLink!.replace('127.0.0.1', 'localhost');
-    await page.goto(fixedLink);
+    await page.goto(magicLink!);
     
     // 6. Verify Access Granted (UI)
     await expect(page).toHaveURL(new RegExp(`/p/${freeProductSlug}`), { timeout: 30000 });

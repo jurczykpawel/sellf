@@ -52,6 +52,7 @@ export default defineConfig({
 					label: 'Configuration',
 					translations: { pl: 'Konfiguracja' },
 					items: [
+						{ slug: 'configuration' },
 						{ slug: 'supabase-setup' },
 						{ slug: 'upstash-redis' },
 						{ slug: 'cookie-consent' },
