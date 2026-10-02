@@ -16,7 +16,7 @@
 
 services:
   sellf:
-    image: ghcr.io/jurczykpawel/sellf:${SELLF_VERSION:-2026.10.3}
+    image: ghcr.io/jurczykpawel/sellf:${SELLF_VERSION:-2026.10.4}
     restart: unless-stopped
     ports:
       - "${SELLF_BIND:-127.0.0.1}:${SELLF_PORT:-3000}:3000"
