@@ -221,7 +221,6 @@ async function seedPendingTx(args: {
       stripe_payment_intent_id: args.pi ?? null,
       user_id: args.userId ?? null,
       status: args.status ?? 'pending',
-      fulfillment_completed_at: args.status === 'completed' ? new Date().toISOString() : null,
     })
     .select('id')
     .single();
@@ -1190,6 +1189,34 @@ describe.skipIf(!hasSupabase)('bundle purchase wiring → purchase.completed pay
 
 
 describe.skipIf(!hasSupabase)('canonical paid order fulfillment', () => {
+  it.each(['legacy', 'pending'])('%s completed order only fulfills when requested', async (state) => {
+    const pending = state === 'pending';
+    const product = await createProduct();
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('buyer') + '@example.com'; createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    // Mirrors E2E helpers: completed insert omits fulfillment state entirely.
+    const txId = await seedPendingTx({ sessionId: cs, productId: product.id, email, userId, pi, status: 'completed' });
+    const { error: accessError } = await db!.from('user_product_access').insert({ user_id: userId, product_id: product.id });
+    expect(accessError).toBeNull();
+    if (pending) {
+      const { error } = await db!.from('payment_transactions').update({ fulfillment_pending: true }).eq('id', txId);
+      expect(error).toBeNull();
+    }
+    const session = { id: cs, mode: 'payment', status: 'complete', payment_status: 'paid', metadata: { product_id: product.id, user_id: userId }, customer_details: { email }, payment_intent: pi, amount_total: 1000, amount_subtotal: 1000, currency: 'usd', total_details: { amount_tax: 0 } };
+    h.stripe = makeStripeShim({ session, sessionsByPI: [session] });
+    const verify = () => verifyPaymentSession(cs, { id: userId, email } as never);
+    expect((await verify()).access_granted).toBe(true);
+    expect((await verify()).access_granted).toBe(true);
+    if (!pending) expect(h.stripe.checkout.sessions.retrieve).not.toHaveBeenCalled();
+    expect((await post(checkoutEvent(session))).status).toBe(200);
+    expect((await post(piEvent({ id: pi, amount: 1000, currency: 'usd', receipt_email: email, metadata: session.metadata }))).status).toBe(200);
+    expect(triggerSpy.mock.calls.filter(([event]) => event === 'purchase.completed')).toHaveLength(pending ? 1 : 0);
+    const { data: tx, error } = await db!.from('payment_transactions').select('fulfillment_pending').eq('id', txId).single();
+    expect(error).toBeNull();
+    expect(tx?.fulfillment_pending).toBe(false);
+  });
+
   it.each(['PI-CS-verify', 'CS-PI-verify', 'verify-PI-CS', 'concurrent', 'license-retry', 'http-retry', 'ack-retry', 'repurchase'])('%s preserves the order and records one delivery per endpoint', async (order) => {
     const sellerId = await createAuthUser(uniq('seller') + '@example.com');
     createdSellerIds.push(sellerId);
@@ -1239,8 +1266,8 @@ describe.skipIf(!hasSupabase)('canonical paid order fulfillment', () => {
     try {
       if (order === 'license-retry') {
         expect((await csCall()).status).toBe(500);
-        const { data: missing } = await db!.from('payment_transactions').select('fulfillment_completed_at').eq('id', txId).single();
-        expect(missing?.fulfillment_completed_at).toBeNull();
+        const { data: missing } = await db!.from('payment_transactions').select('fulfillment_pending').eq('id', txId).single();
+        expect(missing?.fulfillment_pending).toBe(true);
         expect((await piCall()).status).toBe(200); await csCall();
       } else if (order === 'http-retry' || order === 'ack-retry' || order === 'repurchase') {
         await csCall(); await piCall(); await csCall();
@@ -1265,7 +1292,7 @@ describe.skipIf(!hasSupabase)('canonical paid order fulfillment', () => {
       expect(result.access_granted).toBe(true);
       const { data: txs } = await db!.from('payment_transactions').select('*').eq('product_id', product.id);
       expect(txs).toHaveLength(1);
-      expect(txs![0]).toMatchObject({ id: txId, session_id: cs, status: 'completed', stripe_payment_intent_id: pi, custom_field_values: { _sellf_license_domain: 'shop.example.com' } });
+      expect(txs![0]).toMatchObject({ id: txId, session_id: cs, status: 'completed', fulfillment_pending: false, stripe_payment_intent_id: pi, custom_field_values: { _sellf_license_domain: 'shop.example.com' } });
       expect(txs![0].metadata).toMatchObject({ needs_invoice: 'true', nip: '1234567890' });
       const { data: items } = await db!.from('payment_line_items').select('product_id').eq('transaction_id', txId);
       expect(items?.map(i => i.product_id).sort()).toEqual([product.id, bump.id].sort());

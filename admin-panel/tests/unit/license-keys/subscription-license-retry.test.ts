@@ -9,12 +9,12 @@ const source = readFileSync(
 
 describe('invoice.paid license retry wiring', () => {
   it('retries idempotent issuance before acknowledging an already booked invoice', () => {
-    const completedAt = source.indexOf('if (insertedTx.fulfillment_completed_at)');
-    const issuance = source.indexOf('await issueRenewalLicense()', completedAt);
+    const fulfillmentGuard = source.indexOf('if (insertedTx.fulfillment_pending !== true)');
+    const issuance = source.indexOf('await issueRenewalLicense()', fulfillmentGuard);
     const delivery = source.indexOf("await WebhookService.trigger('invoice.paid'", issuance);
-    const saved = source.indexOf('update({ fulfillment_completed_at:', delivery);
-    expect(completedAt).toBeGreaterThan(0);
-    expect(issuance).toBeGreaterThan(completedAt);
+    const saved = source.indexOf('update({ fulfillment_pending:', delivery);
+    expect(fulfillmentGuard).toBeGreaterThan(0);
+    expect(issuance).toBeGreaterThan(fulfillmentGuard);
     expect(delivery).toBeGreaterThan(issuance);
     expect(saved).toBeGreaterThan(delivery);
   });

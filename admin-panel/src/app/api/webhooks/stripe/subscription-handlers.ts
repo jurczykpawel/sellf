@@ -892,7 +892,7 @@ export async function handleInvoicePaid(
   // subscription context so a prior license-issuance failure can be retried.
   const { data: existingTx } = await supabase
     .from('payment_transactions')
-    .select('id, fulfillment_completed_at')
+    .select('id, fulfillment_pending')
     .eq('stripe_invoice_id', invoice.id!)
     .maybeSingle();
 
@@ -962,19 +962,20 @@ export async function handleInvoicePaid(
       amount: invoice.amount_paid ?? 0,
       currency: (invoice.currency ?? 'usd').toUpperCase(),
       status: 'completed',
+      fulfillment_pending: true,
       customer_email: ctx.email,
-    }).select('id, fulfillment_completed_at').single();
+    }).select('id, fulfillment_pending').single();
     insertedTx = newTx;
     if (txError) {
       if (txError.code !== '23505') return { processed: false, message: 'Payment transaction unavailable' };
       const { data: winner, error: winnerError } = await supabase.from('payment_transactions')
-        .select('id, fulfillment_completed_at').eq('stripe_invoice_id', invoice.id!).single();
+        .select('id, fulfillment_pending').eq('stripe_invoice_id', invoice.id!).single();
       if (winnerError || !winner) return { processed: false, message: 'Invoice transaction unavailable' };
       insertedTx = winner;
     }
   }
   if (!insertedTx) return { processed: false, message: 'Invoice transaction unavailable' };
-  if (insertedTx.fulfillment_completed_at) return { processed: true, message: `Invoice already booked: ${invoice.id}` };
+  if (insertedTx.fulfillment_pending !== true) return { processed: true, message: `Invoice already booked: ${invoice.id}` };
 
   // Grant or refresh access. user_product_access has UNIQUE (user_id, product_id)
   // (see core_schema.sql:164), so there is exactly one row per pair.
@@ -1018,7 +1019,7 @@ export async function handleInvoicePaid(
   });
   await WebhookService.trigger('invoice.paid', payload, supabase, payload.product.id);
   const { error: fulfillmentError } = await supabase.from('payment_transactions')
-    .update({ fulfillment_completed_at: new Date().toISOString() }).eq('id', insertedTx.id);
+    .update({ fulfillment_pending: false }).eq('id', insertedTx.id);
   if (fulfillmentError) return { processed: false, message: 'Invoice fulfillment state unavailable' };
 
   return {

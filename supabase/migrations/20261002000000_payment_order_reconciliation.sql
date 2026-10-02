@@ -1,7 +1,10 @@
 -- Canonical order reconciliation and durable outbound delivery claims.
 
 ALTER TABLE public.payment_transactions
-  ADD COLUMN fulfillment_completed_at timestamptz;
+  ADD COLUMN fulfillment_pending boolean NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN public.payment_transactions.fulfillment_pending IS
+  'Explicitly unfinished fulfillment; existing and directly inserted completed orders default to fulfilled.';
 
 CREATE OR REPLACE FUNCTION public._process_stripe_payment_completion_with_bump_impl(
   session_id_param TEXT,
@@ -275,6 +278,7 @@ BEGIN
       UPDATE public.payment_transactions
       SET
         status = 'completed',
+        fulfillment_pending = true,
         user_id = current_user_id,
         customer_email = customer_email_param,
         metadata = metadata || jsonb_build_object(
@@ -291,10 +295,10 @@ BEGIN
     ELSE
       INSERT INTO public.payment_transactions (
         session_id, user_id, product_id, customer_email, amount, currency,
-        stripe_payment_intent_id, status, metadata
+        stripe_payment_intent_id, status, fulfillment_pending, metadata
       ) VALUES (
         session_id_param, current_user_id, product_id_param, customer_email_param,
-        amount_total, upper(currency_param), stripe_payment_intent_id, 'completed',
+        amount_total, upper(currency_param), stripe_payment_intent_id, 'completed', true,
         jsonb_build_object(
           'has_bump', bump_count > 0,
           'bump_product_ids', bump_ids_found,

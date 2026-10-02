@@ -470,8 +470,10 @@ Automatic and manual retries reuse that ID. Receivers must **deduplicate on this
 id** and verify the existing signature against the raw body. Delivery is at least
 once; an accepted request can be retried after an interrupted sender.
 
-`payment_transactions.fulfillment_completed_at` records successful license
-issuance and durable delivery preparation independently of access granting.
+`payment_transactions.fulfillment_pending` defaults to false, so existing and
+directly inserted completed orders count as fulfilled. Payment completion sets it
+to true atomically; successful license issuance and durable delivery preparation
+clear it independently of access granting.
 All paid-order completion paths resume unfinished fulfillment. Invoice retries
 also recover missing access and delivery. Endpoint customization cannot replace
 or remove the envelope `id`. The retry worker leases rows through the existing

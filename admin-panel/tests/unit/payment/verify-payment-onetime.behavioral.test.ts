@@ -194,7 +194,6 @@ async function seedPendingTx(args: {
       stripe_payment_intent_id: args.pi ?? null,
       user_id: args.userId ?? null,
       status: args.status ?? 'pending',
-      fulfillment_completed_at: args.status === 'completed' ? new Date().toISOString() : null,
     })
     .select('id')
     .single();

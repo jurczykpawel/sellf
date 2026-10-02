@@ -288,7 +288,7 @@ async function getProcessedPaymentFromDatabase(
       amount,
       currency,
       status,
-      fulfillment_completed_at,
+      fulfillment_pending,
       created_at,
       products:product_id (
         id,
@@ -324,7 +324,7 @@ async function getProcessedPaymentFromDatabase(
     };
   }
 
-  if (transaction.fulfillment_completed_at === null) return null;
+  if (transaction.fulfillment_pending === true) return null;
 
   // Check if user has access to the product
   const effectiveUserId = transaction.user_id || user?.id;

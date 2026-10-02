@@ -661,20 +661,20 @@ BEGIN
   -- Insert payment transactions in EUR (john.doe has no transactions for OTO testing)
   INSERT INTO payment_transactions (
     session_id, user_id, product_id, customer_email, amount, currency,
-    status, stripe_payment_intent_id, created_at, fulfillment_completed_at
+    status, stripe_payment_intent_id, created_at, fulfillment_pending
   ) VALUES
-  ('cs_test_eur_001', user2_id, premium_product_id, 'maria.schmidt@example.com', 45.99, 'EUR', 'completed', 'pi_eur_001', NOW() - INTERVAL '6 days', NOW()),
-  ('cs_test_eur_002', user2_id, pro_toolkit_id, 'maria.schmidt@example.com', 89.99, 'EUR', 'completed', 'pi_eur_002', NOW() - INTERVAL '4 days', NOW()),
-  ('cs_test_eur_003', user2_id, vip_masterclass_id, 'maria.schmidt@example.com', 179.99, 'EUR', 'completed', 'pi_eur_003', NOW() - INTERVAL '1 day', NOW());
+  ('cs_test_eur_001', user2_id, premium_product_id, 'maria.schmidt@example.com', 45.99, 'EUR', 'completed', 'pi_eur_001', NOW() - INTERVAL '6 days', false),
+  ('cs_test_eur_002', user2_id, pro_toolkit_id, 'maria.schmidt@example.com', 89.99, 'EUR', 'completed', 'pi_eur_002', NOW() - INTERVAL '4 days', false),
+  ('cs_test_eur_003', user2_id, vip_masterclass_id, 'maria.schmidt@example.com', 179.99, 'EUR', 'completed', 'pi_eur_003', NOW() - INTERVAL '1 day', false);
 
   -- Insert payment transactions in PLN
   INSERT INTO payment_transactions (
     session_id, user_id, product_id, customer_email, amount, currency,
-    status, stripe_payment_intent_id, created_at, fulfillment_completed_at
+    status, stripe_payment_intent_id, created_at, fulfillment_pending
   ) VALUES
-  ('cs_test_pln_001', user3_id, premium_product_id, 'anna.kowalska@example.com', 199.99, 'PLN', 'completed', 'pi_pln_001', NOW() - INTERVAL '8 days', NOW()),
-  ('cs_test_pln_002', user3_id, pro_toolkit_id, 'anna.kowalska@example.com', 399.99, 'PLN', 'completed', 'pi_pln_002', NOW() - INTERVAL '3 days', NOW()),
-  ('cs_test_pln_003', user3_id, vip_masterclass_id, 'anna.kowalska@example.com', 799.99, 'PLN', 'completed', 'pi_pln_003', NOW(), NOW());
+  ('cs_test_pln_001', user3_id, premium_product_id, 'anna.kowalska@example.com', 199.99, 'PLN', 'completed', 'pi_pln_001', NOW() - INTERVAL '8 days', false),
+  ('cs_test_pln_002', user3_id, pro_toolkit_id, 'anna.kowalska@example.com', 399.99, 'PLN', 'completed', 'pi_pln_002', NOW() - INTERVAL '3 days', false),
+  ('cs_test_pln_003', user3_id, vip_masterclass_id, 'anna.kowalska@example.com', 799.99, 'PLN', 'completed', 'pi_pln_003', NOW(), false);
 
   -- Grant product access to users (excluding john.doe for OTO testing)
   INSERT INTO user_product_access (user_id, product_id, access_granted_at)

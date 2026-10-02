@@ -31,11 +31,11 @@ export async function fulfillPaidOrder(args: {
   isGuest?: boolean;
   couponId?: string | null;
 }): Promise<void> {
-  let query = args.supabase.from('payment_transactions').select('id, session_id, user_id, customer_email, metadata, custom_field_values, fulfillment_completed_at');
+  let query = args.supabase.from('payment_transactions').select('id, session_id, user_id, customer_email, metadata, custom_field_values, fulfillment_pending');
   query = args.transactionId ? query.eq('id', args.transactionId) : query.eq('session_id', args.sessionId);
   const { data: tx, error } = await query.single();
   if (error || !tx) throw new Error('Order transaction unavailable');
-  if (tx.fulfillment_completed_at) return;
+  if (tx.fulfillment_pending !== true) return;
   const { data: items, error: itemsError } = await args.supabase.from('payment_line_items').select('product_id,item_type').eq('transaction_id', tx.id);
   if (itemsError) throw new Error('Order items unavailable');
   const bumpProductIds: string[] = (items ?? []).filter((item: { item_type: string }) => item.item_type === 'order_bump').map((item: { product_id: string }) => item.product_id);
@@ -65,7 +65,7 @@ export async function fulfillPaidOrder(args: {
   if (licenses.length) payload.licenses = licenses;
   await WebhookService.trigger('purchase.completed', payload, args.supabase, [...productIds]);
   const { error: savedError } = await args.supabase.from('payment_transactions').update({
-    metadata, fulfillment_completed_at: new Date().toISOString(),
+    metadata, fulfillment_pending: false,
   }).eq('id', tx.id);
   if (savedError) throw new Error('Order fulfillment state unavailable');
   if (args.source === 'stripe_webhook') {

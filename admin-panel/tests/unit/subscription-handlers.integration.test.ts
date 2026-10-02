@@ -1451,8 +1451,8 @@ describe.skipIf(!hasSupabase)('invoice fulfillment recovery with local DB', () =
       const recovered = await Promise.all(Array.from({ length: 3 }, () => handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim)));
       expect(recovered.every(result => result.processed)).toBe(true);
       expect((await handleInvoicePaid(invoice, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
-      const { data: rows } = await platformClient!.from('payment_transactions').select('id,fulfillment_completed_at').eq('stripe_invoice_id', invoice.id!);
-      expect(rows).toHaveLength(1); expect(rows![0].fulfillment_completed_at).toBeTruthy();
+      const { data: rows } = await platformClient!.from('payment_transactions').select('id,fulfillment_pending').eq('stripe_invoice_id', invoice.id!);
+      expect(rows).toHaveLength(1); expect(rows![0].fulfillment_pending).toBe(false);
       const { data: access } = await platformClient!.from('user_product_access').select('id').eq('product_id', product.id).eq('user_id', userId);
       expect(access).toHaveLength(1);
       expect(dispatchSpy).toHaveBeenCalledTimes(1);

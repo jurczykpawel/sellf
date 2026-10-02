@@ -1242,7 +1242,7 @@ export type Database = {
           custom_field_values: Json
           customer_email: string
           expires_at: string | null
-          fulfillment_completed_at: string | null
+          fulfillment_pending: boolean
           id: string
           metadata: Json
           net_total: number | null
@@ -1270,7 +1270,7 @@ export type Database = {
           custom_field_values?: Json
           customer_email: string
           expires_at?: string | null
-          fulfillment_completed_at?: string | null
+          fulfillment_pending?: boolean
           id?: string
           metadata?: Json
           net_total?: number | null
@@ -1298,7 +1298,7 @@ export type Database = {
           custom_field_values?: Json
           customer_email?: string
           expires_at?: string | null
-          fulfillment_completed_at?: string | null
+          fulfillment_pending?: boolean
           id?: string
           metadata?: Json
           net_total?: number | null
