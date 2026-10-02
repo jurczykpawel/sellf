@@ -29,6 +29,8 @@ potwierdzić że oba pliki znów są bajt-w-bajt identyczne.
 | `email-change.html` | Zmiana adresu email | `mailer_templates_email_change_content` |
 | `invite.html` | Zaproszenie do aplikacji | `mailer_templates_invite_content` |
 
+Pełny poradnik SMTP, DNS, szablonów i przekierowań: [po polsku](https://docs.sellf.app/pl/email-setup/) / [in English](https://docs.sellf.app/email-setup/).
+
 ## Konfiguracja
 
 ### Opcja 1: Dashboard Supabase (Cloud)

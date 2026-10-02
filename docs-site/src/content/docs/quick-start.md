@@ -395,9 +395,9 @@ If that doesn't fix it:
 
 ### "I never received the magic link email"
 
-1. Check spam/junk folder
-2. Some email providers (Gmail, Yahoo) delay or block emails from Supabase's default sender. Wait 5 minutes.
-3. If still nothing: go to your store's admin (you'll need to sign up the regular way once), then **Settings → Email** to set up a proper email service (SendGrid, Postmark, or Resend — all have free plans)
+1. Check your spam/junk folder.
+2. Supabase's default email service is for testing: it only sends to your project's organization team and has a low rate limit.
+3. Configure custom SMTP **in Supabase**, without logging in to the shop. Follow [E-mails: templates and sending from your own domain](/email-setup/) for SMTP, DNS, templates, and allowed redirects.
 
 ### "I can't log in — it says my session expired"
 

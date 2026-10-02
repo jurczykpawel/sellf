@@ -54,6 +54,7 @@ export default defineConfig({
 					items: [
 						{ slug: 'configuration' },
 						{ slug: 'supabase-setup' },
+						{ slug: 'email-setup' },
 						{ slug: 'upstash-redis' },
 						{ slug: 'cookie-consent' },
 						{ slug: 'webhooks' },

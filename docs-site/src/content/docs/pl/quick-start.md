@@ -398,9 +398,9 @@ Jeśli to nie pomoże:
 
 ### "Nigdy nie dostałem maila z magic linkiem"
 
-1. Sprawdź folder spam/wiadomości-śmieci
-2. Niektórzy dostawcy maili (Gmail, Yahoo) opóźniają lub blokują maile od domyślnego nadawcy Supabase. Poczekaj 5 minut.
-3. Jeśli wciąż nic: wejdź do panelu admina sklepu (musisz raz się normalnie zarejestrować), potem **Settings → Email** żeby skonfigurować właściwą usługę mailową (SendGrid, Postmark, Resend — wszystkie mają darmowe plany)
+1. Sprawdź folder spam/wiadomości-śmieci.
+2. Domyślna wysyłka Supabase służy do testów: wysyła tylko do członków zespołu organizacji projektu i ma niski limit.
+3. Skonfiguruj własne SMTP **w Supabase**, bez logowania do sklepu. Przewodnik [E-maile: szablony i wysyłka z własnej domeny](/pl/email-setup/) opisuje SMTP, DNS, szablony i dozwolone przekierowania.
 
 ### "Nie mogę się zalogować — pisze że sesja wygasła"
 
