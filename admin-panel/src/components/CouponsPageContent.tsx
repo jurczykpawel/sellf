@@ -76,6 +76,8 @@ const CouponsPageContent: React.FC = () => {
   // debounced value below is what actually drives the server request.
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  // The visible input can change before the debounced query and its cursor.
+  const searchPending = searchInput !== searchTerm;
 
   // Pagination — the coupons table can grow without bound (the OTO system
   // auto-generates a coupon per qualifying purchase), so only one page loads
@@ -149,7 +151,7 @@ const CouponsPageContent: React.FC = () => {
   }, [fetchData]);
 
   const handleLoadMore = useCallback(async () => {
-    if (!hasMore || loadingMore) return;
+    if (!hasMore || loading || loadingMore || searchPending) return;
 
     setLoadingMore(true);
     try {
@@ -166,7 +168,7 @@ const CouponsPageContent: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, cursor, typeFilter, searchTerm, t]);
+  }, [hasMore, loading, loadingMore, searchPending, cursor, typeFilter, searchTerm, t]);
 
   const deletableCoupons = coupons.filter(canDeleteCoupon);
   const deletableExpiredCoupons = expiredCoupons.filter(canDeleteCoupon);
@@ -542,7 +544,7 @@ const CouponsPageContent: React.FC = () => {
           <button
             type="button"
             onClick={handleLoadMore}
-            disabled={loadingMore}
+            disabled={loadingMore || searchPending}
             className="px-4 py-2 text-sm font-medium text-sf-accent border-2 border-sf-border-medium hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loadingMore ? t('loadingMore') : t('loadMore')}

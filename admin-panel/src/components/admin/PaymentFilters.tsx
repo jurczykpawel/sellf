@@ -23,12 +23,14 @@ interface PaymentFiltersProps {
     searchTerm: string;
   }) => void;
   onRefresh: () => void;
+  onSearchPendingChange: (pending: boolean) => void;
 }
 
 export default function PaymentFilters({ 
   filters, 
   onFiltersChange, 
-  onRefresh 
+  onRefresh,
+  onSearchPendingChange,
 }: PaymentFiltersProps) {
   const t = useTranslations('admin.payments.filters');
 
@@ -47,6 +49,11 @@ export default function PaymentFilters({
     setSyncedSearchTerm(filters.searchTerm);
     setSearchInput(filters.searchTerm);
   }
+
+  // Pagination belongs to the applied query, not the still-debouncing input.
+  useEffect(() => {
+    onSearchPendingChange(searchInput !== filters.searchTerm);
+  }, [searchInput, filters.searchTerm, onSearchPendingChange]);
 
   useEffect(() => {
     if (searchInput === filters.searchTerm) return;

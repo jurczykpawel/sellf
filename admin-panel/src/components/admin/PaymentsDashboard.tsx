@@ -52,6 +52,7 @@ export default function PaymentsDashboard() {
   const [loadingMoreTransactions, setLoadingMoreTransactions] = useState(false);
   const [transactionsCursor, setTransactionsCursor] = useState<string | null>(null);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
+  const [searchPending, setSearchPending] = useState(false);
   // dateRange defaults to 'all', not a narrower window: before this filter was
   // wired to the server it was decorative, so sellers always effectively saw
   // every payment. A narrower default would be a silent behavior change —
@@ -119,7 +120,7 @@ export default function PaymentsDashboard() {
   // Continues the SAME status/search/date-range-filtered result set the
   // current page came from — not a fresh, unfiltered fetch.
   const handleLoadMoreTransactions = useCallback(async () => {
-    if (!hasMoreTransactions || loadingMoreTransactions) return;
+    if (!hasMoreTransactions || loading || loadingMoreTransactions || searchPending) return;
 
     setLoadingMoreTransactions(true);
     try {
@@ -136,7 +137,7 @@ export default function PaymentsDashboard() {
     } finally {
       setLoadingMoreTransactions(false);
     }
-  }, [hasMoreTransactions, loadingMoreTransactions, transactionsCursor, filters.status, filters.searchTerm, filters.dateRange, t]);
+  }, [hasMoreTransactions, loading, loadingMoreTransactions, searchPending, transactionsCursor, filters.status, filters.searchTerm, filters.dateRange, t]);
 
   useEffect(() => {
     fetchPaymentData();
@@ -202,6 +203,7 @@ export default function PaymentsDashboard() {
         filters={filters} 
         onFiltersChange={setFilters}
         onRefresh={fetchPaymentData}
+        onSearchPendingChange={setSearchPending}
       />
 
       {/* Tabs */}
@@ -243,7 +245,7 @@ export default function PaymentsDashboard() {
                   <button
                     type="button"
                     onClick={handleLoadMoreTransactions}
-                    disabled={loadingMoreTransactions}
+                    disabled={loading || loadingMoreTransactions || searchPending}
                     className="px-4 py-2 text-sm font-medium text-sf-accent border border-sf-border rounded-md hover:bg-sf-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loadingMoreTransactions ? t('loadingMore') : t('loadMore')}
