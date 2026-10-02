@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, DM_Sans, DM_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { ConfigProvider } from "@/components/providers/config-provider";
 import { ThemeProvider, ThemeScript } from "@/components/providers/theme-provider";
 import { TrackingConfigProvider } from "@/components/providers/tracking-config-provider";
@@ -34,28 +35,34 @@ const dmMono = DM_Mono({
   weight: ["400", "500"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: 'Sellf',
-    template: '%s | Sellf',
-  },
-  description: 'Self-hosted platform for selling digital products. Courses, ebooks, content access control — with no per-sale commission.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://sellf.app'),
-  openGraph: {
-    type: 'website',
-    siteName: 'Sellf',
-    title: 'Sellf – Sell digital products. Keep 100% of revenue.',
+// Prebuilt releases are relocatable: tenant data and metadata are runtime-only.
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  await headers();
+  return {
+    title: {
+      default: 'Sellf',
+      template: '%s | Sellf',
+    },
     description: 'Self-hosted platform for selling digital products. Courses, ebooks, content access control — with no per-sale commission.',
-    url: '/',
-    images: [{ url: '/api/og', width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Sellf – Sell digital products. Keep 100% of revenue.',
-    description: 'Self-hosted platform for selling digital products. Courses, ebooks, content access control — with no per-sale commission.',
-    images: ['/api/og'],
-  },
-};
+    metadataBase: new URL(getPublicBaseUrl()),
+    openGraph: {
+      type: 'website',
+      siteName: 'Sellf',
+      title: 'Sellf – Sell digital products. Keep 100% of revenue.',
+      description: 'Self-hosted platform for selling digital products. Courses, ebooks, content access control — with no per-sale commission.',
+      url: '/',
+      images: [{ url: '/api/og', width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Sellf – Sell digital products. Keep 100% of revenue.',
+      description: 'Self-hosted platform for selling digital products. Courses, ebooks, content access control — with no per-sale commission.',
+      images: ['/api/og'],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,

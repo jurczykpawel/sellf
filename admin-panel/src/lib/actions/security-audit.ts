@@ -8,6 +8,7 @@
  * @see priv/pentest-2026-03-06.md — Supabase Production Configuration Checklist
  */
 
+import { getRuntimeSupabaseUrl, getRuntimeSupabaseAnonKey } from '@/lib/config/runtime-env';
 import { withAdminClient } from '@/lib/actions/admin-auth';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 
@@ -80,8 +81,8 @@ export async function runSecurityAudit(): Promise<SecurityAuditResult> {
 }
 
 async function executeAudit(): Promise<SecurityAuditResult> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = getRuntimeSupabaseUrl();
+  const anonKey = getRuntimeSupabaseAnonKey();
 
   if (!supabaseUrl || !anonKey) {
     return { success: false, checks: [], timestamp: new Date().toISOString(), error: 'Missing Supabase configuration' };
@@ -412,11 +413,8 @@ async function checkHstsHeader(siteUrl: string): Promise<SecurityCheckResult> {
 }
 
 async function checkAppUrl(): Promise<SecurityCheckResult> {
-  // OG meta tags read from NEXT_PUBLIC_SITE_URL (see src/app/layout.tsx metadataBase).
-  // SITE_URL is the runtime-only override used by server-side code that can't see
-  // the build-time public var. Check both — whichever resolves wins.
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || '';
-  const sourceVar = process.env.NEXT_PUBLIC_SITE_URL ? 'NEXT_PUBLIC_SITE_URL' : (process.env.SITE_URL ? 'SITE_URL' : 'NEXT_PUBLIC_SITE_URL');
+  const siteUrl = getCanonicalOriginOrNull() || '';
+  const sourceVar = 'SITE_URL';
   const isLocalhost = !siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
 
   return {
@@ -427,7 +425,7 @@ async function checkAppUrl(): Promise<SecurityCheckResult> {
       ? `${sourceVar} is ${siteUrl || 'not set'}. Open Graph meta tags (og:url, og:image) and absolute redirects will reference localhost — social previews and magic links break.`
       : `Site URL is set to ${siteUrl}.`,
     fix: isLocalhost
-      ? 'Set NEXT_PUBLIC_SITE_URL to your public URL (e.g., https://yourdomain.com) in .env.local and restart the app. Reverse-proxy hostnames are not read automatically — the value must be in the server env.'
+      ? 'Set SITE_URL to your public URL (e.g., https://yourdomain.com) in .env.local and restart the app. Reverse-proxy hostnames are not read automatically — the value must be in the server env.'
       : undefined,
   };
 }

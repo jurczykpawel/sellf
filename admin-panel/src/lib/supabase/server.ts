@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { buildSupabaseCookieOptions } from './cookie-options'
+import { getRuntimeSupabaseUrl, getRuntimeSupabaseAnonKey } from '@/lib/config/runtime-env';
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -8,8 +9,8 @@ export async function createClient() {
   // Accept either the bare names (what Sellf docs ask for) or Vercel's
   // Supabase integration names — the integration sets NEXT_PUBLIC_SUPABASE_*
   // automatically when you add it from the project's Integrations panel.
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = getRuntimeSupabaseUrl()
+  const supabaseAnonKey = getRuntimeSupabaseAnonKey()
 
   if (!supabaseUrl) {
     throw new Error('SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is not defined. Server client cannot be created.')
@@ -68,21 +69,12 @@ export function createPublicClient() {
   //   2. NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY — Vercel's
   //      Supabase integration sets these, so the integration just works
   //   3. ANON_KEY — legacy fallback name from older self-hosted setups
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseUrl = getRuntimeSupabaseUrl()
   const supabaseAnonKey =
-    process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.ANON_KEY
+    getRuntimeSupabaseAnonKey()
 
-  // At build time (next build), env vars may not be available.
-  // Throw at runtime to prevent accidental use with missing config.
+  // Missing runtime configuration is an explicit error in every environment.
   if (!supabaseUrl || !supabaseAnonKey) {
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
-      // During build, return a no-op client that will cause pages to be dynamic
-      return createServerClient(
-        'http://placeholder.invalid',
-        'placeholder-key',
-        { cookies: { getAll: () => [], setAll: () => {} } }
-      )
-    }
     throw new Error(
       'Missing SUPABASE_URL or SUPABASE_ANON_KEY. ' +
       'Set environment variables or use NEXT_PUBLIC_SUPABASE_URL / ANON_KEY.'

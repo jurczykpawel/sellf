@@ -1,4 +1,6 @@
 import 'server-only';
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
+import { getRuntimeSupabaseAnonKey, getUsableRuntimeEnv } from '@/lib/config/runtime-env';
 import { getCaptchaConfig } from '@/lib/captcha/config';
 import type { CaptchaConfig } from '@/lib/captcha/types';
 import { getTrustedDownloadProviders } from '@/lib/trustedDownloadProviders';
@@ -43,15 +45,15 @@ export function buildRuntimeConfig(): RuntimeAppConfig {
   // getting build-time inlined like the comment above describes) and only
   // affects this browser-facing value — server code keeps using
   // SUPABASE_URL directly wherever it already does.
+  const supabaseUrl = getUsableRuntimeEnv('PUBLIC_SUPABASE_URL', 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
+  const supabaseAnonKey = getRuntimeSupabaseAnonKey();
+  if (!supabaseUrl || !supabaseAnonKey) throw new Error('Runtime Supabase configuration is missing');
   return {
-    supabaseUrl:
-      process.env.PUBLIC_SUPABASE_URL ||
-      process.env.SUPABASE_URL ||
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     stripePublishableKey: getStripePublishableKey(),
     captcha: getCaptchaConfig(),
-    siteUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL!,
+    siteUrl: getPublicBaseUrl(),
     demoMode: process.env.DEMO_MODE === 'true',
     passwordLoginEnabled:
       process.env.DEMO_MODE === 'true' || process.env.E2E_MODE === 'true',

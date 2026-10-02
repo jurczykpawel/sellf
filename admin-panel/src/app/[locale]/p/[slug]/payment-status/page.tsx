@@ -1,3 +1,4 @@
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
@@ -214,7 +215,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         customerEmail: customerEmail || undefined,
         customerName,
         couponCode: otoInfo.coupon_code,
-        baseUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL,
+        baseUrl: getPublicBaseUrl(),
         hideBump: hasHideBumpParam(product.success_redirect_url),
         passParams: product.pass_params_to_redirect || false,
         sourceProductId: product.id,
@@ -278,7 +279,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       if (targetUrl) {
         const redirectResult = buildSuccessRedirectUrl({
           targetUrl,
-          baseUrl: process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL,
+          baseUrl: getPublicBaseUrl(),
           passParams: product.pass_params_to_redirect || false,
           customerEmail: customerEmail || undefined,
           productId: product.id,

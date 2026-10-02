@@ -3,6 +3,7 @@
  * Builds redirect URLs for OTO and regular success redirects after payment
  */
 
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { isSafeRedirectUrl, isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 
 // ============================================
@@ -79,7 +80,7 @@ export function buildOtoRedirectUrl(params: OtoRedirectParams): OtoRedirectResul
     otoProductSlug,
     customerEmail,
     couponCode,
-    baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+    baseUrl = getPublicBaseUrl(),
     hideBump,
     passParams,
     sourceProductId,
@@ -179,7 +180,7 @@ const FILTERED_PARAMS = ['session_id', 'success_url', 'payment_intent'];
 export function buildSuccessRedirectUrl(params: SuccessRedirectParams): SuccessRedirectResult {
   const {
     targetUrl,
-    baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+    baseUrl = getPublicBaseUrl(),
     passParams = false,
     customerEmail,
     productId,
@@ -240,7 +241,7 @@ export function buildSuccessRedirectUrl(params: SuccessRedirectParams): SuccessR
     // Fallback: use isSafeRedirectUrl for consistent validation across the app
     console.error('Error parsing redirect URL:', targetUrl);
     return {
-      url: isSafeRedirectUrl(targetUrl) ? targetUrl : '/',
+      url: isSafeRedirectUrl(targetUrl, baseUrl) ? targetUrl : '/',
       hasHideBump
     };
   }
@@ -276,7 +277,7 @@ export function buildDownsellRedirectUrl(params: DownsellRedirectParams): string
     downsellCouponCode,
     customerEmail,
     customerName,
-    baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+    baseUrl = getPublicBaseUrl(),
   } = params;
 
   const url = new URL(`/${locale}/checkout/${downsellProductSlug}`, baseUrl);

@@ -37,6 +37,17 @@ export interface SendTrustedMagicLinkInput {
  * standing between that and inbox flooding.
  */
 export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Promise<MagicLinkResult> {
+  // Templates append &token_hash: require our absolute, same-instance callback
+  // with a query before asking Supabase to deliver it. The operator must also
+  // allow SITE_URL/auth/callback in Supabase Auth's redirect URL configuration.
+  try {
+    const redirect = new URL(input.redirectTo);
+    if (redirect.origin !== getSellfBaseUrl() || redirect.pathname !== '/auth/callback' || !redirect.search) {
+      return { ok: false, code: 'invalid_request' };
+    }
+  } catch {
+    return { ok: false, code: 'invalid_request' };
+  }
   const normalizedEmail = input.email.trim().toLowerCase();
 
   const emailAllowed = await checkRateLimitForIdentifier(

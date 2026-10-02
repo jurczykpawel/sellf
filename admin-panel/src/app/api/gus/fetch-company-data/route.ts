@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { validateNIPChecksum, normalizeNIP } from '@/lib/validation/nip';
 import { GUSAPIClient } from '@/lib/services/gus-api-client';
 import { getDecryptedGUSAPIKeyInternal } from '@/lib/integrations/internal-secrets';
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Origin on POST, so a missing header is a clear sign of a non-browser
     // caller bypassing CORS controls.
     const origin = request.headers.get('origin');
-    const siteUrl = process.env.SITE_URL;
+    const siteUrl = getCanonicalOriginOrNull();
     if (!siteUrl) {
       return NextResponse.json(
         { success: false, error: 'Server configuration error', code: 'CONFIG_MISSING' },
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
  */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
-  const siteUrl = process.env.SITE_URL;
+  const siteUrl = getCanonicalOriginOrNull();
 
   if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
     return new NextResponse(null, {

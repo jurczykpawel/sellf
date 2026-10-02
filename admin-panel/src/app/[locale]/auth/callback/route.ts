@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Session, AuthError } from '@supabase/supabase-js'
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { DisposableEmailService } from '@/lib/services/disposable-email'
 import { isSafeRedirectUrl } from '@/lib/validations/redirect'
 import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
@@ -28,17 +29,15 @@ export async function GET(request: NextRequest) {
   const tokenHash = requestUrl.searchParams.get('token_hash')
   const type = parseOtpType(requestUrl.searchParams.get('type'))
   
-  // SITE_URL is the only trusted source for the canonical origin used to
-  // build redirect URLs from this callback. Host/x-forwarded-* headers are
-  // attacker-controlled in a reverse-proxy setup that doesn't strip them.
-  if (!process.env.SITE_URL) {
+  // Resolve a configured origin, never attacker-controlled Host headers.
+  const origin = getCanonicalOriginOrNull();
+  if (!origin) {
     console.error('[auth/callback] SITE_URL is not configured')
     return NextResponse.json(
       { error: 'Server configuration error' },
       { status: 500 },
     )
   }
-  const origin = process.env.SITE_URL
 
   // Upstream error from Supabase verify or OAuth provider.
   // Distinguish magic link expiry (common UX pitfall: clicking link in different browser)

@@ -5,6 +5,7 @@ import { locales, defaultLocale } from './lib/locales'
 import { buildSupabaseCookieOptions } from './lib/supabase/cookie-options'
 import { buildContentSecurityPolicyWithNonce } from './lib/security/headers'
 import { DEMO_MODE_API_ERROR } from './lib/demo-guard'
+import { getRuntimeSupabaseUrl, getRuntimeSupabaseAnonKey } from '@/lib/config/runtime-env';
 
 /**
  * Header name used to forward the per-request CSP nonce from middleware
@@ -126,8 +127,8 @@ async function fetchAnalyticsCspOrigins(): Promise<{ connect: string[]; frame: s
     // reading it first pointed this fetch at the placeholder and silently failed —
     // which is why the origin never reached the CSP. `SUPABASE_URL` is a non-public
     // var read from the runtime environment, so it carries the real project URL.
-    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const supabaseUrl = getRuntimeSupabaseUrl()
+    const anonKey = getRuntimeSupabaseAnonKey()
     if (supabaseUrl && anonKey) {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/rpc/get_public_integrations_config`,
@@ -263,6 +264,8 @@ export async function proxy(request: NextRequest) {
   // Skip proxy processing for API routes, static files, and payment success page
   if (
     pathname.startsWith('/api') ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/robots.txt' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/payment') ||
     pathname.startsWith('/test-pages') ||

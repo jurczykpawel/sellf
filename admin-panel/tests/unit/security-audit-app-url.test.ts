@@ -13,15 +13,15 @@ const layoutSource = readFileSync(
 );
 
 describe('security-audit app-url check', () => {
-  it('reads the same env var that layout.tsx uses for metadataBase', () => {
+  it('uses the same runtime resolver as layout metadata', () => {
     // layout.tsx is the source of truth for OG meta tags via metadataBase.
-    expect(layoutSource).toContain('metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL');
+    expect(layoutSource).toContain('metadataBase: new URL(getPublicBaseUrl())');
     // The audit must check the same variable, not the unrelated NEXT_PUBLIC_APP_URL.
     const checkAppUrlBlock = auditSource.slice(
       auditSource.indexOf('async function checkAppUrl'),
       auditSource.indexOf('// ===== Environment Variable Checks =====')
     );
-    expect(checkAppUrlBlock).toContain('NEXT_PUBLIC_SITE_URL');
+    expect(checkAppUrlBlock).toContain('getCanonicalOriginOrNull()');
     expect(checkAppUrlBlock).not.toContain('NEXT_PUBLIC_APP_URL');
   });
 

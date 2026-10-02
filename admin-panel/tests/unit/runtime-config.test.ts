@@ -80,6 +80,9 @@ describe('buildRuntimeConfig — server-only var wins over NEXT_PUBLIC_* (build-
       savedUrls[key] = process.env[key];
       delete process.env[key];
     }
+    process.env.SUPABASE_URL = 'https://api.example.com';
+    process.env.SUPABASE_ANON_KEY = 'runtime-test-key';
+    process.env.SITE_URL = 'https://shop.example.com';
   });
 
   afterEach(() => {
@@ -106,6 +109,7 @@ describe('buildRuntimeConfig — server-only var wins over NEXT_PUBLIC_* (build-
   });
 
   it('falls back to NEXT_PUBLIC_SUPABASE_URL when SUPABASE_URL is not set', () => {
+    delete process.env.SUPABASE_URL;
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://api.example.com';
 
     expect(buildRuntimeConfig().supabaseUrl).toBe('https://api.example.com');

@@ -227,3 +227,17 @@ describe('sendTrustedMagicLink', () => {
     expect(deliverMagicLink).toHaveBeenCalledTimes(5);
   });
 });
+
+
+describe('trusted magic link callback gate', () => {
+  it.each([
+    'https://evil.example/auth/callback?flow=login',
+    'https://shop.example.com/auth/callback',
+    'https://shop.example.com/other?flow=login',
+    '/auth/callback?flow=login',
+  ])('rejects malformed or foreign redirect %s before delivery', async redirectTo => {
+    deliverMagicLink.mockClear();
+    expect(await sendTrustedMagicLink({ email: 'buyer@example.com', redirectTo })).toEqual({ ok: false, code: 'invalid_request' });
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+  });
+});

@@ -63,10 +63,10 @@ interface CspBuildOptions {
  * getting build-time inlined.
  */
 function resolveSupabaseConnectOrigins(): { http: string; ws: string } | null {
-  const configuredUrl =
-    process.env.PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // This module is imported by next.config.ts too; keep it dependency-free.
+  const configuredUrl = ['PUBLIC_SUPABASE_URL', 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL']
+    .map(name => process.env[name])
+    .find(value => value && !/placeholder[.]supabase[.]co/i.test(value));
   if (!configuredUrl) return null;
 
   try {

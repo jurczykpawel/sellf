@@ -25,6 +25,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getCanonicalOriginOrNull, getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminApi } from '@/lib/auth-server';
@@ -107,10 +108,7 @@ export async function POST(request: NextRequest) {
     // Derive website domain from env — normalize to bare hostname (no protocol/port/path)
     // so legal-engine receives e.g. "shop.pl" not "https://shop.pl" or "http://localhost:3777"
     const websiteDomain = normalizeWebsiteDomain(
-      process.env.MAIN_DOMAIN ||
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      '',
+      getPublicBaseUrl(),
     );
 
     // 3) Derive legal config from shop data
@@ -189,7 +187,7 @@ export async function POST(request: NextRequest) {
  */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
-  const siteUrl = process.env.SITE_URL;
+  const siteUrl = getCanonicalOriginOrNull();
 
   if (!siteUrl || !isAllowedOrigin(origin, [siteUrl])) {
     return new NextResponse(null, {

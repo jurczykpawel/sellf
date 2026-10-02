@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import type { createAdminClient } from '@/lib/supabase/admin';
 
@@ -225,12 +226,7 @@ export function parseEmbedFreeAccessBody(body: unknown): ParseResult<EmbedFreeAc
 }
 
 export function getSellfBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.SITE_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    'http://localhost:3000'
-  ).replace(/\/+$/, '');
+  return getPublicBaseUrl();
 }
 
 export function buildEmbedReturnUrl(productSlug: string): string {

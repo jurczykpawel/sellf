@@ -12,6 +12,7 @@
 
 import { revalidateTag } from 'next/cache';
 import type Stripe from 'stripe';
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
@@ -250,7 +251,7 @@ export async function handleCheckoutSessionCompleted(
 
     // Server-side Purchase tracking via Facebook CAPI
     // Uses deterministic event_id for dedup with client-side (PaymentStatusView)
-    const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+    const baseUrl = getPublicBaseUrl();
     const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
     revalidatePurchaseTags(productSlug);
     const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';
@@ -468,7 +469,7 @@ export async function handlePaymentIntentSucceeded(
     if (licenses.length) webhookData.licenses = licenses;
 
     // Server-side Purchase tracking via Facebook CAPI
-    const baseUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || '';
+    const baseUrl = getPublicBaseUrl();
     const productSlug = 'slug' in webhookData.product ? webhookData.product.slug : null;
     revalidatePurchaseTags(productSlug);
     const productName = 'name' in webhookData.product ? webhookData.product.name : 'Unknown Product';

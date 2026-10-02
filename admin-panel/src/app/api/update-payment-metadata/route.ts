@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Use SITE_URL (server-side runtime env) — NEXT_PUBLIC_SITE_URL is baked at build time
     const allowedOrigins = [
-      process.env.SITE_URL,
+      getCanonicalOriginOrNull(),
     ].filter(Boolean);
 
     // Reject if no allowed origins configured — empty SITE_URL means origin check is meaningless

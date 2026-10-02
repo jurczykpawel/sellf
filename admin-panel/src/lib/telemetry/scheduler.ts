@@ -10,6 +10,7 @@
  * @see ./config.ts — isTelemetryEnabled / isNonDeploymentHost
  * @see ./constants.ts — BOOT_DELAY_MS / POLL_INTERVAL_MS
  */
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { BOOT_DELAY_MS, POLL_INTERVAL_MS } from './constants';
 import { isNonDeploymentHost, isTelemetryEnabled } from './config';
 import { runTelemetryCycle } from './send';
@@ -19,7 +20,7 @@ let initialTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Resolve the deployment hostname from the configured public/base URL env vars. */
 function hostFromEnv(): string {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.MAIN_DOMAIN || '';
+  const raw = getCanonicalOriginOrNull() || '';
   try {
     return raw ? new URL(raw.includes('://') ? raw : `https://${raw}`).hostname : '';
   } catch {

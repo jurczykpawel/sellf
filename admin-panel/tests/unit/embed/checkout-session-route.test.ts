@@ -101,7 +101,7 @@ function makeRequest(body: unknown, origin?: string): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.NEXT_PUBLIC_BASE_URL = 'https://sellf.example.com';
+  process.env.SITE_URL = 'https://sellf.example.com';
   delete process.env.SELLF_EMBED_ALLOWED_ORIGINS;
   delete process.env.NEXT_PUBLIC_TURNSTILE_TEST_MODE;
   delete process.env.CLOUDFLARE_TURNSTILE_SITE_KEY;

@@ -1,9 +1,10 @@
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { SELLF_GITHUB_URL } from '@/lib/constants';
 import packageJson from '../../../../package.json';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://sellf.app';
 
 export function buildLandingJsonLd(locale: string) {
+  const SITE_URL = getPublicBaseUrl();
   return [
     {
       '@context': 'https://schema.org',

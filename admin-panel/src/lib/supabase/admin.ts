@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { getRuntimeSupabaseUrl } from '@/lib/config/runtime-env';
 import { Database } from '@/types/database'
 
 // Module-level env vars — read once, reused by all client factories
@@ -6,7 +7,7 @@ function getSupabaseEnv() {
   // Vercel's Supabase integration sets NEXT_PUBLIC_SUPABASE_URL; accept it as
   // a fallback so the integration works without manual env duplication.
   // SERVICE_ROLE_KEY has no public counterpart — same name everywhere.
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = getRuntimeSupabaseUrl()
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url) throw new Error('SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) is not defined')
   if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not defined')

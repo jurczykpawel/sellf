@@ -78,9 +78,9 @@ describe('OTO Redirect URL Builder', () => {
 
     it('should use default baseUrl when not provided', () => {
       // Isolate from .env.local so the literal fallback is what we actually test.
-      const prev = { SITE_URL: process.env.SITE_URL, NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL };
-      delete process.env.SITE_URL;
-      delete process.env.NEXT_PUBLIC_BASE_URL;
+      const keys = ['SITE_URL', 'MAIN_DOMAIN', 'NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_APP_URL'];
+      const prev = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+      for (const key of keys) delete process.env[key];
       try {
         const result = buildOtoRedirectUrl({
           locale: 'pl',
@@ -90,8 +90,10 @@ describe('OTO Redirect URL Builder', () => {
         });
         expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
       } finally {
-        if (prev.SITE_URL !== undefined) process.env.SITE_URL = prev.SITE_URL;
-        if (prev.NEXT_PUBLIC_BASE_URL !== undefined) process.env.NEXT_PUBLIC_BASE_URL = prev.NEXT_PUBLIC_BASE_URL;
+        for (const key of keys) {
+          if (prev[key] !== undefined) process.env[key] = prev[key];
+          else delete process.env[key];
+        }
       }
     });
 
@@ -439,9 +441,9 @@ describe('Success Redirect URL Builder', () => {
 
     it('should use default baseUrl when not provided', () => {
       // Isolate from .env.local so the literal fallback is what we actually test.
-      const prev = { SITE_URL: process.env.SITE_URL, NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL };
-      delete process.env.SITE_URL;
-      delete process.env.NEXT_PUBLIC_BASE_URL;
+      const keys = ['SITE_URL', 'MAIN_DOMAIN', 'NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_APP_URL'];
+      const prev = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+      for (const key of keys) delete process.env[key];
       try {
         const result = buildSuccessRedirectUrl({
           targetUrl: '/success',
@@ -449,8 +451,10 @@ describe('Success Redirect URL Builder', () => {
         });
         expect(result.url.startsWith('http://localhost:3000/')).toBe(true);
       } finally {
-        if (prev.SITE_URL !== undefined) process.env.SITE_URL = prev.SITE_URL;
-        if (prev.NEXT_PUBLIC_BASE_URL !== undefined) process.env.NEXT_PUBLIC_BASE_URL = prev.NEXT_PUBLIC_BASE_URL;
+        for (const key of keys) {
+          if (prev[key] !== undefined) process.env[key] = prev[key];
+          else delete process.env[key];
+        }
       }
     });
 

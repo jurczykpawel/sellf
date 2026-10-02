@@ -19,8 +19,8 @@ import { FAQSection } from './components/FAQSection';
 import { FinalCTA } from './components/FinalCTA';
 import { LandingFooter } from './components/LandingFooter';
 import { buildLandingJsonLd } from './jsonld';
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://sellf.app';
 
 export async function generateMetadata({
   params,
@@ -31,6 +31,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: 'landing' });
   const title = `Sellf — ${t('hero.headlineTop')} ${t('hero.headlineBottom')}`;
   const description = t('hero.metaDescription');
+  const SITE_URL = getPublicBaseUrl();
   const ogImage = `${SITE_URL}/api/og/about?locale=${locale}`;
 
   return {

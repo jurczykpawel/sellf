@@ -6,7 +6,7 @@ function makeRequest(origin: string): NextRequest {
   return { nextUrl: new URL(origin) } as NextRequest;
 }
 
-const ENV_KEYS_TO_RESET = ['SITE_URL', 'NEXT_PUBLIC_SITE_URL', 'MAIN_DOMAIN'] as const;
+const ENV_KEYS_TO_RESET = ['SITE_URL', 'NEXT_PUBLIC_SITE_URL', 'NEXT_PUBLIC_BASE_URL', 'NEXT_PUBLIC_APP_URL', 'MAIN_DOMAIN'] as const;
 
 describe('getCanonicalOrigin', () => {
   const saved: Record<string, string | undefined> = {};

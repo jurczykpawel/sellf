@@ -4,6 +4,7 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getTranslations, getLocale } from 'next-intl/server';
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
 import { paymentStatusUrl, productUrl } from '@/lib/utils/product-urls';
 
@@ -50,7 +51,7 @@ async function PaymentSuccessContent({ searchParams }: PaymentSuccessPageProps) 
     if (!resolvedSlug && productId && /^[0-9a-f-]{36}$/i.test(productId)) {
       try {
         const response = await fetch(
-          `${process.env.SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/products/${productId}`,
+          `${getPublicBaseUrl()}/api/products/${productId}`,
           { signal: AbortSignal.timeout(5000) }
         );
         const data = await response.json();

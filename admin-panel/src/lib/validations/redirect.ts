@@ -1,3 +1,5 @@
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
+
 /**
  * Validate that a redirect URL is safe (relative path or same-origin).
  * Prevents open redirect attacks via success_url / return_url parameters.
@@ -17,10 +19,7 @@ export function isSafeRedirectUrl(url: string, siteUrl?: string): boolean {
   }
 
   // For absolute URLs, validate against site origin
-  const effectiveSiteUrl = siteUrl
-    || process.env.NEXT_PUBLIC_SITE_URL
-    || process.env.SITE_URL
-    || process.env.NEXT_PUBLIC_APP_URL;
+  const effectiveSiteUrl = siteUrl || getCanonicalOriginOrNull();
 
   if (!effectiveSiteUrl) {
     // No site URL configured — only allow relative paths

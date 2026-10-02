@@ -97,6 +97,9 @@ describe('API Middleware', () => {
 
     it('should omit Access-Control-Allow-Origin if no site URL configured and origin not allowed', () => {
       delete process.env.NEXT_PUBLIC_SITE_URL;
+      delete process.env.NEXT_PUBLIC_BASE_URL;
+      delete process.env.NEXT_PUBLIC_APP_URL;
+      delete process.env.MAIN_DOMAIN;
       delete process.env.SITE_URL;
 
       const headers = getApiCorsHeaders('https://unknown.com');

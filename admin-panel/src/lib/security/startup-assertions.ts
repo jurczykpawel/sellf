@@ -1,3 +1,4 @@
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { DEFAULT_ECB_BASE_URL } from '@/lib/services/currencyService';
 
 export function assertTrustedProxyConfig(): void {
@@ -126,9 +127,17 @@ export function assertCurrencyProviderBaseUrl(): void {
   );
 }
 
+export function assertPublicBaseUrl(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (!getCanonicalOriginOrNull()) {
+    throw new Error('Refusing to start: no usable public base URL. Configure SITE_URL at runtime.');
+  }
+}
+
 /** Run every production startup gate in one call. */
 export function assertProductionStartupConfig(): void {
   assertNodeEnvIsSet();
+  assertPublicBaseUrl();
   assertTrustedProxyConfig();
   assertNonProductionFlagsOff();
   assertCheckoutBindingSecret();

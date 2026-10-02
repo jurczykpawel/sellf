@@ -48,7 +48,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
   const tCompliance = useTranslations('compliance');
   const locale = useLocale();
   const { user, isAdmin } = useAuth();
-  const { oauthProviders } = useConfig();
+  const { oauthProviders, siteUrl } = useConfig();
   const router = useRouter();
   const searchParams = useSearchParams();
   const successUrl = searchParams.get('success_url');
@@ -158,6 +158,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         if (data.otoInfo?.has_oto && data.otoInfo.oto_product_slug) {
           const { url: otoUrl } = buildOtoRedirectUrl({
             locale,
+            baseUrl: siteUrl,
             otoProductSlug: data.otoInfo.oto_product_slug,
             customerEmail: user.email || undefined,
             couponCode: data.otoInfo.coupon_code,

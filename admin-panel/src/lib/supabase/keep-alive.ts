@@ -6,6 +6,7 @@
  * Self-contained: opt-out with `SUPABASE_KEEP_ALIVE=false`, skipped outside
  * production, no impact on cold-start latency (initial ping deferred 30s).
  */
+import { getRuntimeSupabaseUrl } from '@/lib/config/runtime-env';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -49,7 +50,7 @@ export function startKeepAlive(): boolean {
   if (process.env.NODE_ENV !== 'production') return false;
   if (process.env.SUPABASE_KEEP_ALIVE === 'false') return false;
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
-  if (!process.env.SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL) return false;
+  if (!getRuntimeSupabaseUrl()) return false;
 
   initialTimer = setTimeout(() => {
     void ping();

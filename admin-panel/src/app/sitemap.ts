@@ -1,8 +1,10 @@
 import type { MetadataRoute } from 'next';
+import { getPublicBaseUrl } from '@/lib/utils/canonical-url';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://sellf.app';
+export const dynamic = 'force-dynamic';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const SITE_URL = getPublicBaseUrl();
   const now = new Date();
   return [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'monthly', priority: 1 },

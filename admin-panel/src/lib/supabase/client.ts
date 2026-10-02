@@ -53,6 +53,9 @@ async function getRuntimeConfig(): Promise<RuntimeConfig> {
       })
       if (response.ok) {
         const config = await response.json()
+        if (!config.supabaseUrl || !config.supabaseAnonKey) {
+          throw new Error('Runtime authentication configuration is incomplete');
+        }
         cachedConfig = config
         return config
       }
@@ -60,17 +63,11 @@ async function getRuntimeConfig(): Promise<RuntimeConfig> {
       console.error('Failed to load runtime config:', error)
     }
 
-    // Fallback to environment variables (if any exist)
-    const fallbackConfig = {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
-      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'demo-key',
-      stripePublishableKey: '',
-      siteUrl: 'http://localhost:3000',
-      demoMode: false,
-    }
-    cachedConfig = fallbackConfig
-    return fallbackConfig
-  })()
+    throw new Error('Runtime configuration unavailable. Cannot initialize authentication.');
+  })().catch(error => {
+    configPromise = null;
+    throw error;
+  })
 
   return configPromise
 }
@@ -86,6 +83,9 @@ export function createClient() {
   if (!clientPromise) {
     clientPromise = getRuntimeConfig().then(config => {
       return createBrowserClient(config.supabaseUrl, config.supabaseAnonKey)
+    }).catch(error => {
+      clientPromise = null;
+      throw error;
     })
   }
   return clientPromise
